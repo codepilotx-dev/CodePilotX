@@ -34,23 +34,20 @@ export function resolveCommandMenuShortcut(
   },
 ): CommandMenuShortcut | null {
   if (
-    event.defaultPrevented
-    || event.repeat
-    || event.isComposing
-    || event.keyCode === 229
-    || !event.ctrlKey
-    || event.metaKey
-    || event.altKey
-    || hasOtherDialogOpen
+    event.defaultPrevented ||
+    event.repeat ||
+    event.isComposing ||
+    event.keyCode === 229 ||
+    !event.ctrlKey ||
+    event.metaKey ||
+    event.altKey ||
+    hasOtherDialogOpen
   ) {
     return null
   }
 
   const key = event.key.toLowerCase()
-  if (
-    (!event.shiftKey && key === 'k')
-    || (event.shiftKey && key === 'p')
-  ) {
+  if ((!event.shiftKey && key === 'k') || (event.shiftKey && key === 'p')) {
     return { type: menuOpen ? 'focus-query' : 'open-menu' }
   }
 
@@ -63,7 +60,5 @@ export function resolveCommandMenuShortcut(
 
   if (!menuOpen || !/^[1-9]$/.test(key)) return null
   const index = Number(key) - 1
-  return index < taskCount
-    ? { type: 'select-task', index }
-    : null
+  return index < taskCount ? { type: 'select-task', index } : null
 }

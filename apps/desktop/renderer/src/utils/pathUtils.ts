@@ -3,7 +3,7 @@
  * Converts backslashes to forward slashes, strips trailing slashes, and converts to lowercase.
  */
 export function normalizePathForComparison(path: string): string {
-  return path.replace(/\\/gu, "/").replace(/\/+$/u, "").toLowerCase()
+  return path.replace(/\\/gu, '/').replace(/\/+$/u, '').toLowerCase()
 }
 
 /**

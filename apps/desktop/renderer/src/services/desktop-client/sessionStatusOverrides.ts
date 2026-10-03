@@ -25,10 +25,8 @@ const ACTIVE_SESSION_STATUSES: ReadonlySet<DesktopSessionStatus> = new Set([
 ])
 
 /** Whether any row still claims work is in flight, i.e. worth reconciling. */
-export function hasNonTerminalSessionStatus(
-  sessions: readonly SessionStatusCarrier[],
-): boolean {
-  return sessions.some(session => ACTIVE_SESSION_STATUSES.has(session.status))
+export function hasNonTerminalSessionStatus(sessions: readonly SessionStatusCarrier[]): boolean {
+  return sessions.some((session) => ACTIVE_SESSION_STATUSES.has(session.status))
 }
 
 /**

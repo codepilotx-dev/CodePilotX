@@ -17,9 +17,7 @@ export type TaskNotificationSendRequest = {
   visibility: DesktopNotificationVisibility
 }
 
-export type TaskNotificationSender = (
-  request: TaskNotificationSendRequest,
-) => void
+export type TaskNotificationSender = (request: TaskNotificationSendRequest) => void
 
 // 应对 SSE 在 ACK 前断线后的重放：Renderer 保留最近 500 个已发送 ID，
 // Electron 服务再做同容量的进程级防重复。
@@ -57,7 +55,10 @@ export class TaskNotificationDispatcher {
     if (previous === threadId) return
     if (previous) this.releaseAutomationRun(runId)
     this.#automationThreadsByRun.set(runId, threadId)
-    this.#automationThreadCounts.set(threadId, (this.#automationThreadCounts.get(threadId) ?? 0) + 1)
+    this.#automationThreadCounts.set(
+      threadId,
+      (this.#automationThreadCounts.get(threadId) ?? 0) + 1,
+    )
   }
 
   releaseAutomationRun(runId: string): void {
@@ -70,10 +71,7 @@ export class TaskNotificationDispatcher {
   }
 
   // 基线批次只登记状态不发送；之后的批次才产生通知。
-  ingest(
-    snapshots: readonly DesktopSessionSnapshot[],
-    isBaseline: boolean,
-  ): void {
+  ingest(snapshots: readonly DesktopSessionSnapshot[], isBaseline: boolean): void {
     const candidates = projectTaskNotifications({
       previous: this.#previous,
       current: snapshots,
@@ -81,9 +79,9 @@ export class TaskNotificationDispatcher {
     if (!isBaseline) {
       for (const candidate of candidates) {
         if (
-          (candidate.kind === 'permission' || candidate.kind === 'question')
-          && candidate.requestId
-          && this.#observedRequestIds.has(candidate.requestId)
+          (candidate.kind === 'permission' || candidate.kind === 'question') &&
+          candidate.requestId &&
+          this.#observedRequestIds.has(candidate.requestId)
         ) {
           continue
         }
@@ -102,7 +100,11 @@ export class TaskNotificationDispatcher {
   }
 
   #emit(candidate: TaskNotificationCandidate): boolean {
-    if ((candidate.kind === 'completed' || candidate.kind === 'failed') && this.#automationThreadCounts.has(candidate.threadId)) return false
+    if (
+      (candidate.kind === 'completed' || candidate.kind === 'failed') &&
+      this.#automationThreadCounts.has(candidate.threadId)
+    )
+      return false
     const settings = this.#settings
     if (!settings) return false
     let visibility: DesktopNotificationVisibility | null = null
@@ -117,9 +119,7 @@ export class TaskNotificationDispatcher {
       visibility = 'unfocused'
     } else {
       if (settings.completion === 'never') return false
-      visibility = settings.completion === 'always'
-        ? 'always'
-        : 'unfocused'
+      visibility = settings.completion === 'always' ? 'always' : 'unfocused'
     }
     this.#send({
       notificationId: candidate.id,
@@ -127,9 +127,10 @@ export class TaskNotificationDispatcher {
       kind: candidate.kind,
       // 失败通知正文固定为“任务标题 · 需要检查”，不直接显示错误文本；
       // 截断标题保证总长不超过 IPC 的 200 字符上限。
-      body: candidate.kind === 'failed'
-        ? failedNotificationBody(candidate.taskTitle)
-        : candidate.taskTitle,
+      body:
+        candidate.kind === 'failed'
+          ? failedNotificationBody(candidate.taskTitle)
+          : candidate.taskTitle,
       visibility,
     })
     return true

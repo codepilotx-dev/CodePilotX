@@ -1,10 +1,10 @@
-import { open } from "node:fs/promises"
+import { open } from 'node:fs/promises'
 
 const PE_SIGNATURE = 0x00004550
 const X64_MACHINE = 0x8664
 
 export async function assertWindowsX64PE(path: string): Promise<void> {
-  const file = await open(path, "r")
+  const file = await open(path, 'r')
   try {
     const dosHeader = Buffer.alloc(64)
     const dosRead = await file.read(dosHeader, 0, dosHeader.length, 0)

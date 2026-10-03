@@ -1,18 +1,18 @@
-import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../wire/definition"
+import { Schema } from 'effect'
+import { defineMethod, type MethodMap } from '../wire/definition'
 import {
   NonEmptyStringSchema,
   OkResultSchema,
   OpaqueIDSchema,
   SequenceSchema,
-} from "../wire/primitives"
+} from '../wire/primitives'
 const TerminalDataSchema = Schema.String.check(Schema.isMaxLength(262_144))
 const TerminalErrors = [
-  "THREAD_NOT_FOUND",
-  "PERMISSION_DENIED",
-  "TERMINAL_OUTPUT_INVALID",
-  "TERMINAL_OUTPUT_TOO_LARGE",
-  "INTERNAL_ERROR",
+  'THREAD_NOT_FOUND',
+  'PERMISSION_DENIED',
+  'TERMINAL_OUTPUT_INVALID',
+  'TERMINAL_OUTPUT_TOO_LARGE',
+  'INTERNAL_ERROR',
 ] as const
 
 export const TerminalHostContextParamsSchema = Schema.Struct({
@@ -23,9 +23,9 @@ export const TerminalHostContextResultSchema = Schema.Struct({
   threadId: OpaqueIDSchema,
   bindingId: OpaqueIDSchema,
   contextVersion: NonEmptyStringSchema,
-  workspaceKind: Schema.Literals(["project", "projectless"]),
+  workspaceKind: Schema.Literals(['project', 'projectless']),
   target: Schema.Struct({
-    kind: Schema.Literals(["local", "worktree"]),
+    kind: Schema.Literals(['local', 'worktree']),
     cwd: NonEmptyStringSchema,
   }),
 })
@@ -44,7 +44,7 @@ export const TerminalOutputResetParamsSchema = Schema.Struct({
   oldestSequence: SequenceSchema,
   nextSequence: SequenceSchema,
   chunks: Schema.Array(TerminalOutputChunkSchema).check(Schema.isMaxLength(4_096)),
-  state: Schema.Literals(["starting", "running", "closing", "exited", "failed"]),
+  state: Schema.Literals(['starting', 'running', 'closing', 'exited', 'failed']),
   exitCode: Schema.NullOr(Schema.Int),
 })
 
@@ -67,38 +67,38 @@ export type TerminalOutputAppendParams = typeof TerminalOutputAppendParamsSchema
 export type TerminalOutputClearParams = typeof TerminalOutputClearParamsSchema.Type
 
 export const TerminalRpcMethods = {
-  "terminal/host/context": defineMethod({
+  'terminal/host/context': defineMethod({
     params: TerminalHostContextParamsSchema,
     result: TerminalHostContextResultSchema,
     errors: TerminalErrors,
-    capability: "terminal.host.v1",
+    capability: 'terminal.host.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "terminal/host/output/reset": defineMethod({
+  'terminal/host/output/reset': defineMethod({
     params: TerminalOutputResetParamsSchema,
     result: OkResultSchema,
     errors: TerminalErrors,
-    capability: "terminal.host.v1",
+    capability: 'terminal.host.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "terminal/host/output/append": defineMethod({
+  'terminal/host/output/append': defineMethod({
     params: TerminalOutputAppendParamsSchema,
     result: OkResultSchema,
     errors: TerminalErrors,
-    capability: "terminal.host.v1",
+    capability: 'terminal.host.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "terminal/host/output/clear": defineMethod({
+  'terminal/host/output/clear': defineMethod({
     params: TerminalOutputClearParamsSchema,
     result: OkResultSchema,
     errors: TerminalErrors,
-    capability: "terminal.host.v1",
+    capability: 'terminal.host.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,

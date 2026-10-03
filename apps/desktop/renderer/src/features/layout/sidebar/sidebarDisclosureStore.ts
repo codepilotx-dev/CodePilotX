@@ -36,11 +36,11 @@ export function createSidebarDisclosureStore(
   const knownProjectAliases = new Set<string>()
 
   const expandedKeys = (): string[] => [
-    ...SIDEBAR_SECTIONS
-      .filter(section => !external.collapsedSidebarSections.includes(section))
-      .map(sidebarSectionDisclosureKey),
+    ...SIDEBAR_SECTIONS.filter(
+      (section) => !external.collapsedSidebarSections.includes(section),
+    ).map(sidebarSectionDisclosureKey),
     ...projects
-      .filter(project => !isProjectCollapsed(project, external.collapsedSidebarProjectPaths))
+      .filter((project) => !isProjectCollapsed(project, external.collapsedSidebarProjectPaths))
       .map(sidebarProjectDisclosureKey),
   ]
 
@@ -49,16 +49,16 @@ export function createSidebarDisclosureStore(
     persist: (keys) => {
       const expanded = new Set(keys)
       const unknownCollapsed = external.collapsedSidebarProjectPaths.filter(
-        key => !knownProjectAliases.has(key),
+        (key) => !knownProjectAliases.has(key),
       )
       persist({
         collapsedSidebarSections: SIDEBAR_SECTIONS.filter(
-          section => !expanded.has(sidebarSectionDisclosureKey(section)),
+          (section) => !expanded.has(sidebarSectionDisclosureKey(section)),
         ),
         collapsedSidebarProjectPaths: [
           ...unknownCollapsed,
           ...projects
-            .filter(project => !expanded.has(sidebarProjectDisclosureKey(project)))
+            .filter((project) => !expanded.has(sidebarProjectDisclosureKey(project)))
             .map(sidebarProjectKey),
         ],
       })

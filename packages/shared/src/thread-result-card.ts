@@ -13,7 +13,7 @@
  * entry so a JSON projection never pulls the Effect runtime into a UI bundle.
  */
 
-export const RESULT_CARD_ENVELOPE_KIND = "codepilotx.result-card"
+export const RESULT_CARD_ENVELOPE_KIND = 'codepilotx.result-card'
 export const RESULT_CARD_ENVELOPE_VERSION = 1
 
 /** Titles are bounded tighter than free text to keep card headers single-line. */
@@ -25,22 +25,22 @@ export const RESULT_CARD_MAX_SECTIONS = 20
 export const RESULT_CARD_MAX_ITEMS = 20
 export const RESULT_CARD_MAX_REFERENCES = 20
 
-export type ResultCardTone = "neutral" | "success" | "warning" | "danger"
+export type ResultCardTone = 'neutral' | 'success' | 'warning' | 'danger'
 
 export const RESULT_CARD_TONES: readonly ResultCardTone[] = [
-  "neutral",
-  "success",
-  "warning",
-  "danger",
+  'neutral',
+  'success',
+  'warning',
+  'danger',
 ]
 
-export type ResultCardReferenceKind = "file" | "url" | "thread" | "subagent"
+export type ResultCardReferenceKind = 'file' | 'url' | 'thread' | 'subagent'
 
 export const RESULT_CARD_REFERENCE_KINDS: readonly ResultCardReferenceKind[] = [
-  "file",
-  "url",
-  "thread",
-  "subagent",
+  'file',
+  'url',
+  'thread',
+  'subagent',
 ]
 
 export type ResultCardItem = {
@@ -75,28 +75,28 @@ export type ResultCardEnvelope = {
 }
 
 const record = (value: unknown): Record<string, unknown> | null =>
-  value !== null && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
     : null
 
 /** Trimmed, non-empty, length-clamped text; `null` when nothing usable remains. */
 const requiredText = (value: unknown, maxLength: number): string | null => {
-  if (typeof value !== "string") return null
+  if (typeof value !== 'string') return null
   const trimmed = value.trim()
   if (!trimmed) return null
   return trimmed.length > maxLength ? trimmed.slice(0, maxLength) : trimmed
 }
 
 const optionalText = (value: unknown, maxLength: number): string | undefined => {
-  if (typeof value !== "string") return undefined
+  if (typeof value !== 'string') return undefined
   const trimmed = value.trim()
   if (!trimmed) return undefined
   return trimmed.length > maxLength ? trimmed.slice(0, maxLength) : trimmed
 }
 
 const decodeTone = (value: unknown): ResultCardTone | null =>
-  typeof value === "string" && (RESULT_CARD_TONES as readonly string[]).includes(value)
-    ? value as ResultCardTone
+  typeof value === 'string' && (RESULT_CARD_TONES as readonly string[]).includes(value)
+    ? (value as ResultCardTone)
     : null
 
 const decodeItem = (value: unknown): ResultCardItem | null => {
@@ -132,10 +132,11 @@ const decodeSection = (value: unknown): ResultCardSection | null => {
 const decodeReference = (value: unknown): ResultCardReference | null => {
   const source = record(value)
   if (!source) return null
-  const kind = typeof source.kind === "string"
-    && (RESULT_CARD_REFERENCE_KINDS as readonly string[]).includes(source.kind)
-    ? source.kind as ResultCardReferenceKind
-    : null
+  const kind =
+    typeof source.kind === 'string' &&
+    (RESULT_CARD_REFERENCE_KINDS as readonly string[]).includes(source.kind)
+      ? (source.kind as ResultCardReferenceKind)
+      : null
   if (kind === null) return null
   const referenceValue = requiredText(source.value, RESULT_CARD_TEXT_MAX_LENGTH)
   if (!referenceValue) return null
@@ -186,7 +187,7 @@ export const decodeResultCardEnvelope = (value: unknown): ResultCardEnvelope | n
     card: {
       title,
       summary,
-      tone: decodeTone(card.tone) ?? "neutral",
+      tone: decodeTone(card.tone) ?? 'neutral',
       sections,
       references,
     },

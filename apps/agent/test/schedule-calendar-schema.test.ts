@@ -1,13 +1,13 @@
-import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp } from "node:fs/promises"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { AgentDatabase, SCHEMA_VERSION } from "../src/storage/database/AgentDatabase"
+import { afterEach, describe, expect, test } from 'bun:test'
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { AgentDatabase, SCHEMA_VERSION } from '../src/storage/database/AgentDatabase'
 import {
   probeAutomationStorageCapabilities,
   probeScheduleCalendarStorageCapabilities,
-} from "../src/storage/database/storage-capabilities"
-import { removeFixturePaths } from "./fixture-cleanup"
+} from '../src/storage/database/storage-capabilities'
+import { removeFixturePaths } from './fixture-cleanup'
 
 const paths: string[] = []
 
@@ -15,11 +15,14 @@ afterEach(async () => {
   await removeFixturePaths(paths.splice(0))
 })
 
-describe("schedule calendar schema", () => {
-  test("schema 42 前向迁移到 43 只新增日历存储", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-schedule-calendar-schema-"))
+describe('schedule calendar schema', () => {
+  test('schema 42 前向迁移到 43 只新增日历存储', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'codepilotx-schedule-calendar-schema-'))
     paths.push(root)
-    const databasePaths = { historyPath: join(root, "history.sqlite"), profilePath: join(root, "profile.sqlite") }
+    const databasePaths = {
+      historyPath: join(root, 'history.sqlite'),
+      profilePath: join(root, 'profile.sqlite'),
+    }
     const seeded = new AgentDatabase(databasePaths)
     seeded.sqlite.exec(`
       DROP TABLE scheduled_tasks;
@@ -32,7 +35,9 @@ describe("schedule calendar schema", () => {
 
     const migrated = new AgentDatabase(databasePaths)
     expect(SCHEMA_VERSION).toBe(50)
-    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
+    expect(migrated.sqlite.query('PRAGMA user_version').get()).toEqual({
+      user_version: SCHEMA_VERSION,
+    })
     expect(probeScheduleCalendarStorageCapabilities(migrated.sqlite)).toEqual({
       scheduledTasks: true,
       schedulePlanProposals: true,
@@ -41,15 +46,19 @@ describe("schedule calendar schema", () => {
       automations: true,
       automationRuns: true,
     })
-    expect(migrated.sqlite.query("SELECT value FROM future_schema_42_extension WHERE id = 'kept'").get())
-      .toEqual({ value: "unknown" })
+    expect(
+      migrated.sqlite.query("SELECT value FROM future_schema_42_extension WHERE id = 'kept'").get(),
+    ).toEqual({ value: 'unknown' })
     migrated.close()
   })
 
-  test("更高未知 schema 缺少日历表时保持原样并保留 automation 能力", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-schedule-calendar-future-"))
+  test('更高未知 schema 缺少日历表时保持原样并保留 automation 能力', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'codepilotx-schedule-calendar-future-'))
     paths.push(root)
-    const databasePaths = { historyPath: join(root, "history.sqlite"), profilePath: join(root, "profile.sqlite") }
+    const databasePaths = {
+      historyPath: join(root, 'history.sqlite'),
+      profilePath: join(root, 'profile.sqlite'),
+    }
     const seeded = new AgentDatabase(databasePaths)
     seeded.sqlite.exec(`
       DROP TABLE scheduled_tasks;
@@ -61,7 +70,9 @@ describe("schedule calendar schema", () => {
     seeded.close()
 
     const reopened = new AgentDatabase(databasePaths)
-    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION + 1 })
+    expect(reopened.sqlite.query('PRAGMA user_version').get()).toEqual({
+      user_version: SCHEMA_VERSION + 1,
+    })
     expect(probeScheduleCalendarStorageCapabilities(reopened.sqlite)).toEqual({
       scheduledTasks: false,
       schedulePlanProposals: false,
@@ -70,8 +81,9 @@ describe("schedule calendar schema", () => {
       automations: true,
       automationRuns: true,
     })
-    expect(reopened.sqlite.query("SELECT value FROM future_schedule_owner WHERE id = 'kept'").get())
-      .toEqual({ value: "future" })
+    expect(
+      reopened.sqlite.query("SELECT value FROM future_schedule_owner WHERE id = 'kept'").get(),
+    ).toEqual({ value: 'future' })
     reopened.close()
   })
 })

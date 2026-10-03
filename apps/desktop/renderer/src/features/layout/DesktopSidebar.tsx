@@ -1,31 +1,31 @@
 import { mergeCatalogProjects } from './sidebar/useSidebarProjectCatalog.js'
-import type React from "react";
-import { useLocation } from "react-router-dom";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type React from 'react'
+import { useLocation } from 'react-router-dom'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopRemovedWorkspace,
   DesktopSessionCatalogStatus,
   DesktopWorkspace,
-} from "../../../shared/types.js";
-import type { AppView, SessionListItem } from "../../uiTypes.js";
-import { SidebarBody } from "./sidebar/SidebarBody.js";
-import { SidebarFooter } from "./sidebar/SidebarFooter.js";
-import { SidebarDockedPanes } from "./sidebar/SidebarDockedPanes.js";
-import { SidebarEmptyRow } from "./sidebar/SidebarRow.js";
-import type { DesktopFileEntry } from "../../../shared/types.js";
+} from '../../../shared/types.js'
+import type { AppView, SessionListItem } from '../../uiTypes.js'
+import { SidebarBody } from './sidebar/SidebarBody.js'
+import { SidebarFooter } from './sidebar/SidebarFooter.js'
+import { SidebarDockedPanes } from './sidebar/SidebarDockedPanes.js'
+import { SidebarEmptyRow } from './sidebar/SidebarRow.js'
+import type { DesktopFileEntry } from '../../../shared/types.js'
 import type {
   WorkbenchPanelSnapshot,
   WorkbenchPanelTarget,
   WorkbenchTabId,
   WorkbenchTabsState,
-} from "./dock/rightDockState.js";
+} from './dock/rightDockState.js'
 import {
   SidebarHeader,
   SidebarNewTaskNav,
   SidebarTopNav,
   type SidebarCapabilityState,
   UNKNOWN_SIDEBAR_CAPABILITY_STATE,
-} from "./sidebar/SidebarTopNav.js";
+} from './sidebar/SidebarTopNav.js'
 import {
   buildSidebarViewModel,
   buildSidebarTimelineModel,
@@ -54,33 +54,33 @@ import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
 import type { SidebarPane } from './sidebar/sidebarNavigation.js'
 
 type Props = {
-  active?: boolean;
-  onNavigate?: () => void;
-  pane?: SidebarPane;
-  capabilityState?: SidebarCapabilityState;
-  activeSessionId: string | null;
-  catalogStatus: DesktopSessionCatalogStatus;
-  pendingPermissionSessionIds: ReadonlySet<string>;
-  titleLoadingIds: ReadonlySet<string>;
-  recentWorkspaces: DesktopWorkspace[];
-  removedWorkspaces: DesktopRemovedWorkspace[];
-  sessionFallbackTitles: Record<string, string>;
-  sessions: SessionListItem[];
-  unavailableWorkspacePaths: Set<string>;
-  workspace: DesktopWorkspace | null;
-  onChooseWorkspace: () => void;
-  onCreateSession: (workspace?: DesktopWorkspace | null) => void;
-  onOpenCommandMenu: () => void;
-  onOpenWhatsNew: (restoreFocusElement: HTMLElement | null) => void;
-  onPinWorkspace: (workspace: DesktopWorkspace) => void;
-  onRemoveWorkspace: (workspace: DesktopWorkspace) => void;
-  onSelectSession: (session: SessionListItem) => void;
+  active?: boolean
+  onNavigate?: () => void
+  pane?: SidebarPane
+  capabilityState?: SidebarCapabilityState
+  activeSessionId: string | null
+  catalogStatus: DesktopSessionCatalogStatus
+  pendingPermissionSessionIds: ReadonlySet<string>
+  titleLoadingIds: ReadonlySet<string>
+  recentWorkspaces: DesktopWorkspace[]
+  removedWorkspaces: DesktopRemovedWorkspace[]
+  sessionFallbackTitles: Record<string, string>
+  sessions: SessionListItem[]
+  unavailableWorkspacePaths: Set<string>
+  workspace: DesktopWorkspace | null
+  onChooseWorkspace: () => void
+  onCreateSession: (workspace?: DesktopWorkspace | null) => void
+  onOpenCommandMenu: () => void
+  onOpenWhatsNew: (restoreFocusElement: HTMLElement | null) => void
+  onPinWorkspace: (workspace: DesktopWorkspace) => void
+  onRemoveWorkspace: (workspace: DesktopWorkspace) => void
+  onSelectSession: (session: SessionListItem) => void
   onArchiveSessions: (sessionIds: readonly string[]) => Promise<{
     failedSessionIds: string[]
     succeededSessionIds: string[]
   }>
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>
-  onUnpinWorkspace: (workspace: DesktopWorkspace) => void;
+  onUnpinWorkspace: (workspace: DesktopWorkspace) => void
   onReport: (message: string) => void
   onError?: (message: string) => void
   dockedPanesState?: WorkbenchPanelSnapshot
@@ -93,13 +93,10 @@ type Props = {
     target: WorkbenchPanelTarget,
     tabId: WorkbenchTabId,
   ) => void
-  onPopOutDockedTab?: (
-    source: WorkbenchPanelTarget,
-    tabId: WorkbenchTabId,
-  ) => void
+  onPopOutDockedTab?: (source: WorkbenchPanelTarget, tabId: WorkbenchTabId) => void
   onOpenFile?: (file: DesktopFileEntry) => void
   onAddComposerFiles?: (files: string[]) => void
-};
+}
 
 export function DesktopSidebar({
   active = true,
@@ -138,14 +135,11 @@ export function DesktopSidebar({
   onOpenFile,
   onAddComposerFiles,
 }: Props): React.ReactNode {
-  const location = useLocation();
-  const [relativeNow, setRelativeNow] = useState(() => Date.now());
-  const [sidebarScrollOverlapping, setSidebarScrollOverlapping] =
-    useState(false)
+  const location = useLocation()
+  const [relativeNow, setRelativeNow] = useState(() => Date.now())
+  const [sidebarScrollOverlapping, setSidebarScrollOverlapping] = useState(false)
   const modern = pane !== undefined
-  const sidebarScrollPositionsRef = useRef<Map<SidebarScrollModeKey, number>>(
-    new Map(),
-  )
+  const sidebarScrollPositionsRef = useRef<Map<SidebarScrollModeKey, number>>(new Map())
   const {
     collapsedSidebarSections,
     collapsedSidebarProjectPaths,
@@ -176,19 +170,22 @@ export function DesktopSidebar({
     sidebarDisclosureSignature(collapsedSidebarSections, collapsedSidebarProjectPaths),
   )
   const sidebarDisclosureState = useMemo(
-    () => createSidebarDisclosureStore(
-      { collapsedSidebarSections, collapsedSidebarProjectPaths },
-      snapshot => persistSidebarDisclosuresRef.current(snapshot),
-    ),
+    () =>
+      createSidebarDisclosureStore(
+        { collapsedSidebarSections, collapsedSidebarProjectPaths },
+        (snapshot) => persistSidebarDisclosuresRef.current(snapshot),
+      ),
     [],
   )
-  const { projectCatalogState, removeCatalogProject } =
-    useSidebarProjectCatalog({ onError: onError ?? onReport, onReport })
+  const { projectCatalogState, removeCatalogProject } = useSidebarProjectCatalog({
+    onError: onError ?? onReport,
+    onReport,
+  })
 
   useEffect(() => {
-    const timer = window.setInterval(() => setRelativeNow(Date.now()), 30_000);
-    return () => window.clearInterval(timer);
-  }, []);
+    const timer = window.setInterval(() => setRelativeNow(Date.now()), 30_000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   const mergedProjects = useMemo(
     () => mergeCatalogProjects(projectCatalogState.projects, recentWorkspaces),
@@ -210,11 +207,7 @@ export function DesktopSidebar({
       collapsedSidebarSections,
       collapsedSidebarProjectPaths,
     })
-  }, [
-    collapsedSidebarProjectPaths,
-    collapsedSidebarSections,
-    sidebarDisclosureState,
-  ])
+  }, [collapsedSidebarProjectPaths, collapsedSidebarSections, sidebarDisclosureState])
 
   const viewModel = useMemo(
     () =>
@@ -287,13 +280,11 @@ export function DesktopSidebar({
     if (attentionUnreadSessions.length === 0) return
     const readThroughAt = new Date().toISOString()
     const results = await Promise.allSettled(
-      attentionUnreadSessions.map(session =>
+      attentionUnreadSessions.map((session) =>
         desktopClient.markSessionRead(session.id, readThroughAt),
       ),
     )
-    const failedCount = results.filter(
-      result => result.status === 'rejected',
-    ).length
+    const failedCount = results.filter((result) => result.status === 'rejected').length
     if (failedCount > 0) {
       onReport(
         `已标记 ${attentionUnreadSessions.length - failedCount} 个任务为已读，${failedCount} 个失败。`,
@@ -318,11 +309,11 @@ export function DesktopSidebar({
   }, [archivableAttentionSessions, archivingAttention, archiveSessions])
 
   function isActiveView(view: AppView): boolean {
-    if (view === "new") return location.pathname === "/new";
-    if (view === 'sessionGroups') return location.pathname.startsWith('/workflows');
-    if (view === "projects") return location.pathname.startsWith("/projects");
-    if (view === "pullRequests") return location.pathname.startsWith("/pull-requests");
-    return location.pathname === `/${view}`;
+    if (view === 'new') return location.pathname === '/new'
+    if (view === 'sessionGroups') return location.pathname.startsWith('/workflows')
+    if (view === 'projects') return location.pathname.startsWith('/projects')
+    if (view === 'pullRequests') return location.pathname.startsWith('/pull-requests')
+    return location.pathname === `/${view}`
   }
 
   const previousActiveSessionIdRef = useRef<string | null | undefined>(undefined)
@@ -332,10 +323,7 @@ export function DesktopSidebar({
       previousActiveSessionIdRef.current = activeSessionId
       pendingContainerRevealIdRef.current = activeSessionId
     }
-    if (
-      !activeSessionId ||
-      pendingContainerRevealIdRef.current !== activeSessionId
-    ) {
+    if (!activeSessionId || pendingContainerRevealIdRef.current !== activeSessionId) {
       return
     }
 
@@ -345,27 +333,24 @@ export function DesktopSidebar({
     }
 
     const sessionExists = viewModel.visibleSessions.some(
-      session => session.id === activeSessionId,
+      (session) => session.id === activeSessionId,
     )
     if (!sessionExists) return
-    const pinnedSession = viewModel.pinnedSessions.some(
-      session => session.id === activeSessionId,
-    )
-    const pinnedProject = viewModel.pinnedWorkspaces.find(project =>
+    const pinnedSession = viewModel.pinnedSessions.some((session) => session.id === activeSessionId)
+    const pinnedProject = viewModel.pinnedWorkspaces.find((project) =>
       viewModel.projectSessionBuckets
         .get(sidebarProjectKey(project))
-        ?.displaySessions.some(session => session.id === activeSessionId),
+        ?.displaySessions.some((session) => session.id === activeSessionId),
     )
-    const project = sidebarOrganization === 'projects'
-      ? viewModel.projectWorkspaces.find(projectEntry =>
-          viewModel.projectSessionBuckets
-            .get(sidebarProjectKey(projectEntry))
-            ?.displaySessions.some(session => session.id === activeSessionId),
-        )
-      : undefined
-    const recent = viewModel.recentSessions.some(
-      session => session.id === activeSessionId,
-    )
+    const project =
+      sidebarOrganization === 'projects'
+        ? viewModel.projectWorkspaces.find((projectEntry) =>
+            viewModel.projectSessionBuckets
+              .get(sidebarProjectKey(projectEntry))
+              ?.displaySessions.some((session) => session.id === activeSessionId),
+          )
+        : undefined
+    const recent = viewModel.recentSessions.some((session) => session.id === activeSessionId)
 
     if (!pinnedSession && !pinnedProject && !project && !recent) return
     pendingContainerRevealIdRef.current = null
@@ -382,24 +367,19 @@ export function DesktopSidebar({
       sidebarDisclosureState.setProjectExpanded(project, true)
       return
     }
-    if (recent) sidebarDisclosureState.store.setExpanded(sidebarSectionDisclosureKey('recent'), true)
-  }, [
-    activeSessionId,
-    sidebarDisclosureState,
-    sidebarOrganization,
-    timeline,
-    viewModel,
-  ])
+    if (recent)
+      sidebarDisclosureState.store.setExpanded(sidebarSectionDisclosureKey('recent'), true)
+  }, [activeSessionId, sidebarDisclosureState, sidebarOrganization, timeline, viewModel])
 
   function pinSession(session: SessionListItem): void {
-    setSidebarSessionPins(current => ({
+    setSidebarSessionPins((current) => ({
       ...current,
       [session.id]: new Date().toISOString(),
     }))
   }
 
   function unpinSession(session: SessionListItem): void {
-    setSidebarSessionPins(current => {
+    setSidebarSessionPins((current) => {
       const { [session.id]: _removed, ...next } = current
       return next
     })
@@ -416,17 +396,15 @@ export function DesktopSidebar({
   }
 
   async function archiveSessions(targetSessions: readonly SessionListItem[]): Promise<boolean> {
-    const result = await onArchiveSessions(targetSessions.map(session => session.id))
+    const result = await onArchiveSessions(targetSessions.map((session) => session.id))
     if (result.succeededSessionIds.length > 0) {
       const removedIds = new Set(result.succeededSessionIds)
-      setSidebarSessionPins(current =>
+      setSidebarSessionPins((current) =>
         Object.fromEntries(
           Object.entries(current).filter(([sessionId]) => !removedIds.has(sessionId)),
         ),
       )
-      removePinnedManualOrder(
-        result.succeededSessionIds.map(sessionId => `session:${sessionId}`),
-      )
+      removePinnedManualOrder(result.succeededSessionIds.map((sessionId) => `session:${sessionId}`))
     }
     if (result.failedSessionIds.length > 0) {
       onReport(
@@ -440,33 +418,36 @@ export function DesktopSidebar({
     return true
   }
 
-  const updateManualOrder = useCallback((
-    scopeKey: string,
-    order: string[],
-  ): void => {
-    setSidebarManualOrder(current => ({
-      ...current,
-      [scopeKey]: order,
-    }))
-  }, [setSidebarManualOrder])
+  const updateManualOrder = useCallback(
+    (scopeKey: string, order: string[]): void => {
+      setSidebarManualOrder((current) => ({
+        ...current,
+        [scopeKey]: order,
+      }))
+    },
+    [setSidebarManualOrder],
+  )
 
-  const removePinnedManualOrder = useCallback((keys: readonly string[]): void => {
-    if (keys.length === 0) return
-    const removedKeys = new Set(keys)
-    setSidebarManualOrder(current => {
-      const pinnedItems = current['pinned-items']
-      if (!pinnedItems?.some(key => removedKeys.has(key))) return current
-      const nextPinnedItems = pinnedItems.filter(key => !removedKeys.has(key))
-      if (nextPinnedItems.length > 0) {
-        return {
-          ...current,
-          'pinned-items': nextPinnedItems,
+  const removePinnedManualOrder = useCallback(
+    (keys: readonly string[]): void => {
+      if (keys.length === 0) return
+      const removedKeys = new Set(keys)
+      setSidebarManualOrder((current) => {
+        const pinnedItems = current['pinned-items']
+        if (!pinnedItems?.some((key) => removedKeys.has(key))) return current
+        const nextPinnedItems = pinnedItems.filter((key) => !removedKeys.has(key))
+        if (nextPinnedItems.length > 0) {
+          return {
+            ...current,
+            'pinned-items': nextPinnedItems,
+          }
         }
-      }
-      const { ['pinned-items']: _removed, ...next } = current
-      return next
-    })
-  }, [setSidebarManualOrder])
+        const { ['pinned-items']: _removed, ...next } = current
+        return next
+      })
+    },
+    [setSidebarManualOrder],
+  )
 
   return (
     <div className="sidebar-layout tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:py-2">
@@ -484,11 +465,13 @@ export function DesktopSidebar({
         onScrollOverlapChange={setSidebarScrollOverlapping}
         scrollHeader={
           <>
-            {!modern ? <SidebarTopNav
-              capabilityState={sidebarCapabilityState}
-              isActiveView={isActiveView}
-              showProjects={sidebarOrganization === 'flat'}
-            /> : null}
+            {!modern ? (
+              <SidebarTopNav
+                capabilityState={sidebarCapabilityState}
+                isActiveView={isActiveView}
+                showProjects={sidebarOrganization === 'flat'}
+              />
+            ) : null}
             {catalogStatus.state === 'loading' ? (
               <SidebarEmptyRow role="status">正在加载任务目录…</SidebarEmptyRow>
             ) : null}
@@ -528,7 +511,7 @@ export function DesktopSidebar({
         onCreateSession={onCreateSession}
         onPinSession={pinSession}
         onPinWorkspace={onPinWorkspace}
-        onRemoveWorkspace={target => {
+        onRemoveWorkspace={(target) => {
           removeCatalogProject(target)
           removePinnedManualOrder([sidebarPinnedProjectKey(target)])
           onRemoveWorkspace(target)
@@ -537,7 +520,7 @@ export function DesktopSidebar({
         onToggleSessionUnread={toggleSessionUnread}
         onRenameSession={onRenameSession}
         onUnpinSession={unpinSession}
-        onUnpinWorkspace={target => {
+        onUnpinWorkspace={(target) => {
           removePinnedManualOrder([sidebarPinnedProjectKey(target)])
           onUnpinWorkspace(target)
         }}
@@ -565,11 +548,13 @@ export function DesktopSidebar({
           onSelectTab={onSelectDockedTab ?? (() => undefined)}
         />
       ) : null}
-      {!modern ? <SidebarFooter
-        onNavigate={onNavigate}
-        onOpenWhatsNew={onOpenWhatsNew}
-        onReport={onReport}
-      /> : null}
+      {!modern ? (
+        <SidebarFooter
+          onNavigate={onNavigate}
+          onOpenWhatsNew={onOpenWhatsNew}
+          onReport={onReport}
+        />
+      ) : null}
       {archiveAttentionDialogMounted ? (
         <Suspense fallback={null}>
           <ConfirmationDialog
@@ -585,9 +570,8 @@ export function DesktopSidebar({
         </Suspense>
       ) : null}
     </div>
-  );
+  )
 }
-
 
 function sidebarDisclosureSignature(
   sections: readonly string[],

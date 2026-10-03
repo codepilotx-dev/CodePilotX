@@ -1,17 +1,15 @@
-import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../wire/definition"
-import { JsonValueSchema, NonEmptyStringSchema } from "../wire/primitives"
+import { Schema } from 'effect'
+import { defineMethod, type MethodMap } from '../wire/definition'
+import { JsonValueSchema, NonEmptyStringSchema } from '../wire/primitives'
 const Sha256Schema = Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))
-const ConfigProfileIdSchema = Schema.String.check(
-  Schema.isPattern(/^[a-z0-9][a-z0-9_-]{0,63}$/),
-)
-const ConfigScopeSchema = Schema.Literals(["user", "profile", "project"])
-const ConfigLayerKindSchema = Schema.Literals(["defaults", "user", "profile", "project"])
+const ConfigProfileIdSchema = Schema.String.check(Schema.isPattern(/^[a-z0-9][a-z0-9_-]{0,63}$/))
+const ConfigScopeSchema = Schema.Literals(['user', 'profile', 'project'])
+const ConfigLayerKindSchema = Schema.Literals(['defaults', 'user', 'profile', 'project'])
 const ConfigObjectSchema = Schema.Record(Schema.String, JsonValueSchema)
 const ConfigKeyPathSchema = Schema.Array(NonEmptyStringSchema).check(Schema.isMinLength(1))
 
 export const ConfigDiagnosticSchema = Schema.Struct({
-  severity: Schema.Literals(["warning", "error"]),
+  severity: Schema.Literals(['warning', 'error']),
   code: NonEmptyStringSchema,
   message: NonEmptyStringSchema,
   scope: ConfigScopeSchema,
@@ -30,16 +28,16 @@ export const ConfigLayerSchema = Schema.Struct({
 export const ConfigEditSchema = Schema.Struct({
   keyPath: ConfigKeyPathSchema,
   value: JsonValueSchema,
-  mergeStrategy: Schema.optional(Schema.Literals(["replace", "upsert"])),
+  mergeStrategy: Schema.optional(Schema.Literals(['replace', 'upsert'])),
 })
 
 export const ConfigWriteTargetSchema = Schema.Union([
-  Schema.Struct({ kind: Schema.Literal("user") }),
+  Schema.Struct({ kind: Schema.Literal('user') }),
   Schema.Struct({
-    kind: Schema.Literal("profile"),
+    kind: Schema.Literal('profile'),
     profileId: NonEmptyStringSchema,
   }),
-  Schema.Struct({ kind: Schema.Literal("project") }),
+  Schema.Struct({ kind: Schema.Literal('project') }),
 ])
 
 export const ConfigProfileStateSchema = Schema.Struct({
@@ -72,13 +70,17 @@ export const ConfigReadResultSchema = Schema.Struct({
 })
 
 export const ConfigWriteResultSchema = Schema.Struct({
-  status: Schema.Literals(["ok", "ok-overridden"]),
+  status: Schema.Literals(['ok', 'ok-overridden']),
   version: Sha256Schema,
   filePath: NonEmptyStringSchema,
-  overridden: Schema.optional(Schema.Array(Schema.Struct({
-    keyPath: ConfigKeyPathSchema,
-    by: ConfigScopeSchema,
-  }))),
+  overridden: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        keyPath: ConfigKeyPathSchema,
+        by: ConfigScopeSchema,
+      }),
+    ),
+  ),
 })
 
 export const ConfigValueWriteParamsSchema = Schema.Struct({
@@ -119,94 +121,94 @@ export const ProjectTrustReadParamsSchema = Schema.Struct({
 
 export const ProjectTrustReadResultSchema = Schema.Struct({
   projectRoot: NonEmptyStringSchema,
-  trustLevel: Schema.Literals(["trusted", "untrusted"]),
+  trustLevel: Schema.Literals(['trusted', 'untrusted']),
   hasProjectConfig: Schema.Boolean,
 })
 
 export const ProjectTrustUpdateParamsSchema = Schema.Struct({
   cwd: NonEmptyStringSchema,
-  trustLevel: Schema.Literals(["trusted", "untrusted"]),
+  trustLevel: Schema.Literals(['trusted', 'untrusted']),
   expectedVersion: Schema.optional(Sha256Schema),
 })
 
 const ConfigReadErrors = [
-  "CONFIG_PATH_NOT_FOUND",
-  "CONFIG_PROJECT_UNTRUSTED",
-  "CONFIG_VALIDATION_ERROR",
-  "CONFIG_PROFILE_INVALID",
-  "CONFIG_PROFILE_NOT_FOUND",
+  'CONFIG_PATH_NOT_FOUND',
+  'CONFIG_PROJECT_UNTRUSTED',
+  'CONFIG_VALIDATION_ERROR',
+  'CONFIG_PROFILE_INVALID',
+  'CONFIG_PROFILE_NOT_FOUND',
 ] as const
 
 const ConfigWriteErrors = [
-  "CONFIG_LAYER_READONLY",
-  "CONFIG_VERSION_CONFLICT",
-  "CONFIG_VALIDATION_ERROR",
-  "CONFIG_PATH_NOT_FOUND",
-  "CONFIG_PROJECT_UNTRUSTED",
-  "CONFIG_PROFILE_INVALID",
-  "CONFIG_PROFILE_NOT_FOUND",
+  'CONFIG_LAYER_READONLY',
+  'CONFIG_VERSION_CONFLICT',
+  'CONFIG_VALIDATION_ERROR',
+  'CONFIG_PATH_NOT_FOUND',
+  'CONFIG_PROJECT_UNTRUSTED',
+  'CONFIG_PROFILE_INVALID',
+  'CONFIG_PROFILE_NOT_FOUND',
 ] as const
 
 export const ConfigRpcMethods = {
-  "config/read": defineMethod({
+  'config/read': defineMethod({
     params: ConfigReadParamsSchema,
     result: ConfigReadResultSchema,
     errors: ConfigReadErrors,
-    capability: "config.manage.v1",
+    capability: 'config.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "config/value/write": defineMethod({
+  'config/value/write': defineMethod({
     params: ConfigValueWriteParamsSchema,
     result: ConfigWriteResultSchema,
     errors: ConfigWriteErrors,
-    capability: "config.manage.v1",
+    capability: 'config.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "config/batchWrite": defineMethod({
+  'config/batchWrite': defineMethod({
     params: ConfigBatchWriteParamsSchema,
     result: ConfigWriteResultSchema,
     errors: ConfigWriteErrors,
-    capability: "config.manage.v1",
+    capability: 'config.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "config/profile/list": defineMethod({
+  'config/profile/list': defineMethod({
     params: Schema.Record(Schema.String, Schema.Never),
     result: ConfigProfileListResultSchema,
     errors: ConfigReadErrors,
-    capability: "config.profiles.v1",
+    capability: 'config.profiles.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "config/profile/select": defineMethod({
+  'config/profile/select': defineMethod({
     params: ConfigProfileSelectParamsSchema,
     result: ConfigProfileSelectResultSchema,
     errors: ConfigWriteErrors,
-    capability: "config.profiles.v1",
+    capability: 'config.profiles.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "project/trust/read": defineMethod({
+  'project/trust/read': defineMethod({
     params: ProjectTrustReadParamsSchema,
     result: ProjectTrustReadResultSchema,
     errors: ConfigReadErrors,
-    capability: "config.manage.v1",
+    capability: 'config.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "project/trust/update": defineMethod({
+  'project/trust/update': defineMethod({
     params: ProjectTrustUpdateParamsSchema,
     result: ConfigWriteResultSchema,
     errors: ConfigWriteErrors,
-    capability: "config.manage.v1",
+    capability: 'config.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,

@@ -22,17 +22,17 @@ CodePilotX 已经拥有自主维护的完整 Agent Harness，而不是模型 API
 
 ### 0.2 优先级总览
 
-| 顺序 | 主题 | 性质 | 用户价值 | 判断 |
-|---|---|---|---|---|
-| Gate 0 | Harness 指标与故障基线 | 验收基础 | 定位真实瓶颈、阻止无证据优化 | 立即建立 |
-| P0-A | Runtime Composition 完整性 | 正确性/恢复 | 防止旧 Turn 以新工具或损坏快照继续 | 先于动态扩展 |
-| P0-B | Skills/MCP 真按需 | 性能/可靠性/上下文 | 降首步延迟、I/O、连接和工具噪声 | 最高收益实现项 |
-| P0-C | Hook 生命周期闭环 | 安全一致性 | 防止配置虚假生效 | 与 P0 串行 |
-| Decision 1 | Sandbox ADR | 高风险架构 | 明确隔离承诺与拒绝条件 | 先决策与原型 |
-| Decision 2 | 凭据治理 ADR | 安全治理 | 消除加密密文入库规则冲突 | 扩展前冻结 |
-| P1-A | Durable Goal | 长任务能力 | 可预算、可恢复、可判定完成 | P0 后实施 |
-| P1-B | Memory 召回质量 | 上下文质量 | 减少无关记忆与 token 污染 | 低成本先做 |
-| P1-C | Tool 调度与 trace | 性能/诊断 | 找到等待、执行和屏障瓶颈 | 度量驱动 |
+| 顺序       | 主题                       | 性质               | 用户价值                           | 判断           |
+| ---------- | -------------------------- | ------------------ | ---------------------------------- | -------------- |
+| Gate 0     | Harness 指标与故障基线     | 验收基础           | 定位真实瓶颈、阻止无证据优化       | 立即建立       |
+| P0-A       | Runtime Composition 完整性 | 正确性/恢复        | 防止旧 Turn 以新工具或损坏快照继续 | 先于动态扩展   |
+| P0-B       | Skills/MCP 真按需          | 性能/可靠性/上下文 | 降首步延迟、I/O、连接和工具噪声    | 最高收益实现项 |
+| P0-C       | Hook 生命周期闭环          | 安全一致性         | 防止配置虚假生效                   | 与 P0 串行     |
+| Decision 1 | Sandbox ADR                | 高风险架构         | 明确隔离承诺与拒绝条件             | 先决策与原型   |
+| Decision 2 | 凭据治理 ADR               | 安全治理           | 消除加密密文入库规则冲突           | 扩展前冻结     |
+| P1-A       | Durable Goal               | 长任务能力         | 可预算、可恢复、可判定完成         | P0 后实施      |
+| P1-B       | Memory 召回质量            | 上下文质量         | 减少无关记忆与 token 污染          | 低成本先做     |
+| P1-C       | Tool 调度与 trace          | 性能/诊断          | 找到等待、执行和屏障瓶颈           | 度量驱动       |
 
 ### 0.3 当前明确不做
 
@@ -109,11 +109,11 @@ flowchart TD
 
 ### 2.2 三类恢复不能合并
 
-| 类型 | 真源 | 作用 |
-|---|---|---|
-| SSE cursor replay | durable events + sequence | 客户端断线补事件 |
-| Interaction resume | approval/question/hook/subagent checkpoint lease | 从等待处恢复 Turn |
-| Pi context reconstruction | Pi session entries + compaction retained tail | 重建模型可见 history |
+| 类型                      | 真源                                             | 作用                 |
+| ------------------------- | ------------------------------------------------ | -------------------- |
+| SSE cursor replay         | durable events + sequence                        | 客户端断线补事件     |
+| Interaction resume        | approval/question/hook/subagent checkpoint lease | 从等待处恢复 Turn    |
+| Pi context reconstruction | Pi session entries + compaction retained tail    | 重建模型可见 history |
 
 旧报告候选 `ReplayCheckpoint` 会制造重复状态。正确方向是分别故障注入，并验证最终 Turn projection 一致。
 
@@ -121,29 +121,29 @@ flowchart TD
 
 ## 3. 成熟能力与旧报告校正
 
-| 能力 | 状态 | 必须保持的不变量 |
-|---|---|---|
-| Turn admission/terminal | 成熟 | 单 thread 一个 active Turn；短锁不覆盖长运行；终态幂等 |
-| 多 sampling Agent Loop | 成熟 | 工具结果进入 history 后继续 sampling；截断参数 fail-closed |
-| Runtime Composition v1/v2 | 已进生产 | fresh compose、resume rebind；resume 漂移 fail-closed |
-| Prompt authority/cache | 成熟 | 系统规则与不可信 workspace context 分层；凭据 scrub |
-| Tool/permission/idempotency | 成熟 | 所有 host 能力回到 ToolExecutor；hard gate 优先于审批 |
-| Compaction | 成熟、待故障验收 | retained tail、provenance、usage 不被数组截断替代 |
-| Durable event/SSE | 成熟 | 状态与 event 同事务；过滤事件后 cursor 仍前进 |
-| Capability negotiation | 已完成 | connection 保存 client ∩ server；method/event 消费交集 |
-| Hooks | 部分实现 | Hook 只能缩窄/拒绝/询问，不能扩大权限或 workspace |
-| Subagent | 成熟基础 | 父权限 ceiling、容量限制、等待 checkpoint、requestId 幂等 |
-| Forward compatibility | 成熟策略 | 高 schema 不降级；探测后广告能力 |
+| 能力                        | 状态             | 必须保持的不变量                                           |
+| --------------------------- | ---------------- | ---------------------------------------------------------- |
+| Turn admission/terminal     | 成熟             | 单 thread 一个 active Turn；短锁不覆盖长运行；终态幂等     |
+| 多 sampling Agent Loop      | 成熟             | 工具结果进入 history 后继续 sampling；截断参数 fail-closed |
+| Runtime Composition v1/v2   | 已进生产         | fresh compose、resume rebind；resume 漂移 fail-closed      |
+| Prompt authority/cache      | 成熟             | 系统规则与不可信 workspace context 分层；凭据 scrub        |
+| Tool/permission/idempotency | 成熟             | 所有 host 能力回到 ToolExecutor；hard gate 优先于审批      |
+| Compaction                  | 成熟、待故障验收 | retained tail、provenance、usage 不被数组截断替代          |
+| Durable event/SSE           | 成熟             | 状态与 event 同事务；过滤事件后 cursor 仍前进              |
+| Capability negotiation      | 已完成           | connection 保存 client ∩ server；method/event 消费交集     |
+| Hooks                       | 部分实现         | Hook 只能缩窄/拒绝/询问，不能扩大权限或 workspace          |
+| Subagent                    | 成熟基础         | 父权限 ceiling、容量限制、等待 checkpoint、requestId 幂等  |
+| Forward compatibility       | 成熟策略         | 高 schema 不降级；探测后广告能力                           |
 
-| 旧报告项目 | 当前状态 | 证据 | 新处理 |
-|---|---|---|---|
-| Capability 交集 P0 | 已完成 | `system.ts:113-120` | 移入不变量 |
-| RuntimeCompositionPlan P0 | 已完成并持久化到 v2 | `types.ts:109-148`、`service.ts:57-104` | 只做完整性/验收 |
-| 同 Turn 组合冻结 | 已完成 | `agent-harness.ts:379-455` | 补 descriptor 漂移测试 |
-| Skill referenced identity | 已有基础 | Snapshot V2 | 真按需中复用 |
-| Compaction retained tail | 已实现 | `pi-session/session.ts:59-78`、`compaction.ts:626-703` | 故障注入，不重建 DTO |
-| Hook 系统 | 已存在、部分接线 | `HookService.ts:8-35,184-239` | 补声明/触发一致性 |
-| SSE capability gate | 已完成 | `server.ts:125-193` | 保留回归 |
+| 旧报告项目                | 当前状态            | 证据                                                   | 新处理                 |
+| ------------------------- | ------------------- | ------------------------------------------------------ | ---------------------- |
+| Capability 交集 P0        | 已完成              | `system.ts:113-120`                                    | 移入不变量             |
+| RuntimeCompositionPlan P0 | 已完成并持久化到 v2 | `types.ts:109-148`、`service.ts:57-104`                | 只做完整性/验收        |
+| 同 Turn 组合冻结          | 已完成              | `agent-harness.ts:379-455`                             | 补 descriptor 漂移测试 |
+| Skill referenced identity | 已有基础            | Snapshot V2                                            | 真按需中复用           |
+| Compaction retained tail  | 已实现              | `pi-session/session.ts:59-78`、`compaction.ts:626-703` | 故障注入，不重建 DTO   |
+| Hook 系统                 | 已存在、部分接线    | `HookService.ts:8-35,184-239`                          | 补声明/触发一致性      |
+| SSE capability gate       | 已完成              | `server.ts:125-193`                                    | 保留回归               |
 
 ---
 
@@ -227,35 +227,35 @@ Codex 每 root tree 共享容量；spawn 先 reserve，失败释放 slot；wait 
 
 ### G0：缺统一优化基线
 
-| 属性 | 结论 |
-|---|---|
-| 类型 | 验收基础缺口 |
-| 影响 | 无法区分模型慢、Prompt 大、Skill I/O、MCP 启动、工具排队或 replay |
-| 证据 | 已有 ExecutionLogObserver，但没有统一 Turn 指标和优化阈值 |
-| 最小边界 | 结构化本地指标 + 固定 fixture，不建远程 telemetry |
-| 完成标准 | 每个优化有 before/after；指标不含正文、凭据、命令环境和敏感路径 |
+| 属性     | 结论                                                              |
+| -------- | ----------------------------------------------------------------- |
+| 类型     | 验收基础缺口                                                      |
+| 影响     | 无法区分模型慢、Prompt 大、Skill I/O、MCP 启动、工具排队或 replay |
+| 证据     | 已有 ExecutionLogObserver，但没有统一 Turn 指标和优化阈值         |
+| 最小边界 | 结构化本地指标 + 固定 fixture，不建远程 telemetry                 |
+| 完成标准 | 每个优化有 before/after；指标不含正文、凭据、命令环境和敏感路径   |
 
-| 指标 | 定义 | 用途 |
-|---|---|---|
-| `turn_prepare_ms` | admission 到首次 provider request | 找启动瓶颈 |
-| `prompt_tokens/tool_schema_bytes` | 每 step 的 Prompt 与工具体积 | 验证 context/deferred 收益 |
-| `skill_index_reads/body_reads` | 索引与正文读取数 | 验证真按需 |
-| `mcp_declared/connected/loaded` | 声明、连接、激活数 | 验证 optional 不连接 |
-| `tool_queue/handler/total_ms` | 工具等待、执行、总时长 | 决定并发模型 |
-| `resume_attempt/success/fail_reason` | 按 checkpoint 类型统计 | 定位恢复问题 |
-| `duplicate_side_effect_count` | 同 toolCallID 重复副作用 | 必须恒为 0 |
-| `projection_lag_ms` | commit 到客户端可见 | 决定是否需 dispatcher |
-| `compaction_before/after_tokens` | 阶段、策略、前后 token | 衡量压缩质量 |
+| 指标                                 | 定义                              | 用途                       |
+| ------------------------------------ | --------------------------------- | -------------------------- |
+| `turn_prepare_ms`                    | admission 到首次 provider request | 找启动瓶颈                 |
+| `prompt_tokens/tool_schema_bytes`    | 每 step 的 Prompt 与工具体积      | 验证 context/deferred 收益 |
+| `skill_index_reads/body_reads`       | 索引与正文读取数                  | 验证真按需                 |
+| `mcp_declared/connected/loaded`      | 声明、连接、激活数                | 验证 optional 不连接       |
+| `tool_queue/handler/total_ms`        | 工具等待、执行、总时长            | 决定并发模型               |
+| `resume_attempt/success/fail_reason` | 按 checkpoint 类型统计            | 定位恢复问题               |
+| `duplicate_side_effect_count`        | 同 toolCallID 重复副作用          | 必须恒为 0                 |
+| `projection_lag_ms`                  | commit 到客户端可见               | 决定是否需 dispatcher      |
+| `compaction_before/after_tokens`     | 阶段、策略、前后 token            | 衡量压缩质量               |
 
 ### G1：Composition 未冻结完整执行语义
 
-| 属性 | 结论 |
-|---|---|
-| 类型 | Confirmed correctness gap |
-| 影响 | 暂停/升级后旧 Turn 可能绑定同名新语义工具；损坏 hash 防护不完整 |
-| 证据 | `types.ts:77-82` 只存工具名；`composer.ts:407-443` 只检查同名存在；baseline 字段和值不一致 |
-| 最小实现 | 修 baseline、重算整体 hash、增加 descriptor fingerprint/behaviorVersion |
-| 回滚 | 新 snapshot V3；旧 V1/V2 保持读取，不原地改写 |
+| 属性     | 结论                                                                                       |
+| -------- | ------------------------------------------------------------------------------------------ |
+| 类型     | Confirmed correctness gap                                                                  |
+| 影响     | 暂停/升级后旧 Turn 可能绑定同名新语义工具；损坏 hash 防护不完整                            |
+| 证据     | `types.ts:77-82` 只存工具名；`composer.ts:407-443` 只检查同名存在；baseline 字段和值不一致 |
+| 最小实现 | 修 baseline、重算整体 hash、增加 descriptor fingerprint/behaviorVersion                    |
+| 回滚     | 新 snapshot V3；旧 V1/V2 保持读取，不原地改写                                              |
 
 ```ts
 interface ToolDescriptorSnapshot {
@@ -265,7 +265,7 @@ interface ToolDescriptorSnapshot {
   readonly allowedProfiles: readonly string[]
   readonly allowedModes: readonly string[]
   readonly approvalStrategy: string
-  readonly executionMode: "parallel" | "sequential"
+  readonly executionMode: 'parallel' | 'sequential'
   readonly originIdentity: string
   readonly behaviorVersion: number
   readonly overallHash: string
@@ -278,14 +278,14 @@ interface ToolDescriptorSnapshot {
 
 ### G2：Skills 是工具 deferred，不是资源真按需
 
-| 属性 | 结论 |
-|---|---|
-| 类型 | Confirmed performance/correctness gap |
-| 影响 | Skill 增多放大每 Turn I/O、hash、Prompt metadata；坏 Skill 影响 catalog |
-| 证据 | `ThreadService.ts:371,832`、`SubagentService.ts:501` 全量 `scan()`；`skill_search` 未注册 |
-| 不变量 | 显式 `$skill` 定向读取；已引用变化阻塞恢复，未引用变化不阻塞 |
-| 最小实现 | scan 只做索引刷新；Turn 热路径读取 metadata generation；注册 search/read |
-| 完成标准 | 热缓存普通 Turn 正文读取为 0；100+ Skills 不产生线性正文 I/O |
+| 属性     | 结论                                                                                      |
+| -------- | ----------------------------------------------------------------------------------------- |
+| 类型     | Confirmed performance/correctness gap                                                     |
+| 影响     | Skill 增多放大每 Turn I/O、hash、Prompt metadata；坏 Skill 影响 catalog                   |
+| 证据     | `ThreadService.ts:371,832`、`SubagentService.ts:501` 全量 `scan()`；`skill_search` 未注册 |
+| 不变量   | 显式 `$skill` 定向读取；已引用变化阻塞恢复，未引用变化不阻塞                              |
+| 最小实现 | scan 只做索引刷新；Turn 热路径读取 metadata generation；注册 search/read                  |
+| 完成标准 | 热缓存普通 Turn 正文读取为 0；100+ Skills 不产生线性正文 I/O                              |
 
 ```text
 目录 watcher / 显式 refresh
@@ -305,14 +305,14 @@ skill_read(name)
 
 ### G3：Optional MCP 仍在 Turn 前连接
 
-| 属性 | 结论 |
-|---|---|
-| 类型 | Confirmed startup/reliability gap |
-| 影响 | 未使用 MCP 启动进程、网络/OAuth，并拖慢 Turn |
-| 证据 | `acquire → ensure/reconcile` 连接全部 enabled；已有 list/load 但未注册 lifecycle tools |
-| 不变量 | required fail-fast；optional 失败只影响显式加载；统一权限链 |
-| 最小实现 | required eager、optional declaration-only；加载后原子发布 binding |
-| 完成标准 | 10 个 optional 未使用时连接数 0；单 server 失败不污染 catalog |
+| 属性     | 结论                                                                                   |
+| -------- | -------------------------------------------------------------------------------------- |
+| 类型     | Confirmed startup/reliability gap                                                      |
+| 影响     | 未使用 MCP 启动进程、网络/OAuth，并拖慢 Turn                                           |
+| 证据     | `acquire → ensure/reconcile` 连接全部 enabled；已有 list/load 但未注册 lifecycle tools |
+| 不变量   | required fail-fast；optional 失败只影响显式加载；统一权限链                            |
+| 最小实现 | required eager、optional declaration-only；加载后原子发布 binding                      |
+| 完成标准 | 10 个 optional 未使用时连接数 0；单 server 失败不污染 catalog                          |
 
 ```ts
 interface FrozenResourceEnvelope {
@@ -337,35 +337,35 @@ interface StepCompositionSnapshot {
 
 ### G4：Hook 声明与触发不一致
 
-| 属性 | 结论 |
-|---|---|
-| 类型 | Confirmed safety/contract gap |
-| 影响 | `permission_request`、`pre_compact` 配置可能被误认为生效 |
-| 证据 | HookService 声明九类事件；未发现两者生产调用，Subagent stop 未走 Hook |
-| 不变量 | Hook 不得扩大 input、权限、workspace、网络；ask 必须 durable |
-| 最小实现 | 接两个缺失事件 + 统一 stop；不一次扩展全 Codex surface |
-| 完成标准 | 每个公开 Hook 有生产测试；不支持的从 schema/config 移除 |
+| 属性     | 结论                                                                  |
+| -------- | --------------------------------------------------------------------- |
+| 类型     | Confirmed safety/contract gap                                         |
+| 影响     | `permission_request`、`pre_compact` 配置可能被误认为生效              |
+| 证据     | HookService 声明九类事件；未发现两者生产调用，Subagent stop 未走 Hook |
+| 不变量   | Hook 不得扩大 input、权限、workspace、网络；ask 必须 durable          |
+| 最小实现 | 接两个缺失事件 + 统一 stop；不一次扩展全 Codex surface                |
+| 完成标准 | 每个公开 Hook 有生产测试；不支持的从 schema/config 移除               |
 
 ### G5：Shell 是 policy gate，不是 OS Sandbox
 
-| 属性 | 结论 |
-|---|---|
-| 类型 | Architecture/security decision |
-| 影响 | 当前用户权限下可访问宿主资源；错误文案会形成虚假安全预期 |
-| 证据 | `system.ts:138-146` unsupported；`HostProcess.ts:159` 直接 spawn |
+| 属性     | 结论                                                               |
+| -------- | ------------------------------------------------------------------ |
+| 类型     | Architecture/security decision                                     |
+| 影响     | 当前用户权限下可访问宿主资源；错误文案会形成虚假安全预期           |
+| 证据     | `system.ts:138-146` unsupported；`HostProcess.ts:159` 直接 spawn   |
 | 前置决策 | 哪些模式承诺隔离、backend 不可用是否拒绝、是否允许 host-unisolated |
-| 当前动作 | ADR + Windows 原型 + 攻击面矩阵，不直接承诺 M 规模 |
+| 当前动作 | ADR + Windows 原型 + 攻击面矩阵，不直接承诺 M 规模                 |
 
 最低矩阵：workspace 外读写、junction/symlink、子孙进程、网络、环境、凭据、进程树、超时、提升权限后 denied-read。预计 L/XL 高风险系统工程。
 
 ```ts
 type PolicyDecision =
-  | { kind: "allow"; grants: PermissionGrant[] }
-  | { kind: "prompt"; request: ApprovalRequest }
-  | { kind: "forbid"; code: string; safeReason: string }
+  | { kind: 'allow'; grants: PermissionGrant[] }
+  | { kind: 'prompt'; request: ApprovalRequest }
+  | { kind: 'forbid'; code: string; safeReason: string }
 
 interface ExecutionPlan {
-  readonly isolation: "windows-restricted" | "host-unisolated"
+  readonly isolation: 'windows-restricted' | 'host-unisolated'
   readonly filesystem: FileSystemGrant
   readonly network: NetworkGrant
   readonly cwd: string
@@ -377,33 +377,33 @@ interface ExecutionPlan {
 
 ### G6：凭据治理冲突
 
-| 属性 | 结论 |
-|---|---|
-| 类型 | Governance decision |
-| 影响 | MCP/Plugin/自动化不知道能否依赖 SQLite 可恢复密文 |
-| 证据 | master key 在 Bun secrets；SQLite 保存 ciphertext/nonce；AGENTS.md 写凭据不得入 SQLite |
-| 必须决策 | 规则是禁止明文，还是禁止任何可恢复密文 |
-| 当前动作 | ADR 明确威胁模型、key 丢失、备份/迁移/删除/跨设备/日志 |
+| 属性     | 结论                                                                                   |
+| -------- | -------------------------------------------------------------------------------------- |
+| 类型     | Governance decision                                                                    |
+| 影响     | MCP/Plugin/自动化不知道能否依赖 SQLite 可恢复密文                                      |
+| 证据     | master key 在 Bun secrets；SQLite 保存 ciphertext/nonce；AGENTS.md 写凭据不得入 SQLite |
+| 必须决策 | 规则是禁止明文，还是禁止任何可恢复密文                                                 |
+| 当前动作 | ADR 明确威胁模型、key 丢失、备份/迁移/删除/跨设备/日志                                 |
 
 决策前不扩大 credential-dependent Plugin 或自动登录能力。
 
 ### G7：缺 Durable Goal
 
-| 属性 | 结论 |
-|---|---|
-| 类型 | Product capability gap |
-| 影响 | objective、预算、终止条件、blocked 只能依赖自由文本 |
-| 证据 | Agent/protocol/shared/session-view 没有 Goal domain；compaction 只有文本标题 |
-| 依赖 | Composition identity、真 lazy、恢复验收稳定 |
-| 最小实现 | 独立表 + service + v4 capability/RPC/event + tools + projection |
-| 完成标准 | 不因 compaction/restart 丢失；usage 原子；模型不能绕过 service |
+| 属性     | 结论                                                                         |
+| -------- | ---------------------------------------------------------------------------- |
+| 类型     | Product capability gap                                                       |
+| 影响     | objective、预算、终止条件、blocked 只能依赖自由文本                          |
+| 证据     | Agent/protocol/shared/session-view 没有 Goal domain；compaction 只有文本标题 |
+| 依赖     | Composition identity、真 lazy、恢复验收稳定                                  |
+| 最小实现 | 独立表 + service + v4 capability/RPC/event + tools + projection              |
+| 完成标准 | 不因 compaction/restart 丢失；usage 原子；模型不能绕过 service               |
 
 ```ts
 interface DurableGoal {
   id: string
   threadID: string
   objective: string
-  status: "active" | "complete" | "blocked"
+  status: 'active' | 'complete' | 'blocked'
   tokenBudget: number | null
   consumedTokens: number
   elapsedMs: number
@@ -418,13 +418,13 @@ interface DurableGoal {
 
 ### G8：Memory recall 污染 Prompt
 
-| 属性 | 结论 |
-|---|---|
-| 类型 | Confirmed quality/cost gap |
-| 影响 | overlap=0 的最近 memory 也可能进入 context；最大 16k 字符 |
-| 证据 | `MemoryService.ts:83-97` 是词集合 overlap + updatedAt，无最低阈值 |
+| 属性     | 结论                                                                |
+| -------- | ------------------------------------------------------------------- |
+| 类型     | Confirmed quality/cost gap                                          |
+| 影响     | overlap=0 的最近 memory 也可能进入 context；最大 16k 字符           |
+| 证据     | `MemoryService.ts:83-97` 是词集合 overlap + updatedAt，无最低阈值   |
 | 最小实现 | overlap=0 不召回；FTS5/BM25；workspace/path/symbol 加权；预算 2k-4k |
-| 完成标准 | 固定 query 的 precision@k 提升；零相关 recall 为 0；不先上向量服务 |
+| 完成标准 | 固定 query 的 precision@k 提升；零相关 recall 为 0；不先上向量服务  |
 
 ---
 
@@ -521,16 +521,16 @@ interface DurableGoal {
 
 只写保护本次行为的必要测试，不新增大面积快照。
 
-| 领域 | 必测场景 | 断言 |
-|---|---|---|
+| 领域        | 必测场景                                                | 断言                                         |
+| ----------- | ------------------------------------------------------- | -------------------------------------------- |
 | Composition | fresh、multi-step、resume、corruption、descriptor drift | 首 sample 前持久化；不重组；漂移 fail-closed |
-| Skills | index/search/read/显式引用/坏文件/变化 | 普通 Turn 不读正文；reference hash 正确 |
-| MCP | required/optional/load/OAuth/generation | optional 未用不连接；binding 原子 |
-| Hooks | 公开 event、trust、ask/deny/narrow/crash | 无静默未接线；不提权 |
-| Recovery | running、各 wait、side effect、compaction | 可恢复项继续；模糊副作用 interrupted |
-| Goal | CRUD、budget、usage、compaction、replay | 状态/usage 原子；旧客户端可忽略 |
-| Projection | durable/live/replay/history | error/wait/compaction/Goal 一致 |
-| Sandbox | 外读写、junction、child、network、env、timeout | 隔离必需而 backend 不可用时拒绝 |
+| Skills      | index/search/read/显式引用/坏文件/变化                  | 普通 Turn 不读正文；reference hash 正确      |
+| MCP         | required/optional/load/OAuth/generation                 | optional 未用不连接；binding 原子            |
+| Hooks       | 公开 event、trust、ask/deny/narrow/crash                | 无静默未接线；不提权                         |
+| Recovery    | running、各 wait、side effect、compaction               | 可恢复项继续；模糊副作用 interrupted         |
+| Goal        | CRUD、budget、usage、compaction、replay                 | 状态/usage 原子；旧客户端可忽略              |
+| Projection  | durable/live/replay/history                             | error/wait/compaction/Goal 一致              |
+| Sandbox     | 外读写、junction、child、network、env、timeout          | 隔离必需而 backend 不可用时拒绝              |
 
 验证顺序：
 
@@ -552,18 +552,18 @@ git diff --check
 
 以下是首轮目标，不是当前性能声明；Gate 0 后按基线调整。
 
-| 目标 | 建议门槛 |
-|---|---|
-| Skills | 普通 Turn `skill_body_reads=0`；显式引用数等于读取数 |
-| Optional MCP | 未显式加载时 `connected_optional=0` |
-| Tool schema | 大 catalog 首次 schema bytes 明显下降，工具成功率不降 |
-| Composition | descriptor drift/corruption 100% fail-closed |
-| Side effect | 所有故障 fixture 重复副作用恒为 0 |
-| Recovery | 可恢复 checkpoint 成功率 100%；模糊副作用明确 interrupted |
-| Hook | 对外声明事件生产触发覆盖率 100% |
-| Memory | precision@k 提升；零相关 recall=0；注入字符下降 |
-| Projection | 重连 canonical state 与直接 history snapshot 一致 |
-| 诊断 | log/event/error 无 key、完整命令环境、敏感绝对路径 |
+| 目标         | 建议门槛                                                  |
+| ------------ | --------------------------------------------------------- |
+| Skills       | 普通 Turn `skill_body_reads=0`；显式引用数等于读取数      |
+| Optional MCP | 未显式加载时 `connected_optional=0`                       |
+| Tool schema  | 大 catalog 首次 schema bytes 明显下降，工具成功率不降     |
+| Composition  | descriptor drift/corruption 100% fail-closed              |
+| Side effect  | 所有故障 fixture 重复副作用恒为 0                         |
+| Recovery     | 可恢复 checkpoint 成功率 100%；模糊副作用明确 interrupted |
+| Hook         | 对外声明事件生产触发覆盖率 100%                           |
+| Memory       | precision@k 提升；零相关 recall=0；注入字符下降           |
+| Projection   | 重连 canonical state 与直接 history snapshot 一致         |
+| 诊断         | log/event/error 无 key、完整命令环境、敏感绝对路径        |
 
 不设“代码行数减少”或“与 Codex 目录一致”等无用户价值指标。
 
@@ -612,38 +612,38 @@ git diff --check
 
 ### 11.1 CodePilotX HEAD `733e308b`
 
-| 机制/缺口 | 关键位置 |
-|---|---|
-| Capability | `transport/rpc/handlers/system.ts:113-120` |
-| Runtime Composition | `runtime-composition/types.ts:109-148`、`service.ts:57-104` |
-| 生产接入 | `orchestration/AgentRuntimeService.ts:849-950` |
-| Agent Loop | `orchestration/harness/agent-loop.ts:156-275,412-605` |
-| Tool/Permission | `tool/ToolExecutor.ts:120-217,295-489`、`permission/PermissionDecisionEngine.ts:52-100` |
-| Skills eager | `session/ThreadService.ts:371,832`、`subagent/SubagentService.ts:501` |
-| MCP eager | `mcp/McpConnectionManager.ts:188-280,327-392` |
-| Hooks | `hooks/HookService.ts:8-35,184-239` |
-| Resume | `interaction/ResumeCheckpointResolver.ts:31-158` |
-| Compaction | `context/harness/compaction.ts:626-703` |
-| Pi context | `storage/pi-session/session.ts:59-78,184-189` |
-| SSE replay | `transport/server.ts:521-647` |
-| Canonical view | `packages/session-view/src/canonical/index.ts:44-68,580-690` |
-| Memory | `memory/MemoryService.ts:83-97` |
-| Host exec | `transport/rpc/handlers/system.ts:138-146`、`tool/Shell/HostProcess.ts:159` |
+| 机制/缺口           | 关键位置                                                                                |
+| ------------------- | --------------------------------------------------------------------------------------- |
+| Capability          | `transport/rpc/handlers/system.ts:113-120`                                              |
+| Runtime Composition | `runtime-composition/types.ts:109-148`、`service.ts:57-104`                             |
+| 生产接入            | `orchestration/AgentRuntimeService.ts:849-950`                                          |
+| Agent Loop          | `orchestration/harness/agent-loop.ts:156-275,412-605`                                   |
+| Tool/Permission     | `tool/ToolExecutor.ts:120-217,295-489`、`permission/PermissionDecisionEngine.ts:52-100` |
+| Skills eager        | `session/ThreadService.ts:371,832`、`subagent/SubagentService.ts:501`                   |
+| MCP eager           | `mcp/McpConnectionManager.ts:188-280,327-392`                                           |
+| Hooks               | `hooks/HookService.ts:8-35,184-239`                                                     |
+| Resume              | `interaction/ResumeCheckpointResolver.ts:31-158`                                        |
+| Compaction          | `context/harness/compaction.ts:626-703`                                                 |
+| Pi context          | `storage/pi-session/session.ts:59-78,184-189`                                           |
+| SSE replay          | `transport/server.ts:521-647`                                                           |
+| Canonical view      | `packages/session-view/src/canonical/index.ts:44-68,580-690`                            |
+| Memory              | `memory/MemoryService.ts:83-97`                                                         |
+| Host exec           | `transport/rpc/handlers/system.ts:138-146`、`tool/Shell/HostProcess.ts:159`             |
 
 ### 11.2 OpenAI Codex SHA `343074d4`
 
-| 机制 | 固定源码 |
-|---|---|
-| Agent Turn/Step | [`turn.rs`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/core/src/session/turn.rs) |
+| 机制             | 固定源码                                                                                                                                                                                                                                                             |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agent Turn/Step  | [`turn.rs`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/core/src/session/turn.rs)                                                                                                                                         |
 | Tool plan/router | [`spec_plan.rs`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/core/src/tools/spec_plan.rs)、[`router.rs`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/core/src/tools/router.rs) |
-| Concurrency | [`parallel.rs`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/core/src/tools/parallel.rs) |
-| Approval/Sandbox | [`sandboxing.rs`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/core/src/tools/sandboxing.rs) |
-| Compaction | [`compact.rs`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/core/src/compact.rs) |
-| Thread store | [`thread-store`](https://github.com/openai/codex/tree/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/thread-store) |
-| MCP | [`mcp.rs`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/core/src/mcp.rs) |
-| Hooks | [`hook_runtime.rs`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/core/src/hook_runtime.rs) |
-| Multi-agent | [`agent/control.rs`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/core/src/agent/control.rs) |
-| App Server | [`app-server/README.md`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/app-server/README.md) |
+| Concurrency      | [`parallel.rs`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/core/src/tools/parallel.rs)                                                                                                                                   |
+| Approval/Sandbox | [`sandboxing.rs`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/core/src/tools/sandboxing.rs)                                                                                                                               |
+| Compaction       | [`compact.rs`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/core/src/compact.rs)                                                                                                                                           |
+| Thread store     | [`thread-store`](https://github.com/openai/codex/tree/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/thread-store)                                                                                                                                                |
+| MCP              | [`mcp.rs`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/core/src/mcp.rs)                                                                                                                                                   |
+| Hooks            | [`hook_runtime.rs`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/core/src/hook_runtime.rs)                                                                                                                                 |
+| Multi-agent      | [`agent/control.rs`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/core/src/agent/control.rs)                                                                                                                               |
+| App Server       | [`app-server/README.md`](https://github.com/openai/codex/blob/343074d4207d572809bd8cea15f4be1d09d98e0b/codex-rs/app-server/README.md)                                                                                                                                |
 
 ---
 

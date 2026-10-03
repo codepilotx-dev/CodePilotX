@@ -81,15 +81,17 @@ describe('desktop runtime skills client', () => {
 
     expect(catalog).toEqual({
       state: 'ready',
-      data: [{
-        name: 'review',
-        description: 'Review the current change.',
-        path: skillPath,
-        scope: 'repo',
-        source: 'workspace',
-        format: 'agents',
-        enabled: true,
-      }],
+      data: [
+        {
+          name: 'review',
+          description: 'Review the current change.',
+          path: skillPath,
+          scope: 'repo',
+          source: 'workspace',
+          format: 'agents',
+          enabled: true,
+        },
+      ],
       updatedAt: new Date(1_753_392_000_000).toISOString(),
     })
     expect(details).toMatchObject({
@@ -100,30 +102,28 @@ describe('desktop runtime skills client', () => {
       content: '# Review\n',
     })
     expect(disabled.enabled).toBe(false)
-    expect(requests.find(item => item.method === 'skill/list')?.params).toEqual({
+    expect(requests.find((item) => item.method === 'skill/list')?.params).toEqual({
       workspace,
       forceReload: true,
     })
-    expect(requests.find(item => item.method === 'skill/read')?.params).toEqual({
+    expect(requests.find((item) => item.method === 'skill/read')?.params).toEqual({
       path: skillPath,
       workspace,
     })
-    expect(requests.find(item => item.method === 'skill/setEnabled')?.params).toEqual({
+    expect(requests.find((item) => item.method === 'skill/setEnabled')?.params).toEqual({
       path: skillPath,
       enabled: false,
       operationId: expect.any(String),
     })
 
     const generations: number[] = []
-    const unsubscribe = client.onRuntimeSkillsUpdated(generation => {
+    const unsubscribe = client.onRuntimeSkillsUpdated((generation) => {
       generations.push(generation)
     })
     for (let index = 0; index < 20 && !source.onmessage; index += 1) {
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 0))
     }
-    expect(
-      requests.find(item => item.method === 'event/subscribe')?.params,
-    ).toEqual({
+    expect(requests.find((item) => item.method === 'event/subscribe')?.params).toEqual({
       streams: [{ streamId: 'global', after: 'latest' }],
       liveEventTypes: [
         'catalog/updated',
@@ -161,7 +161,7 @@ describe('desktop runtime skills client', () => {
       }),
     } as MessageEvent)
     for (let index = 0; index < 20 && generations.length === 0; index += 1) {
-      await new Promise(resolve => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 10))
     }
     expect(generations).toEqual([3])
     unsubscribe()
@@ -193,12 +193,14 @@ describe('desktop runtime skills client', () => {
 
     await expect(client.listRuntimeSkills(workspace)).resolves.toMatchObject({
       state: 'ready',
-      data: [{
-        name: 'builtin-helper',
-        path: builtinSkill.path,
-        scope: 'system',
-        source: 'system',
-      }],
+      data: [
+        {
+          name: 'builtin-helper',
+          path: builtinSkill.path,
+          scope: 'system',
+          source: 'system',
+        },
+      ],
     })
   })
 

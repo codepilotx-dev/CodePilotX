@@ -37,8 +37,7 @@ describe('Renderer Vite development server configuration', () => {
     const server = resolveRendererDevServer('development', agentEnvironment)
     const rpcProxy = server.proxy?.['/rpc']
     let proxyRequestListener:
-      | ((request: { setHeader(name: string, value: string): void }) => void)
-      | undefined
+      ((request: { setHeader(name: string, value: string): void }) => void) | undefined
     const proxyServer = {
       on(event: string, listener: unknown) {
         if (event === 'proxyReq') {
@@ -56,9 +55,7 @@ describe('Renderer Vite development server configuration', () => {
       },
     })
 
-    expect(headers.get('Authorization')).toBe(
-      `Bearer ${agentEnvironment.CODEPILOTX_AUTH_TOKEN}`,
-    )
+    expect(headers.get('Authorization')).toBe(`Bearer ${agentEnvironment.CODEPILOTX_AUTH_TOKEN}`)
     expect(JSON.stringify({ port: server.port, hmr: server.hmr })).not.toContain(
       agentEnvironment.CODEPILOTX_AUTH_TOKEN,
     )
@@ -82,9 +79,7 @@ describe('Renderer Vite development server configuration', () => {
   })
 
   test('accepts only an exact loopback HTTP Agent origin with an explicit port', () => {
-    expect(normalizeRendererAgentOrigin('http://127.0.0.1:43120')).toBe(
-      'http://127.0.0.1:43120',
-    )
+    expect(normalizeRendererAgentOrigin('http://127.0.0.1:43120')).toBe('http://127.0.0.1:43120')
     for (const origin of [
       'https://127.0.0.1:43120',
       'http://localhost:43120',

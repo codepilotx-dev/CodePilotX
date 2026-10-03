@@ -218,7 +218,7 @@
 
     &:focus {
       border-color: var(--cpx-sys-color-accent);
-  box-shadow: var(--cpx-sys-focus-ring-inset);
+      box-shadow: var(--cpx-sys-focus-ring-inset);
     }
   }
 
@@ -315,7 +315,7 @@
   font: var(--cpx-sys-type-caption);
   white-space: nowrap;
 
-  &:not([data-status="available"]) {
+  &:not([data-status='available']) {
     color: var(--cpx-sys-color-danger);
   }
 }

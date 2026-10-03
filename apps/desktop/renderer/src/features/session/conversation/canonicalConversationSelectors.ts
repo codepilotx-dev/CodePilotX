@@ -48,7 +48,7 @@ export function selectCanonicalLatestTurnStatus(
   const queueTurnIds = new Set(state.queue.turnIds)
   const activeTurn = [...state.turnsById.values()]
     .filter(
-      turn =>
+      (turn) =>
         !queueTurnIds.has(turn.id) &&
         (turn.status === 'running' || turn.status.startsWith('waiting-')),
     )
@@ -56,8 +56,8 @@ export function selectCanonicalLatestTurnStatus(
   if (activeTurn) return activeTurn.status
   const latestTurn = [...state.turnOrder]
     .reverse()
-    .map(id => state.turnsById.get(id))
-    .find(turn => turn && !queueTurnIds.has(turn.id))
+    .map((id) => state.turnsById.get(id))
+    .find((turn) => turn && !queueTurnIds.has(turn.id))
   return latestTurn?.status ?? null
 }
 
@@ -120,7 +120,7 @@ export function selectCanonicalConversationAuxiliaryState(
   return {
     hasConversationMessages:
       inputs.length > 0 ||
-      items.some(item => item.type === 'text' && item.text.trim().length > 0),
+      items.some((item) => item.type === 'text' && item.text.trim().length > 0),
     pendingPermissions: selectPendingPermissions(state),
     contextUsage: latestItemContextUsage(items),
     queuedFollowUps: selectQueuedFollowUps(state),
@@ -131,9 +131,7 @@ export function selectCanonicalConversationAuxiliaryState(
   }
 }
 
-function selectQueuedFollowUps(
-  state: CanonicalThreadState,
-): DesktopQueuedFollowUp[] {
+function selectQueuedFollowUps(state: CanonicalThreadState): DesktopQueuedFollowUp[] {
   const orderedInputIds: string[] = []
   const seen = new Set<string>()
   for (const turnId of state.queue.turnIds) {
@@ -147,30 +145,28 @@ function selectQueuedFollowUps(
     seen.add(inputId)
     orderedInputIds.push(inputId)
   }
-  return orderedInputIds.flatMap(inputId => {
+  return orderedInputIds.flatMap((inputId) => {
     const input = state.inputsById.get(inputId)
     if (!input) return []
-    return [{
-      id: input.id,
-      input: { text: input.content, ...(input.skills ? { skills: input.skills } : {}) },
-      previewText: input.skills?.length ? desktopUserMessageInputToPreviewText({ text: input.content, skills: input.skills }) : input.content,
-      createdAt: new Date(input.createdAt).toISOString(),
-    }]
+    return [
+      {
+        id: input.id,
+        input: { text: input.content, ...(input.skills ? { skills: input.skills } : {}) },
+        previewText: input.skills?.length
+          ? desktopUserMessageInputToPreviewText({ text: input.content, skills: input.skills })
+          : input.content,
+        createdAt: new Date(input.createdAt).toISOString(),
+      },
+    ]
   })
 }
 
-function selectPendingPermissions(
-  state: CanonicalThreadState,
-): DesktopPermissionRequest[] {
+function selectPendingPermissions(state: CanonicalThreadState): DesktopPermissionRequest[] {
   const requests = new Map<
     string,
     { createdAt: number; priority: number; request: DesktopPermissionRequest }
   >()
-  const add = (
-    request: DesktopPermissionRequest,
-    createdAt: number,
-    priority: number,
-  ): void => {
+  const add = (request: DesktopPermissionRequest, createdAt: number, priority: number): void => {
     const key = request.toolUseId || request.requestId
     const current = requests.get(key)
     if (!current || priority > current.priority) {
@@ -191,33 +187,33 @@ function selectPendingPermissions(
     }
   }
   for (const interaction of state.hookTrustsById.values()) {
-    add({
-      requestId: interaction.interactionId,
-      toolName: 'HookTrust',
-      toolUseId: interaction.interactionId,
-      input: {
-        configPath: interaction.configPath,
-        configSha256: interaction.sha256,
-        hook: interaction.hook,
+    add(
+      {
+        requestId: interaction.interactionId,
+        toolName: 'HookTrust',
+        toolUseId: interaction.interactionId,
+        input: {
+          configPath: interaction.configPath,
+          configSha256: interaction.sha256,
+          hook: interaction.hook,
+        },
+        description: `项目 Hook“${interaction.hook.name}”请求信任，是否允许？`,
+        requestKind: 'tool',
       },
-      description: `项目 Hook“${interaction.hook.name}”请求信任，是否允许？`,
-      requestKind: 'tool',
-    }, interaction.createdAt, 4)
+      interaction.createdAt,
+      4,
+    )
   }
 
   return [...requests.values()]
     .sort((left, right) => left.createdAt - right.createdAt)
-    .map(entry => entry.request)
+    .map((entry) => entry.request)
 }
 
 function extractCanonicalSourceLinks(items: readonly Item[]): SourceLink[] {
   const byUrl = new Map<string, SourceLink>()
   for (const item of items) {
-    if (
-      item.type !== 'text' ||
-      item.placement !== 'result' ||
-      item.status !== 'completed'
-    ) {
+    if (item.type !== 'text' || item.placement !== 'result' || item.status !== 'completed') {
       continue
     }
     let links = completedResultSourceLinks.get(item)
@@ -236,17 +232,11 @@ function fallbackTitleFromInput(content: string | undefined): string | null {
   return sessionTitleFromContent(content)
 }
 
-function compareCreatedAt(
-  left: { createdAt: number },
-  right: { createdAt: number },
-): number {
+function compareCreatedAt(left: { createdAt: number }, right: { createdAt: number }): number {
   return left.createdAt - right.createdAt
 }
 
-function addSourceLink(
-  byUrl: Map<string, SourceLink>,
-  source: SourceLink,
-): void {
+function addSourceLink(byUrl: Map<string, SourceLink>, source: SourceLink): void {
   if (isLocalURL(source.url) || byUrl.has(source.url)) return
   byUrl.set(source.url, {
     label: truncateToWidth(source.label || source.url, 42),

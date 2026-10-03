@@ -1,20 +1,8 @@
 import React from 'react'
 import { CAPABILITIES } from '../constants/content'
-import {
-  Boxes,
-  Blocks,
-  Globe,
-  Clock,
-  Users2,
-} from 'lucide-react'
+import { Boxes, Blocks, Globe, Clock, Users2 } from 'lucide-react'
 
-const CAPABILITY_ICONS = [
-  Boxes,
-  Blocks,
-  Globe,
-  Clock,
-  Users2,
-]
+const CAPABILITY_ICONS = [Boxes, Blocks, Globe, Clock, Users2]
 
 export const CapabilitiesGrid: React.FC = () => {
   return (
@@ -29,7 +17,8 @@ export const CapabilitiesGrid: React.FC = () => {
             Engineered for expansion.
           </h2>
           <p className="mt-4 text-base sm:text-lg text-[#55625D]">
-            Beyond core file manipulation, CodePilotX integrates protocols, browsers, timers, and multi-agent coordination.
+            Beyond core file manipulation, CodePilotX integrates protocols, browsers, timers, and
+            multi-agent coordination.
           </p>
         </div>
 
@@ -56,13 +45,9 @@ export const CapabilitiesGrid: React.FC = () => {
                     </span>
                   </div>
 
-                  <h3 className="text-xl font-bold text-[#17211D]">
-                    {item.title}
-                  </h3>
+                  <h3 className="text-xl font-bold text-[#17211D]">{item.title}</h3>
 
-                  <p className="mt-3 text-sm text-[#55625D] leading-relaxed">
-                    {item.description}
-                  </p>
+                  <p className="mt-3 text-sm text-[#55625D] leading-relaxed">{item.description}</p>
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-[#DCD6CB]/60 font-mono text-[11px] text-[#55625D]">

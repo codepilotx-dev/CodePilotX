@@ -22,20 +22,16 @@ test.describe('animation contracts', () => {
       await rightPanel.getByText('README.md', { exact: true }).click()
       const preview = rightPanel.locator('.right-dock-file-preview')
       await expect(preview).toBeVisible()
-      const treeToggle = preview.locator(
-        '.file-breadcrumb-toolbar__action[aria-pressed]',
-      )
+      const treeToggle = preview.locator('.file-breadcrumb-toolbar__action[aria-pressed]')
       await expect(treeToggle).toBeVisible()
-      if (await treeToggle.getAttribute('aria-pressed') === 'true') {
+      if ((await treeToggle.getAttribute('aria-pressed')) === 'true') {
         await treeToggle.click()
       }
       await expect(treeToggle).toHaveAttribute('aria-pressed', 'false')
 
       // 显示：一次提交最终 flex 宽度，编辑器与文件树并排。
       await treeToggle.click()
-      const presence = rightPanel.locator(
-        '.right-dock-editor-file-tree-presence',
-      )
+      const presence = rightPanel.locator('.right-dock-editor-file-tree-presence')
       await expect(presence).toHaveAttribute('data-presence', 'present')
       const tree = rightPanel.locator('.right-dock-editor-file-tree')
       const editor = rightPanel.locator('.right-dock-file-selection-target')
@@ -85,17 +81,11 @@ test.describe('animation contracts', () => {
       page,
     }) => {
       await openVisualFixture(page, 'scroll-edge', motion)
-      const recentToggle = page.locator(
-        '[data-sidebar-section-id="recent"]',
-      )
+      const recentToggle = page.locator('[data-sidebar-section-id="recent"]')
       await expect(recentToggle).toBeVisible()
       await expect(recentToggle).toHaveAttribute('aria-expanded', 'true')
-      const recentSection = page
-        .locator('.sidebar-section')
-        .filter({ has: recentToggle })
-      const recentDisclosure = recentSection.locator(
-        ':scope > .sidebar-section-disclosure',
-      )
+      const recentSection = page.locator('.sidebar-section').filter({ has: recentToggle })
+      const recentDisclosure = recentSection.locator(':scope > .sidebar-section-disclosure')
       const recentTransition = await readDisclosureTransition(recentDisclosure)
       expect(recentTransition.opacity).toBe('1')
       expect(recentTransition.property).toBe('grid-template-rows')
@@ -113,31 +103,23 @@ test.describe('animation contracts', () => {
       // section 折叠：内容保留但不可交互，ARIA 同步、键盘可恢复。
       await recentToggle.click()
       await expect(recentToggle).toHaveAttribute('aria-expanded', 'false')
-      await expect(
-        recentDisclosure,
-      ).toHaveAttribute('aria-hidden', 'true')
+      await expect(recentDisclosure).toHaveAttribute('aria-hidden', 'true')
       await recentToggle.focus()
       await page.keyboard.press('Enter')
       await expect(recentToggle).toHaveAttribute('aria-expanded', 'true')
-      await expect(
-        recentSection.locator('.sidebar-section-content'),
-      ).toBeVisible()
+      await expect(recentSection.locator('.sidebar-section-content')).toBeVisible()
     })
 
     test(`process group and turn activity collapse with edge fades (${motion})`, async ({
       page,
     }) => {
       await openVisualFixture(page, 'scroll-edge', motion)
-      const turnActivitySummary = page.locator(
-        '.canonical-turn-activity__summary',
-      )
+      const turnActivitySummary = page.locator('.canonical-turn-activity__summary')
       await expect(turnActivitySummary).toBeVisible()
-      if (await turnActivitySummary.getAttribute('aria-expanded') === 'false') {
+      if ((await turnActivitySummary.getAttribute('aria-expanded')) === 'false') {
         await turnActivitySummary.click()
       }
-      const processSummary = page.locator(
-        '.cpx-agent-activity__header',
-      )
+      const processSummary = page.locator('.cpx-agent-activity__header')
       await expect(processSummary).toBeVisible()
 
       // 展开 process group：items 可滚动，顶部/底部渐隐状态正确。
@@ -158,42 +140,31 @@ test.describe('animation contracts', () => {
 
       // 内容尺寸增长会由 content ResizeObserver 主动重测，无需用户滚动。
       const firstCard = items.locator('.cpx-agent-activity__item').first()
-      const firstCardToggle = firstCard.locator(
-        '.cpx-agent-activity__item-header',
-      )
-      const collapsedHeight = await items.evaluate(element => element.scrollHeight)
+      const firstCardToggle = firstCard.locator('.cpx-agent-activity__item-header')
+      const collapsedHeight = await items.evaluate((element) => element.scrollHeight)
       await firstCardToggle.locator('.cpx-agent-activity__chevron').click()
       await expect(firstCard).toHaveAttribute('data-expanded', 'true')
       await expect(firstCardToggle).toHaveAttribute('aria-expanded', 'true')
       await expect
-        .poll(() => items.evaluate(element => element.scrollHeight))
+        .poll(() => items.evaluate((element) => element.scrollHeight))
         .toBeGreaterThan(collapsedHeight)
       await expect(edgeFrame).toHaveAttribute('data-at-end', 'false')
 
       // command shell 的伪元素留在外 frame，只有内层 scroller 移动。
-      const commandFrame = firstCard
-        .locator('.canonical-command-shell__edge-fade')
-        .first()
-      const commandScroller = commandFrame.locator(
-        '.canonical-command-shell__scroller',
-      )
-      await commandFrame
-        .locator('.canonical-command-shell__scroll-content')
-        .evaluate(element => {
-          const overflow = document.createElement('div')
-          overflow.dataset.visualOverflow = 'true'
-          overflow.style.height = '240px'
-          element.appendChild(overflow)
-        })
+      const commandFrame = firstCard.locator('.canonical-command-shell__edge-fade').first()
+      const commandScroller = commandFrame.locator('.canonical-command-shell__scroller')
+      await commandFrame.locator('.canonical-command-shell__scroll-content').evaluate((element) => {
+        const overflow = document.createElement('div')
+        overflow.dataset.visualOverflow = 'true'
+        overflow.style.height = '240px'
+        element.appendChild(overflow)
+      })
       await expect(commandFrame).toHaveAttribute('data-scrollable', 'true')
       const frameBeforeScroll = await commandFrame.boundingBox()
       await scrollNested(commandScroller, 1)
       const frameAfterScroll = await commandFrame.boundingBox()
       expect(frameAfterScroll?.y).toBeCloseTo(frameBeforeScroll?.y ?? 0, 0)
-      expect(frameAfterScroll?.height).toBeCloseTo(
-        frameBeforeScroll?.height ?? 0,
-        0,
-      )
+      expect(frameAfterScroll?.height).toBeCloseTo(frameBeforeScroll?.height ?? 0, 0)
 
       await firstCardToggle.locator('.cpx-agent-activity__chevron').click()
       await expect(firstCard).toHaveAttribute('data-expanded', 'false')
@@ -220,30 +191,40 @@ test.describe('animation contracts', () => {
       expect(processTransition.opacity).toBe('1')
       expect(processTransition.property).toBe('grid-template-rows')
       expect(processTransition.duration).toBe(motion === 'off' ? '0.1s' : '0s')
-      const processSamples = motion === 'off'
-        ? await sampleDisclosureCollapse(processSummary)
-        : (await processSummary.click(), null)
+      const processSamples =
+        motion === 'off'
+          ? await sampleDisclosureCollapse(processSummary)
+          : (await processSummary.click(), null)
       await expect(processSummary).toHaveAttribute('aria-expanded', 'false')
       if (processSamples) {
         expect(processSamples.startHeight).toBeGreaterThan(0)
         const distinctHeights = processSamples.samples
-          .map(sample => Math.round(sample.height * 2) / 2)
+          .map((sample) => Math.round(sample.height * 2) / 2)
           .filter((height, index, heights) => index === 0 || height !== heights[index - 1])
         expect(distinctHeights.length).toBeGreaterThanOrEqual(6)
-        expect(distinctHeights.every((height, index) => (
-          index === 0 || height < distinctHeights[index - 1]!
-        ))).toBe(true)
-        expect(processSamples.samples.some(sample => (
-          sample.elapsed >= 30
-          && sample.elapsed <= 180
-          && sample.height > 0
-          && sample.height < processSamples.startHeight
-        ))).toBe(true)
-        expect(processSamples.samples.every(sample => sample.opacity === '1')).toBe(true)
-        expect(Math.max(...processSamples.samples.map(sample => sample.frameGap))).toBeLessThanOrEqual(50)
-        expect(processSamples.samples.every(sample => (
-          Math.abs(sample.trackedY - processSamples.startTrackedY) <= 1
-        ))).toBe(true)
+        expect(
+          distinctHeights.every(
+            (height, index) => index === 0 || height < distinctHeights[index - 1]!,
+          ),
+        ).toBe(true)
+        expect(
+          processSamples.samples.some(
+            (sample) =>
+              sample.elapsed >= 30 &&
+              sample.elapsed <= 180 &&
+              sample.height > 0 &&
+              sample.height < processSamples.startHeight,
+          ),
+        ).toBe(true)
+        expect(processSamples.samples.every((sample) => sample.opacity === '1')).toBe(true)
+        expect(
+          Math.max(...processSamples.samples.map((sample) => sample.frameGap)),
+        ).toBeLessThanOrEqual(50)
+        expect(
+          processSamples.samples.every(
+            (sample) => Math.abs(sample.trackedY - processSamples.startTrackedY) <= 1,
+          ),
+        ).toBe(true)
       }
       await expect(processDisclosure).toHaveAttribute('aria-hidden', 'true')
       await expect(processDisclosure).toHaveAttribute('inert', '')
@@ -251,44 +232,49 @@ test.describe('animation contracts', () => {
       await expect.poll(() => disclosureHeight(processDisclosure)).toBeLessThanOrEqual(0.5)
 
       // turn activity 折叠：回答区连续、单调上移，不出现空白中间帧。
-      const activitySummary = page.locator(
-        '.canonical-turn-activity__summary',
-      )
+      const activitySummary = page.locator('.canonical-turn-activity__summary')
       await expect(activitySummary).toBeVisible()
       const activityRoot = activitySummary.locator('..')
       const activityDisclosure = activityRoot.locator(':scope > .ui-disclosure-content')
       await expect(activityDisclosure).toBeVisible()
-      const activitySamples = motion === 'off'
-        ? await sampleDisclosureCollapse(activitySummary, '.canonical-turn__result')
-        : (await activitySummary.click(), null)
+      const activitySamples =
+        motion === 'off'
+          ? await sampleDisclosureCollapse(activitySummary, '.canonical-turn__result')
+          : (await activitySummary.click(), null)
       await expect(activitySummary).toHaveAttribute('aria-expanded', 'false')
       if (activitySamples) {
         expect(activitySamples.startHeight).toBeGreaterThan(0)
         const distinctHeights = activitySamples.samples
-          .map(sample => Math.round(sample.height * 2) / 2)
+          .map((sample) => Math.round(sample.height * 2) / 2)
           .filter((height, index, heights) => index === 0 || height !== heights[index - 1])
         expect(distinctHeights.length).toBeGreaterThanOrEqual(6)
-        expect(distinctHeights.every((height, index) => (
-          index === 0 || height < distinctHeights[index - 1]!
-        ))).toBe(true)
-        expect(activitySamples.samples.some(sample => (
-          sample.elapsed >= 30
-          && sample.elapsed <= 180
-          && sample.height > 0
-          && sample.height < activitySamples.startHeight
-        ))).toBe(true)
-        expect(activitySamples.samples.every(sample => sample.opacity === '1')).toBe(true)
-        expect(Math.max(...activitySamples.samples.map(sample => sample.frameGap))).toBeLessThanOrEqual(50)
-        expect(activitySamples.samples.every((sample, index, samples) => (
-          index === 0 || sample.trackedY <= samples[index - 1]!.trackedY + 0.5
-        ))).toBe(true)
-        expect(activitySamples.samples.at(-1)!.trackedY).toBeLessThan(
-          activitySamples.startTrackedY,
-        )
+        expect(
+          distinctHeights.every(
+            (height, index) => index === 0 || height < distinctHeights[index - 1]!,
+          ),
+        ).toBe(true)
+        expect(
+          activitySamples.samples.some(
+            (sample) =>
+              sample.elapsed >= 30 &&
+              sample.elapsed <= 180 &&
+              sample.height > 0 &&
+              sample.height < activitySamples.startHeight,
+          ),
+        ).toBe(true)
+        expect(activitySamples.samples.every((sample) => sample.opacity === '1')).toBe(true)
+        expect(
+          Math.max(...activitySamples.samples.map((sample) => sample.frameGap)),
+        ).toBeLessThanOrEqual(50)
+        expect(
+          activitySamples.samples.every(
+            (sample, index, samples) =>
+              index === 0 || sample.trackedY <= samples[index - 1]!.trackedY + 0.5,
+          ),
+        ).toBe(true)
+        expect(activitySamples.samples.at(-1)!.trackedY).toBeLessThan(activitySamples.startTrackedY)
       }
-      await expect(
-        page.locator('.canonical-turn-activity__content'),
-      ).toHaveCount(1)
+      await expect(page.locator('.canonical-turn-activity__content')).toHaveCount(1)
       await expect(activityDisclosure).toHaveAttribute('aria-hidden', 'true')
       await expect(activityDisclosure).toHaveAttribute('inert', '')
       await expect.poll(() => disclosureHeight(activityDisclosure)).toBeLessThanOrEqual(0.5)
@@ -300,16 +286,17 @@ test.describe('animation contracts', () => {
         await page.waitForTimeout(260)
         const bottomSamples = await sampleBottomFollowCollapse(activitySummary)
         expect(bottomSamples.length).toBeGreaterThanOrEqual(6)
-        expect(Math.max(...bottomSamples.map(sample => sample.distance))).toBeLessThanOrEqual(2)
-        expect(bottomSamples.every((sample, index, samples) => (
-          index === 0 || sample.scrollTop <= samples[index - 1]!.scrollTop + 0.5
-        ))).toBe(true)
+        expect(Math.max(...bottomSamples.map((sample) => sample.distance))).toBeLessThanOrEqual(2)
+        expect(
+          bottomSamples.every(
+            (sample, index, samples) =>
+              index === 0 || sample.scrollTop <= samples[index - 1]!.scrollTop + 0.5,
+          ),
+        ).toBe(true)
       }
     })
 
-    test(`execution plan steps edge fades follow scroll (${motion})`, async ({
-      page,
-    }) => {
+    test(`execution plan steps edge fades follow scroll (${motion})`, async ({ page }) => {
       await openVisualFixture(page, 'scroll-edge', motion)
       const planButton = page.locator('.composer-change-summary__plan')
       await expect(planButton).toBeVisible()
@@ -325,9 +312,7 @@ test.describe('animation contracts', () => {
       await expect(stepsFrame).toHaveAttribute('data-at-end', 'false')
     })
 
-    test(`execution plan preview enters at its final width (${motion})`, async ({
-      page,
-    }) => {
+    test(`execution plan preview enters at its final width (${motion})`, async ({ page }) => {
       await openVisualFixture(page, 'execution-plan', motion)
       const capsule = page.locator('.composer-change-summary__bar')
       const planButton = page.locator('.composer-change-summary__plan')
@@ -353,9 +338,7 @@ test.describe('animation contracts', () => {
           const previewElement = host.querySelector<HTMLElement>(
             '.composer-change-summary__plan-preview',
           )
-          const card = previewElement?.querySelector<HTMLElement>(
-            '.execution-plan-card',
-          )
+          const card = previewElement?.querySelector<HTMLElement>('.execution-plan-card')
           if (!previewElement || !card) return
           observer.disconnect()
           const deadline = performance.now() + 220
@@ -387,28 +370,26 @@ test.describe('animation contracts', () => {
         return runtimeWindow.__planPreviewSamples ?? []
       })
       expect(samples.length).toBeGreaterThan(0)
-      expect(Math.min(...samples.map(sample => sample.width))).toBeGreaterThanOrEqual(480)
-      expect(Math.max(...samples.map(sample => sample.width))).toBeLessThanOrEqual(760)
+      expect(Math.min(...samples.map((sample) => sample.width))).toBeGreaterThanOrEqual(480)
+      expect(Math.max(...samples.map((sample) => sample.width))).toBeLessThanOrEqual(760)
       if (motion === 'on') {
-        expect(samples.every(sample => sample.transform === 'none')).toBe(true)
+        expect(samples.every((sample) => sample.transform === 'none')).toBe(true)
       } else {
-        expect(samples.some(sample => sample.transform !== 'none')).toBe(true)
+        expect(samples.some((sample) => sample.transform !== 'none')).toBe(true)
         expect(samples.at(-1)?.transform).toBe('none')
       }
-      expect(samples.every(sample => sample.animationName === 'none')).toBe(true)
+      expect(samples.every((sample) => sample.animationName === 'none')).toBe(true)
 
       const capsuleAfter = await capsule.boundingBox()
       expect(capsuleAfter).not.toBeNull()
       expect(capsuleAfter!.width).toBeCloseTo(capsuleBefore!.width, 0)
 
-      await planButton.evaluate(element => element.blur())
+      await planButton.evaluate((element) => element.blur())
       await expect(preview).toHaveCount(0)
     })
   }
 
-  test('skeleton shimmer and progress bars keep their compositor contract', async ({
-    page,
-  }) => {
+  test('skeleton shimmer and progress bars keep their compositor contract', async ({ page }) => {
     await openVisualFixture(page, 'scroll-edge', 'off')
     const styles = await page.evaluate(() => {
       const skeleton = document.createElement('div')
@@ -420,12 +401,9 @@ test.describe('animation contracts', () => {
 
       const composerTrack = document.createElement('div')
       composerTrack.className = 'composer-status-bar-track'
-      composerTrack.innerHTML =
-        '<div class="composer-status-bar-fill"></div>'
+      composerTrack.innerHTML = '<div class="composer-status-bar-fill"></div>'
       composerTrack.style.cssText = 'width: 320px;'
-      const composerFill = composerTrack.querySelector<HTMLElement>(
-        '.composer-status-bar-fill',
-      )!
+      const composerFill = composerTrack.querySelector<HTMLElement>('.composer-status-bar-fill')!
       composerFill.style.setProperty('--usage-ratio', '0.6')
       document.body.appendChild(composerTrack)
 
@@ -494,8 +472,7 @@ async function scrollNested(
   progress: number,
 ): Promise<void> {
   await scrollArea.evaluate((element, target) => {
-    element.scrollTop =
-      target * Math.max(0, element.scrollHeight - element.clientHeight)
+    element.scrollTop = target * Math.max(0, element.scrollHeight - element.clientHeight)
   }, progress)
   await pageSettle(scrollArea.page())
 }
@@ -503,7 +480,7 @@ async function scrollNested(
 async function pageSettle(page: Page): Promise<void> {
   await page.evaluate(
     () =>
-      new Promise<void>(resolve => {
+      new Promise<void>((resolve) => {
         const finish = (): void => {
           requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
         }
@@ -535,9 +512,7 @@ async function sampleDisclosureCollapse(
       throw new Error('disclosure toggle 不是 HTML 元素')
     }
     const root = node.parentElement
-    const disclosure = root?.querySelector<HTMLElement>(
-      ':scope > .ui-disclosure-content',
-    )
+    const disclosure = root?.querySelector<HTMLElement>(':scope > .ui-disclosure-content')
     const tracked = selector
       ? node.closest('.canonical-turn')?.querySelector<HTMLElement>(selector)
       : node
@@ -549,13 +524,15 @@ async function sampleDisclosureCollapse(
     const startTrackedY = tracked.getBoundingClientRect().y
     node.click()
     const startedAt = performance.now()
-    const samples = await new Promise<Array<{
-      elapsed: number
-      frameGap: number
-      height: number
-      opacity: string
-      trackedY: number
-    }>>(resolve => {
+    const samples = await new Promise<
+      Array<{
+        elapsed: number
+        frameGap: number
+        height: number
+        opacity: string
+        trackedY: number
+      }>
+    >((resolve) => {
       const values: Array<{
         elapsed: number
         frameGap: number
@@ -585,7 +562,7 @@ async function sampleDisclosureCollapse(
 async function readDisclosureTransition(
   disclosure: import('@playwright/test').Locator,
 ): Promise<{ duration: string; opacity: string; property: string }> {
-  return disclosure.evaluate(element => {
+  return disclosure.evaluate((element) => {
     const style = getComputedStyle(element)
     return {
       duration: style.transitionDuration,
@@ -595,10 +572,8 @@ async function readDisclosureTransition(
   })
 }
 
-async function disclosureHeight(
-  disclosure: import('@playwright/test').Locator,
-): Promise<number> {
-  return disclosure.evaluate(element => element.getBoundingClientRect().height)
+async function disclosureHeight(disclosure: import('@playwright/test').Locator): Promise<number> {
+  return disclosure.evaluate((element) => element.getBoundingClientRect().height)
 }
 
 async function sampleBottomFollowCollapse(
@@ -614,20 +589,17 @@ async function sampleBottomFollowCollapse(
     }
     viewport.scrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight)
     viewport.dispatchEvent(new Event('scroll'))
-    await new Promise<void>(resolve => {
+    await new Promise<void>((resolve) => {
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
     })
 
     node.click()
     const startedAt = performance.now()
-    return await new Promise<Array<{ distance: number; scrollTop: number }>>(resolve => {
+    return await new Promise<Array<{ distance: number; scrollTop: number }>>((resolve) => {
       const values: Array<{ distance: number; scrollTop: number }> = []
       const sample = (now: number): void => {
         values.push({
-          distance: Math.max(
-            0,
-            viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop,
-          ),
+          distance: Math.max(0, viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop),
           scrollTop: viewport.scrollTop,
         })
         if (now - startedAt >= 280) resolve(values)

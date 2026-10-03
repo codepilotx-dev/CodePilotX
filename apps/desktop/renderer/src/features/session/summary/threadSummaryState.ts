@@ -1,70 +1,67 @@
-import * as React from "react";
+import * as React from 'react'
 
-export const THREAD_SUMMARY_PANEL_WIDTH = 260;
-export const THREAD_SUMMARY_PANEL_GAP = 16;
-export const THREAD_SUMMARY_OVERLAY_MAX_WIDTH = 959;
-export const THREAD_SUMMARY_SHIFT_MAX_WIDTH = 1535;
+export const THREAD_SUMMARY_PANEL_WIDTH = 260
+export const THREAD_SUMMARY_PANEL_GAP = 16
+export const THREAD_SUMMARY_OVERLAY_MAX_WIDTH = 959
+export const THREAD_SUMMARY_SHIFT_MAX_WIDTH = 1535
 
-export type ThreadSummaryDisplayMode = "overlay" | "shift" | "gutter";
+export type ThreadSummaryDisplayMode = 'overlay' | 'shift' | 'gutter'
 
 export type ThreadSummaryPreferenceState = {
-  isPinned: boolean;
-  isPopoverOpen: boolean;
-};
+  isPinned: boolean
+  isPopoverOpen: boolean
+}
 
 export type ThreadSummaryState = ThreadSummaryPreferenceState & {
-  displayMode: ThreadSummaryDisplayMode;
-  shouldShowInline: boolean;
-};
+  displayMode: ThreadSummaryDisplayMode
+  shouldShowInline: boolean
+}
 
 const DEFAULT_PREFERENCE: ThreadSummaryPreferenceState = {
   isPinned: true,
   isPopoverOpen: false,
-};
+}
 
-let preferenceSnapshot = DEFAULT_PREFERENCE;
-const preferenceListeners = new Set<() => void>();
+let preferenceSnapshot = DEFAULT_PREFERENCE
+const preferenceListeners = new Set<() => void>()
 
 function publishPreference(next: ThreadSummaryPreferenceState): void {
   if (
     next.isPinned === preferenceSnapshot.isPinned &&
     next.isPopoverOpen === preferenceSnapshot.isPopoverOpen
   ) {
-    return;
+    return
   }
-  preferenceSnapshot = next;
-  for (const listener of preferenceListeners) listener();
+  preferenceSnapshot = next
+  for (const listener of preferenceListeners) listener()
 }
 
 function subscribePreference(listener: () => void): () => void {
-  preferenceListeners.add(listener);
-  return () => preferenceListeners.delete(listener);
+  preferenceListeners.add(listener)
+  return () => preferenceListeners.delete(listener)
 }
 
-export function resolveThreadSummaryDisplayMode(
-  containerWidth: number,
-): ThreadSummaryDisplayMode {
-  const width =
-    Number.isFinite(containerWidth) && containerWidth > 0 ? containerWidth : 0;
-  if (width <= THREAD_SUMMARY_OVERLAY_MAX_WIDTH) return "overlay";
-  if (width <= THREAD_SUMMARY_SHIFT_MAX_WIDTH) return "shift";
-  return "gutter";
+export function resolveThreadSummaryDisplayMode(containerWidth: number): ThreadSummaryDisplayMode {
+  const width = Number.isFinite(containerWidth) && containerWidth > 0 ? containerWidth : 0
+  if (width <= THREAD_SUMMARY_OVERLAY_MAX_WIDTH) return 'overlay'
+  if (width <= THREAD_SUMMARY_SHIFT_MAX_WIDTH) return 'shift'
+  return 'gutter'
 }
 
 export function resolveThreadSummaryDisplayModeUpdate(
   currentMode: ThreadSummaryDisplayMode,
   containerWidth: number,
 ): ThreadSummaryDisplayMode | null {
-  const nextMode = resolveThreadSummaryDisplayMode(containerWidth);
-  return nextMode === currentMode ? null : nextMode;
+  const nextMode = resolveThreadSummaryDisplayMode(containerWidth)
+  return nextMode === currentMode ? null : nextMode
 }
 
 export function deriveThreadSummaryState(
   containerWidth: number,
   preference: ThreadSummaryPreferenceState,
 ): ThreadSummaryState {
-  const displayMode = resolveThreadSummaryDisplayMode(containerWidth);
-  return deriveThreadSummaryStateForMode(displayMode, preference);
+  const displayMode = resolveThreadSummaryDisplayMode(containerWidth)
+  return deriveThreadSummaryStateForMode(displayMode, preference)
 }
 
 function deriveThreadSummaryStateForMode(
@@ -74,26 +71,25 @@ function deriveThreadSummaryStateForMode(
   return {
     ...preference,
     displayMode,
-    isPopoverOpen:
-      displayMode === "overlay" ? preference.isPopoverOpen : false,
-    shouldShowInline: preference.isPinned && displayMode !== "overlay",
-  };
+    isPopoverOpen: displayMode === 'overlay' ? preference.isPopoverOpen : false,
+    shouldShowInline: preference.isPinned && displayMode !== 'overlay',
+  }
 }
 
 export function toggleThreadSummaryPreference(
   preference: ThreadSummaryPreferenceState,
   displayMode: ThreadSummaryDisplayMode,
 ): ThreadSummaryPreferenceState {
-  if (displayMode === "overlay") {
+  if (displayMode === 'overlay') {
     return {
       ...preference,
       isPopoverOpen: !preference.isPopoverOpen,
-    };
+    }
   }
   return {
     isPinned: !preference.isPinned,
     isPopoverOpen: false,
-  };
+  }
 }
 
 export function transitionThreadSummaryMode(
@@ -101,16 +97,16 @@ export function transitionThreadSummaryMode(
   previousMode: ThreadSummaryDisplayMode,
   nextMode: ThreadSummaryDisplayMode,
 ): ThreadSummaryPreferenceState {
-  if (previousMode === "overlay" && nextMode !== "overlay") {
-    return { ...preference, isPopoverOpen: false };
+  if (previousMode === 'overlay' && nextMode !== 'overlay') {
+    return { ...preference, isPopoverOpen: false }
   }
-  return preference;
+  return preference
 }
 
 export type ThreadSummaryController = ThreadSummaryState & {
-  setPopoverOpen: (open: boolean) => void;
-  toggle: () => void;
-};
+  setPopoverOpen: (open: boolean) => void
+  toggle: () => void
+}
 
 export function useThreadSummaryController(
   containerRef: React.RefObject<HTMLElement | null>,
@@ -119,81 +115,74 @@ export function useThreadSummaryController(
     subscribePreference,
     () => preferenceSnapshot,
     () => DEFAULT_PREFERENCE,
-  );
-  const [displayMode, setDisplayMode] =
-    React.useState<ThreadSummaryDisplayMode>("overlay");
-  const displayModeRef = React.useRef(displayMode);
+  )
+  const [displayMode, setDisplayMode] = React.useState<ThreadSummaryDisplayMode>('overlay')
+  const displayModeRef = React.useRef(displayMode)
   const state = React.useMemo(
     () => deriveThreadSummaryStateForMode(displayMode, preference),
     [displayMode, preference],
-  );
-  const previousModeRef = React.useRef(state.displayMode);
+  )
+  const previousModeRef = React.useRef(state.displayMode)
 
   React.useLayoutEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    const container = containerRef.current
+    if (!container) return
 
     const updateDisplayMode = (width: number): void => {
-      if (!Number.isFinite(width)) return;
+      if (!Number.isFinite(width)) return
       const nextMode = resolveThreadSummaryDisplayModeUpdate(
         displayModeRef.current,
         Math.max(0, width),
-      );
-      if (nextMode === null) return;
-      displayModeRef.current = nextMode;
-      setDisplayMode(nextMode);
-    };
-    updateDisplayMode(container.getBoundingClientRect().width);
+      )
+      if (nextMode === null) return
+      displayModeRef.current = nextMode
+      setDisplayMode(nextMode)
+    }
+    updateDisplayMode(container.getBoundingClientRect().width)
 
-    let observer: ResizeObserver | null = null;
+    let observer: ResizeObserver | null = null
     try {
       observer = new ResizeObserver((entries) => {
-        const entry = entries[0];
-        if (!entry) return;
+        const entry = entries[0]
+        if (!entry) return
         const width =
           entry.borderBoxSize?.[0]?.inlineSize ??
           entry.contentBoxSize?.[0]?.inlineSize ??
-          entry.contentRect.width;
-        updateDisplayMode(width);
-      });
-      observer.observe(container);
+          entry.contentRect.width
+        updateDisplayMode(width)
+      })
+      observer.observe(container)
     } catch {
       // The initial DOM measurement is a sufficient fallback.
     }
-    return () => observer?.disconnect();
-  }, [containerRef]);
+    return () => observer?.disconnect()
+  }, [containerRef])
 
   React.useEffect(() => {
-    const previousMode = previousModeRef.current;
-    previousModeRef.current = state.displayMode;
+    const previousMode = previousModeRef.current
+    previousModeRef.current = state.displayMode
     publishPreference(
-      transitionThreadSummaryMode(
-        preferenceSnapshot,
-        previousMode,
-        state.displayMode,
-      ),
-    );
-  }, [state.displayMode]);
+      transitionThreadSummaryMode(preferenceSnapshot, previousMode, state.displayMode),
+    )
+  }, [state.displayMode])
 
   const setPopoverOpen = React.useCallback(
     (open: boolean): void => {
       publishPreference({
         ...preferenceSnapshot,
-        isPopoverOpen: state.displayMode === "overlay" && open,
-      });
+        isPopoverOpen: state.displayMode === 'overlay' && open,
+      })
     },
     [state.displayMode],
-  );
+  )
 
   const toggle = React.useCallback((): void => {
-    publishPreference(
-      toggleThreadSummaryPreference(preferenceSnapshot, state.displayMode),
-    );
-  }, [state.displayMode]);
+    publishPreference(toggleThreadSummaryPreference(preferenceSnapshot, state.displayMode))
+  }, [state.displayMode])
 
   return {
     ...state,
     setPopoverOpen,
     toggle,
-  };
+  }
 }

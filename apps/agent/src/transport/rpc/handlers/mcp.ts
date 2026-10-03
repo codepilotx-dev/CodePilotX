@@ -8,13 +8,13 @@ import {
   McpSetEnabledParamsSchema,
   McpStatusParamsSchema,
   type RpcMethod,
-} from "@codepilotx/agent-protocol"
-import { Schema } from "effect"
-import { AgentError } from "../../../domain"
-import { McpRuntimeError } from "../../../mcp/McpRuntimeService"
-import type { RpcRouter } from "../RpcRouter"
-import type { RpcRouterContext } from "../request-context"
-import type { RpcHandlerGroup } from "./types"
+} from '@codepilotx/agent-protocol'
+import { Schema } from 'effect'
+import { AgentError } from '../../../domain'
+import { McpRuntimeError } from '../../../mcp/McpRuntimeService'
+import type { RpcRouter } from '../RpcRouter'
+import type { RpcRouterContext } from '../request-context'
+import type { RpcHandlerGroup } from './types'
 
 const decodeList = Schema.decodeUnknownSync(McpListParamsSchema)
 const decodeStatus = Schema.decodeUnknownSync(McpStatusParamsSchema)
@@ -26,34 +26,37 @@ const decodeOAuthServer = Schema.decodeUnknownSync(McpOAuthServerParamsSchema)
 const decodeOAuthStatus = Schema.decodeUnknownSync(McpOAuthStatusParamsSchema)
 
 export const mcpHandlers = {
-  name: "mcp",
+  name: 'mcp',
   methods: [
-    "mcp/list",
-    "mcp/status",
-    "mcp/save",
-    "mcp/remove",
-    "mcp/setEnabled",
-    "mcp/reload",
-    "mcp/oauth/start",
-    "mcp/oauth/status",
-    "mcp/oauth/logout",
+    'mcp/list',
+    'mcp/status',
+    'mcp/save',
+    'mcp/remove',
+    'mcp/setEnabled',
+    'mcp/reload',
+    'mcp/oauth/start',
+    'mcp/oauth/status',
+    'mcp/oauth/logout',
   ],
-  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, _context: RpcRouterContext): Promise<unknown> {
+  async handle(
+    runtime: RpcRouter,
+    method: RpcMethod,
+    rawParams: unknown,
+    _context: RpcRouterContext,
+  ): Promise<unknown> {
     const mcp = runtime.dependencies.mcp
-    if (!mcp) throw new AgentError("MCP_UNAVAILABLE", "MCP 管理服务未配置", 503)
+    if (!mcp) throw new AgentError('MCP_UNAVAILABLE', 'MCP 管理服务未配置', 503)
     try {
       switch (method) {
-        case "mcp/list":
-          {
-            const params = decodeList(rawParams)
-            return mcp.list(params.workspace ? { workspace: params.workspace } : {})
-          }
-        case "mcp/status":
-          {
-            const params = decodeStatus(rawParams)
-            return mcp.status(params.workspace ? { workspace: params.workspace } : {})
-          }
-        case "mcp/save": {
+        case 'mcp/list': {
+          const params = decodeList(rawParams)
+          return mcp.list(params.workspace ? { workspace: params.workspace } : {})
+        }
+        case 'mcp/status': {
+          const params = decodeStatus(rawParams)
+          return mcp.status(params.workspace ? { workspace: params.workspace } : {})
+        }
+        case 'mcp/save': {
           const params = decodeSave(rawParams)
           const result = await mcp.save({
             operationId: params.operationId,
@@ -61,10 +64,10 @@ export const mcpHandlers = {
             ...(params.workspace ? { workspace: params.workspace } : {}),
             ...(params.originalName ? { originalName: params.originalName } : {}),
           })
-          if (result.changed) await runtime.emit("mcp/updated", { generation: result.generation })
+          if (result.changed) await runtime.emit('mcp/updated', { generation: result.generation })
           return { servers: result.servers, generation: result.generation }
         }
-        case "mcp/remove": {
+        case 'mcp/remove': {
           const params = decodeRemove(rawParams)
           const result = await mcp.remove({
             operationId: params.operationId,
@@ -72,10 +75,10 @@ export const mcpHandlers = {
             name: params.name,
             ...(params.workspace ? { workspace: params.workspace } : {}),
           })
-          if (result.changed) await runtime.emit("mcp/updated", { generation: result.generation })
+          if (result.changed) await runtime.emit('mcp/updated', { generation: result.generation })
           return { servers: result.servers, generation: result.generation }
         }
-        case "mcp/setEnabled": {
+        case 'mcp/setEnabled': {
           const params = decodeEnabled(rawParams)
           const result = await mcp.setEnabled({
             operationId: params.operationId,
@@ -84,17 +87,17 @@ export const mcpHandlers = {
             enabled: params.enabled,
             ...(params.workspace ? { workspace: params.workspace } : {}),
           })
-          if (result.changed) await runtime.emit("mcp/updated", { generation: result.generation })
+          if (result.changed) await runtime.emit('mcp/updated', { generation: result.generation })
           return { servers: result.servers, generation: result.generation }
         }
-        case "mcp/reload": {
+        case 'mcp/reload': {
           const params = decodeReload(rawParams)
           return mcp.reload({
             operationId: params.operationId,
             ...(params.workspace ? { workspace: params.workspace } : {}),
           })
         }
-        case "mcp/oauth/start": {
+        case 'mcp/oauth/start': {
           const params = decodeOAuthServer(rawParams)
           return mcp.oauthStart({
             operationId: params.operationId,
@@ -103,9 +106,9 @@ export const mcpHandlers = {
             ...(params.workspace ? { workspace: params.workspace } : {}),
           })
         }
-        case "mcp/oauth/status":
+        case 'mcp/oauth/status':
           return mcp.oauthStatus(decodeOAuthStatus(rawParams))
-        case "mcp/oauth/logout": {
+        case 'mcp/oauth/logout': {
           const params = decodeOAuthServer(rawParams)
           const result = await mcp.oauthLogout({
             operationId: params.operationId,

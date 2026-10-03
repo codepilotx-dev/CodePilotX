@@ -5,8 +5,14 @@ import { ModelSwitchDivider } from '../src/features/session/timeline/ModelSwitch
 import { ConversationItemContext } from '../src/features/session/timeline/ConversationItemContext.js'
 
 type TurnModel = RenderTurnEntry['turn']['model']
-const a: TurnModel = { providerID: 'minimax' as TurnModel['providerID'], id: 'MiniMax-M3' as TurnModel['id'] }
-const b: TurnModel = { providerID: 'deepseek' as TurnModel['providerID'], id: 'deepseek-v4-pro' as TurnModel['id'] }
+const a: TurnModel = {
+  providerID: 'minimax' as TurnModel['providerID'],
+  id: 'MiniMax-M3' as TurnModel['id'],
+}
+const b: TurnModel = {
+  providerID: 'deepseek' as TurnModel['providerID'],
+  id: 'deepseek-v4-pro' as TurnModel['id'],
+}
 const render = (previousModel: TurnModel | undefined, model: TurnModel) =>
   renderToStaticMarkup(<ModelSwitchDivider previousModel={previousModel} model={model} />)
 
@@ -18,21 +24,27 @@ describe('model switch divider', () => {
   })
 
   test('marks model changes within a provider and provider changes with the same model id', () => {
-    expect(render(a, { ...a, id: b.id })).toContain('模型已切换 minimax/MiniMax-M3 → minimax/deepseek-v4-pro')
-    expect(render(a, { ...a, providerID: b.providerID })).toContain('模型已切换 minimax/MiniMax-M3 → deepseek/MiniMax-M3')
+    expect(render(a, { ...a, id: b.id })).toContain(
+      '模型已切换 minimax/MiniMax-M3 → minimax/deepseek-v4-pro',
+    )
+    expect(render(a, { ...a, providerID: b.providerID })).toContain(
+      '模型已切换 minimax/MiniMax-M3 → deepseek/MiniMax-M3',
+    )
   })
 
   test('uses catalog display names and falls back to missing provider IDs', () => {
     const markup = renderToStaticMarkup(
-      <ConversationItemContext.Provider value={{
-        modelProviderNames: { minimax: 'MiniMax' },
-        canCopyFileReferenceContents: () => false,
-        onCopyFileReferenceContents: () => undefined,
-        onOpenFileReference: () => undefined,
-        onSubmitEditedUserMessage: async () => undefined,
-        sessionStatus: 'idle',
-        workspacePath: null,
-      }}>
+      <ConversationItemContext.Provider
+        value={{
+          modelProviderNames: { minimax: 'MiniMax' },
+          canCopyFileReferenceContents: () => false,
+          onCopyFileReferenceContents: () => undefined,
+          onOpenFileReference: () => undefined,
+          onSubmitEditedUserMessage: async () => undefined,
+          sessionStatus: 'idle',
+          workspacePath: null,
+        }}
+      >
         <ModelSwitchDivider previousModel={a} model={b} />
       </ConversationItemContext.Provider>,
     )

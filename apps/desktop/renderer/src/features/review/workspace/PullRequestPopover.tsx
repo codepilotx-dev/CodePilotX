@@ -1,12 +1,6 @@
 import React from 'react'
 import { formatReviewCount } from '../diff/reviewFormat.js'
-import {
-  ArrowUpRight,
-  ChevronDown,
-  ExternalLink,
-  GitFork,
-  X,
-} from 'lucide-react'
+import { ArrowUpRight, ChevronDown, ExternalLink, GitFork, X } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
@@ -134,7 +128,8 @@ export function PullRequestPopover({
           <strong>+{formatPanelNumber(additions)}</strong>
           <em>-{formatPanelNumber(deletions)}</em>
         </span>
-        <IconButton iconSize="sm"
+        <IconButton
+          iconSize="sm"
           className="review-popover-close"
           color="ghostSecondary"
           size="toolbar"
@@ -151,8 +146,8 @@ export function PullRequestPopover({
         <input
           type="text"
           value={title}
-          onChange={event => setTitle(event.target.value)}
-          onKeyDown={event => {
+          onChange={(event) => setTitle(event.target.value)}
+          onKeyDown={(event) => {
             if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
               event.preventDefault()
               onCreateDraftPR(title, body, pushFirst)
@@ -167,8 +162,8 @@ export function PullRequestPopover({
           placeholder="描述（留空将自动生成）..."
           rows={4}
           value={body}
-          onChange={event => setBody(event.target.value)}
-          onKeyDown={event => {
+          onChange={(event) => setBody(event.target.value)}
+          onKeyDown={(event) => {
             if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
               event.preventDefault()
               onCreateDraftPR(title, body, pushFirst)
@@ -181,13 +176,14 @@ export function PullRequestPopover({
         <input
           checked={pushFirst}
           type="checkbox"
-          onChange={event => setPushFirst(event.target.checked)}
+          onChange={(event) => setPushFirst(event.target.checked)}
         />
         <span>先推送当前分支</span>
       </label>
 
       <div className="review-popover-actions">
-        <Button color="primary"
+        <Button
+          color="primary"
           className="tw:w-full tw:justify-between"
           onClick={() => onCreateDraftPR(title, body, pushFirst)}
         >
@@ -197,7 +193,8 @@ export function PullRequestPopover({
           </span>
           <span className="shortcut">Ctrl+Enter</span>
         </Button>
-        <Button color="primary"
+        <Button
+          color="primary"
           className="tw:w-full tw:justify-between"
           onClick={() => onCreatePR(title, body, pushFirst)}
         >
@@ -206,10 +203,7 @@ export function PullRequestPopover({
             创建拉取请求
           </span>
         </Button>
-        <Button color="primary"
-          className="tw:w-full tw:justify-between"
-          onClick={() => onOpenPR()}
-        >
+        <Button color="primary" className="tw:w-full tw:justify-between" onClick={() => onOpenPR()}>
           <span className="review-popover-action-label">
             <ExternalLink size={APP_ICON_SIZE} />
             在浏览器中打开 PR

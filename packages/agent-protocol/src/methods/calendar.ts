@@ -1,49 +1,48 @@
-import {
-  CalendarOccurrenceSchema,
-  CalendarSourceKindSchema,
-} from "@codepilotx/shared/calendar"
+import { CalendarOccurrenceSchema, CalendarSourceKindSchema } from '@codepilotx/shared/calendar'
 import {
   SchedulePlanExecutionDefaultsSchema,
   SchedulePlanItemDraftSchema,
   SchedulePlanProposalSchema,
-} from "@codepilotx/shared/schedule-plan"
+} from '@codepilotx/shared/schedule-plan'
 import {
   ScheduledTaskDefinitionSchema,
   ScheduledTaskSchema,
-} from "@codepilotx/shared/scheduled-task"
-import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../wire/definition"
-import { NonEmptyStringSchema, OpaqueIDSchema } from "../wire/primitives"
+} from '@codepilotx/shared/scheduled-task'
+import { Schema } from 'effect'
+import { defineMethod, type MethodMap } from '../wire/definition'
+import { NonEmptyStringSchema, OpaqueIDSchema } from '../wire/primitives'
 
 const PositiveRevisionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
-const SchedulePlanItemsSchema = Schema.Array(SchedulePlanItemDraftSchema).check(Schema.isMaxLength(100))
+const SchedulePlanItemsSchema = Schema.Array(SchedulePlanItemDraftSchema).check(
+  Schema.isMaxLength(100),
+)
 
-const CalendarErrors = ["INVALID_REQUEST", "INTERNAL_ERROR"] as const
+const CalendarErrors = ['INVALID_REQUEST', 'INTERNAL_ERROR'] as const
 const ScheduledTaskErrors = [
-  "SCHEDULED_TASK_NOT_FOUND",
-  "PROJECT_NOT_FOUND",
-  "PROJECT_REMOVED",
-  "THREAD_NOT_FOUND",
-  "MODEL_UNAVAILABLE",
-  "WORKTREE_BRANCH_NOT_FOUND",
-  "OPERATION_ID_CONFLICT",
-  "PERMISSION_DENIED",
-  "CONFLICT",
-  "INVALID_REQUEST",
-  "INTERNAL_ERROR",
+  'SCHEDULED_TASK_NOT_FOUND',
+  'PROJECT_NOT_FOUND',
+  'PROJECT_REMOVED',
+  'THREAD_NOT_FOUND',
+  'MODEL_UNAVAILABLE',
+  'WORKTREE_BRANCH_NOT_FOUND',
+  'OPERATION_ID_CONFLICT',
+  'PERMISSION_DENIED',
+  'CONFLICT',
+  'INVALID_REQUEST',
+  'INTERNAL_ERROR',
 ] as const
 const SchedulePlanErrors = [
-  "SCHEDULE_PLAN_NOT_FOUND",
-  "PROJECT_NOT_FOUND",
-  "PROJECT_REMOVED",
-  "THREAD_NOT_FOUND",
-  "MODEL_UNAVAILABLE",
-  "WORKTREE_BRANCH_NOT_FOUND",
-  "OPERATION_ID_CONFLICT",
-  "PERMISSION_DENIED",
-  "CONFLICT",
-  "INVALID_REQUEST",
-  "INTERNAL_ERROR",
+  'SCHEDULE_PLAN_NOT_FOUND',
+  'PROJECT_NOT_FOUND',
+  'PROJECT_REMOVED',
+  'THREAD_NOT_FOUND',
+  'MODEL_UNAVAILABLE',
+  'WORKTREE_BRANCH_NOT_FOUND',
+  'OPERATION_ID_CONFLICT',
+  'PERMISSION_DENIED',
+  'CONFLICT',
+  'INVALID_REQUEST',
+  'INTERNAL_ERROR',
 ] as const
 
 export const CalendarRangeParamsSchema = Schema.Struct({
@@ -74,7 +73,7 @@ export const ScheduledTaskUpdateParamsSchema = Schema.Struct({
   scheduledFor: Schema.optional(ScheduledTaskDefinitionSchema.fields.scheduledFor),
   timeZone: Schema.optional(ScheduledTaskDefinitionSchema.fields.timeZone),
   notificationPolicy: Schema.optional(ScheduledTaskDefinitionSchema.fields.notificationPolicy),
-  status: Schema.optional(Schema.Literals(["scheduled", "paused"])),
+  status: Schema.optional(Schema.Literals(['scheduled', 'paused'])),
 })
 
 export const SchedulePlanCommitParamsSchema = Schema.Struct({
@@ -86,77 +85,77 @@ export const SchedulePlanCommitParamsSchema = Schema.Struct({
 })
 
 export const CalendarRpcMethods = {
-  "calendar/range": defineMethod({
+  'calendar/range': defineMethod({
     params: CalendarRangeParamsSchema,
     result: Schema.Struct({
       occurrences: Schema.Array(CalendarOccurrenceSchema),
       truncated: Schema.Boolean,
     }),
     errors: CalendarErrors,
-    capability: "calendar.manage.v1",
+    capability: 'calendar.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "scheduled-task/read": defineMethod({
+  'scheduled-task/read': defineMethod({
     params: Schema.Struct({ id: OpaqueIDSchema }),
     result: Schema.Struct({ scheduledTask: ScheduledTaskSchema }),
     errors: ScheduledTaskErrors,
-    capability: "calendar.manage.v1",
+    capability: 'calendar.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "scheduled-task/create": defineMethod({
+  'scheduled-task/create': defineMethod({
     params: ScheduledTaskCreateParamsSchema,
     result: Schema.Struct({ scheduledTask: ScheduledTaskSchema }),
     errors: ScheduledTaskErrors,
-    capability: "calendar.manage.v1",
+    capability: 'calendar.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "scheduled-task/update": defineMethod({
+  'scheduled-task/update': defineMethod({
     params: ScheduledTaskUpdateParamsSchema,
     result: Schema.Struct({ scheduledTask: ScheduledTaskSchema }),
     errors: ScheduledTaskErrors,
-    capability: "calendar.manage.v1",
+    capability: 'calendar.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "scheduled-task/delete": defineMethod({
+  'scheduled-task/delete': defineMethod({
     params: Schema.Struct({ id: OpaqueIDSchema, expectedRevision: PositiveRevisionSchema }),
     result: Schema.Struct({ scheduledTask: ScheduledTaskSchema }),
     errors: ScheduledTaskErrors,
-    capability: "calendar.manage.v1",
+    capability: 'calendar.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "scheduled-task/run": defineMethod({
+  'scheduled-task/run': defineMethod({
     params: Schema.Struct({ id: OpaqueIDSchema, operationId: OpaqueIDSchema }),
     result: Schema.Struct({ scheduledTask: ScheduledTaskSchema }),
     errors: ScheduledTaskErrors,
-    capability: "calendar.manage.v1",
+    capability: 'calendar.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "schedule-plan/read": defineMethod({
+  'schedule-plan/read': defineMethod({
     params: Schema.Struct({ id: OpaqueIDSchema }),
     result: Schema.Struct({ proposal: SchedulePlanProposalSchema }),
     errors: SchedulePlanErrors,
-    capability: "calendar.manage.v1",
+    capability: 'calendar.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "schedule-plan/commit": defineMethod({
+  'schedule-plan/commit': defineMethod({
     params: SchedulePlanCommitParamsSchema,
     result: Schema.Struct({ proposal: SchedulePlanProposalSchema }),
     errors: SchedulePlanErrors,
-    capability: "calendar.manage.v1",
+    capability: 'calendar.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,

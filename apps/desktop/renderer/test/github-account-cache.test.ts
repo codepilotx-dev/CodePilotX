@@ -4,20 +4,41 @@ import { createBrowserMockDesktopClient } from '../src/services/desktop-client/b
 import { mockGithubLogin } from '../src/services/desktop-client/fixtures.js'
 import { createGithubAccountCache } from '../src/services/desktop-client/github-account-cache.js'
 
-const user = { id: 1, login: 'octocat', name: 'Octocat', avatarUrl: null, htmlUrl: 'https://github.com/octocat' }
+const user = {
+  id: 1,
+  login: 'octocat',
+  name: 'Octocat',
+  avatarUrl: null,
+  htmlUrl: 'https://github.com/octocat',
+}
 const auth = { configured: true, authenticated: true, user }
 const profile: DesktopGithubProfileOverviewResult = {
   ok: true,
   overview: {
     user: {
-      ...user, bio: null, company: null, location: null, websiteUrl: null, email: null,
-      followers: 0, following: 0, repositoryCount: 0, starredRepositoryCount: 0, status: null,
+      ...user,
+      bio: null,
+      company: null,
+      location: null,
+      websiteUrl: null,
+      email: null,
+      followers: 0,
+      following: 0,
+      repositoryCount: 0,
+      starredRepositoryCount: 0,
+      status: null,
     },
-    organizations: [], pinnedRepositories: [], popularRepositories: [],
+    organizations: [],
+    pinnedRepositories: [],
+    popularRepositories: [],
     contributions: {
-      totalContributions: 0, totalCommitContributions: 0, totalIssueContributions: 0,
-      totalPullRequestContributions: 0, totalPullRequestReviewContributions: 0,
-      restrictedContributionsCount: 0, weeks: [],
+      totalContributions: 0,
+      totalCommitContributions: 0,
+      totalIssueContributions: 0,
+      totalPullRequestContributions: 0,
+      totalPullRequestReviewContributions: 0,
+      restrictedContributionsCount: 0,
+      weeks: [],
     },
   },
 }
@@ -27,12 +48,23 @@ test('GitHub cache reuses fresh reads, merges requests, expires, forces refresh 
   let authCalls = 0
   let profileCalls = 0
   let result = profile
-  const cache = createGithubAccountCache({
-    ...createBrowserMockDesktopClient(undefined),
-    getGithubAuthStatus: async () => { authCalls += 1; return auth },
-    getGithubProfileOverview: async () => { profileCalls += 1; return result },
-  }, () => now)
-  const unsubscribe = cache.onGithubAccountChange(() => { notifications += 1 })
+  const cache = createGithubAccountCache(
+    {
+      ...createBrowserMockDesktopClient(undefined),
+      getGithubAuthStatus: async () => {
+        authCalls += 1
+        return auth
+      },
+      getGithubProfileOverview: async () => {
+        profileCalls += 1
+        return result
+      },
+    },
+    () => now,
+  )
+  const unsubscribe = cache.onGithubAccountChange(() => {
+    notifications += 1
+  })
   let notifications = 0
 
   await Promise.all([cache.getGithubAuthStatus(), cache.getGithubAuthStatus()])
@@ -86,7 +118,9 @@ test('GitHub login, logout and account changes invalidate old data and ignore la
   expect(cache.getGithubAccountSnapshot().auth).toEqual(currentAuth)
 
   let resolveProfile!: (value: DesktopGithubProfileOverviewResult) => void
-  pendingProfile = new Promise(resolve => { resolveProfile = resolve })
+  pendingProfile = new Promise((resolve) => {
+    resolveProfile = resolve
+  })
   const oldRequest = cache.getGithubProfileOverview()
   await cache.logoutGithub()
   resolveProfile(profile)

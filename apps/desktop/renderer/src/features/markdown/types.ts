@@ -46,14 +46,9 @@ export type MarkdownDirectiveRenderProps = {
   rawText: string
 }
 
-export type MarkdownDirectiveRenderer = (
-  props: MarkdownDirectiveRenderProps,
-) => React.ReactNode
+export type MarkdownDirectiveRenderer = (props: MarkdownDirectiveRenderProps) => React.ReactNode
 
-export type MarkdownDirectiveRegistry = ReadonlyMap<
-  string,
-  MarkdownDirectiveRenderer
->
+export type MarkdownDirectiveRegistry = ReadonlyMap<string, MarkdownDirectiveRenderer>
 
 export type MarkdownExternalResourcePolicy = {
   allowExternalLinks?: boolean

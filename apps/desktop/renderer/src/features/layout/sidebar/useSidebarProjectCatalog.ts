@@ -23,11 +23,10 @@ export function useSidebarProjectCatalog({
   projectCatalogState: SidebarProjectCatalogState
   removeCatalogProject: (project: DesktopWorkspace) => void
 } {
-  const [projectCatalogState, setProjectCatalogState] =
-    useState<SidebarProjectCatalogState>({
-      status: 'loading',
-      projects: [],
-    })
+  const [projectCatalogState, setProjectCatalogState] = useState<SidebarProjectCatalogState>({
+    status: 'loading',
+    projects: [],
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -36,14 +35,14 @@ export function useSidebarProjectCatalog({
       const currentRequest = ++requestVersion
       void desktopClient
         .listProjects()
-        .then(projects => {
+        .then((projects) => {
           if (cancelled || currentRequest !== requestVersion) return
           setProjectCatalogState({ status: 'ready', projects })
         })
-        .catch(error => {
+        .catch((error) => {
           if (cancelled || currentRequest !== requestVersion) return
           const message = toUserErrorMessage(error, 'project-list')
-          setProjectCatalogState(current => ({
+          setProjectCatalogState((current) => ({
             status: 'unavailable',
             projects: current.projects,
           }))
@@ -64,12 +63,10 @@ export function useSidebarProjectCatalog({
   }, [onReport, onError])
 
   const removeCatalogProject = useCallback((target: DesktopWorkspace): void => {
-    setProjectCatalogState(current => ({
+    setProjectCatalogState((current) => ({
       ...current,
-      projects: current.projects.filter(project =>
-        target.projectId
-          ? project.projectId !== target.projectId
-          : project.path !== target.path,
+      projects: current.projects.filter((project) =>
+        target.projectId ? project.projectId !== target.projectId : project.path !== target.path,
       ),
     }))
   }, [])
@@ -81,10 +78,8 @@ export function mergeCatalogProjects(
   catalogProjects: readonly DesktopWorkspace[],
   recentWorkspaces: readonly DesktopWorkspace[],
 ): DesktopWorkspace[] {
-  const recentByKey = new Map(
-    recentWorkspaces.map(project => [projectKey(project), project]),
-  )
-  const merged = catalogProjects.map(project => {
+  const recentByKey = new Map(recentWorkspaces.map((project) => [projectKey(project), project]))
+  const merged = catalogProjects.map((project) => {
     const recent = recentByKey.get(projectKey(project))
     recentByKey.delete(projectKey(project))
     return {

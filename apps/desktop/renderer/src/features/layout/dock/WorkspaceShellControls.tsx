@@ -36,9 +36,13 @@ export function WorkspaceShellControls({
           color="ghostSecondary"
           disabled={!terminalAvailable}
           size="toolbar"
-          title={terminalAvailable
-            ? terminalVisible ? '隐藏底部面板' : '打开底部面板 (Ctrl+`)'
-            : '创建任务后可使用底部面板'}
+          title={
+            terminalAvailable
+              ? terminalVisible
+                ? '隐藏底部面板'
+                : '打开底部面板 (Ctrl+`)'
+              : '创建任务后可使用底部面板'
+          }
           onClick={onToggleTerminal}
         >
           <BottomPanelToggleIcon open={terminalVisible} />

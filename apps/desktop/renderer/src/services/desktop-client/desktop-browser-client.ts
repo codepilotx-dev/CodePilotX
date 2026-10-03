@@ -48,68 +48,61 @@ export function createDesktopBrowserClient(
     canGoForward: state.canGoForward,
     error: state.error,
     allowedSites: [...state.allowedSites],
-    sitePermissions: state.sitePermissions.map(permission => ({ ...permission })),
+    sitePermissions: state.sitePermissions.map((permission) => ({ ...permission })),
   })
 
   const available = Boolean(
-    bridge?.getDesktopBrowserState
-      && bridge.createOrRestoreDesktopBrowser
-      && bridge.navigateDesktopBrowser
-      && bridge.reloadDesktopBrowser
-      && bridge.stopDesktopBrowser
-      && bridge.goBackDesktopBrowser
-      && bridge.goForwardDesktopBrowser
-      && bridge.setDesktopBrowserBounds
-      && bridge.setDesktopBrowserVisible
-      && bridge.focusDesktopBrowser
-      && bridge.closeDesktopBrowser
-      && bridge.clearDesktopBrowserAllowedSites
-      && bridge.onDesktopBrowserStateChange,
+    bridge?.getDesktopBrowserState &&
+    bridge.createOrRestoreDesktopBrowser &&
+    bridge.navigateDesktopBrowser &&
+    bridge.reloadDesktopBrowser &&
+    bridge.stopDesktopBrowser &&
+    bridge.goBackDesktopBrowser &&
+    bridge.goForwardDesktopBrowser &&
+    bridge.setDesktopBrowserBounds &&
+    bridge.setDesktopBrowserVisible &&
+    bridge.focusDesktopBrowser &&
+    bridge.closeDesktopBrowser &&
+    bridge.clearDesktopBrowserAllowedSites &&
+    bridge.onDesktopBrowserStateChange,
   )
 
   return {
     available,
-    getBrowserState: async () => mapState(
-      await (bridge?.getDesktopBrowserState?.(tabInput) ?? unavailable()),
-    ),
-    openBrowser: async url => mapState(
-      await (bridge?.createOrRestoreDesktopBrowser?.({
-        ...tabInput,
-        ...(url === undefined ? {} : { url }),
-      }) ?? unavailable()),
-    ),
-    navigateBrowser: async url => mapState(
-      await (bridge?.navigateDesktopBrowser?.({ ...tabInput, url }) ?? unavailable()),
-    ),
-    reloadBrowser: async () => mapState(
-      await (bridge?.reloadDesktopBrowser?.(tabInput) ?? unavailable()),
-    ),
-    stopBrowser: async () => mapState(
-      await (bridge?.stopDesktopBrowser?.(tabInput) ?? unavailable()),
-    ),
-    goBackBrowser: async () => mapState(
-      await (bridge?.goBackDesktopBrowser?.(tabInput) ?? unavailable()),
-    ),
-    goForwardBrowser: async () => mapState(
-      await (bridge?.goForwardDesktopBrowser?.(tabInput) ?? unavailable()),
-    ),
-    closeBrowser: async () => mapState(
-      await (bridge?.closeDesktopBrowser?.(tabInput) ?? unavailable()),
-    ),
-    setBrowserBounds: async (bounds: DesktopBrowserBounds) => mapState(
-      await (bridge?.setDesktopBrowserBounds?.({ ...tabInput, bounds }) ?? unavailable()),
-    ),
-    setBrowserVisible: async visible => mapState(
-      await (bridge?.setDesktopBrowserVisible?.({ ...tabInput, visible }) ?? unavailable()),
-    ),
+    getBrowserState: async () =>
+      mapState(await (bridge?.getDesktopBrowserState?.(tabInput) ?? unavailable())),
+    openBrowser: async (url) =>
+      mapState(
+        await (bridge?.createOrRestoreDesktopBrowser?.({
+          ...tabInput,
+          ...(url === undefined ? {} : { url }),
+        }) ?? unavailable()),
+      ),
+    navigateBrowser: async (url) =>
+      mapState(await (bridge?.navigateDesktopBrowser?.({ ...tabInput, url }) ?? unavailable())),
+    reloadBrowser: async () =>
+      mapState(await (bridge?.reloadDesktopBrowser?.(tabInput) ?? unavailable())),
+    stopBrowser: async () =>
+      mapState(await (bridge?.stopDesktopBrowser?.(tabInput) ?? unavailable())),
+    goBackBrowser: async () =>
+      mapState(await (bridge?.goBackDesktopBrowser?.(tabInput) ?? unavailable())),
+    goForwardBrowser: async () =>
+      mapState(await (bridge?.goForwardDesktopBrowser?.(tabInput) ?? unavailable())),
+    closeBrowser: async () =>
+      mapState(await (bridge?.closeDesktopBrowser?.(tabInput) ?? unavailable())),
+    setBrowserBounds: async (bounds: DesktopBrowserBounds) =>
+      mapState(await (bridge?.setDesktopBrowserBounds?.({ ...tabInput, bounds }) ?? unavailable())),
+    setBrowserVisible: async (visible) =>
+      mapState(
+        await (bridge?.setDesktopBrowserVisible?.({ ...tabInput, visible }) ?? unavailable()),
+      ),
     focusBrowser: async () => {
       await (bridge?.focusDesktopBrowser?.(tabInput) ?? unavailable())
     },
-    clearBrowserAllowedSites: async () => mapState(
-      await (bridge?.clearDesktopBrowserAllowedSites?.(tabInput) ?? unavailable()),
-    ),
-    onBrowserStateChange: listener =>
-      bridge?.onDesktopBrowserStateChange?.(state => {
+    clearBrowserAllowedSites: async () =>
+      mapState(await (bridge?.clearDesktopBrowserAllowedSites?.(tabInput) ?? unavailable())),
+    onBrowserStateChange: (listener) =>
+      bridge?.onDesktopBrowserStateChange?.((state) => {
         if (state.tabId === WORKBENCH_BROWSER_TAB_ID) listener(mapState(state))
       }) ?? (() => {}),
   }

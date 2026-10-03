@@ -53,11 +53,7 @@ export function FullScreenWhaleLoading({
     >
       <div className="full-screen-whale-loader__content">
         <div className="full-screen-whale-loader__logo" aria-hidden="true">
-          <img
-            className="full-screen-whale-loader__base"
-            src="/whale-icon.svg"
-            alt=""
-          />
+          <img className="full-screen-whale-loader__base" src="/whale-icon.svg" alt="" />
           <div className="full-screen-whale-loader__overlay" />
         </div>
         <div className="full-screen-whale-loader__status-viewport">

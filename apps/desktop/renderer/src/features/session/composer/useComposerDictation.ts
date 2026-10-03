@@ -7,24 +7,20 @@ import { audioBlobToPcm16Wav } from './speechAudio.js'
 
 const DEFAULT_MAX_DURATION_MS = 120_000
 
-export function isDictationShortcut(event: Pick<
-  KeyboardEvent,
-  'altKey' | 'ctrlKey' | 'isComposing' | 'key' | 'keyCode' | 'shiftKey'
->): boolean {
-  return !event.isComposing
-    && event.keyCode !== 229
-    && event.ctrlKey
-    && event.shiftKey
-    && !event.altKey
-    && event.key.toLowerCase() === 'd'
+export function isDictationShortcut(
+  event: Pick<KeyboardEvent, 'altKey' | 'ctrlKey' | 'isComposing' | 'key' | 'keyCode' | 'shiftKey'>,
+): boolean {
+  return (
+    !event.isComposing &&
+    event.keyCode !== 229 &&
+    event.ctrlKey &&
+    event.shiftKey &&
+    !event.altKey &&
+    event.key.toLowerCase() === 'd'
+  )
 }
 
-export type ComposerDictationPhase =
-  | 'idle'
-  | 'starting'
-  | 'recording'
-  | 'processing'
-  | 'error'
+export type ComposerDictationPhase = 'idle' | 'starting' | 'recording' | 'processing' | 'error'
 
 export type ComposerDictationState = {
   phase: ComposerDictationPhase
@@ -57,10 +53,9 @@ export function useComposerDictation({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const transcriptRef = useRef(onTranscript)
-  const transcribeRecordingRef = useRef<(
-    blob: Blob,
-    generation: number,
-  ) => Promise<void>>(async () => {})
+  const transcribeRecordingRef = useRef<(blob: Blob, generation: number) => Promise<void>>(
+    async () => {},
+  )
   transcriptRef.current = onTranscript
 
   const clearTimers = useCallback(() => {
@@ -126,12 +121,8 @@ export function useComposerDictation({
     setState({ phase: 'starting', elapsedMs: 0, error: null })
     try {
       const settings = await desktopClient.getDesktopSettings()
-      const preferredDeviceId =
-        settings['desktop.voice.preferredInputDeviceId']
-      const acquired = await acquireDictationStream(
-        navigator.mediaDevices,
-        preferredDeviceId,
-      )
+      const preferredDeviceId = settings['desktop.voice.preferredInputDeviceId']
+      const acquired = await acquireDictationStream(navigator.mediaDevices, preferredDeviceId)
       const stream = acquired.stream
       const preferredDeviceUnavailable = acquired.usedFallback
       if (!generationRef.current.isCurrent(generation)) {
@@ -143,13 +134,13 @@ export function useComposerDictation({
       streamRef.current = stream
       const recorder = new MediaRecorder(stream, mediaRecorderOptions())
       recorderRef.current = recorder
-      recorder.ondataavailable = event => {
+      recorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunks.push(event.data)
       }
       recorder.onstop = () => {
         releaseCapture()
         if (!generationRef.current.isCurrent(generation)) return
-        setState(current => ({ ...current, phase: 'processing', error: null }))
+        setState((current) => ({ ...current, phase: 'processing', error: null }))
         void transcribeRecordingRef.current(
           new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }),
           generation,
@@ -165,20 +156,15 @@ export function useComposerDictation({
       setState({
         phase: 'recording',
         elapsedMs: 0,
-        error: preferredDeviceUnavailable
-          ? '首选麦克风不可用，已改用系统默认设备。'
-          : null,
+        error: preferredDeviceUnavailable ? '首选麦克风不可用，已改用系统默认设备。' : null,
       })
       timerRef.current = setInterval(() => {
-        setState(current => ({
+        setState((current) => ({
           ...current,
           elapsedMs: Date.now() - startedAt,
         }))
       }, 250)
-      timeoutRef.current = setTimeout(
-        stop,
-        speech.status.maxDurationMs || DEFAULT_MAX_DURATION_MS,
-      )
+      timeoutRef.current = setTimeout(stop, speech.status.maxDurationMs || DEFAULT_MAX_DURATION_MS)
     } catch (cause) {
       releaseCapture()
       if (!generationRef.current.isCurrent(generation)) return
@@ -186,41 +172,38 @@ export function useComposerDictation({
     }
   }, [enabled, releaseCapture, speech.status, stop])
 
-  const transcribeRecording = useCallback(async (
-    blob: Blob,
-    generation: number,
-  ) => {
-    try {
-      const wav = await audioBlobToPcm16Wav(blob, context => {
-        contextRef.current = context
-      })
-      if (!generationRef.current.isCurrent(generation)) return
-      if (
-        speech.status?.maxAudioBytes
-        && wav.byteLength > speech.status.maxAudioBytes
-      ) {
-        throw new Error('录音内容过长，请缩短后重试。')
+  const transcribeRecording = useCallback(
+    async (blob: Blob, generation: number) => {
+      try {
+        const wav = await audioBlobToPcm16Wav(blob, (context) => {
+          contextRef.current = context
+        })
+        if (!generationRef.current.isCurrent(generation)) return
+        if (speech.status?.maxAudioBytes && wav.byteLength > speech.status.maxAudioBytes) {
+          throw new Error('录音内容过长，请缩短后重试。')
+        }
+        const operationId = crypto.randomUUID()
+        operationIdRef.current = operationId
+        const result = await desktopClient.transcribeSpeech({
+          operationId,
+          audio: {
+            mediaType: 'audio/wav',
+            encoding: 'base64',
+            data: arrayBufferToBase64(wav),
+          },
+        })
+        if (!generationRef.current.isCurrent(generation)) return
+        operationIdRef.current = null
+        if (result.text.trim()) transcriptRef.current(result.text.trim())
+        setState({ phase: 'idle', elapsedMs: 0, error: null })
+      } catch (cause) {
+        if (!generationRef.current.isCurrent(generation)) return
+        operationIdRef.current = null
+        setState({ phase: 'error', elapsedMs: 0, error: errorMessage(cause) })
       }
-      const operationId = crypto.randomUUID()
-      operationIdRef.current = operationId
-      const result = await desktopClient.transcribeSpeech({
-        operationId,
-        audio: {
-          mediaType: 'audio/wav',
-          encoding: 'base64',
-          data: arrayBufferToBase64(wav),
-        },
-      })
-      if (!generationRef.current.isCurrent(generation)) return
-      operationIdRef.current = null
-      if (result.text.trim()) transcriptRef.current(result.text.trim())
-      setState({ phase: 'idle', elapsedMs: 0, error: null })
-    } catch (cause) {
-      if (!generationRef.current.isCurrent(generation)) return
-      operationIdRef.current = null
-      setState({ phase: 'error', elapsedMs: 0, error: errorMessage(cause) })
-    }
-  }, [speech.status?.maxAudioBytes])
+    },
+    [speech.status?.maxAudioBytes],
+  )
   transcribeRecordingRef.current = transcribeRecording
 
   const toggle = useCallback(() => {
@@ -236,46 +219,43 @@ export function useComposerDictation({
     cancel()
   }, [cancel, draftKey])
 
-  useEffect(() => () => {
-    generationRef.current.invalidate()
-    const recorder = recorderRef.current
-    if (recorder) {
-      recorder.ondataavailable = null
-      recorder.onstop = null
-      if (recorder.state !== 'inactive') recorder.stop()
-    }
-    releaseCapture()
-    const context = contextRef.current
-    if (context) void context.close().catch(() => {})
-    const operationId = operationIdRef.current
-    if (operationId) {
-      void desktopClient.cancelSpeech(operationId).catch(() => {})
-    }
-  }, [releaseCapture])
+  useEffect(
+    () => () => {
+      generationRef.current.invalidate()
+      const recorder = recorderRef.current
+      if (recorder) {
+        recorder.ondataavailable = null
+        recorder.onstop = null
+        if (recorder.state !== 'inactive') recorder.stop()
+      }
+      releaseCapture()
+      const context = contextRef.current
+      if (context) void context.close().catch(() => {})
+      const operationId = operationIdRef.current
+      if (operationId) {
+        void desktopClient.cancelSpeech(operationId).catch(() => {})
+      }
+    },
+    [releaseCapture],
+  )
 
   return {
     ...state,
     status: speech.status,
     available:
-      enabled
-      && speech.status !== null
-      && (
-        speech.status.state === 'ready'
-        || state.phase === 'starting'
-        || state.phase === 'recording'
-        || state.phase === 'processing'
-      ),
+      enabled &&
+      speech.status !== null &&
+      (speech.status.state === 'ready' ||
+        state.phase === 'starting' ||
+        state.phase === 'recording' ||
+        state.phase === 'processing'),
     toggle,
     cancel,
   }
 }
 
 function mediaRecorderOptions(): MediaRecorderOptions | undefined {
-  for (const mimeType of [
-    'audio/webm;codecs=opus',
-    'audio/webm',
-    'audio/ogg;codecs=opus',
-  ]) {
+  for (const mimeType of ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus']) {
     if (MediaRecorder.isTypeSupported(mimeType)) return { mimeType }
   }
   return undefined
@@ -335,8 +315,10 @@ export function stopMediaStream(stream: Pick<MediaStream, 'getTracks'>): void {
 }
 
 function isUnavailableDeviceError(error: unknown): boolean {
-  return error instanceof DOMException
-    && (error.name === 'OverconstrainedError' || error.name === 'NotFoundError')
+  return (
+    error instanceof DOMException &&
+    (error.name === 'OverconstrainedError' || error.name === 'NotFoundError')
+  )
 }
 
 function captureError(error: unknown): string {

@@ -4,8 +4,13 @@ import type { DesktopAutomationApi } from '../../services/desktop-client/types.j
 import type { TaskNotificationSender } from './taskNotificationDispatcher.js'
 import { TaskNotificationDispatcher } from './taskNotificationDispatcher.js'
 
-const terminal = (run: AutomationRun) => run.status === 'completed' || run.status === 'failed' || run.status === 'interrupted'
-const active = (run: AutomationRun) => run.status === 'claimed' || run.status === 'preparing' || run.status === 'queued' || run.status === 'running'
+const terminal = (run: AutomationRun) =>
+  run.status === 'completed' || run.status === 'failed' || run.status === 'interrupted'
+const active = (run: AutomationRun) =>
+  run.status === 'claimed' ||
+  run.status === 'preparing' ||
+  run.status === 'queued' ||
+  run.status === 'running'
 
 export class AutomationNotificationDispatcher {
   #automations = new Map<string, Automation>()
@@ -23,27 +28,33 @@ export class AutomationNotificationDispatcher {
       this.api.listAutomations({ statuses: ['active', 'paused'] }),
       this.api.listAutomationRuns({ limit: 500 }),
     ])
-    this.#automations = new Map(automations.automations.map(value => [value.id, value]))
+    this.#automations = new Map(automations.automations.map((value) => [value.id, value]))
     for (const run of runs.runs) {
-      if (active(run) && run.threadId) this.taskNotifications.trackAutomationRun(run.id, run.threadId)
+      if (active(run) && run.threadId)
+        this.taskNotifications.trackAutomationRun(run.id, run.threadId)
       if (terminal(run)) this.#observed.add(this.id(run))
     }
   }
 
   ingest(events: readonly EventEnvelope[]): Promise<void> {
-    const changes = events.filter(event => event.type === 'automation/runChanged')
+    const changes = events.filter((event) => event.type === 'automation/runChanged')
     if (!changes.length) return this.#queue
-    this.#queue = this.#queue.then(async () => {
-      for (const event of changes) {
-        await this.reconcile(event.payload as { automationId: string; runId: string })
-      }
-    }).catch(() => undefined)
+    this.#queue = this.#queue
+      .then(async () => {
+        for (const event of changes) {
+          await this.reconcile(event.payload as { automationId: string; runId: string })
+        }
+      })
+      .catch(() => undefined)
     return this.#queue
   }
 
   private async reconcile(change: { automationId: string; runId: string }): Promise<void> {
-    const result = await this.api.listAutomationRuns({ automationId: change.automationId, limit: 200 })
-    const run = result.runs.find(value => value.id === change.runId)
+    const result = await this.api.listAutomationRuns({
+      automationId: change.automationId,
+      limit: 200,
+    })
+    const run = result.runs.find((value) => value.id === change.runId)
     if (!run) return
     if (active(run)) {
       if (run.threadId) this.taskNotifications.trackAutomationRun(run.id, run.threadId)
@@ -53,15 +64,17 @@ export class AutomationNotificationDispatcher {
     const notificationId = this.id(run)
     if (!this.#observed.has(notificationId) && run.threadId) {
       const automation = await this.automation(change.automationId)
-      const notify = automation.notificationPolicy === 'all'
-        || (automation.notificationPolicy === 'failures' && run.status !== 'completed')
-      if (notify) this.send({
-        notificationId,
-        threadId: run.threadId,
-        kind: run.status === 'completed' ? 'completed' : 'failed',
-        body: automation.name.slice(0, 200),
-        visibility: 'unfocused',
-      })
+      const notify =
+        automation.notificationPolicy === 'all' ||
+        (automation.notificationPolicy === 'failures' && run.status !== 'completed')
+      if (notify)
+        this.send({
+          notificationId,
+          threadId: run.threadId,
+          kind: run.status === 'completed' ? 'completed' : 'failed',
+          body: automation.name.slice(0, 200),
+          visibility: 'unfocused',
+        })
     }
     this.#observed.add(notificationId)
     this.taskNotifications.releaseAutomationRun(run.id)

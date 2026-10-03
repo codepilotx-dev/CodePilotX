@@ -1,10 +1,5 @@
-import type {
-  CatalogProvider,
-} from '@codepilotx/shared'
-import type {
-  DesktopModelMetadata,
-  DesktopModelProviderSummary,
-} from '../../../shared/types.js'
+import type { CatalogProvider } from '@codepilotx/shared'
+import type { DesktopModelMetadata, DesktopModelProviderSummary } from '../../../shared/types.js'
 import { modelsDevLogoURL } from './providerLogoBrands.js'
 
 export function catalogProviderToDesktop(
@@ -15,9 +10,9 @@ export function catalogProviderToDesktop(
     availability?: DesktopModelProviderSummary['availability']
     catalogOrigin?: DesktopModelProviderSummary['catalogOrigin']
   }
-  const models = catalogProvider.models.filter(model => model.enabled)
+  const models = catalogProvider.models.filter((model) => model.enabled)
   const modelMetadata = Object.fromEntries(
-    models.map(model => {
+    models.map((model) => {
       const cost = model.cost[0]
       const metadata: DesktopModelMetadata = {
         id: model.id,
@@ -30,7 +25,7 @@ export function catalogProviderToDesktop(
         cacheWriteCost: cost?.cache.write,
         toolCall: model.capabilities.tools,
         structuredOutput: model.capabilities.output.some(
-          output => output === 'json' || output === 'structured',
+          (output) => output === 'json' || output === 'structured',
         ),
         vision: model.capabilities.input.includes('image'),
         modalities: {
@@ -39,7 +34,7 @@ export function catalogProviderToDesktop(
         },
         modelType: model.family,
         tags: [model.status],
-        variants: model.variants.map(variant => variant.id),
+        variants: model.variants.map((variant) => variant.id),
         providerApi: isProviderApi(model.api.name) ? model.api.name : undefined,
       }
       return [model.id, metadata]
@@ -50,39 +45,35 @@ export function catalogProviderToDesktop(
     providerKind: provider.source.kind,
     catalogOrigin: extendedProvider.catalogOrigin,
     availability: extendedProvider.availability,
-    logoURL: provider.source.kind === 'builtin'
-      ? modelsDevLogoURL(provider.id)
-      : undefined,
+    logoURL: provider.source.kind === 'builtin' ? modelsDevLogoURL(provider.id) : undefined,
     providerApis: provider.source.apis.filter(isProviderApi),
     enabled: provider.disabled !== true,
     authMethods: [
-      provider.auth.apiKey ? 'api-key' as const : null,
-      provider.auth.oauth ? 'oauth' as const : null,
+      provider.auth.apiKey ? ('api-key' as const) : null,
+      provider.auth.oauth ? ('oauth' as const) : null,
     ].filter((method): method is 'api-key' | 'oauth' => method !== null),
-    kind: provider.id === 'github-copilot'
-      ? 'github-copilot'
-      : provider.source.apis.includes('anthropic-messages')
-        ? 'anthropic'
-        : 'openai-compatible',
+    kind:
+      provider.id === 'github-copilot'
+        ? 'github-copilot'
+        : provider.source.apis.includes('anthropic-messages')
+          ? 'anthropic'
+          : 'openai-compatible',
     displayName: provider.name,
     baseURL: provider.source.baseUrl,
-    defaultModels: models.map(model => model.id),
+    defaultModels: models.map((model) => model.id),
     modelMetadata,
-    apiKeyConfigured:
-      provider.disabled !== true
-      && !provider.auth.apiKey
-      && !provider.auth.oauth,
+    apiKeyConfigured: provider.disabled !== true && !provider.auth.apiKey && !provider.auth.oauth,
     envVars: [],
     requiresBaseURL: provider.source.kind === 'custom' && !provider.source.baseUrl,
   }
 }
 
-export function isExecutableDesktopProvider(
-  provider: DesktopModelProviderSummary,
-): boolean {
-  return provider.enabled !== false
-    && provider.availability?.status !== 'unavailable'
-    && (provider.modelCount ?? provider.defaultModels.length) > 0
+export function isExecutableDesktopProvider(provider: DesktopModelProviderSummary): boolean {
+  return (
+    provider.enabled !== false &&
+    provider.availability?.status !== 'unavailable' &&
+    (provider.modelCount ?? provider.defaultModels.length) > 0
+  )
 }
 
 export function desktopProviderExecutionError(
@@ -104,7 +95,7 @@ export function desktopProviderExecutionError(
 function isProviderApi(
   value: string,
 ): value is 'openai-completions' | 'openai-responses' | 'anthropic-messages' {
-  return value === 'openai-completions'
-    || value === 'openai-responses'
-    || value === 'anthropic-messages'
+  return (
+    value === 'openai-completions' || value === 'openai-responses' || value === 'anthropic-messages'
+  )
 }

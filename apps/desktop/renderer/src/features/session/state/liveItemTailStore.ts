@@ -15,12 +15,7 @@ import { countTailNotification } from './streamingPerfCounters.js'
 
 export type LiveTailKind = 'text' | 'reasoning' | 'plan' | 'tool'
 export interface LiveItemTailStore {
-  append(
-    threadId: string,
-    itemId: string,
-    kind: LiveTailKind,
-    delta: string,
-  ): void
+  append(threadId: string, itemId: string, kind: LiveTailKind, delta: string): void
   read(threadId: string, itemId: string): string
   subscribe(threadId: string, itemId: string, listener: () => void): () => void
   /** 投影提交完成之后清空这些条目的未提交后缀。 */
@@ -60,12 +55,7 @@ class LiveItemTailStoreImpl implements LiveItemTailStore {
     this.#scheduler = scheduler
   }
 
-  append(
-    threadId: string,
-    itemId: string,
-    kind: LiveTailKind,
-    delta: string,
-  ): void {
+  append(threadId: string, itemId: string, kind: LiveTailKind, delta: string): void {
     if (!delta || !threadId || !itemId) return
     const key = keyOf(threadId, itemId)
     const existing = this.#buffers.get(key)
@@ -115,7 +105,7 @@ class LiveItemTailStoreImpl implements LiveItemTailStore {
 
   clearThread(threadId: string): void {
     const prefix = threadPrefixOf(threadId)
-    this.#dropMatching(key => key.startsWith(prefix))
+    this.#dropMatching((key) => key.startsWith(prefix))
   }
 
   clearAll(): void {
@@ -168,8 +158,6 @@ class LiveItemTailStoreImpl implements LiveItemTailStore {
 
 export const liveItemTailStore: LiveItemTailStore = new LiveItemTailStoreImpl()
 
-export function createLiveItemTailStore(
-  scheduler?: TailNotificationScheduler,
-): LiveItemTailStore {
+export function createLiveItemTailStore(scheduler?: TailNotificationScheduler): LiveItemTailStore {
   return new LiveItemTailStoreImpl(scheduler)
 }

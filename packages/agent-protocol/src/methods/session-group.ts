@@ -9,9 +9,9 @@ import {
   SessionGroupMembershipSchema,
   SessionGroupSchema,
   SessionGroupStepSchema,
-} from "@codepilotx/shared/session-group"
-import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../wire/definition"
+} from '@codepilotx/shared/session-group'
+import { Schema } from 'effect'
+import { defineMethod, type MethodMap } from '../wire/definition'
 import {
   CursorSchema,
   LimitSchema,
@@ -21,7 +21,7 @@ import {
   OkResultSchema,
   OperationParamsSchema,
   TimestampSchema,
-} from "../wire/primitives"
+} from '../wire/primitives'
 
 const VersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 const GroupNameSchema = Schema.String.check(
@@ -33,16 +33,16 @@ const GroupDescriptionSchema = Schema.String.check(
 )
 
 const SessionGroupErrors = [
-  "SESSION_GROUP_NOT_FOUND",
-  "SESSION_GROUP_STEP_NOT_FOUND",
-  "SESSION_GROUP_CONTEXT_ENTRY_NOT_FOUND",
-  "SESSION_GROUP_CONTEXT_REVISION_CONFLICT",
-  "SESSION_GROUP_THREAD_BUSY",
-  "THREAD_NOT_FOUND",
-  "OPERATION_ID_CONFLICT",
-  "CONFLICT",
-  "RATE_LIMITED",
-  "INTERNAL_ERROR",
+  'SESSION_GROUP_NOT_FOUND',
+  'SESSION_GROUP_STEP_NOT_FOUND',
+  'SESSION_GROUP_CONTEXT_ENTRY_NOT_FOUND',
+  'SESSION_GROUP_CONTEXT_REVISION_CONFLICT',
+  'SESSION_GROUP_THREAD_BUSY',
+  'THREAD_NOT_FOUND',
+  'OPERATION_ID_CONFLICT',
+  'CONFLICT',
+  'RATE_LIMITED',
+  'INTERNAL_ERROR',
 ] as const
 
 export const SessionGroupListParamsSchema = Schema.Struct({
@@ -142,11 +142,11 @@ export const SessionGroupStepDiffHunkSchema = Schema.Struct({
 export const SessionGroupStepDiffFileSchema = Schema.Struct({
   workspaceLabel: NonEmptyStringSchema,
   path: NonEmptyStringSchema,
-  operation: Schema.Literals(["create", "update", "delete", "rename"]),
+  operation: Schema.Literals(['create', 'update', 'delete', 'rename']),
   patch: Schema.String,
   hunks: Schema.Array(SessionGroupStepDiffHunkSchema),
   renderable: Schema.Boolean,
-  tooLargeReason: Schema.NullOr(Schema.Literals(["changed-lines", "changed-bytes", "line-bytes"])),
+  tooLargeReason: Schema.NullOr(Schema.Literals(['changed-lines', 'changed-bytes', 'line-bytes'])),
 })
 export const SessionGroupStepDiffResultSchema = Schema.Struct({
   stepId: OpaqueIDSchema,
@@ -154,92 +154,92 @@ export const SessionGroupStepDiffResultSchema = Schema.Struct({
 })
 
 export const SessionGroupRpcMethods = {
-  "session-group/list": defineMethod({
+  'session-group/list': defineMethod({
     params: SessionGroupListParamsSchema,
     result: SessionGroupListResultSchema,
     errors: SessionGroupErrors,
-    capability: "session-group.v1",
+    capability: 'session-group.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "session-group/read": defineMethod({
+  'session-group/read': defineMethod({
     params: SessionGroupReadParamsSchema,
     result: SessionGroupReadResultSchema,
     errors: SessionGroupErrors,
-    capability: "session-group.v1",
+    capability: 'session-group.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "session-group/create": defineMethod({
+  'session-group/create': defineMethod({
     params: SessionGroupCreateParamsSchema,
     result: Schema.Struct({ group: SessionGroupSchema }),
     errors: SessionGroupErrors,
-    capability: "session-group.v1",
+    capability: 'session-group.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "session-group/update": defineMethod({
+  'session-group/update': defineMethod({
     params: SessionGroupUpdateParamsSchema,
     result: Schema.Struct({ group: SessionGroupSchema }),
     errors: SessionGroupErrors,
-    capability: "session-group.v1",
+    capability: 'session-group.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "session-group/delete": defineMethod({
+  'session-group/delete': defineMethod({
     params: SessionGroupDeleteParamsSchema,
     result: SessionGroupDeleteResultSchema,
     errors: SessionGroupErrors,
-    capability: "session-group.v1",
+    capability: 'session-group.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "session-group/membership/set": defineMethod({
+  'session-group/membership/set': defineMethod({
     params: SessionGroupMembershipSetParamsSchema,
     result: SessionGroupMembershipSetResultSchema,
     errors: SessionGroupErrors,
-    capability: "session-group.v1",
+    capability: 'session-group.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "session-group/context/read": defineMethod({
+  'session-group/context/read': defineMethod({
     params: SessionGroupContextReadParamsSchema,
     result: SessionGroupContextReadResultSchema,
     errors: SessionGroupErrors,
-    capability: "session-group.v1",
+    capability: 'session-group.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "session-group/context/update": defineMethod({
+  'session-group/context/update': defineMethod({
     params: SessionGroupContextUpdateParamsSchema,
     result: SessionGroupContextReadResultSchema,
     errors: SessionGroupErrors,
-    capability: "session-group.v1",
+    capability: 'session-group.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "session-group/step/list": defineMethod({
+  'session-group/step/list': defineMethod({
     params: SessionGroupStepListParamsSchema,
     result: SessionGroupStepListResultSchema,
     errors: SessionGroupErrors,
-    capability: "session-group.v1",
+    capability: 'session-group.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "session-group/step/diff": defineMethod({
+  'session-group/step/diff': defineMethod({
     params: SessionGroupStepDiffParamsSchema,
     result: SessionGroupStepDiffResultSchema,
     errors: SessionGroupErrors,
-    capability: "session-group.v1",
+    capability: 'session-group.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,

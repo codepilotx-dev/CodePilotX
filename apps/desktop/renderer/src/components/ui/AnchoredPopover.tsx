@@ -1,10 +1,7 @@
 import type React from 'react'
 import * as RadixPopover from '@radix-ui/react-popover'
 import { cx } from '../../utils/cx.js'
-import {
-  buildPopoverSizingStyle,
-  type PopoverSizingProps,
-} from './popoverSizing.js'
+import { buildPopoverSizingStyle, type PopoverSizingProps } from './popoverSizing.js'
 
 export type AnchoredPopoverProps = PopoverSizingProps & {
   align?: 'start' | 'center' | 'end'
@@ -56,12 +53,7 @@ export function AnchoredPopover({
           onCloseAutoFocus={onCloseAutoFocus}
           aria-label={contentLabel}
           align={align}
-          className={cx(
-            'popover-surface',
-            'popover',
-            'tw:text-app-text',
-            className,
-          )}
+          className={cx('popover-surface', 'popover', 'tw:text-app-text', className)}
           collisionPadding={collisionPadding}
           role={contentRole}
           side={side}

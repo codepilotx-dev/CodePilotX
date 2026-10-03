@@ -43,13 +43,14 @@ export function floatingSurfaceMotion(side: FloatingSurfaceSide): {
   animate: { opacity: number; x: number; y: number }
   exit: { opacity: number; x: number; y: number }
 } {
-  const offset = side === 'top'
-    ? { x: 0, y: 4 }
-    : side === 'bottom'
-      ? { x: 0, y: -4 }
-      : side === 'left'
-        ? { x: 4, y: 0 }
-        : { x: -4, y: 0 }
+  const offset =
+    side === 'top'
+      ? { x: 0, y: 4 }
+      : side === 'bottom'
+        ? { x: 0, y: -4 }
+        : side === 'left'
+          ? { x: 4, y: 0 }
+          : { x: -4, y: 0 }
 
   return {
     initial: { opacity: 0, ...offset },

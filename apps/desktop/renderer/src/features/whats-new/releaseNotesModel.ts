@@ -2,10 +2,7 @@ import type { RpcResult } from '@codepilotx/agent-protocol'
 import type { DesktopReleaseNotesApi } from '../../services/desktop-client/index.js'
 
 export type ReleaseNotesViewError =
-  | 'not-public'
-  | 'rate-limited'
-  | 'unavailable'
-  | 'invalid-response'
+  'not-public' | 'rate-limited' | 'unavailable' | 'invalid-response'
 
 export function loadReleaseNotes(
   client: DesktopReleaseNotesApi,

@@ -20,12 +20,8 @@ describe('PrimaryPageLayout', () => {
     expect(html).toContain('primary-page-layout__body')
     expect(html.indexOf('页面标题')).toBeLessThan(html.indexOf('页面说明'))
     expect(html.indexOf('页面说明')).toBeLessThan(html.indexOf('data-slot="search"'))
-    expect(html.indexOf('data-slot="search"')).toBeLessThan(
-      html.indexOf('data-slot="navigation"'),
-    )
-    expect(html.indexOf('data-slot="navigation"')).toBeLessThan(
-      html.indexOf('data-slot="body"'),
-    )
+    expect(html.indexOf('data-slot="search"')).toBeLessThan(html.indexOf('data-slot="navigation"'))
+    expect(html.indexOf('data-slot="navigation"')).toBeLessThan(html.indexOf('data-slot="body"'))
   })
 
   test('omits optional search and navigation containers', () => {

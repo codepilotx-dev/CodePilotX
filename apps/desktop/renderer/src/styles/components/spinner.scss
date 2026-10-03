@@ -25,7 +25,9 @@
 }
 
 @keyframes ui-spinner-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 :root[data-reduce-motion='on'] .ui-spinner {

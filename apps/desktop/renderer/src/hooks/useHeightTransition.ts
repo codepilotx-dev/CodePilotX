@@ -2,9 +2,7 @@ import React from 'react'
 
 import { getEffectiveReducedMotion } from './usePrefersReducedMotion.js'
 
-export function useHeightTransition(
-  dependencies: React.DependencyList,
-): {
+export function useHeightTransition(dependencies: React.DependencyList): {
   ref: React.RefObject<HTMLDivElement | null>
   style: React.CSSProperties
 } {
@@ -24,10 +22,7 @@ export function useHeightTransition(
     const targetHeight = outerContentHeight(el)
     previousHeight.current = targetHeight
 
-    if (
-      Math.abs(startHeight - targetHeight) < 1 ||
-      getEffectiveReducedMotion()
-    ) {
+    if (Math.abs(startHeight - targetHeight) < 1 || getEffectiveReducedMotion()) {
       setHeight(null)
       setTransitioning(false)
       return
@@ -38,10 +33,7 @@ export function useHeightTransition(
     let finished = false
 
     const finishTransition = (event?: TransitionEvent) => {
-      if (
-        finished ||
-        (event && (event.target !== el || event.propertyName !== 'height'))
-      ) {
+      if (finished || (event && (event.target !== el || event.propertyName !== 'height'))) {
         return
       }
 
@@ -60,10 +52,7 @@ export function useHeightTransition(
       el.addEventListener('transitionend', finishTransition)
       el.addEventListener('transitioncancel', finishTransition)
       setHeight(targetHeight)
-      timer = window.setTimeout(
-        finishTransition,
-        maximumTransitionTime(el) + 50,
-      )
+      timer = window.setTimeout(finishTransition, maximumTransitionTime(el) + 50)
     })
 
     return () => {

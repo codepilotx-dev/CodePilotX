@@ -12,10 +12,8 @@ export function useSubagentDockController({
   openRightDockTab: (tab: WorkbenchTabDescriptor) => void
   onError: (message: string) => void
 }) {
-  const [selectedSubagent, setSelectedSubagent] =
-    useState<DesktopSubagentRead | null>(null)
-  const [selectedSubagentError, setSelectedSubagentError] =
-    useState<string | null>(null)
+  const [selectedSubagent, setSelectedSubagent] = useState<DesktopSubagentRead | null>(null)
+  const [selectedSubagentError, setSelectedSubagentError] = useState<string | null>(null)
   const [subagentAvailability, setSubagentAvailability] = useState<
     'loading' | 'available' | 'unavailable'
   >('loading')
@@ -24,8 +22,9 @@ export function useSubagentDockController({
 
   useEffect(() => {
     let disposed = false
-    void desktopClient.getRuntimeCapabilities()
-      .then(capabilities => {
+    void desktopClient
+      .getRuntimeCapabilities()
+      .then((capabilities) => {
         if (!disposed) {
           setSubagentAvailability(
             capabilities.includes('subagents.v1') ? 'available' : 'unavailable',
@@ -92,25 +91,17 @@ export function useSubagentDockController({
       disposed = true
       if (timer !== null) window.clearTimeout(timer)
     }
-  }, [
-    onError,
-    refreshSelectedSubagent,
-    selectedSubagentTaskId,
-    subagentAvailability,
-  ])
+  }, [onError, refreshSelectedSubagent, selectedSubagentTaskId, subagentAvailability])
 
   const handleOpenSubagent = useCallback(
     (taskId: string): void => {
-      if (
-        subagentAvailability !== 'available' ||
-        !desktopClient.readSubagent
-      ) {
+      if (subagentAvailability !== 'available' || !desktopClient.readSubagent) {
         onError('当前桌面桥接不支持读取子智能体')
         return
       }
       void desktopClient
         .readSubagent(taskId)
-        .then(read => {
+        .then((read) => {
           openRightDockTab({
             id: `side-task:${taskId}`,
             kind: 'side-task',
@@ -118,9 +109,7 @@ export function useSubagentDockController({
             childThreadId: read.task.childThreadId,
           })
         })
-        .catch(error =>
-          onError(error instanceof Error ? error.message : String(error)),
-        )
+        .catch((error) => onError(error instanceof Error ? error.message : String(error)))
     },
     [onError, openRightDockTab, subagentAvailability],
   )

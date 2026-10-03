@@ -19,16 +19,18 @@ const project: Project = {
   id: 'project-1',
   name: 'CodePilotX-Status',
   primaryFolderId: 'folder-primary',
-  folders: [{
-    id: 'folder-primary',
-    name: 'CodePilotX-Status',
-    path: projectRootPath,
-    role: 'primary',
-    availability: 'available',
-    order: 0,
-    createdAt: now,
-    updatedAt: now,
-  }],
+  folders: [
+    {
+      id: 'folder-primary',
+      name: 'CodePilotX-Status',
+      path: projectRootPath,
+      role: 'primary',
+      availability: 'available',
+      order: 0,
+      createdAt: now,
+      updatedAt: now,
+    },
+  ],
   removedAt: null,
   lastOpenedAt: now,
   createdAt: now,
@@ -39,11 +41,13 @@ const projectWorkspace = {
   kind: 'project' as const,
   projectID: project.id,
   cwd: projectRootPath,
-  runtimeWorkspaceRoots: [{
-    folderId: 'folder-primary',
-    path: projectRootPath,
-    role: 'primary' as const,
-  }],
+  runtimeWorkspaceRoots: [
+    {
+      folderId: 'folder-primary',
+      path: projectRootPath,
+      role: 'primary' as const,
+    },
+  ],
   instructionSources: [],
   outputDirectory: null,
 }
@@ -111,17 +115,15 @@ function listFetcher(latestTurnStatus: () => ThreadListItem['latestTurnStatus'])
   }
 }
 
-function statusesFrom(
-  change: DesktopSessionStoreChange | undefined,
-): string[] {
-  return (change?.sessions ?? []).map(snapshot => snapshot.item.status)
+function statusesFrom(change: DesktopSessionStoreChange | undefined): string[] {
+  return (change?.sessions ?? []).map((snapshot) => snapshot.item.status)
 }
 
 describe('session status single source', () => {
   test('canonical status overrides the catalog value for store consumers', async () => {
     const client = createDesktopClient({ fetch: listFetcher(() => 'running') })
     const changes: DesktopSessionStoreChange[] = []
-    const unsubscribe = client.onSessionStoreChange(change => changes.push(change))
+    const unsubscribe = client.onSessionStoreChange((change) => changes.push(change))
 
     const listed = await client.listSessions()
     expect(listed[0]!.item.status).toBe('running')
@@ -150,7 +152,7 @@ describe('session status single source', () => {
   test('clearing the canonical status hands the thread back to the catalog', async () => {
     const client = createDesktopClient({ fetch: listFetcher(() => 'running') })
     const changes: DesktopSessionStoreChange[] = []
-    const unsubscribe = client.onSessionStoreChange(change => changes.push(change))
+    const unsubscribe = client.onSessionStoreChange((change) => changes.push(change))
 
     await client.listSessions()
     client.publishCanonicalSessionStatus('session-status', {
@@ -199,9 +201,11 @@ describe('session status single source', () => {
       }
       if (body?.method === 'thread/list') {
         return rpc(body.id, {
-          threads: [threadItem({
-            latestTurnStatus: terminal ? 'completed' : 'running',
-          })],
+          threads: [
+            threadItem({
+              latestTurnStatus: terminal ? 'completed' : 'running',
+            }),
+          ],
           nextCursor: null,
         })
       }
@@ -215,11 +219,11 @@ describe('session status single source', () => {
     expect(listed[0]!.item.status).toBe('running')
     // The row is deliberately not the active session: background rows must
     // recover from the persisted status as well.
-    const unsubscribe = client.onSessionStoreChange(change => {
+    const unsubscribe = client.onSessionStoreChange((change) => {
       observedStatuses.push(...statusesFrom(change))
     })
     for (let index = 0; index < 20 && !source.onmessage; index += 1) {
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 0))
     }
 
     // The terminal status is persisted, but this client never received the
@@ -235,12 +239,8 @@ describe('session status single source', () => {
         },
       }),
     } as MessageEvent)
-    for (
-      let index = 0;
-      index < 50 && !observedStatuses.includes('done');
-      index += 1
-    ) {
-      await new Promise(resolve => setTimeout(resolve, 0))
+    for (let index = 0; index < 50 && !observedStatuses.includes('done'); index += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0))
     }
     unsubscribe()
 

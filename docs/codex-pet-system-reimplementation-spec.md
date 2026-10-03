@@ -82,12 +82,12 @@ type PetManifest = {
 
 能力：`pets.management.v1`
 
-| 方法 | 参数 | 结果 | mutation |
-|---|---|---|---|
-| `pet/list` | `{}` | `{pets}` | 否 |
-| `pet/install/preview` | `{url}` | `{pet,sourceUrl,sizeBytes}` | 否 |
-| `pet/install` | `{url,operationId}` | `{pet}` | 是 |
-| `pet/remove` | `{id,operationId}` | `{id,removed:true}` | 是 |
+| 方法                  | 参数                | 结果                        | mutation |
+| --------------------- | ------------------- | --------------------------- | -------- |
+| `pet/list`            | `{}`                | `{pets}`                    | 否       |
+| `pet/install/preview` | `{url}`             | `{pet,sourceUrl,sizeBytes}` | 否       |
+| `pet/install`         | `{url,operationId}` | `{pet}`                     | 是       |
+| `pet/remove`          | `{id,operationId}`  | `{id,removed:true}`         | 是       |
 
 公共 descriptor 不包含绝对路径：
 
@@ -311,8 +311,7 @@ spritesheet 裁切：
 ```ts
 const rows = spriteVersionNumber === 2 ? 11 : 9
 backgroundSize = `800% ${rows * 100}%`
-backgroundPosition =
-  `${column * (100 / 7)}% ${row * (100 / (rows - 1))}%`
+backgroundPosition = `${column * (100 / 7)}% ${row * (100 / (rows - 1))}%`
 ```
 
 显示比例保持 192:208。reduced motion 下固定第 0 帧。非 idle 播放 3 次后回到 idle。
@@ -334,8 +333,7 @@ backgroundPosition =
 v2 图集的第 9、10 行保存 16 个静态朝向帧。宠物浮窗可见且未拖动时，每 50ms 通过受限 preload bridge 读取一次全局鼠标位置；renderer 结合浮窗屏幕坐标和宠物 DOMRect 计算宠物中心：
 
 ```ts
-const angle =
-  (Math.atan2(deltaX, -deltaY) * 180 / Math.PI + 360) % 360
+const angle = ((Math.atan2(deltaX, -deltaY) * 180) / Math.PI + 360) % 360
 const directionIndex = Math.round(angle / 22.5) % 16
 const row = 9 + Math.floor(directionIndex / 8)
 const column = directionIndex % 8

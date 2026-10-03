@@ -10,9 +10,7 @@ import {
   type WorkbenchTabDescriptor,
   type WorkbenchTabsState,
 } from '../src/features/layout/dock/rightDockState.js'
-import {
-  AuxiliaryWindowService,
-} from '../src/features/layout/auxiliary/auxiliaryWindowService.js'
+import { AuxiliaryWindowService } from '../src/features/layout/auxiliary/auxiliaryWindowService.js'
 
 describe('Auxiliary Window (Phase 3) - View Floating Capabilities', () => {
   test('all dockable built-in views allow floating', () => {
@@ -291,7 +289,7 @@ describe('Auxiliary Window (Phase 3) - AuxiliaryWindowService', () => {
     try {
       const service = new AuxiliaryWindowService()
       const dockBackCalls: string[] = []
-      service.setDockBackHandler(tabId => {
+      service.setDockBackHandler((tabId) => {
         dockBackCalls.push(tabId)
       })
 

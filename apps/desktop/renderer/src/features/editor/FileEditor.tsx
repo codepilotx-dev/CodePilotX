@@ -1,12 +1,6 @@
 import { Compartment, EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
-import {
-  redo,
-  redoDepth,
-  selectAll,
-  undo,
-  undoDepth,
-} from '@codemirror/commands'
+import { redo, redoDepth, selectAll, undo, undoDepth } from '@codemirror/commands'
 import { useEffect, useRef } from 'react'
 import type React from 'react'
 import { useEditCommands } from '../../components/ui/EditCommandProvider.js'
@@ -53,8 +47,7 @@ export function FileEditor({
   value,
 }: FileEditorProps): React.ReactNode {
   const { registerTarget } = useEditCommands()
-  const { activeTheme, codeThemeId, draft, resolvedVariant } =
-    useDesktopTheme()
+  const { activeTheme, codeThemeId, draft, resolvedVariant } = useDesktopTheme()
   const configuredCodeFont = activeTheme.theme.fonts.code?.trim()
   const codeFontFamily = configuredCodeFont
     ? `${configuredCodeFont}, ${CODE_FONT_FALLBACK}`
@@ -91,7 +84,7 @@ export function FileEditor({
         doc: value,
         extensions: [
           ...createCodeMirrorExtensions({
-            onChange: nextValue => {
+            onChange: (nextValue) => {
               if (!applyingExternalValueRef.current) {
                 onChangeRef.current(nextValue)
               }
@@ -106,9 +99,7 @@ export function FileEditor({
           ]),
           EditorView.contentAttributes.of({ 'aria-label': ariaLabel }),
           languageCompartment.of([]),
-          presentationCompartment.of(
-            createPresentationExtensions(presentation),
-          ),
+          presentationCompartment.of(createPresentationExtensions(presentation)),
           themeCompartment.of([]),
         ],
       }),
@@ -120,7 +111,7 @@ export function FileEditor({
       },
       getCapabilities: () => {
         const selection = view.state.selection
-        const hasSelection = selection.ranges.some(range => !range.empty)
+        const hasSelection = selection.ranges.some((range) => !range.empty)
         const entireDocumentSelected =
           selection.ranges.length === 1 &&
           selection.main.from === 0 &&
@@ -132,16 +123,15 @@ export function FileEditor({
           copy: hasSelection,
           paste: !readonlyRef.current,
           delete: !readonlyRef.current && hasSelection,
-          selectAll:
-            view.state.doc.length > 0 && !entireDocumentSelected,
+          selectAll: view.state.doc.length > 0 && !entireDocumentSelected,
         }
       },
       focus: () => view.focus(),
-      perform: action => {
+      perform: (action) => {
         if (action === 'undo') return undo(view)
         if (action === 'redo') return redo(view)
         if (action === 'delete') {
-          if (view.state.selection.ranges.every(range => range.empty)) {
+          if (view.state.selection.ranges.every((range) => range.empty)) {
             return false
           }
           view.dispatch(view.state.replaceSelection(''))
@@ -198,7 +188,7 @@ export function FileEditor({
       return
     }
 
-    void loadCodeMirrorLanguage(path, language).then(extension => {
+    void loadCodeMirrorLanguage(path, language).then((extension) => {
       if (!active || viewRef.current !== view) {
         return
       }
@@ -238,11 +228,8 @@ export function FileEditor({
       fontSize: codeFontSize,
       variant: resolvedVariant,
     })
-      .then(extension => {
-        if (
-          request !== themeRequestRef.current ||
-          viewRef.current !== view
-        ) {
+      .then((extension) => {
+        if (request !== themeRequestRef.current || viewRef.current !== view) {
           return
         }
         view.dispatch({
@@ -251,22 +238,14 @@ export function FileEditor({
         view.requestMeasure()
       })
       .catch(() => undefined)
-  }, [
-    codeFontFamily,
-    codeFontSize,
-    codeThemeId,
-    resolvedVariant,
-  ])
+  }, [codeFontFamily, codeFontSize, codeThemeId, resolvedVariant])
 
   useEffect(() => {
     const view = viewRef.current
     if (!view || revealLine == null) {
       return
     }
-    const lineNumber = Math.max(
-      1,
-      Math.min(Math.trunc(revealLine), view.state.doc.lines),
-    )
+    const lineNumber = Math.max(1, Math.min(Math.trunc(revealLine), view.state.doc.lines))
     const line = view.state.doc.line(lineNumber)
     view.dispatch({
       effects: EditorView.scrollIntoView(line.from, { y: 'center' }),
@@ -279,10 +258,7 @@ export function FileEditor({
       data-presentation={presentation}
       data-readonly={readonly || undefined}
     >
-      <div
-        ref={hostRef}
-        className="file-editor-host"
-      />
+      <div ref={hostRef} className="file-editor-host" />
       {saving || error ? (
         <div
           className="file-editor-status"
@@ -296,9 +272,7 @@ export function FileEditor({
   )
 }
 
-function createPresentationExtensions(
-  presentation: 'source' | 'markdown-rich',
-) {
+function createPresentationExtensions(presentation: 'source' | 'markdown-rich') {
   return [
     EditorView.editorAttributes.of({
       'data-editor-presentation': presentation,

@@ -15,9 +15,7 @@ type Options = {
   onError: (message: string) => void
 }
 
-export function usePetSettingsController({
-  onError,
-}: Options): {
+export function usePetSettingsController({ onError }: Options): {
   busy: boolean
   flushPendingSize: () => void
   pets: readonly PetDescriptor[]
@@ -26,10 +24,7 @@ export function usePetSettingsController({
   selectPet: (selectedPetId: string | null) => Promise<void>
   setEnabled: (enabled: boolean) => Promise<void>
   settings: DesktopPetSettings
-  updatePet: (
-    patch: Partial<DesktopPetSettings>,
-    autoSave?: boolean,
-  ) => void
+  updatePet: (patch: Partial<DesktopPetSettings>, autoSave?: boolean) => void
 } {
   const { draft } = useDesktopSettings()
   const [pets, setPets] = useState<readonly PetDescriptor[]>([])
@@ -37,34 +32,24 @@ export function usePetSettingsController({
   const settings = draft.values.pet
   const settingsRef = useRef(settings)
   settingsRef.current = settings
-  const committedPresentationRef = useRef(
-    presentationFromPetSettings(settings),
-  )
-  const desiredPresentationRef = useRef(
-    presentationFromPetSettings(settings),
-  )
+  const committedPresentationRef = useRef(presentationFromPetSettings(settings))
+  const desiredPresentationRef = useRef(presentationFromPetSettings(settings))
   const draftRef = useRef(draft)
   draftRef.current = draft
   const sizeSaveTimerRef = useRef<number | null>(null)
   const saveSequenceRef = useRef(Promise.resolve())
 
-  const updatePet = useCallback(
-    (
-      patch: Partial<typeof settings>,
-      autoSave = true,
-    ): void => {
-      settingsRef.current = { ...settingsRef.current, ...patch }
-      draftRef.current.setValue('pet', current => ({ ...current, ...patch }))
-      if (autoSave) draftRef.current.autoSave()
-    },
-    [],
-  )
+  const updatePet = useCallback((patch: Partial<typeof settings>, autoSave = true): void => {
+    settingsRef.current = { ...settingsRef.current, ...patch }
+    draftRef.current.setValue('pet', (current) => ({ ...current, ...patch }))
+    if (autoSave) draftRef.current.autoSave()
+  }, [])
 
   const previewPresentation = useCallback(
     (presentation: PetPresentation): void => {
       const previewer = getPetPresentationBridge()?.previewPetPresentation
       if (typeof previewer !== 'function') return
-      void Promise.resolve(previewer(presentation)).catch(error => {
+      void Promise.resolve(previewer(presentation)).catch((error) => {
         onError(messageOf(error))
       })
     },
@@ -84,7 +69,7 @@ export function usePetSettingsController({
             return
           }
           const rollback = committedPresentationRef.current
-          draftRef.current.setValue('pet', current => ({
+          draftRef.current.setValue('pet', (current) => ({
             ...current,
             selectedPetId: rollback.selectedPetId,
             size: rollback.size,
@@ -123,18 +108,13 @@ export function usePetSettingsController({
     [commitPresentation, previewPresentation, updatePet],
   )
 
-  const refreshPets = useCallback(async (): Promise<
-    readonly PetDescriptor[]
-  > => {
+  const refreshPets = useCallback(async (): Promise<readonly PetDescriptor[]> => {
     setBusy(true)
     try {
       const next = await desktopClient.listPets()
       setPets(next)
       const selectedPetId = settingsRef.current.selectedPetId
-      if (
-        selectedPetId
-        && !next.some(pet => pet.id === selectedPetId)
-      ) {
+      if (selectedPetId && !next.some((pet) => pet.id === selectedPetId)) {
         await selectPet(next[0]?.id ?? null)
       }
       return next
@@ -184,7 +164,7 @@ export function usePetSettingsController({
   }, [refreshPets])
 
   useEffect(() => {
-    return desktopClient.onDesktopSettingsChange(change => {
+    return desktopClient.onDesktopSettingsChange((change) => {
       const canonical = presentationFromPetSettings(change.settings.pet)
       committedPresentationRef.current = canonical
       if (sizeSaveTimerRef.current === null) {
@@ -199,9 +179,7 @@ export function usePetSettingsController({
       if (sizeSaveTimerRef.current !== null) {
         window.clearTimeout(sizeSaveTimerRef.current)
         sizeSaveTimerRef.current = null
-        void commitPresentation(
-          presentationFromPetSettings(settingsRef.current),
-        )
+        void commitPresentation(presentationFromPetSettings(settingsRef.current))
       }
     }
   }, [commitPresentation])
@@ -223,9 +201,6 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-function samePresentation(
-  left: PetPresentation,
-  right: PetPresentation,
-): boolean {
+function samePresentation(left: PetPresentation, right: PetPresentation): boolean {
   return left.selectedPetId === right.selectedPetId && left.size === right.size
 }

@@ -70,21 +70,19 @@ export function ProviderModelsSection({
 
   const filteredModels = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-    return models.filter(modelId => {
+    return models.filter((modelId) => {
       if (!query) return true
       const meta = modelMetadata[modelId]
-      const searchText = [
-        modelId,
-        meta?.name,
-        meta?.description,
-        ...(meta?.tags ?? []),
-      ].filter(Boolean).join(' ').toLowerCase()
+      const searchText = [modelId, meta?.name, meta?.description, ...(meta?.tags ?? [])]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
       return searchText.includes(query)
     })
   }, [modelMetadata, models, searchQuery])
 
   async function testSingleModel(modelId: string): Promise<void> {
-    setModelTestResults(prev => ({
+    setModelTestResults((prev) => ({
       ...prev,
       [modelId]: { state: 'testing' },
     }))
@@ -96,14 +94,14 @@ export function ProviderModelsSection({
       } as DesktopModelRef
       const result = await desktopClient.testModelProvider(provider.providerID, ref)
       if (result.status === 'reachable') {
-        setModelTestResults(prev => ({
+        setModelTestResults((prev) => ({
           ...prev,
           [modelId]: { state: 'reachable', latencyMs: result.latencyMs ?? 0 },
         }))
         onNotice(`模型“${modelId}”连通正常（${result.latencyMs} ms）。`)
       } else {
         const errorMsg = result.message ?? '连接失败'
-        setModelTestResults(prev => ({
+        setModelTestResults((prev) => ({
           ...prev,
           [modelId]: { state: 'failed', message: errorMsg },
         }))
@@ -111,7 +109,7 @@ export function ProviderModelsSection({
       }
     } catch (error) {
       const errorMsg = fullErrorMessage(error)
-      setModelTestResults(prev => ({
+      setModelTestResults((prev) => ({
         ...prev,
         [modelId]: { state: 'failed', message: errorMsg },
       }))
@@ -125,7 +123,7 @@ export function ProviderModelsSection({
     onNotice(`开始对 ${models.length} 个模型执行连通测速...`)
 
     for (const modelId of models) {
-      setModelTestResults(prev => ({
+      setModelTestResults((prev) => ({
         ...prev,
         [modelId]: { state: 'testing' },
       }))
@@ -136,18 +134,18 @@ export function ProviderModelsSection({
         } as DesktopModelRef
         const result = await desktopClient.testModelProvider(provider.providerID, ref)
         if (result.status === 'reachable') {
-          setModelTestResults(prev => ({
+          setModelTestResults((prev) => ({
             ...prev,
             [modelId]: { state: 'reachable', latencyMs: result.latencyMs ?? 0 },
           }))
         } else {
-          setModelTestResults(prev => ({
+          setModelTestResults((prev) => ({
             ...prev,
             [modelId]: { state: 'failed', message: result.message ?? '连接失败' },
           }))
         }
       } catch (error) {
-        setModelTestResults(prev => ({
+        setModelTestResults((prev) => ({
           ...prev,
           [modelId]: { state: 'failed', message: fullErrorMessage(error) },
         }))
@@ -161,8 +159,14 @@ export function ProviderModelsSection({
     if (!builtinConfig) return
     setSavingBuiltinConfig(true)
     try {
-      const nextAllow = allowModels.split(',').map(s => s.trim()).filter(Boolean)
-      const nextDeny = denyModels.split(',').map(s => s.trim()).filter(Boolean)
+      const nextAllow = allowModels
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+      const nextDeny = denyModels
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
       await desktopClient.updateProvider(provider.providerID, {
         ...builtinConfig,
         allowModels: nextAllow as never,
@@ -190,11 +194,11 @@ export function ProviderModelsSection({
             <ToggleSwitch
               ariaLabel="启用该内置供应商"
               checked={builtinConfig.enabled}
-              onChange={enabled => {
+              onChange={(enabled) => {
                 void desktopClient
                   .updateProvider(provider.providerID, { ...builtinConfig, enabled })
                   .then(() => onNotice(enabled ? '供应商已启用' : '供应商已停用'))
-                  .catch(err => onError(fullErrorMessage(err)))
+                  .catch((err) => onError(fullErrorMessage(err)))
               }}
             />
           </header>
@@ -205,7 +209,7 @@ export function ProviderModelsSection({
                 <Input
                   placeholder="如: gpt-4o, gpt-4o-mini"
                   value={allowModels}
-                  onChange={e => setAllowModels(e.target.value)}
+                  onChange={(e) => setAllowModels(e.target.value)}
                 />
               </label>
               <label className="model-center-detail-field" style={{ flex: 1 }}>
@@ -213,7 +217,7 @@ export function ProviderModelsSection({
                 <Input
                   placeholder="如: o1-mini"
                   value={denyModels}
-                  onChange={e => setDenyModels(e.target.value)}
+                  onChange={(e) => setDenyModels(e.target.value)}
                 />
               </label>
               <Button
@@ -277,7 +281,7 @@ export function ProviderModelsSection({
             </div>
           ) : (
             <div className="model-center-models-list">
-              {filteredModels.map(modelId => {
+              {filteredModels.map((modelId) => {
                 const meta = modelMetadata[modelId]
                 const testStatus = modelTestResults[modelId] ?? { state: 'idle' }
                 return (
@@ -313,12 +317,8 @@ function ModelRowItem({
 }: ModelRowItemProps): React.ReactNode {
   const displayName = metadata?.name || modelId
 
-  const contextLength = metadata?.contextWindow
-    ? formatCompactNumber(metadata.contextWindow)
-    : null
-  const outputLength = metadata?.outputTokens
-    ? formatCompactNumber(metadata.outputTokens)
-    : null
+  const contextLength = metadata?.contextWindow ? formatCompactNumber(metadata.contextWindow) : null
+  const outputLength = metadata?.outputTokens ? formatCompactNumber(metadata.outputTokens) : null
 
   return (
     <article className="model-center-model-row">
@@ -329,13 +329,19 @@ function ModelRowItem({
         </div>
         <div className="model-center-model-caps">
           {contextLength ? (
-            <span className="model-cap-pill" title={`最大上下文长度：${metadata?.contextWindow} tokens`}>
+            <span
+              className="model-cap-pill"
+              title={`最大上下文长度：${metadata?.contextWindow} tokens`}
+            >
               <Clock aria-hidden size={APP_ICON_SIZE} />
               {contextLength} 上下文
             </span>
           ) : null}
           {outputLength ? (
-            <span className="model-cap-pill" title={`最大输出长度：${metadata?.outputTokens} tokens`}>
+            <span
+              className="model-cap-pill"
+              title={`最大输出长度：${metadata?.outputTokens} tokens`}
+            >
               {outputLength} 输出
             </span>
           ) : null}
@@ -374,12 +380,18 @@ function ModelRowItem({
             测速中...
           </span>
         ) : testStatus.state === 'reachable' ? (
-          <span className="model-speed-status model-speed-status--healthy" title={`响应耗时 ${testStatus.latencyMs} 毫秒`}>
+          <span
+            className="model-speed-status model-speed-status--healthy"
+            title={`响应耗时 ${testStatus.latencyMs} 毫秒`}
+          >
             <CheckCircle2 aria-hidden size={APP_ICON_SIZES.sm} />
             {testStatus.latencyMs} ms
           </span>
         ) : testStatus.state === 'failed' ? (
-          <span className="model-speed-status model-speed-status--failed" title={testStatus.message}>
+          <span
+            className="model-speed-status model-speed-status--failed"
+            title={testStatus.message}
+          >
             <AlertCircle aria-hidden size={APP_ICON_SIZES.sm} />
             测速失败
           </span>

@@ -18,16 +18,9 @@ type Props = {
   onOpenChange?: (open: boolean) => void
 }
 
-export function TooltipProvider({
-  children,
-}: {
-  children: React.ReactNode
-}): React.ReactNode {
+export function TooltipProvider({ children }: { children: React.ReactNode }): React.ReactNode {
   return (
-    <RadixTooltip.Provider
-      delayDuration={350}
-      skipDelayDuration={300}
-    >
+    <RadixTooltip.Provider delayDuration={350} skipDelayDuration={300}>
       {children}
     </RadixTooltip.Provider>
   )
@@ -78,9 +71,7 @@ export function Tooltip({
           sideOffset={sideOffset}
         >
           {content}
-          {variant === 'default' ? (
-            <RadixTooltip.Arrow className="tooltip-arrow" />
-          ) : null}
+          {variant === 'default' ? <RadixTooltip.Arrow className="tooltip-arrow" /> : null}
         </RadixTooltip.Content>
       </RadixTooltip.Portal>
     </RadixTooltip.Root>

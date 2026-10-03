@@ -1,13 +1,13 @@
-import { Schema } from "effect"
+import { Schema } from 'effect'
 import {
   AutomationExecutionSchema,
   AutomationKindSchema,
   AutomationNotificationPolicySchema,
   AutomationScheduleSchema,
-} from "./automation"
-import { CalendarSourceRefSchema } from "./calendar"
-import { ModelRefSchema } from "./model"
-import { PermissionConfigSchema } from "./thread/permission"
+} from './automation'
+import { CalendarSourceRefSchema } from './calendar'
+import { ModelRefSchema } from './model'
+import { PermissionConfigSchema } from './thread/permission'
 
 const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const PositiveIntegerSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
@@ -16,7 +16,7 @@ export const SchedulePlanItemDraftSchema = Schema.Union([
   Schema.Struct({
     key: NonEmptyStringSchema,
     enabled: Schema.Boolean,
-    kind: Schema.Literal("one-off"),
+    kind: Schema.Literal('one-off'),
     name: NonEmptyStringSchema,
     prompt: NonEmptyStringSchema,
     scheduledFor: Schema.Number,
@@ -24,7 +24,7 @@ export const SchedulePlanItemDraftSchema = Schema.Union([
   Schema.Struct({
     key: NonEmptyStringSchema,
     enabled: Schema.Boolean,
-    kind: Schema.Literal("recurring"),
+    kind: Schema.Literal('recurring'),
     name: NonEmptyStringSchema,
     prompt: NonEmptyStringSchema,
     schedule: AutomationScheduleSchema,
@@ -46,10 +46,14 @@ export const SchedulePlanExecutionDefaultsSchema = Schema.Struct({
 })
 export type SchedulePlanExecutionDefaults = typeof SchedulePlanExecutionDefaultsSchema.Type
 
-export const SchedulePlanProposalStatusSchema = Schema.Literals(["pending", "committed", "cancelled"])
+export const SchedulePlanProposalStatusSchema = Schema.Literals([
+  'pending',
+  'committed',
+  'cancelled',
+])
 export type SchedulePlanProposalStatus = typeof SchedulePlanProposalStatusSchema.Type
 
-export const SchedulePlanHorizonSchema = Schema.Literals(["day", "week", "month", "year"])
+export const SchedulePlanHorizonSchema = Schema.Literals(['day', 'week', 'month', 'year'])
 export type SchedulePlanHorizon = typeof SchedulePlanHorizonSchema.Type
 
 export const SchedulePlanProposalSchema = Schema.Struct({

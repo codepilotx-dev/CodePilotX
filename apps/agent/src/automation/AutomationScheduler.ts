@@ -1,7 +1,7 @@
-import type { AutomationRun } from "@codepilotx/shared/automation"
-import type { ScheduledTask } from "@codepilotx/shared/scheduled-task"
-import type { AutomationRepository } from "../storage/repositories/automation-repository"
-import type { ScheduledTaskRepository } from "../storage/repositories/scheduled-task-repository"
+import type { AutomationRun } from '@codepilotx/shared/automation'
+import type { ScheduledTask } from '@codepilotx/shared/scheduled-task'
+import type { AutomationRepository } from '../storage/repositories/automation-repository'
+import type { ScheduledTaskRepository } from '../storage/repositories/scheduled-task-repository'
 
 const MAX_TIMER_DELAY = 2_147_000_000
 
@@ -62,7 +62,7 @@ export class AutomationScheduler {
   private async drain() {
     this.clearTimer()
     try {
-      const runs = this.repository.claimDue(this.now(), "scheduled")
+      const runs = this.repository.claimDue(this.now(), 'scheduled')
       if (runs.length) await this.options.onClaimed(runs)
       const tasks = this.options.scheduledTasks?.repository.claimDue(this.now()) ?? []
       if (tasks.length) await this.options.scheduledTasks?.onClaimed(tasks)

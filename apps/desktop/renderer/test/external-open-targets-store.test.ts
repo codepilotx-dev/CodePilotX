@@ -23,8 +23,7 @@ const targets: DesktopExternalOpenTarget[] = [
 
 describe('external open targets store', () => {
   test('keeps missing files internal and only falls back unsupported file content', () => {
-    const error = (code: string) =>
-      new AgentRpcError('无法打开文件', -32_000, { code })
+    const error = (code: string) => new AgentRpcError('无法打开文件', -32_000, { code })
 
     expect(shouldFallbackToExternalOpen(error('FILE_NOT_FOUND'))).toBe(false)
     expect(shouldFallbackToExternalOpen(error('PATH_DENIED'))).toBe(false)
@@ -35,10 +34,8 @@ describe('external open targets store', () => {
   test('deduplicates concurrent and fresh requests until the TTL expires', async () => {
     let calls = 0
     let now = 1_000
-    let resolveRequest:
-      | ((value: DesktopExternalOpenTarget[]) => void)
-      | undefined
-    const request = new Promise<DesktopExternalOpenTarget[]>(resolve => {
+    let resolveRequest: ((value: DesktopExternalOpenTarget[]) => void) | undefined
+    const request = new Promise<DesktopExternalOpenTarget[]>((resolve) => {
       resolveRequest = resolve
     })
     const store = createExternalOpenTargetsStore(
@@ -53,15 +50,10 @@ describe('external open targets store', () => {
     )
 
     const first = store.loadExternalOpenTargets('C:\\workspace\\README.md')
-    const concurrent = store.loadExternalOpenTargets(
-      'C:\\workspace\\README.md',
-    )
+    const concurrent = store.loadExternalOpenTargets('C:\\workspace\\README.md')
     expect(calls).toBe(1)
     resolveRequest?.(targets)
-    await expect(Promise.all([first, concurrent])).resolves.toEqual([
-      targets,
-      targets,
-    ])
+    await expect(Promise.all([first, concurrent])).resolves.toEqual([targets, targets])
 
     now += 59_999
     await store.prefetchExternalOpenTargets('C:\\workspace\\README.md')
@@ -83,12 +75,12 @@ describe('external open targets store', () => {
       openPathWithTarget: async () => {},
     })
 
-    await expect(
-      store.prefetchExternalOpenTargets('C:\\workspace\\README.md'),
-    ).rejects.toThrow('暂时不可用')
-    await expect(
-      store.loadExternalOpenTargets('C:\\workspace\\README.md'),
-    ).resolves.toEqual(targets)
+    await expect(store.prefetchExternalOpenTargets('C:\\workspace\\README.md')).rejects.toThrow(
+      '暂时不可用',
+    )
+    await expect(store.loadExternalOpenTargets('C:\\workspace\\README.md')).resolves.toEqual(
+      targets,
+    )
     expect(calls).toBe(2)
   })
 
@@ -119,12 +111,14 @@ describe('external open targets store', () => {
     })
     const path = 'C:\\workspace\\README.md'
 
-    await expect(
-      store.openPathWithPreferredExternalTarget(path),
-    ).resolves.toMatchObject({ id: 'file-explorer', preferred: true })
-    await expect(
-      store.openPathWithExternalTarget(path, 'cursor'),
-    ).resolves.toMatchObject({ id: 'cursor', preferred: true })
+    await expect(store.openPathWithPreferredExternalTarget(path)).resolves.toMatchObject({
+      id: 'file-explorer',
+      preferred: true,
+    })
+    await expect(store.openPathWithExternalTarget(path, 'cursor')).resolves.toMatchObject({
+      id: 'cursor',
+      preferred: true,
+    })
 
     expect(opened).toEqual([
       { path, targetId: 'file-explorer' },

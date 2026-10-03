@@ -11,10 +11,7 @@ import {
   X,
 } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
-import type {
-  DesktopSidebarSort,
-  DesktopWorkspace,
-} from '../../../../shared/types.js'
+import type { DesktopSidebarSort, DesktopWorkspace } from '../../../../shared/types.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { SessionListItem } from '../../../uiTypes.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
@@ -106,9 +103,7 @@ function SidebarProjectGroupComponent({
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false)
   const [managerOpen, setManagerOpen] = useState(false)
   const [managedProject, setManagedProject] = useState(project)
-  const [processingAction, setProcessingAction] = useState<
-    'archive' | null
-  >(null)
+  const [processingAction, setProcessingAction] = useState<'archive' | null>(null)
   const { projectAppearances } = useDesktopSettings()
 
   useEffect(() => setManagedProject(project), [project])
@@ -118,27 +113,24 @@ function SidebarProjectGroupComponent({
   const isExpanded = useDisclosureExpanded(disclosureStore, disclosureKey)
   const projectSessionsId = useId()
   const projectSessions = bucket.displaySessions
-  const hasCollapsedUnread = !isExpanded && projectSessions.some(session => Boolean(session.unreadAt))
+  const hasCollapsedUnread =
+    !isExpanded && projectSessions.some((session) => Boolean(session.unreadAt))
   const countedProjectSessions = bucket.allSessions
   const unreadCount = bucket.unreadCount
   const openCount = bucket.openCount
   const isCurrent =
     workspace?.projectId && managedProject.projectId
       ? workspace.projectId === managedProject.projectId
-      : normalizeSidebarPath(workspace?.path ?? '') ===
-        normalizeSidebarPath(managedProject.path)
+      : normalizeSidebarPath(workspace?.path ?? '') === normalizeSidebarPath(managedProject.path)
   const actionsVisible = hovered || menuOpen
   const isPinned = Boolean(managedProject.pinnedAt)
   const appearance = managedProject.projectId
-    ? projectAppearances[managedProject.projectId]
-      ?? DEFAULT_PROJECT_APPEARANCE
+    ? (projectAppearances[managedProject.projectId] ?? DEFAULT_PROJECT_APPEARANCE)
     : DEFAULT_PROJECT_APPEARANCE
 
   function archiveAll(): void {
     setProcessingAction('archive')
-    void onArchiveSessions(countedProjectSessions).finally(() =>
-      setProcessingAction(null),
-    )
+    void onArchiveSessions(countedProjectSessions).finally(() => setProcessingAction(null))
   }
 
   function togglePinned(): void {
@@ -154,9 +146,7 @@ function SidebarProjectGroupComponent({
       {
         kind: 'item',
         label: isPinned ? '取消置顶项目' : '置顶项目',
-        icon: isPinned
-          ? <PinOff size={APP_ICON_SIZE} />
-          : <Pin size={APP_ICON_SIZE} />,
+        icon: isPinned ? <PinOff size={APP_ICON_SIZE} /> : <Pin size={APP_ICON_SIZE} />,
         onSelect: togglePinned,
       },
       {
@@ -204,21 +194,12 @@ function SidebarProjectGroupComponent({
       type="button"
       onClick={() => disclosureStore.setExpanded(disclosureKey, !isExpanded)}
     >
-      <span className="sidebar-project-title-text">
-        {managedProject.name}
-      </span>
+      <span className="sidebar-project-title-text">{managedProject.name}</span>
     </button>
   )
 
   return (
-    <section
-      className={cx(
-        'sidebar-project',
-        'u-flex',
-        'u-flex-col',
-        'tw:flex tw:flex-col',
-      )}
-    >
+    <section className={cx('sidebar-project', 'u-flex', 'u-flex-col', 'tw:flex tw:flex-col')}>
       <SidebarContextMenu
         actions={contextActions()}
         layout="grid"
@@ -232,7 +213,8 @@ function SidebarProjectGroupComponent({
             labelClassName="sidebar-project-name"
             layout="grid"
             leading={
-              <ProjectAppearanceGlyph size={APP_ICON_SIZE}
+              <ProjectAppearanceGlyph
+                size={APP_ICON_SIZE}
                 appearance={appearance}
                 className="project-appearance-marker"
               />
@@ -242,11 +224,8 @@ function SidebarProjectGroupComponent({
             trailing={
               <>
                 <div
-                  className={cx(
-                    'sidebar-project-actions',
-                    actionsVisible && 'is-visible',
-                  )}
-                  onClick={event => event.stopPropagation()}
+                  className={cx('sidebar-project-actions', actionsVisible && 'is-visible')}
+                  onClick={(event) => event.stopPropagation()}
                 >
                   <PopoverMenu
                     className="popover-sidebar-project popover-menu--grid"
@@ -267,9 +246,9 @@ function SidebarProjectGroupComponent({
                     onOpenChange={setMenuOpen}
                   >
                     <PopoverItem
-                      icon={isPinned
-                        ? <PinOff size={APP_ICON_SIZE} />
-                        : <Pin size={APP_ICON_SIZE} />}
+                      icon={
+                        isPinned ? <PinOff size={APP_ICON_SIZE} /> : <Pin size={APP_ICON_SIZE} />
+                      }
                       onClick={togglePinned}
                     >
                       {isPinned ? '取消置顶项目' : '置顶项目'}
@@ -278,9 +257,7 @@ function SidebarProjectGroupComponent({
                       disabled={isUnavailable}
                       icon={<FolderOpen size={APP_ICON_SIZE} />}
                       onClick={() => {
-                        void desktopClient.openPathWithDefaultTarget(
-                          managedProject.path,
-                        )
+                        void desktopClient.openPathWithDefaultTarget(managedProject.path)
                       }}
                     >
                       在资源管理器中打开
@@ -292,10 +269,7 @@ function SidebarProjectGroupComponent({
                       编辑项目
                     </PopoverItem>
                     <PopoverItem
-                      disabled={
-                        countedProjectSessions.length === 0 ||
-                        processingAction !== null
-                      }
+                      disabled={countedProjectSessions.length === 0 || processingAction !== null}
                       icon={<Archive size={APP_ICON_SIZE} />}
                       onClick={archiveAll}
                     >
@@ -322,7 +296,11 @@ function SidebarProjectGroupComponent({
                   </IconButton>
                 </div>
                 {hasCollapsedUnread && !actionsVisible ? (
-                  <span className="sidebar-project-unread sidebar-indicator" role="img" aria-label="项目内有未读会话">
+                  <span
+                    className="sidebar-project-unread sidebar-indicator"
+                    role="img"
+                    aria-label="项目内有未读会话"
+                  >
                     <span className="sidebar-unread-dot" />
                   </span>
                 ) : null}
@@ -339,7 +317,7 @@ function SidebarProjectGroupComponent({
               project={managedProject}
               projectKey={projectKey}
               onEdit={() => setManagerOpen(true)}
-              onOpenFolder={path => {
+              onOpenFolder={(path) => {
                 void desktopClient.openPathWithDefaultTarget(path)
               }}
               onTogglePinned={togglePinned}
@@ -357,25 +335,27 @@ function SidebarProjectGroupComponent({
         id={projectSessionsId}
         mountPolicy="always"
       >
-        {projectSessions.length > 0 ? <SidebarSessionGroup
-          activeSessionId={activeSessionId}
-          pendingPermissionSessionIds={pendingPermissionSessionIds}
-          titleLoadingIds={titleLoadingIds}
-          groupKey={`project:${projectKey}`}
-          manualOrderByScope={manualOrderByScope}
-          now={now}
-          sessionFallbackTitles={sessionFallbackTitles}
-          sessions={projectSessions}
-          sort={sort}
-          onArchiveSessions={onArchiveSessions}
-          onManualOrderChange={onManualOrderChange}
-          onPinSession={onPinSession}
-          onSelectSession={onSelectSession}
-          onToggleSessionUnread={onToggleSessionUnread}
-          onRenameSession={onRenameSession}
-          onSortChange={onSortChange}
-          onUnpinSession={onUnpinSession}
-        /> : null}
+        {projectSessions.length > 0 ? (
+          <SidebarSessionGroup
+            activeSessionId={activeSessionId}
+            pendingPermissionSessionIds={pendingPermissionSessionIds}
+            titleLoadingIds={titleLoadingIds}
+            groupKey={`project:${projectKey}`}
+            manualOrderByScope={manualOrderByScope}
+            now={now}
+            sessionFallbackTitles={sessionFallbackTitles}
+            sessions={projectSessions}
+            sort={sort}
+            onArchiveSessions={onArchiveSessions}
+            onManualOrderChange={onManualOrderChange}
+            onPinSession={onPinSession}
+            onSelectSession={onSelectSession}
+            onToggleSessionUnread={onToggleSessionUnread}
+            onRenameSession={onRenameSession}
+            onSortChange={onSortChange}
+            onUnpinSession={onUnpinSession}
+          />
+        ) : null}
       </DisclosureContent>
 
       <ProjectManagementDialogs

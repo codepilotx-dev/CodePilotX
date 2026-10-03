@@ -33,7 +33,10 @@ import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { approvalToRequest } from '../../../services/agentThreadAdapter.js'
-import { InlineApprovalCard, type InlineApprovalCardProps } from '../approvals/InlineApprovalCard.js'
+import {
+  InlineApprovalCard,
+  type InlineApprovalCardProps,
+} from '../approvals/InlineApprovalCard.js'
 import { PlanApprovalCard } from '../approvals/PlanApprovalCard.js'
 import { selectCanonicalConversationAuxiliaryState } from '../conversation/canonicalConversationSelectors.js'
 import {
@@ -101,11 +104,12 @@ export function SubagentThreadPanel({
     [canonicalState],
   )
   const pendingRequest = pendingRequests[0]
-  const canRespond = Boolean(callbacks.onRequestRespond) && isActiveRun(run) && (
-    pendingRequest?.toolName === 'AskUserQuestion'
+  const canRespond =
+    Boolean(callbacks.onRequestRespond) &&
+    isActiveRun(run) &&
+    (pendingRequest?.toolName === 'AskUserQuestion'
       ? capabilities.canRespondToQuestions
-      : capabilities.canRespondToApprovals
-  )
+      : capabilities.canRespondToApprovals)
   const viewBlocked = pendingRequests.length > 0
   const blocked = isBlockedRun(run) || viewBlocked
   const canStop = capabilities.canStop && Boolean(callbacks.onStop) && isActiveRun(run)
@@ -119,47 +123,56 @@ export function SubagentThreadPanel({
       return 0
     }
   }, [scrollStorageKey])
-  const persistScroll = React.useCallback((scrollTop: number): void => {
-    try {
-      window.sessionStorage.setItem(scrollStorageKey, String(scrollTop))
-    } catch {
-      // Session storage can be unavailable; scrolling remains functional.
-    }
-  }, [scrollStorageKey])
-  const renderTurn = React.useCallback((turn: (typeof canonicalTurns)[number]) => (
-    <div
-      className="session-turn-row canonical-turn-row tw:mx-auto tw:w-full tw:min-w-0"
-      data-component="conversation-turn"
-      key={turn.id}
-    >
-      <CanonicalConversationTurn
-        disclosureState={disclosureState}
-        entry={turn}
-        onApplyPatch={async (itemId, action, expectedVersion) => {
-          try {
-            await desktopClient.applyThreadPatch({
-              threadId: task.childThreadId,
-              itemId,
-              action,
-              expectedVersion,
-            })
-            await callbacks.onPatchApplied?.()
-          } catch (error) {
-            throw normalizePatchActionError(error, action)
-          }
-        }}
-        onOpenPatchReview={callbacks.onOpenPatchReview}
-        onOpenPlanInRightDock={() => undefined}
-        onOpenSubagent={(taskId) => {
-          const item = snapshot.items.find((candidate): candidate is Extract<Item, { type: 'subagent' }> => candidate.type === 'subagent' && candidate.subagentTaskId === taskId)
-          if (item) callbacks.onOpenSubagent?.(item)
-        }}
-        rightDockPlanEventId={null}
-        readThreadPatchDiff={desktopClient.readThreadPatchDiff}
-        threadId={task.childThreadId}
-      />
-    </div>
-  ), [callbacks, disclosureState, snapshot.items, task.childThreadId])
+  const persistScroll = React.useCallback(
+    (scrollTop: number): void => {
+      try {
+        window.sessionStorage.setItem(scrollStorageKey, String(scrollTop))
+      } catch {
+        // Session storage can be unavailable; scrolling remains functional.
+      }
+    },
+    [scrollStorageKey],
+  )
+  const renderTurn = React.useCallback(
+    (turn: (typeof canonicalTurns)[number]) => (
+      <div
+        className="session-turn-row canonical-turn-row tw:mx-auto tw:w-full tw:min-w-0"
+        data-component="conversation-turn"
+        key={turn.id}
+      >
+        <CanonicalConversationTurn
+          disclosureState={disclosureState}
+          entry={turn}
+          onApplyPatch={async (itemId, action, expectedVersion) => {
+            try {
+              await desktopClient.applyThreadPatch({
+                threadId: task.childThreadId,
+                itemId,
+                action,
+                expectedVersion,
+              })
+              await callbacks.onPatchApplied?.()
+            } catch (error) {
+              throw normalizePatchActionError(error, action)
+            }
+          }}
+          onOpenPatchReview={callbacks.onOpenPatchReview}
+          onOpenPlanInRightDock={() => undefined}
+          onOpenSubagent={(taskId) => {
+            const item = snapshot.items.find(
+              (candidate): candidate is Extract<Item, { type: 'subagent' }> =>
+                candidate.type === 'subagent' && candidate.subagentTaskId === taskId,
+            )
+            if (item) callbacks.onOpenSubagent?.(item)
+          }}
+          rightDockPlanEventId={null}
+          readThreadPatchDiff={desktopClient.readThreadPatchDiff}
+          threadId={task.childThreadId}
+        />
+      </div>
+    ),
+    [callbacks, disclosureState, snapshot.items, task.childThreadId],
+  )
 
   return (
     <section
@@ -191,17 +204,35 @@ export function SubagentThreadPanel({
         <div className="subagent-thread-panel__run-actions">
           <StatusBadge status={run.status} />
           {capabilities.canApplyWorktree && callbacks.onApplyWorktree ? (
-            <IconButton aria-label="应用子智能体变更" color="ghostSecondary" size="toolbar" title="应用子智能体变更" onClick={() => callbacks.onApplyWorktree?.(task, run)}>
+            <IconButton
+              aria-label="应用子智能体变更"
+              color="ghostSecondary"
+              size="toolbar"
+              title="应用子智能体变更"
+              onClick={() => callbacks.onApplyWorktree?.(task, run)}
+            >
               <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           ) : null}
           {capabilities.canDiscardWorktree && callbacks.onDiscardWorktree ? (
-            <IconButton aria-label="丢弃子智能体工作树" color="danger" size="toolbar" title="丢弃子智能体工作树" onClick={() => callbacks.onDiscardWorktree?.(task, run)}>
+            <IconButton
+              aria-label="丢弃子智能体工作树"
+              color="danger"
+              size="toolbar"
+              title="丢弃子智能体工作树"
+              onClick={() => callbacks.onDiscardWorktree?.(task, run)}
+            >
               <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           ) : null}
           {capabilities.canRestoreWorkspace && callbacks.onRestoreWorkspace ? (
-            <IconButton aria-label="恢复子智能体共享变更" color="ghostSecondary" size="toolbar" title="恢复共享变更" onClick={() => callbacks.onRestoreWorkspace?.(task, run)}>
+            <IconButton
+              aria-label="恢复子智能体共享变更"
+              color="ghostSecondary"
+              size="toolbar"
+              title="恢复共享变更"
+              onClick={() => callbacks.onRestoreWorkspace?.(task, run)}
+            >
               <RotateCcw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           ) : null}
@@ -241,21 +272,21 @@ export function SubagentThreadPanel({
 
           {canonicalTurns.length > 0 ? (
             <div className="subagent-thread-panel__timeline">
-              {typeof document === 'undefined'
-                ? canonicalTurns.map(renderTurn)
-                : (
-                  <SessionTimelineView
-                    count={canonicalTurns.length}
-                    initialScrollOffset={initialScrollOffset}
-                    items={canonicalTurns}
-                    listRef={listRef}
-                    onScroll={persistScroll}
-                    renderItem={renderTurn}
-                    scrollRef={scrollRef}
-                    scrollToBottom={isActiveRun(run)}
-                    sessionKey={task.childThreadId}
-                  />
-                )}
+              {typeof document === 'undefined' ? (
+                canonicalTurns.map(renderTurn)
+              ) : (
+                <SessionTimelineView
+                  count={canonicalTurns.length}
+                  initialScrollOffset={initialScrollOffset}
+                  items={canonicalTurns}
+                  listRef={listRef}
+                  onScroll={persistScroll}
+                  renderItem={renderTurn}
+                  scrollRef={scrollRef}
+                  scrollToBottom={isActiveRun(run)}
+                  sessionKey={task.childThreadId}
+                />
+              )}
             </div>
           ) : (
             <div className="subagent-thread-panel__empty" role="status">
@@ -271,13 +302,19 @@ export function SubagentThreadPanel({
               request={pendingRequest}
               identity={task.displayName}
               disabledReason={canRespond ? undefined : '此子智能体当前不可操作，请通过父任务继续。'}
-              onDecide={callbacks.onRequestRespond ?? (() => Promise.reject(new Error('此子智能体当前不可操作。')))}
+              onDecide={
+                callbacks.onRequestRespond ??
+                (() => Promise.reject(new Error('此子智能体当前不可操作。')))
+              }
               onInterrupt={canStop ? callbacks.onInterrupt : undefined}
             />
           ) : snapshot.pendingPlanApproval ? (
-            <PlanApprovalCard approval={snapshot.pendingPlanApproval} identity={task.displayName}
+            <PlanApprovalCard
+              approval={snapshot.pendingPlanApproval}
+              identity={task.displayName}
               disabledReason="此子智能体没有计划续跑入口，请返回父任务处理。"
-              onRespond={() => Promise.reject(new Error('此子智能体不支持计划操作。'))} />
+              onRespond={() => Promise.reject(new Error('此子智能体不支持计划操作。'))}
+            />
           ) : null}
 
           {blocked ? <BlockedNotice run={run} viewBlocked={viewBlocked} /> : null}
@@ -301,13 +338,14 @@ function BlockedNotice({
   run: SubagentRun
   viewBlocked: boolean
 }): React.ReactNode {
-  const label = run.status === 'waiting-permission'
-    ? '等待审批后继续'
-    : run.status === 'waiting-question'
-      ? '等待回答后继续'
-      : viewBlocked
-        ? '此子智能体正在等待你的操作'
-        : '此子智能体已阻塞'
+  const label =
+    run.status === 'waiting-permission'
+      ? '等待审批后继续'
+      : run.status === 'waiting-question'
+        ? '等待回答后继续'
+        : viewBlocked
+          ? '此子智能体正在等待你的操作'
+          : '此子智能体已阻塞'
   return (
     <div className="subagent-thread-panel__blocked" role="status">
       <AlertCircle size={APP_ICON_SIZE} />
@@ -320,9 +358,11 @@ function RunResult({ result }: { result: NonNullable<SubagentRun['result']> }): 
   return (
     <article className="subagent-thread-panel__result" data-outcome={result.outcome}>
       <header>
-        {result.outcome === 'succeeded'
-          ? <Check size={APP_ICON_SIZES.sm} />
-          : <AlertCircle size={APP_ICON_SIZE} />}
+        {result.outcome === 'succeeded' ? (
+          <Check size={APP_ICON_SIZES.sm} />
+        ) : (
+          <AlertCircle size={APP_ICON_SIZE} />
+        )}
         <strong>{result.summary}</strong>
       </header>
       {result.findings.length > 0 ? (
@@ -342,13 +382,15 @@ function RunResult({ result }: { result: NonNullable<SubagentRun['result']> }): 
 function StatusBadge({ status }: { status: SubagentRun['status'] }): React.ReactNode {
   return (
     <span className="subagent-thread-panel__status-badge" data-status={status}>
-      {isActiveRunStatus(status)
-        ? <LoaderCircle className="is-spinning" size={APP_ICON_SIZES.sm} />
-        : status === 'completed'
-          ? <Check size={APP_ICON_SIZES.sm} />
-          : status === 'failed'
-            ? <X size={APP_ICON_SIZES.sm} />
-            : <Circle size={APP_ICON_SIZES.sm} />}
+      {isActiveRunStatus(status) ? (
+        <LoaderCircle className="is-spinning" size={APP_ICON_SIZES.sm} />
+      ) : status === 'completed' ? (
+        <Check size={APP_ICON_SIZES.sm} />
+      ) : status === 'failed' ? (
+        <X size={APP_ICON_SIZES.sm} />
+      ) : (
+        <Circle size={APP_ICON_SIZES.sm} />
+      )}
       {subagentStatusLabel(status)}
     </span>
   )
@@ -361,27 +403,32 @@ function queueReasonLabel(reason: NonNullable<SubagentRun['queueReason']>): stri
 }
 
 function isBlockedRun(run: SubagentRun): boolean {
-  return run.status === 'waiting-permission'
-    || run.status === 'waiting-question'
-    || run.result?.outcome === 'blocked'
+  return (
+    run.status === 'waiting-permission' ||
+    run.status === 'waiting-question' ||
+    run.result?.outcome === 'blocked'
+  )
 }
 
 function isActiveRun(run: SubagentRun): boolean {
-  return isActiveRunStatus(run.status)
-    || run.status === 'waiting-permission'
-    || run.status === 'waiting-question'
+  return (
+    isActiveRunStatus(run.status) ||
+    run.status === 'waiting-permission' ||
+    run.status === 'waiting-question'
+  )
 }
 
 function isActiveRunStatus(status: SubagentRun['status']): boolean {
-  return status === 'queued'
-    || status === 'preparing'
-    || status === 'running'
-    || status === 'steering'
+  return (
+    status === 'queued' || status === 'preparing' || status === 'running' || status === 'steering'
+  )
 }
 
 function isTerminalRun(run: SubagentRun): boolean {
-  return run.status === 'completed'
-    || run.status === 'failed'
-    || run.status === 'stopped'
-    || run.status === 'interrupted'
+  return (
+    run.status === 'completed' ||
+    run.status === 'failed' ||
+    run.status === 'stopped' ||
+    run.status === 'interrupted'
+  )
 }

@@ -58,9 +58,7 @@ export type ParsedSlashInvocation =
   | { kind: 'disabled'; command: ComposerSlashCommand; reason: string }
   | { kind: 'unknown' }
 
-export function skillToComposerCommand(
-  skill: DesktopInstalledSkill,
-): ComposerSkillCommand {
+export function skillToComposerCommand(skill: DesktopInstalledSkill): ComposerSkillCommand {
   return {
     id: `skill:${skill.name}`,
     trigger: skill.name,
@@ -107,7 +105,7 @@ export function filterComposerCommands<T extends ComposerCommand>(
 ): T[] {
   const normalized = query.trim().toLocaleLowerCase()
   if (!normalized) return [...commands]
-  return commands.filter(command =>
+  return commands.filter((command) =>
     [command.trigger, command.title, command.description]
       .join(' ')
       .toLocaleLowerCase()
@@ -139,9 +137,7 @@ export function parseSlashInvocation(
   const match = input.match(/^\/([^\s/]+)$/u)
   if (!match) return { kind: 'unknown' }
   const trigger = normalizeTrigger(match[1] ?? '')
-  const command = commands.find(
-    candidate => normalizeTrigger(candidate.trigger) === trigger,
-  )
+  const command = commands.find((candidate) => normalizeTrigger(candidate.trigger) === trigger)
   if (!command || !command.availability.visible) return { kind: 'unknown' }
   if (!command.availability.enabled) {
     return {

@@ -115,7 +115,13 @@
   }
 
   .sidebar-scroll-area {
-    mask-image: linear-gradient(to bottom, transparent, currentColor var(--cpx-sys-space-2), currentColor calc(100% - var(--cpx-sys-space-6)), transparent);
+    mask-image: linear-gradient(
+      to bottom,
+      transparent,
+      currentColor var(--cpx-sys-space-2),
+      currentColor calc(100% - var(--cpx-sys-space-6)),
+      transparent
+    );
   }
 
   .sidebar-section-header {
@@ -263,7 +269,7 @@
   -webkit-app-region: no-drag;
 
   &:hover,
-  &[data-state="open"] {
+  &[data-state='open'] {
     background: var(--cpx-sys-color-hover);
   }
 
@@ -276,7 +282,6 @@
     flex: 0 0 auto;
     color: var(--cpx-sys-color-fg-tertiary);
   }
-
 }
 
 .sidebar-search-button {
@@ -295,7 +300,7 @@
 .sidebar-timeline-toggle-button {
   color: var(--cpx-sys-color-fg-tertiary);
 
-  &[data-active="true"] {
+  &[data-active='true'] {
     color: var(--cpx-sys-color-fg-primary);
     background: var(--cpx-sys-color-selected);
   }
@@ -635,7 +640,7 @@
   &.is-visible,
   .sidebar-section-header:hover &,
   .sidebar-section-header:has(:focus-visible) &,
-  &:has([data-state="open"]) {
+  &:has([data-state='open']) {
     opacity: 1;
     pointer-events: auto;
   }
@@ -710,7 +715,8 @@
 
 .sidebar-project-header:hover .sidebar-project-unread,
 .sidebar-project-header:has(:focus-visible) .sidebar-project-unread,
-.sidebar-project-header:has(.sidebar-project-actions.is-visible, [data-state="open"]) .sidebar-project-unread {
+.sidebar-project-header:has(.sidebar-project-actions.is-visible, [data-state='open'])
+  .sidebar-project-unread {
   display: none;
 }
 
@@ -752,7 +758,7 @@
 .sidebar-project-header:hover .sidebar-project-actions,
 .sidebar-project-header:has(:focus-visible) .sidebar-project-actions,
 .sidebar-project-actions.is-visible,
-.sidebar-project-actions:has([data-state="open"]) {
+.sidebar-project-actions:has([data-state='open']) {
   opacity: 1;
   pointer-events: auto;
 }
@@ -760,7 +766,7 @@
 .sidebar-project-header:hover .sidebar-project-action-items,
 .sidebar-project-header:has(:focus-visible) .sidebar-project-action-items,
 .sidebar-project-actions.is-visible .sidebar-project-action-items,
-.sidebar-project-actions:has([data-state="open"]) .sidebar-project-action-items {
+.sidebar-project-actions:has([data-state='open']) .sidebar-project-action-items {
   opacity: 1;
   pointer-events: auto;
 }
@@ -817,11 +823,7 @@
   mask-image: none;
 }
 
-:where(
-  .sidebar-item-label,
-  .sidebar-project-title-text,
-  .sidebar-empty
-) {
+:where(.sidebar-item-label, .sidebar-project-title-text, .sidebar-empty) {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -846,8 +848,7 @@
 
 .sidebar-session-title-track[data-scrolling] {
   transform: translateX(calc(-1 * var(--sidebar-title-scroll-distance)));
-  transition:
-    transform var(--sidebar-title-scroll-duration) var(--cpx-sys-ease-linear)
+  transition: transform var(--sidebar-title-scroll-duration) var(--cpx-sys-ease-linear)
     var(--cpx-sys-motion-micro);
 }
 
@@ -905,7 +906,7 @@
 
 /* Sticky labels remain part of the opaque sidebar surface. */
 .sidebar-focus-section-header::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   z-index: -1;
@@ -997,7 +998,7 @@
   pointer-events: none;
 
   &:focus-visible,
-  &[data-state="open"] {
+  &[data-state='open'] {
     opacity: 1;
     pointer-events: auto;
   }
@@ -1467,7 +1468,6 @@
     color: var(--cpx-sys-color-fg-tertiary);
     font: var(--cpx-sys-type-label);
   }
-
 }
 
 @media (forced-colors: active) {
@@ -1630,11 +1630,7 @@
 
   padding: var(--cpx-sys-space-1);
 
-  :where(
-    .popover-usage-label,
-    .popover-usage-action-label,
-    .popover-usage-empty
-  ) {
+  :where(.popover-usage-label, .popover-usage-action-label, .popover-usage-empty) {
     min-width: 0;
     overflow: hidden;
     text-overflow: clip;
@@ -1757,7 +1753,7 @@
   touch-action: none;
 
   &::after {
-    content: "";
+    content: '';
     position: absolute;
     top: 0;
     right: 2px;
@@ -1791,8 +1787,7 @@
   z-index: var(--cpx-sys-z-sticky);
   width: var(--sidebar-collapse-target-size);
   height: var(--sidebar-collapse-target-size);
-  margin: var(--sidebar-collapse-target-offset) 0 0
-    var(--sidebar-collapse-target-offset);
+  margin: var(--sidebar-collapse-target-offset) 0 0 var(--sidebar-collapse-target-offset);
   border-radius: 0;
   pointer-events: none;
   border: 1px solid var(--cpx-sys-color-accent);
@@ -1801,7 +1796,7 @@
   opacity: 1;
 
   &::after {
-    content: "";
+    content: '';
     position: absolute;
     inset: 8px;
     box-sizing: border-box;
@@ -1816,26 +1811,22 @@
   display: none;
 }
 
-:root[data-reduce-motion="on"] :is(
-  .desktop-sidebar,
-  .desktop-sidebar-spacer,
-  .sidebar-collapse-confirm-target
-) {
+:root[data-reduce-motion='on']
+  :is(.desktop-sidebar, .desktop-sidebar-spacer, .sidebar-collapse-confirm-target) {
   transition: none;
 }
 
-:root[data-reduce-motion="on"] :is(
-  .sidebar-collapse-confirm-target,
-  .sidebar-focus-section-clip-window,
-  .sidebar-focus-section-clip-content
-) {
+:root[data-reduce-motion='on']
+  :is(
+    .sidebar-collapse-confirm-target,
+    .sidebar-focus-section-clip-window,
+    .sidebar-focus-section-clip-content
+  ) {
   animation: none;
 }
 
-:root[data-reduce-motion="on"] :is(
-  .sidebar-focus-section-clip-window,
-  .sidebar-focus-section-clip-content
-) {
+:root[data-reduce-motion='on']
+  :is(.sidebar-focus-section-clip-window, .sidebar-focus-section-clip-content) {
   transform: none;
 }
 

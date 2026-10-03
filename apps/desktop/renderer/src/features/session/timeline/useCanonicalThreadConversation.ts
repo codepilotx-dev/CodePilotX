@@ -43,8 +43,7 @@ export function isCurrentCanonicalThreadRequest(
   requestedThreadId: string,
   requestGeneration: number,
 ): boolean {
-  return activeThreadId === requestedThreadId
-    && currentGeneration === requestGeneration
+  return activeThreadId === requestedThreadId && currentGeneration === requestGeneration
 }
 
 const TERMINAL_TURN_EVENT_TYPES: ReadonlySet<string> = new Set([
@@ -57,9 +56,7 @@ export function isTerminalTurnEnvelope(envelope: EventEnvelope): boolean {
   return TERMINAL_TURN_EVENT_TYPES.has(envelope.type)
 }
 
-export function hasTerminalTurnEvent(
-  envelopes: readonly EventEnvelope[],
-): boolean {
+export function hasTerminalTurnEvent(envelopes: readonly EventEnvelope[]): boolean {
   return envelopes.some(isTerminalTurnEnvelope)
 }
 
@@ -109,16 +106,13 @@ export function useCanonicalThreadConversation(
   const activeThreadIdRef = React.useRef(threadId)
   const generationRef = React.useRef(0)
   const unsubscribeRef = React.useRef<(() => void) | null>(null)
-  const renderTurnEntriesSelector = React.useMemo(
-    () => createRenderTurnEntriesSelector(),
-    [],
-  )
+  const renderTurnEntriesSelector = React.useMemo(() => createRenderTurnEntriesSelector(), [])
   const coordinator = React.useMemo(() => {
     if (!threadId) return null
     return new CanonicalThreadIngestionCoordinator({
       threadId,
       initialState: canonicalThreadCache.get(threadId),
-      onCommit: next => canonicalThreadCache.set(next),
+      onCommit: (next) => canonicalThreadCache.set(next),
     })
   }, [threadId])
   const subscribeToProjection = React.useCallback(
@@ -170,12 +164,13 @@ export function useCanonicalThreadConversation(
     }
 
     setErrorState(null)
-    const isCurrent = (): boolean => isCurrentCanonicalThreadRequest(
-      activeThreadIdRef.current,
-      generationRef.current,
-      requestedThreadId,
-      generation,
-    )
+    const isCurrent = (): boolean =>
+      isCurrentCanonicalThreadRequest(
+        activeThreadIdRef.current,
+        generationRef.current,
+        requestedThreadId,
+        generation,
+      )
     const rehydrate = async (cause?: unknown): Promise<number | undefined> => {
       if (!isCurrent()) return undefined
       if (cause !== undefined) {
@@ -207,7 +202,7 @@ export function useCanonicalThreadConversation(
           after: page.streamPosition.sequence,
           liveEventTypes: AGENT_LIVE_EVENT_FILTERS.canonical,
           onCursorExpired: () => rehydrate(),
-          onDeliveryError: error => rehydrate(error),
+          onDeliveryError: (error) => rehydrate(error),
         },
         async (envelopes: readonly EventEnvelope[]) => {
           if (!isCurrent()) {
@@ -265,13 +260,13 @@ export function useCanonicalThreadConversation(
     const requestedThreadId = threadId
     const generation = generationRef.current
     if (
-      !requestedThreadId
-      || !coordinator
-      || !current
-      || current.thread.id !== requestedThreadId
-      || !current.history.hasOlder
-      || !cursor
-      || loadingOlderThreadId === requestedThreadId
+      !requestedThreadId ||
+      !coordinator ||
+      !current ||
+      current.thread.id !== requestedThreadId ||
+      !current.history.hasOlder ||
+      !cursor ||
+      loadingOlderThreadId === requestedThreadId
     ) {
       return
     }
@@ -282,22 +277,26 @@ export function useCanonicalThreadConversation(
         before: cursor,
         limit: INITIAL_TURN_PAGE_SIZE,
       })
-      if (!isCurrentCanonicalThreadRequest(
-        activeThreadIdRef.current,
-        generationRef.current,
-        requestedThreadId,
-        generation,
-      )) {
+      if (
+        !isCurrentCanonicalThreadRequest(
+          activeThreadIdRef.current,
+          generationRef.current,
+          requestedThreadId,
+          generation,
+        )
+      ) {
         return
       }
       coordinator.prependOlder(page)
     } catch (cause) {
-      if (!isCurrentCanonicalThreadRequest(
-        activeThreadIdRef.current,
-        generationRef.current,
-        requestedThreadId,
-        generation,
-      )) {
+      if (
+        !isCurrentCanonicalThreadRequest(
+          activeThreadIdRef.current,
+          generationRef.current,
+          requestedThreadId,
+          generation,
+        )
+      ) {
         return
       }
       setErrorState({
@@ -305,26 +304,18 @@ export function useCanonicalThreadConversation(
         message: cause instanceof Error ? cause.message : String(cause),
       })
     } finally {
-      setLoadingOlderThreadId(currentThreadId =>
-        currentThreadId === requestedThreadId ? null : currentThreadId
+      setLoadingOlderThreadId((currentThreadId) =>
+        currentThreadId === requestedThreadId ? null : currentThreadId,
       )
     }
   }, [coordinator, loadingOlderThreadId, threadId])
 
-  const visibleError = errorState?.threadId === threadId
-    ? errorState.message
-    : null
-  const visibleState = visibleError
-    ? null
-    : selectVisibleCanonicalState(state, threadId)
+  const visibleError = errorState?.threadId === threadId ? errorState.message : null
+  const visibleState = visibleError ? null : selectVisibleCanonicalState(state, threadId)
   const visibleLoading = Boolean(threadId && !visibleState && !visibleError)
-  const visibleLoadingOlder = Boolean(
-    threadId && loadingOlderThreadId === threadId,
-  )
+  const visibleLoadingOlder = Boolean(threadId && loadingOlderThreadId === threadId)
   const turns = React.useMemo(
-    () => visibleState
-      ? renderTurnEntriesSelector(visibleState, scope)
-      : EMPTY_RENDER_TURNS,
+    () => (visibleState ? renderTurnEntriesSelector(visibleState, scope) : EMPTY_RENDER_TURNS),
     [renderTurnEntriesSelector, scope, visibleState],
   )
 

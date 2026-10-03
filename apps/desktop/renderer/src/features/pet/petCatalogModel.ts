@@ -1,8 +1,4 @@
-import type {
-  PetCatalogItem,
-  PetDescriptor,
-  PetLicenseKind,
-} from '@codepilotx/agent-protocol'
+import type { PetCatalogItem, PetDescriptor, PetLicenseKind } from '@codepilotx/agent-protocol'
 
 export type PetCatalogVersionFilter = 'all' | 1 | 2
 export type PetCatalogTab = 'installed' | 'available'
@@ -76,22 +72,15 @@ export function filterPetCatalogCards(
   filters: PetCatalogFilters,
 ): PetCatalogCardItem[] {
   const query = filters.query.trim().toLocaleLowerCase()
-  return pets.filter(pet => {
+  return pets.filter((pet) => {
     if (filters.category && pet.category !== filters.category) return false
-    if (
-      filters.version !== 'all'
-      && pet.spriteVersionNumber !== filters.version
-    ) {
+    if (filters.version !== 'all' && pet.spriteVersionNumber !== filters.version) {
       return false
     }
     if (!query) return true
-    return [
-      pet.displayName,
-      pet.englishName,
-      pet.author,
-      pet.description,
-      pet.id,
-    ].some(value => value?.toLocaleLowerCase().includes(query))
+    return [pet.displayName, pet.englishName, pet.author, pet.description, pet.id].some((value) =>
+      value?.toLocaleLowerCase().includes(query),
+    )
   })
 }
 
@@ -109,9 +98,7 @@ export function listPetCatalogCategories(
     .sort((left, right) => left.label.localeCompare(right.label, 'zh-CN'))
 }
 
-export function petLicenseNeedsConfirmation(
-  kind: PetLicenseKind,
-): boolean {
+export function petLicenseNeedsConfirmation(kind: PetLicenseKind): boolean {
   return kind === 'restricted' || kind === 'unknown'
 }
 

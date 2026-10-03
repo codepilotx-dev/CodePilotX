@@ -4,10 +4,7 @@ import { Split, LoaderCircle, X } from 'lucide-react'
 
 import { Button } from '../../../../components/ui/Button.js'
 import { IconButton } from '../../../../components/ui/IconButton.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../../components/ui/iconTokens.js'
 import { useDialogFocusRestore } from '../../../../components/ui/useDialogFocusRestore.js'
 import type {
   ConversationForkOperation,
@@ -51,74 +48,73 @@ export function ConversationForkDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-              className="ui-dialog-surface ui-dialog-surface--centered permission-modal conversation-fork-dialog tw:grid tw:w-[min(38rem,100%)] tw:gap-4 tw:p-6"
-              onCloseAutoFocus={onCloseAutoFocus}
-            >
-              <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
-                <Dialog.Title asChild>
-                  <h2 className="tw:m-0 u-type-title-md tw:text-app-text">
-                    在新聊天中继续
-                  </h2>
-                </Dialog.Title>
-                <Dialog.Close asChild>
-                  <IconButton className="tw:shrink-0" color="ghostSecondary" size="toolbar" title="关闭对话框">
-                    <X
-                      aria-hidden="true"
-                      size={APP_ICON_SIZE}
-                      strokeWidth={APP_ICON_STROKE_WIDTH}
-                    />
-                  </IconButton>
-                </Dialog.Close>
-              </header>
+          className="ui-dialog-surface ui-dialog-surface--centered permission-modal conversation-fork-dialog tw:grid tw:w-[min(38rem,100%)] tw:gap-4 tw:p-6"
+          onCloseAutoFocus={onCloseAutoFocus}
+        >
+          <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
+            <Dialog.Title asChild>
+              <h2 className="tw:m-0 u-type-title-md tw:text-app-text">在新聊天中继续</h2>
+            </Dialog.Title>
+            <Dialog.Close asChild>
+              <IconButton
+                className="tw:shrink-0"
+                color="ghostSecondary"
+                size="toolbar"
+                title="关闭对话框"
+              >
+                <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              </IconButton>
+            </Dialog.Close>
+          </header>
 
-              <Dialog.Description className="tw:sr-only">
-                选择在当前工作树或新的托管工作树中从此消息继续。
-              </Dialog.Description>
+          <Dialog.Description className="tw:sr-only">
+            选择在当前工作树或新的托管工作树中从此消息继续。
+          </Dialog.Description>
 
-              {choosing ? (
-                <div className="tw:grid tw:gap-2">
-                  <DestinationButton
-                    disabled={busy}
-                    description="从此消息在同一工作树中继续"
-                    title="使用此工作树"
-                    onClick={() => onSelectDestination({ kind: 'same-worktree' })}
-                  />
-                  <p className="tw:m-0 tw:px-3 u-type-caption tw:text-app-text-soft">
-                    两个聊天共享同一工作目录，后续文件修改互相可见。
-                  </p>
-                  <DestinationButton
-                    disabled={busy || !canUseNewWorktree}
-                    description="在新工作树中从此消息继续"
-                    title="使用新工作树"
-                    onClick={() => onSelectDestination({ kind: 'new-worktree' })}
-                  />
-                  {!canUseNewWorktree ? (
-                    <p className="tw:m-0 tw:px-3 u-type-caption tw:text-app-text-soft">
-                      当前任务不在 Git 工作区中，无法创建托管工作树。
-                    </p>
-                  ) : sourceRunning ? (
-                    <p className="tw:m-0 tw:px-3 u-type-caption tw:text-app-text-soft">
-                      当前任务正在运行，将从当前 Git HEAD 创建，不复制未提交修改。
-                    </p>
-                  ) : null}
-                </div>
-              ) : (
-                <ForkProgress progress={progress} />
-              )}
-
-              {awaitingSetup ? (
-                <div className="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
-                  <Button color="danger" disabled={busy} onClick={onAbandon}>
-                    放弃并删除
-                  </Button>
-                  <Button color="secondary" disabled={busy} onClick={onContinueWithoutSetup}>
-                    跳过并继续
-                  </Button>
-                  <Button color="primary" disabled={busy} onClick={onRetrySetup}>
-                    重新尝试
-                  </Button>
-                </div>
+          {choosing ? (
+            <div className="tw:grid tw:gap-2">
+              <DestinationButton
+                disabled={busy}
+                description="从此消息在同一工作树中继续"
+                title="使用此工作树"
+                onClick={() => onSelectDestination({ kind: 'same-worktree' })}
+              />
+              <p className="tw:m-0 tw:px-3 u-type-caption tw:text-app-text-soft">
+                两个聊天共享同一工作目录，后续文件修改互相可见。
+              </p>
+              <DestinationButton
+                disabled={busy || !canUseNewWorktree}
+                description="在新工作树中从此消息继续"
+                title="使用新工作树"
+                onClick={() => onSelectDestination({ kind: 'new-worktree' })}
+              />
+              {!canUseNewWorktree ? (
+                <p className="tw:m-0 tw:px-3 u-type-caption tw:text-app-text-soft">
+                  当前任务不在 Git 工作区中，无法创建托管工作树。
+                </p>
+              ) : sourceRunning ? (
+                <p className="tw:m-0 tw:px-3 u-type-caption tw:text-app-text-soft">
+                  当前任务正在运行，将从当前 Git HEAD 创建，不复制未提交修改。
+                </p>
               ) : null}
+            </div>
+          ) : (
+            <ForkProgress progress={progress} />
+          )}
+
+          {awaitingSetup ? (
+            <div className="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
+              <Button color="danger" disabled={busy} onClick={onAbandon}>
+                放弃并删除
+              </Button>
+              <Button color="secondary" disabled={busy} onClick={onContinueWithoutSetup}>
+                跳过并继续
+              </Button>
+              <Button color="primary" disabled={busy} onClick={onRetrySetup}>
+                重新尝试
+              </Button>
+            </div>
+          ) : null}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -150,12 +146,8 @@ function DestinationButton({
         strokeWidth={APP_ICON_STROKE_WIDTH}
       />
       <span className="tw:grid tw:min-w-0 tw:gap-1">
-        <strong className="u-type-control tw:text-app-text">
-          {title}
-        </strong>
-        <span className="u-type-caption tw:text-app-text-soft">
-          {description}
-        </span>
+        <strong className="u-type-control tw:text-app-text">{title}</strong>
+        <span className="u-type-caption tw:text-app-text-soft">{description}</span>
       </span>
     </button>
   )
@@ -178,11 +170,7 @@ function ForkProgress({
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
         ) : (
-          <Split
-            aria-hidden="true"
-            size={APP_ICON_SIZE}
-            strokeWidth={APP_ICON_STROKE_WIDTH}
-          />
+          <Split aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         )}
         <span>{forkProgressLabel(operation)}</span>
       </div>
@@ -194,7 +182,9 @@ function ForkProgress({
       ) : null}
       {operation?.warnings.length ? (
         <ul className="tw:m-0 tw:grid tw:gap-1 tw:pl-5 u-type-caption tw:text-app-text-soft">
-          {operation.warnings.map(warning => <li key={warning}>{warning}</li>)}
+          {operation.warnings.map((warning) => (
+            <li key={warning}>{warning}</li>
+          ))}
         </ul>
       ) : null}
       {operation?.status === 'failed' ? (
@@ -206,9 +196,7 @@ function ForkProgress({
   )
 }
 
-export function forkProgressLabel(
-  operation: ConversationForkOperation | null | undefined,
-): string {
+export function forkProgressLabel(operation: ConversationForkOperation | null | undefined): string {
   if (!operation) return '正在准备…'
   if (operation.status === 'awaiting-setup-decision') return '工作树设置脚本未成功完成'
   if (operation.status === 'completed') return '新聊天已创建'

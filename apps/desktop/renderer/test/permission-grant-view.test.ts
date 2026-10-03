@@ -1,8 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type {
-  DesktopPermissionGrant,
-  DesktopPermissionRequest,
-} from '../shared/types.js'
+import type { DesktopPermissionGrant, DesktopPermissionRequest } from '../shared/types.js'
 import {
   permissionGrantDefaultScope,
   permissionGrantGroups,
@@ -41,18 +38,15 @@ describe('dynamic permission-grant card', () => {
     const request = permissionRequest({ requestedScope: 'session' })
     const options = permissionGrantScopeOptions(request)
 
-    expect(options.map(option => option.scope)).toEqual([
-      'tool-call',
-      'turn',
-      'session',
-    ])
-    expect(options.map(option => option.label)).toEqual([
+    expect(options.map((option) => option.scope)).toEqual(['tool-call', 'turn', 'session'])
+    expect(options.map((option) => option.label)).toEqual([
       '仅此次工具调用',
       '当前轮次',
       '当前任务会话',
     ])
-    expect(permissionGrantDefaultScope(options, request.permissionGrant?.requestedScope))
-      .toBe('session')
+    expect(permissionGrantDefaultScope(options, request.permissionGrant?.requestedScope)).toBe(
+      'session',
+    )
   })
 
   test('降级请求时默认较小范围，且不能越权选择更大范围', () => {
@@ -62,25 +56,26 @@ describe('dynamic permission-grant card', () => {
     })
     const options = permissionGrantScopeOptions(request)
 
-    expect(options.map(option => option.scope)).toEqual(['tool-call', 'turn'])
-    expect(permissionGrantDefaultScope(options, request.permissionGrant?.requestedScope))
-      .toBe('turn')
+    expect(options.map((option) => option.scope)).toEqual(['tool-call', 'turn'])
+    expect(permissionGrantDefaultScope(options, request.permissionGrant?.requestedScope)).toBe(
+      'turn',
+    )
 
     // Agent 只授予 tool-call 时，界面没有任何可选的更大范围。
     const single = permissionRequest({
       requestedScope: 'tool-call',
       allowedScopes: ['tool-call'],
     })
-    expect(permissionGrantScopeOptions(single).map(option => option.scope))
-      .toEqual(['tool-call'])
+    expect(permissionGrantScopeOptions(single).map((option) => option.scope)).toEqual(['tool-call'])
   })
 
   test('缺失 allowedScopes 的旧记录回退到请求范围', () => {
     const request = permissionRequest({ allowedScopes: [] })
     const options = permissionGrantScopeOptions(request)
-    expect(options.map(option => option.scope)).toEqual(['session'])
-    expect(permissionGrantDefaultScope(options, request.permissionGrant?.requestedScope))
-      .toBe('session')
+    expect(options.map((option) => option.scope)).toEqual(['session'])
+    expect(permissionGrantDefaultScope(options, request.permissionGrant?.requestedScope)).toBe(
+      'session',
+    )
   })
 
   test('按读取路径、写入路径和网络域名分组展示授权内容', () => {

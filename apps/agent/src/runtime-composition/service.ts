@@ -1,15 +1,17 @@
-import { AgentError } from "../domain"
-import type { AgentDatabase } from "../storage/database/AgentDatabase"
-import { RuntimeCompositionRepository } from "../storage/repositories/runtime-composition-repository"
+import { AgentError } from '../domain'
+import type { AgentDatabase } from '../storage/database/AgentDatabase'
+import { RuntimeCompositionRepository } from '../storage/repositories/runtime-composition-repository'
 import {
   RUNTIME_COMPOSITION_UNAVAILABLE_CODE,
   type BoundRuntimeComposition,
   type RuntimeCompositionBindings,
   type RuntimeCompositionPlan,
   type RuntimeCompositionSnapshot,
-} from "./types"
+} from './types'
 
-export interface RuntimeCompositionServiceOptions { db: AgentDatabase }
+export interface RuntimeCompositionServiceOptions {
+  db: AgentDatabase
+}
 
 export interface ComposedRuntimeComposition {
   readonly snapshot: RuntimeCompositionSnapshot
@@ -31,7 +33,10 @@ const releaseQuietly = async (bindings: RuntimeCompositionBindings | undefined) 
   await bindings?.release().catch(() => undefined)
 }
 
-const bind = (snapshot: RuntimeCompositionSnapshot, bindings: RuntimeCompositionBindings): BoundRuntimeComposition => {
+const bind = (
+  snapshot: RuntimeCompositionSnapshot,
+  bindings: RuntimeCompositionBindings,
+): BoundRuntimeComposition => {
   let released = false
   return Object.freeze({
     plan: Object.freeze({ snapshot }) satisfies RuntimeCompositionPlan,
@@ -52,25 +57,30 @@ export class RuntimeCompositionService {
     this.repository = new RuntimeCompositionRepository(options.db)
   }
 
-  hasStorage(): boolean { return this.repository.hasTable() }
+  hasStorage(): boolean {
+    return this.repository.hasTable()
+  }
 
-  async loadOrCompose(input: LoadOrComposeRuntimeCompositionInput): Promise<BoundRuntimeComposition> {
+  async loadOrCompose(
+    input: LoadOrComposeRuntimeCompositionInput,
+  ): Promise<BoundRuntimeComposition> {
     let existing
     try {
       existing = this.repository.get(input.turnID)
     } catch (cause) {
-      throw unavailable("Runtime composition snapshot is unavailable", cause)
+      throw unavailable('Runtime composition snapshot is unavailable', cause)
     }
     if (existing) {
       try {
         return bind(existing.snapshot, await input.rebind(existing.snapshot))
       } catch (cause) {
-        throw unavailable("Runtime composition resources are unavailable", cause)
+        throw unavailable('Runtime composition resources are unavailable', cause)
       }
     }
 
     if (!this.hasStorage()) {
-      if (!input.allowEphemeralFresh) throw unavailable("Durable runtime composition storage is unavailable")
+      if (!input.allowEphemeralFresh)
+        throw unavailable('Durable runtime composition storage is unavailable')
       let ephemeral: ComposedRuntimeComposition | undefined
       try {
         ephemeral = await input.compose()
@@ -99,7 +109,7 @@ export class RuntimeCompositionService {
     } catch (cause) {
       await releaseQuietly(fresh?.bindings)
       if (cause instanceof AgentError) throw cause
-      throw unavailable("Runtime composition could not be persisted or rebound", cause)
+      throw unavailable('Runtime composition could not be persisted or rebound', cause)
     }
   }
 }

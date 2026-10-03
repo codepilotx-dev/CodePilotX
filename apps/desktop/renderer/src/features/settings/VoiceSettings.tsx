@@ -33,7 +33,7 @@ function speechStatusDescription(
   const progress = status?.progress
   if (progress) {
     if (progress.totalBytes) {
-      return `SenseVoice 本地运行时 · ${Math.round(progress.receivedBytes / progress.totalBytes * 100)}%`
+      return `SenseVoice 本地运行时 · ${Math.round((progress.receivedBytes / progress.totalBytes) * 100)}%`
     }
     return `SenseVoice 本地运行时 · 已接收 ${Math.round(progress.receivedBytes / 1_048_576)} MB`
   }
@@ -49,7 +49,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
   const refreshAudioInputs = useCallback(async () => {
     if (!navigator.mediaDevices?.enumerateDevices) return
     const devices = await navigator.mediaDevices.enumerateDevices()
-    setAudioInputs(devices.filter(device => device.kind === 'audioinput'))
+    setAudioInputs(devices.filter((device) => device.kind === 'audioinput'))
   }, [])
   useEffect(() => {
     void refreshAudioInputs().catch(() => {})
@@ -58,32 +58,35 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
       navigator.mediaDevices?.removeEventListener?.('devicechange', refreshAudioInputs)
     }
   }, [refreshAudioInputs])
-  const setPreferredInputDeviceId = useCallback((value: string) => {
-    draft.setValue('desktop.voice.preferredInputDeviceId', value)
-    draft.autoSave()
-  }, [draft])
+  const setPreferredInputDeviceId = useCallback(
+    (value: string) => {
+      draft.setValue('desktop.voice.preferredInputDeviceId', value)
+      draft.autoSave()
+    },
+    [draft],
+  )
 
   return (
     <SettingsContentArea>
-      <div className='settings-content-inner'>
-        <div className='settings-page-header'>
-          <h2 className='settings-page-title'>{t('语音')}</h2>
+      <div className="settings-content-inner">
+        <div className="settings-page-header">
+          <h2 className="settings-page-title">{t('语音')}</h2>
         </div>
 
         <SettingsSection>
           <SettingsRow
-            title='本地语音模型'
+            title="本地语音模型"
             description={speechStatusDescription(speech.status, speech.error)}
             control={
               <>
-                <span className='settings-row-status'>
+                <span className="settings-row-status">
                   {speechStatusLabel(speech.status, speech.loading)}
                 </span>
                 {speech.status?.state === 'error' || speech.status?.state === 'not-installed' ? (
                   <Button
                     disabled={speech.loading}
                     onClick={() => void speech.install(true)}
-                    type='button'
+                    type="button"
                   >
                     重试
                   </Button>
@@ -92,8 +95,8 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
             }
           />
           <SettingsRow
-            title='输入设备'
-            description='录音时优先使用的麦克风；不可用时自动回退到系统默认设备。'
+            title="输入设备"
+            description="录音时优先使用的麦克风；不可用时自动回退到系统默认设备。"
             control={
               <SettingsDropdown
                 width={260}
@@ -106,35 +109,32 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
                   })),
                 ]}
                 onChange={setPreferredInputDeviceId}
-                ariaLabel='听写输入设备'
+                ariaLabel="听写输入设备"
               />
             }
           />
           <SettingsRow
-            title='听写快捷键'
-            description='在当前消息输入框中开始或停止听写。'
-            control={
-              <span className='settings-row-status'>Ctrl+Shift+D</span>
-            }
+            title="听写快捷键"
+            description="在当前消息输入框中开始或停止听写。"
+            control={<span className="settings-row-status">Ctrl+Shift+D</span>}
           />
           <SettingsRow
-            title='麦克风隐私设置'
-            description='打开 Windows 麦克风权限页面，允许 CodePilotX 使用输入设备。'
+            title="麦克风隐私设置"
+            description="打开 Windows 麦克风权限页面，允许 CodePilotX 使用输入设备。"
             control={
               <Button
                 onClick={() => {
-                  void desktopClient.openMicrophonePrivacySettings().catch(error => {
+                  void desktopClient.openMicrophonePrivacySettings().catch((error) => {
                     onNotice?.(error instanceof Error ? error.message : String(error))
                   })
                 }}
-                type='button'
+                type="button"
               >
                 打开设置
               </Button>
             }
           />
         </SettingsSection>
-
       </div>
     </SettingsContentArea>
   )

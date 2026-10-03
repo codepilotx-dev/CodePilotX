@@ -1,4 +1,4 @@
-import type { Database } from "bun:sqlite"
+import type { Database } from 'bun:sqlite'
 
 /**
  * 集中缓存 history 库中 `threads` 表的可选列能力。
@@ -41,16 +41,12 @@ const automationCache = new WeakMap<Database, AutomationStorageCapabilities>()
 
 const scheduleCalendarCache = new WeakMap<Database, ScheduleCalendarStorageCapabilities>()
 
-export function probeThreadsStorageCapabilities(
-  sqlite: Database,
-): ThreadsStorageCapabilities {
+export function probeThreadsStorageCapabilities(sqlite: Database): ThreadsStorageCapabilities {
   const cached = cache.get(sqlite)
   if (cached) return cached
-  const rows = sqlite
-    .query("PRAGMA table_info(threads)")
-    .all() as Array<{ name: string }>
+  const rows = sqlite.query('PRAGMA table_info(threads)').all() as Array<{ name: string }>
   const capabilities: ThreadsStorageCapabilities = {
-    creationSurface: rows.some((column) => column.name === "creation_surface"),
+    creationSurface: rows.some((column) => column.name === 'creation_surface'),
   }
   cache.set(sqlite, capabilities)
   return capabilities
@@ -61,16 +57,14 @@ export function probeThreadsStorageCapabilities(
  * the table keep their user_version and unknown rows untouched; the caller
  * downgrades the advertised artifact capability instead of altering storage.
  */
-export function probeArtifactsStorageCapabilities(
-  sqlite: Database,
-): ArtifactsStorageCapabilities {
+export function probeArtifactsStorageCapabilities(sqlite: Database): ArtifactsStorageCapabilities {
   const cached = artifactsCache.get(sqlite)
   if (cached) return cached
   const capabilities: ArtifactsStorageCapabilities = {
     itemArtifactsTable: Boolean(
-      sqlite.query(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'item_artifacts'",
-      ).get(),
+      sqlite
+        .query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'item_artifacts'")
+        .get(),
     ),
   }
   artifactsCache.set(sqlite, capabilities)
@@ -89,9 +83,11 @@ export function probeRuntimeCompositionStorageCapabilities(
   if (cached) return cached
   const capabilities: RuntimeCompositionStorageCapabilities = {
     runtimeCompositionPlans: Boolean(
-      sqlite.query(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'runtime_composition_plans'",
-      ).get(),
+      sqlite
+        .query(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'runtime_composition_plans'",
+        )
+        .get(),
     ),
   }
   runtimeCompositionCache.set(sqlite, capabilities)
@@ -104,12 +100,18 @@ export function probeAutomationStorageCapabilities(
 ): AutomationStorageCapabilities {
   const cached = automationCache.get(sqlite)
   if (cached) return cached
-  const names = new Set((sqlite.query(
-    "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('automations','automation_runs')",
-  ).all() as Array<{ name: string }>).map(row => row.name))
+  const names = new Set(
+    (
+      sqlite
+        .query(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('automations','automation_runs')",
+        )
+        .all() as Array<{ name: string }>
+    ).map((row) => row.name),
+  )
   const capabilities = {
-    automations: names.has("automations"),
-    automationRuns: names.has("automation_runs"),
+    automations: names.has('automations'),
+    automationRuns: names.has('automation_runs'),
   }
   automationCache.set(sqlite, capabilities)
   return capabilities
@@ -121,12 +123,18 @@ export function probeScheduleCalendarStorageCapabilities(
 ): ScheduleCalendarStorageCapabilities {
   const cached = scheduleCalendarCache.get(sqlite)
   if (cached) return cached
-  const names = new Set((sqlite.query(
-    "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('scheduled_tasks','schedule_plan_proposals')",
-  ).all() as Array<{ name: string }>).map(row => row.name))
+  const names = new Set(
+    (
+      sqlite
+        .query(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('scheduled_tasks','schedule_plan_proposals')",
+        )
+        .all() as Array<{ name: string }>
+    ).map((row) => row.name),
+  )
   const capabilities = {
-    scheduledTasks: names.has("scheduled_tasks"),
-    schedulePlanProposals: names.has("schedule_plan_proposals"),
+    scheduledTasks: names.has('scheduled_tasks'),
+    schedulePlanProposals: names.has('schedule_plan_proposals'),
   }
   scheduleCalendarCache.set(sqlite, capabilities)
   return capabilities

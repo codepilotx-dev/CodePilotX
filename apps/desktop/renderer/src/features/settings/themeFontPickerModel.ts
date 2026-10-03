@@ -1,7 +1,4 @@
-import type {
-  DesktopSystemFontFace,
-  DesktopThemeFontFace,
-} from '../../../shared/types.js'
+import type { DesktopSystemFontFace, DesktopThemeFontFace } from '../../../shared/types.js'
 
 /**
  * Pure model for the theme font picker. Keeping the option building and
@@ -28,7 +25,11 @@ export function styleLabel(style: string): string {
   const normalized = trimmed.toLowerCase()
   if (/^(regular|normal|常规|正常)$/.test(normalized)) return 'Regular'
   if (/^(bold\s*italic|bolditalic|粗斜体)$/.test(normalized)) return 'Bold Italic'
-  if (/^(semi\s*bold\s*italic|demi\s*bold\s*italic|semibolditalic|demibolditalic|半粗斜体)$/.test(normalized)) {
+  if (
+    /^(semi\s*bold\s*italic|demi\s*bold\s*italic|semibolditalic|demibolditalic|半粗斜体)$/.test(
+      normalized,
+    )
+  ) {
     return /demi/i.test(trimmed) ? 'DemiBold Italic' : 'SemiBold Italic'
   }
   if (/^(medium\s*italic|mediumitalic|中等斜体)$/.test(normalized)) return 'Medium Italic'
@@ -37,7 +38,8 @@ export function styleLabel(style: string): string {
     return /ultra/i.test(trimmed) ? 'UltraBold' : 'ExtraBold'
   }
   if (normalized === 'bold' || normalized === '粗体') return 'Bold'
-  if (/^(italic|oblique|斜体)$/.test(normalized)) return /oblique/i.test(trimmed) ? 'Oblique' : 'Italic'
+  if (/^(italic|oblique|斜体)$/.test(normalized))
+    return /oblique/i.test(trimmed) ? 'Oblique' : 'Italic'
   if (normalized === 'medium' || normalized === '中等') return 'Medium'
   if (/^(semi\s*bold|demi\s*bold|semibold|demibold|半粗体)$/.test(normalized)) {
     return /demi/i.test(trimmed) || normalized === '半粗体' ? 'Demibold' : 'SemiBold'
@@ -58,10 +60,7 @@ export function extractStyleNameFromFace(face: DesktopThemeFontFace): string {
   const postscript = face.postscriptName.trim()
 
   // 1. Try stripping family prefix from fullName (case-insensitive)
-  if (
-    fullName.toLowerCase().startsWith(family.toLowerCase())
-    && fullName.length > family.length
-  ) {
+  if (fullName.toLowerCase().startsWith(family.toLowerCase()) && fullName.length > family.length) {
     const remainder = fullName
       .slice(family.length)
       .replace(/^[\s\-_:]+/, '')
@@ -75,8 +74,8 @@ export function extractStyleNameFromFace(face: DesktopThemeFontFace): string {
   const flatFamily = family.replace(/[\s\-_]+/g, '').toLowerCase()
   const flatFullName = fullName.replace(/[\s\-_]+/g, '')
   if (
-    flatFullName.toLowerCase().startsWith(flatFamily)
-    && flatFullName.length > flatFamily.length
+    flatFullName.toLowerCase().startsWith(flatFamily) &&
+    flatFullName.length > flatFamily.length
   ) {
     const remainder = fullName
       .replace(new RegExp(`^${family.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\-_:]*`, 'i'), '')
@@ -90,7 +89,7 @@ export function extractStyleNameFromFace(face: DesktopThemeFontFace): string {
   const familyTokens = family
     .split(/[\s\-_]+/)
     .filter(Boolean)
-    .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   if (familyTokens.length > 0) {
     const familyPattern = new RegExp(
       `^(${familyTokens.join('[\\s\\-_]*')})[\\s\\-_]*(vf[\\s\\-_]*)?`,
@@ -112,7 +111,9 @@ export function extractStyleNameFromFace(face: DesktopThemeFontFace): string {
   if (/\b(bold\s*italic|bolditalic)\b/.test(combined)) {
     return 'Bold Italic'
   }
-  if (/\b(semi\s*bold\s*italic|demi\s*bold\s*italic|semibolditalic|demibolditalic)\b/.test(combined)) {
+  if (
+    /\b(semi\s*bold\s*italic|demi\s*bold\s*italic|semibolditalic|demibolditalic)\b/.test(combined)
+  ) {
     return 'SemiBold Italic'
   }
   if (/\b(medium\s*italic|mediumitalic)\b/.test(combined)) {
@@ -168,19 +169,28 @@ export function styleWeightRank(style: string): number {
   const normalized = style.trim().toLowerCase()
   let base = 1000
   if (/\b(thin|hairline)\b/.test(normalized) || normalized === '特细体') base = 100
-  else if (/\b(extra\s*light|ultra\s*light|extralight|ultralight)\b/.test(normalized) || normalized === '超细体') base = 200
+  else if (
+    /\b(extra\s*light|ultra\s*light|extralight|ultralight)\b/.test(normalized) ||
+    normalized === '超细体'
+  )
+    base = 200
   else if (/\blight\b/.test(normalized) || normalized === '细体') base = 300
   else if (/\bmedium\b/.test(normalized) || normalized === '中等') base = 500
-  else if (/\b(semi\s*bold|demi\s*bold|semibold|demibold)\b/.test(normalized) || normalized === '半粗体') base = 600
+  else if (
+    /\b(semi\s*bold|demi\s*bold|semibold|demibold)\b/.test(normalized) ||
+    normalized === '半粗体'
+  )
+    base = 600
   else if (/\b(extra\s*bold|ultra\s*bold|extrabold|ultrabold)\b/.test(normalized)) base = 800
   else if (/\bbold\b/.test(normalized) || normalized === '粗体') base = 700
   else if (/\b(black|heavy)\b/.test(normalized) || normalized === '特粗体') base = 900
   else if (
-    /\b(regular|normal|book)\b/.test(normalized)
-    || /^(italic|oblique|斜体)$/.test(normalized)
-    || normalized === '常规'
-    || normalized === '正常'
-  ) base = 400
+    /\b(regular|normal|book)\b/.test(normalized) ||
+    /^(italic|oblique|斜体)$/.test(normalized) ||
+    normalized === '常规' ||
+    normalized === '正常'
+  )
+    base = 400
 
   const isItalic = /\b(italic|oblique)\b/.test(normalized) || /斜体/.test(normalized) ? 1 : 0
   return base * 10 + isItalic
@@ -190,19 +200,17 @@ export function facesOfFamily(
   faces: readonly DesktopSystemFontFace[],
   family: string,
 ): DesktopSystemFontFace[] {
-  return faces.filter(face => face.family === family)
+  return faces.filter((face) => face.family === family)
 }
 
 export function regularFaceOf(
   faces: readonly DesktopSystemFontFace[],
 ): DesktopSystemFontFace | undefined {
-  return faces.find(face => isDefaultFaceStyle(face.style))
+  return faces.find((face) => isDefaultFaceStyle(face.style))
 }
 
-export function sortedFamilies(
-  faces: readonly DesktopSystemFontFace[],
-): string[] {
-  return [...new Set(faces.map(face => face.family))].sort((left, right) =>
+export function sortedFamilies(faces: readonly DesktopSystemFontFace[]): string[] {
+  return [...new Set(faces.map((face) => face.family))].sort((left, right) =>
     left.localeCompare(right),
   )
 }
@@ -218,21 +226,17 @@ export function buildFamilyOptions({
   currentFamily: string | null
   isMonospace: (family: string) => boolean
 }): FontPickerOption[] {
-  const options: FontPickerOption[] = [
-    { value: SYSTEM_DEFAULT_FAMILY_VALUE, label: '系统默认' },
-  ]
-  const families = sortedFamilies(faces).filter(family =>
-    kind === 'ui' || isMonospace(family),
-  )
+  const options: FontPickerOption[] = [{ value: SYSTEM_DEFAULT_FAMILY_VALUE, label: '系统默认' }]
+  const families = sortedFamilies(faces).filter((family) => kind === 'ui' || isMonospace(family))
   for (const family of families) {
     options.push({ value: family, label: family })
   }
   // A custom family (CSS list or a font that disappeared from the
   // enumeration) stays visible and selected instead of being silently reset.
   if (
-    currentFamily
-    && currentFamily !== SYSTEM_DEFAULT_FAMILY_VALUE
-    && !families.includes(currentFamily)
+    currentFamily &&
+    currentFamily !== SYSTEM_DEFAULT_FAMILY_VALUE &&
+    !families.includes(currentFamily)
   ) {
     options.push({ value: currentFamily, label: currentFamily })
   }
@@ -248,10 +252,12 @@ export function buildStyleOptions({
 }): FontPickerOption[] {
   const regular = regularFaceOf(faces)
   const options: FontPickerOption[] = regular
-    ? [{
-        value: regular.postscriptName,
-        label: styleLabel(regular.style),
-      }]
+    ? [
+        {
+          value: regular.postscriptName,
+          label: styleLabel(regular.style),
+        },
+      ]
     : [{ value: DEFAULT_FACE_VALUE, label: 'Regular' }]
   const seen = new Set<string>()
   if (regular) {
@@ -267,9 +273,9 @@ export function buildStyleOptions({
   }
   // A stored face that is no longer in the enumeration stays selectable.
   if (
-    currentFace
-    && !seen.has(currentFace.postscriptName)
-    && (!regular || currentFace.postscriptName !== regular.postscriptName)
+    currentFace &&
+    !seen.has(currentFace.postscriptName) &&
+    (!regular || currentFace.postscriptName !== regular.postscriptName)
   ) {
     options.push({
       value: currentFace.postscriptName,
@@ -278,8 +284,8 @@ export function buildStyleOptions({
   }
   options.sort(
     (left, right) =>
-      styleWeightRank(left.label) - styleWeightRank(right.label)
-      || left.label.localeCompare(right.label),
+      styleWeightRank(left.label) - styleWeightRank(right.label) ||
+      left.label.localeCompare(right.label),
   )
   return options
 }
@@ -295,9 +301,9 @@ export function selectedStyleValue({
     return regularFaceOf(faces)?.postscriptName ?? DEFAULT_FACE_VALUE
   }
   const matching = faces.find(
-    face =>
-      face.postscriptName === currentFace.postscriptName
-      || (currentFace.fullName && face.fullName === currentFace.fullName),
+    (face) =>
+      face.postscriptName === currentFace.postscriptName ||
+      (currentFace.fullName && face.fullName === currentFace.fullName),
   )
   return matching?.postscriptName ?? currentFace.postscriptName
 }
@@ -327,13 +333,13 @@ export function fontPatchForSelection({
   }
   const regular = regularFaceOf(familyFaces)
   if (
-    faceValue === DEFAULT_FACE_VALUE
-    || (regular && (faceValue === regular.postscriptName || faceValue === regular.fullName))
+    faceValue === DEFAULT_FACE_VALUE ||
+    (regular && (faceValue === regular.postscriptName || faceValue === regular.fullName))
   ) {
     return { family: familyValue, face: null }
   }
   const selected = familyFaces.find(
-    face => face.postscriptName === faceValue || face.fullName === faceValue,
+    (face) => face.postscriptName === faceValue || face.fullName === faceValue,
   )
   if (selected) {
     const fullName =
@@ -370,8 +376,6 @@ export function fontPickerCurrentFamilyLabel(
   return face?.family ?? family
 }
 
-export function fontPickerCurrentFamilyValue(
-  family: string | null,
-): string {
+export function fontPickerCurrentFamilyValue(family: string | null): string {
   return family ?? SYSTEM_DEFAULT_FAMILY_VALUE
 }

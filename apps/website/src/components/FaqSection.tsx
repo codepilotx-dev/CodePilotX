@@ -24,7 +24,8 @@ export const FaqSection: React.FC = () => {
               Clear answers, zero marketing fluff.
             </h2>
             <p className="mt-4 text-base text-[#55625D] leading-relaxed">
-              CodePilotX is open source and currently in Beta. Here are the core technical realities of how it operates today.
+              CodePilotX is open source and currently in Beta. Here are the core technical realities
+              of how it operates today.
             </p>
 
             <div className="mt-8 rounded-2xl border border-[#DCD6CB] bg-[#FCFAF5] p-5">
@@ -32,7 +33,8 @@ export const FaqSection: React.FC = () => {
                 Beta Notice
               </span>
               <p className="mt-2 text-xs text-[#55625D] leading-relaxed">
-                We currently publish pure source releases on GitHub for Windows x64. Binary installers are generated on your local machine using Bun.
+                We currently publish pure source releases on GitHub for Windows x64. Binary
+                installers are generated on your local machine using Bun.
               </p>
             </div>
           </div>

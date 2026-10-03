@@ -16,7 +16,7 @@ export function useCalendarController(query: string, filter: CalendarFilter) {
   const sequence = useRef(0)
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai'
   const setVisibleRange = useCallback((next: { from: number; to: number }): void => {
-    setRange(current => current?.from === next.from && current.to === next.to ? current : next)
+    setRange((current) => (current?.from === next.from && current.to === next.to ? current : next))
   }, [])
 
   const refresh = useCallback(async (): Promise<void> => {
@@ -48,18 +48,23 @@ export function useCalendarController(query: string, filter: CalendarFilter) {
     }
   }, [range, timeZone])
 
-  useEffect(() => { void refresh() }, [refresh])
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
   useEffect(
-    () => desktopClient.subscribeAgentEventEnvelopes(
-      { liveEventTypes: [] },
-      events => {
-        if (events.some(event =>
-          event.type === 'automation/changed' ||
-          event.type === 'automation/runChanged' ||
-          event.type === 'scheduled-task/changed' ||
-          event.type === 'schedule-plan/changed')) void refresh()
-      },
-    ),
+    () =>
+      desktopClient.subscribeAgentEventEnvelopes({ liveEventTypes: [] }, (events) => {
+        if (
+          events.some(
+            (event) =>
+              event.type === 'automation/changed' ||
+              event.type === 'automation/runChanged' ||
+              event.type === 'scheduled-task/changed' ||
+              event.type === 'schedule-plan/changed',
+          )
+        )
+          void refresh()
+      }),
     [refresh],
   )
 

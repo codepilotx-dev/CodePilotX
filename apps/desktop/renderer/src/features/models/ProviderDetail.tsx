@@ -53,33 +53,18 @@ export function ProviderDetail({
             <RemoteImage
               alt=""
               className="model-center-provider-identity-logo"
-              fallback={(
-                <Server
-                  aria-hidden
-                  size={14}
-                  data-icon-kind="artwork"
-                  strokeWidth={2}
-                />
-              )}
+              fallback={<Server aria-hidden size={14} data-icon-kind="artwork" strokeWidth={2} />}
               src={provider.logoURL}
             />
           ) : (
             <span className="model-center-provider-identity-logo">
-              <Server
-                aria-hidden
-                size={14}
-                data-icon-kind="artwork"
-                strokeWidth={2}
-              />
+              <Server aria-hidden size={14} data-icon-kind="artwork" strokeWidth={2} />
             </span>
           )}
           <div className="model-center-provider-identity-copy">
             <div className="model-center-provider-identity-heading">
               <h2>{provider.name}</h2>
-              <span
-                className="model-center-provider-status"
-                data-tone={provider.status.tone}
-              >
+              <span className="model-center-provider-status" data-tone={provider.status.tone}>
                 {provider.status.label}
               </span>
             </div>
@@ -94,8 +79,8 @@ export function ProviderDetail({
         <SegmentedControl<ProviderDetailTab>
           ariaLabel="供应商详情功能切换"
           className="model-center-provider-segmented-tabs"
-          getPanelId={tab => `${panelId}-panel-${tab}`}
-          getTabId={tab => `${panelId}-tab-${tab}`}
+          getPanelId={(tab) => `${panelId}-panel-${tab}`}
+          getTabId={(tab) => `${panelId}-tab-${tab}`}
           onChange={onTabChange}
           options={TAB_OPTIONS}
           overflowMode="fit"
@@ -105,7 +90,9 @@ export function ProviderDetail({
       </div>
 
       {feedback ? (
-        <div className="model-center-provider-feedback" role="status">{feedback}</div>
+        <div className="model-center-provider-feedback" role="status">
+          {feedback}
+        </div>
       ) : null}
 
       <div

@@ -16,13 +16,16 @@ export function createComposerDocumentWithSkill(
 ): ComposerDocument {
   return {
     text,
-    tokens: skillInvocation ? (Array.isArray(skillInvocation) ? skillInvocation : [skillInvocation as ComposerSkillInvocation]).map(createComposerSkillToken) : [],
+    tokens: skillInvocation
+      ? (Array.isArray(skillInvocation)
+          ? skillInvocation
+          : [skillInvocation as ComposerSkillInvocation]
+        ).map(createComposerSkillToken)
+      : [],
   }
 }
 
-export function createComposerSkillToken(
-  skill: ComposerSkillInvocation,
-): ComposerDocumentToken {
+export function createComposerSkillToken(skill: ComposerSkillInvocation): ComposerDocumentToken {
   return {
     id: `skill:${skill.name}:${skill.path}`,
     kind: 'skill',
@@ -45,21 +48,20 @@ export function skillInvocationFromComposerToken(
 export function skillInvocationFromComposerDocument(
   document: ComposerDocument,
 ): ComposerSkillInvocation | null {
-  const token = document.tokens.find(candidate => candidate.kind === 'skill')
+  const token = document.tokens.find((candidate) => candidate.kind === 'skill')
   return token ? skillInvocationFromComposerToken(token) : null
 }
 
-export function skillInvocationsFromComposerDocument(document: ComposerDocument): ComposerSkillInvocation[] {
-  return document.tokens.flatMap(token => {
+export function skillInvocationsFromComposerDocument(
+  document: ComposerDocument,
+): ComposerSkillInvocation[] {
+  return document.tokens.flatMap((token) => {
     const skill = skillInvocationFromComposerToken(token)
     return skill ? [skill] : []
   })
 }
 
-export function composerDocumentsEqual(
-  left: ComposerDocument,
-  right: ComposerDocument,
-): boolean {
+export function composerDocumentsEqual(left: ComposerDocument, right: ComposerDocument): boolean {
   if (left.text !== right.text || left.tokens.length !== right.tokens.length) {
     return false
   }

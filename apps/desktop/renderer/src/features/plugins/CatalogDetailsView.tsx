@@ -2,10 +2,7 @@ import type { PluginDetails } from '@codepilotx/agent-protocol'
 import type React from 'react'
 import { ExternalLink, Plus, Sparkles } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import type { DesktopSkillCatalogItem } from '../../../shared/types.js'
 import { PluginProductDetailsView } from './PluginProductDetailsView.js'
 import type { PluginCatalogItem } from './pluginCatalog.js'
@@ -16,11 +13,7 @@ type PluginProps = {
   details: PluginDetails | null
   busy: boolean
   error?: string | null
-  onPrimaryAction: (
-    item: PluginCatalogItem,
-    trigger: HTMLButtonElement,
-    checked?: boolean,
-  ) => void
+  onPrimaryAction: (item: PluginCatalogItem, trigger: HTMLButtonElement, checked?: boolean) => void
   onTryPrompt: (prompt: string) => void
   onUninstall?: () => void
 }
@@ -43,10 +36,7 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
   return (
     <section className="catalog-details-view">
       <header className="catalog-details-view__header">
-        <span
-          aria-hidden="true"
-          className="catalog-details-view__icon"
-        >
+        <span aria-hidden="true" className="catalog-details-view__icon">
           <Sparkles data-icon-kind="artwork" size={APP_ICON_SIZE} strokeWidth={2} />
         </span>
         <div className="catalog-details-view__identity">
@@ -76,31 +66,31 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
         </section>
 
         <section aria-labelledby="catalog-details-audit" className="catalog-details-section">
-            <h2 id="catalog-details-audit">安全审计</h2>
-            {props.item.audit ? (
-              <dl className="plugin-details-metadata">
+          <h2 id="catalog-details-audit">安全审计</h2>
+          {props.item.audit ? (
+            <dl className="plugin-details-metadata">
+              <div className="plugin-details-metadata__row">
+                <dt>结果</dt>
+                <dd>{skillAuditLabel(props.item.audit.status)}</dd>
+              </div>
+              <div className="plugin-details-metadata__row">
+                <dt>摘要</dt>
+                <dd>{props.item.audit.summary}</dd>
+              </div>
+              <div className="plugin-details-metadata__row">
+                <dt>Provider</dt>
+                <dd>{props.item.audit.providerCount}</dd>
+              </div>
+              {props.item.audit.auditedAt ? (
                 <div className="plugin-details-metadata__row">
-                  <dt>结果</dt>
-                  <dd>{skillAuditLabel(props.item.audit.status)}</dd>
+                  <dt>审计时间</dt>
+                  <dd>{new Date(props.item.audit.auditedAt).toLocaleString()}</dd>
                 </div>
-                <div className="plugin-details-metadata__row">
-                  <dt>摘要</dt>
-                  <dd>{props.item.audit.summary}</dd>
-                </div>
-                <div className="plugin-details-metadata__row">
-                  <dt>Provider</dt>
-                  <dd>{props.item.audit.providerCount}</dd>
-                </div>
-                {props.item.audit.auditedAt ? (
-                  <div className="plugin-details-metadata__row">
-                    <dt>审计时间</dt>
-                    <dd>{new Date(props.item.audit.auditedAt).toLocaleString()}</dd>
-                  </div>
-                ) : null}
-              </dl>
-            ) : (
-              <p className="catalog-details-section__empty">该目录条目未提供审计信息。</p>
-            )}
+              ) : null}
+            </dl>
+          ) : (
+            <p className="catalog-details-section__empty">该目录条目未提供审计信息。</p>
+          )}
         </section>
 
         {props.item.url ? (
@@ -120,11 +110,7 @@ export function CatalogDetailsView(props: PluginProps | SkillProps): React.React
   )
 }
 
-function SkillDetailsMetadata({
-  item,
-}: {
-  item: DesktopSkillCatalogItem
-}): React.ReactNode {
+function SkillDetailsMetadata({ item }: { item: DesktopSkillCatalogItem }): React.ReactNode {
   return (
     <dl className="plugin-details-metadata">
       <div className="plugin-details-metadata__row">

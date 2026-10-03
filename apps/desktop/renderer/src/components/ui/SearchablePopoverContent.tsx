@@ -76,7 +76,7 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
   function moveActive(direction: 1 | -1): void {
     const enabledIndices = options
       .map((option, index) => (option.disabled ? -1 : index))
-      .filter(index => index >= 0)
+      .filter((index) => index >= 0)
     if (enabledIndices.length === 0) return
     const currentPosition = enabledIndices.indexOf(activeIndex)
     const nextPosition =
@@ -106,11 +106,9 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
       event.preventDefault()
       const enabledIndices = options
         .map((option, index) => (option.disabled ? -1 : index))
-        .filter(index => index >= 0)
+        .filter((index) => index >= 0)
       const next =
-        event.key === 'Home'
-          ? enabledIndices[0]
-          : enabledIndices[enabledIndices.length - 1]
+        event.key === 'Home' ? enabledIndices[0] : enabledIndices[enabledIndices.length - 1]
       if (next !== undefined) setActiveIndex(next)
       return
     }
@@ -139,7 +137,7 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
             className,
           )}
           collisionPadding={6}
-          onOpenAutoFocus={event => {
+          onOpenAutoFocus={(event) => {
             event.preventDefault()
             searchRef.current?.focus()
             searchRef.current?.select()
@@ -156,7 +154,7 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
               controls={listboxId}
               expanded={open}
               mode="combobox"
-              onChange={value => {
+              onChange={(value) => {
                 onSearchChange(value)
                 setActiveIndex(-1)
               }}
@@ -216,9 +214,7 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
           {footer ? (
             <div className="popover-footer-region">
               <div aria-hidden="true" className="popover-divider" />
-              <div className="popover-scroll-content">
-                {footer}
-              </div>
+              <div className="popover-scroll-content">{footer}</div>
             </div>
           ) : null}
         </Popover.Content>

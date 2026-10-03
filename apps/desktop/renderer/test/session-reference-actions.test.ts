@@ -57,7 +57,7 @@ function pageKeydown(overrides: Partial<ShortcutEvent>): ShortcutEvent {
 
 function depsWithWriter(writes: string[]): SessionReferenceCopyDeps {
   return {
-    writeText: async text => {
+    writeText: async (text) => {
       writes.push(text)
     },
     reportError: () => undefined,
@@ -83,10 +83,7 @@ describe('resolveSessionReferenceShortcut', () => {
       ),
     ).toEqual({ kind: 'workspaceCwd', workspaceCwd: CONTEXT.workspaceCwd })
     expect(
-      resolveSessionReferenceShortcut(
-        pageKeydown({ ctrlKey: true, altKey: true }),
-        CONTEXT,
-      ),
+      resolveSessionReferenceShortcut(pageKeydown({ ctrlKey: true, altKey: true }), CONTEXT),
     ).toEqual({ kind: 'threadId', threadId: CONTEXT.threadId })
     expect(
       resolveSessionReferenceShortcut(
@@ -97,12 +94,7 @@ describe('resolveSessionReferenceShortcut', () => {
   })
 
   test('rejects other keys and modifier combinations', () => {
-    expect(
-      resolveSessionReferenceShortcut(
-        pageKeydown({ ctrlKey: true }),
-        CONTEXT,
-      ),
-    ).toBeNull()
+    expect(resolveSessionReferenceShortcut(pageKeydown({ ctrlKey: true }), CONTEXT)).toBeNull()
     expect(
       resolveSessionReferenceShortcut(
         pageKeydown({ ctrlKey: true, shiftKey: true, key: 'l' }),
@@ -115,12 +107,7 @@ describe('resolveSessionReferenceShortcut', () => {
         CONTEXT,
       ),
     ).toBeNull()
-    expect(
-      resolveSessionReferenceShortcut(
-        pageKeydown({ altKey: true }),
-        CONTEXT,
-      ),
-    ).toBeNull()
+    expect(resolveSessionReferenceShortcut(pageKeydown({ altKey: true }), CONTEXT)).toBeNull()
     expect(
       resolveSessionReferenceShortcut(
         pageKeydown({ ctrlKey: true, shiftKey: true, altKey: true }),
@@ -131,16 +118,10 @@ describe('resolveSessionReferenceShortcut', () => {
 
   test('respects the platform modifier boundary and never matches meta-only or ctrl+meta', () => {
     expect(
-      resolveSessionReferenceShortcut(
-        pageKeydown({ metaKey: true, shiftKey: true }),
-        CONTEXT,
-      ),
+      resolveSessionReferenceShortcut(pageKeydown({ metaKey: true, shiftKey: true }), CONTEXT),
     ).toBeNull()
     expect(
-      resolveSessionReferenceShortcut(
-        pageKeydown({ metaKey: true, altKey: true }),
-        CONTEXT,
-      ),
+      resolveSessionReferenceShortcut(pageKeydown({ metaKey: true, altKey: true }), CONTEXT),
     ).toBeNull()
     expect(
       resolveSessionReferenceShortcut(
@@ -159,28 +140,16 @@ describe('resolveSessionReferenceShortcut', () => {
   test('ignores defaultPrevented, repeated, and IME composing keydowns', () => {
     const base = { ctrlKey: true, shiftKey: true }
     expect(
-      resolveSessionReferenceShortcut(
-        pageKeydown({ ...base, defaultPrevented: true }),
-        CONTEXT,
-      ),
+      resolveSessionReferenceShortcut(pageKeydown({ ...base, defaultPrevented: true }), CONTEXT),
     ).toBeNull()
     expect(
-      resolveSessionReferenceShortcut(
-        pageKeydown({ ...base, repeat: true }),
-        CONTEXT,
-      ),
+      resolveSessionReferenceShortcut(pageKeydown({ ...base, repeat: true }), CONTEXT),
     ).toBeNull()
     expect(
-      resolveSessionReferenceShortcut(
-        pageKeydown({ ...base, isComposing: true }),
-        CONTEXT,
-      ),
+      resolveSessionReferenceShortcut(pageKeydown({ ...base, isComposing: true }), CONTEXT),
     ).toBeNull()
     expect(
-      resolveSessionReferenceShortcut(
-        pageKeydown({ ...base, keyCode: 229 }),
-        CONTEXT,
-      ),
+      resolveSessionReferenceShortcut(pageKeydown({ ...base, keyCode: 229 }), CONTEXT),
     ).toBeNull()
   })
 
@@ -234,15 +203,15 @@ describe('copy session reference actions', () => {
       shortcut: ShortcutEvent
     }> = [
       {
-        run: deps => copyWorkspaceCwd(CONTEXT.workspaceCwd, deps),
+        run: (deps) => copyWorkspaceCwd(CONTEXT.workspaceCwd, deps),
         shortcut: pageKeydown({ ctrlKey: true, shiftKey: true }),
       },
       {
-        run: deps => copyThreadId(CONTEXT.threadId, deps),
+        run: (deps) => copyThreadId(CONTEXT.threadId, deps),
         shortcut: pageKeydown({ ctrlKey: true, altKey: true }),
       },
       {
-        run: deps => copyThreadDeepLink(CONTEXT.threadId, deps),
+        run: (deps) => copyThreadDeepLink(CONTEXT.threadId, deps),
         shortcut: pageKeydown({ ctrlKey: true, altKey: true, key: 'l' }),
       },
     ]
@@ -252,10 +221,7 @@ describe('copy session reference actions', () => {
       const viaMenu: string[] = []
       const viaShortcut: string[] = []
       await run(depsWithWriter(viaMenu))
-      await copySessionReference(
-        resolved as SessionReferencePayload,
-        depsWithWriter(viaShortcut),
-      )
+      await copySessionReference(resolved as SessionReferencePayload, depsWithWriter(viaShortcut))
       expect(viaMenu).toHaveLength(1)
       expect(viaShortcut).toEqual(viaMenu)
     }
@@ -267,15 +233,15 @@ describe('copy session reference actions', () => {
       copiedText: string
     }> = [
       {
-        run: deps => copyWorkspaceCwd(CONTEXT.workspaceCwd, deps),
+        run: (deps) => copyWorkspaceCwd(CONTEXT.workspaceCwd, deps),
         copiedText: CONTEXT.workspaceCwd,
       },
       {
-        run: deps => copyThreadId(CONTEXT.threadId, deps),
+        run: (deps) => copyThreadId(CONTEXT.threadId, deps),
         copiedText: CONTEXT.threadId,
       },
       {
-        run: deps => copyThreadDeepLink(CONTEXT.threadId, deps),
+        run: (deps) => copyThreadDeepLink(CONTEXT.threadId, deps),
         copiedText: buildThreadDeepLink(CONTEXT.threadId),
       },
     ]
@@ -285,7 +251,7 @@ describe('copy session reference actions', () => {
         writeText: async () => {
           throw new Error('clipboard denied')
         },
-        reportError: error => reports.push(error),
+        reportError: (error) => reports.push(error),
       })
       expect(reports).toHaveLength(1)
       const reported = reports[0] as Error

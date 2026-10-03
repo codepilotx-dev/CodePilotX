@@ -49,53 +49,59 @@ export function useUserAttachmentPreview(
 
     let cancelled = false
     setState({ status: 'loading' })
-    const request = tab.source.storage === 'thread'
-      ? desktopClient.readAttachment(tab.source.attachmentId).then(result => ({
-          attachment: result.attachment,
-          data: result.data,
-          encoding: result.encoding,
-        }))
-      : tab.source.storage === 'draft-path'
-        ? desktopClient.readDraftComposerPath({
-            grantId: tab.source.grantId,
-            ...(tab.source.relativePath ? { relativePath: tab.source.relativePath } : {}),
-          }).then(result => ({
-            attachment: {
-              id: tab.attachment.id,
-              kind: result.kind,
-              name: result.name,
-              mediaType: result.mediaType,
-              sizeBytes: result.sizeBytes,
-            },
-            data: result.data ?? '',
-            encoding: result.encoding ?? null,
-          }))
-        : desktopClient.readLocalContextPath({
-            threadId: tab.source.threadId,
-            referenceId: tab.source.referenceId,
-            ...(tab.source.relativePath ? { relativePath: tab.source.relativePath } : {}),
-          }).then(result => ({
-            attachment: {
-              id: result.reference.id,
-              kind: result.preview === 'unsupported' ? 'binary' : result.preview,
-              name: result.relativePath?.split(/[\\/]/u).pop() ?? result.reference.name,
-              mediaType: result.mediaType ?? 'application/octet-stream',
-              sizeBytes: result.range?.total ?? 0,
-            },
-            data: result.data ?? '',
+    const request =
+      tab.source.storage === 'thread'
+        ? desktopClient.readAttachment(tab.source.attachmentId).then((result) => ({
+            attachment: result.attachment,
+            data: result.data,
             encoding: result.encoding,
           }))
+        : tab.source.storage === 'draft-path'
+          ? desktopClient
+              .readDraftComposerPath({
+                grantId: tab.source.grantId,
+                ...(tab.source.relativePath ? { relativePath: tab.source.relativePath } : {}),
+              })
+              .then((result) => ({
+                attachment: {
+                  id: tab.attachment.id,
+                  kind: result.kind,
+                  name: result.name,
+                  mediaType: result.mediaType,
+                  sizeBytes: result.sizeBytes,
+                },
+                data: result.data ?? '',
+                encoding: result.encoding ?? null,
+              }))
+          : desktopClient
+              .readLocalContextPath({
+                threadId: tab.source.threadId,
+                referenceId: tab.source.referenceId,
+                ...(tab.source.relativePath ? { relativePath: tab.source.relativePath } : {}),
+              })
+              .then((result) => ({
+                attachment: {
+                  id: result.reference.id,
+                  kind: result.preview === 'unsupported' ? 'binary' : result.preview,
+                  name: result.relativePath?.split(/[\\/]/u).pop() ?? result.reference.name,
+                  mediaType: result.mediaType ?? 'application/octet-stream',
+                  sizeBytes: result.range?.total ?? 0,
+                },
+                data: result.data ?? '',
+                encoding: result.encoding,
+              }))
     void request.then(
-      result => {
+      (result) => {
         if (cancelled || generationRef.current !== generation) return
         setState({
           status: 'ready',
           value: {
             attachment: {
               id: result.attachment.id,
-              kind: result.attachment.kind === 'image' || result.attachment.kind === 'text'
-                ? result.attachment.kind
-                : 'binary',
+              kind:
+                result.attachment.kind === 'image' || result.attachment.kind === 'text'
+                  ? result.attachment.kind
+                  : 'binary',
               name: result.attachment.name,
               mediaType: result.attachment.mediaType,
               sizeBytes: result.attachment.sizeBytes,
@@ -117,7 +123,7 @@ export function useUserAttachmentPreview(
   }, [retryVersion, tab])
 
   const retry = useCallback(() => {
-    setRetryVersion(version => version + 1)
+    setRetryVersion((version) => version + 1)
   }, [])
 
   return { ...state, retry }

@@ -49,36 +49,16 @@ export function OpenTargetIcon({
   }
   if (kind === 'file-explorer') {
     return (
-      <FolderOpen
-        aria-hidden="true"
-        size={APP_ICON_SIZE}
-        strokeWidth={APP_ICON_STROKE_WIDTH}
-      />
+      <FolderOpen aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
     )
   }
   if (kind === 'terminal') {
     return (
-      <SquareTerminal
-        aria-hidden="true"
-        size={APP_ICON_SIZE}
-        strokeWidth={APP_ICON_STROKE_WIDTH}
-      />
+      <SquareTerminal aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
     )
   }
   if (kind === 'editor') {
-    return (
-      <Code2
-        aria-hidden="true"
-        size={APP_ICON_SIZE}
-        strokeWidth={APP_ICON_STROKE_WIDTH}
-      />
-    )
+    return <Code2 aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
   }
-  return (
-    <File
-      aria-hidden="true"
-      size={APP_ICON_SIZE}
-      strokeWidth={APP_ICON_STROKE_WIDTH}
-    />
-  )
+  return <File aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
 }

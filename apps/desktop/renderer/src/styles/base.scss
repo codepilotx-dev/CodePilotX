@@ -100,24 +100,24 @@ button:disabled {
 }
 
 // The global cursor preference must override component-level cursor affordances.
-:root[data-pointer-cursor="off"] * {
+:root[data-pointer-cursor='off'] * {
   cursor: default !important;
 }
 
-:root[data-pointer-cursor="off"] button:disabled,
-:root[data-pointer-cursor="off"] [aria-disabled="true"] {
+:root[data-pointer-cursor='off'] button:disabled,
+:root[data-pointer-cursor='off'] [aria-disabled='true'] {
   cursor: not-allowed !important;
 }
 
-:root[data-pointer-cursor="off"] input,
-:root[data-pointer-cursor="off"] textarea,
-:root[data-pointer-cursor="off"] [contenteditable="true"] {
+:root[data-pointer-cursor='off'] input,
+:root[data-pointer-cursor='off'] textarea,
+:root[data-pointer-cursor='off'] [contenteditable='true'] {
   cursor: text !important;
 }
 
-:root[data-pointer-cursor="off"] [data-resize-handle],
-:root[data-pointer-cursor="off"] .sidebar-resizer,
-:root[data-pointer-cursor="off"] .right-dock-resize-handle {
+:root[data-pointer-cursor='off'] [data-resize-handle],
+:root[data-pointer-cursor='off'] .sidebar-resizer,
+:root[data-pointer-cursor='off'] .right-dock-resize-handle {
   cursor: col-resize !important;
 }
 
@@ -140,8 +140,8 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
-[role="button"]:focus-visible,
-[tabindex]:not([tabindex="-1"]):focus-visible {
+[role='button']:focus-visible,
+[tabindex]:not([tabindex='-1']):focus-visible {
   outline: 2px solid var(--cpx-sys-color-border-focus);
   outline-offset: 2px;
 }
@@ -161,8 +161,8 @@ textarea:focus-visible,
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible,
-  [role="button"]:focus-visible,
-  [tabindex]:not([tabindex="-1"]):focus-visible {
+  [role='button']:focus-visible,
+  [tabindex]:not([tabindex='-1']):focus-visible {
     outline-color: Highlight;
   }
 }
@@ -198,7 +198,7 @@ p {
   --cpx-sys-radius-full: 9999px;
 }
 
-:root[data-reduce-motion="on"] {
+:root[data-reduce-motion='on'] {
   --cpx-sys-motion-instant: 0ms;
   --cpx-sys-motion-micro: 0ms;
   --cpx-sys-motion-feedback: 0ms;
@@ -210,9 +210,9 @@ p {
   --cpx-sys-motion-loading: 0ms;
 }
 
-:root[data-reduce-motion="on"] *:not(.ui-disclosure-content),
-:root[data-reduce-motion="on"] *::before,
-:root[data-reduce-motion="on"] *::after {
+:root[data-reduce-motion='on'] *:not(.ui-disclosure-content),
+:root[data-reduce-motion='on'] *::before,
+:root[data-reduce-motion='on'] *::after {
   animation-duration: 1ms !important;
   animation-iteration-count: 1 !important;
   scroll-behavior: auto !important;

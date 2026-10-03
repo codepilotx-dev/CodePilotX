@@ -45,7 +45,7 @@ export function ProjectAppearancePicker({
       className="project-appearance-popover"
       contentLabel="项目图标和颜色"
       open={open}
-      trigger={(
+      trigger={
         <button
           aria-label="选择项目图标和颜色"
           className="project-appearance-trigger"
@@ -54,63 +54,52 @@ export function ProjectAppearancePicker({
         >
           <ProjectAppearanceGlyph appearance={appearance} size={glyphSize} />
         </button>
-      )}
+      }
       width="auto"
       onOpenChange={setOpen}
     >
-          <RadioGroup.Root
-            aria-label="项目颜色"
-            className="project-appearance-colors"
-            value={appearance.color}
-            onValueChange={value =>
-              selectColor(value as ProjectAppearanceColor)
-            }
+      <RadioGroup.Root
+        aria-label="项目颜色"
+        className="project-appearance-colors"
+        value={appearance.color}
+        onValueChange={(value) => selectColor(value as ProjectAppearanceColor)}
+      >
+        {PROJECT_APPEARANCE_COLORS.map((color) => (
+          <RadioGroup.Item
+            aria-label={colorLabel(color)}
+            className={cx('project-appearance-color', appearance.color === color && 'is-selected')}
+            data-project-color={color}
+            key={color}
+            value={color}
           >
-            {PROJECT_APPEARANCE_COLORS.map(color => (
-              <RadioGroup.Item
-                aria-label={colorLabel(color)}
-                className={cx(
-                  'project-appearance-color',
-                  appearance.color === color && 'is-selected',
-                )}
-                data-project-color={color}
-                key={color}
-                value={color}
-              >
-                <RadioGroup.Indicator>
-                  <Check aria-hidden="true" size={APP_ICON_SIZES.sm} />
-                </RadioGroup.Indicator>
-              </RadioGroup.Item>
-            ))}
-          </RadioGroup.Root>
-          <RadioGroup.Root
-            aria-label="项目图标"
-            className="project-appearance-icons"
-            value={appearance.icon}
-            onValueChange={value =>
-              selectIcon(value as ProjectAppearanceIcon)
-            }
+            <RadioGroup.Indicator>
+              <Check aria-hidden="true" size={APP_ICON_SIZES.sm} />
+            </RadioGroup.Indicator>
+          </RadioGroup.Item>
+        ))}
+      </RadioGroup.Root>
+      <RadioGroup.Root
+        aria-label="项目图标"
+        className="project-appearance-icons"
+        value={appearance.icon}
+        onValueChange={(value) => selectIcon(value as ProjectAppearanceIcon)}
+      >
+        {PROJECT_APPEARANCE_ICONS.map((icon) => (
+          <RadioGroup.Item
+            aria-label={iconLabel(icon)}
+            className={cx('project-appearance-icon', appearance.icon === icon && 'is-selected')}
+            key={icon}
+            value={icon}
           >
-            {PROJECT_APPEARANCE_ICONS.map(icon => (
-              <RadioGroup.Item
-                aria-label={iconLabel(icon)}
-                className={cx(
-                  'project-appearance-icon',
-                  appearance.icon === icon && 'is-selected',
-                )}
-                key={icon}
-                value={icon}
-              >
-                <ProjectAppearanceGlyph
-                  appearance={{ ...appearance, icon }}
-                  size={APP_ICON_SIZE}
-                />
-              </RadioGroup.Item>
-            ))}
-          </RadioGroup.Root>
-          <div className="project-appearance-footer">
-            <Button color="primary" onClick={() => setOpen(false)}>完成</Button>
-          </div>
+            <ProjectAppearanceGlyph appearance={{ ...appearance, icon }} size={APP_ICON_SIZE} />
+          </RadioGroup.Item>
+        ))}
+      </RadioGroup.Root>
+      <div className="project-appearance-footer">
+        <Button color="primary" onClick={() => setOpen(false)}>
+          完成
+        </Button>
+      </div>
     </AnchoredPopover>
   )
 }

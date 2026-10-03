@@ -42,14 +42,10 @@ export type AgentRpcSubscription = {
   liveEventTypes?: readonly LiveEventType[]
   onReplayComplete?: () => void | Promise<void>
   onCursorExpired?: () => number | void | Promise<number | void>
-  onDeliveryError?: (
-    error: unknown,
-  ) => number | void | Promise<number | void>
+  onDeliveryError?: (error: unknown) => number | void | Promise<number | void>
 }
 
-export type EventBatchDelivery = (
-  events: readonly EventEnvelope[],
-) => void | Promise<void>
+export type EventBatchDelivery = (events: readonly EventEnvelope[]) => void | Promise<void>
 
 const MAX_EVENTS_PER_DELIVERY = 256
 const EVENT_DELIVERY_DELAY_MS = 50
@@ -120,11 +116,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
   const typedClient = createRpcClient(transport, { idPrefix: 'renderer' })
 
   async function call<M>(
-    method: M extends PublicRpcMethod
-      ? M
-      : M extends string
-        ? never
-        : PublicRpcMethod,
+    method: M extends PublicRpcMethod ? M : M extends string ? never : PublicRpcMethod,
     params?: M extends PublicRpcMethod ? PublicRpcParams<M> : unknown,
   ): Promise<M extends PublicRpcMethod ? PublicRpcResult<M> : M> {
     const methodName = method as PublicRpcMethod
@@ -147,10 +139,10 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
         (await recoverConnection(attemptedConnectionId))
       ) {
         try {
-          return await typedClient.call(
+          return (await typedClient.call(
             methodName,
             requestParams as never,
-          ) as M extends PublicRpcMethod ? PublicRpcResult<M> : M
+          )) as M extends PublicRpcMethod ? PublicRpcResult<M> : M
         } catch (retryError) {
           throw normalizeRpcError(retryError)
         }
@@ -159,9 +151,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     }
   }
 
-  async function initialized(
-    params: Parameters<RpcClient['initialized']>[0],
-  ): Promise<void> {
+  async function initialized(params: Parameters<RpcClient['initialized']>[0]): Promise<void> {
     try {
       await typedClient.initialized(params)
       initializedParams = params
@@ -180,23 +170,22 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     }
     handshakePromise ??= (async () => {
       initializeParams = handshake.initialize
-      const result = await typedClient.call(
-        'initialize',
-        handshake.initialize,
-      )
+      const result = await typedClient.call('initialize', handshake.initialize)
       connectionId = result.connectionId
       initializeResult = result
       await typedClient.initialized(handshake.initialized)
       initializedParams = handshake.initialized
       return result
-    })().catch(error => {
-      connectionId = null
-      initializeResult = null
-      initializedParams = null
-      throw error
-    }).finally(() => {
-      handshakePromise = null
-    })
+    })()
+      .catch((error) => {
+        connectionId = null
+        initializeResult = null
+        initializedParams = null
+        throw error
+      })
+      .finally(() => {
+        handshakePromise = null
+      })
     try {
       return await handshakePromise
     } catch (error) {
@@ -204,22 +193,14 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     }
   }
 
-  async function recoverConnection(
-    failedConnectionId: string | null,
-  ): Promise<boolean> {
+  async function recoverConnection(failedConnectionId: string | null): Promise<boolean> {
     if (!initializeParams || !initializedParams) return false
-    if (
-      connectionId !== null &&
-      connectionId !== failedConnectionId
-    ) {
+    if (connectionId !== null && connectionId !== failedConnectionId) {
       return true
     }
     recoveryPromise ??= (async () => {
       connectionId = null
-      const initialized = await typedClient.call(
-        'initialize',
-        initializeParams!,
-      )
+      const initialized = await typedClient.call('initialize', initializeParams!)
       connectionId = initialized.connectionId
       initializeResult = initialized
       await typedClient.initialized(initializedParams!)
@@ -262,13 +243,9 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     }
 
     const reconnectDelay = (attempt: number): number =>
-      environment.eventReconnectDelay?.(attempt) ??
-      Math.min(250 * 2 ** attempt, 5_000)
+      environment.eventReconnectDelay?.(attempt) ?? Math.min(250 * 2 ** attempt, 5_000)
 
-    const recordCommittedPosition = (
-      positionStreamId: string,
-      sequence: number,
-    ): void => {
+    const recordCommittedPosition = (positionStreamId: string, sequence: number): void => {
       pendingPositions.set(
         positionStreamId,
         Math.max(pendingPositions.get(positionStreamId) ?? 0, sequence),
@@ -289,9 +266,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
 
     const unsubscribeBestEffort = (id: string | null): void => {
       if (!id) return
-      void call('event/unsubscribe', { subscriptionId: id }).catch(
-        () => undefined,
-      )
+      void call('event/unsubscribe', { subscriptionId: id }).catch(() => undefined)
     }
 
     const closeCurrentConnection = (unsubscribe: boolean): void => {
@@ -322,10 +297,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
       }, delay)
     }
 
-    const handleDeliveryFailure = (
-      error: unknown,
-      expectedGeneration: number,
-    ): void => {
+    const handleDeliveryFailure = (error: unknown, expectedGeneration: number): void => {
       if (
         disposed ||
         generation !== expectedGeneration ||
@@ -339,7 +311,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
       clearDeliveryTimer()
       pendingEvents = []
       void Promise.resolve(options.onDeliveryError?.(error))
-        .then(recoveredAfter => {
+        .then((recoveredAfter) => {
           if (
             typeof recoveredAfter === 'number' &&
             Number.isSafeInteger(recoveredAfter) &&
@@ -383,9 +355,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
             return
           }
           for (const event of batch) {
-            const sequence = event.durability === 'durable'
-              ? event.sequence
-              : event.afterSequence
+            const sequence = event.durability === 'durable' ? event.sequence : event.afterSequence
             recordCommittedPosition(event.streamId, sequence)
           }
           scheduleAck()
@@ -423,9 +393,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
         !forceLatest && acknowledged !== undefined ? acknowledged : 'latest'
       const subscribeParams = () => ({
         streams: [{ streamId, after }],
-        ...(options.liveEventTypes
-          ? { liveEventTypes: [...options.liveEventTypes] }
-          : {}),
+        ...(options.liveEventTypes ? { liveEventTypes: [...options.liveEventTypes] } : {}),
       })
       let subscription: PublicRpcResult<'event/subscribe'>
       try {
@@ -455,10 +423,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
         for (const position of subscription.highWatermarks) {
           acknowledgedPositions.set(
             position.streamId,
-            Math.max(
-              acknowledgedPositions.get(position.streamId) ?? 0,
-              position.sequence,
-            ),
+            Math.max(acknowledgedPositions.get(position.streamId) ?? 0, position.sequence),
           )
         }
       }
@@ -468,18 +433,12 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
         `/rpc/events?subscriptionId=${encodeURIComponent(subscription.subscriptionId)}&connectionId=${encodeURIComponent(connectionId ?? '')}`,
       )
       source = nextSource
-      nextSource.onmessage = message => {
-        if (
-          disposed ||
-          generation !== expectedGeneration ||
-          source !== nextSource
-        ) {
+      nextSource.onmessage = (message) => {
+        if (disposed || generation !== expectedGeneration || source !== nextSource) {
           return
         }
         try {
-          const notification = decodeServerNotification(
-            JSON.parse(message.data),
-          )
+          const notification = decodeServerNotification(JSON.parse(message.data))
           if (notification.params.subscriptionId !== subscription.subscriptionId) {
             throw new Error('事件通知与当前订阅不匹配。')
           }
@@ -501,21 +460,23 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
           }
           if (notification.method === 'event/replayComplete') {
             clearDeliveryTimer()
-            void drainEvents(expectedGeneration).then(async () => {
-              if (
-                disposed ||
-                generation !== expectedGeneration ||
-                failedDeliveryGeneration === expectedGeneration
-              ) {
-                return
-              }
-              reconnectAttempt = 0
-              if (replayCompleteGeneration === expectedGeneration) return
-              replayCompleteGeneration = expectedGeneration
-              await options.onReplayComplete?.()
-            }).catch(error => {
-              handleDeliveryFailure(error, expectedGeneration)
-            })
+            void drainEvents(expectedGeneration)
+              .then(async () => {
+                if (
+                  disposed ||
+                  generation !== expectedGeneration ||
+                  failedDeliveryGeneration === expectedGeneration
+                ) {
+                  return
+                }
+                reconnectAttempt = 0
+                if (replayCompleteGeneration === expectedGeneration) return
+                replayCompleteGeneration = expectedGeneration
+                await options.onReplayComplete?.()
+              })
+              .catch((error) => {
+                handleDeliveryFailure(error, expectedGeneration)
+              })
             return
           }
           if (notification.method === 'event/subscriptionClosed') {
@@ -540,19 +501,13 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     const flushAck = async (force = false): Promise<void> => {
       const ackSubscriptionId = subscriptionId
       const ackGeneration = generation
-      if (
-        !ackSubscriptionId ||
-        pendingPositions.size === 0 ||
-        (disposed && !force)
-      ) {
+      if (!ackSubscriptionId || pendingPositions.size === 0 || (disposed && !force)) {
         return
       }
-      const positions = [...pendingPositions].map(
-        ([positionStreamId, sequence]) => ({
-          streamId: positionStreamId,
-          sequence,
-        }),
-      )
+      const positions = [...pendingPositions].map(([positionStreamId, sequence]) => ({
+        streamId: positionStreamId,
+        sequence,
+      }))
       try {
         await call('event/ack', {
           subscriptionId: ackSubscriptionId,
@@ -561,14 +516,9 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
         for (const position of positions) {
           acknowledgedPositions.set(
             position.streamId,
-            Math.max(
-              acknowledgedPositions.get(position.streamId) ?? 0,
-              position.sequence,
-            ),
+            Math.max(acknowledgedPositions.get(position.streamId) ?? 0, position.sequence),
           )
-          if (
-            (pendingPositions.get(position.streamId) ?? 0) <= position.sequence
-          ) {
+          if ((pendingPositions.get(position.streamId) ?? 0) <= position.sequence) {
             pendingPositions.delete(position.streamId)
           }
         }
@@ -610,7 +560,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
     options: AgentRpcSubscription,
     callback: (notification: AgentNotification) => void,
   ): () => void {
-    return subscribeEnvelope(options, events => {
+    return subscribeEnvelope(options, (events) => {
       for (const event of events) {
         callback(eventEnvelopeToAgentNotification(event))
       }
@@ -629,9 +579,7 @@ export function createAgentRpcClient(environment: AgentRpcClientEnvironment) {
   }
 }
 
-function eventEnvelopeToAgentNotification(
-  event: EventEnvelope,
-): AgentNotification {
+function eventEnvelopeToAgentNotification(event: EventEnvelope): AgentNotification {
   const payload = asRecord(event.payload)
   const turn = asRecord(payload.turn)
   const error = asRecord(payload.error)
@@ -669,11 +617,7 @@ function rpcHeaders(connectionId: string | null): HeadersInit {
 
 function normalizeRpcError(error: unknown): unknown {
   if (!(error instanceof RpcRemoteError)) return error
-  return new AgentRpcError(
-    error.rpcError.message,
-    error.rpcError.code,
-    error.rpcError.data,
-  )
+  return new AgentRpcError(error.rpcError.message, error.rpcError.code, error.rpcError.data)
 }
 
 function isUninitializedConnectionError(error: unknown): boolean {
@@ -693,7 +637,7 @@ function isCursorExpiredError(error: unknown): boolean {
 
 function defaultEventSourceFactory(): ((url: string) => EventSource) | null {
   if (typeof EventSource === 'undefined') return null
-  return url => new EventSource(url, { withCredentials: true })
+  return (url) => new EventSource(url, { withCredentials: true })
 }
 
 async function rpcHttpError(response: Response): Promise<string> {
@@ -707,9 +651,7 @@ async function rpcHttpError(response: Response): Promise<string> {
   }
 }
 
-async function rpcNotificationError(
-  response: Response,
-): Promise<RpcError | null> {
+async function rpcNotificationError(response: Response): Promise<RpcError | null> {
   const payload = await response.json().catch(() => null)
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return null
@@ -727,11 +669,7 @@ async function rpcNotificationError(
   if (value.data === undefined) {
     return { code: value.code, message: value.message }
   }
-  if (
-    !value.data ||
-    typeof value.data !== 'object' ||
-    Array.isArray(value.data)
-  ) {
+  if (!value.data || typeof value.data !== 'object' || Array.isArray(value.data)) {
     return null
   }
   const data = value.data as {

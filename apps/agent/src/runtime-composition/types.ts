@@ -1,10 +1,10 @@
-import type { Model } from "@earendil-works/pi-ai"
-import type { PermissionConfig, SubagentProfile } from "../domain"
-import type { PromptBundle } from "../prompt/types"
-import type { ToolExecutionContext } from "../tool/ToolExecutor"
-import type { WorkspaceService } from "../workspace/WorkspaceService"
-import type { ToolCatalog } from "../tool/ToolRegistry"
-import type { Model as ModelSchema } from "@codepilotx/model-schema"
+import type { Model } from '@earendil-works/pi-ai'
+import type { PermissionConfig, SubagentProfile } from '../domain'
+import type { PromptBundle } from '../prompt/types'
+import type { ToolExecutionContext } from '../tool/ToolExecutor'
+import type { WorkspaceService } from '../workspace/WorkspaceService'
+import type { ToolCatalog } from '../tool/ToolRegistry'
+import type { Model as ModelSchema } from '@codepilotx/model-schema'
 
 /** Stable identity for a turn composition. */
 export interface RuntimeCompositionIdentity {
@@ -28,7 +28,7 @@ export interface ResolvedModelSnapshot {
 
 /** Workspace scope attached to a runtime composition. */
 export interface RuntimeWorkspaceScope {
-  readonly kind: "project" | "projectless" | "legacy"
+  readonly kind: 'project' | 'projectless' | 'legacy'
   readonly cwd: string
   readonly roots: readonly string[]
   readonly outputDirectory: string | null
@@ -138,9 +138,7 @@ export interface RuntimeCompositionSnapshotV2 {
   readonly hashes: CompositionHashes
 }
 
-export type RuntimeCompositionSnapshot =
-  | RuntimeCompositionSnapshotV1
-  | RuntimeCompositionSnapshotV2
+export type RuntimeCompositionSnapshot = RuntimeCompositionSnapshotV1 | RuntimeCompositionSnapshotV2
 
 /** The runtime plan handed to the harness. */
 export interface RuntimeCompositionPlan {
@@ -156,7 +154,7 @@ export interface RuntimeCompositionBindings {
   readonly defaultCwd?: string
   readonly toolCatalog: ToolCatalog
   readonly skills: {
-    list(): SkillSnapshotV2["catalog"] | SkillSnapshot["skills"]
+    list(): SkillSnapshotV2['catalog'] | SkillSnapshot['skills']
     read(name: string): Promise<unknown>
     documentRead(path: string, hash: string): Promise<{ name: string } | undefined>
   }
@@ -174,18 +172,20 @@ export interface BoundRuntimeComposition {
   release(): Promise<void>
 }
 
-export type RuntimeCompositionProfile = SubagentProfile | "main"
+export type RuntimeCompositionProfile = SubagentProfile | 'main'
 
 export interface RuntimeCompositionUnavailableError extends Error {
-  readonly code: "RUNTIME_COMPOSITION_UNAVAILABLE"
+  readonly code: 'RUNTIME_COMPOSITION_UNAVAILABLE'
   readonly reason: string
 }
 
-export const RUNTIME_COMPOSITION_UNAVAILABLE_CODE = "RUNTIME_COMPOSITION_UNAVAILABLE" as const
+export const RUNTIME_COMPOSITION_UNAVAILABLE_CODE = 'RUNTIME_COMPOSITION_UNAVAILABLE' as const
 
-export function createRuntimeCompositionUnavailable(reason: string): RuntimeCompositionUnavailableError {
+export function createRuntimeCompositionUnavailable(
+  reason: string,
+): RuntimeCompositionUnavailableError {
   const error = new Error(reason) as RuntimeCompositionUnavailableError
-  error.name = "RuntimeCompositionUnavailableError"
+  error.name = 'RuntimeCompositionUnavailableError'
   ;(error as { code: string }).code = RUNTIME_COMPOSITION_UNAVAILABLE_CODE
   return error
 }

@@ -13,14 +13,7 @@ export type AgentWorkspace = {
 }
 
 export type AgentSessionStatus =
-  | 'idle'
-  | 'queued'
-  | 'waiting'
-  | 'running'
-  | 'done'
-  | 'error'
-  | 'interrupted'
-  | 'cancelled'
+  'idle' | 'queued' | 'waiting' | 'running' | 'done' | 'error' | 'interrupted' | 'cancelled'
 
 export type AgentThinkingMode = 'default' | 'enabled' | 'adaptive' | 'disabled'
 

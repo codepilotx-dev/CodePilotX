@@ -51,7 +51,11 @@ export const ProductPlaceholder: React.FC<ProductPlaceholderProps> = ({
 
         {/* Aspect Ratio Badge */}
         <div className="flex items-center gap-1.5">
-          {badge ? <span className="font-mono text-[9px] text-white/35">{badge}</span> : <span className="w-8" />}
+          {badge ? (
+            <span className="font-mono text-[9px] text-white/35">{badge}</span>
+          ) : (
+            <span className="w-8" />
+          )}
         </div>
       </div>
 
@@ -65,7 +69,11 @@ export const ProductPlaceholder: React.FC<ProductPlaceholderProps> = ({
             className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.01]"
           />
         ) : (
-          <div className="product-media-fill h-full w-full" data-asset-slot={label} aria-hidden="true" />
+          <div
+            className="product-media-fill h-full w-full"
+            data-asset-slot={label}
+            aria-hidden="true"
+          />
         )}
       </div>
     </div>

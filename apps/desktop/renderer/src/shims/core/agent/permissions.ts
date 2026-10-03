@@ -1,14 +1,7 @@
 export type CodePilotXApprovalsReviewer = 'user' | 'auto_review'
-export type CodePilotXSandboxMode =
-  | 'read-only'
-  | 'workspace-write'
-  | 'danger-full-access'
+export type CodePilotXSandboxMode = 'read-only' | 'workspace-write' | 'danger-full-access'
 
-export type AgentPermissionProfile =
-  | ':read-only'
-  | ':workspace'
-  | ':danger-full-access'
-  | string
+export type AgentPermissionProfile = ':read-only' | ':workspace' | ':danger-full-access' | string
 
 export type AgentApprovalMode = 'on-request' | 'on-failure' | 'never' | 'untrusted'
 
@@ -55,11 +48,7 @@ export type AgentPermissionRequest = {
   autoReviewFallbackReason?: string
 }
 
-export type DesktopAgentPermissionMode =
-  | 'default'
-  | 'auto-review'
-  | 'full-access'
-  | 'custom'
+export type DesktopAgentPermissionMode = 'default' | 'auto-review' | 'full-access' | 'custom'
 
 export const DESKTOP_AGENT_PERMISSION_MODES = [
   'default',
@@ -68,9 +57,7 @@ export const DESKTOP_AGENT_PERMISSION_MODES = [
   'custom',
 ] as const satisfies readonly DesktopAgentPermissionMode[]
 
-export function normalizeDesktopAgentPermissionMode(
-  mode: unknown,
-): DesktopAgentPermissionMode {
+export function normalizeDesktopAgentPermissionMode(mode: unknown): DesktopAgentPermissionMode {
   switch (mode) {
     case 'auto':
     case 'acceptEdits':
@@ -90,9 +77,7 @@ export function normalizeDesktopAgentPermissionMode(
   }
 }
 
-export function isDesktopAgentPermissionMode(
-  value: unknown,
-): value is DesktopAgentPermissionMode {
+export function isDesktopAgentPermissionMode(value: unknown): value is DesktopAgentPermissionMode {
   return (
     typeof value === 'string' &&
     (DESKTOP_AGENT_PERMISSION_MODES as readonly string[]).includes(value)

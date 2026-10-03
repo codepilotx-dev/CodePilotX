@@ -26,12 +26,8 @@ function snapshot(
     threadId: 'thread-1',
     profileId: 'windows-pwsh',
     state: 'running',
-    oldestSequence: chunks.length
-      ? Math.min(...chunks.map(item => item.sequence))
-      : 0,
-    nextSequence: chunks.length
-      ? Math.max(...chunks.map(item => item.sequence)) + 1
-      : 0,
+    oldestSequence: chunks.length ? Math.min(...chunks.map((item) => item.sequence)) : 0,
+    nextSequence: chunks.length ? Math.max(...chunks.map((item) => item.sequence)) + 1 : 0,
     chunks,
     gap: false,
     truncated: false,
@@ -49,7 +45,7 @@ describe('terminal output projection', () => {
       snapshot([chunk(1), chunk(0)]),
     )
     expect(initial.reset).toBe(true)
-    expect(initial.chunks.map(item => item.sequence)).toEqual([0, 1])
+    expect(initial.chunks.map((item) => item.sequence)).toEqual([0, 1])
     expect(initial.state.nextSequence).toBe(2)
 
     const duplicate = consumeTerminalEvent(initial.state, {
@@ -61,10 +57,7 @@ describe('terminal output projection', () => {
   })
 
   test('requests replay when a live chunk skips a sequence', () => {
-    const initial = consumeTerminalSnapshot(
-      createTerminalOutputState(),
-      snapshot([chunk(0)]),
-    )
+    const initial = consumeTerminalSnapshot(createTerminalOutputState(), snapshot([chunk(0)]))
     const update = consumeTerminalEvent(initial.state, {
       type: 'output',
       chunk: chunk(2),
@@ -76,15 +69,15 @@ describe('terminal output projection', () => {
   })
 
   test('resets output for a new instance and records exit state', () => {
-    const initial = consumeTerminalSnapshot(
-      createTerminalOutputState(),
-      snapshot([chunk(0)]),
+    const initial = consumeTerminalSnapshot(createTerminalOutputState(), snapshot([chunk(0)]))
+    const restarted = consumeTerminalSnapshot(
+      initial.state,
+      snapshot([], {
+        instanceId: 'instance-2',
+        oldestSequence: 0,
+        nextSequence: 0,
+      }),
     )
-    const restarted = consumeTerminalSnapshot(initial.state, snapshot([], {
-      instanceId: 'instance-2',
-      oldestSequence: 0,
-      nextSequence: 0,
-    }))
     expect(restarted.reset).toBe(true)
 
     const exited = consumeTerminalEvent(restarted.state, {
@@ -100,19 +93,21 @@ describe('terminal output projection', () => {
   })
 
   test('adopts a truncated snapshot from its oldest sequence and surfaces truncation', () => {
-    const initial = consumeTerminalSnapshot(
-      createTerminalOutputState(),
-      snapshot([chunk(0)]),
-    )
+    const initial = consumeTerminalSnapshot(createTerminalOutputState(), snapshot([chunk(0)]))
     // 有界缓冲淘汰了最旧的输出：从仍可用的最早序号继续，并明确告知已截断。
-    const truncated = consumeTerminalSnapshot(initial.state, snapshot(
-      [chunk(8), chunk(9)],
-      { gap: true, truncated: true, oldestSequence: 8, nextSequence: 10 },
-    ))
+    const truncated = consumeTerminalSnapshot(
+      initial.state,
+      snapshot([chunk(8), chunk(9)], {
+        gap: true,
+        truncated: true,
+        oldestSequence: 8,
+        nextSequence: 10,
+      }),
+    )
 
     expect(truncated.reset).toBe(true)
     expect(truncated.replayRequired).toBe(false)
-    expect(truncated.chunks.map(item => item.sequence)).toEqual([8, 9])
+    expect(truncated.chunks.map((item) => item.sequence)).toEqual([8, 9])
     expect(truncated.state.truncated).toBe(true)
     expect(truncated.state.nextSequence).toBe(10)
   })

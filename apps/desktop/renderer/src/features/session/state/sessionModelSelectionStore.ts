@@ -22,7 +22,7 @@ const empty: SelectionState = { selection: null, loading: true, error: null }
 const states = new Map<string | null, SelectionState>()
 const pending = new Map<string | null, Promise<SessionModelSelection>>()
 const listeners = new Set<() => void>()
-const emit = () => listeners.forEach(listener => listener())
+const emit = () => listeners.forEach((listener) => listener())
 
 const thinkingModeForVariant = (variant: string | undefined): DesktopThinkingMode =>
   variant === 'enabled'
@@ -58,9 +58,7 @@ async function loadRecentNewThreadSelection(
   let preferredCheckFailed = false
   if (preferred?.providerID && preferred.model) {
     try {
-      preferredUsable = await isSelectableRecentNewThreadModel(
-        recentModelFromSelection(preferred),
-      )
+      preferredUsable = await isSelectableRecentNewThreadModel(recentModelFromSelection(preferred))
     } catch {
       preferredCheckFailed = true
     }
@@ -82,7 +80,9 @@ async function loadRecentNewThreadSelection(
 export const sessionModelSelections = {
   subscribe(listener: () => void) {
     listeners.add(listener)
-    return () => { listeners.delete(listener) }
+    return () => {
+      listeners.delete(listener)
+    }
   },
   getSnapshot(id: string | null): SelectionState {
     return states.get(id) ?? empty
@@ -90,7 +90,11 @@ export const sessionModelSelections = {
   set(id: string | null, selection: SessionModelSelection) {
     pending.delete(id)
     const { providerID, model, thinkingMode, variant } = selection
-    states.set(id, { selection: { providerID, model, thinkingMode, ...(variant ? { variant } : {}) }, loading: false, error: null })
+    states.set(id, {
+      selection: { providerID, model, thinkingMode, ...(variant ? { variant } : {}) },
+      loading: false,
+      error: null,
+    })
     emit()
   },
   /**
@@ -112,26 +116,36 @@ export const sessionModelSelections = {
     // 一级页每次进入都重新验证最近模型，不复用长期缓存；已有任务沿用内存选择。
     if (existing && id !== null) return { ...existing }
     const request = pending.get(id)
-    const operation = request ?? (async () => {
-      if (!id) return loadRecentNewThreadSelection(existing ?? null)
-      const snapshot = await desktopClient.getSession(id)
-      if (!snapshot) throw new Error('会话模型加载失败，请重试')
-      const history = snapshot.settings
-      if (history?.providerID && history.model) {
-        return {
-          providerID: history.providerID, model: history.model,
-          thinkingMode: history.thinkingMode ?? 'default', variant: history.variant,
+    const operation =
+      request ??
+      (async () => {
+        if (!id) return loadRecentNewThreadSelection(existing ?? null)
+        const snapshot = await desktopClient.getSession(id)
+        if (!snapshot) throw new Error('会话模型加载失败，请重试')
+        const history = snapshot.settings
+        if (history?.providerID && history.model) {
+          return {
+            providerID: history.providerID,
+            model: history.model,
+            thinkingMode: history.thinkingMode ?? 'default',
+            variant: history.variant,
+          }
         }
-      }
-      const defaults = await desktopClient.getModelProviderState()
-      return {
-        providerID: defaults.selectedProviderID, model: defaults.modelConfigured ? defaults.model : '',
-        thinkingMode: defaults.variant === 'enabled' ? 'enabled' as const
-          : defaults.variant === 'adaptive' ? 'adaptive' as const
-          : defaults.variant === 'disabled' ? 'disabled' as const : 'default' as const,
-        ...(defaults.variant ? { variant: defaults.variant } : {}),
-      }
-    })()
+        const defaults = await desktopClient.getModelProviderState()
+        return {
+          providerID: defaults.selectedProviderID,
+          model: defaults.modelConfigured ? defaults.model : '',
+          thinkingMode:
+            defaults.variant === 'enabled'
+              ? ('enabled' as const)
+              : defaults.variant === 'adaptive'
+                ? ('adaptive' as const)
+                : defaults.variant === 'disabled'
+                  ? ('disabled' as const)
+                  : ('default' as const),
+          ...(defaults.variant ? { variant: defaults.variant } : {}),
+        }
+      })()
     if (!request) {
       // 一级页重新验证期间保留当前选择，避免模型选择器闪回空状态。
       if (!existing) {
@@ -151,8 +165,11 @@ export const sessionModelSelections = {
       if (selected) return { ...selected }
       if (pending.get(id) === operation) {
         pending.delete(id)
-        states.set(id, { selection: null, loading: false,
-          error: error instanceof Error ? error.message : String(error) })
+        states.set(id, {
+          selection: null,
+          loading: false,
+          error: error instanceof Error ? error.message : String(error),
+        })
         emit()
       }
       throw error

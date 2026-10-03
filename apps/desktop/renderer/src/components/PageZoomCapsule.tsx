@@ -7,11 +7,7 @@ import type {
 import { Minus, Plus } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
-import {
-  enterTween,
-  exitTween,
-  motionTransition,
-} from '../features/motion/motionTransitions.js'
+import { enterTween, exitTween, motionTransition } from '../features/motion/motionTransitions.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
 import { Button } from './ui/Button.js'
 import { IconButton } from './ui/IconButton.js'
@@ -46,13 +42,13 @@ export function PageZoomCapsule(): React.ReactNode {
     if (!bridge?.getPageZoom || !bridge.onPageZoomChanged) return
     let mounted = true
     let changed = false
-    const unsubscribe = bridge.onPageZoomChanged(next => {
+    const unsubscribe = bridge.onPageZoomChanged((next) => {
       changed = true
       setState(next)
       setVisible(true)
       scheduleHide()
     })
-    void bridge.getPageZoom().then(next => {
+    void bridge.getPageZoom().then((next) => {
       if (mounted && !changed) setState(next)
     })
     return () => {
@@ -85,7 +81,7 @@ export function PageZoomCapsule(): React.ReactNode {
             transition: motionTransition(reducedMotion, exitTween),
           }}
           initial={reducedMotion ? false : { opacity: 0, y: -4 }}
-          onBlur={event => {
+          onBlur={(event) => {
             if (!event.currentTarget.contains(event.relatedTarget)) {
               focusedRef.current = false
               resumeHide()

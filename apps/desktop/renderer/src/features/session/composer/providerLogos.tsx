@@ -9,19 +9,8 @@ import { RemoteImage } from '../../../components/ui/RemoteImage.js'
  * catalogue logo fall back to the shared generic provider glyph, never to a
  * locally bundled brand mark.
  */
-export function ProviderLogo({
-  logoURL,
-}: {
-  logoURL?: string
-}): React.ReactNode {
-  const fallback = (
-    <Server
-      aria-hidden="true"
-      size={14}
-      data-icon-kind="artwork"
-      strokeWidth={2}
-    />
-  )
+export function ProviderLogo({ logoURL }: { logoURL?: string }): React.ReactNode {
+  const fallback = <Server aria-hidden="true" size={14} data-icon-kind="artwork" strokeWidth={2} />
 
   return (
     <span aria-hidden="true" className="composer-provider-logo">

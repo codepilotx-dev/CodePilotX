@@ -30,11 +30,12 @@ export function createDraftAttachmentPreviewTab(
       kind: 'attachment-preview',
       attachment: {
         id: attachment.id,
-        kind: attachment.pathKind === 'directory'
-          ? 'directory'
-          : attachment.kind === 'image' || attachment.kind === 'text'
-            ? attachment.kind
-            : 'binary',
+        kind:
+          attachment.pathKind === 'directory'
+            ? 'directory'
+            : attachment.kind === 'image' || attachment.kind === 'text'
+              ? attachment.kind
+              : 'binary',
         name: attachment.name,
         mediaType: attachment.mediaType,
         sizeBytes: attachment.sizeBytes,
@@ -43,14 +44,7 @@ export function createDraftAttachmentPreviewTab(
     }
   }
   const content = resolveDraftAttachmentPreviewContent(attachment)
-  return content
-    ? createDraftTab(
-        attachment,
-        content.kind,
-        content.data,
-        content.encoding,
-      )
-    : null
+  return content ? createDraftTab(attachment, content.kind, content.data, content.encoding) : null
 }
 
 export function createThreadLocalContextPreviewTab(
@@ -75,9 +69,7 @@ export function createThreadLocalContextPreviewTab(
   }
 }
 
-export function canPreviewDraftAttachment(
-  attachment: DesktopComposerAttachment,
-): boolean {
+export function canPreviewDraftAttachment(attachment: DesktopComposerAttachment): boolean {
   return createDraftAttachmentPreviewTab(attachment) !== null
 }
 

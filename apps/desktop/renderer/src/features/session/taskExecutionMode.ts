@@ -1,8 +1,7 @@
 import type { DesktopWorktreeEligibility } from '../../../shared/types.js'
 
 export type TaskExecution =
-  | { kind: 'local' }
-  | { kind: 'worktree'; startingState: { type: 'working-tree' } }
+  { kind: 'local' } | { kind: 'worktree'; startingState: { type: 'working-tree' } }
 
 const WORKTREE_EXECUTION: TaskExecution = {
   kind: 'worktree',

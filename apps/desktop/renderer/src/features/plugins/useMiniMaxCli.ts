@@ -5,9 +5,9 @@ import { desktopClient } from '../../services/desktop-client/index.js'
 type CodedError = Error & { code?: string }
 
 const unsupported = (cause: unknown) =>
-  cause instanceof Error
-  && ((cause as CodedError).code === 'AGENT_OPERATION_UNSUPPORTED'
-    || cause.message.includes('AGENT_OPERATION_UNSUPPORTED'))
+  cause instanceof Error &&
+  ((cause as CodedError).code === 'AGENT_OPERATION_UNSUPPORTED' ||
+    cause.message.includes('AGENT_OPERATION_UNSUPPORTED'))
 
 export type MiniMaxCliState = {
   status: MiniMaxCliStatus | undefined
@@ -30,26 +30,35 @@ export function useMiniMaxCli(): MiniMaxCliState {
   useEffect(() => {
     let cancelled = false
     setError(null)
-    desktopClient.getMiniMaxCliStatus(reloadKey > 0).then(result => {
-      if (cancelled) return
-      setStatus(result)
-      setUnsupported(false)
-    }).catch(cause => {
-      if (cancelled) return
-      if (unsupported(cause)) {
-        setUnsupported(true)
-        setStatus(undefined)
-        return
-      }
-      setError(cause instanceof Error ? cause.message : 'MiniMax CLI 状态读取失败。')
-    })
-    return () => { cancelled = true }
+    desktopClient
+      .getMiniMaxCliStatus(reloadKey > 0)
+      .then((result) => {
+        if (cancelled) return
+        setStatus(result)
+        setUnsupported(false)
+      })
+      .catch((cause) => {
+        if (cancelled) return
+        if (unsupported(cause)) {
+          setUnsupported(true)
+          setStatus(undefined)
+          return
+        }
+        setError(cause instanceof Error ? cause.message : 'MiniMax CLI 状态读取失败。')
+      })
+    return () => {
+      cancelled = true
+    }
   }, [reloadKey])
 
-  useEffect(() => desktopClient.onMiniMaxCliUpdated(next => {
-    setStatus(next)
-    setError(null)
-  }), [])
+  useEffect(
+    () =>
+      desktopClient.onMiniMaxCliUpdated((next) => {
+        setStatus(next)
+        setError(null)
+      }),
+    [],
+  )
 
   const install = useCallback(async () => {
     setBusy(true)
@@ -89,7 +98,7 @@ export function useMiniMaxCli(): MiniMaxCliState {
     busy,
     unsupported: isUnsupported,
     error,
-    refresh: () => setReloadKey(current => current + 1),
+    refresh: () => setReloadKey((current) => current + 1),
     install,
     uninstall,
   }

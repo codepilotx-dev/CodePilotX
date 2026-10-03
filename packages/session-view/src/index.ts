@@ -1,1 +1,1 @@
-export * from "./canonical/index"
+export * from './canonical/index'

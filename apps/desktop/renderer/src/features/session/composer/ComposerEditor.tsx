@@ -1,27 +1,11 @@
-import {
-  history,
-  redo,
-  redoDepth,
-  undo,
-  undoDepth,
-} from 'prosemirror-history'
+import { history, redo, redoDepth, undo, undoDepth } from 'prosemirror-history'
 import { baseKeymap, splitBlock } from 'prosemirror-commands'
 import { keymap } from 'prosemirror-keymap'
 import { Schema, type Node as ProseMirrorNode } from 'prosemirror-model'
-import {
-  AllSelection,
-  EditorState,
-  NodeSelection,
-  TextSelection,
-} from 'prosemirror-state'
+import { AllSelection, EditorState, NodeSelection, TextSelection } from 'prosemirror-state'
 import type { Transaction } from 'prosemirror-state'
 import { EditorView } from 'prosemirror-view'
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-} from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { useEditCommands } from '../../../components/ui/EditCommandProvider.js'
 import type { ComposerDocument, ComposerDocumentToken } from './composerTypes.js'
 import { composerDocumentsEqual } from './composerSkillToken.js'
@@ -42,23 +26,29 @@ export const composerSchema = new Schema({
       group: 'inline',
       inline: true,
       selectable: true,
-      toDOM: node => {
+      toDOM: (node) => {
         const name = String(node.attrs.name || node.attrs.label)
-        return ['span', {
-          'aria-label': `技能 ${node.attrs.label}`,
-          'data-composer-token': 'skill',
-          'data-token-id': node.attrs.id,
-          'data-token-skill': node.attrs.label,
-          contenteditable: 'false',
-          role: 'link',
-          tabindex: '0',
-          class: 'composer-inline-skill-token',
-        },
-        ['span', {
-          'aria-hidden': 'true',
-          class: 'composer-inline-skill-token-fallback-icon',
-        }, '✦'],
-        ['span', { class: 'composer-inline-skill-token-label' }, String(node.attrs.label)],
+        return [
+          'span',
+          {
+            'aria-label': `技能 ${node.attrs.label}`,
+            'data-composer-token': 'skill',
+            'data-token-id': node.attrs.id,
+            'data-token-skill': node.attrs.label,
+            contenteditable: 'false',
+            role: 'link',
+            tabindex: '0',
+            class: 'composer-inline-skill-token',
+          },
+          [
+            'span',
+            {
+              'aria-hidden': 'true',
+              class: 'composer-inline-skill-token-fallback-icon',
+            },
+            '✦',
+          ],
+          ['span', { class: 'composer-inline-skill-token-label' }, String(node.attrs.label)],
         ]
       },
     },
@@ -73,18 +63,24 @@ export const composerSchema = new Schema({
       group: 'inline',
       inline: true,
       selectable: true,
-      toDOM: node => ['span', {
-        'aria-label': `${node.attrs.kind === 'browser' ? '网页' : '任务'}引用 ${node.attrs.label}`,
-        'data-composer-token': node.attrs.kind,
-        'data-token-id': node.attrs.id,
-        contenteditable: 'false',
-        class: 'composer-inline-context-token',
-      },
-      ['span', {
-        'aria-hidden': 'true',
-        class: 'composer-inline-context-token-icon',
-      }, node.attrs.kind === 'browser' ? '◎' : '@'],
-      ['span', { class: 'composer-inline-context-token-label' }, String(node.attrs.label)],
+      toDOM: (node) => [
+        'span',
+        {
+          'aria-label': `${node.attrs.kind === 'browser' ? '网页' : '任务'}引用 ${node.attrs.label}`,
+          'data-composer-token': node.attrs.kind,
+          'data-token-id': node.attrs.id,
+          contenteditable: 'false',
+          class: 'composer-inline-context-token',
+        },
+        [
+          'span',
+          {
+            'aria-hidden': 'true',
+            class: 'composer-inline-context-token-icon',
+          },
+          node.attrs.kind === 'browser' ? '◎' : '@',
+        ],
+        ['span', { class: 'composer-inline-context-token-label' }, String(node.attrs.label)],
       ],
     },
   },
@@ -94,11 +90,7 @@ export type ComposerEditorHandle = {
   focus: () => void
   insertText: (text: string) => void
   replaceTextRange: (start: number, end: number, text: string) => void
-  replaceTextRangeWithToken: (
-    start: number,
-    end: number,
-    token: ComposerDocumentToken,
-  ) => void
+  replaceTextRangeWithToken: (start: number, end: number, token: ComposerDocumentToken) => void
 }
 
 export type ComposerEditorProps = {
@@ -161,37 +153,41 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
       onPasteFiles,
     }
 
-    useImperativeHandle(forwardedRef, () => ({
-      focus: () => viewRef.current?.focus(),
-      insertText: text => {
-        const view = viewRef.current
-        if (!view || !text) return
-        view.dispatch(insertTextTransaction(view.state, text).scrollIntoView())
-        view.focus()
-      },
-      replaceTextRange: (start, end, text) => {
-        const view = viewRef.current
-        if (!view) return
-        const from = positionAtTextOffset(view.state.doc, start)
-        const to = positionAtTextOffset(view.state.doc, end)
-        view.dispatch(view.state.tr.insertText(text, from, to).scrollIntoView())
-        view.focus()
-      },
-      replaceTextRangeWithToken: (start, end, token) => {
-        const view = viewRef.current
-        if (!view) return
-        const from = positionAtTextOffset(view.state.doc, start)
-        const to = positionAtTextOffset(view.state.doc, end)
-        const node = composerTokenNode(token)
-        const transaction = view.state.tr.replaceWith(from, to, node)
-        view.dispatch(
-          transaction
-            .setSelection(TextSelection.create(transaction.doc, from + node.nodeSize))
-            .scrollIntoView(),
-        )
-        view.focus()
-      },
-    }), [])
+    useImperativeHandle(
+      forwardedRef,
+      () => ({
+        focus: () => viewRef.current?.focus(),
+        insertText: (text) => {
+          const view = viewRef.current
+          if (!view || !text) return
+          view.dispatch(insertTextTransaction(view.state, text).scrollIntoView())
+          view.focus()
+        },
+        replaceTextRange: (start, end, text) => {
+          const view = viewRef.current
+          if (!view) return
+          const from = positionAtTextOffset(view.state.doc, start)
+          const to = positionAtTextOffset(view.state.doc, end)
+          view.dispatch(view.state.tr.insertText(text, from, to).scrollIntoView())
+          view.focus()
+        },
+        replaceTextRangeWithToken: (start, end, token) => {
+          const view = viewRef.current
+          if (!view) return
+          const from = positionAtTextOffset(view.state.doc, start)
+          const to = positionAtTextOffset(view.state.doc, end)
+          const node = composerTokenNode(token)
+          const transaction = view.state.tr.replaceWith(from, to, node)
+          view.dispatch(
+            transaction
+              .setSelection(TextSelection.create(transaction.doc, from + node.nodeSize))
+              .scrollIntoView(),
+          )
+          view.focus()
+        },
+      }),
+      [],
+    )
 
     useEffect(() => {
       const mount = mountRef.current
@@ -202,10 +198,7 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
       )
       const state = EditorState.create({
         doc: initialDocument,
-        selection: TextSelection.create(
-          initialDocument,
-          positionAtTextOffset(initialDocument, 0),
-        ),
+        selection: TextSelection.create(initialDocument, positionAtTextOffset(initialDocument, 0)),
         plugins: [
           history(),
           keymap({
@@ -232,9 +225,7 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
           view.updateState(nextState)
           const documentChanged = transaction.steps.length > 0
           if (documentChanged) {
-            const nextDocument = composerDocumentFromProseMirrorDocument(
-              nextState.doc,
-            )
+            const nextDocument = composerDocumentFromProseMirrorDocument(nextState.doc)
             if (callbacksRef.current.onDocumentChange) {
               callbacksRef.current.onDocumentChange(nextDocument)
             } else {
@@ -284,10 +275,7 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
               const current = viewRef.current
               if (current) {
                 callbacksRef.current.onSelectionChange(
-                  textOffsetAtPosition(
-                    current.state,
-                    current.state.selection.from,
-                  ),
+                  textOffsetAtPosition(current.state, current.state.selection.from),
                 )
               }
             })
@@ -307,13 +295,11 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
             copy: !selection.empty,
             paste: true,
             delete: !selection.empty,
-            selectAll:
-              view.state.doc.content.size > 0 &&
-              !(selection instanceof AllSelection),
+            selectAll: view.state.doc.content.size > 0 && !(selection instanceof AllSelection),
           }
         },
         focus: () => view.focus(),
-        perform: action => {
+        perform: (action) => {
           if (action === 'undo') return undo(view.state, view.dispatch)
           if (action === 'redo') return redo(view.state, view.dispatch)
           if (action === 'delete') {
@@ -323,9 +309,7 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
           }
           if (action === 'selectAll') {
             view.dispatch(
-              view.state.tr
-                .setSelection(new AllSelection(view.state.doc))
-                .scrollIntoView(),
+              view.state.tr.setSelection(new AllSelection(view.state.doc)).scrollIntoView(),
             )
             return true
           }
@@ -350,15 +334,11 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
           composerDocumentFromProseMirrorDocument(view.state.doc),
           nextDocument,
         )
-      ) return
+      )
+        return
 
-      const previousOffset = textOffsetAtPosition(
-        view.state,
-        view.state.selection.from,
-      )
-      const nextProseMirrorDocument = composerDocumentToProseMirrorDocument(
-        nextDocument,
-      )
+      const previousOffset = textOffsetAtPosition(view.state, view.state.selection.from)
+      const nextProseMirrorDocument = composerDocumentToProseMirrorDocument(nextDocument)
       const nextState = EditorState.create({
         doc: nextProseMirrorDocument,
         plugins: view.state.plugins,
@@ -383,11 +363,7 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
       dom.setAttribute('aria-haspopup', 'menu')
       setOptionalAttribute(dom, 'aria-controls', ariaControls)
       setOptionalAttribute(dom, 'aria-describedby', ariaDescribedBy)
-      setOptionalAttribute(
-        dom,
-        'aria-activedescendant',
-        ariaActiveDescendant,
-      )
+      setOptionalAttribute(dom, 'aria-activedescendant', ariaActiveDescendant)
     }, [
       ariaActiveDescendant,
       ariaControls,
@@ -402,9 +378,7 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
   },
 )
 
-export function composerDocumentToProseMirrorDocument(
-  document: ComposerDocument,
-) {
+export function composerDocumentToProseMirrorDocument(document: ComposerDocument) {
   const lines = document.text.split('\n')
   const tokens = document.tokens
     .map((token, index) => ({ token, index }))
@@ -433,23 +407,18 @@ export function composerDocumentToProseMirrorDocument(
   return composerSchema.nodes.doc.create(null, paragraphs)
 }
 
-export function insertTextTransaction(
-  state: EditorState,
-  text: string,
-): Transaction {
+export function insertTextTransaction(state: EditorState, text: string): Transaction {
   return state.tr.insertText(text, state.selection.from, state.selection.to)
 }
 
-export function composerDocumentFromProseMirrorDocument(
-  doc: EditorState['doc'],
-): ComposerDocument {
+export function composerDocumentFromProseMirrorDocument(doc: EditorState['doc']): ComposerDocument {
   const lines: string[] = []
   const tokens: ComposerDocumentToken[] = []
   let textOffset = 0
 
   doc.forEach((paragraph, paragraphIndex) => {
     let line = ''
-    paragraph.forEach(node => {
+    paragraph.forEach((node) => {
       const token = composerTokenFromNode(node)
       if (token) {
         tokens.push({
@@ -473,9 +442,7 @@ function textFromDocument(doc: EditorState['doc']): string {
   return composerDocumentFromProseMirrorDocument(doc).text
 }
 
-function composerTokenFromNode(
-  node: ProseMirrorNode,
-): ComposerDocumentToken | null {
+function composerTokenFromNode(node: ProseMirrorNode): ComposerDocumentToken | null {
   if (node.type.name === 'context_token') {
     const kind = node.attrs.kind === 'browser' ? 'browser' : 'thread'
     return {
@@ -531,7 +498,7 @@ function positionAtTextOffset(doc: EditorState['doc'], offset: number): number {
     if (remaining < 0) return
     let inlinePosition = paragraphOffset + 1
 
-    paragraph.forEach(node => {
+    paragraph.forEach((node) => {
       if (remaining < 0) return
       const token = composerTokenFromNode(node)
       if (token) {
@@ -563,11 +530,7 @@ function positionAtTextOffset(doc: EditorState['doc'], offset: number): number {
   return Math.min(result, doc.content.size)
 }
 
-function setOptionalAttribute(
-  element: HTMLElement,
-  name: string,
-  value: string | undefined,
-): void {
+function setOptionalAttribute(element: HTMLElement, name: string, value: string | undefined): void {
   if (value) element.setAttribute(name, value)
   else element.removeAttribute(name)
 }

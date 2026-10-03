@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { toUserErrorMessage } from '../src/utils/errors.js'
-import { createTaskSession, executeComposerSubmitTransaction } from '../src/features/session/composer/composerSubmitTransaction.js'
+import {
+  createTaskSession,
+  executeComposerSubmitTransaction,
+} from '../src/features/session/composer/composerSubmitTransaction.js'
 import { ComposerDraftStore } from '../src/features/session/composer/composerDraftStore.js'
 import { createComposerDocument } from '../src/features/session/composer/composerTypes.js'
 import type { ComposerDraft } from '../src/features/session/composer/composerTypes.js'
@@ -10,63 +13,81 @@ import { CommandMenuTaskGroup } from '../src/features/search/CommandMenuDialog.j
 
 describe('toUserErrorMessage sanitization and mapping', () => {
   test('maps internal errors and SQLite errors to safe user message without leaking technical details', () => {
-    expect(toUserErrorMessage({ errorCode: 'INTERNAL_ERROR', message: 'Agent 内部错误：database locked' }))
-      .toBe('Agent 发生内部错误，请重试。')
+    expect(
+      toUserErrorMessage({
+        errorCode: 'INTERNAL_ERROR',
+        message: 'Agent 内部错误：database locked',
+      }),
+    ).toBe('Agent 发生内部错误，请重试。')
 
-    expect(toUserErrorMessage({ code: -32603, message: 'Internal JSON-RPC error' }))
-      .toBe('Agent 发生内部错误，请重试。')
+    expect(toUserErrorMessage({ code: -32603, message: 'Internal JSON-RPC error' })).toBe(
+      'Agent 发生内部错误，请重试。',
+    )
 
-    expect(toUserErrorMessage(new Error('SqliteError: no such table: threads at Object.query (db.ts:42)')))
-      .toBe('Agent 发生内部错误，请重试。')
+    expect(
+      toUserErrorMessage(
+        new Error('SqliteError: no such table: threads at Object.query (db.ts:42)'),
+      ),
+    ).toBe('Agent 发生内部错误，请重试。')
 
-    expect(toUserErrorMessage('SqliteError: constraint failed: UNIQUE constraint failed: threads.id'))
-      .toBe('Agent 发生内部错误，请重试。')
+    expect(
+      toUserErrorMessage('SqliteError: constraint failed: UNIQUE constraint failed: threads.id'),
+    ).toBe('Agent 发生内部错误，请重试。')
   })
 
   test('maps agent unavailable and network disconnection errors', () => {
-    expect(toUserErrorMessage({ errorCode: 'AGENT_UNAVAILABLE' }))
-      .toBe('Agent 暂时不可用，请稍后重试。')
+    expect(toUserErrorMessage({ errorCode: 'AGENT_UNAVAILABLE' })).toBe(
+      'Agent 暂时不可用，请稍后重试。',
+    )
 
-    expect(toUserErrorMessage(new Error('The app-server is unavailable. Please try again.')))
-      .toBe('Agent 暂时不可用，请稍后重试。')
+    expect(toUserErrorMessage(new Error('The app-server is unavailable. Please try again.'))).toBe(
+      'Agent 暂时不可用，请稍后重试。',
+    )
 
-    expect(toUserErrorMessage(new Error('fetch failed: connect ECONNREFUSED 127.0.0.1:49999')))
-      .toBe('Agent 暂时不可用，请稍后重试。')
+    expect(
+      toUserErrorMessage(new Error('fetch failed: connect ECONNREFUSED 127.0.0.1:49999')),
+    ).toBe('Agent 暂时不可用，请稍后重试。')
 
-    expect(toUserErrorMessage('无法连接到 Agent sidecar 服务'))
-      .toBe('Agent 暂时不可用，请稍后重试。')
+    expect(toUserErrorMessage('无法连接到 Agent sidecar 服务')).toBe(
+      'Agent 暂时不可用，请稍后重试。',
+    )
   })
 
   test('maps protocol and capability mismatches to restart/update message', () => {
-    expect(toUserErrorMessage({ errorCode: 'CAPABILITY_NOT_FOUND', message: 'Capability thread.execution.v2 not found' }))
-      .toBe('Agent 版本与桌面端不兼容，请重启或更新应用。')
+    expect(
+      toUserErrorMessage({
+        errorCode: 'CAPABILITY_NOT_FOUND',
+        message: 'Capability thread.execution.v2 not found',
+      }),
+    ).toBe('Agent 版本与桌面端不兼容，请重启或更新应用。')
 
-    expect(toUserErrorMessage({ code: -32601, message: 'Method not found' }))
-      .toBe('Agent 版本与桌面端不兼容，请重启或更新应用。')
+    expect(toUserErrorMessage({ code: -32601, message: 'Method not found' })).toBe(
+      'Agent 版本与桌面端不兼容，请重启或更新应用。',
+    )
 
-    expect(toUserErrorMessage(new Error('协议不匹配：Client requires thread-rpc-v4')))
-      .toBe('Agent 版本与桌面端不兼容，请重启或更新应用。')
+    expect(toUserErrorMessage(new Error('协议不匹配：Client requires thread-rpc-v4'))).toBe(
+      'Agent 版本与桌面端不兼容，请重启或更新应用。',
+    )
   })
 
   test('maps thread loading failures and strips RPC method names', () => {
-    expect(toUserErrorMessage({ errorCode: 'THREAD_NOT_FOUND' }))
-      .toBe('任务加载失败，请重试。')
+    expect(toUserErrorMessage({ errorCode: 'THREAD_NOT_FOUND' })).toBe('任务加载失败，请重试。')
 
-    expect(toUserErrorMessage(new Error('RPC method thread/list failed to respond'), 'thread-read'))
-      .toBe('任务加载失败，请重试。')
+    expect(
+      toUserErrorMessage(new Error('RPC method thread/list failed to respond'), 'thread-read'),
+    ).toBe('任务加载失败，请重试。')
 
-    expect(toUserErrorMessage(new Error('Failed to read thread snapshot: thread/read'), 'thread-read'))
-      .toBe('任务加载失败，请重试。')
+    expect(
+      toUserErrorMessage(new Error('Failed to read thread snapshot: thread/read'), 'thread-read'),
+    ).toBe('任务加载失败，请重试。')
   })
 
   test('strips RPC methods and stack traces from unknown technical errors', () => {
     const errorWithStack = `Error: RPC call turn/start failed\n    at Object.call (rpc.ts:120)\n    at Object.send (turn.ts:50)`
-    expect(toUserErrorMessage(errorWithStack))
-      .toBe('发送失败，请重试。')
+    expect(toUserErrorMessage(errorWithStack)).toBe('发送失败，请重试。')
 
     const projectListError = `Error: project/list encountered an issue`
-    expect(toUserErrorMessage(projectListError, 'project-list'))
-      .toBe('项目加载失败，请重试。')
+    expect(toUserErrorMessage(projectListError, 'project-list')).toBe('项目加载失败，请重试。')
   })
 })
 
@@ -154,10 +175,7 @@ describe('background reconciliation error throttling and recovery', () => {
 
     // 4. Subsequent failure after recovery notifies again
     notifyReconciliationError(new Error('thread/list connection dropped'))
-    expect(errorNotifications).toEqual([
-      '任务加载失败，请重试。',
-      '任务加载失败，请重试。',
-    ])
+    expect(errorNotifications).toEqual(['任务加载失败，请重试。', '任务加载失败，请重试。'])
   })
 })
 
@@ -168,7 +186,16 @@ describe('composer failure handling and draft preservation', () => {
     const draftContent: ComposerDraft = {
       clientId: 'draft-original',
       document: createComposerDocument('重要待发送提示词'),
-      attachments: [{ id: 'att-1', name: 'report.txt', mimeType: 'text/plain', size: 1024, path: '/tmp/report.txt', status: 'ready' }],
+      attachments: [
+        {
+          id: 'att-1',
+          name: 'report.txt',
+          mimeType: 'text/plain',
+          size: 1024,
+          path: '/tmp/report.txt',
+          status: 'ready',
+        },
+      ],
       collaborationMode: 'default',
     }
     store.set('home', draftContent)
@@ -209,7 +236,7 @@ describe('composer failure handling and draft preservation', () => {
     const notices: string[] = []
     await expect(
       createTaskSession({
-        onError: msg => notices.push(msg),
+        onError: (msg) => notices.push(msg),
         create: async () => {
           throw new Error('thread/create failed with internal error')
         },
@@ -246,13 +273,15 @@ describe('UI surfaces do not leak technical or catalog errors inline', () => {
         <CommandMenuTaskGroup
           catalogStatus={{ state: 'unavailable' }}
           query=""
-          tasks={[{
-            id: 'task-1',
-            title: '重构全局错误提示',
-            workspaceName: 'CodePilotX',
-            shortcutLabel: '1',
-            visualState: 'idle',
-          }]}
+          tasks={[
+            {
+              id: 'task-1',
+              title: '重构全局错误提示',
+              workspaceName: 'CodePilotX',
+              shortcutLabel: '1',
+              visualState: 'idle',
+            },
+          ]}
           onSelectTask={() => {}}
         />
       </Command>,

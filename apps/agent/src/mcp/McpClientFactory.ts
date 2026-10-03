@@ -1,27 +1,33 @@
-import type {
-  McpSanitizedError,
-  McpServerDeclaration,
-} from "@codepilotx/agent-protocol"
+import type { McpSanitizedError, McpServerDeclaration } from '@codepilotx/agent-protocol'
 import {
-  McpClient, McpHttpError, McpTimeoutError, StdioTransport, StreamableHttpTransport,
-  type CallToolResult, type ListResourcesResult, type McpTransport,
-  type ReadResourceResult, type Resource, type ResourceTemplate,
-  type StreamableHttpTransportOptions, type Tool,
-} from "@earendil-works/pi-mcp"
-import { McpOAuthAuthorizationRequiredError } from "@earendil-works/pi-mcp/oauth"
-import { z } from "zod"
-import { secretScrubber } from "../security/SecretScrubber"
-import type { McpOAuthCoordinator } from "./McpOAuthCoordinator"
+  McpClient,
+  McpHttpError,
+  McpTimeoutError,
+  StdioTransport,
+  StreamableHttpTransport,
+  type CallToolResult,
+  type ListResourcesResult,
+  type McpTransport,
+  type ReadResourceResult,
+  type Resource,
+  type ResourceTemplate,
+  type StreamableHttpTransportOptions,
+  type Tool,
+} from '@earendil-works/pi-mcp'
+import { McpOAuthAuthorizationRequiredError } from '@earendil-works/pi-mcp/oauth'
+import { z } from 'zod'
+import { secretScrubber } from '../security/SecretScrubber'
+import type { McpOAuthCoordinator } from './McpOAuthCoordinator'
 
 export const MAX_MCP_SERVER_INSTRUCTIONS_BYTES = 16 * 1024
 
 export const truncateMcpInstructionsUtf8 = (value: string, maximumBytes: number) => {
-  const encoded = Buffer.from(value, "utf8")
+  const encoded = Buffer.from(value, 'utf8')
   if (encoded.byteLength <= maximumBytes) return value
-  const marker = "\n…"
-  const markerBytes = Buffer.byteLength(marker, "utf8")
+  const marker = '\n…'
+  const markerBytes = Buffer.byteLength(marker, 'utf8')
   let end = Math.max(0, maximumBytes - markerBytes)
-  const decoder = new TextDecoder("utf-8", { fatal: true })
+  const decoder = new TextDecoder('utf-8', { fatal: true })
   while (end > 0) {
     try {
       return `${decoder.decode(encoded.subarray(0, end))}${marker}`
@@ -29,11 +35,11 @@ export const truncateMcpInstructionsUtf8 = (value: string, maximumBytes: number)
       end -= 1
     }
   }
-  return markerBytes <= maximumBytes ? marker : ""
+  return markerBytes <= maximumBytes ? marker : ''
 }
 
 export const sanitizeMcpServerInstructions = (value: string | undefined) => {
-  const scrubbed = secretScrubber.scrubText(value ?? "").trim()
+  const scrubbed = secretScrubber.scrubText(value ?? '').trim()
   if (!scrubbed) return undefined
   return truncateMcpInstructionsUtf8(scrubbed, MAX_MCP_SERVER_INSTRUCTIONS_BYTES)
 }
@@ -44,16 +50,24 @@ export type McpResource = Resource
 export type McpResourceTemplate = ResourceTemplate
 export type McpReadResourceResult = ReadResourceResult
 
-const promptSchema = z.object({
-  name: z.string(),
-  title: z.string().optional(),
-  description: z.string().optional(),
-  arguments: z.array(z.object({
+const promptSchema = z
+  .object({
     name: z.string(),
+    title: z.string().optional(),
     description: z.string().optional(),
-    required: z.boolean().optional(),
-  }).passthrough()).optional(),
-}).passthrough()
+    arguments: z
+      .array(
+        z
+          .object({
+            name: z.string(),
+            description: z.string().optional(),
+            required: z.boolean().optional(),
+          })
+          .passthrough(),
+      )
+      .optional(),
+  })
+  .passthrough()
 const promptPageSchema = z.object({
   prompts: z.array(promptSchema),
   nextCursor: z.string().optional(),
@@ -61,24 +75,38 @@ const promptPageSchema = z.object({
 export type McpPrompt = z.infer<typeof promptSchema>
 
 // Generic requests need the result checks performed by pi's native tools/call method.
-const toolResultSchema = z.object({
-  content: z.array(z.union([
-    z.object({ type: z.literal("text"), text: z.string() }).passthrough(),
-    z.object({ type: z.literal("image"), data: z.string(), mimeType: z.string() }).passthrough(),
-    z.object({ type: z.literal("audio"), data: z.string(), mimeType: z.string() }).passthrough(),
-    z.object({ type: z.literal("resource_link"), uri: z.string(), name: z.string() }).passthrough(),
-    z.object({
-      type: z.literal("resource"),
-      resource: z.union([
-        z.object({ uri: z.string(), text: z.string() }).passthrough(),
-        z.object({ uri: z.string(), blob: z.string() }).passthrough(),
-      ]),
-    }).passthrough(),
-  ])).default([]),
-  structuredContent: z.record(z.string(), z.unknown()).optional(),
-  isError: z.boolean().optional(),
-  _meta: z.record(z.string(), z.unknown()).optional(),
-}).passthrough()
+const toolResultSchema = z
+  .object({
+    content: z
+      .array(
+        z.union([
+          z.object({ type: z.literal('text'), text: z.string() }).passthrough(),
+          z
+            .object({ type: z.literal('image'), data: z.string(), mimeType: z.string() })
+            .passthrough(),
+          z
+            .object({ type: z.literal('audio'), data: z.string(), mimeType: z.string() })
+            .passthrough(),
+          z
+            .object({ type: z.literal('resource_link'), uri: z.string(), name: z.string() })
+            .passthrough(),
+          z
+            .object({
+              type: z.literal('resource'),
+              resource: z.union([
+                z.object({ uri: z.string(), text: z.string() }).passthrough(),
+                z.object({ uri: z.string(), blob: z.string() }).passthrough(),
+              ]),
+            })
+            .passthrough(),
+        ]),
+      )
+      .default([]),
+    structuredContent: z.record(z.string(), z.unknown()).optional(),
+    isError: z.boolean().optional(),
+    _meta: z.record(z.string(), z.unknown()).optional(),
+  })
+  .passthrough()
 
 export type McpConnectedClient = {
   tools: McpRawTool[]
@@ -86,7 +114,7 @@ export type McpConnectedClient = {
   resourceTemplates: McpResourceTemplate[]
   prompts: McpPrompt[]
   instructions?: string
-  transport: "stdio" | "http"
+  transport: 'stdio' | 'http'
   callTool(
     name: string,
     args: Record<string, unknown>,
@@ -99,7 +127,11 @@ export type McpConnectedClient = {
 }
 
 // Cover transport startup and the initialized notification as well as initialize.
-export const connectMcpClient = async (client: McpClient, transport: McpTransport, timeoutMs: number) => {
+export const connectMcpClient = async (
+  client: McpClient,
+  transport: McpTransport,
+  timeoutMs: number,
+) => {
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
     await Promise.race([
@@ -121,12 +153,13 @@ export const createMcpHttpTransport = (options: StreamableHttpTransportOptions) 
   const controller = new AbortController()
   const transport = new StreamableHttpTransport({
     ...options,
-    fetch: (input, init) => fetch(input, {
-      ...init,
-      signal: init?.signal
-        ? AbortSignal.any([init.signal, controller.signal])
-        : controller.signal,
-    }),
+    fetch: (input, init) =>
+      fetch(input, {
+        ...init,
+        signal: init?.signal
+          ? AbortSignal.any([init.signal, controller.signal])
+          : controller.signal,
+      }),
   })
   transport.onClose(() => controller.abort())
   return transport
@@ -142,47 +175,67 @@ export class McpConnectionError extends Error {
 }
 
 const isAuthenticationFailure = (cause: unknown) =>
-  cause instanceof McpOAuthAuthorizationRequiredError
-  || cause instanceof McpHttpError && (cause.status === 401 || cause.status === 403)
+  cause instanceof McpOAuthAuthorizationRequiredError ||
+  (cause instanceof McpHttpError && (cause.status === 401 || cause.status === 403))
 
 const safeConnectionError = (cause: unknown): McpConnectionError => {
   if (isAuthenticationFailure(cause)) {
-    return new McpConnectionError({
-      code: "MCP_AUTH_REQUIRED",
-      message: "MCP server 需要认证，请使用 OAuth 或配置环境变量凭据",
-      retryable: true,
-    }, true)
+    return new McpConnectionError(
+      {
+        code: 'MCP_AUTH_REQUIRED',
+        message: 'MCP server 需要认证，请使用 OAuth 或配置环境变量凭据',
+        retryable: true,
+      },
+      true,
+    )
   }
-  const timeout = cause instanceof McpTimeoutError || cause instanceof Error
-    && (cause.name === "TimeoutError" || /timed?\s*out|timeout/i.test(cause.message))
+  const timeout =
+    cause instanceof McpTimeoutError ||
+    (cause instanceof Error &&
+      (cause.name === 'TimeoutError' || /timed?\s*out|timeout/i.test(cause.message)))
   return new McpConnectionError({
-    code: timeout ? "MCP_TIMEOUT" : "MCP_CONNECTION_FAILED",
-    message: timeout ? "MCP server 连接超时" : "MCP server 连接失败",
+    code: timeout ? 'MCP_TIMEOUT' : 'MCP_CONNECTION_FAILED',
+    message: timeout ? 'MCP server 连接超时' : 'MCP server 连接失败',
     retryable: true,
   })
 }
 
 // Preserve the SDK's restricted environment instead of inheriting host credentials.
 const defaultEnvironment = () => {
-  const names = process.platform === "win32"
-    ? ["APPDATA", "HOMEDRIVE", "HOMEPATH", "LOCALAPPDATA", "PATH", "PROCESSOR_ARCHITECTURE",
-      "SYSTEMDRIVE", "SYSTEMROOT", "TEMP", "USERNAME", "USERPROFILE", "PROGRAMFILES"]
-    : ["HOME", "LOGNAME", "PATH", "SHELL", "TERM", "USER"]
-  return Object.fromEntries(names.flatMap((name) => {
-    const value = process.env[name]
-    return value !== undefined && !value.startsWith("()") ? [[name, value]] : []
-  }))
+  const names =
+    process.platform === 'win32'
+      ? [
+          'APPDATA',
+          'HOMEDRIVE',
+          'HOMEPATH',
+          'LOCALAPPDATA',
+          'PATH',
+          'PROCESSOR_ARCHITECTURE',
+          'SYSTEMDRIVE',
+          'SYSTEMROOT',
+          'TEMP',
+          'USERNAME',
+          'USERPROFILE',
+          'PROGRAMFILES',
+        ]
+      : ['HOME', 'LOGNAME', 'PATH', 'SHELL', 'TERM', 'USER']
+  return Object.fromEntries(
+    names.flatMap((name) => {
+      const value = process.env[name]
+      return value !== undefined && !value.startsWith('()') ? [[name, value]] : []
+    }),
+  )
 }
 
 const inherited = (references: Record<string, string> | undefined) =>
   Object.fromEntries(
     Object.entries(references ?? {})
       .map(([target, source]) => [target, process.env[source]])
-      .filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+      .filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
   )
 
 const requestHeaders = (server: McpServerDeclaration) => {
-  if (server.transport.type !== "http") return {}
+  if (server.transport.type !== 'http') return {}
   const headers: Record<string, string> = {
     ...(server.transport.headers ?? {}),
     ...inherited(server.transport.headerFromEnv),
@@ -195,27 +248,27 @@ const requestHeaders = (server: McpServerDeclaration) => {
 
 const withoutAuthorization = (headers: Record<string, string>) =>
   Object.fromEntries(
-    Object.entries(headers).filter(([name]) => name.toLowerCase() !== "authorization"),
+    Object.entries(headers).filter(([name]) => name.toLowerCase() !== 'authorization'),
   )
 
 const hasAuthorization = (headers: Record<string, string>) =>
-  Object.keys(headers).some((name) => name.toLowerCase() === "authorization")
+  Object.keys(headers).some((name) => name.toLowerCase() === 'authorization')
 
 const listPrompts = async (client: McpClient, timeoutMs: number) => {
   const prompts: McpPrompt[] = []
   const cursors = new Set<string>()
   let cursor: string | undefined
   for (let page = 0; page < 100; page += 1) {
-    const result = promptPageSchema.parse(await client.request(
-      "prompts/list", cursor ? { cursor } : undefined, { timeoutMs },
-    ))
+    const result = promptPageSchema.parse(
+      await client.request('prompts/list', cursor ? { cursor } : undefined, { timeoutMs }),
+    )
     prompts.push(...result.prompts)
     if (!result.nextCursor) return prompts
-    if (cursors.has(result.nextCursor)) throw new Error("Repeated MCP prompts cursor")
+    if (cursors.has(result.nextCursor)) throw new Error('Repeated MCP prompts cursor')
     cursors.add(result.nextCursor)
     cursor = result.nextCursor
   }
-  throw new Error("Too many MCP prompts pages")
+  throw new Error('Too many MCP prompts pages')
 }
 
 export class McpClientFactory {
@@ -231,53 +284,76 @@ export class McpClientFactory {
     } = {},
   ): Promise<McpConnectedClient> {
     const startupTimeout = server.startupTimeoutMs ?? 10_000
-    const connect = async (transport: McpTransport, kind: McpConnectedClient["transport"]) => {
+    const connect = async (transport: McpTransport, kind: McpConnectedClient['transport']) => {
       const client = new McpClient({
-        name: "codepilotx-agent", version: "0.2.0", capabilities: {},
+        name: 'codepilotx-agent',
+        version: '0.2.0',
+        capabilities: {},
         requestTimeoutMs: startupTimeout,
       })
       try {
         await connectMcpClient(client, transport, startupTimeout)
-        return await this.ready(client, kind, server, onCatalogChanged, onClosed, context.onAuthenticationRequired)
+        return await this.ready(
+          client,
+          kind,
+          server,
+          onCatalogChanged,
+          onClosed,
+          context.onAuthenticationRequired,
+        )
       } catch (cause) {
         await client.close().catch(() => undefined)
         throw cause
       }
     }
     try {
-      if (server.transport.type === "stdio") {
-        return await connect(new StdioTransport({
-          command: server.transport.command,
-          ...(server.transport.args ? { args: [...server.transport.args] } : {}),
-          ...(server.transport.cwd ? { cwd: server.transport.cwd } : {}),
-          env: {
-            ...defaultEnvironment(),
-            ...(server.transport.env ?? {}),
-            ...inherited(server.transport.envFromHost),
-          },
-          inheritEnv: false,
-          stderr: "pipe",
-        }), "stdio")
+      if (server.transport.type === 'stdio') {
+        return await connect(
+          new StdioTransport({
+            command: server.transport.command,
+            ...(server.transport.args ? { args: [...server.transport.args] } : {}),
+            ...(server.transport.cwd ? { cwd: server.transport.cwd } : {}),
+            env: {
+              ...defaultEnvironment(),
+              ...(server.transport.env ?? {}),
+              ...inherited(server.transport.envFromHost),
+            },
+            inheritEnv: false,
+            stderr: 'pipe',
+          }),
+          'stdio',
+        )
       }
 
       const headers = requestHeaders(server)
-      const authProvider = server.transport.auth === "none"
-        ? undefined
-        : await this.oauth?.provider(server, context.workspaceHash)
+      const authProvider =
+        server.transport.auth === 'none'
+          ? undefined
+          : await this.oauth?.provider(server, context.workspaceHash)
       const options = {
         url: server.transport.url,
         reconnect: { initialDelayMs: 500, maxDelayMs: 5_000, maxRetries: 2 },
       }
       try {
-        return await connect(createMcpHttpTransport({
-          ...options, headers,
-          ...(!hasAuthorization(headers) && authProvider ? { authProvider } : {}),
-        }), "http")
+        return await connect(
+          createMcpHttpTransport({
+            ...options,
+            headers,
+            ...(!hasAuthorization(headers) && authProvider ? { authProvider } : {}),
+          }),
+          'http',
+        )
       } catch (cause) {
-        if (!isAuthenticationFailure(cause) || !hasAuthorization(headers) || !authProvider) throw cause
-        return await connect(createMcpHttpTransport({
-          ...options, headers: withoutAuthorization(headers), authProvider,
-        }), "http")
+        if (!isAuthenticationFailure(cause) || !hasAuthorization(headers) || !authProvider)
+          throw cause
+        return await connect(
+          createMcpHttpTransport({
+            ...options,
+            headers: withoutAuthorization(headers),
+            authProvider,
+          }),
+          'http',
+        )
       }
     } catch (cause) {
       throw safeConnectionError(cause)
@@ -286,36 +362,50 @@ export class McpClientFactory {
 
   private async ready(
     client: McpClient,
-    transport: McpConnectedClient["transport"],
+    transport: McpConnectedClient['transport'],
     server: McpServerDeclaration,
     onCatalogChanged: () => void,
     onClosed: () => void,
     onAuthenticationRequired?: () => void,
   ): Promise<McpConnectedClient> {
     client.onClose(onClosed)
-    client.onNotification("notifications/tools/list_changed", onCatalogChanged)
-    client.onNotification("notifications/resources/list_changed", onCatalogChanged)
+    client.onNotification('notifications/tools/list_changed', onCatalogChanged)
+    client.onNotification('notifications/resources/list_changed', onCatalogChanged)
     const timeoutMs = server.toolTimeoutMs ?? 60_000
     const capabilities = client.serverCapabilities
     const tools = capabilities?.tools ? await client.listTools({ timeoutMs }) : []
     const resources = capabilities?.resources
-      ? await client.listResources({ timeoutMs }).catch(() => []) : []
+      ? await client.listResources({ timeoutMs }).catch(() => [])
+      : []
     const resourceTemplates = capabilities?.resources
-      ? await client.listResourceTemplates({ timeoutMs }).catch(() => []) : []
+      ? await client.listResourceTemplates({ timeoutMs }).catch(() => [])
+      : []
     const prompts = capabilities?.prompts
-      ? await listPrompts(client, timeoutMs).catch(() => []) : []
+      ? await listPrompts(client, timeoutMs).catch(() => [])
+      : []
     const instructions = sanitizeMcpServerInstructions(client.instructions)
     return {
-      tools, resources, resourceTemplates, prompts,
+      tools,
+      resources,
+      resourceTemplates,
+      prompts,
       ...(instructions ? { instructions } : {}),
       transport,
       callTool: async (name, args, signal, requestMeta) => {
         try {
           const options = { timeoutMs, ...(signal ? { signal } : {}) }
           if (!requestMeta) return await client.callTool(name, args, options)
-          return toolResultSchema.parse(await client.request("tools/call", {
-            name, arguments: args, _meta: requestMeta,
-          }, options)) as McpToolResult
+          return toolResultSchema.parse(
+            await client.request(
+              'tools/call',
+              {
+                name,
+                arguments: args,
+                _meta: requestMeta,
+              },
+              options,
+            ),
+          ) as McpToolResult
         } catch (cause) {
           if (isAuthenticationFailure(cause)) {
             onAuthenticationRequired?.()
@@ -324,8 +414,7 @@ export class McpClientFactory {
           throw cause
         }
       },
-      listResources: (cursor) =>
-        client.listResourcesPage(cursor, { timeoutMs }),
+      listResources: (cursor) => client.listResourcesPage(cursor, { timeoutMs }),
       readResource: (uri) => client.readResource(uri, { timeoutMs }),
       close: () => client.close(),
     }

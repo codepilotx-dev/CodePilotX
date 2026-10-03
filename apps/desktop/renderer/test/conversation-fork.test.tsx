@@ -95,7 +95,7 @@ describe('conversation fork', () => {
         sourceItemId: 'item-selected',
       },
       destination: { kind: 'new-worktree' },
-      onProgress: next => progress.push(next.output),
+      onProgress: (next) => progress.push(next.output),
     })
 
     expect(result.kind).toBe('completed')
@@ -147,7 +147,7 @@ describe('conversation fork', () => {
         sourceItemId: 'item-selected',
       },
       destination: { kind: 'new-worktree' },
-      onProgress: next => progress.push(next.output),
+      onProgress: (next) => progress.push(next.output),
     })
 
     expect(result.kind).toBe('awaiting-setup-decision')
@@ -213,9 +213,7 @@ describe('conversation fork', () => {
     expect((await retryConversationForkSetup(client, awaiting)).kind).toBe(
       'awaiting-setup-decision',
     )
-    expect((await continueConversationForkWithoutSetup(client, awaiting)).kind).toBe(
-      'completed',
-    )
+    expect((await continueConversationForkWithoutSetup(client, awaiting)).kind).toBe('completed')
     expect((await abandonConversationFork(client, awaiting)).kind).toBe('abandoned')
     expect(calls).toEqual([
       ['retry', 'operation-1', 7],
@@ -265,9 +263,7 @@ function completedResult(): Extract<Item, { type: 'text' }> {
   }
 }
 
-function operation(
-  overrides: Partial<ConversationForkOperation>,
-): ConversationForkOperation {
+function operation(overrides: Partial<ConversationForkOperation>): ConversationForkOperation {
   return {
     operationId: 'operation-1',
     sourceThreadId: 'thread-source',

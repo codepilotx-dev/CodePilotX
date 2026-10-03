@@ -1,21 +1,14 @@
-
 import type { CSSProperties, ReactNode } from 'react'
 import React, { useContext, useEffect, useRef, useState } from 'react'
 import { Check, Copy, Pencil } from 'lucide-react'
 import { IconButton } from '../../components/ui/IconButton.js'
 
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { cx } from '../../utils/cx.js'
 import { desktopClipboard } from '../../services/desktop-client/index.js'
 import { DesktopThemeContext } from '../theme/themeContext.js'
 import type { DesktopThemeVariant } from '../../../shared/types.js'
-import {
-  formatSyntaxLanguageLabel,
-  normalizeSyntaxLanguage,
-} from './language.js'
+import { formatSyntaxLanguageLabel, normalizeSyntaxLanguage } from './language.js'
 import type { SyntaxHighlightResult, SyntaxToken } from './types.js'
 import { resolveThemeId } from './theme.js'
 import { useHighlightedCode } from './useHighlightedCode.js'
@@ -54,8 +47,7 @@ export function CodeBlock({
   const themeContext = useContext(DesktopThemeContext)
   const variant: DesktopThemeVariant =
     themeContext?.activeTheme.variant ??
-    (typeof document !== 'undefined' &&
-    document.documentElement.dataset.theme === 'light'
+    (typeof document !== 'undefined' && document.documentElement.dataset.theme === 'light'
       ? 'light'
       : 'dark')
   const codeThemeId =
@@ -166,11 +158,11 @@ export function CodeBlock({
               onChangeCode?.(editCodeValue)
             }
           }}
-          onChange={e => {
+          onChange={(e) => {
             setEditCodeValue(e.target.value)
           }}
-          onClick={e => e.stopPropagation()}
-          onKeyDown={e => {
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
             e.stopPropagation()
             if (e.key === 'Escape') {
               e.preventDefault()
@@ -189,7 +181,7 @@ export function CodeBlock({
               })
             }
           }}
-          onPointerDown={e => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
         />
       ) : (
         codeContent
@@ -221,9 +213,9 @@ export function CodeBlock({
               placeholder="语言 (如 ts, json)"
               value={editLangValue}
               onBlur={commitLanguageChange}
-              onChange={e => setEditLangValue(e.target.value)}
-              onClick={e => e.stopPropagation()}
-              onKeyDown={e => {
+              onChange={(e) => setEditLangValue(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
                 e.stopPropagation()
                 if (e.key === 'Enter') {
                   e.preventDefault()
@@ -234,7 +226,7 @@ export function CodeBlock({
                   setEditLangValue(language ?? '')
                 }
               }}
-              onPointerDown={e => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
             />
           ) : onChangeLanguage ? (
             <button
@@ -242,19 +234,17 @@ export function CodeBlock({
               className="md-code-lang md-code-lang--interactive tw:inline-flex tw:h-6 tw:items-center tw:px-1 tw:font-mono tw:text-app-text-soft tw:transition-colors tw:duration-[var(--cpx-sys-motion-exit)] tw:hover:bg-app-raised tw:hover:text-app-text tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
               title="点击直接修改代码语言"
               type="button"
-              onClick={e => {
+              onClick={(e) => {
                 e.stopPropagation()
                 setEditLangValue(language ?? '')
                 setIsEditingLang(true)
               }}
-              onPointerDown={e => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
             >
               <span>{languageLabel}</span>
             </button>
           ) : (
-            <span className="md-code-lang tw:font-mono">
-              {headerLabel ?? languageLabel}
-            </span>
+            <span className="md-code-lang tw:font-mono">{headerLabel ?? languageLabel}</span>
           )}
         </figcaption>
       ) : null}
@@ -287,17 +277,9 @@ export function CodeBlock({
           onClick={() => void handleCopy()}
         >
           {copied ? (
-            <Check
-              aria-hidden="true"
-              size={APP_ICON_SIZE}
-              strokeWidth={APP_ICON_STROKE_WIDTH}
-            />
+            <Check aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           ) : (
-            <Copy
-              aria-hidden="true"
-              size={APP_ICON_SIZE}
-              strokeWidth={APP_ICON_STROKE_WIDTH}
-            />
+            <Copy aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           )}
         </IconButton>
       </span>
@@ -305,18 +287,16 @@ export function CodeBlock({
         <details className="md-code-disclosure">
           <summary className="md-code-summary">{codeContent}</summary>
         </details>
+      ) : wrapContent ? (
+        wrapContent(content)
       ) : (
-        wrapContent ? wrapContent(content) : content
+        content
       )}
     </figure>
   )
 }
 
-function HighlightedTokens({
-  result,
-}: {
-  result: SyntaxHighlightResult | null
-}): ReactNode {
+function HighlightedTokens({ result }: { result: SyntaxHighlightResult | null }): ReactNode {
   if (!result) return null
 
   return result.tokens.map((line, lineIndex) => (

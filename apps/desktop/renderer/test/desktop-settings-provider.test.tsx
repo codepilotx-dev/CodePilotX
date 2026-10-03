@@ -12,7 +12,7 @@ import {
 describe('desktop settings provider', () => {
   test.each(['read-write', 'read-only'] as const)(
     'shares settings and runtime state between consumers with %s access',
-    access => {
+    (access) => {
       const settings: UseDesktopSettingsResult[] = []
       const runtime: UseDesktopRuntimeSettingsResult[] = []
       function Consumer() {

@@ -1,13 +1,11 @@
-import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH, APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import {
+  APP_ICON_SIZES,
+  APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZE,
+} from '../../../components/ui/iconTokens.js'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Popover from '@radix-ui/react-popover'
-import {
-  ChevronDown,
-  ChevronLeft,
-  Plus,
-  Search,
-  X,
-} from 'lucide-react'
+import { ChevronDown, ChevronLeft, Plus, Search, X } from 'lucide-react'
 import type { DesktopModelProviderSummary, ModelProviderID } from '../../../../shared/types.js'
 import type { ModelPreset } from '../../../modelPresets.js'
 import {
@@ -91,9 +89,7 @@ export function ModelPickerPopover({
   const [hubFilterText, setHubFilterText] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const hubSearchInputRef = useRef<HTMLInputElement>(null)
-  const providerSearchTimersRef = useRef(
-    new Map<ModelProviderID, ReturnType<typeof setTimeout>>(),
-  )
+  const providerSearchTimersRef = useRef(new Map<ModelProviderID, ReturnType<typeof setTimeout>>())
   const lastForwardedQueryRef = useRef('')
 
   const effectiveThinkingOptions = useMemo(
@@ -139,7 +135,7 @@ export function ModelPickerPopover({
 
   const currentProvider = useMemo(
     () =>
-      providerOptions.find(provider => provider.providerID === activeProviderID) ??
+      providerOptions.find((provider) => provider.providerID === activeProviderID) ??
       providerOptions[0] ?? {
         providerID: activeProviderID,
         displayName: activeProviderID,
@@ -152,15 +148,14 @@ export function ModelPickerPopover({
     const query = filterText.trim().toLowerCase()
     if (!query) return currentProvider.modelPresets
     return currentProvider.modelPresets.filter(
-      model =>
-        model.label.toLowerCase().includes(query) ||
-        model.id.toLowerCase().includes(query),
+      (model) =>
+        model.label.toLowerCase().includes(query) || model.id.toLowerCase().includes(query),
     )
   }, [currentProvider, filterText])
 
   const hubProviders = useMemo<HubProviderItem[]>(() => {
     if (allProviders && allProviders.length > 0) {
-      return allProviders.map(p => {
+      return allProviders.map((p) => {
         const isCustom = p.providerKind === 'custom'
         const count = p.modelCount ?? p.defaultModels.length
         return {
@@ -176,7 +171,7 @@ export function ModelPickerPopover({
         }
       })
     }
-    return providerOptions.map(option => ({
+    return providerOptions.map((option) => ({
       id: option.providerID,
       name: option.displayName || option.providerID,
       desc:
@@ -192,7 +187,7 @@ export function ModelPickerPopover({
     const query = hubFilterText.trim().toLowerCase()
     if (!query) return hubProviders
     return hubProviders.filter(
-      provider =>
+      (provider) =>
         provider.name.toLowerCase().includes(query) ||
         provider.desc.toLowerCase().includes(query) ||
         provider.category.toLowerCase().includes(query),
@@ -246,16 +241,14 @@ export function ModelPickerPopover({
   }
 
   const providerLogoURL = (targetProviderID: string): string | undefined => {
-    const option = providerOptions.find(opt => opt.providerID === targetProviderID)
+    const option = providerOptions.find((opt) => opt.providerID === targetProviderID)
     if (option?.logoURL) return option.logoURL
-    const hub = hubProviders.find(item => item.id === targetProviderID)
+    const hub = hubProviders.find((item) => item.id === targetProviderID)
     return hub?.logoURL
   }
 
   const handleHubSelect = (hubProviderID: string): void => {
-    const configured = providerOptions.find(
-      provider => provider.providerID === hubProviderID,
-    )
+    const configured = providerOptions.find((provider) => provider.providerID === hubProviderID)
     if (configured) {
       handleProviderSelect(configured.providerID)
       return
@@ -285,17 +278,14 @@ export function ModelPickerPopover({
             <div className="composer-provider-rail">
               <div className="composer-provider-list">
                 {providerOptions.length > 0 ? (
-                  providerOptions.map(provider => {
-                    const isActive =
-                      !isHubOpen && provider.providerID === activeProviderID
+                  providerOptions.map((provider) => {
+                    const isActive = !isHubOpen && provider.providerID === activeProviderID
                     return (
                       <button
                         key={provider.providerID}
                         type="button"
                         onClick={() => handleProviderSelect(provider.providerID)}
-                        className={`composer-provider-btn${
-                          isActive ? ' is-active' : ''
-                        }`}
+                        className={`composer-provider-btn${isActive ? ' is-active' : ''}`}
                         title={provider.displayName || provider.providerID}
                       >
                         <ProviderLogo logoURL={provider.logoURL} />
@@ -316,7 +306,7 @@ export function ModelPickerPopover({
               <div className="composer-hub-trigger-wrap">
                 <button
                   type="button"
-                  onClick={() => setIsHubOpen(previous => !previous)}
+                  onClick={() => setIsHubOpen((previous) => !previous)}
                   className={`composer-hub-trigger-btn${isHubOpen ? ' is-active' : ''}`}
                   title="模型中心：发现并配置服务商"
                 >
@@ -354,7 +344,7 @@ export function ModelPickerPopover({
                         type="text"
                         placeholder="搜索服务商..."
                         value={hubFilterText}
-                        onChange={event => setHubFilterText(event.target.value)}
+                        onChange={(event) => setHubFilterText(event.target.value)}
                         className="composer-hub-search-input"
                       />
                     </div>
@@ -362,9 +352,9 @@ export function ModelPickerPopover({
 
                   <div className="composer-models-list composer-hub-list">
                     {filteredHubProviders.length > 0 ? (
-                      filteredHubProviders.map(provider => {
+                      filteredHubProviders.map((provider) => {
                         const isConfigured = providerOptions.some(
-                          option => option.providerID === provider.id,
+                          (option) => option.providerID === provider.id,
                         )
                         return (
                           <div
@@ -380,27 +370,19 @@ export function ModelPickerPopover({
                               </div>
                               <div className="composer-hub-row-text">
                                 <div className="composer-hub-row-title">
-                                  <span className="composer-hub-row-name">
-                                    {provider.name}
-                                  </span>
-                                  <span className="composer-hub-badge">
-                                    {provider.category}
-                                  </span>
+                                  <span className="composer-hub-row-name">{provider.name}</span>
+                                  <span className="composer-hub-badge">{provider.category}</span>
                                 </div>
-                                <p className="composer-hub-row-desc">
-                                  {provider.desc}
-                                </p>
+                                <p className="composer-hub-row-desc">{provider.desc}</p>
                               </div>
                             </div>
                             <div className="composer-hub-row-actions">
                               {isConfigured ? (
-                                <span className="composer-hub-badge-connected">
-                                  已配置
-                                </span>
+                                <span className="composer-hub-badge-connected">已配置</span>
                               ) : (
                                 <button
                                   type="button"
-                                  onClick={event => {
+                                  onClick={(event) => {
                                     event.stopPropagation()
                                     handleHubSelect(provider.id)
                                   }}
@@ -414,9 +396,7 @@ export function ModelPickerPopover({
                         )
                       })
                     ) : (
-                      <div className="composer-models-empty">
-                        没有匹配的服务商
-                      </div>
+                      <div className="composer-models-empty">没有匹配的服务商</div>
                     )}
                   </div>
                 </div>
@@ -441,8 +421,8 @@ export function ModelPickerPopover({
                             type="text"
                             placeholder="过滤模型..."
                             value={filterText}
-                            onChange={event => handleFilterChange(event.target.value)}
-                            onKeyDown={event => {
+                            onChange={(event) => handleFilterChange(event.target.value)}
+                            onKeyDown={(event) => {
                               if (event.key !== 'Escape') return
                               event.stopPropagation()
                               resetFilter()
@@ -476,15 +456,13 @@ export function ModelPickerPopover({
 
                   <div className="composer-models-list">
                     {filteredModels.length > 0 ? (
-                      filteredModels.map(preset => {
+                      filteredModels.map((preset) => {
                         const isSelected = preset.id === selectedModelPreset
                         return (
                           <div
                             key={preset.id}
                             onClick={() => handleModelSelect(preset.id)}
-                            className={`composer-model-row${
-                              isSelected ? ' is-selected' : ''
-                            }`}
+                            className={`composer-model-row${isSelected ? ' is-selected' : ''}`}
                           >
                             <div className="composer-model-row-main">
                               <span
@@ -492,9 +470,7 @@ export function ModelPickerPopover({
                                   isSelected ? ' is-active' : ''
                                 }`}
                               >
-                                <ProviderLogo
-                                  logoURL={currentProvider.logoURL}
-                                />
+                                <ProviderLogo logoURL={currentProvider.logoURL} />
                               </span>
                               <span className="composer-model-name">
                                 {preset.label || preset.id}
@@ -515,13 +491,16 @@ export function ModelPickerPopover({
                                   trigger={
                                     <button
                                       type="button"
-                                      onClick={event => event.stopPropagation()}
+                                      onClick={(event) => event.stopPropagation()}
                                       className="composer-effort-pill"
                                       title="选择推理思考强度"
                                       aria-label={`推理思考强度：${currentThinkingLabel}`}
                                     >
                                       <span>{currentThinkingLabel}</span>
-                                      <ChevronDown size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                                      <ChevronDown
+                                        size={APP_ICON_SIZES.sm}
+                                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                                      />
                                     </button>
                                   }
                                 />
@@ -529,13 +508,9 @@ export function ModelPickerPopover({
 
                               <div
                                 aria-hidden="true"
-                                className={`composer-model-dot${
-                                  isSelected ? ' is-selected' : ''
-                                }`}
+                                className={`composer-model-dot${isSelected ? ' is-selected' : ''}`}
                               >
-                                {isSelected ? (
-                                  <div className="composer-model-dot-inner" />
-                                ) : null}
+                                {isSelected ? <div className="composer-model-dot-inner" /> : null}
                               </div>
                             </div>
                           </div>

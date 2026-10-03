@@ -1,40 +1,34 @@
-import { Model, Provider } from "@codepilotx/model-schema"
-import type { Api, Model as PiModel } from "@earendil-works/pi-ai"
-import { Schema } from "effect"
-import { AgentError } from "../domain"
-import type { PiModelService } from "./pi"
+import { Model, Provider } from '@codepilotx/model-schema'
+import type { Api, Model as PiModel } from '@earendil-works/pi-ai'
+import { Schema } from 'effect'
+import { AgentError } from '../domain'
+import type { PiModelService } from './pi'
 
 const modelRef = Schema.decodeUnknownSync(Model.Ref)
 
 export type ModelHealthFailureCategory =
-  | "authentication"
-  | "configuration"
-  | "network"
-  | "rate-limit"
-  | "timeout"
-  | "provider"
-  | "unknown"
+  'authentication' | 'configuration' | 'network' | 'rate-limit' | 'timeout' | 'provider' | 'unknown'
 
 export type ModelHealthItem =
   | {
       model: Model.Ref
-      status: "queued"
+      status: 'queued'
     }
   | {
       model: Model.Ref
-      status: "running"
+      status: 'running'
       startedAt: number
     }
   | {
       model: Model.Ref
-      status: "healthy"
+      status: 'healthy'
       startedAt: number
       completedAt: number
       latencyMs: number
     }
   | {
       model: Model.Ref
-      status: "failed"
+      status: 'failed'
       startedAt: number
       completedAt: number
       category: ModelHealthFailureCategory
@@ -42,13 +36,13 @@ export type ModelHealthItem =
     }
   | {
       model: Model.Ref
-      status: "cancelled"
+      status: 'cancelled'
       completedAt: number
     }
 
 export type ModelHealthExcludedProvider = {
   providerId: Provider.ID
-  reason: "provider-disabled" | "provider-unconfigured" | "no-eligible-models"
+  reason: 'provider-disabled' | 'provider-unconfigured' | 'no-eligible-models'
   modelCount: number
 }
 
@@ -63,7 +57,7 @@ export type ModelHealthCounts = {
 
 export type ModelHealthRun = {
   runId: string
-  status: "running" | "cancelling" | "completed" | "cancelled"
+  status: 'running' | 'cancelling' | 'completed' | 'cancelled'
   startedAt: number
   completedAt?: number
   counts: ModelHealthCounts
@@ -73,7 +67,7 @@ export type ModelHealthRun = {
 
 export type ModelHealthUpdatedPayload = {
   runId: string
-  status: ModelHealthRun["status"]
+  status: ModelHealthRun['status']
   counts: ModelHealthCounts
   changed?: ModelHealthItem
   completedAt?: number
@@ -93,71 +87,76 @@ type Admission = {
 }
 
 const valueAt = (value: unknown, key: string): unknown =>
-  value && typeof value === "object" && key in value
+  value && typeof value === 'object' && key in value
     ? (value as Record<string, unknown>)[key]
     : undefined
 
 const statusCode = (cause: unknown): number | undefined => {
-  const direct = valueAt(cause, "statusCode") ?? valueAt(cause, "status")
-  if (typeof direct === "number") return direct
-  const nested = valueAt(cause, "cause")
+  const direct = valueAt(cause, 'statusCode') ?? valueAt(cause, 'status')
+  if (typeof direct === 'number') return direct
+  const nested = valueAt(cause, 'cause')
   return nested === cause ? undefined : statusCode(nested)
 }
 
 const isTimeoutSignal = (cause: unknown, message: string): boolean => {
   if (
-    cause instanceof DOMException
-    && (cause.name === "TimeoutError" || cause.name === "AbortError")
-  ) return true
+    cause instanceof DOMException &&
+    (cause.name === 'TimeoutError' || cause.name === 'AbortError')
+  )
+    return true
   return /timed?\s*out|timeout|abort/i.test(message)
 }
 
 export const providerFailureCategory = (cause: unknown): ModelHealthFailureCategory => {
   const status = statusCode(cause)
   const message = cause instanceof Error ? cause.message : String(cause)
-  if (cause && typeof cause === "object" && "name" in cause
-      && (cause as { name?: unknown }).name === "AbortError") {
-    return "timeout"
+  if (
+    cause &&
+    typeof cause === 'object' &&
+    'name' in cause &&
+    (cause as { name?: unknown }).name === 'AbortError'
+  ) {
+    return 'timeout'
   }
-  if (status === 401 || status === 403) return "authentication"
-  if (status === 429) return "rate-limit"
+  if (status === 401 || status === 403) return 'authentication'
+  if (status === 429) return 'rate-limit'
   if (
-    /unauthori[sz]ed|forbidden|invalid\s*(?:api.?key|token)|auth(?:entication)?\s*(?:failed|error)/i.test(message)
-  ) return "authentication"
-  if (/rate[\s_-]?limit|429|too many requests/i.test(message)) return "rate-limit"
-  if (isTimeoutSignal(cause, message)) return "timeout"
-  if (
-    cause instanceof TypeError
-    || /network|fetch|socket|dns|connect|econn/i.test(message)
-  ) return "network"
-  if (status !== undefined && status >= 500) return "provider"
-  if (status !== undefined && status >= 400 && status < 500) return "configuration"
-  if (cause instanceof Error && cause.name === "PiModelServiceError") return "configuration"
-  return "unknown"
+    /unauthori[sz]ed|forbidden|invalid\s*(?:api.?key|token)|auth(?:entication)?\s*(?:failed|error)/i.test(
+      message,
+    )
+  )
+    return 'authentication'
+  if (/rate[\s_-]?limit|429|too many requests/i.test(message)) return 'rate-limit'
+  if (isTimeoutSignal(cause, message)) return 'timeout'
+  if (cause instanceof TypeError || /network|fetch|socket|dns|connect|econn/i.test(message))
+    return 'network'
+  if (status !== undefined && status >= 500) return 'provider'
+  if (status !== undefined && status >= 400 && status < 500) return 'configuration'
+  if (cause instanceof Error && cause.name === 'PiModelServiceError') return 'configuration'
+  return 'unknown'
 }
 
 export const providerFailureMessage = (
   category: ModelHealthFailureCategory,
-  context: "request" | "health-check",
+  context: 'request' | 'health-check',
 ): string => {
   switch (category) {
-    case "authentication":
-      return "凭据鉴权失败"
-    case "configuration":
-      return "模型或 Provider 配置不可用"
-    case "network":
-      return "网络连接失败"
-    case "rate-limit":
-      return "请求受到限流"
-    case "timeout":
-      return context === "request" ? "模型请求超时，请稍后重试" : "请求在 15 秒内未完成"
-    case "provider":
-      return "Provider 服务暂时不可用"
+    case 'authentication':
+      return '凭据鉴权失败'
+    case 'configuration':
+      return '模型或 Provider 配置不可用'
+    case 'network':
+      return '网络连接失败'
+    case 'rate-limit':
+      return '请求受到限流'
+    case 'timeout':
+      return context === 'request' ? '模型请求超时，请稍后重试' : '请求在 15 秒内未完成'
+    case 'provider':
+      return 'Provider 服务暂时不可用'
     default:
-      return context === "request" ? "模型请求失败，请稍后重试" : "模型测试失败"
+      return context === 'request' ? '模型请求失败，请稍后重试' : '模型测试失败'
   }
 }
-
 
 const emptyCounts = (): ModelHealthCounts => ({
   total: 0,
@@ -168,11 +167,11 @@ const emptyCounts = (): ModelHealthCounts => ({
   cancelled: 0,
 })
 
-const isRunActive = (status: ModelHealthRun["status"]): boolean =>
-  status === "running" || status === "cancelling"
+const isRunActive = (status: ModelHealthRun['status']): boolean =>
+  status === 'running' || status === 'cancelling'
 
-const conflictError = (message = "另一个模型健康测试批次正在进行"): AgentError =>
-  new AgentError("CONFLICT", message, 409)
+const conflictError = (message = '另一个模型健康测试批次正在进行'): AgentError =>
+  new AgentError('CONFLICT', message, 409)
 
 /** Recomputes counts from item statuses so every transition keeps total = queued + running + healthy + failed + cancelled. */
 const recountCounts = (run: ModelHealthRun): void => {
@@ -272,7 +271,7 @@ export class ModelHealthService {
    */
   async start(operationId: string): Promise<ModelHealthRun> {
     if (this.consumed) {
-      throw new AgentError("SERVICE_UNAVAILABLE", "模型健康测试服务已释放", 503)
+      throw new AgentError('SERVICE_UNAVAILABLE', '模型健康测试服务已释放', 503)
     }
     if (this.pendingStart) {
       if (this.pendingStart.operationId === operationId) {
@@ -313,19 +312,19 @@ export class ModelHealthService {
       return this.snapshot(await admission.promise)
     }
     const run = this.currentRun
-    if (!run || run.runId !== runId) throw conflictError("未找到对应的模型健康测试批次")
-    if (run.status === "completed" || run.status === "cancelled") {
+    if (!run || run.runId !== runId) throw conflictError('未找到对应的模型健康测试批次')
+    if (run.status === 'completed' || run.status === 'cancelled') {
       return this.snapshot(run)
     }
-    run.status = "cancelling"
+    run.status = 'cancelling'
     const now = Date.now()
     let changed = false
     for (let index = 0; index < run.items.length; index++) {
       const item = run.items[index]
-      if (!item || item.status !== "queued") continue
+      if (!item || item.status !== 'queued') continue
       this.replaceItem(run, index, {
         model: item.model,
-        status: "cancelled",
+        status: 'cancelled',
         completedAt: now,
       })
       changed = true
@@ -361,7 +360,7 @@ export class ModelHealthService {
       const completedAt = Date.now()
       const items: ModelHealthItem[] = candidates.map((model) => ({
         model,
-        status: "cancelled",
+        status: 'cancelled',
         completedAt,
       }))
       const counts = emptyCounts()
@@ -369,7 +368,7 @@ export class ModelHealthService {
       counts.cancelled = items.length
       const run: ModelHealthRun = {
         runId: admission.operationId,
-        status: "cancelled",
+        status: 'cancelled',
         startedAt,
         completedAt,
         counts,
@@ -388,14 +387,14 @@ export class ModelHealthService {
 
     const items: ModelHealthItem[] = candidates.map((model) => ({
       model,
-      status: "queued",
+      status: 'queued',
     }))
     const counts = emptyCounts()
     counts.total = items.length
     counts.queued = items.length
     const run: ModelHealthRun = {
       runId: admission.operationId,
-      status: "running",
+      status: 'running',
       startedAt,
       counts,
       excludedProviders,
@@ -433,18 +432,19 @@ export class ModelHealthService {
       const now = Date.now()
       for (let index = 0; index < run.items.length; index++) {
         const item = run.items[index]
-        if (!item || (item.status !== "queued" && item.status !== "running")) continue
+        if (!item || (item.status !== 'queued' && item.status !== 'running')) continue
         this.replaceItem(run, index, {
           model: item.model,
-          status: "cancelled",
+          status: 'cancelled',
           completedAt: now,
         })
       }
       recountCounts(run)
     }
-    run.status = probeError || controller.signal.aborted || run.status === "cancelling"
-      ? "cancelled"
-      : "completed"
+    run.status =
+      probeError || controller.signal.aborted || run.status === 'cancelling'
+        ? 'cancelled'
+        : 'completed'
     run.completedAt = Date.now()
     await this.emitTerminal(run)
   }
@@ -464,14 +464,18 @@ export class ModelHealthService {
     }
   }
 
-  private async dispatchProbe(run: ModelHealthRun, controller: AbortController, index: number): Promise<void> {
+  private async dispatchProbe(
+    run: ModelHealthRun,
+    controller: AbortController,
+    index: number,
+  ): Promise<void> {
     const current = run.items[index]
     // A cancel() may have already replaced this queued item before we started.
-    if (!current || current.status !== "queued") return
+    if (!current || current.status !== 'queued') return
     if (controller.signal.aborted) {
       this.replaceItem(run, index, {
         model: current.model,
-        status: "cancelled",
+        status: 'cancelled',
         completedAt: Date.now(),
       })
       recountCounts(run)
@@ -480,21 +484,26 @@ export class ModelHealthService {
     const startedAt = Date.now()
     const runningItem: ModelHealthItem = {
       model: current.model,
-      status: "running",
+      status: 'running',
       startedAt,
     }
     this.replaceItem(run, index, runningItem)
     recountCounts(run)
-    await this.emit({ runId: run.runId, status: run.status, counts: run.counts, changed: runningItem })
+    await this.emit({
+      runId: run.runId,
+      status: run.status,
+      counts: run.counts,
+      changed: runningItem,
+    })
 
     // The emit above can interleave with cancel()/dispose(): never start a
     // probe on an already-aborted signal, or its abort listener would never
     // fire and the item would stay running until the timeout.
     if (controller.signal.aborted) {
-      if (run.items[index]?.status !== "running") return
+      if (run.items[index]?.status !== 'running') return
       const cancelledItem: ModelHealthItem = {
         model: current.model,
-        status: "cancelled",
+        status: 'cancelled',
         completedAt: Date.now(),
       }
       this.replaceItem(run, index, cancelledItem)
@@ -506,32 +515,42 @@ export class ModelHealthService {
     const completedAt = Date.now()
     if (controller.signal.aborted) {
       // runBatch's error handler may have already converted this item.
-      if (run.items[index]?.status !== "running") return
+      if (run.items[index]?.status !== 'running') return
       const cancelledItem: ModelHealthItem = {
         model: current.model,
-        status: "cancelled",
+        status: 'cancelled',
         completedAt,
       }
       this.replaceItem(run, index, cancelledItem)
       recountCounts(run)
-      await this.emit({ runId: run.runId, status: run.status, counts: run.counts, changed: cancelledItem })
+      await this.emit({
+        runId: run.runId,
+        status: run.status,
+        counts: run.counts,
+        changed: cancelledItem,
+      })
       return
     }
     if (result.ok) {
       const healthyItem: ModelHealthItem = {
         model: current.model,
-        status: "healthy",
+        status: 'healthy',
         startedAt,
         completedAt,
         latencyMs: result.latencyMs,
       }
       this.replaceItem(run, index, healthyItem)
       recountCounts(run)
-      await this.emit({ runId: run.runId, status: run.status, counts: run.counts, changed: healthyItem })
+      await this.emit({
+        runId: run.runId,
+        status: run.status,
+        counts: run.counts,
+        changed: healthyItem,
+      })
     } else {
       const failedItem: ModelHealthItem = {
         model: current.model,
-        status: "failed",
+        status: 'failed',
         startedAt,
         completedAt,
         category: result.category,
@@ -539,7 +558,12 @@ export class ModelHealthService {
       }
       this.replaceItem(run, index, failedItem)
       recountCounts(run)
-      await this.emit({ runId: run.runId, status: run.status, counts: run.counts, changed: failedItem })
+      await this.emit({
+        runId: run.runId,
+        status: run.status,
+        counts: run.counts,
+        changed: failedItem,
+      })
     }
   }
 
@@ -587,7 +611,7 @@ export class ModelHealthService {
       if (provider.disabled) {
         excludedProviders.push({
           providerId: providerID,
-          reason: "provider-disabled",
+          reason: 'provider-disabled',
           modelCount: 0,
         })
         continue
@@ -597,7 +621,7 @@ export class ModelHealthService {
       if (models.length === 0) {
         excludedProviders.push({
           providerId: providerID,
-          reason: "no-eligible-models",
+          reason: 'no-eligible-models',
           modelCount: 0,
         })
         continue
@@ -605,7 +629,7 @@ export class ModelHealthService {
       if (enabled.length === 0) {
         excludedProviders.push({
           providerId: providerID,
-          reason: "provider-unconfigured",
+          reason: 'provider-unconfigured',
           modelCount: models.length,
         })
         continue
@@ -642,23 +666,29 @@ export class ModelHealthService {
     try {
       piModel = await this.piModels.getPiModel(ref)
     } catch {
-      return { ok: false, category: "configuration", message: providerFailureMessage("configuration", "health-check") }
+      return {
+        ok: false,
+        category: 'configuration',
+        message: providerFailureMessage('configuration', 'health-check'),
+      }
     }
     // getPiModel can race cancel()/dispose(): never hand an already-aborted
     // signal to the request, or its abort listener would never fire.
     if (opts.signal?.aborted) {
-      return { ok: false, category: "timeout", message: "模型测试已取消" }
+      return { ok: false, category: 'timeout', message: '模型测试已取消' }
     }
     const startedAt = performance.now()
     try {
       const response = await this.piModels.pi.completeSimple(
         piModel,
         {
-          messages: [{
-            role: "user",
-            content: "Reply OK.",
-            timestamp: Date.now(),
-          }],
+          messages: [
+            {
+              role: 'user',
+              content: 'Reply OK.',
+              timestamp: Date.now(),
+            },
+          ],
         },
         {
           ...(opts.explicitApiKey ? { apiKey: opts.explicitApiKey } : {}),
@@ -670,16 +700,16 @@ export class ModelHealthService {
           ]),
         },
       )
-      if (response.stopReason === "error" || response.stopReason === "aborted") {
-        throw new Error(response.errorMessage ?? "模型的响应异常")
+      if (response.stopReason === 'error' || response.stopReason === 'aborted') {
+        throw new Error(response.errorMessage ?? '模型的响应异常')
       }
       return { ok: true, latencyMs: Math.max(0, Math.round(performance.now() - startedAt)) }
     } catch (cause) {
       if (opts.signal?.aborted) {
-        return { ok: false, category: "timeout", message: "模型测试已取消" }
+        return { ok: false, category: 'timeout', message: '模型测试已取消' }
       }
       const category = providerFailureCategory(cause)
-      return { ok: false, category, message: providerFailureMessage(category, "health-check") }
+      return { ok: false, category, message: providerFailureMessage(category, 'health-check') }
     }
   }
 }

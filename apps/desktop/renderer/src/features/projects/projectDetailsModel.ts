@@ -9,6 +9,8 @@ export function resolveConversationProject(
 ): DesktopWorkspace | null {
   if (!session || session.standalone || (!session.projectId && !session.workspacePath)) return null
   const key = sidebarSessionProjectKey(session)
-  return projects.find(project => sidebarProjectKey(project) === key)
-    ?? (currentWorkspace && sidebarProjectKey(currentWorkspace) === key ? currentWorkspace : null)
+  return (
+    projects.find((project) => sidebarProjectKey(project) === key) ??
+    (currentWorkspace && sidebarProjectKey(currentWorkspace) === key ? currentWorkspace : null)
+  )
 }

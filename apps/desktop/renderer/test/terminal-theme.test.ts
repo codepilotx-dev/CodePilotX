@@ -1,8 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import {
-  parseTerminalFontSize,
-  readTerminalFont,
-} from '../src/features/terminal/terminalTheme.js'
+import { parseTerminalFontSize, readTerminalFont } from '../src/features/terminal/terminalTheme.js'
 
 describe('terminal theme', () => {
   test('parses the code font size with a 13px default and 8-24px bounds', () => {

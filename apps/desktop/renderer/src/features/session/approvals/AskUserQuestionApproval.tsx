@@ -68,12 +68,25 @@ export type AskUserQuestionApprovalProps = {
   supportsQuestionSkip?: boolean
 }
 
-export function AskUserQuestionApproval({ request, ...props }: AskUserQuestionApprovalProps): React.ReactNode {
-  return <QuestionAnswerForm {...props} requestId={request.requestId} input={request.input} questions={parseAskUserQuestions(request.input)} />
+export function AskUserQuestionApproval({
+  request,
+  ...props
+}: AskUserQuestionApprovalProps): React.ReactNode {
+  return (
+    <QuestionAnswerForm
+      {...props}
+      requestId={request.requestId}
+      input={request.input}
+      questions={parseAskUserQuestions(request.input)}
+    />
+  )
 }
 
 export type QuestionAnswerFormProps = Omit<AskUserQuestionApprovalProps, 'request' | 'onSubmit'> & {
-  onSubmit: (updatedInput: Record<string, unknown>, states: Readonly<Record<string, QuestionState>>) => void | Promise<void>
+  onSubmit: (
+    updatedInput: Record<string, unknown>,
+    states: Readonly<Record<string, QuestionState>>,
+  ) => void | Promise<void>
   requestId: string
   input?: Record<string, unknown>
   questions: AskUserQuestion[] | null
@@ -98,9 +111,7 @@ export function QuestionAnswerForm({
   closeError = '中断对话失败，请重试。',
   supportsQuestionSkip = false,
 }: QuestionAnswerFormProps): React.ReactNode {
-  const [questionStates, setQuestionStates] = React.useState<
-    Record<string, QuestionState>
-  >({})
+  const [questionStates, setQuestionStates] = React.useState<Record<string, QuestionState>>({})
   const [currentQuestionIndex, setCurrentQuestionIndex] = React.useState(0)
   const [error, setError] = React.useState<string | null>(null)
   const customInputRef = React.useRef<HTMLTextAreaElement | null>(null)
@@ -120,7 +131,7 @@ export function QuestionAnswerForm({
   }, [requestId])
 
   React.useEffect(() => {
-    setCurrentQuestionIndex(current =>
+    setCurrentQuestionIndex((current) =>
       questionCount > 0 ? Math.min(current, questionCount - 1) : 0,
     )
   }, [questionCount])
@@ -135,7 +146,9 @@ export function QuestionAnswerForm({
   React.useLayoutEffect(() => {
     if (!focusFirstOptionRef.current) return
     focusFirstOptionRef.current = false
-    approvalRef.current?.querySelector<HTMLButtonElement>('button[role="radio"], button[role="checkbox"]')?.focus()
+    approvalRef.current
+      ?.querySelector<HTMLButtonElement>('button[role="radio"], button[role="checkbox"]')
+      ?.focus()
   }, [currentQuestionIndex])
 
   React.useLayoutEffect(() => {
@@ -157,26 +170,20 @@ export function QuestionAnswerForm({
         return
       }
       if (event.target instanceof HTMLElement && event.target.closest('button')) return
-      if (shouldDeferAskUserQuestionShortcutToTextEntry(
-        event.key,
-        isTextEntryTarget(event.target),
-      )) return
+      if (shouldDeferAskUserQuestionShortcutToTextEntry(event.key, isTextEntryTarget(event.target)))
+        return
       const currentQuestion = questions[currentQuestionIndex] ?? questions[0]
       if (!currentQuestion) return
       if (event.key === 'ArrowLeft') {
         event.preventDefault()
-        setCurrentQuestionIndex(current =>
-          nextQuestionIndex(current, -1, questionCount),
-        )
+        setCurrentQuestionIndex((current) => nextQuestionIndex(current, -1, questionCount))
       } else if (event.key === 'ArrowRight') {
         event.preventDefault()
-        if (currentQuestionIndex < questionCount - 1) confirmCurrentQuestionAndAdvance(currentQuestion)
+        if (currentQuestionIndex < questionCount - 1)
+          confirmCurrentQuestionAndAdvance(currentQuestion)
       } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
         event.preventDefault()
-        updateQuestionSelection(
-          currentQuestion,
-          event.key === 'ArrowUp' ? -1 : 1,
-        )
+        updateQuestionSelection(currentQuestion, event.key === 'ArrowUp' ? -1 : 1)
       } else if (event.key === ' ') {
         if (currentQuestion.multiSelect) {
           event.preventDefault()
@@ -190,21 +197,13 @@ export function QuestionAnswerForm({
 
   if (!questions) {
     return (
-      <div
-        ref={approvalRef}
-        className="ask-user-question-approval"
-        tabIndex={-1}
-      >
+      <div ref={approvalRef} className="ask-user-question-approval" tabIndex={-1}>
         <p className="ask-user-question-error">
           无法解析 AskUserQuestion 的选项，请拒绝后让 CodePilotX 重新提问。
         </p>
         <div className="inline-approval-footer inline-approval-footer-split">
           <span className="inline-approval-footer-spacer" aria-hidden="true" />
-          <Button
-            color="danger"
-            disabled={disabled}
-            onClick={() => void reject()}
-          >
+          <Button color="danger" disabled={disabled} onClick={() => void reject()}>
             拒绝
             <CornerDownLeft size={APP_ICON_SIZE} />
           </Button>
@@ -217,8 +216,8 @@ export function QuestionAnswerForm({
     questionText: string,
     updater: (current: QuestionState) => QuestionState,
   ): void {
-    setQuestionStates(current => {
-      const question = questions?.find(item => questionKey(item) === questionText)
+    setQuestionStates((current) => {
+      const question = questions?.find((item) => questionKey(item) === questionText)
       const previous = question
         ? (current[questionText] ?? initialQuestionState(question))
         : { selected: [], custom: '', answered: false }
@@ -230,9 +229,7 @@ export function QuestionAnswerForm({
     setError(null)
   }
 
-  function submitAnswers(
-    override?: { question: AskUserQuestion; state: QuestionState },
-  ): void {
+  function submitAnswers(override?: { question: AskUserQuestion; state: QuestionState }): void {
     if (!questions || submittedRef.current || disabledReason) return
     const effectiveStates = override
       ? { ...questionStates, [questionKey(override.question)]: override.state }
@@ -246,14 +243,19 @@ export function QuestionAnswerForm({
     submittedRef.current = true
     setBusy(true)
     try {
-      const submission = onSubmit(buildAskUserQuestionUpdatedInput(input, questions, effectiveStates), effectiveStates)
+      const submission = onSubmit(
+        buildAskUserQuestionUpdatedInput(input, questions, effectiveStates),
+        effectiveStates,
+      )
       if (submission) {
-        void submission.catch(() => {
-          setError('提交回答失败，请重试。')
-        }).finally(() => {
-          submittedRef.current = false
-          setBusy(false)
-        })
+        void submission
+          .catch(() => {
+            setError('提交回答失败，请重试。')
+          })
+          .finally(() => {
+            submittedRef.current = false
+            setBusy(false)
+          })
       }
     } catch {
       submittedRef.current = false
@@ -267,7 +269,9 @@ export function QuestionAnswerForm({
     draft = questionStates[questionKey(question)] ?? initialQuestionState(question),
   ): void {
     if (submittedRef.current || disabledReason) return
-    const confirmedState = answerStateForConfirmation(draft.skipped ? initialQuestionState(question) : draft)
+    const confirmedState = answerStateForConfirmation(
+      draft.skipped ? initialQuestionState(question) : draft,
+    )
     if (!confirmedState.answered) return
     updateQuestion(questionKey(question), () => confirmedState)
     if (enterQuestionAction(currentQuestionIndex, questionCount) === 'confirm-and-submit') {
@@ -288,32 +292,35 @@ export function QuestionAnswerForm({
     }
   }
 
-  function updateQuestionSelection(
-    question: AskUserQuestion,
-    delta: -1 | 1,
-  ): void {
-    updateQuestion(questionKey(question), current => {
-      const currentLabel =
-        current.focused ?? current.selected[0] ?? question.options[0]?.label
+  function updateQuestionSelection(question: AskUserQuestion, delta: -1 | 1): void {
+    updateQuestion(questionKey(question), (current) => {
+      const currentLabel = current.focused ?? current.selected[0] ?? question.options[0]?.label
       const nextLabel = nextQuestionOptionId(question, currentLabel, delta)
       if (nextLabel === undefined) return current
-      return { ...selectQuestionOption(current, nextLabel, question.multiSelect, 'focus'), answered: false, skipped: false }
+      return {
+        ...selectQuestionOption(current, nextLabel, question.multiSelect, 'focus'),
+        answered: false,
+        skipped: false,
+      }
     })
   }
 
   function toggleFocusedMultiSelectOption(question: AskUserQuestion): void {
-    updateQuestion(questionKey(question), current => {
+    updateQuestion(questionKey(question), (current) => {
       const label = current.focused ?? current.selected[0] ?? question.options[0]?.label
       if (!label) return current
-      return { ...selectQuestionOption(current, label, question.multiSelect, 'toggle'), answered: false, touched: true, skipped: false }
+      return {
+        ...selectQuestionOption(current, label, question.multiSelect, 'toggle'),
+        answered: false,
+        touched: true,
+        skipped: false,
+      }
     })
   }
 
   function goToQuestion(delta: -1 | 1): void {
     if (submittedRef.current) return
-    setCurrentQuestionIndex(current =>
-      nextQuestionIndex(current, delta, questionCount),
-    )
+    setCurrentQuestionIndex((current) => nextQuestionIndex(current, delta, questionCount))
     setError(null)
   }
 
@@ -337,21 +344,25 @@ export function QuestionAnswerForm({
     submittedRef.current = true
     setBusy(true)
     setError(null)
-    try { await onReject() } catch { setError('操作失败，请重试。') }
-    finally { submittedRef.current = false; setBusy(false) }
+    try {
+      await onReject()
+    } catch {
+      setError('操作失败，请重试。')
+    } finally {
+      submittedRef.current = false
+      setBusy(false)
+    }
   }
 
   const currentQuestion = questions[currentQuestionIndex] ?? questions[0]
   const state =
     questionStates[questionKey(currentQuestion)] ?? initialQuestionState(currentQuestion)
-  const canSubmit = canSubmitFromCurrentQuestion(
-    questions,
-    questionStates,
-    currentQuestionIndex,
-  )
+  const canSubmit = canSubmitFromCurrentQuestion(questions, questionStates, currentQuestionIndex)
   const isLastQuestion = currentQuestionIndex === questionCount - 1
   const showSubmit = shouldShowQuestionSubmit(questions, questionStates, currentQuestionIndex)
-  const canConfirm = state.skipped || (isLastQuestion ? canSubmit : state.selected.length > 0 || Boolean(state.custom.trim()))
+  const canConfirm =
+    state.skipped ||
+    (isLastQuestion ? canSubmit : state.selected.length > 0 || Boolean(state.custom.trim()))
   const questionOptions = [
     ...currentQuestion.options.map((option, index) => ({
       kind: 'choice' as const,
@@ -363,32 +374,57 @@ export function QuestionAnswerForm({
   ]
 
   return (
-    <div
-      ref={approvalRef}
-      className="ask-user-question-approval"
-      tabIndex={-1}
-    >
-      <RequestCard variant={variant} title={currentQuestion.question} identity={identity} disabledReason={disabledReason} error={error}
-        navigation={<div className="ask-user-question-navigation">
-            {variant === 'question' || questionCount > 1 ? <div className="ask-user-question-pagination" role="group" aria-label="问题分页"><button type="button" className="ask-user-question-nav-button" aria-label="上一题"
-              disabled={disabled || currentQuestionIndex === 0} onClick={() => goToQuestion(-1)}>
-              <ChevronLeft size={APP_ICON_SIZE} />
-            </button>
-            <span aria-live="polite">{currentQuestionIndex + 1} of {questionCount}</span>
-            <button type="button" className="ask-user-question-nav-button" aria-label="下一题"
-              disabled={disabled || isLastQuestion || !canConfirm} onClick={() => confirmCurrentQuestionAndAdvance(currentQuestion)}>
-              <ChevronRight size={APP_ICON_SIZES.sm} />
-            </button></div> : null}
-            <button type="button" className="ask-user-question-nav-button" aria-label={closeLabel}
-              disabled={disabled || !onInterrupt} onClick={() => void interrupt()}>
+    <div ref={approvalRef} className="ask-user-question-approval" tabIndex={-1}>
+      <RequestCard
+        variant={variant}
+        title={currentQuestion.question}
+        identity={identity}
+        disabledReason={disabledReason}
+        error={error}
+        navigation={
+          <div className="ask-user-question-navigation">
+            {variant === 'question' || questionCount > 1 ? (
+              <div className="ask-user-question-pagination" role="group" aria-label="问题分页">
+                <button
+                  type="button"
+                  className="ask-user-question-nav-button"
+                  aria-label="上一题"
+                  disabled={disabled || currentQuestionIndex === 0}
+                  onClick={() => goToQuestion(-1)}
+                >
+                  <ChevronLeft size={APP_ICON_SIZE} />
+                </button>
+                <span aria-live="polite">
+                  {currentQuestionIndex + 1} of {questionCount}
+                </span>
+                <button
+                  type="button"
+                  className="ask-user-question-nav-button"
+                  aria-label="下一题"
+                  disabled={disabled || isLastQuestion || !canConfirm}
+                  onClick={() => confirmCurrentQuestionAndAdvance(currentQuestion)}
+                >
+                  <ChevronRight size={APP_ICON_SIZES.sm} />
+                </button>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              className="ask-user-question-nav-button"
+              aria-label={closeLabel}
+              disabled={disabled || !onInterrupt}
+              onClick={() => void interrupt()}
+            >
               <X size={APP_ICON_SIZES.sm} />
             </button>
-          </div>}>
+          </div>
+        }
+      >
         <div
           className="inline-approval-options"
           role={currentQuestion.multiSelect ? 'group' : 'radiogroup'}
         >
-          {questionOptions.map(questionOption => {
+          {questionOptions.map((questionOption) => {
             if (questionOption.kind === 'custom') {
               const focused = state.focused === questionOption.id
               return (
@@ -413,15 +449,28 @@ export function QuestionAnswerForm({
                     rows={1}
                     disabled={disabled}
                     value={state.custom}
-                    onKeyDown={event => {
-                      if (variant !== 'question' || event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return
-                      if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229 || event.repeat) return
+                    onKeyDown={(event) => {
+                      if (
+                        variant !== 'question' ||
+                        event.key !== 'Enter' ||
+                        event.shiftKey ||
+                        event.ctrlKey ||
+                        event.altKey ||
+                        event.metaKey
+                      )
+                        return
+                      if (
+                        event.nativeEvent.isComposing ||
+                        event.nativeEvent.keyCode === 229 ||
+                        event.repeat
+                      )
+                        return
                       event.preventDefault()
                       if (state.custom.trim()) confirmCurrentQuestionAndAdvance(currentQuestion)
                     }}
                     onFocus={() => {
                       if (state.skipped) return
-                      updateQuestion(questionKey(currentQuestion), current => ({
+                      updateQuestion(questionKey(currentQuestion), (current) => ({
                         ...selectQuestionOption(
                           current,
                           questionOption.id,
@@ -432,9 +481,9 @@ export function QuestionAnswerForm({
                         skipped: false,
                       }))
                     }}
-                    onChange={event => {
+                    onChange={(event) => {
                       const custom = event.target.value
-                      updateQuestion(questionKey(currentQuestion), current => ({
+                      updateQuestion(questionKey(currentQuestion), (current) => ({
                         ...selectQuestionOption(
                           current,
                           questionOption.id,
@@ -448,17 +497,32 @@ export function QuestionAnswerForm({
                     }}
                   />
                   <div className="inline-approval-split ask-user-question-actions">
-                    {showSubmit ? <Button color="primary" disabled={disabled}
-                      onClick={() => confirmCurrentQuestionAndAdvance(currentQuestion)}>
-                      {isLastQuestion ? '提交' : '下一步'}
-                      <CornerDownLeft size={APP_ICON_SIZE} />
-                    </Button> : <Button color="secondary"
-                      aria-label={variant === 'question' ? '跳过当前问题' : dismissLabel}
-                      title={variant === 'question' ? '仅跳过当前题；Esc 忽略整组问题' : undefined}
-                      disabled={disabled || (variant === 'question' && !supportsQuestionSkip)}
-                      onClick={() => variant === 'question' ? skipCurrentQuestion(currentQuestion) : void reject()}>
-                      {dismissLabel}
-                    </Button>}
+                    {showSubmit ? (
+                      <Button
+                        color="primary"
+                        disabled={disabled}
+                        onClick={() => confirmCurrentQuestionAndAdvance(currentQuestion)}
+                      >
+                        {isLastQuestion ? '提交' : '下一步'}
+                        <CornerDownLeft size={APP_ICON_SIZE} />
+                      </Button>
+                    ) : (
+                      <Button
+                        color="secondary"
+                        aria-label={variant === 'question' ? '跳过当前问题' : dismissLabel}
+                        title={
+                          variant === 'question' ? '仅跳过当前题；Esc 忽略整组问题' : undefined
+                        }
+                        disabled={disabled || (variant === 'question' && !supportsQuestionSkip)}
+                        onClick={() =>
+                          variant === 'question'
+                            ? skipCurrentQuestion(currentQuestion)
+                            : void reject()
+                        }
+                      >
+                        {dismissLabel}
+                      </Button>
+                    )}
                   </div>
                 </div>
               )
@@ -470,15 +534,13 @@ export function QuestionAnswerForm({
             return (
               <button
                 aria-checked={selected}
-                className={
-                  [
-                    'inline-approval-option',
-                    selected ? 'selected' : '',
-                    focused ? 'focused' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')
-                }
+                className={[
+                  'inline-approval-option',
+                  selected ? 'selected' : '',
+                  focused ? 'focused' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
                 key={option.label}
                 role={currentQuestion.multiSelect ? 'checkbox' : 'radio'}
                 type="button"
@@ -503,21 +565,18 @@ export function QuestionAnswerForm({
                   }
                 }}
               >
-                <RequestMarker>
-                  {index + 1}
-                </RequestMarker>
+                <RequestMarker>{index + 1}</RequestMarker>
                 <span className="ask-user-question-option-copy">
                   <span className="inline-approval-option-label">
                     {option.label}
                     {index === 0 ? (
-                      <span className="inline-approval-option-hint">
-                        {' '}
-                        （推荐）
-                      </span>
+                      <span className="inline-approval-option-hint"> （推荐）</span>
                     ) : null}
                   </span>
                   {option.description ? (
-                    <span className="ask-user-question-option-description">{option.description}</span>
+                    <span className="ask-user-question-option-description">
+                      {option.description}
+                    </span>
                   ) : null}
                 </span>
                 {currentQuestion.multiSelect ? (
@@ -535,10 +594,7 @@ export function QuestionAnswerForm({
                   </span>
                 ) : selected ? (
                   <span className="inline-approval-option-trailing">
-                    <span
-                      className="inline-approval-option-arrows"
-                      aria-hidden="true"
-                    >
+                    <span className="inline-approval-option-arrows" aria-hidden="true">
                       <ArrowRight size={APP_ICON_SIZE} />
                     </span>
                   </span>
@@ -547,7 +603,11 @@ export function QuestionAnswerForm({
             )
           })}
         </div>
-        {variant === 'question' && !supportsQuestionSkip ? <p className="ask-user-question-error" role="status">当前 Agent 尚未提供逐题跳过能力，请升级并重启 Agent。</p> : null}
+        {variant === 'question' && !supportsQuestionSkip ? (
+          <p className="ask-user-question-error" role="status">
+            当前 Agent 尚未提供逐题跳过能力，请升级并重启 Agent。
+          </p>
+        ) : null}
       </RequestCard>
     </div>
   )

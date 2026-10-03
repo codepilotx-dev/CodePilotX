@@ -11,14 +11,10 @@ import {
 } from './workbenchLayoutSizing.js'
 
 export const WORKBENCH_LAYOUT_SCHEMA_VERSION = 1
-export const WORKBENCH_LAYOUT_STORAGE_KEY =
-  'codepilotx.desktop.workbenchLayout.v1'
+export const WORKBENCH_LAYOUT_STORAGE_KEY = 'codepilotx.desktop.workbenchLayout.v1'
 
 export type WorkbenchPartId =
-  | 'primary-sidebar'
-  | 'main-content'
-  | 'auxiliary-panel'
-  | 'bottom-panel'
+  'primary-sidebar' | 'main-content' | 'auxiliary-panel' | 'bottom-panel'
 
 export type WorkbenchPartVisibility = {
   primarySidebar: boolean
@@ -78,14 +74,8 @@ export function createDefaultWorkbenchLayoutState(
   return {
     visibility: createDefaultVisibility(),
     primarySidebarWidth: clampPrimarySidebarWidth(DEFAULT_PRIMARY_SIDEBAR_WIDTH),
-    auxiliaryPanelWidth: clampAuxiliaryPanelWidth(
-      RIGHT_DOCK_DEFAULT_WIDTH,
-      workspaceWidth,
-    ),
-    bottomPanelHeight: clampBottomPanelHeight(
-      BOTTOM_PANEL_DEFAULT_HEIGHT,
-      workspaceHeight,
-    ),
+    auxiliaryPanelWidth: clampAuxiliaryPanelWidth(RIGHT_DOCK_DEFAULT_WIDTH, workspaceWidth),
+    bottomPanelHeight: clampBottomPanelHeight(BOTTOM_PANEL_DEFAULT_HEIGHT, workspaceHeight),
     auxiliaryMaximized: false,
     beforeAuxiliaryMaximized: null,
     beforeAuxiliaryMaximizedAuxiliaryWidth: null,
@@ -131,11 +121,7 @@ function reduceSetVisibility(
   if (part === 'main-content' && !visible && !state.auxiliaryMaximized) {
     return state
   }
-  if (
-    part === 'auxiliary-panel' &&
-    !visible &&
-    state.auxiliaryMaximized
-  ) {
+  if (part === 'auxiliary-panel' && !visible && state.auxiliaryMaximized) {
     const restored = state.beforeAuxiliaryMaximized ?? createDefaultVisibility()
     return {
       ...state,
@@ -188,9 +174,7 @@ function reduceCommitBottomPanelSize(
   }
 }
 
-function reduceEnterAuxiliaryMaximized(
-  state: WorkbenchLayoutState,
-): WorkbenchLayoutState {
+function reduceEnterAuxiliaryMaximized(state: WorkbenchLayoutState): WorkbenchLayoutState {
   if (state.auxiliaryMaximized) return state
   return {
     ...state,
@@ -206,13 +190,10 @@ function reduceEnterAuxiliaryMaximized(
   }
 }
 
-function reduceExitAuxiliaryMaximized(
-  state: WorkbenchLayoutState,
-): WorkbenchLayoutState {
+function reduceExitAuxiliaryMaximized(state: WorkbenchLayoutState): WorkbenchLayoutState {
   if (!state.auxiliaryMaximized) return state
   const restored = state.beforeAuxiliaryMaximized ?? createDefaultVisibility()
-  const restoredWidth =
-    state.beforeAuxiliaryMaximizedAuxiliaryWidth ?? state.auxiliaryPanelWidth
+  const restoredWidth = state.beforeAuxiliaryMaximizedAuxiliaryWidth ?? state.auxiliaryPanelWidth
   return {
     ...state,
     visibility: restored,
@@ -223,26 +204,12 @@ function reduceExitAuxiliaryMaximized(
   }
 }
 
-export function clampAuxiliaryPanelWidth(
-  size: number,
-  workspaceWidth: number,
-): number {
-  return clampWorkbenchSize(
-    size,
-    RIGHT_DOCK_MIN_WIDTH,
-    getRightDockMaxWidth(workspaceWidth),
-  )
+export function clampAuxiliaryPanelWidth(size: number, workspaceWidth: number): number {
+  return clampWorkbenchSize(size, RIGHT_DOCK_MIN_WIDTH, getRightDockMaxWidth(workspaceWidth))
 }
 
-export function clampBottomPanelHeight(
-  size: number,
-  workspaceHeight: number,
-): number {
-  return clampWorkbenchSize(
-    size,
-    BOTTOM_PANEL_MIN_HEIGHT,
-    getBottomPanelMaxHeight(workspaceHeight),
-  )
+export function clampBottomPanelHeight(size: number, workspaceHeight: number): number {
+  return clampWorkbenchSize(size, BOTTOM_PANEL_MIN_HEIGHT, getBottomPanelMaxHeight(workspaceHeight))
 }
 
 export { clampPrimarySidebarWidth }

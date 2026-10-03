@@ -1,17 +1,7 @@
-import {
-  Fragment,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import { ChevronRight, LoaderCircle, RotateCcw } from 'lucide-react'
-import type {
-  DesktopFileEntry,
-  DesktopWorkspace,
-} from '../../../shared/types.js'
+import type { DesktopFileEntry, DesktopWorkspace } from '../../../shared/types.js'
 import { createWorkspaceFileTabId } from './tabs/workspaceFileTabId.js'
 import {
   APP_ICON_SIZE,
@@ -43,24 +33,19 @@ export type WorkspaceFileTreeProps = {
   folderId?: string
   onAddComposerFiles?: (filePaths: string[]) => void
   onEscape?: () => void
-  onOpenFile: (
-    file: DesktopFileEntry,
-    options: WorkspaceFileOpenOptions,
-  ) => void
+  onOpenFile: (file: DesktopFileEntry, options: WorkspaceFileOpenOptions) => void
 }
 
 type FileTreeRow = { kind: 'entry'; file: DesktopFileEntry }
 
 const FILE_TREE_ROW_HEIGHT = 28
 
-export function WorkspaceFileTree(
-  props: WorkspaceFileTreeProps,
-): React.ReactNode {
+export function WorkspaceFileTree(props: WorkspaceFileTreeProps): React.ReactNode {
   const projectFolders = props.workspace?.folders ?? []
   if (!props.folderId && projectFolders.length > 1) {
     return (
       <div className={cx('workspace-file-tree-groups', props.className)}>
-        {projectFolders.map(folder => (
+        {projectFolders.map((folder) => (
           <section
             className="workspace-file-tree-group"
             data-folder-availability={folder.availability}
@@ -129,15 +114,9 @@ function WorkspaceFileTreeContent({
   const [entries, setEntries] = useState<DesktopFileEntry[]>(() =>
     rootPath ? [] : normalizeRootEntries(files),
   )
-  const [expandedDirectories, setExpandedDirectories] = useState<Set<string>>(
-    () => new Set(),
-  )
-  const [loadingDirectories, setLoadingDirectories] = useState<Set<string>>(
-    () => new Set(),
-  )
-  const [directoryErrors, setDirectoryErrors] = useState<Set<string>>(
-    () => new Set(),
-  )
+  const [expandedDirectories, setExpandedDirectories] = useState<Set<string>>(() => new Set())
+  const [loadingDirectories, setLoadingDirectories] = useState<Set<string>>(() => new Set())
+  const [directoryErrors, setDirectoryErrors] = useState<Set<string>>(() => new Set())
   const entriesRef = useRef(entries)
   const loadedDirectoriesRef = useRef(new Set<string>())
   const loadingPromisesRef = useRef(new Map<string, Promise<void>>())
@@ -165,44 +144,35 @@ function WorkspaceFileTreeContent({
       if (existing) return existing
 
       const generation = generationRef.current
-      setLoadingDirectories(current => addSetValue(current, key))
-      setDirectoryErrors(current => removeSetValue(current, key))
+      setLoadingDirectories((current) => addSetValue(current, key))
+      setDirectoryErrors((current) => removeSetValue(current, key))
       const request = desktopClient
-        .listWorkspaceFiles(
-          workspacePath,
-          directoryPath,
-          folderId,
-          workspace?.projectId,
-        )
-        .then(children => {
+        .listWorkspaceFiles(workspacePath, directoryPath, folderId, workspace?.projectId)
+        .then((children) => {
           if (generationRef.current !== generation) return
-          const normalizedChildren = children.map(child => ({
+          const normalizedChildren = children.map((child) => ({
             ...child,
             depth: options.replaceRoot ? 0 : parentDepth + 1,
           }))
           const next = options.replaceRoot
             ? dedupeEntries(normalizedChildren)
-            : insertDirectoryChildren(
-                entriesRef.current,
-                directoryPath,
-                normalizedChildren,
-              )
+            : insertDirectoryChildren(entriesRef.current, directoryPath, normalizedChildren)
           replaceEntries(next)
           loadedDirectoriesRef.current.add(key)
           if (options.expandOnSuccess) {
-            setExpandedDirectories(current => addSetValue(current, key))
+            setExpandedDirectories((current) => addSetValue(current, key))
           }
         })
-        .catch(error => {
+        .catch((error) => {
           if (generationRef.current === generation) {
-            setDirectoryErrors(current => addSetValue(current, key))
+            setDirectoryErrors((current) => addSetValue(current, key))
           }
           throw error
         })
         .finally(() => {
           loadingPromisesRef.current.delete(key)
           if (generationRef.current === generation) {
-            setLoadingDirectories(current => removeSetValue(current, key))
+            setLoadingDirectories((current) => removeSetValue(current, key))
           }
         })
       loadingPromisesRef.current.set(key, request)
@@ -221,9 +191,7 @@ function WorkspaceFileTreeContent({
     setQuery('')
     if (rootPath && workspace) {
       replaceEntries([])
-      void loadDirectory(rootPath, -1, { replaceRoot: true }).catch(
-        () => undefined,
-      )
+      void loadDirectory(rootPath, -1, { replaceRoot: true }).catch(() => undefined)
     } else {
       replaceEntries(normalizeRootEntries(files))
     }
@@ -234,7 +202,7 @@ function WorkspaceFileTreeContent({
     let cancelled = false
     const revealActivePath = async (): Promise<void> => {
       const pathsToExpand: string[] = []
-      const ancestors = ancestorDirectoryPaths(activePath).filter(path =>
+      const ancestors = ancestorDirectoryPaths(activePath).filter((path) =>
         isWithinRoot(path, rootPath),
       )
       if (rootPath) {
@@ -243,7 +211,7 @@ function WorkspaceFileTreeContent({
       for (const directoryPath of ancestors) {
         if (cancelled) return
         const directory = entriesRef.current.find(
-          entry =>
+          (entry) =>
             entry.type === 'directory' &&
             normalizePath(entry.path) === normalizePath(directoryPath),
         )
@@ -254,16 +222,15 @@ function WorkspaceFileTreeContent({
       if (cancelled) return
       // If activePath itself is a directory, expand and load it too
       const targetEntry = entriesRef.current.find(
-        entry =>
-          entry.type === 'directory' &&
-          normalizePath(entry.path) === normalizePath(activePath),
+        (entry) =>
+          entry.type === 'directory' && normalizePath(entry.path) === normalizePath(activePath),
       )
       if (targetEntry) {
         pathsToExpand.push(normalizePath(targetEntry.path))
         await loadDirectory(targetEntry.path, targetEntry.depth)
       }
       if (cancelled || pathsToExpand.length === 0) return
-      setExpandedDirectories(current => {
+      setExpandedDirectories((current) => {
         const next = new Set(current)
         for (const path of pathsToExpand) next.add(path)
         return next
@@ -276,21 +243,14 @@ function WorkspaceFileTreeContent({
   }, [activePath, loadDirectory, revealToken, rootPath, workspace?.path])
 
   const visibleRows = useMemo(
-    () =>
-      buildVisibleRows(
-        entries,
-        query,
-        expandedDirectories,
-      ),
+    () => buildVisibleRows(entries, query, expandedDirectories),
     [entries, expandedDirectories, query],
   )
 
   useEffect(() => {
     if (!activePath) return
     const index = visibleRows.findIndex(
-      row =>
-        row.kind === 'entry' &&
-        normalizePath(row.file.path) === normalizePath(activePath),
+      (row) => row.kind === 'entry' && normalizePath(row.file.path) === normalizePath(activePath),
     )
     if (index < 0) return
     listRef.current?.scrollToIndex(index, { align: 'nearest' })
@@ -333,28 +293,21 @@ function WorkspaceFileTreeContent({
     const key = normalizePath(file.path)
     if (loadingDirectories.has(key)) return
     if (directoryErrors.has(key)) {
-      void loadDirectory(file.path, file.depth, { expandOnSuccess: true }).catch(
-        () => undefined,
-      )
+      void loadDirectory(file.path, file.depth, { expandOnSuccess: true }).catch(() => undefined)
       return
     }
     if (expandedDirectories.has(key)) {
-      setExpandedDirectories(current => removeSetValue(current, key))
+      setExpandedDirectories((current) => removeSetValue(current, key))
       return
     }
     if (loadedDirectoriesRef.current.has(key)) {
-      setExpandedDirectories(current => addSetValue(current, key))
+      setExpandedDirectories((current) => addSetValue(current, key))
       return
     }
-    void loadDirectory(file.path, file.depth, { expandOnSuccess: true }).catch(
-      () => undefined,
-    )
+    void loadDirectory(file.path, file.depth, { expandOnSuccess: true }).catch(() => undefined)
   }
 
-  function focusVisibleEntry(
-    startIndex: number,
-    direction: 1 | -1,
-  ): void {
+  function focusVisibleEntry(startIndex: number, direction: 1 | -1): void {
     let index = startIndex
     while (index >= 0 && index < visibleRows.length) {
       const row = visibleRows[index]
@@ -362,9 +315,7 @@ function WorkspaceFileTreeContent({
         listRef.current?.scrollToIndex(index, { align: 'nearest' })
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            rowRefs.current
-              .get(normalizePath(row.file.path))
-              ?.focus({ preventScroll: true })
+            rowRefs.current.get(normalizePath(row.file.path))?.focus({ preventScroll: true })
           })
         })
         return
@@ -382,32 +333,24 @@ function WorkspaceFileTreeContent({
     })
     const treeItem = (
       <button
-        ref={element => {
+        ref={(element) => {
           if (element) rowRefs.current.set(key, element)
           else rowRefs.current.delete(key)
         }}
-        aria-expanded={
-          file.type === 'directory'
-            ? expandedDirectories.has(key)
-            : undefined
-        }
+        aria-expanded={file.type === 'directory' ? expandedDirectories.has(key) : undefined}
         aria-level={file.depth + 1}
         aria-selected={
-          file.type === 'file' && activePath != null
-            ? normalizePath(activePath) === key
-            : undefined
+          file.type === 'file' && activePath != null ? normalizePath(activePath) === key : undefined
         }
         className={cx(
           'right-dock-tree-row',
-          activePath != null &&
-            normalizePath(activePath) === key &&
-            'active',
+          activePath != null && normalizePath(activePath) === key && 'active',
         )}
         role="treeitem"
         style={{ paddingLeft: `${4 + file.depth * 14}px` }}
         title={file.path}
         type="button"
-        onClick={event => {
+        onClick={(event) => {
           if (file.type === 'directory') {
             if (event.detail <= 1) toggleDirectory(file)
             return
@@ -417,11 +360,9 @@ function WorkspaceFileTreeContent({
         onDoubleClick={() => {
           if (file.type === 'file') openPinned(file)
         }}
-        onKeyDown={event => {
+        onKeyDown={(event) => {
           const rowIndex = visibleRows.findIndex(
-            candidate =>
-              candidate.kind === 'entry' &&
-              normalizePath(candidate.file.path) === key,
+            (candidate) => candidate.kind === 'entry' && normalizePath(candidate.file.path) === key,
           )
           if (event.key === 'Escape') {
             event.preventDefault()
@@ -438,10 +379,7 @@ function WorkspaceFileTreeContent({
           } else if (event.key === 'End') {
             event.preventDefault()
             focusVisibleEntry(visibleRows.length - 1, -1)
-          } else if (
-            event.key === 'ArrowRight' &&
-            file.type === 'directory'
-          ) {
+          } else if (event.key === 'ArrowRight' && file.type === 'directory') {
             event.preventDefault()
             if (!expandedDirectories.has(key)) toggleDirectory(file)
             else focusVisibleEntry(rowIndex + 1, 1)
@@ -451,15 +389,14 @@ function WorkspaceFileTreeContent({
             expandedDirectories.has(key)
           ) {
             event.preventDefault()
-            setExpandedDirectories(current => removeSetValue(current, key))
+            setExpandedDirectories((current) => removeSetValue(current, key))
           } else if (event.key === 'ArrowLeft') {
             const parentPath = parentDirectoryPath(file.path)
             if (!parentPath) return
             const parentIndex = visibleRows.findIndex(
-              candidate =>
+              (candidate) =>
                 candidate.kind === 'entry' &&
-                normalizePath(candidate.file.path) ===
-                  normalizePath(parentPath),
+                normalizePath(candidate.file.path) === normalizePath(parentPath),
             )
             if (parentIndex < 0) return
             event.preventDefault()
@@ -478,18 +415,11 @@ function WorkspaceFileTreeContent({
             size={APP_ICON_SIZE}
           />
         ) : file.type === 'directory' && directoryErrors.has(key) ? (
-          <RotateCcw
-            aria-hidden="true"
-            className="right-dock-tree-chevron"
-            size={APP_ICON_SIZE}
-          />
+          <RotateCcw aria-hidden="true" className="right-dock-tree-chevron" size={APP_ICON_SIZE} />
         ) : file.type === 'directory' ? (
           <ChevronRight
             aria-hidden="true"
-            className={cx(
-              'right-dock-tree-chevron',
-              expandedDirectories.has(key) && 'is-expanded',
-            )}
+            className={cx('right-dock-tree-chevron', expandedDirectories.has(key) && 'is-expanded')}
             size={APP_ICON_SIZES.sm}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
@@ -523,13 +453,7 @@ function WorkspaceFileTreeContent({
   }
 
   return (
-    <div
-      className={cx(
-        'workspace-file-tree',
-        'right-dock-file-tree',
-        className,
-      )}
-    >
+    <div className={cx('workspace-file-tree', 'right-dock-file-tree', className)}>
       {searchable ? (
         <SearchInput
           aria-label="筛选文件"
@@ -551,16 +475,15 @@ function WorkspaceFileTreeContent({
           itemSize={FILE_TREE_ROW_HEIGHT}
           role="tree"
         >
-          {row => <Fragment key={fileTreeRowKey(row)}>{renderRow(row)}</Fragment>}
+          {(row) => <Fragment key={fileTreeRowKey(row)}>{renderRow(row)}</Fragment>}
         </VList>
       ) : (
         <div className="right-dock-tree-empty">
           {workspace && rootPath && directoryErrors.has(normalizePath(rootPath)) ? (
-            <Button color="secondary"
+            <Button
+              color="secondary"
               onClick={() => {
-                void loadDirectory(rootPath, -1, { replaceRoot: true }).catch(
-                  () => undefined,
-                )
+                void loadDirectory(rootPath, -1, { replaceRoot: true }).catch(() => undefined)
               }}
             >
               <RotateCcw aria-hidden="true" size={APP_ICON_SIZE} />
@@ -595,12 +518,12 @@ export function getSendableFilePath({
 export { createWorkspaceFileTabId }
 
 function normalizeRootEntries(files: DesktopFileEntry[]): DesktopFileEntry[] {
-  return dedupeEntries(files.map(file => ({ ...file, depth: 0 })))
+  return dedupeEntries(files.map((file) => ({ ...file, depth: 0 })))
 }
 
 function dedupeEntries(entries: DesktopFileEntry[]): DesktopFileEntry[] {
   const seen = new Set<string>()
-  return entries.filter(entry => {
+  return entries.filter((entry) => {
     const key = normalizePath(entry.path)
     if (seen.has(key)) return false
     seen.add(key)
@@ -614,13 +537,11 @@ function insertDirectoryChildren(
   children: DesktopFileEntry[],
 ): DesktopFileEntry[] {
   const parentIndex = entries.findIndex(
-    entry => normalizePath(entry.path) === normalizePath(directoryPath),
+    (entry) => normalizePath(entry.path) === normalizePath(directoryPath),
   )
   if (parentIndex < 0) return entries
-  const existing = new Set(entries.map(entry => normalizePath(entry.path)))
-  const uniqueChildren = children.filter(
-    child => !existing.has(normalizePath(child.path)),
-  )
+  const existing = new Set(entries.map((entry) => normalizePath(entry.path)))
+  const uniqueChildren = children.filter((child) => !existing.has(normalizePath(child.path)))
   if (uniqueChildren.length === 0) return entries
   return [
     ...entries.slice(0, parentIndex + 1),
@@ -637,8 +558,8 @@ function buildVisibleRows(
   const normalizedQuery = query.trim().toLowerCase()
   if (normalizedQuery) {
     return entries
-      .filter(entry => entry.path.toLowerCase().includes(normalizedQuery))
-      .map(file => ({ kind: 'entry' as const, file }))
+      .filter((entry) => entry.path.toLowerCase().includes(normalizedQuery))
+      .map((file) => ({ kind: 'entry' as const, file }))
   }
 
   const rows: FileTreeRow[] = []
@@ -664,9 +585,7 @@ function buildVisibleRows(
 
 function ancestorDirectoryPaths(path: string): string[] {
   const segments = path.replace(/\\/g, '/').split('/').filter(Boolean)
-  return segments.slice(0, -1).map((_, index) =>
-    segments.slice(0, index + 1).join('/'),
-  )
+  return segments.slice(0, -1).map((_, index) => segments.slice(0, index + 1).join('/'))
 }
 
 function parentDirectoryPath(path: string): string | null {

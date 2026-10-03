@@ -1,15 +1,7 @@
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Input } from '../../components/ui/Input.js'
-import type {
-  DesktopSystemFontFace,
-  DesktopThemeFontFace,
-} from '../../../shared/types.js'
+import type { DesktopSystemFontFace, DesktopThemeFontFace } from '../../../shared/types.js'
 import {
   getCachedSystemFontsPromise,
   isMonospaceFamily,
@@ -90,11 +82,11 @@ function FontInput({
         }
         commit()
       }}
-      onChange={event => setDraft(event.target.value)}
+      onChange={(event) => setDraft(event.target.value)}
       onFocus={() => {
         focusedRef.current = true
       }}
-      onKeyDown={event => {
+      onKeyDown={(event) => {
         if (event.key === 'Enter') event.currentTarget.blur()
         if (event.key === 'Escape') {
           skipBlurCommitRef.current = true
@@ -116,19 +108,17 @@ export function ThemeFontPicker({
 }: ThemeFontPickerProps): React.ReactNode {
   const [bridgeAvailable] = useState(
     () =>
-      typeof window !== 'undefined'
-      && typeof window.codePilotXDesktop?.listSystemFonts === 'function',
+      typeof window !== 'undefined' &&
+      typeof window.codePilotXDesktop?.listSystemFonts === 'function',
   )
-  const [fontsState, setFontsState] = useState<
-    'idle' | 'loading' | 'ready' | 'unavailable'
-  >('idle')
+  const [fontsState, setFontsState] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
   const [faces, setFaces] = useState<readonly DesktopSystemFontFace[]>([])
 
   useEffect(() => {
     if (!bridgeAvailable || fontsState !== 'idle') return
     const cached = getCachedSystemFontsPromise()
     if (cached) {
-      void cached.then(result => {
+      void cached.then((result) => {
         if (result.ok) {
           setFaces(result.fonts)
           setFontsState('ready')
@@ -143,7 +133,7 @@ export function ThemeFontPicker({
     (open: boolean): void => {
       if (!open || fontsState !== 'idle') return
       setFontsState('loading')
-      void listSystemFonts().then(result => {
+      void listSystemFonts().then((result) => {
         if (result.ok) {
           setFaces(result.fonts)
           setFontsState('ready')
@@ -163,16 +153,14 @@ export function ThemeFontPicker({
         ariaLabel={ariaLabel}
         placeholder={placeholder}
         value={family}
-        onCommit={next => onCommit(next, null)}
+        onCommit={(next) => onCommit(next, null)}
       />
     )
   }
 
   const currentFamilyValue = fontPickerCurrentFamilyValue(family)
   const currentFamilyLabel = fontPickerCurrentFamilyLabel(family, face)
-  const selectedFamilyFaces = family
-    ? facesOfFamily(faces, family)
-    : []
+  const selectedFamilyFaces = family ? facesOfFamily(faces, family) : []
 
   const familyOptions: FontPickerOption[] =
     fontsState === 'ready'
@@ -189,19 +177,18 @@ export function ThemeFontPicker({
             disabled: true,
           },
           ...(fontsState === 'loading'
-            ? [{
-                value: LOADING_OPTION_VALUE,
-                label: '正在加载字体…',
-                disabled: true,
-              }]
+            ? [
+                {
+                  value: LOADING_OPTION_VALUE,
+                  label: '正在加载字体…',
+                  disabled: true,
+                },
+              ]
             : []),
         ]
 
   return (
-    <div
-      aria-busy={fontsState === 'loading'}
-      className="appearance-theme-font-row"
-    >
+    <div aria-busy={fontsState === 'loading'} className="appearance-theme-font-row">
       <SettingsDropdown
         ariaLabel={`${ariaLabel}字体家族`}
         options={familyOptions}
@@ -211,7 +198,7 @@ export function ThemeFontPicker({
         value={currentFamilyValue}
         width={240}
         maxWidth="min(320px, calc(100vw - 16px))"
-        onChange={familyValue => {
+        onChange={(familyValue) => {
           if (fontsState !== 'ready') return
           if (familyValue === family) {
             // Re-selecting the current family keeps the stored face.
@@ -231,9 +218,7 @@ export function ThemeFontPicker({
       {family != null ? (
         <SettingsDropdown
           ariaLabel={`${ariaLabel}字体样式`}
-          disabled={
-            fontsState === 'ready' && selectedFamilyFaces.length <= 1
-          }
+          disabled={fontsState === 'ready' && selectedFamilyFaces.length <= 1}
           options={buildStyleOptions({
             faces: selectedFamilyFaces,
             currentFace: face,
@@ -245,7 +230,7 @@ export function ThemeFontPicker({
           })}
           width={100}
           onOpenChange={handleOpenChange}
-          onChange={faceValue => {
+          onChange={(faceValue) => {
             if (fontsState !== 'ready') return
             const patch = fontPatchForSelection({
               familyValue: family,

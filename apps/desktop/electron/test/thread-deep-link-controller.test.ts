@@ -1,15 +1,12 @@
-import { describe, expect, test } from "bun:test"
-import {
-  buildThreadDeepLink,
-  parseThreadDeepLink,
-} from "@codepilotx/shared/thread-reference"
-import type { DesktopLogger } from "../src/logging/desktop-logger"
+import { describe, expect, test } from 'bun:test'
+import { buildThreadDeepLink, parseThreadDeepLink } from '@codepilotx/shared/thread-reference'
+import type { DesktopLogger } from '../src/logging/desktop-logger'
 import {
   createThreadDeepLinkController,
   type ThreadDeepLinkController,
   type ThreadDeepLinkControllerDependencies,
   type ThreadDeepLinkPayload,
-} from "../src/deep-link/thread-deep-link-controller"
+} from '../src/deep-link/thread-deep-link-controller'
 
 // 合法深链一律通过共享 buildThreadDeepLink 构造，并以共享 parseThreadDeepLink
 // 回读确认，测试不手拼合法深链；非法链接按定义手工构造。
@@ -19,29 +16,25 @@ function legalLink(threadId: string): string {
   return link
 }
 
-const LEGAL_IDS = [
-  "plain-id-123",
-  "会话 with spaces/123",
-  "a?b#c&d=100% loaded",
-]
+const LEGAL_IDS = ['plain-id-123', '会话 with spaces/123', 'a?b#c&d=100% loaded']
 
 const ILLEGAL_LINKS = [
-  "http://threads/abc",
-  "https://threads/abc",
-  "codepilotx://chat/abc",
-  "codepilotx://threads:8080/abc",
-  "codepilotx://threads/abc?tab=open",
-  "codepilotx://threads/abc#section",
-  "codepilotx://user@threads/abc",
-  "codepilotx://user:pass@threads/abc",
-  "codepilotx://threads/",
-  "codepilotx://threads",
-  "codepilotx://threads//",
-  "codepilotx://threads/abc/def",
-  "codepilotx://threads/abc/",
-  "codepilotx://threads/%",
-  "",
-  "   ",
+  'http://threads/abc',
+  'https://threads/abc',
+  'codepilotx://chat/abc',
+  'codepilotx://threads:8080/abc',
+  'codepilotx://threads/abc?tab=open',
+  'codepilotx://threads/abc#section',
+  'codepilotx://user@threads/abc',
+  'codepilotx://user:pass@threads/abc',
+  'codepilotx://threads/',
+  'codepilotx://threads',
+  'codepilotx://threads//',
+  'codepilotx://threads/abc/def',
+  'codepilotx://threads/abc/',
+  'codepilotx://threads/%',
+  '',
+  '   ',
 ]
 
 function fakeLogger(
@@ -51,7 +44,7 @@ function fakeLogger(
     logs.push({ event, fields })
   }
   return {
-    directory: "C:\\logs",
+    directory: 'C:\\logs',
     consoleEnabled: false,
     debug: (event, fields) => record(event, fields),
     info: (event, fields) => record(event, fields),
@@ -101,7 +94,7 @@ function createHarness(options: HarnessOptions = {}): Harness {
   const dependencies: ThreadDeepLinkControllerDependencies = {
     logger: fakeLogger(records.logs),
     getInitialArgv: () => options.argv ?? [],
-    subscribeRendererReady: listener => {
+    subscribeRendererReady: (listener) => {
       records.readyListeners.push(listener)
       return () => {
         records.unsubscribeCalls += 1
@@ -110,12 +103,12 @@ function createHarness(options: HarnessOptions = {}): Harness {
     isRendererReady: () => readyState.value,
     focusMainWindow: () => {
       records.focusCalls += 1
-      records.order.push("focus")
+      records.order.push('focus')
       options.onFocus?.()
     },
-    notify: payload => {
+    notify: (payload) => {
       records.notifyCalls.push(payload)
-      records.order.push("notify")
+      records.order.push('notify')
       options.onNotify?.(payload)
     },
   }
@@ -142,24 +135,20 @@ function createHarness(options: HarnessOptions = {}): Harness {
 
 // 内部状态与发送 payload 只保存解析后的 threadId；注入 logger 记录的所有
 // 参数/消息都不得包含原始链接或 threadId。测试不要求日志里出现任何 ID。
-function assertNoSensitiveData(
-  harness: Harness,
-  threadId: string,
-  rawLink: string,
-): void {
+function assertNoSensitiveData(harness: Harness, threadId: string, rawLink: string): void {
   const serialized = harness.logs
-    .map(record => `${record.event} ${JSON.stringify(record.fields ?? {})}`)
-    .join("\n")
+    .map((record) => `${record.event} ${JSON.stringify(record.fields ?? {})}`)
+    .join('\n')
   expect(serialized).not.toContain(threadId)
   expect(serialized).not.toContain(rawLink)
 }
 
-describe("ThreadDeepLinkController 冷启动 argv", () => {
+describe('ThreadDeepLinkController 冷启动 argv', () => {
   for (const threadId of LEGAL_IDS) {
     test(`argv 中的合法深链只缓存解析后的 threadId（${threadId}），Renderer 未就绪不发送`, () => {
       const link = legalLink(threadId)
       const harness = createHarness({
-        argv: ["C:\\CodePilotX.exe", "--flag", link],
+        argv: ['C:\\CodePilotX.exe', '--flag', link],
         ready: false,
       })
 
@@ -173,8 +162,8 @@ describe("ThreadDeepLinkController 冷启动 argv", () => {
     })
   }
 
-  test("Renderer/订阅就绪后只消费一次，再消费为 null、不重复通知", () => {
-    const threadId = "cold-ready-002"
+  test('Renderer/订阅就绪后只消费一次，再消费为 null、不重复通知', () => {
+    const threadId = 'cold-ready-002'
     const link = legalLink(threadId)
     const harness = createHarness({ argv: [link], ready: false })
 
@@ -187,8 +176,8 @@ describe("ThreadDeepLinkController 冷启动 argv", () => {
     assertNoSensitiveData(harness, threadId, link)
   })
 
-  test("consumePendingThreadDeepLink 先消费后，订阅就绪不再通知", () => {
-    const threadId = "cold-pulled-003"
+  test('consumePendingThreadDeepLink 先消费后，订阅就绪不再通知', () => {
+    const threadId = 'cold-pulled-003'
     const link = legalLink(threadId)
     const harness = createHarness({ argv: [link], ready: false })
 
@@ -199,15 +188,11 @@ describe("ThreadDeepLinkController 冷启动 argv", () => {
     expect(harness.notifyCalls).toEqual([])
   })
 
-  test("冷启动只取 argv 中第一个合法深链", () => {
-    const first = "cold-first-004"
-    const second = "cold-second-005"
+  test('冷启动只取 argv 中第一个合法深链', () => {
+    const first = 'cold-first-004'
+    const second = 'cold-second-005'
     const harness = createHarness({
-      argv: [
-        "C:\\CodePilotX.exe",
-        legalLink(first),
-        legalLink(second),
-      ],
+      argv: ['C:\\CodePilotX.exe', legalLink(first), legalLink(second)],
       ready: false,
     })
 
@@ -217,9 +202,9 @@ describe("ThreadDeepLinkController 冷启动 argv", () => {
     expect(harness.controller.consumePendingThreadDeepLink()).toBeNull()
   })
 
-  test("argv 中普通参数不产生缓存", () => {
+  test('argv 中普通参数不产生缓存', () => {
     const harness = createHarness({
-      argv: ["C:\\CodePilotX.exe", "--no-sandbox", "C:\\plain\\path"],
+      argv: ['C:\\CodePilotX.exe', '--no-sandbox', 'C:\\plain\\path'],
       ready: false,
     })
 
@@ -229,40 +214,37 @@ describe("ThreadDeepLinkController 冷启动 argv", () => {
   })
 })
 
-describe("ThreadDeepLinkController second-instance 运行时激活", () => {
-  test("合法深链：聚焦主窗口并向已就绪 Renderer 通知精确 {threadId}，每次激活仅一次", () => {
-    const threadId = "runtime-100"
+describe('ThreadDeepLinkController second-instance 运行时激活', () => {
+  test('合法深链：聚焦主窗口并向已就绪 Renderer 通知精确 {threadId}，每次激活仅一次', () => {
+    const threadId = 'runtime-100'
     const link = legalLink(threadId)
     const harness = createHarness({ argv: [], ready: true })
 
-    harness.controller.pushRuntimeActivation(["C:\\CodePilotX.exe", link])
+    harness.controller.pushRuntimeActivation(['C:\\CodePilotX.exe', link])
     expect(harness.focusCalls).toBe(1)
     expect(harness.notifyCalls).toEqual([{ threadId }])
     expect(harness.controller.consumePendingThreadDeepLink()).toBeNull()
 
-    harness.controller.pushRuntimeActivation(["C:\\CodePilotX.exe", link])
+    harness.controller.pushRuntimeActivation(['C:\\CodePilotX.exe', link])
     expect(harness.focusCalls).toBe(2)
-    expect(harness.notifyCalls).toEqual([
-      { threadId },
-      { threadId },
-    ])
+    expect(harness.notifyCalls).toEqual([{ threadId }, { threadId }])
     assertNoSensitiveData(harness, threadId, link)
   })
 
-  test("最小化窗口先 restore：每次合法激活必须先执行 focusMainWindow 再通知", () => {
-    const threadId = "runtime-focus-order-101"
+  test('最小化窗口先 restore：每次合法激活必须先执行 focusMainWindow 再通知', () => {
+    const threadId = 'runtime-focus-order-101'
     const link = legalLink(threadId)
     const harness = createHarness({ argv: [], ready: true })
 
     harness.controller.pushRuntimeActivation([link])
-    expect(harness.order).toEqual(["focus", "notify"])
+    expect(harness.order).toEqual(['focus', 'notify'])
 
     harness.controller.pushRuntimeActivation([link])
-    expect(harness.order).toEqual(["focus", "notify", "focus", "notify"])
+    expect(harness.order).toEqual(['focus', 'notify', 'focus', 'notify'])
   })
 
-  test("Renderer 未就绪时激活不发送，缓存供稍后消费", () => {
-    const threadId = "runtime-cached-102"
+  test('Renderer 未就绪时激活不发送，缓存供稍后消费', () => {
+    const threadId = 'runtime-cached-102'
     const link = legalLink(threadId)
     const harness = createHarness({ argv: [], ready: false })
 
@@ -276,8 +258,8 @@ describe("ThreadDeepLinkController second-instance 运行时激活", () => {
     assertNoSensitiveData(harness, threadId, link)
   })
 
-  test("无窗口时安全缓存供稍后消费：稍后就绪仅通知一次", () => {
-    const threadId = "runtime-no-window-103"
+  test('无窗口时安全缓存供稍后消费：稍后就绪仅通知一次', () => {
+    const threadId = 'runtime-no-window-103'
     const link = legalLink(threadId)
     const harness = createHarness({ argv: [], ready: false })
 
@@ -292,35 +274,28 @@ describe("ThreadDeepLinkController second-instance 运行时激活", () => {
     expect(harness.controller.consumePendingThreadDeepLink()).toBeNull()
   })
 
-  test("非法深链一律忽略：不聚焦、不发送、不缓存", () => {
+  test('非法深链一律忽略：不聚焦、不发送、不缓存', () => {
     const harness = createHarness({ argv: [], ready: true })
 
-    harness.controller.pushRuntimeActivation([
-      "C:\\CodePilotX.exe",
-      "codepilotx://evil/abc",
-    ])
+    harness.controller.pushRuntimeActivation(['C:\\CodePilotX.exe', 'codepilotx://evil/abc'])
     expect(harness.focusCalls).toBe(0)
     expect(harness.notifyCalls).toEqual([])
     expect(harness.controller.consumePendingThreadDeepLink()).toBeNull()
   })
 
-  test("普通 argv 参数没有深链时同样忽略", () => {
+  test('普通 argv 参数没有深链时同样忽略', () => {
     const harness = createHarness({ argv: [], ready: true })
 
-    harness.controller.pushRuntimeActivation([
-      "C:\\CodePilotX.exe",
-      "--flag",
-      "C:\\plain\\path",
-    ])
+    harness.controller.pushRuntimeActivation(['C:\\CodePilotX.exe', '--flag', 'C:\\plain\\path'])
     expect(harness.focusCalls).toBe(0)
     expect(harness.notifyCalls).toEqual([])
     expect(harness.controller.consumePendingThreadDeepLink()).toBeNull()
   })
 })
 
-describe("ThreadDeepLinkController open-url（macOS 生命周期兼容）", () => {
-  test("合法链接语义同 second-instance：聚焦并通知一次", () => {
-    const threadId = "open-url-200"
+describe('ThreadDeepLinkController open-url（macOS 生命周期兼容）', () => {
+  test('合法链接语义同 second-instance：聚焦并通知一次', () => {
+    const threadId = 'open-url-200'
     const link = legalLink(threadId)
     const harness = createHarness({ argv: [], ready: true })
 
@@ -330,25 +305,22 @@ describe("ThreadDeepLinkController open-url（macOS 生命周期兼容）", () =
 
     harness.controller.pushRuntimeActivation([link])
     expect(harness.focusCalls).toBe(2)
-    expect(harness.notifyCalls).toEqual([
-      { threadId },
-      { threadId },
-    ])
+    expect(harness.notifyCalls).toEqual([{ threadId }, { threadId }])
     assertNoSensitiveData(harness, threadId, link)
   })
 
-  test("非法 open-url 链接同样忽略", () => {
+  test('非法 open-url 链接同样忽略', () => {
     const harness = createHarness({ argv: [], ready: true })
 
-    harness.controller.pushRuntimeActivation(["codepilotx://threads?tab=open"])
+    harness.controller.pushRuntimeActivation(['codepilotx://threads?tab=open'])
     expect(harness.focusCalls).toBe(0)
     expect(harness.notifyCalls).toEqual([])
     expect(harness.controller.consumePendingThreadDeepLink()).toBeNull()
   })
 })
 
-describe("ThreadDeepLinkController 非法深链整体拒绝", () => {
-  test("非法 scheme/host/port/query/hash/userinfo/空/额外段深链一律忽略", () => {
+describe('ThreadDeepLinkController 非法深链整体拒绝', () => {
+  test('非法 scheme/host/port/query/hash/userinfo/空/额外段深链一律忽略', () => {
     for (const link of ILLEGAL_LINKS) {
       const harness = createHarness({ argv: [link], ready: true })
       expect(harness.controller.consumePendingThreadDeepLink()).toBeNull()
@@ -363,9 +335,9 @@ describe("ThreadDeepLinkController 非法深链整体拒绝", () => {
   })
 })
 
-describe("ThreadDeepLinkController 订阅绑定与 dispose", () => {
-  test("工厂创建时只绑定一次 Renderer 就绪订阅，避免重复监听造成重复导航", () => {
-    const threadId = "binding-300"
+describe('ThreadDeepLinkController 订阅绑定与 dispose', () => {
+  test('工厂创建时只绑定一次 Renderer 就绪订阅，避免重复监听造成重复导航', () => {
+    const threadId = 'binding-300'
     const link = legalLink(threadId)
     const harness = createHarness({ argv: [link], ready: false })
 
@@ -376,8 +348,8 @@ describe("ThreadDeepLinkController 订阅绑定与 dispose", () => {
     expect(harness.notifyCalls).toEqual([{ threadId }])
   })
 
-  test("dispose 解绑订阅，之后就绪不再自动通知", () => {
-    const threadId = "dispose-301"
+  test('dispose 解绑订阅，之后就绪不再自动通知', () => {
+    const threadId = 'dispose-301'
     const link = legalLink(threadId)
     const harness = createHarness({ argv: [link], ready: false })
 
@@ -387,8 +359,8 @@ describe("ThreadDeepLinkController 订阅绑定与 dispose", () => {
     expect(harness.notifyCalls).toEqual([])
   })
 
-  test("dispose 后运行时激活仍然只聚焦、不通知、不重复导航", () => {
-    const threadId = "dispose-302"
+  test('dispose 后运行时激活仍然只聚焦、不通知、不重复导航', () => {
+    const threadId = 'dispose-302'
     const link = legalLink(threadId)
     const harness = createHarness({ argv: [], ready: true })
 

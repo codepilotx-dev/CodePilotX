@@ -6,28 +6,28 @@
 
 ## 术语与代码映射
 
-| 术语 | 中文 | 规范实现 |
-| --- | --- | --- |
-| Reorder | 拖动排序 | Taskboard `BoardColumn` 的任务移动逻辑 |
-| Drop Zone | 拖放区域 | Composer 文件拖入区域 |
-| Placeholder | 拖拽占位符 | Taskboard 卡片槽位的 `data-drag-insert` 状态 |
-| Cross-list Transfer | 跨列表转移 | Taskboard 跨状态列 `onMove` |
-| Read More | 展开全文 | `CollapsibleUserMarkdown` |
-| Collapse | 独立折叠区块 | 各 feature 的受控 disclosure 状态 |
-| Tree View | 树形视图 | Workspace 与 Review 文件树 |
-| Tooltip | 工具提示 | `components/ui/Tooltip` |
-| Popover | 弹出浮层 | `components/ui/AnchoredPopover` 或专用搜索 Popover |
-| Dropdown | 下拉菜单 | `PopoverMenu`；选值场景使用 `SettingsDropdown` |
-| Spinner | 旋转加载指示器 | `components/ui/Spinner` |
-| Skeleton | 骨架屏 | `SkeletonRegion` 与 `SkeletonBlock` |
-| Shimmer | 骨架屏流光 | `SkeletonBlock` 的默认伪元素动画 |
-| Button Loading | 按钮加载状态 | `Button loading` |
-| Page Loader | 页面加载器 | `FullScreenWhaleLoading` |
-| Action Button | 文字动作按钮 | `components/ui/Button` |
-| Icon Action | 纯图标工具动作 | `components/ui/IconButton` |
-| Navigation / Menu / Compact Row | 导航、菜单或紧凑列表行 | 对应专用组件；确属共享紧凑行时使用 `interactive-row` |
-| Clickable Surface | 可点击卡片、缩略图、文件胶囊或实体行 | 原生 `button`/`a` 语义与 Feature 自有视觉 |
-| Persistent Choice | 持久模式或多项选择 | `SegmentedControl`、`Select`、Toggle 等对应控件 |
+| 术语                            | 中文                                 | 规范实现                                             |
+| ------------------------------- | ------------------------------------ | ---------------------------------------------------- |
+| Reorder                         | 拖动排序                             | Taskboard `BoardColumn` 的任务移动逻辑               |
+| Drop Zone                       | 拖放区域                             | Composer 文件拖入区域                                |
+| Placeholder                     | 拖拽占位符                           | Taskboard 卡片槽位的 `data-drag-insert` 状态         |
+| Cross-list Transfer             | 跨列表转移                           | Taskboard 跨状态列 `onMove`                          |
+| Read More                       | 展开全文                             | `CollapsibleUserMarkdown`                            |
+| Collapse                        | 独立折叠区块                         | 各 feature 的受控 disclosure 状态                    |
+| Tree View                       | 树形视图                             | Workspace 与 Review 文件树                           |
+| Tooltip                         | 工具提示                             | `components/ui/Tooltip`                              |
+| Popover                         | 弹出浮层                             | `components/ui/AnchoredPopover` 或专用搜索 Popover   |
+| Dropdown                        | 下拉菜单                             | `PopoverMenu`；选值场景使用 `SettingsDropdown`       |
+| Spinner                         | 旋转加载指示器                       | `components/ui/Spinner`                              |
+| Skeleton                        | 骨架屏                               | `SkeletonRegion` 与 `SkeletonBlock`                  |
+| Shimmer                         | 骨架屏流光                           | `SkeletonBlock` 的默认伪元素动画                     |
+| Button Loading                  | 按钮加载状态                         | `Button loading`                                     |
+| Page Loader                     | 页面加载器                           | `FullScreenWhaleLoading`                             |
+| Action Button                   | 文字动作按钮                         | `components/ui/Button`                               |
+| Icon Action                     | 纯图标工具动作                       | `components/ui/IconButton`                           |
+| Navigation / Menu / Compact Row | 导航、菜单或紧凑列表行               | 对应专用组件；确属共享紧凑行时使用 `interactive-row` |
+| Clickable Surface               | 可点击卡片、缩略图、文件胶囊或实体行 | 原生 `button`/`a` 语义与 Feature 自有视觉            |
+| Persistent Choice               | 持久模式或多项选择                   | `SegmentedControl`、`Select`、Toggle 等对应控件      |
 
 ## 拖拽交互
 

@@ -19,7 +19,8 @@ export const WorkflowSection: React.FC = () => {
             From rough hypothesis to verified pull request.
           </h2>
           <p className="mt-4 text-base sm:text-lg text-[#55625D]">
-            A predictable four-step cadence that treats agentic coding as a disciplined, reviewable engineering process.
+            A predictable four-step cadence that treats agentic coding as a disciplined, reviewable
+            engineering process.
           </p>
         </div>
 
@@ -41,9 +42,7 @@ export const WorkflowSection: React.FC = () => {
                 <div className="flex items-center justify-between w-full mb-3">
                   <span
                     className={`font-mono text-xs font-bold px-2.5 py-1 rounded-md ${
-                      isActive
-                        ? 'bg-[#17211D] text-[#FCFAF5]'
-                        : 'bg-[#DCD6CB]/60 text-[#55625D]'
+                      isActive ? 'bg-[#17211D] text-[#FCFAF5]' : 'bg-[#DCD6CB]/60 text-[#55625D]'
                     }`}
                   >
                     STEP {step.step}
@@ -53,13 +52,9 @@ export const WorkflowSection: React.FC = () => {
                   )}
                 </div>
 
-                <div className="text-lg font-bold text-[#17211D]">
-                  {step.name}
-                </div>
+                <div className="text-lg font-bold text-[#17211D]">{step.name}</div>
 
-                <p className="mt-2 text-xs text-[#55625D] line-clamp-2">
-                  {step.title}
-                </p>
+                <p className="mt-2 text-xs text-[#55625D] line-clamp-2">{step.title}</p>
               </button>
             )
           })}

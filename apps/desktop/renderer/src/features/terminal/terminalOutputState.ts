@@ -41,15 +41,12 @@ export function consumeTerminalSnapshot(
   snapshot: DesktopTerminalSnapshot,
 ): TerminalOutputUpdate {
   const instanceChanged =
-    current.terminalId !== snapshot.terminalId ||
-    current.instanceId !== snapshot.instanceId
+    current.terminalId !== snapshot.terminalId || current.instanceId !== snapshot.instanceId
   const reset = instanceChanged || snapshot.gap
   let expected = reset ? snapshot.oldestSequence : current.nextSequence
   const chunks: DesktopTerminalChunk[] = []
 
-  for (const chunk of [...snapshot.chunks].sort(
-    (left, right) => left.sequence - right.sequence,
-  )) {
+  for (const chunk of [...snapshot.chunks].sort((left, right) => left.sequence - right.sequence)) {
     if (chunk.sequence < expected) continue
     if (chunk.sequence > expected) {
       return {
@@ -91,10 +88,7 @@ export function consumeTerminalEvent(
 ): TerminalOutputUpdate {
   const terminalId = event.type === 'output' ? event.chunk.terminalId : event.terminalId
   const instanceId = event.type === 'output' ? event.chunk.instanceId : event.instanceId
-  if (
-    terminalId !== current.terminalId ||
-    instanceId !== current.instanceId
-  ) {
+  if (terminalId !== current.terminalId || instanceId !== current.instanceId) {
     return { state: current, chunks: [], reset: false, replayRequired: false }
   }
   if (event.type === 'state') {

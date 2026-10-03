@@ -1,17 +1,22 @@
-import { WorktreeStatusSchema } from "@codepilotx/shared/thread"
-import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../wire/definition"
+import { WorktreeStatusSchema } from '@codepilotx/shared/thread'
+import { Schema } from 'effect'
+import { defineMethod, type MethodMap } from '../wire/definition'
 import {
   NonEmptyStringSchema,
   OpaqueIDSchema,
   SequenceSchema,
   TimestampSchema,
-} from "../wire/primitives"
+} from '../wire/primitives'
 const RevisionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 
 export { WorktreeStatusSchema }
 
-export const WorktreeOperationStatusSchema = Schema.Literals(["pending", "running", "completed", "failed"])
+export const WorktreeOperationStatusSchema = Schema.Literals([
+  'pending',
+  'running',
+  'completed',
+  'failed',
+])
 
 export const ManagedWorktreeSchema = Schema.Struct({
   id: OpaqueIDSchema,
@@ -22,7 +27,7 @@ export const ManagedWorktreeSchema = Schema.Struct({
   headCommit: NonEmptyStringSchema,
   permanent: Schema.Boolean,
   pinned: Schema.Boolean,
-  setupStatus: Schema.Literals(["pending", "succeeded", "failed", "skipped"]),
+  setupStatus: Schema.Literals(['pending', 'succeeded', 'failed', 'skipped']),
   continuedWithoutSetup: Schema.Boolean,
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
@@ -35,13 +40,13 @@ export const WorktreeOperationSchema = Schema.Struct({
   worktreeId: Schema.NullOr(OpaqueIDSchema),
   projectId: OpaqueIDSchema,
   kind: Schema.Literals([
-    "create",
-    "retry-setup",
-    "continue-without-setup",
-    "set-permanent",
-    "delete",
-    "restore",
-    "auto-cleanup",
+    'create',
+    'retry-setup',
+    'continue-without-setup',
+    'set-permanent',
+    'delete',
+    'restore',
+    'auto-cleanup',
   ]),
   step: NonEmptyStringSchema,
   status: WorktreeOperationStatusSchema,
@@ -54,120 +59,127 @@ export const WorktreeOperationSchema = Schema.Struct({
 })
 
 const WorktreeErrors = [
-  "PROJECT_NOT_FOUND",
-  "WORKTREE_NOT_FOUND",
-  "WORKTREE_OPERATION_NOT_FOUND",
-  "WORKTREE_OPERATION_CONFLICT",
-  "WORKTREE_NOT_READY",
-  "WORKTREE_SETUP_REQUIRED",
-  "WORKTREE_PATH_DENIED",
-  "WORKTREE_PATH_UNSAFE",
-  "WORKTREE_BRANCH_NOT_FOUND",
-  "WORKTREE_GIT_FAILED",
-  "WORKTREE_APPLY_CONFLICT",
-  "WORKTREE_CLEANUP_FAILED",
-  "WORKTREE_RESTORE_FAILED",
-  "PATH_DENIED",
-  "CONFLICT",
-  "INTERNAL_ERROR",
+  'PROJECT_NOT_FOUND',
+  'WORKTREE_NOT_FOUND',
+  'WORKTREE_OPERATION_NOT_FOUND',
+  'WORKTREE_OPERATION_CONFLICT',
+  'WORKTREE_NOT_READY',
+  'WORKTREE_SETUP_REQUIRED',
+  'WORKTREE_PATH_DENIED',
+  'WORKTREE_PATH_UNSAFE',
+  'WORKTREE_BRANCH_NOT_FOUND',
+  'WORKTREE_GIT_FAILED',
+  'WORKTREE_APPLY_CONFLICT',
+  'WORKTREE_CLEANUP_FAILED',
+  'WORKTREE_RESTORE_FAILED',
+  'PATH_DENIED',
+  'CONFLICT',
+  'INTERNAL_ERROR',
 ] as const
 
-const WorktreeResultSchema = Schema.Struct({ worktree: ManagedWorktreeSchema, operation: WorktreeOperationSchema })
+const WorktreeResultSchema = Schema.Struct({
+  worktree: ManagedWorktreeSchema,
+  operation: WorktreeOperationSchema,
+})
 
 export const WorktreeRpcMethods = {
-  "worktree/eligibility": defineMethod({
+  'worktree/eligibility': defineMethod({
     params: Schema.Struct({ projectId: OpaqueIDSchema }),
     result: Schema.Struct({
       isGitRepository: Schema.Boolean,
-      availableModes: Schema.Array(Schema.Literals(["local", "worktree"])),
-      defaultMode: Schema.Literals(["local", "worktree"]),
+      availableModes: Schema.Array(Schema.Literals(['local', 'worktree'])),
+      defaultMode: Schema.Literals(['local', 'worktree']),
     }),
     errors: WorktreeErrors,
-    capability: "thread.execution.v2",
+    capability: 'thread.execution.v2',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "worktree/create": defineMethod({
+  'worktree/create': defineMethod({
     params: Schema.Struct({
       projectId: OpaqueIDSchema,
       startingState: Schema.Union([
-        Schema.Struct({ type: Schema.Literal("branch"), branchName: NonEmptyStringSchema }),
-        Schema.Struct({ type: Schema.Literal("working-tree") }),
+        Schema.Struct({ type: Schema.Literal('branch'), branchName: NonEmptyStringSchema }),
+        Schema.Struct({ type: Schema.Literal('working-tree') }),
       ]),
       operationId: OpaqueIDSchema,
     }),
     result: WorktreeResultSchema,
     errors: WorktreeErrors,
-    capability: "worktree.manage.v1",
+    capability: 'worktree.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "worktree/list": defineMethod({
+  'worktree/list': defineMethod({
     params: Schema.Struct({ projectId: Schema.optional(OpaqueIDSchema) }),
     result: Schema.Struct({ worktrees: Schema.Array(ManagedWorktreeSchema) }),
     errors: WorktreeErrors,
-    capability: "worktree.manage.v1",
+    capability: 'worktree.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "worktree/read": defineMethod({
+  'worktree/read': defineMethod({
     params: Schema.Struct({ worktreeId: OpaqueIDSchema }),
     result: ManagedWorktreeSchema,
     errors: WorktreeErrors,
-    capability: "worktree.manage.v1",
+    capability: 'worktree.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "worktree/retry-setup": defineMethod({
+  'worktree/retry-setup': defineMethod({
     params: Schema.Struct({ worktreeId: OpaqueIDSchema, operationId: OpaqueIDSchema }),
     result: WorktreeResultSchema,
     errors: WorktreeErrors,
-    capability: "worktree.manage.v1",
+    capability: 'worktree.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "worktree/continue-without-setup": defineMethod({
+  'worktree/continue-without-setup': defineMethod({
     params: Schema.Struct({ worktreeId: OpaqueIDSchema, operationId: OpaqueIDSchema }),
     result: WorktreeResultSchema,
     errors: WorktreeErrors,
-    capability: "worktree.manage.v1",
+    capability: 'worktree.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "worktree/set-permanent": defineMethod({
-    params: Schema.Struct({ worktreeId: OpaqueIDSchema, permanent: Schema.Boolean, operationId: OpaqueIDSchema }),
+  'worktree/set-permanent': defineMethod({
+    params: Schema.Struct({
+      worktreeId: OpaqueIDSchema,
+      permanent: Schema.Boolean,
+      operationId: OpaqueIDSchema,
+    }),
     result: WorktreeResultSchema,
     errors: WorktreeErrors,
-    capability: "worktree.manage.v1",
+    capability: 'worktree.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "worktree/delete": defineMethod({
+  'worktree/delete': defineMethod({
     params: Schema.Struct({ worktreeId: OpaqueIDSchema, operationId: OpaqueIDSchema }),
     result: WorktreeResultSchema,
     errors: WorktreeErrors,
-    capability: "worktree.manage.v1",
+    capability: 'worktree.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "worktree/restore": defineMethod({
+  'worktree/restore': defineMethod({
     params: Schema.Struct({ worktreeId: OpaqueIDSchema, operationId: OpaqueIDSchema }),
     result: WorktreeResultSchema,
     errors: WorktreeErrors,
-    capability: "worktree.manage.v1",
+    capability: 'worktree.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "worktree/operation/status": defineMethod({
+  'worktree/operation/status': defineMethod({
     params: Schema.Struct({
       operationId: OpaqueIDSchema,
       afterOutputCursor: Schema.optional(SequenceSchema),
@@ -182,7 +194,7 @@ export const WorktreeRpcMethods = {
       }),
     }),
     errors: WorktreeErrors,
-    capability: "worktree.manage.v1",
+    capability: 'worktree.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,

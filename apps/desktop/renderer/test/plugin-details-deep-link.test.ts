@@ -64,11 +64,13 @@ describe('plugin and skill detail deep links', () => {
     }
 
     expect(result).toMatchObject({ kind: 'skill', skill: builtinSkill })
-    expect(resolvePluginDetailsDeepLink(
-      new URLSearchParams({ tab: 'skills', skill: workspaceSkill.path }),
-      [],
-      [workspaceSkill],
-    )).toBeNull()
+    expect(
+      resolvePluginDetailsDeepLink(
+        new URLSearchParams({ tab: 'skills', skill: workspaceSkill.path }),
+        [],
+        [workspaceSkill],
+      ),
+    ).toBeNull()
   })
 
   test('rejects unsafe returns and clears stale or ambiguous target parameters', () => {
@@ -78,18 +80,24 @@ describe('plugin and skill detail deep links', () => {
     expect(safeInternalRoute('/session-groups?view=list#group-1')).toBe(
       '/session-groups?view=list#group-1',
     )
-    expect(resolvePluginDetailsDeepLink(
-      new URLSearchParams({
-        plugin: plugin.id,
-        skill: builtinSkill.path,
-      }),
-      [plugin],
-      [builtinSkill],
-    )).toBeNull()
-    expect(clearPluginDetailsDeepLink(new URLSearchParams({
-      tab: 'skills',
-      skill: builtinSkill.path,
-      from: 'https://example.com',
-    })).toString()).toBe('tab=skills')
+    expect(
+      resolvePluginDetailsDeepLink(
+        new URLSearchParams({
+          plugin: plugin.id,
+          skill: builtinSkill.path,
+        }),
+        [plugin],
+        [builtinSkill],
+      ),
+    ).toBeNull()
+    expect(
+      clearPluginDetailsDeepLink(
+        new URLSearchParams({
+          tab: 'skills',
+          skill: builtinSkill.path,
+          from: 'https://example.com',
+        }),
+      ).toString(),
+    ).toBe('tab=skills')
   })
 })

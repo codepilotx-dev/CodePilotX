@@ -31,11 +31,12 @@ export function prepareComposerSubmission(
 ): PreparedComposerSubmission | ComposerSubmitOutcome {
   const snapshot = cloneDraft(draft)
   const text = serializeComposerDocument(snapshot.document)
-  const skills = snapshot.skills ?? (snapshot.skillInvocation ? [snapshot.skillInvocation] : skillInvocationsFromComposerDocument(snapshot.document))
-  const hasContent =
-    Boolean(text.trim()) ||
-    snapshot.attachments.length > 0 ||
-    skills.length > 0
+  const skills =
+    snapshot.skills ??
+    (snapshot.skillInvocation
+      ? [snapshot.skillInvocation]
+      : skillInvocationsFromComposerDocument(snapshot.document))
+  const hasContent = Boolean(text.trim()) || snapshot.attachments.length > 0 || skills.length > 0
 
   if (!hasContent) {
     return failed('prepare', '请输入消息或添加附件')
@@ -52,17 +53,15 @@ export function prepareComposerSubmission(
       ...(skills.length ? { skills } : {}),
     },
     sessionName: skills.length
-      ? `${skills.map(skill => `$${skill.name}`).join(' ')} ${text}`.trim()
+      ? `${skills.map((skill) => `$${skill.name}`).join(' ')} ${text}`.trim()
       : undefined,
   }
 }
 
-export function serializeComposerDocument(
-  document: ComposerDraft['document'],
-): string {
+export function serializeComposerDocument(document: ComposerDraft['document']): string {
   const references = document.tokens
-    .filter(token => token.kind === 'thread' || token.kind === 'browser')
-    .map(token => `[${escapeMarkdownLabel(token.label)}](<${token.value.replace(/>/gu, '%3E')}>)`)
+    .filter((token) => token.kind === 'thread' || token.kind === 'browser')
+    .map((token) => `[${escapeMarkdownLabel(token.label)}](<${token.value.replace(/>/gu, '%3E')}>)`)
   if (references.length === 0) return document.text
   return `${references.join(' ')}${document.text.trim() ? `\n\n${document.text}` : ''}`
 }
@@ -98,11 +97,9 @@ export async function executeComposerSubmitTransaction({
   }
 
   try {
-    const deliveryStatus = await submitToSession(
-      sessionId,
-      prepared.input,
-      { inputId: prepared.clientId },
-    )
+    const deliveryStatus = await submitToSession(sessionId, prepared.input, {
+      inputId: prepared.clientId,
+    })
     return {
       status: deliveryStatus === 'queued' ? 'queued' : 'sent',
       sessionId,

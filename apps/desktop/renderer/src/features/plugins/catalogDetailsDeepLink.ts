@@ -1,8 +1,7 @@
 export type CatalogTab = 'plugins' | 'skills'
 
 export type CatalogDetailsTarget =
-  | { kind: 'plugin'; id: string; tab: 'plugins' }
-  | { kind: 'skill'; id: string; tab: 'skills' }
+  { kind: 'plugin'; id: string; tab: 'plugins' } | { kind: 'skill'; id: string; tab: 'skills' }
 
 export type CatalogLocation = {
   tab: CatalogTab
@@ -48,10 +47,7 @@ export function parseCatalogLocation(params: URLSearchParams): CatalogLocation {
   }
 }
 
-export function catalogBrowseParams(
-  current: URLSearchParams,
-  tab: CatalogTab,
-): URLSearchParams {
+export function catalogBrowseParams(current: URLSearchParams, tab: CatalogTab): URLSearchParams {
   const next = new URLSearchParams(current)
   next.set('tab', tab)
   next.delete('plugin')

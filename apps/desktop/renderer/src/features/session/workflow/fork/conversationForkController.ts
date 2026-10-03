@@ -38,11 +38,7 @@ export async function runConversationFork(
     sourceItemId: input.point.sourceItemId,
     destination: input.destination,
   })
-  return observeConversationFork(
-    input.client,
-    started.operation,
-    input.onProgress,
-  )
+  return observeConversationFork(input.client, started.operation, input.onProgress)
 }
 
 export async function resumeConversationFork(
@@ -64,10 +60,7 @@ export async function retryConversationForkSetup(
   operation: ConversationForkOperation,
   onProgress?: (progress: ConversationForkProgress) => void,
 ): Promise<ConversationForkResult> {
-  const updated = await client.retryThreadForkSetup(
-    operation.operationId,
-    operation.revision,
-  )
+  const updated = await client.retryThreadForkSetup(operation.operationId, operation.revision)
   return observeConversationFork(client, updated.operation, onProgress)
 }
 
@@ -88,10 +81,7 @@ export async function abandonConversationFork(
   operation: ConversationForkOperation,
   onProgress?: (progress: ConversationForkProgress) => void,
 ): Promise<ConversationForkResult> {
-  const updated = await client.abandonThreadFork(
-    operation.operationId,
-    operation.revision,
-  )
+  const updated = await client.abandonThreadFork(operation.operationId, operation.revision)
   return observeConversationFork(client, updated.operation, onProgress)
 }
 
@@ -136,5 +126,7 @@ function appendBoundedOutput(current: string, data: string): string {
   const combined = `${current}${data}`
   const encoded = new TextEncoder().encode(combined)
   if (encoded.byteLength <= 65_536) return combined
-  return new TextDecoder().decode(encoded.slice(encoded.byteLength - 65_536)).replace(/^\uFFFD/u, '')
+  return new TextDecoder()
+    .decode(encoded.slice(encoded.byteLength - 65_536))
+    .replace(/^\uFFFD/u, '')
 }

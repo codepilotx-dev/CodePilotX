@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 
 export type ToolArtifactImageState =
-  | { status: 'loading' }
-  | { status: 'ready'; source: string }
-  | { status: 'error'; message: string }
+  { status: 'loading' } | { status: 'ready'; source: string } | { status: 'error'; message: string }
 
 export function useToolArtifactImageSource(
   threadId: string | undefined,
@@ -24,7 +22,7 @@ export function useToolArtifactImageSource(
     }
 
     void desktopClient.readArtifact(threadId, artifactId).then(
-      result => {
+      (result) => {
         if (cancelled) return
         if (result.encoding !== 'base64' || !result.data) {
           setState({ status: 'error', message: 'Artifact 内容格式不受支持。' })

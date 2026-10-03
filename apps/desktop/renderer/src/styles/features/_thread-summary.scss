@@ -8,7 +8,7 @@
   --thread-summary-inline-edge: var(--cpx-sys-space-4);
 }
 
-.workflow-page__main[data-thread-summary-inline="true"] {
+.workflow-page__main[data-thread-summary-inline='true'] {
   padding-inline-end: calc(
     var(--thread-summary-inline-width) + var(--thread-summary-inline-gap) +
       var(--thread-summary-inline-edge)
@@ -80,7 +80,7 @@
     left: 14px;
     height: 0.5px;
     background: var(--cpx-sys-color-border-subtle);
-    content: "";
+    content: '';
   }
 
   &:last-child {
@@ -163,7 +163,7 @@
       opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
   }
 
-  &[aria-expanded="false"] > svg {
+  &[aria-expanded='false'] > svg {
     opacity: 1;
     transform: rotate(-90deg);
   }
@@ -230,7 +230,7 @@
     white-space: nowrap;
   }
 
-  &[aria-disabled="true"] {
+  &[aria-disabled='true'] {
     cursor: not-allowed;
 
     > svg:first-child {
@@ -379,11 +379,7 @@
   position: fixed;
   z-index: var(--cpx-sys-z-modal);
   inset: 0;
-  background: color-mix(
-    in srgb,
-    var(--cpx-sys-color-fg-primary) 18%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 18%, transparent);
 }
 
 .thread-summary-sources-panel {
@@ -528,14 +524,15 @@
   }
 }
 
-:root[data-reduce-motion="on"] :is(
-  .workflow-page__main,
-  .thread-summary-inline,
-  .thread-summary-popover,
-  .thread-summary-sources-panel,
-  .thread-summary-section__content,
-  .thread-summary-section__toggle > svg
-) {
+:root[data-reduce-motion='on']
+  :is(
+    .workflow-page__main,
+    .thread-summary-inline,
+    .thread-summary-popover,
+    .thread-summary-sources-panel,
+    .thread-summary-section__content,
+    .thread-summary-section__toggle > svg
+  ) {
   animation: none;
   transition: none;
 }

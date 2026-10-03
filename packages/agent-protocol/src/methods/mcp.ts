@@ -1,27 +1,27 @@
-import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../wire/definition"
+import { Schema } from 'effect'
+import { defineMethod, type MethodMap } from '../wire/definition'
 import {
   NonEmptyStringSchema,
   OperationParamsSchema,
   SequenceSchema,
   TimestampSchema,
-} from "../wire/primitives"
+} from '../wire/primitives'
 
 const StringMapSchema = Schema.Record(NonEmptyStringSchema, Schema.String)
 const EnvironmentReferenceMapSchema = Schema.Record(NonEmptyStringSchema, NonEmptyStringSchema)
 const TimeoutSchema = Schema.Int.check(Schema.isBetween({ minimum: 100, maximum: 600_000 }))
 
-export const McpScopeSchema = Schema.Literals(["user", "local"])
-export const McpTransportTypeSchema = Schema.Literals(["stdio", "http"])
-export const McpHttpAuthSchema = Schema.Literals(["oauth", "none"])
-export const McpToolApprovalModeSchema = Schema.Literals(["auto", "prompt", "writes", "approve"])
+export const McpScopeSchema = Schema.Literals(['user', 'local'])
+export const McpTransportTypeSchema = Schema.Literals(['stdio', 'http'])
+export const McpHttpAuthSchema = Schema.Literals(['oauth', 'none'])
+export const McpToolApprovalModeSchema = Schema.Literals(['auto', 'prompt', 'writes', 'approve'])
 
 export const McpToolPolicySchema = Schema.Struct({
   approvalMode: McpToolApprovalModeSchema,
 })
 
 export const McpStdioTransportSchema = Schema.Struct({
-  type: Schema.Literal("stdio"),
+  type: Schema.Literal('stdio'),
   command: NonEmptyStringSchema,
   args: Schema.optional(Schema.Array(Schema.String)),
   cwd: Schema.optional(NonEmptyStringSchema),
@@ -30,7 +30,7 @@ export const McpStdioTransportSchema = Schema.Struct({
 })
 
 export const McpHttpTransportSchema = Schema.Struct({
-  type: Schema.Literal("http"),
+  type: Schema.Literal('http'),
   url: NonEmptyStringSchema,
   auth: Schema.optional(McpHttpAuthSchema),
   scopes: Schema.optional(Schema.Array(Schema.String)),
@@ -76,12 +76,12 @@ export const McpListResultSchema = Schema.Struct({
 })
 
 export const McpRuntimeStateSchema = Schema.Literals([
-  "disabled",
-  "shadowed",
-  "starting",
-  "connected",
-  "needs_auth",
-  "failed",
+  'disabled',
+  'shadowed',
+  'starting',
+  'connected',
+  'needs_auth',
+  'failed',
 ])
 
 export const McpSanitizedErrorSchema = Schema.Struct({
@@ -91,7 +91,7 @@ export const McpSanitizedErrorSchema = Schema.Struct({
 })
 
 export const McpRuntimeAuthSummarySchema = Schema.Struct({
-  source: Schema.Literals(["none", "environment", "oauth"]),
+  source: Schema.Literals(['none', 'environment', 'oauth']),
   canLogin: Schema.Boolean,
   canLogout: Schema.Boolean,
 })
@@ -177,7 +177,7 @@ export const McpOAuthStatusParamsSchema = Schema.Struct({
 })
 
 export const McpOAuthStatusResultSchema = Schema.Struct({
-  state: Schema.Literals(["pending", "completed", "failed", "expired"]),
+  state: Schema.Literals(['pending', 'completed', 'failed', 'expired']),
   error: Schema.optional(McpSanitizedErrorSchema),
 })
 
@@ -186,93 +186,93 @@ export const McpOAuthLogoutResultSchema = Schema.Struct({
 })
 
 const McpErrors = [
-  "MCP_CONFIG_INVALID",
-  "MCP_SERVER_NOT_FOUND",
-  "MCP_OAUTH_UNAVAILABLE",
-  "MCP_UNAVAILABLE",
-  "PATH_DENIED",
-  "CONFLICT",
-  "INTERNAL_ERROR",
+  'MCP_CONFIG_INVALID',
+  'MCP_SERVER_NOT_FOUND',
+  'MCP_OAUTH_UNAVAILABLE',
+  'MCP_UNAVAILABLE',
+  'PATH_DENIED',
+  'CONFLICT',
+  'INTERNAL_ERROR',
 ] as const
 
 export const McpRpcMethods = {
-  "mcp/list": defineMethod({
+  'mcp/list': defineMethod({
     params: McpListParamsSchema,
     result: McpListResultSchema,
     errors: McpErrors,
-    capability: "mcp.manage.v1",
+    capability: 'mcp.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "mcp/status": defineMethod({
+  'mcp/status': defineMethod({
     params: McpStatusParamsSchema,
     result: McpStatusResultSchema,
     errors: McpErrors,
-    capability: "mcp.manage.v1",
+    capability: 'mcp.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "mcp/save": defineMethod({
+  'mcp/save': defineMethod({
     params: McpSaveParamsSchema,
     result: McpListResultSchema,
     errors: McpErrors,
-    capability: "mcp.manage.v1",
+    capability: 'mcp.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "mcp/remove": defineMethod({
+  'mcp/remove': defineMethod({
     params: McpRemoveParamsSchema,
     result: McpListResultSchema,
     errors: McpErrors,
-    capability: "mcp.manage.v1",
+    capability: 'mcp.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "mcp/setEnabled": defineMethod({
+  'mcp/setEnabled': defineMethod({
     params: McpSetEnabledParamsSchema,
     result: McpListResultSchema,
     errors: McpErrors,
-    capability: "mcp.manage.v1",
+    capability: 'mcp.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "mcp/reload": defineMethod({
+  'mcp/reload': defineMethod({
     params: McpReloadParamsSchema,
     result: McpReloadResultSchema,
     errors: McpErrors,
-    capability: "mcp.manage.v1",
+    capability: 'mcp.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "mcp/oauth/start": defineMethod({
+  'mcp/oauth/start': defineMethod({
     params: McpOAuthServerParamsSchema,
     result: McpOAuthStartResultSchema,
     errors: McpErrors,
-    capability: "mcp.oauth.v1",
+    capability: 'mcp.oauth.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "mcp/oauth/status": defineMethod({
+  'mcp/oauth/status': defineMethod({
     params: McpOAuthStatusParamsSchema,
     result: McpOAuthStatusResultSchema,
     errors: McpErrors,
-    capability: "mcp.oauth.v1",
+    capability: 'mcp.oauth.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "mcp/oauth/logout": defineMethod({
+  'mcp/oauth/logout': defineMethod({
     params: McpOAuthServerParamsSchema,
     result: McpOAuthLogoutResultSchema,
     errors: McpErrors,
-    capability: "mcp.oauth.v1",
+    capability: 'mcp.oauth.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,

@@ -1,39 +1,48 @@
-import type { PermissionConfig, ShellReview, ThreadSettings } from "@codepilotx/shared/thread"
-import type { Model } from "@codepilotx/model-schema"
+import type { PermissionConfig, ShellReview, ThreadSettings } from '@codepilotx/shared/thread'
+import type { Model } from '@codepilotx/model-schema'
 
-export type { PermissionConfig } from "@codepilotx/shared/thread"
+export type { PermissionConfig } from '@codepilotx/shared/thread'
 /** SQLite-private delivery encoding; public RPC/view models expose InputDelivery. */
-export type StoredInputDelivery = "start" | "queue" | "guide"
-export type TaskMode = "chat" | "plan"
+export type StoredInputDelivery = 'start' | 'queue' | 'guide'
+export type TaskMode = 'chat' | 'plan'
 export type TurnStatus =
-  | "queued"
-  | "running"
-  | "waiting_permission"
-  | "waiting_question"
-  | "waiting_subagents"
-  | "completed"
-  | "failed"
-  | "interrupted"
-  | "cancelled"
+  | 'queued'
+  | 'running'
+  | 'waiting_permission'
+  | 'waiting_question'
+  | 'waiting_subagents'
+  | 'completed'
+  | 'failed'
+  | 'interrupted'
+  | 'cancelled'
 
 export type ModelRef = Model.Ref
 
 export interface SubmitMessage {
   content: string
-  skills?: readonly import("@codepilotx/agent-protocol").SkillSelection[]
+  skills?: readonly import('@codepilotx/agent-protocol').SkillSelection[]
   model: ModelRef
   permissionConfig: PermissionConfig
   strategy: StoredInputDelivery
   taskMode: TaskMode
   /** Omitted historical inputs are user-authored. */
-  origin?: "user" | "goal-continuation"
+  origin?: 'user' | 'goal-continuation'
 }
 
-export type ItemType = "reasoning" | "activity" | "text" | "tool" | "plan" | "execution-plan" | "question" | "patch" | "subagent"
+export type ItemType =
+  | 'reasoning'
+  | 'activity'
+  | 'text'
+  | 'tool'
+  | 'plan'
+  | 'execution-plan'
+  | 'question'
+  | 'patch'
+  | 'subagent'
 
-export type SubagentProfile = "main" | "default" | "explorer" | "worker"
-export type SubagentWorkspaceMode = "shared" | "worktree"
-export type SubagentWorkspaceState = "ready" | "preparing" | "conflict" | "applied" | "discarded"
+export type SubagentProfile = 'main' | 'default' | 'explorer' | 'worker'
+export type SubagentWorkspaceMode = 'shared' | 'worktree'
+export type SubagentWorkspaceState = 'ready' | 'preparing' | 'conflict' | 'applied' | 'discarded'
 
 export interface SubagentWorkspace {
   mode: SubagentWorkspaceMode
@@ -43,26 +52,26 @@ export interface SubagentWorkspace {
 }
 
 export type SubagentStatus =
-  | "queued"
-  | "preparing"
-  | "running"
-  | "steering"
-  | "waiting_question"
-  | "waiting_permission"
-  | "completed"
-  | "failed"
-  | "stopped"
-  | "interrupted"
+  | 'queued'
+  | 'preparing'
+  | 'running'
+  | 'steering'
+  | 'waiting_question'
+  | 'waiting_permission'
+  | 'completed'
+  | 'failed'
+  | 'stopped'
+  | 'interrupted'
 
-export type SubagentQueueReason = "parent_limit" | "global_limit" | "workspace_writer" | null
+export type SubagentQueueReason = 'parent_limit' | 'global_limit' | 'workspace_writer' | null
 
 export interface SubagentResult {
-  outcome: "succeeded" | "partial" | "blocked"
+  outcome: 'succeeded' | 'partial' | 'blocked'
   summary: string
   findings: Array<{
     title: string
     detail: string
-    severity: "info" | "warning" | "error"
+    severity: 'info' | 'warning' | 'error'
   }>
   changedFiles: Array<{
     path: string
@@ -70,12 +79,12 @@ export interface SubagentResult {
   }>
   validation: Array<{
     command: string
-    status: "passed" | "failed" | "skipped"
+    status: 'passed' | 'failed' | 'skipped'
     output?: string
   }>
   risks: string[]
   references: Array<{
-    kind: "file" | "url" | "thread" | "subagent"
+    kind: 'file' | 'url' | 'thread' | 'subagent'
     value: string
     label?: string
   }>
@@ -104,7 +113,7 @@ export interface SubagentTask {
   parentAgentID: string
   childThreadID: string
   displayName: string
-  profile: Exclude<SubagentProfile, "main">
+  profile: Exclude<SubagentProfile, 'main'>
   task: string
   permissionCeiling: PermissionConfig
   workspace: SubagentWorkspace
@@ -119,15 +128,15 @@ export interface SubagentProjection {
 }
 
 export type AgentExecutionStatus =
-  | "queued"
-  | "running"
-  | "waiting_question"
-  | "waiting_permission"
-  | "waiting_subagents"
-  | "completed"
-  | "failed"
-  | "interrupted"
-  | "cancelled"
+  | 'queued'
+  | 'running'
+  | 'waiting_question'
+  | 'waiting_permission'
+  | 'waiting_subagents'
+  | 'completed'
+  | 'failed'
+  | 'interrupted'
+  | 'cancelled'
 
 export interface AgentExecution {
   id: string
@@ -152,7 +161,7 @@ export interface Item {
   turnID: string
   agentID: string
   type: ItemType
-  status: "pending" | "running" | "completed" | "error" | "interrupted"
+  status: 'pending' | 'running' | 'completed' | 'error' | 'interrupted'
   data: Record<string, unknown>
   ordinal?: number
   createdAt: number
@@ -209,7 +218,7 @@ export interface ToolInvocation {
 export interface ToolAffectedPath {
   /** Workspace-safe display path produced after host path validation. */
   path: string
-  operation: "create" | "update"
+  operation: 'create' | 'update'
 }
 
 export interface ToolReviewSummary {
@@ -228,8 +237,8 @@ export interface ToolAuthorizationScope {
 }
 
 export interface PermissionDecision {
-  decision: "allow" | "ask" | "deny"
-  risk: "low" | "medium" | "high" | "critical"
+  decision: 'allow' | 'ask' | 'deny'
+  risk: 'low' | 'medium' | 'high' | 'critical'
   reason: string
   review?: ShellReview
   /** Returned only by authorization previews for scope-bound execution. */

@@ -6,8 +6,12 @@ describe('keyed disclosure store', () => {
     const store = createKeyedDisclosureStore({ initialExpandedKeys: [] })
     let aCalls = 0
     let bCalls = 0
-    store.subscribe('a', () => { aCalls += 1 })
-    store.subscribe('b', () => { bCalls += 1 })
+    store.subscribe('a', () => {
+      aCalls += 1
+    })
+    store.subscribe('b', () => {
+      bCalls += 1
+    })
 
     store.setExpanded('a', true)
     store.setExpanded('a', true)
@@ -21,14 +25,22 @@ describe('keyed disclosure store', () => {
     let persistCalls = 0
     const store = createKeyedDisclosureStore({
       initialExpandedKeys: ['a', 'b'],
-      persist: () => { persistCalls += 1 },
+      persist: () => {
+        persistCalls += 1
+      },
     })
     let aCalls = 0
     let bCalls = 0
     let cCalls = 0
-    store.subscribe('a', () => { aCalls += 1 })
-    store.subscribe('b', () => { bCalls += 1 })
-    store.subscribe('c', () => { cCalls += 1 })
+    store.subscribe('a', () => {
+      aCalls += 1
+    })
+    store.subscribe('b', () => {
+      bCalls += 1
+    })
+    store.subscribe('c', () => {
+      cCalls += 1
+    })
 
     store.replace(['a', 'c'])
 
@@ -39,7 +51,9 @@ describe('keyed disclosure store', () => {
   test('notifies aggregate subscribers once per update', () => {
     const store = createKeyedDisclosureStore({ initialExpandedKeys: ['a'] })
     let calls = 0
-    store.subscribeAll(() => { calls += 1 })
+    store.subscribeAll(() => {
+      calls += 1
+    })
 
     store.replace(['b', 'c'])
 
@@ -52,7 +66,7 @@ describe('keyed disclosure store', () => {
     const store = createKeyedDisclosureStore({
       initialExpandedKeys: [],
       persistDelayMs: 10,
-      persist: keys => snapshots.push([...keys]),
+      persist: (keys) => snapshots.push([...keys]),
     })
 
     for (let index = 0; index < 60; index += 1) {

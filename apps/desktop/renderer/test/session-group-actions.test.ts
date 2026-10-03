@@ -5,9 +5,13 @@ import { chooseSessionGroupForThread } from '../src/features/session-groups/sess
 test('工作流归属选择支持加入、移出，取消或无效序号不写入', async () => {
   const originalPrompt = globalThis.prompt
   const list = spyOn(desktopClient, 'listSessionGroups').mockResolvedValue([
-    { id: 'group-1', name: '工作流一' } as Awaited<ReturnType<typeof desktopClient.listSessionGroups>>[number],
+    { id: 'group-1', name: '工作流一' } as Awaited<
+      ReturnType<typeof desktopClient.listSessionGroups>
+    >[number],
   ])
-  const set = spyOn(desktopClient, 'setSessionGroupMembership').mockResolvedValue({} as Awaited<ReturnType<typeof desktopClient.setSessionGroupMembership>>)
+  const set = spyOn(desktopClient, 'setSessionGroupMembership').mockResolvedValue(
+    {} as Awaited<ReturnType<typeof desktopClient.setSessionGroupMembership>>,
+  )
   try {
     for (const answer of [null, '999', '1', '0']) {
       globalThis.prompt = () => answer

@@ -6,15 +6,9 @@ import type { SidebarProductMode } from '../../../shared/types.js'
  */
 export type NewSessionSurface = SidebarProductMode
 
-export const NEW_SESSION_SURFACES: readonly NewSessionSurface[] = [
-  'coding',
-  'working',
-  'chat',
-]
+export const NEW_SESSION_SURFACES: readonly NewSessionSurface[] = ['coding', 'working', 'chat']
 
-export function isNewSessionSurface(
-  value: string | null | undefined,
-): value is NewSessionSurface {
+export function isNewSessionSurface(value: string | null | undefined): value is NewSessionSurface {
   return (
     value !== null &&
     value !== undefined &&

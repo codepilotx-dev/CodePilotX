@@ -61,8 +61,8 @@ function resetCounters(): void {
 }
 
 const instrumentationAvailable =
-  typeof import.meta !== 'undefined'
-  && (import.meta.env?.MODE === 'performance' || import.meta.env?.DEV === true)
+  typeof import.meta !== 'undefined' &&
+  (import.meta.env?.MODE === 'performance' || import.meta.env?.DEV === true)
 
 if (instrumentationAvailable && typeof window !== 'undefined') {
   const target = window as typeof window & {

@@ -14,13 +14,21 @@ import { WorkspaceHeaderProvider } from '../src/features/layout/workspace-header
 describe('AutomationView', () => {
   test('侧栏复用传入控制器的筛选结果与详情路由', () => {
     const controller = {
-      query: '发布', filter: 'paused', loading: false, supported: true, error: null,
-      runs: [], filteredAutomations: [{ id: 'task/publish', name: '发布检查', status: 'paused' }],
-      setQuery: () => {}, setFilter: () => {},
+      query: '发布',
+      filter: 'paused',
+      loading: false,
+      supported: true,
+      error: null,
+      runs: [],
+      filteredAutomations: [{ id: 'task/publish', name: '发布检查', status: 'paused' }],
+      setQuery: () => {},
+      setFilter: () => {},
     } as unknown as AutomationController
     const html = renderToStaticMarkup(
       <MemoryRouter initialEntries={['/automations?automationId=task%2Fpublish']}>
-        <AutomationControllerContext.Provider value={controller}><SidebarScheduledPane /></AutomationControllerContext.Provider>
+        <AutomationControllerContext.Provider value={controller}>
+          <SidebarScheduledPane />
+        </AutomationControllerContext.Provider>
       </MemoryRouter>,
     )
     expect(html).toContain('value="发布"')
@@ -33,7 +41,10 @@ describe('AutomationView', () => {
 
   test('one-off drafts create and update through exact RPC params without the recurring schedule', async () => {
     const draft = {
-      ...defaultAutomationDraft({ projectId: 'project:calendar', model: { providerID: 'openai', id: 'gpt-5' } }),
+      ...defaultAutomationDraft({
+        projectId: 'project:calendar',
+        model: { providerID: 'openai', id: 'gpt-5' },
+      }),
       name: '发布检查',
       prompt: '检查发布结果。',
       scheduledFor: new Date(2026, 8, 5, 9).getTime(),
@@ -57,19 +68,25 @@ describe('AutomationView', () => {
     }
     const requests: Array<{ method: string; params: unknown }> = []
     const client = createRpcClient({
-      request: async message => {
+      request: async (message) => {
         requests.push({ method: message.method, params: message.params })
         return { jsonrpc: '2.0', id: message.id, result: { scheduledTask: task } }
       },
       notify: async () => {},
     })
 
-    await expect(client.call('scheduled-task/create', { ...draft, operationId: 'create:invalid' })).rejects.toThrow()
+    await expect(
+      client.call('scheduled-task/create', { ...draft, operationId: 'create:invalid' }),
+    ).rejects.toThrow()
     expect(requests).toHaveLength(0)
     const createParams = { ...definition, operationId: 'create:calendar' }
-    await expect(client.call('scheduled-task/create', createParams)).resolves.toEqual({ scheduledTask: task })
+    await expect(client.call('scheduled-task/create', createParams)).resolves.toEqual({
+      scheduledTask: task,
+    })
     const updateParams = { ...taskDefinition(task), id: task.id, expectedRevision: task.revision }
-    await expect(client.call('scheduled-task/update', updateParams)).resolves.toEqual({ scheduledTask: task })
+    await expect(client.call('scheduled-task/update', updateParams)).resolves.toEqual({
+      scheduledTask: task,
+    })
     expect(definition).not.toHaveProperty('schedule')
     expect(definition.scheduledFor).toBe(draft.scheduledFor)
     expect(requests).toEqual([

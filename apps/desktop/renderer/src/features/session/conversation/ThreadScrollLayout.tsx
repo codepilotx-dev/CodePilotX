@@ -63,9 +63,7 @@ export function ThreadScrollLayout({
       const footerHeight = Math.ceil(
         observedFooterHeight ?? footerElement.getBoundingClientRect().height,
       )
-      const viewportHeight = Math.ceil(
-        observedViewportHeight ?? scrollElement.clientHeight,
-      )
+      const viewportHeight = Math.ceil(observedViewportHeight ?? scrollElement.clientHeight)
       observedFooterHeight = null
       observedViewportHeight = null
       const previousFooterHeight = previousFooterHeightRef.current
@@ -81,16 +79,10 @@ export function ThreadScrollLayout({
       )
       previousFooterHeightRef.current = footerHeight
       measuredInsetRef.current = footerHeight + THREAD_FOOTER_GAP_PX
-      scrollElement.style.setProperty(
-        '--thread-scroll-footer-height',
-        `${footerHeight}px`,
-      )
+      scrollElement.style.setProperty('--thread-scroll-footer-height', `${footerHeight}px`)
       if (previousViewportHeightRef.current !== viewportHeight) {
         previousViewportHeightRef.current = viewportHeight
-        scrollElement.style.setProperty(
-          '--thread-scroll-viewport-height',
-          `${viewportHeight}px`,
-        )
+        scrollElement.style.setProperty('--thread-scroll-viewport-height', `${viewportHeight}px`)
       }
       writeMeasuredInset(footerElement.contains(document.activeElement))
 
@@ -106,8 +98,7 @@ export function ThreadScrollLayout({
 
     const scheduleMeasure = (entries: ResizeObserverEntry[]): void => {
       for (const entry of entries) {
-        const blockSize =
-          entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height
+        const blockSize = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height
         if (entry.target === footerElement) observedFooterHeight = blockSize
         if (entry.target === scrollElement) observedViewportHeight = blockSize
       }
@@ -117,9 +108,7 @@ export function ThreadScrollLayout({
 
     measureLayout()
     const observer =
-      typeof ResizeObserver === 'undefined'
-        ? null
-        : new ResizeObserver(scheduleMeasure)
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleMeasure)
     observer?.observe(footerElement)
     observer?.observe(scrollElement)
 

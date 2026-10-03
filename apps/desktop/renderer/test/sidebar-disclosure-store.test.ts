@@ -19,7 +19,7 @@ describe('sidebar disclosure store', () => {
         collapsedSidebarSections: ['projects'],
         collapsedSidebarProjectPaths: [project.path, 'unknown-project'],
       },
-      snapshot => snapshots.push(snapshot),
+      (snapshot) => snapshots.push(snapshot),
     )
     disclosure.registerProjects([project])
 
@@ -30,9 +30,11 @@ describe('sidebar disclosure store', () => {
     disclosure.setProjectExpanded(project, true)
     disclosure.store.flush()
 
-    expect(snapshots).toEqual([{
-      collapsedSidebarSections: [],
-      collapsedSidebarProjectPaths: ['unknown-project'],
-    }])
+    expect(snapshots).toEqual([
+      {
+        collapsedSidebarSections: [],
+        collapsedSidebarProjectPaths: ['unknown-project'],
+      },
+    ])
   })
 })

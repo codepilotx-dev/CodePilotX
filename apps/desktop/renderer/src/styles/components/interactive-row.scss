@@ -18,16 +18,12 @@
   min-height: var(--interactive-row-current-min-height);
   align-items: center;
   gap: var(--interactive-row-current-gap, var(--cpx-comp-row-gap));
-  padding:
-    var(--interactive-row-current-padding-block, 0)
+  padding: var(--interactive-row-current-padding-block, 0)
     var(--interactive-row-current-padding-inline);
   border-radius: var(--interactive-row-current-radius);
   corner-shape: var(--cpx-sys-corner-shape);
   background: var(--cpx-comp-row-bg, transparent);
-  color: var(
-    --cpx-comp-row-fg,
-    var(--cpx-sys-color-fg-primary)
-  );
+  color: var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary));
   font: var(--cpx-sys-type-control);
   text-align: left;
   text-decoration: none;
@@ -54,9 +50,7 @@
 .interactive-row--nav {
   --interactive-row-current-min-height: var(--cpx-comp-row-height-nav);
   --interactive-row-current-radius: var(--cpx-comp-row-radius);
-  --interactive-row-current-padding-inline: var(
-    --cpx-comp-row-padding-inline
-  );
+  --interactive-row-current-padding-inline: var(--cpx-comp-row-padding-inline);
 }
 
 .interactive-row--menu,
@@ -72,12 +66,8 @@
 .rm-model-menu .rm-sub-trigger {
   --interactive-row-current-min-height: var(--cpx-comp-row-height-menu);
   --interactive-row-current-radius: var(--cpx-comp-row-radius);
-  --interactive-row-current-padding-block: var(
-    --cpx-comp-row-padding-block
-  );
-  --interactive-row-current-padding-inline: var(
-    --cpx-comp-row-padding-inline
-  );
+  --interactive-row-current-padding-block: var(--cpx-comp-row-padding-block);
+  --interactive-row-current-padding-inline: var(--cpx-comp-row-padding-inline);
 }
 
 .interactive-row--rich,
@@ -85,17 +75,14 @@
 .popover-item--rich,
 .permission-select-item {
   --interactive-row-current-min-height: var(--cpx-comp-row-height-menu-rich, 44px);
-  --interactive-row-current-padding-block: var(
-    --cpx-comp-row-padding-block-rich,
-    6px
-  );
+  --interactive-row-current-padding-block: var(--cpx-comp-row-padding-block-rich, 6px);
 }
 
 .permission-select-scroll-content {
   gap: var(--cpx-comp-row-gap-y);
 }
 
-.interactive-row:hover:not(:where(:disabled, [data-disabled], [aria-disabled="true"])),
+.interactive-row:hover:not(:where(:disabled, [data-disabled], [aria-disabled='true'])),
 .popover-item:hover:not(:where(:disabled, [data-disabled])),
 .popover-sub-trigger:hover:not(:where([data-disabled])),
 .settings-dropdown-item:hover:not(:where(:disabled, [data-disabled])),
@@ -105,14 +92,8 @@
 .sidebar-context-menu-sub-trigger:hover:not(:where([data-disabled])),
 .rm-model-menu .rm-menu-item:hover:not(:where([data-disabled])),
 .rm-model-menu .rm-sub-trigger:hover:not(:where([data-disabled])) {
-  background: var(
-    --cpx-comp-row-hover-bg,
-    var(--cpx-sys-color-hover)
-  );
-  color: var(
-    --cpx-comp-row-hover-fg,
-    var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary))
-  );
+  background: var(--cpx-comp-row-hover-bg, var(--cpx-sys-color-hover));
+  color: var(--cpx-comp-row-hover-fg, var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary)));
 }
 
 .interactive-row[data-highlighted],
@@ -126,23 +107,17 @@
 .sidebar-context-menu-sub-trigger[data-highlighted],
 .rm-model-menu .rm-menu-item[data-highlighted],
 .rm-model-menu .rm-sub-trigger[data-highlighted] {
-  background: var(
-    --cpx-comp-row-hover-bg,
-    var(--cpx-sys-color-hover)
-  );
-  color: var(
-    --cpx-comp-row-hover-fg,
-    var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary))
-  );
+  background: var(--cpx-comp-row-hover-bg, var(--cpx-sys-color-hover));
+  color: var(--cpx-comp-row-hover-fg, var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary)));
 }
 
-.interactive-row:active:not(:where(:disabled, [data-disabled], [aria-disabled="true"])),
+.interactive-row:active:not(:where(:disabled, [data-disabled], [aria-disabled='true'])),
 .popover-item:active:not(:where(:disabled, [data-disabled])),
 .popover-sub-trigger:active:not(:where([data-disabled])),
 .menubar-item:active:not(:where([data-disabled])),
 .settings-dropdown-item:active:not(:where(:disabled, [data-disabled])),
 .permission-select-item:active:not(:where([data-disabled])),
-.chat-input__dropdown-item:active:not(:where(:disabled, [aria-disabled="true"])),
+.chat-input__dropdown-item:active:not(:where(:disabled, [aria-disabled='true'])),
 .sidebar-context-menu-item:active:not(:where([data-disabled])),
 .sidebar-context-menu-sub-trigger:active:not(:where([data-disabled])),
 .rm-model-menu .rm-menu-item:active:not(:where([data-disabled])),
@@ -171,89 +146,66 @@
   box-shadow: var(--cpx-sys-focus-ring-inset);
 }
 
-.interactive-row[data-state="open"],
-.interactive-row[aria-expanded="true"],
-.popover-sub-trigger[data-state="open"],
-.sidebar-context-menu-sub-trigger[data-state="open"],
-.rm-model-menu .rm-sub-trigger[data-state="open"] {
+.interactive-row[data-state='open'],
+.interactive-row[aria-expanded='true'],
+.popover-sub-trigger[data-state='open'],
+.sidebar-context-menu-sub-trigger[data-state='open'],
+.rm-model-menu .rm-sub-trigger[data-state='open'] {
   background: var(--cpx-comp-row-open-bg, var(--cpx-sys-color-selected));
   color: var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary));
 }
 
 .interactive-row.selected,
 .interactive-row.active,
-.interactive-row[aria-selected="true"],
-.interactive-row[aria-current="page"],
-.interactive-row[data-state="checked"],
+.interactive-row[aria-selected='true'],
+.interactive-row[aria-current='page'],
+.interactive-row[data-state='checked'],
 .popover-item.selected,
 .popover-item.active,
-.popover-item[aria-selected="true"],
-.settings-dropdown-item[aria-selected="true"],
-.settings-dropdown-item[data-state="checked"],
-.permission-select-item[aria-selected="true"],
-.permission-select-item[data-state="checked"],
-.menubar-item[aria-selected="true"],
-.menubar-item[data-state="checked"] {
+.popover-item[aria-selected='true'],
+.settings-dropdown-item[aria-selected='true'],
+.settings-dropdown-item[data-state='checked'],
+.permission-select-item[aria-selected='true'],
+.permission-select-item[data-state='checked'],
+.menubar-item[aria-selected='true'],
+.menubar-item[data-state='checked'] {
   background: var(--cpx-comp-row-selected-bg, var(--cpx-sys-color-selected));
   color: var(--cpx-comp-row-selected-fg, var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary)));
 }
 
 :is(
-  .popover-item[data-state="checked"],
-  .popover-item[aria-selected="true"],
-  .popover-item[aria-checked="true"],
+  .popover-item[data-state='checked'],
+  .popover-item[aria-selected='true'],
+  .popover-item[aria-checked='true'],
   .popover-item:has(.popover-item-check),
   .settings-dropdown-item:has(.settings-dropdown-item-indicator),
   .permission-select-item:has(.permission-select-item-indicator)
 ) {
   background: var(--cpx-comp-row-bg, transparent);
-  color: var(
-    --cpx-comp-row-fg,
-    var(--cpx-sys-color-fg-primary)
-  );
+  color: var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary));
 
-  &:where(
-    :hover,
-    [data-highlighted]
-  ):not(:where(:disabled, [data-disabled])) {
-    background: var(
-      --cpx-comp-row-hover-bg,
-      var(--cpx-sys-color-hover)
-    );
-    color: var(
-      --cpx-comp-row-hover-fg,
-      var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary))
-    );
+  &:where(:hover, [data-highlighted]):not(:where(:disabled, [data-disabled])) {
+    background: var(--cpx-comp-row-hover-bg, var(--cpx-sys-color-hover));
+    color: var(--cpx-comp-row-hover-fg, var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary)));
   }
 
-  &:active:not(
-    :where(:disabled, [data-disabled])
-  ) {
-    background: var(
-      --cpx-comp-row-pressed-bg,
-      var(--cpx-sys-color-active)
-    );
-    color: var(
-      --cpx-comp-row-fg,
-      var(--cpx-sys-color-fg-primary)
-    );
+  &:active:not(:where(:disabled, [data-disabled])) {
+    background: var(--cpx-comp-row-pressed-bg, var(--cpx-sys-color-active));
+    color: var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary));
   }
 }
 
 :is(
-  .settings-dropdown-item[data-state="checked"]:has(.settings-dropdown-item-indicator),
-  .permission-select-item[data-state="checked"]:has(.permission-select-item-indicator)
+  .settings-dropdown-item[data-state='checked']:has(.settings-dropdown-item-indicator),
+  .permission-select-item[data-state='checked']:has(.permission-select-item-indicator)
 ):where([data-highlighted]:not(:hover):not(:focus-visible):not(:active)) {
   background: var(--cpx-comp-row-bg, transparent);
-  color: var(
-    --cpx-comp-row-fg,
-    var(--cpx-sys-color-fg-primary)
-  );
+  color: var(--cpx-comp-row-fg, var(--cpx-sys-color-fg-primary));
 }
 
 .interactive-row:disabled,
 .interactive-row[data-disabled],
-.interactive-row[aria-disabled="true"],
+.interactive-row[aria-disabled='true'],
 .popover-item:disabled,
 .popover-item[data-disabled],
 .popover-sub-trigger[data-disabled],
@@ -262,15 +214,12 @@
 .settings-dropdown-item[data-disabled],
 .permission-select-item[data-disabled],
 .chat-input__dropdown-item:disabled,
-.chat-input__dropdown-item[aria-disabled="true"],
+.chat-input__dropdown-item[aria-disabled='true'],
 .sidebar-context-menu-item[data-disabled],
 .sidebar-context-menu-sub-trigger[data-disabled],
 .rm-model-menu .rm-menu-item[data-disabled],
 .rm-model-menu .rm-sub-trigger[data-disabled] {
-  color: var(
-    --cpx-comp-row-disabled-fg,
-    var(--cpx-sys-color-fg-disabled)
-  );
+  color: var(--cpx-comp-row-disabled-fg, var(--cpx-sys-color-fg-disabled));
   background: transparent;
   outline: none;
   box-shadow: none;
@@ -279,7 +228,7 @@
   opacity: var(--cpx-comp-row-disabled-opacity, 0.55);
 }
 
-:root[data-reduce-motion="on"] {
+:root[data-reduce-motion='on'] {
   .interactive-row,
   .popover-item,
   .popover-sub-trigger,

@@ -1,17 +1,14 @@
-import { app, BrowserWindow, nativeTheme } from "electron"
-import { DESKTOP_APPEARANCE_IPC_CHANNELS } from "@codepilotx/shared/desktop-appearance-ipc"
-import type {
-  DesktopChromeTheme,
-  DesktopThemeSettingsV7,
-} from "@codepilotx/shared/desktop-theme"
-import { resolveStartupPageTheme } from "./startup-page.js"
+import { app, BrowserWindow, nativeTheme } from 'electron'
+import { DESKTOP_APPEARANCE_IPC_CHANNELS } from '@codepilotx/shared/desktop-appearance-ipc'
+import type { DesktopChromeTheme, DesktopThemeSettingsV7 } from '@codepilotx/shared/desktop-theme'
+import { resolveStartupPageTheme } from './startup-page.js'
 
-export type SystemThemeVariant = "light" | "dark"
+export type SystemThemeVariant = 'light' | 'dark'
 
 export class WindowAppearanceController {
   #currentSettings: DesktopThemeSettingsV7
   #themeChangeCallback?: (
-    theme: Pick<DesktopChromeTheme, "surface" | "ink" | "accent"> & {
+    theme: Pick<DesktopChromeTheme, 'surface' | 'ink' | 'accent'> & {
       surfaceUnder: string
     },
   ) => void
@@ -22,7 +19,7 @@ export class WindowAppearanceController {
 
   onThemeChange(
     callback: (
-      theme: Pick<DesktopChromeTheme, "surface" | "ink" | "accent"> & {
+      theme: Pick<DesktopChromeTheme, 'surface' | 'ink' | 'accent'> & {
         surfaceUnder: string
       },
     ) => void,
@@ -36,28 +33,25 @@ export class WindowAppearanceController {
   }
 
   #notifyThemeChange(): void {
-    const resolved = resolveStartupPageTheme(
-      this.#currentSettings,
-      this.systemThemeVariant(),
-    )
+    const resolved = resolveStartupPageTheme(this.#currentSettings, this.systemThemeVariant())
     this.#themeChangeCallback?.(resolved.theme)
   }
 
   registerThemeBroadcast(): void {
-    nativeTheme.on("updated", this.#broadcastSystemTheme)
-    app.once("will-quit", () => {
-      nativeTheme.removeListener("updated", this.#broadcastSystemTheme)
+    nativeTheme.on('updated', this.#broadcastSystemTheme)
+    app.once('will-quit', () => {
+      nativeTheme.removeListener('updated', this.#broadcastSystemTheme)
     })
   }
 
   systemThemeVariant(): SystemThemeVariant {
-    return nativeTheme.shouldUseDarkColors ? "dark" : "light"
+    return nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
   }
 
   broadcastAppearanceSettings(settings: unknown): void {
     for (const window of BrowserWindow.getAllWindows()) {
       if (!window.isDestroyed()) {
-        window.webContents.send("appearance:settings:changed", settings)
+        window.webContents.send('appearance:settings:changed', settings)
       }
     }
   }
@@ -67,10 +61,7 @@ export class WindowAppearanceController {
     this.#notifyThemeChange()
     for (const window of BrowserWindow.getAllWindows()) {
       if (!window.isDestroyed()) {
-        window.webContents.send(
-          DESKTOP_APPEARANCE_IPC_CHANNELS.systemThemeChanged,
-          variant,
-        )
+        window.webContents.send(DESKTOP_APPEARANCE_IPC_CHANNELS.systemThemeChanged, variant)
       }
     }
   }

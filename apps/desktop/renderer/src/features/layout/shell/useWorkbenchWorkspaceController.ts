@@ -1,8 +1,5 @@
 import { useCallback, useState } from 'react'
-import type {
-  DesktopRemovedWorkspace,
-  DesktopWorkspace,
-} from '../../../../shared/types.js'
+import type { DesktopRemovedWorkspace, DesktopWorkspace } from '../../../../shared/types.js'
 import type { UseDesktopSettingsResult } from '../../settings/useDesktopSettings.js'
 import { useWorkspaceState } from '../../workspace/useWorkspaceState.js'
 
@@ -22,12 +19,12 @@ export function useWorkbenchWorkspaceController({
   settings: WorkbenchWorkspaceSettings
   onError: (message: string) => void
 }) {
-  const [unavailableWorkspacePaths, setUnavailableWorkspacePaths] = useState<
-    Set<string>
-  >(() => new Set())
-  const [removedWorkspaces, setRemovedWorkspaces] = useState<
-    DesktopRemovedWorkspace[]
-  >(() => initialRemovedWorkspaces)
+  const [unavailableWorkspacePaths, setUnavailableWorkspacePaths] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const [removedWorkspaces, setRemovedWorkspaces] = useState<DesktopRemovedWorkspace[]>(
+    () => initialRemovedWorkspaces,
+  )
   const [lastActiveWorkspacePath, setLastActiveWorkspacePath] = useState(
     () => initialLastActiveWorkspacePath,
   )
@@ -57,17 +54,14 @@ export function useWorkbenchWorkspaceController({
     [settings],
   )
 
-  const clearWorkspaceUnavailable = useCallback(
-    (target: DesktopWorkspace): void => {
-      setUnavailableWorkspacePaths((current) => {
-        if (!current.has(target.path)) return current
-        const next = new Set(current)
-        next.delete(target.path)
-        return next
-      })
-    },
-    [],
-  )
+  const clearWorkspaceUnavailable = useCallback((target: DesktopWorkspace): void => {
+    setUnavailableWorkspacePaths((current) => {
+      if (!current.has(target.path)) return current
+      const next = new Set(current)
+      next.delete(target.path)
+      return next
+    })
+  }, [])
 
   const workspace = useWorkspaceState({
     onError,

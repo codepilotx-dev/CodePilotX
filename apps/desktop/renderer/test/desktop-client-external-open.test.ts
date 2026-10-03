@@ -9,10 +9,7 @@ type OpenTargetWireTarget = {
   iconDataUrl?: string
 }
 
-function createHarness(options: {
-  targets: OpenTargetWireTarget[]
-  defaultOpenTargetId?: string
-}) {
+function createHarness(options: { targets: OpenTargetWireTarget[]; defaultOpenTargetId?: string }) {
   const opened: Array<{ path: string; targetId: string }> = []
   let settings = {
     ...defaultDesktopStoredSettings(),
@@ -23,7 +20,7 @@ function createHarness(options: {
       codePilotXDesktop: {
         pickWorkspaceDirectory: async () => null,
         getDesktopSettings: async () => settings,
-        saveDesktopSettings: async value => {
+        saveDesktopSettings: async (value) => {
           settings = value as typeof settings
           return settings
         },
@@ -57,9 +54,7 @@ describe('desktop external open client', () => {
       ],
     })
 
-    await expect(
-      harness.client.listExternalOpenTargets('C:\\workspace'),
-    ).resolves.toEqual([
+    await expect(harness.client.listExternalOpenTargets('C:\\workspace')).resolves.toEqual([
       {
         id: 'cursor',
         label: 'Cursor',
@@ -94,7 +89,7 @@ describe('desktop external open client', () => {
     for (const storedId of ['default-app', 'auto', 'unknown-target']) {
       const harness = createHarness({ targets, defaultOpenTargetId: storedId })
       const listed = await harness.client.listExternalOpenTargets('C:\\workspace')
-      expect(listed.map(target => target.preferred)).toEqual([true, false])
+      expect(listed.map((target) => target.preferred)).toEqual([true, false])
       expect(harness.settings().defaultOpenTargetId).toBe('cursor')
     }
 
@@ -107,16 +102,14 @@ describe('desktop external open client', () => {
       ],
     })
     const listed = await uninstalled.client.listExternalOpenTargets('C:\\workspace')
-    expect(listed.find(target => target.preferred)?.id).toBe('vscode')
+    expect(listed.find((target) => target.preferred)?.id).toBe('vscode')
     expect(uninstalled.settings().defaultOpenTargetId).toBe('vscode')
   })
 
   test('falls back to File Explorer without editors and never auto-selects GitHub Desktop or Terminal', async () => {
     const noEditor = createHarness({
       defaultOpenTargetId: 'default-app',
-      targets: [
-        { targetId: 'file-explorer', label: 'File Explorer', kind: 'file-explorer' },
-      ],
+      targets: [{ targetId: 'file-explorer', label: 'File Explorer', kind: 'file-explorer' }],
     })
     const listed = await noEditor.client.listExternalOpenTargets('C:\\workspace')
     expect(listed).toEqual([
@@ -133,7 +126,7 @@ describe('desktop external open client', () => {
       ],
     })
     const withToolsListed = await withTools.client.listExternalOpenTargets('C:\\workspace')
-    expect(withToolsListed.find(target => target.preferred)?.id).toBe('file-explorer')
+    expect(withToolsListed.find((target) => target.preferred)?.id).toBe('file-explorer')
     expect(withTools.settings().defaultOpenTargetId).toBe('file-explorer')
   })
 
@@ -149,8 +142,8 @@ describe('desktop external open client', () => {
     expect(harness.opened).toEqual([{ path: 'C:\\workspace', targetId: 'windsurf' }])
 
     const empty = createHarness({ targets: [] })
-    await expect(
-      empty.client.openPathWithDefaultTarget('C:\\workspace'),
-    ).rejects.toThrow('没有可用的外部打开方式')
+    await expect(empty.client.openPathWithDefaultTarget('C:\\workspace')).rejects.toThrow(
+      '没有可用的外部打开方式',
+    )
   })
 })

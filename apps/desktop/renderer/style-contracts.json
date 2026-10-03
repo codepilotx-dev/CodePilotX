@@ -77,10 +77,7 @@
   },
   "tailwindLeadingAllowlist": {},
   "featureColorContract": {
-    "roots": [
-      "src/styles/features",
-      "src/styles/lazy"
-    ],
+    "roots": ["src/styles/features", "src/styles/lazy"],
     "componentTokenExceptions": [
       {
         "file": "src/styles/features/_terminal.scss",
@@ -169,14 +166,8 @@
     ]
   },
   "featureTokenContract": {
-    "roots": [
-      "src/styles/features",
-      "src/styles/lazy"
-    ],
-    "scriptRoots": [
-      "src/features",
-      "src/components"
-    ],
+    "roots": ["src/styles/features", "src/styles/lazy"],
+    "scriptRoots": ["src/features", "src/components"],
     "componentGeometryExceptions": [],
     "inlineStyleExceptions": [],
     "tailwindArbitraryExceptions": [],

@@ -3,33 +3,18 @@ import { ExternalLink } from 'lucide-react'
 import { useRef } from 'react'
 import { Button } from '../../components/ui/Button.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import type { PluginCatalogItem } from './pluginCatalog.js'
-import {
-  PLUGIN_CATEGORY_LABELS,
-  pluginPrimaryAction,
-  pluginStatusLabel,
-} from './pluginCatalog.js'
+import { PLUGIN_CATEGORY_LABELS, pluginPrimaryAction, pluginStatusLabel } from './pluginCatalog.js'
 
 type ActionProps = {
   item: PluginCatalogItem
   busy?: boolean
   ariaLabel?: string
-  onPrimaryAction: (
-    item: PluginCatalogItem,
-    trigger: HTMLButtonElement,
-    checked?: boolean,
-  ) => void
+  onPrimaryAction: (item: PluginCatalogItem, trigger: HTMLButtonElement, checked?: boolean) => void
 }
 
-export function PluginDetailsMetadata({
-  item,
-}: {
-  item: PluginCatalogItem
-}): React.ReactNode {
+export function PluginDetailsMetadata({ item }: { item: PluginCatalogItem }): React.ReactNode {
   return (
     <dl className="plugin-details-metadata">
       <div className="plugin-details-metadata__row">
@@ -85,7 +70,10 @@ export function PluginDetailsMetadata({
       {item.miniMaxCli?.credentialSource ? (
         <div className="plugin-details-metadata__row">
           <dt>当前 Key</dt>
-          <dd>{item.miniMaxCli.credentialSource.label} · {item.miniMaxCli.credentialSource.maskedValue}</dd>
+          <dd>
+            {item.miniMaxCli.credentialSource.label} ·{' '}
+            {item.miniMaxCli.credentialSource.maskedValue}
+          </dd>
         </div>
       ) : null}
       {item.miniMaxCli?.credentialSource ? (
@@ -104,7 +92,9 @@ export function PluginDetailsMetadata({
   )
 }
 
-function miniMaxAuthLabel(status: NonNullable<PluginCatalogItem['miniMaxCli']>['authStatus']): string {
+function miniMaxAuthLabel(
+  status: NonNullable<PluginCatalogItem['miniMaxCli']>['authStatus'],
+): string {
   if (status === 'coding-plan-synced') return '正在使用 API Key Hub 当前 Coding Plan Key'
   if (status === 'oauth') return '已通过 MiniMax 登录'
   if (status === 'api-key') return '已配置 MiniMax API Key'
@@ -130,7 +120,7 @@ export function PluginDetailsPrimaryAction({
           ariaLabel={ariaLabel ?? `启用 ${item.name}`}
           checked={action.checked}
           disabled={action.disabled || busy}
-          onChange={checked => {
+          onChange={(checked) => {
             const trigger = toggleRef.current
             if (trigger) onPrimaryAction(item, trigger, checked)
           }}
@@ -144,15 +134,11 @@ export function PluginDetailsPrimaryAction({
       color="secondary"
       disabled={action.disabled}
       loading={busy}
-      onClick={event => onPrimaryAction(item, event.currentTarget)}
+      onClick={(event) => onPrimaryAction(item, event.currentTarget)}
     >
       {action.label}
       {action.kind === 'open-external' ? (
-        <ExternalLink
-          aria-hidden="true"
-          size={APP_ICON_SIZE}
-          strokeWidth={APP_ICON_STROKE_WIDTH}
-        />
+        <ExternalLink aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
       ) : null}
     </Button>
   )

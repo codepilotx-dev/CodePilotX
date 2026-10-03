@@ -1,11 +1,11 @@
-import { AgentError } from "../../domain"
-import type { ApplyPatchChunk } from "./parseApplyPatch"
+import { AgentError } from '../../domain'
+import type { ApplyPatchChunk } from './parseApplyPatch'
 
 type SourceLine = {
   readonly text: string
   readonly start: number
   readonly end: number
-  readonly eol: "\r\n" | "\n" | ""
+  readonly eol: '\r\n' | '\n' | ''
 }
 
 type Replacement = {
@@ -28,7 +28,7 @@ export interface AppliedPatchText {
 
 const safePathLabel = (path: string) => {
   if (/^(?:[a-z]:[\\/]|[\\/]{2}|\/)/i.test(path)) {
-    return path.split(/[\\/]/).filter(Boolean).at(-1) ?? "<workspace file>"
+    return path.split(/[\\/]/).filter(Boolean).at(-1) ?? '<workspace file>'
   }
   return path
 }
@@ -37,18 +37,18 @@ const sourceLines = (content: string): SourceLine[] => {
   const lines: SourceLine[] = []
   let start = 0
   for (let index = 0; index < content.length; index += 1) {
-    if (content[index] !== "\n") continue
-    const crlf = index > start && content[index - 1] === "\r"
+    if (content[index] !== '\n') continue
+    const crlf = index > start && content[index - 1] === '\r'
     lines.push({
       text: content.slice(start, crlf ? index - 1 : index),
       start,
       end: index + 1,
-      eol: crlf ? "\r\n" : "\n",
+      eol: crlf ? '\r\n' : '\n',
     })
     start = index + 1
   }
   if (start < content.length) {
-    lines.push({ text: content.slice(start), start, end: content.length, eol: "" })
+    lines.push({ text: content.slice(start), start, end: content.length, eol: '' })
   }
   return lines
 }
@@ -80,7 +80,11 @@ const disambiguateWithLineHint = (offsets: readonly number[], oldStartLine: numb
   return offsets.includes(hintedOffset) ? [hintedOffset] : offsets
 }
 
-const lineEndingNear = (lines: readonly SourceLine[], start: number, count: number): "\r\n" | "\n" => {
+const lineEndingNear = (
+  lines: readonly SourceLine[],
+  start: number,
+  count: number,
+): '\r\n' | '\n' => {
   for (let index = start; index < Math.min(lines.length, start + count); index += 1) {
     const eol = lines[index]?.eol
     if (eol) return eol
@@ -93,19 +97,19 @@ const lineEndingNear = (lines: readonly SourceLine[], start: number, count: numb
     const eol = lines[index]?.eol
     if (eol) return eol
   }
-  return "\n"
+  return '\n'
 }
 
 const uniqueOffset = (
   path: string,
   hunk: number,
-  kind: "change context" | "expected lines",
+  kind: 'change context' | 'expected lines',
   offsets: readonly number[],
 ): number => {
   const label = safePathLabel(path)
   if (offsets.length === 0) {
     throw new AgentError(
-      "PATCH_CONTEXT_NOT_FOUND",
+      'PATCH_CONTEXT_NOT_FOUND',
       `无法应用 "${label}" 的第 ${hunk} 个 hunk：未找到精确 ${kind}。请先 Read 该文件并基于最新原文重新生成 hunk。本次补丁未修改任何文件`,
       409,
       { hunk },
@@ -113,7 +117,7 @@ const uniqueOffset = (
   }
   if (offsets.length > 1) {
     throw new AgentError(
-      "PATCH_CONTEXT_AMBIGUOUS",
+      'PATCH_CONTEXT_AMBIGUOUS',
       `无法应用 "${label}" 的第 ${hunk} 个 hunk：精确 ${kind} 命中 ${offsets.length} 处。请增加唯一上下文后重试。本次补丁未修改任何文件`,
       409,
       { hunk, matches: offsets.length },
@@ -137,7 +141,7 @@ const overlaps = (left: Replacement, right: Replacement) => {
 
 const overlapError = (path: string, first: number, second: number): never => {
   throw new AgentError(
-    "PATCH_OVERLAPPING_HUNKS",
+    'PATCH_OVERLAPPING_HUNKS',
     `无法应用 "${safePathLabel(path)}"：第 ${first} 个和第 ${second} 个 hunk 重叠或顺序冲突。请合并或重新排序这些 hunk。本次补丁未修改任何文件`,
     409,
     { firstHunk: first, secondHunk: second },
@@ -154,9 +158,9 @@ const replacementValue = (
   const eol = lineEndingNear(lines, startLine, oldLineCount)
   if (oldLineCount > 0) {
     const last = lines[startLine + oldLineCount - 1]!
-    return newLines.length === 0 ? "" : `${newLines.join(eol)}${last.eol ? eol : ""}`
+    return newLines.length === 0 ? '' : `${newLines.join(eol)}${last.eol ? eol : ''}`
   }
-  if (newLines.length === 0) return ""
+  if (newLines.length === 0) return ''
   if (startLine < lines.length) return `${newLines.join(eol)}${eol}`
   if (content.length === 0 || lines.at(-1)?.eol) return `${newLines.join(eol)}${eol}`
   return `${eol}${newLines.join(eol)}${eol}`
@@ -167,7 +171,7 @@ export const applyPatchText = (
   chunks: readonly ApplyPatchChunk[],
   original: string,
 ): AppliedPatchText => {
-  const hasBom = original.startsWith("\uFEFF")
+  const hasBom = original.startsWith('\uFEFF')
   const content = hasBom ? original.slice(1) : original
   const lines = sourceLines(content)
   const replacements: Replacement[] = []
@@ -185,7 +189,7 @@ export const applyPatchText = (
           overlapError(path, replacements.at(-1)?.hunk ?? Math.max(1, hunk - 1), hunk)
         }
       }
-      searchStart = uniqueOffset(path, hunk, "change context", candidates) + 1
+      searchStart = uniqueOffset(path, hunk, 'change context', candidates) + 1
     }
 
     let startLine: number
@@ -202,7 +206,7 @@ export const applyPatchText = (
       startLine = uniqueOffset(
         path,
         hunk,
-        "expected lines",
+        'expected lines',
         disambiguateWithLineHint(candidates, chunk.oldStartLine),
       )
     }

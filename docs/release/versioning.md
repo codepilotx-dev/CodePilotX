@@ -10,12 +10,12 @@
 
 遵循严格 SemVer（`MAJOR.MINOR.PATCH-PRERELEASE`），例如 `0.2.0-beta.1`。
 
-| 组成部分 | 规则 |
-|---|---|
-| `MAJOR` | `0.x` 阶段破坏性变化至少提升 minor；`1.0.0` 后破坏性变化提升 major |
-| `MINOR` | 稳定版中兼容功能提升 minor；`0.x` 的功能开发也提升 minor |
-| `PATCH` | 修复或性能优化提升 patch |
-| `PRERELEASE` | `alpha.N`、`beta.N`、`rc.N`，序号从 1 开始连续递增 |
+| 组成部分     | 规则                                                               |
+| ------------ | ------------------------------------------------------------------ |
+| `MAJOR`      | `0.x` 阶段破坏性变化至少提升 minor；`1.0.0` 后破坏性变化提升 major |
+| `MINOR`      | 稳定版中兼容功能提升 minor；`0.x` 的功能开发也提升 minor           |
+| `PATCH`      | 修复或性能优化提升 patch                                           |
+| `PRERELEASE` | `alpha.N`、`beta.N`、`rc.N`，序号从 1 开始连续递增                 |
 
 ## 生命周期
 
@@ -23,12 +23,12 @@
 功能开发 → alpha.N → beta.N → rc.N → 稳定版（无后缀）
 ```
 
-| 阶段 | 允许变更 | 升版规则 |
-|---|---|---|
-| `alpha.N` | 新功能、重构、修复 | `0.x.0-alpha.N` → `0.x.0-alpha.N+1` |
-| `beta.N` | 修复、小幅完善 | `0.x.0-beta.N` → `0.x.0-beta.N+1` |
-| `rc.N` | 仅修复 | `0.x.0-rc.N` → `0.x.0-rc.N+1` |
-| 稳定版 | — | 去掉预发布后缀，如 `0.2.0-rc.3` → `0.2.0` |
+| 阶段      | 允许变更           | 升版规则                                  |
+| --------- | ------------------ | ----------------------------------------- |
+| `alpha.N` | 新功能、重构、修复 | `0.x.0-alpha.N` → `0.x.0-alpha.N+1`       |
+| `beta.N`  | 修复、小幅完善     | `0.x.0-beta.N` → `0.x.0-beta.N+1`         |
+| `rc.N`    | 仅修复             | `0.x.0-rc.N` → `0.x.0-rc.N+1`             |
+| 稳定版    | —                  | 去掉预发布后缀，如 `0.2.0-rc.3` → `0.2.0` |
 
 - 是否从 Beta 进入 RC、从 RC 进入稳定版、递增当前 beta 序号或开启新的版本线，均由**人工决定并运行 `version:prepare`**，不以日期、提交数或版本号自动触发。
 - 只有人工明确宣布稳定后，才允许发布无预发布后缀的版本。
@@ -40,12 +40,12 @@ Git 标签格式：`v<根 package.json 的 version>`。
 
 示例：
 
-| 版本 | 标签 |
-|---|---|
-| `0.2.0-beta.1` | `v0.2.0-beta.1` |
+| 版本            | 标签             |
+| --------------- | ---------------- |
+| `0.2.0-beta.1`  | `v0.2.0-beta.1`  |
 | `0.3.0-alpha.1` | `v0.3.0-alpha.1` |
-| `0.3.0-rc.2` | `v0.3.0-rc.2` |
-| `0.3.0` | `v0.3.0` |
+| `0.3.0-rc.2`    | `v0.3.0-rc.2`    |
+| `0.3.0`         | `v0.3.0`         |
 
 标签、manifest 及 CHANGELOG 中的版本在发布时必须一致。
 
@@ -74,6 +74,7 @@ Git 标签格式：`v<根 package.json 的 version>`。
    ```
 
    不要在 `dev` 上同时推送版本分支和标签，也不要先在 `dev` 上打标签。
+
 5. 通过正常 PR/合并流程让该提交进入 `main`，并等待其合入 `origin/main`。
 6. 本地拉取 `main`，确认目标提交属于 `origin/main` 历史：
 
@@ -83,6 +84,7 @@ Git 标签格式：`v<根 package.json 的 version>`。
    ```
 
    `v*` 标签必须指向 `main` 历史，由 `Protect release tags` ruleset 的创建限制与 required signature、以及工作流内的 `version:check --tag` 与 main ancestor 检查共同保证。
+
 7. 在 `main` 上的目标提交创建签名 `v<版本>` 标签，并**单独**推送该标签：
 
    ```bash
@@ -114,13 +116,13 @@ Git 标签格式：`v<根 package.json 的 version>`。
 
 ## 常用命令
 
-| 命令 | 说明 |
-|---|---|
-| `bun run version:check` | 验证四 manifest 一致、lockfile 一致、CHANGELOG 结构有效 |
-| `bun run version:check -- --base <git-sha>` | 验证 PR 中 `Unreleased` 有新增说明 |
-| `bun run version:check -- --tag <v版本>` | 额外验证标签与 manifest 版本一致 |
-| `bun run version:prepare -- <新版本>` | 归档 `Unreleased`、同步 manifest、刷新 lockfile |
-| `bun run version:prepare -- <新版本> --stable` | 同上，但允许无预发布后缀的稳定版 |
+| 命令                                                               | 说明                                                                                   |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| `bun run version:check`                                            | 验证四 manifest 一致、lockfile 一致、CHANGELOG 结构有效                                |
+| `bun run version:check -- --base <git-sha>`                        | 验证 PR 中 `Unreleased` 有新增说明                                                     |
+| `bun run version:check -- --tag <v版本>`                           | 额外验证标签与 manifest 版本一致                                                       |
+| `bun run version:prepare -- <新版本>`                              | 归档 `Unreleased`、同步 manifest、刷新 lockfile                                        |
+| `bun run version:prepare -- <新版本> --stable`                     | 同上，但允许无预发布后缀的稳定版                                                       |
 | `bun scripts/write-release-notes.ts --tag <v版本> --output <文件>` | 从对应的已归档 CHANGELOG 版本区段生成 Release 正文；标签、根版本或归档区段不一致时失败 |
 
 ## 示例

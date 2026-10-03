@@ -133,10 +133,7 @@ export const BUILTIN_COMPOSITE_VIEWS: Record<WorkbenchTabKind, CompositeViewDefi
 /**
  * 校验指定视图是否允许停靠至目标位置
  */
-export function isViewAllowedAtLocation(
-  kind: WorkbenchTabKind,
-  location: ViewLocation,
-): boolean {
+export function isViewAllowedAtLocation(kind: WorkbenchTabKind, location: ViewLocation): boolean {
   const definition = BUILTIN_COMPOSITE_VIEWS[kind]
   if (!definition) return location === 'right' || location === 'bottom'
   return definition.allowedLocations.includes(location)

@@ -1,8 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import {
-  prepareVisualTheme,
-  waitForVisualPage,
-} from './visual-test-helpers.js'
+import { prepareVisualTheme, waitForVisualPage } from './visual-test-helpers.js'
 
 type Metrics = {
   background: string
@@ -101,21 +98,41 @@ for (const uiFontSize of [11, 16]) {
     await page.setViewportSize({ width: 1440, height: 920 })
     await prepareVisualTheme(page, 'dark', { uiFontSize })
     await page.goto('/?visualCase=rich#/threads/visual-rich')
-    await waitForVisualPage(
-      page,
-      'dark',
-      page.locator('[data-canonical-thread-id="visual-rich"]'),
-    )
+    await waitForVisualPage(page, 'dark', page.locator('[data-canonical-thread-id="visual-rich"]'))
     await installPrimitiveFixture(page)
 
     const fixture = page.locator('#button-contract-fixture')
     const bySize = (size: string) => fixture.locator(`[data-size="${size}"]`).first()
-    await expectBox(bySize('default'), await bySize('default').evaluate(element => element.getBoundingClientRect().width), 24)
-    await expectBox(bySize('compact'), await bySize('compact').evaluate(element => element.getBoundingClientRect().width), 24)
-    await expectBox(bySize('medium'), await bySize('medium').evaluate(element => element.getBoundingClientRect().width), 32)
-    await expectBox(bySize('toolbar'), await bySize('toolbar').evaluate(element => element.getBoundingClientRect().width), 28)
-    await expectBox(bySize('toolbarLabel'), await bySize('toolbarLabel').evaluate(element => element.getBoundingClientRect().width), 28)
-    await expectBox(bySize('composer'), await bySize('composer').evaluate(element => element.getBoundingClientRect().width), 28)
+    await expectBox(
+      bySize('default'),
+      await bySize('default').evaluate((element) => element.getBoundingClientRect().width),
+      24,
+    )
+    await expectBox(
+      bySize('compact'),
+      await bySize('compact').evaluate((element) => element.getBoundingClientRect().width),
+      24,
+    )
+    await expectBox(
+      bySize('medium'),
+      await bySize('medium').evaluate((element) => element.getBoundingClientRect().width),
+      32,
+    )
+    await expectBox(
+      bySize('toolbar'),
+      await bySize('toolbar').evaluate((element) => element.getBoundingClientRect().width),
+      28,
+    )
+    await expectBox(
+      bySize('toolbarLabel'),
+      await bySize('toolbarLabel').evaluate((element) => element.getBoundingClientRect().width),
+      28,
+    )
+    await expectBox(
+      bySize('composer'),
+      await bySize('composer').evaluate((element) => element.getBoundingClientRect().width),
+      28,
+    )
     await expectBox(bySize('icon'), 28)
     await expectBox(bySize('iconMd'), 20)
     await expectBox(bySize('iconSm'), 16)
@@ -150,7 +167,7 @@ for (const uiFontSize of [11, 16]) {
     await expect(productModeTrigger).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
     await expect(productModeTrigger).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)')
     await expect(productModeTrigger).not.toHaveClass(/settings-dropdown/)
-    expect(await productModeTrigger.evaluate(element => element.tagName)).toBe('BUTTON')
+    expect(await productModeTrigger.evaluate((element) => element.tagName)).toBe('BUTTON')
 
     await expectBox(page.getByRole('button', { name: '搜索任务' }), 28)
     await expectBox(page.locator('.sidebar-timeline-toggle-button'), 28)
@@ -161,7 +178,9 @@ for (const uiFontSize of [11, 16]) {
 
     await page.getByRole('button', { name: '显示右侧面板' }).click()
     await expect(page.locator('.right-dock-header')).toHaveCSS('height', '40px')
-    const tabStripAction = page.locator('.right-dock-header .ui-button[data-size="tabStripAction"]').first()
+    const tabStripAction = page
+      .locator('.right-dock-header .ui-button[data-size="tabStripAction"]')
+      .first()
     await expect(tabStripAction).toBeVisible()
     await expectBox(tabStripAction, 34)
 
@@ -203,7 +222,7 @@ test('sidebar product mode uses the Codex title trigger and radio menu', async (
   await expect(productModeTrigger).toHaveCSS('border-radius', sidebarTitleRadius)
   await expect(productModeTrigger).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
   await expect(productModeTrigger).toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)')
-  expect(await productModeTrigger.evaluate(element => element.tagName)).toBe('BUTTON')
+  expect(await productModeTrigger.evaluate((element) => element.tagName)).toBe('BUTTON')
 
   await productModeTrigger.click()
   const productModeMenu = page.locator('.sidebar-product-mode-menu')
@@ -216,10 +235,7 @@ test('sidebar product mode uses the Codex title trigger and radio menu', async (
     probe.remove()
     return background
   })
-  await expect(productModeTrigger).toHaveCSS(
-    'background-color',
-    sidebarHoverBackground,
-  )
+  await expect(productModeTrigger).toHaveCSS('background-color', sidebarHoverBackground)
   await expect(productModeMenu.getByText('Coding', { exact: true })).toBeVisible()
   await expect(productModeMenu.getByText('Working', { exact: true })).toBeVisible()
   await expect(productModeMenu.getByText('Chat', { exact: true })).toBeVisible()
@@ -228,18 +244,24 @@ test('sidebar product mode uses the Codex title trigger and radio menu', async (
   await productModeMenu.getByRole('menuitemradio', { name: /Working/u }).click()
   await expect(productModeMenu).toHaveCount(0)
   await expect(page).toHaveURL(/#\/new\?surface=working$/u)
-  await expect(page.getByRole('button', {
-    name: '切换工作模式，当前为 Working',
-  })).toBeVisible()
+  await expect(
+    page.getByRole('button', {
+      name: '切换工作模式，当前为 Working',
+    }),
+  ).toBeVisible()
 })
 
 for (const mode of ['light', 'dark'] as const) {
-  test(`ordinary icon buttons keep transparent interaction backgrounds (${mode})`, async ({ page }) => {
+  test(`ordinary icon buttons keep transparent interaction backgrounds (${mode})`, async ({
+    page,
+  }) => {
     await prepareVisualTheme(page, mode, { reduceMotion: 'off' })
     await page.setViewportSize({ width: 1440, height: 920 })
     test.setTimeout(90_000)
     await page.goto('/?visualCase=rich#/threads/visual-rich', { waitUntil: 'domcontentloaded' })
-    await expect(page.locator('[data-canonical-thread-id="visual-rich"]')).toBeVisible({ timeout: 60_000 })
+    await expect(page.locator('[data-canonical-thread-id="visual-rich"]')).toBeVisible({
+      timeout: 60_000,
+    })
     await waitForVisualPage(page, mode, page.locator('[data-canonical-thread-id="visual-rich"]'))
     const colors = await page.evaluate(() => {
       const probe = document.createElement('div')
@@ -271,21 +293,28 @@ for (const mode of ['light', 'dark'] as const) {
     const table = page.locator('.md-table-block').first()
     await table.hover()
     await expectHover(table.locator('.md-table-copy'))
-    const panelActions = page.locator('.chat-session-actions > .icon-button, .workspace-shell-controls > .icon-button')
+    const panelActions = page.locator(
+      '.chat-session-actions > .icon-button, .workspace-shell-controls > .icon-button',
+    )
     await expect(panelActions).toHaveCount(4)
     for (const action of await panelActions.all()) {
       const disabled = await action.isDisabled()
       if (disabled) {
         await action.hover()
         await expect(action).toHaveCSS('background-color', transparent)
-        await action.evaluate((element: HTMLButtonElement) => { element.disabled = false })
+        await action.evaluate((element: HTMLButtonElement) => {
+          element.disabled = false
+        })
       }
       await action.hover()
       await expect(action).not.toHaveCSS('background-color', transparent)
-      if (disabled) await action.evaluate((element: HTMLButtonElement) => { element.disabled = true })
+      if (disabled)
+        await action.evaluate((element: HTMLButtonElement) => {
+          element.disabled = true
+        })
     }
     const panelToggle = page.locator('.workspace-shell-control-button').last()
-    if (await panelToggle.getAttribute('aria-pressed') !== 'true') await panelToggle.click()
+    if ((await panelToggle.getAttribute('aria-pressed')) !== 'true') await panelToggle.click()
     await panelToggle.hover()
     await expect(panelToggle).toHaveCSS('background-color', colors.selected)
 
@@ -293,26 +322,31 @@ for (const mode of ['light', 'dark'] as const) {
     const fixture = page.locator('#button-contract-fixture')
     const changes = fixture.locator('.composer-change-summary__changes')
     await expectHover(changes)
-    await changes.evaluate(element => element.setAttribute('aria-expanded', 'true'))
+    await changes.evaluate((element) => element.setAttribute('aria-expanded', 'true'))
     await page.mouse.move(1400, 900)
     await expect(changes).toHaveCSS('background-color', transparent)
     await expect(changes).toHaveCSS('color', colors.primary)
     const icon = fixture.locator('.icon-button[data-size="icon"]')
     const originalSize = await icon.boundingBox()
     for (const color of ['ghost', 'ghostSecondary', 'ghostActive']) {
-      await icon.evaluate((element, value) => { element.setAttribute('data-color', value) }, color)
+      await icon.evaluate((element, value) => {
+        element.setAttribute('data-color', value)
+      }, color)
       await page.mouse.move(1400, 900)
       await expect(icon).toHaveCSS('background-color', transparent)
       await expectHover(icon)
       await page.mouse.move(1400, 900)
       for (const attribute of ['data-state', 'data-active']) {
-        await icon.evaluate((element, key) => element.setAttribute(key, key === 'data-state' ? 'open' : 'true'), attribute)
+        await icon.evaluate(
+          (element, key) => element.setAttribute(key, key === 'data-state' ? 'open' : 'true'),
+          attribute,
+        )
         await expect(icon).toHaveCSS('background-color', transparent)
         await expect(icon).toHaveCSS('color', colors.primary)
         await icon.evaluate((element, key) => element.removeAttribute(key), attribute)
       }
     }
-    await icon.evaluate(element => element.setAttribute('data-color', 'ghostSecondary'))
+    await icon.evaluate((element) => element.setAttribute('data-color', 'ghostSecondary'))
     await page.mouse.move(1400, 900)
     await expect(icon).toHaveCSS('color', colors.secondary)
     for (const attribute of ['disabled', 'aria-disabled']) {
@@ -342,7 +376,9 @@ for (const mode of ['light', 'dark'] as const) {
       await expect(icon).not.toHaveCSS('color', colors.primary)
     }
 
-    await page.evaluate(() => { location.hash = '/automations' })
+    await page.evaluate(() => {
+      location.hash = '/automations'
+    })
     const search = page.getByPlaceholder('搜索已安排任务')
     await search.fill('测试')
     const clear = page.locator('.search-input-clear')

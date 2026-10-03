@@ -9,10 +9,7 @@ import {
   type ThreadHistoryPageLike,
 } from '@codepilotx/session-view'
 
-import {
-  countCanonicalCommit,
-  setPendingDeltaCharacters,
-} from '../state/streamingPerfCounters.js'
+import { countCanonicalCommit, setPendingDeltaCharacters } from '../state/streamingPerfCounters.js'
 import {
   liveItemTailStore,
   type LiveItemTailStore,
@@ -46,9 +43,7 @@ function defaultCheckpointScheduler(flush: () => void): () => void {
   return () => clearTimeout(timer)
 }
 
-function liveDeltaTarget(
-  envelope: EventEnvelope,
-): { itemId: string; kind: LiveTailKind } | null {
+function liveDeltaTarget(envelope: EventEnvelope): { itemId: string; kind: LiveTailKind } | null {
   switch (envelope.type) {
     case 'item/agentMessage/delta':
       return { itemId: envelope.payload.itemId, kind: 'text' }
@@ -72,7 +67,7 @@ function liveDeltaText(envelope: EventEnvelope): string {
 /**
  * Owns canonical thread projection commits independently from React render
  * timing. Live deltas are accumulated in one ordered ledger and applied at a
-   * checkpoint (50ms-coalesced, bounded); durable and lifecycle events flush
+ * checkpoint (50ms-coalesced, bounded); durable and lifecycle events flush
  * immediately so structural state never waits for a frame. A delivered batch
  * resolves only after its checkpoint committed, so the transport may safely
  * acknowledge its positions.
@@ -118,9 +113,10 @@ export class CanonicalThreadIngestionCoordinator {
   rehydrate(page: ThreadHistoryPageLike): void {
     this.#assertPageThread(page)
     this.#flushPending()
-    const next = this.#state?.thread.id === this.#threadId
-      ? reconcileLatestThreadPage(this.#state, page)
-      : createCanonicalThreadState(page)
+    const next =
+      this.#state?.thread.id === this.#threadId
+        ? reconcileLatestThreadPage(this.#state, page)
+        : createCanonicalThreadState(page)
     this.#commit(next)
   }
 
@@ -156,7 +152,7 @@ export class CanonicalThreadIngestionCoordinator {
     } catch (error) {
       return Promise.reject(error)
     }
-    const committed = new Promise<void>(resolve => {
+    const committed = new Promise<void>((resolve) => {
       this.#settleWaiters.push(resolve)
     })
     for (const event of events) this.#enqueue(event)
@@ -184,7 +180,7 @@ export class CanonicalThreadIngestionCoordinator {
   #shouldCommitImmediately(events: readonly EventEnvelope[]): boolean {
     if (this.#pending.length >= CHECKPOINT_MAX_PENDING_EVENTS) return true
     if (this.#pendingDeltaCharacters >= CHECKPOINT_MAX_PENDING_DELTA_CHARACTERS) return true
-    return events.some(event => event.durability === 'durable')
+    return events.some((event) => event.durability === 'durable')
   }
 
   #scheduleCheckpoint(): void {

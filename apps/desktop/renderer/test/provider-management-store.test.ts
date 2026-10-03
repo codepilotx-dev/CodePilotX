@@ -47,40 +47,38 @@ describe('provider management store', () => {
     const [left, right] = await Promise.all([store.ensureLoaded(), store.ensureLoaded()])
     expect(left).toBe(right)
     expect(listCalls).toBe(1)
-    expect(left.apiKeys.map(key => key.id)).toEqual(['key-1'])
-    expect(selectProviderConnections(left).map(connection => connection.kind))
-      .toEqual(['inference-key', 'oauth'])
+    expect(left.apiKeys.map((key) => key.id)).toEqual(['key-1'])
+    expect(selectProviderConnections(left).map((connection) => connection.kind)).toEqual([
+      'inference-key',
+      'oauth',
+    ])
     expect(selectConfiguredProviderGroups(left)[0]?.oauthAvailable).toBe(true)
   })
 
   test('manual active selection refreshes credentials and never implies automatic failover', async () => {
-    let credentials = [
-      credential('key-1', 'api-key', true),
-      credential('key-2', 'api-key', false),
-    ]
+    let credentials = [credential('key-1', 'api-key', true), credential('key-2', 'api-key', false)]
     const client = createClient({
       listProviderCredentials: async () => credentials,
       setActiveProviderCredential: async (_providerId, credentialId) => {
-        credentials = credentials.map(item => ({
+        credentials = credentials.map((item) => ({
           ...item,
           active: item.id === credentialId,
         }))
-        return credentials.find(item => item.id === credentialId)!
+        return credentials.find((item) => item.id === credentialId)!
       },
     })
     const store = createProviderManagementStore(client)
     await store.ensureLoaded()
 
     await store.setActiveCredential('openai', 'key-2')
-    expect(store.getSnapshot().apiKeys.find(key => key.id === 'key-2')?.active).toBe(true)
-    expect(store.getSnapshot().apiKeys.find(key => key.id === 'key-1')?.active).toBe(false)
+    expect(store.getSnapshot().apiKeys.find((key) => key.id === 'key-2')?.active).toBe(true)
+    expect(store.getSnapshot().apiKeys.find((key) => key.id === 'key-1')?.active).toBe(false)
   })
 
   test('live credential events reconcile through provider/credential/list', async () => {
     let callback: ((events: readonly EventEnvelope[]) => void | Promise<void>) | undefined
-    let subscriptionOptions: Parameters<
-      ProviderManagementClient['subscribeAgentEventEnvelopes']
-    >[0] | undefined
+    let subscriptionOptions:
+      Parameters<ProviderManagementClient['subscribeAgentEventEnvelopes']>[0] | undefined
     let credentials = [credential('key-1', 'api-key', true)]
     let currentState = providerState
     const client = createClient({
@@ -96,26 +94,24 @@ describe('provider management store', () => {
     const unsubscribe = store.subscribe(() => {})
     await store.ensureLoaded()
     expect(subscriptionOptions).toEqual({
-      liveEventTypes: [
-        'catalog/updated',
-        'provider/credential/updated',
-        'usage/source/updated',
-      ],
+      liveEventTypes: ['catalog/updated', 'provider/credential/updated', 'usage/source/updated'],
     })
     credentials = [credential('oauth-1', 'oauth', true)]
     currentState = { ...providerState, modelConfigured: false }
 
-    await callback?.([{
-      eventId: 'credential-event-1',
-      streamId: 'global',
-      type: 'provider/credential/updated',
-      version: 1,
-      occurredAt: Date.now(),
-      durability: 'live',
-      sequence: null,
-      afterSequence: 1,
-      payload: { providerId: 'openai' },
-    }])
+    await callback?.([
+      {
+        eventId: 'credential-event-1',
+        streamId: 'global',
+        type: 'provider/credential/updated',
+        version: 1,
+        occurredAt: Date.now(),
+        durability: 'live',
+        sequence: null,
+        afterSequence: 1,
+        payload: { providerId: 'openai' },
+      },
+    ])
     await waitFor(() => store.getSnapshot().credentials[0]?.id === 'oauth-1')
 
     expect(store.getSnapshot().apiKeys).toEqual([])
@@ -146,7 +142,7 @@ describe('provider management store', () => {
         calls.push('sources')
         return { sources: [] }
       },
-      queryProviderUsage: async input => {
+      queryProviderUsage: async (input) => {
         calls.push('usage')
         return {
           sources: [],
@@ -160,13 +156,7 @@ describe('provider management store', () => {
 
     await store.refreshAllProviderData()
 
-    expect(calls).toEqual([
-      'refresh-models',
-      'providers',
-      'state',
-      'credentials',
-      'sources',
-    ])
+    expect(calls).toEqual(['refresh-models', 'providers', 'state', 'credentials', 'sources'])
     expect(store.getSnapshot().loading).toBe(false)
   })
 
@@ -192,16 +182,14 @@ describe('provider management store', () => {
   })
 })
 
-function createClient(
-  overrides: Partial<ProviderManagementClient> = {},
-): ProviderManagementClient {
+function createClient(overrides: Partial<ProviderManagementClient> = {}): ProviderManagementClient {
   return {
     refreshModelProviders: async () => {},
     listModelProviders: async () => [provider],
     getModelProviderState: async () => providerState,
     listProviderCredentials: async () => [],
     listUsageSources: async () => ({ sources: [] }),
-    queryProviderUsage: async input => ({
+    queryProviderUsage: async (input) => ({
       sources: [],
       generatedAt: Date.now(),
       range: input.range,
@@ -252,7 +240,7 @@ function credential(
 async function waitFor(predicate: () => boolean): Promise<void> {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     if (predicate()) return
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await new Promise((resolve) => setTimeout(resolve, 0))
   }
   throw new Error('timed out waiting for store reconciliation')
 }

@@ -1,26 +1,26 @@
-import { Schema } from "effect"
+import { Schema } from 'effect'
 import {
   AutomationExecutionSchema,
   AutomationKindSchema,
   AutomationNotificationPolicySchema,
-} from "./automation"
-import { ModelRefSchema } from "./model"
-import { PermissionConfigSchema } from "./thread/permission"
+} from './automation'
+import { ModelRefSchema } from './model'
+import { PermissionConfigSchema } from './thread/permission'
 
 const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const PositiveIntegerSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 
 export const ScheduledTaskStatusSchema = Schema.Literals([
-  "scheduled",
-  "paused",
-  "claimed",
-  "preparing",
-  "queued",
-  "running",
-  "completed",
-  "failed",
-  "interrupted",
-  "cancelled",
+  'scheduled',
+  'paused',
+  'claimed',
+  'preparing',
+  'queued',
+  'running',
+  'completed',
+  'failed',
+  'interrupted',
+  'cancelled',
 ])
 export type ScheduledTaskStatus = typeof ScheduledTaskStatusSchema.Type
 

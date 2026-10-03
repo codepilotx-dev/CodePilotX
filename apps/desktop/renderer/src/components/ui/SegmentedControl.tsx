@@ -55,7 +55,7 @@ export function SegmentedControl<T extends string>({
         aria-label={ariaLabel}
         className={rootClassName}
         data-variant={variant}
-        onValueChange={nextValue => {
+        onValueChange={(nextValue) => {
           // 当前组件始终要求有一个选中值；点击已选项时 Radix 会传空字符串，忽略即可。
           if (nextValue) onChange(nextValue as T)
         }}
@@ -63,7 +63,7 @@ export function SegmentedControl<T extends string>({
         type="single"
         value={value}
       >
-        {options.map(option => (
+        {options.map((option) => (
           <ToggleGroup.Item
             className="segmented-control-item tw:shrink-0"
             disabled={option.disabled}
@@ -84,10 +84,7 @@ export function SegmentedControl<T extends string>({
     itemRefs.current[index]?.focus()
   }
 
-  function handleTabKeyDown(
-    event: React.KeyboardEvent<HTMLButtonElement>,
-    index: number,
-  ): void {
+  function handleTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, index: number): void {
     const nextIndex = segmentedTabIndexAfterKey(event.key, index, options.length)
     if (nextIndex === null) return
     event.preventDefault()
@@ -95,12 +92,7 @@ export function SegmentedControl<T extends string>({
   }
 
   return (
-    <div
-      aria-label={ariaLabel}
-      className={rootClassName}
-      data-variant={variant}
-      role="tablist"
-    >
+    <div aria-label={ariaLabel} className={rootClassName} data-variant={variant} role="tablist">
       {options.map((option, index) => {
         const selected = option.value === value
         return (
@@ -114,8 +106,8 @@ export function SegmentedControl<T extends string>({
             onClick={() => {
               if (!option.disabled) onChange(option.value)
             }}
-            onKeyDown={event => handleTabKeyDown(event, index)}
-            ref={element => {
+            onKeyDown={(event) => handleTabKeyDown(event, index)}
+            ref={(element) => {
               itemRefs.current[index] = element
             }}
             role="tab"

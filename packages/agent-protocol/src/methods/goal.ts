@@ -2,15 +2,15 @@ import {
   THREAD_GOAL_OBJECTIVE_MAX_LENGTH,
   ThreadGoalSchema,
   ThreadGoalUserStatusSchema,
-} from "@codepilotx/shared/thread"
-import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../wire/definition"
+} from '@codepilotx/shared/thread'
+import { Schema } from 'effect'
+import { defineMethod, type MethodMap } from '../wire/definition'
 import {
   NonNegativeIntSchema,
   OpaqueIDSchema,
   OperationParamsSchema,
   TimestampSchema,
-} from "../wire/primitives"
+} from '../wire/primitives'
 
 const VersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 const GoalObjectiveSchema = Schema.String.check(
@@ -19,11 +19,11 @@ const GoalObjectiveSchema = Schema.String.check(
 )
 
 const GoalErrors = [
-  "THREAD_NOT_FOUND",
-  "OPERATION_ID_CONFLICT",
-  "CONFLICT",
-  "INVALID_REQUEST",
-  "INTERNAL_ERROR",
+  'THREAD_NOT_FOUND',
+  'OPERATION_ID_CONFLICT',
+  'CONFLICT',
+  'INVALID_REQUEST',
+  'INTERNAL_ERROR',
 ] as const
 
 export const ThreadGoalGetParamsSchema = Schema.Struct({ threadId: OpaqueIDSchema })
@@ -55,29 +55,29 @@ export const ThreadGoalClearResultSchema = Schema.Struct({
 })
 
 export const ThreadGoalRpcMethods = {
-  "thread/goal/get": defineMethod({
+  'thread/goal/get': defineMethod({
     params: ThreadGoalGetParamsSchema,
     result: ThreadGoalGetResultSchema,
     errors: GoalErrors,
-    capability: "thread.goal.v1",
+    capability: 'thread.goal.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "thread/goal/set": defineMethod({
+  'thread/goal/set': defineMethod({
     params: ThreadGoalSetParamsSchema,
     result: ThreadGoalSetResultSchema,
     errors: GoalErrors,
-    capability: "thread.goal.v1",
+    capability: 'thread.goal.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "thread/goal/clear": defineMethod({
+  'thread/goal/clear': defineMethod({
     params: ThreadGoalClearParamsSchema,
     result: ThreadGoalClearResultSchema,
     errors: GoalErrors,
-    capability: "thread.goal.v1",
+    capability: 'thread.goal.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,

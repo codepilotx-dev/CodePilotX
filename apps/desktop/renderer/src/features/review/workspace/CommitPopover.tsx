@@ -1,12 +1,6 @@
 import React from 'react'
 import { formatReviewCount } from '../diff/reviewFormat.js'
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpToLine,
-  ChevronDown,
-  X,
-} from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpToLine, ChevronDown, X } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
@@ -125,7 +119,8 @@ export function CommitPopover({
           <strong>+{formatPanelNumber(additions)}</strong>
           <em>-{formatPanelNumber(deletions)}</em>
         </span>
-        <IconButton iconSize="sm"
+        <IconButton
+          iconSize="sm"
           className="review-popover-close"
           color="ghostSecondary"
           size="toolbar"
@@ -144,13 +139,13 @@ export function CommitPopover({
           placeholder="输入提交信息..."
           rows={3}
           value={message}
-          onChange={event => {
+          onChange={(event) => {
             setMessage(event.target.value)
             if (event.target.value.length === 1) {
               // discard placeholder
             }
           }}
-          onKeyDown={event => {
+          onKeyDown={(event) => {
             if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
               event.preventDefault()
               onCommit(message, includeUnstaged)
@@ -163,13 +158,14 @@ export function CommitPopover({
         <input
           checked={includeUnstaged}
           type="checkbox"
-          onChange={event => setIncludeUnstaged(event.target.checked)}
+          onChange={(event) => setIncludeUnstaged(event.target.checked)}
         />
         <span>包含未暂存的更改</span>
       </label>
 
       <div className="review-popover-actions">
-        <Button color="primary"
+        <Button
+          color="primary"
           className="tw:w-full tw:justify-between"
           disabled={false}
           onClick={() => onCommit(message, includeUnstaged)}
@@ -180,7 +176,8 @@ export function CommitPopover({
           </span>
           <span className="shortcut">Ctrl+Enter</span>
         </Button>
-        <Button color="primary"
+        <Button
+          color="primary"
           className="tw:w-full tw:justify-between"
           onClick={() => onCommitAndPush(message, includeUnstaged)}
         >
@@ -189,10 +186,7 @@ export function CommitPopover({
             提交并推送
           </span>
         </Button>
-        <Button color="primary"
-          className="tw:w-full tw:justify-between"
-          onClick={() => onPush()}
-        >
+        <Button color="primary" className="tw:w-full tw:justify-between" onClick={() => onPush()}>
           <span className="review-popover-action-label">
             <ArrowDown size={APP_ICON_SIZE} />
             推送

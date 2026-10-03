@@ -53,23 +53,23 @@ CodePilotX 全面采用 UI-Design 视觉体系（基于 `F:\CodeProject\UI-Desig
 
 排版先按内容职责分为展示、结构、交互、阅读和代码五条层级，再通过 `--cpx-sys-type-*` 使用。系统字体优先使用 Windows 自带的 `Segoe UI Variable Text`，并回退到 `Segoe UI` 和平台系统字体；只使用稳定的 `400 / 500 / 600` 字重，不打包额外 UI 字体。需要单独设置属性时，复用角色所依赖的 `--cpx-sys-font-size-*`、`--cpx-sys-line-height-*` 和 `--cpx-sys-font-weight-*`，不得写裸字号或行高。
 
-| 角色 | 默认字号 / 行高 / 字重 | 内容职责 | 默认前景色 |
-| --- | --- | --- | --- |
-| `display` | `28 / 34 / 600` | Coding、Working 与 Chat 首页 Hero | `fg-primary` |
-| `caption` | `12 / 16 / 400` | 时间、路径、计数和辅助状态 | `fg-tertiary` |
-| `label` | `12 / 16 / 500` | 分组名、字段标签和短状态标签 | 按上下文选择 secondary 或 tertiary |
-| `body-sm` | `13 / 18 / 400` | 次级说明、工具活动和侧栏辅助文字 | `fg-secondary` |
-| `control` | `13 / 18 / 500` | Button、Input、Menu、紧凑导航和文件行 | `fg-primary` |
-| `body` | `14 / 20 / 400` | 普通 UI 正文、评论和表单说明 | `fg-primary` |
-| `row-title` | `14 / 20 / 500` | 设置行、卡片行和普通对象名称 | `fg-primary` |
-| `reading` | `14 / 24 / 400` | 用户消息、Agent 最终回答和 Markdown 长文 | `fg-primary` |
-| `body-lg` | `16 / 24 / 400` | 首页 Prompt 和短引导正文 | `fg-primary` |
-| `heading-sm` | `16 / 22 / 600` | Section、Dialog、Popover 和 Markdown H3 | `fg-primary` |
-| `heading-md` | `18 / 24 / 600` | 重点卡片和详情页局部主标题 | `fg-primary` |
-| `heading-lg` | `20 / 28 / 600` | Markdown H2 和强信息分区 | `fg-primary` |
-| `heading-xl` | `24 / 30 / 600` | 一级页面、Setup 主标题和 Markdown H1 | `fg-primary` |
-| `metric` | `20 / 28 / 600` | 金额、用量和统计值；使用 tabular figures | `fg-primary` |
-| `code` | `13 / 20 / 400`（随用户代码字号保持 `+7px` 行高） | 代码、命令、Diff 和终端 | 按语法或上下文选择 |
+| 角色         | 默认字号 / 行高 / 字重                            | 内容职责                                 | 默认前景色                         |
+| ------------ | ------------------------------------------------- | ---------------------------------------- | ---------------------------------- |
+| `display`    | `28 / 34 / 600`                                   | Coding、Working 与 Chat 首页 Hero        | `fg-primary`                       |
+| `caption`    | `12 / 16 / 400`                                   | 时间、路径、计数和辅助状态               | `fg-tertiary`                      |
+| `label`      | `12 / 16 / 500`                                   | 分组名、字段标签和短状态标签             | 按上下文选择 secondary 或 tertiary |
+| `body-sm`    | `13 / 18 / 400`                                   | 次级说明、工具活动和侧栏辅助文字         | `fg-secondary`                     |
+| `control`    | `13 / 18 / 500`                                   | Button、Input、Menu、紧凑导航和文件行    | `fg-primary`                       |
+| `body`       | `14 / 20 / 400`                                   | 普通 UI 正文、评论和表单说明             | `fg-primary`                       |
+| `row-title`  | `14 / 20 / 500`                                   | 设置行、卡片行和普通对象名称             | `fg-primary`                       |
+| `reading`    | `14 / 24 / 400`                                   | 用户消息、Agent 最终回答和 Markdown 长文 | `fg-primary`                       |
+| `body-lg`    | `16 / 24 / 400`                                   | 首页 Prompt 和短引导正文                 | `fg-primary`                       |
+| `heading-sm` | `16 / 22 / 600`                                   | Section、Dialog、Popover 和 Markdown H3  | `fg-primary`                       |
+| `heading-md` | `18 / 24 / 600`                                   | 重点卡片和详情页局部主标题               | `fg-primary`                       |
+| `heading-lg` | `20 / 28 / 600`                                   | Markdown H2 和强信息分区                 | `fg-primary`                       |
+| `heading-xl` | `24 / 30 / 600`                                   | 一级页面、Setup 主标题和 Markdown H1     | `fg-primary`                       |
+| `metric`     | `20 / 28 / 600`                                   | 金额、用量和统计值；使用 tabular figures | `fg-primary`                       |
+| `code`       | `13 / 20 / 400`（随用户代码字号保持 `+7px` 行高） | 代码、命令、Diff 和终端                  | 按语法或上下文选择                 |
 
 普通正文使用 `400`，控件、标签和行标题使用 `500`，结构标题、指标和真正的强调使用 `600`。选中态通过背景和前景色表达，不得为了选中而改变普通列表项字重。UI 文本不得借用 `reading` 获取额外行距，工具活动也不得借用 `body` 与最终回答争夺层级。
 
@@ -81,11 +81,11 @@ CodePilotX 全面采用 UI-Design 视觉体系（基于 `F:\CodeProject\UI-Desig
 
 功能图标固定使用 `12 / 16 / 20 CSS px`，按位置职责选择，默认 `16px`。尺寸不跟随 UI 字号设置；应用整体缩放仍正常生效。
 
-| 档位 | 系统 Token / React 常量 | 使用场景 |
-| --- | --- | --- |
-| 辅助 · 12px | `--cpx-sys-icon-size-sm` / `APP_ICON_SIZES.sm` | 展开与下拉箭头、选中勾、标签关闭、清除、行尾更多/置顶/归档、时间线状态、元信息 |
-| 常规 · 16px | `--cpx-sys-icon-size-md` / `APP_ICON_SIZE` | 侧栏导航与项目、侧栏行尾状态与操作、菜单前置图标、搜索、工具栏、普通按钮、文件/文件夹、附件、Composer 添加与麦克风 |
-| 突出 · 20px | `--cpx-sys-icon-size-lg` / `APP_ICON_SIZES.lg` | Composer 发送/停止、大尺寸动作按钮、独立空状态与结果提示符号 |
+| 档位        | 系统 Token / React 常量                        | 使用场景                                                                                                           |
+| ----------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| 辅助 · 12px | `--cpx-sys-icon-size-sm` / `APP_ICON_SIZES.sm` | 展开与下拉箭头、选中勾、标签关闭、清除、行尾更多/置顶/归档、时间线状态、元信息                                     |
+| 常规 · 16px | `--cpx-sys-icon-size-md` / `APP_ICON_SIZE`     | 侧栏导航与项目、侧栏行尾状态与操作、菜单前置图标、搜索、工具栏、普通按钮、文件/文件夹、附件、Composer 添加与麦克风 |
+| 突出 · 20px | `--cpx-sys-icon-size-lg` / `APP_ICON_SIZES.lg` | Composer 发送/停止、大尺寸动作按钮、独立空状态与结果提示符号                                                       |
 
 `--cpx-sys-icon-size` 是默认 `md` 的别名；组件 `sm/md/lg` 分别映射三档。`Button` 与 `IconButton` 的 `iconSize="sm|md|lg"` 只控制图标，不改变点击区域、行高或按钮颜色。未指定时，`compact / composerSm / iconSm / iconMd` 使用 12px，`large / iconLarge` 使用 20px，其余使用 16px；组合按钮的尾部箭头使用 12px，显式 `iconSize` 优先。按钮加载指示器与所在按钮的图标同尺寸；独立 `Spinner` 的 `small/medium/large` 使用 12/16/20px。文件/文件夹默认 16px，异步加载前后保持一致。
 
@@ -99,8 +99,8 @@ CodePilotX 全面采用 UI-Design 视觉体系（基于 `F:\CodeProject\UI-Desig
 
 普通 padding、margin 和 gap 只使用开放 4px 刻度：
 
-| Token | 值 |
-| --- | --- |
+| Token                  | 值                                      |
+| ---------------------- | --------------------------------------- |
 | `--cpx-sys-space-1..8` | `4 / 8 / 12 / 16 / 20 / 24 / 28 / 32px` |
 
 页面边距、阅读宽度、Composer 安全区和侧栏缩进等跨 Feature 约束使用 `--cpx-sys-layout-*`。响应式 `vh/vw`、运行时面板宽度或拖拽边界必须声明为拥有选择器的局部变量；不得把实例尺寸提升为系统 Token。
@@ -109,18 +109,18 @@ CodePilotX 全面采用 UI-Design 视觉体系（基于 `F:\CodeProject\UI-Desig
 
 圆角采用“基础刻度 + 语义角色”双层结构。基础刻度是唯一数值来源：
 
-| 基础 Token | 数值 | 映射语义角色与使用场景 |
-| --- | ---: | --- |
-| `--cpx-sys-radius-2xs` | 4px | `indicator`：状态圆点、紧凑标签、微型指示条 |
-| `--cpx-sys-radius-xs` | 6px | `compact`：快捷键徽标、轻量提示 |
-| `--cpx-sys-radius-sm` | 8px | `item`：菜单项、侧边栏导航项、Tooltip |
-| `--cpx-sys-radius-md` | 10px | `control`：普通按钮、输入框、分段选择器 |
-| `--cpx-sys-radius-lg` | 12px | `container` / `floating`：卡片、下拉浮层、Popover 面板 |
-| `--cpx-sys-radius-xl` | 14px | 较大卡片、抽屉内胆 |
-| `--cpx-sys-radius-2xl` | 16px | `prominent`：对话框（Modal）、Composer 悬浮容器、消息气泡 |
-| `--cpx-sys-radius-3xl` | 20px | 大型模态窗口、导引面板 |
-| `--cpx-sys-radius-4xl` | 28px | 预留特大层级 |
-| `--cpx-sys-radius-full` | 9999px | `pill`：胶囊按钮、Switch 开关、标签胶囊、药丸触发器 |
+| 基础 Token              |   数值 | 映射语义角色与使用场景                                    |
+| ----------------------- | -----: | --------------------------------------------------------- |
+| `--cpx-sys-radius-2xs`  |    4px | `indicator`：状态圆点、紧凑标签、微型指示条               |
+| `--cpx-sys-radius-xs`   |    6px | `compact`：快捷键徽标、轻量提示                           |
+| `--cpx-sys-radius-sm`   |    8px | `item`：菜单项、侧边栏导航项、Tooltip                     |
+| `--cpx-sys-radius-md`   |   10px | `control`：普通按钮、输入框、分段选择器                   |
+| `--cpx-sys-radius-lg`   |   12px | `container` / `floating`：卡片、下拉浮层、Popover 面板    |
+| `--cpx-sys-radius-xl`   |   14px | 较大卡片、抽屉内胆                                        |
+| `--cpx-sys-radius-2xl`  |   16px | `prominent`：对话框（Modal）、Composer 悬浮容器、消息气泡 |
+| `--cpx-sys-radius-3xl`  |   20px | 大型模态窗口、导引面板                                    |
+| `--cpx-sys-radius-4xl`  |   28px | 预留特大层级                                              |
+| `--cpx-sys-radius-full` | 9999px | `pill`：胶囊按钮、Switch 开关、标签胶囊、药丸触发器       |
 
 光学校正统一为 `1.0`（无超椭圆畸变，纯净 Apple HIG 风格），所有表面均遵循上述标准刻度。`full` 只用于真正的胶囊、圆形控件、Badge、Chip、Toggle track 等，不得用于普通卡片、列表行、Dialog 或矩形表面。嵌套表面优先继承外层半径，或根据 `inner radius = max(outer radius - inset, 0)` 计算并映射到最近的已有 Token。
 
@@ -133,6 +133,7 @@ Composer 必须将首页工具条结构、实际输入布局和圆角角色分�
 ### 阴影与层级
 
 分级轻量投影提供真实桌面层次感（Dark 模式下自动加深透明度保证深底对比度）：
+
 - 常驻卡片与容器：`--cpx-sys-shadow-resting`（浅色 `0 2px 8px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)` / 深色 `0 2px 8px rgba(0,0,0,0.4)`）。
 - 抬升与激活项：`--cpx-sys-shadow-raised`（浅色 `0 4px 14px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.03)` / 深色 `0 4px 14px rgba(0,0,0,0.45)`）。
 - 悬浮控件与分段激活钮：`--cpx-sys-shadow-control`（浅色 `0 1px 2px rgba(0,0,0,0.04)` / 深色 `0 1px 2px rgba(0,0,0,0.3)`）。

@@ -1,11 +1,11 @@
-import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp } from "node:fs/promises"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { removeFixturePaths } from "./fixture-cleanup"
-import { Capabilities } from "@codepilotx/agent-protocol"
-import { AgentDatabase } from "../src/storage/database/AgentDatabase"
-import { RpcRouter, type RpcRouterDependencies } from "../src/transport/rpc/RpcRouter"
+import { afterEach, describe, expect, test } from 'bun:test'
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { removeFixturePaths } from './fixture-cleanup'
+import { Capabilities } from '@codepilotx/agent-protocol'
+import { AgentDatabase } from '../src/storage/database/AgentDatabase'
+import { RpcRouter, type RpcRouterDependencies } from '../src/transport/rpc/RpcRouter'
 
 const roots: string[] = []
 afterEach(async () => {
@@ -13,9 +13,9 @@ afterEach(async () => {
 })
 
 const fixture = async (overrides: Partial<RpcRouterDependencies> = {}) => {
-  const root = await mkdtemp(join(tmpdir(), "codepilotx-rpc-memory-"))
+  const root = await mkdtemp(join(tmpdir(), 'codepilotx-rpc-memory-'))
   roots.push(root)
-  const db = new AgentDatabase(join(root, "agent.sqlite"))
+  const db = new AgentDatabase(join(root, 'agent.sqlite'))
 
   const router = new RpcRouter({
     config: {
@@ -78,21 +78,21 @@ const fixture = async (overrides: Partial<RpcRouterDependencies> = {}) => {
 
   const call = (method: string, params: Record<string, unknown>) =>
     router.handle(
-      { jsonrpc: "2.0", id: `test:${++id}`, method, params },
+      { jsonrpc: '2.0', id: `test:${++id}`, method, params },
       { ...(connectionId ? { connectionId } : {}) },
     ) as Promise<any>
 
   const initialize = async (capabilities: readonly string[] = Capabilities) => {
-    const response = await call("initialize", {
-      clientInfo: { name: "test", version: "1.0.0", platform: "win32" },
-      protocols: ["thread-rpc-v4"],
+    const response = await call('initialize', {
+      clientInfo: { name: 'test', version: '1.0.0', platform: 'win32' },
+      protocols: ['thread-rpc-v4'],
       capabilities: [...capabilities],
-      interactionDelivery: "active",
+      interactionDelivery: 'active',
     })
     if (!response.result) return response
     connectionId = response.result.connectionId
     await router.handle(
-      { jsonrpc: "2.0", method: "initialized", params: { protocol: "thread-rpc-v4" } },
+      { jsonrpc: '2.0', method: 'initialized', params: { protocol: 'thread-rpc-v4' } },
       { connectionId: connectionId! },
     )
     return response
@@ -101,24 +101,24 @@ const fixture = async (overrides: Partial<RpcRouterDependencies> = {}) => {
   return { db, router, call, initialize }
 }
 
-describe("system/shrinkMemory RPC", () => {
-  test("requires system.memory.v1 capability", async () => {
+describe('system/shrinkMemory RPC', () => {
+  test('requires system.memory.v1 capability', async () => {
     const value = await fixture()
     // Initialize without system.memory.v1
-    const minimalCapabilities = Capabilities.filter((c) => c !== "system.memory.v1")
+    const minimalCapabilities = Capabilities.filter((c) => c !== 'system.memory.v1')
     await value.initialize(minimalCapabilities)
 
-    const response = await value.call("system/shrinkMemory", { reason: "manual" })
+    const response = await value.call('system/shrinkMemory', { reason: 'manual' })
     expect(response.error).toMatchObject({
       code: -32000,
       data: {
-        code: "CAPABILITY_REQUIRED",
+        code: 'CAPABILITY_REQUIRED',
       },
     })
     value.db.close()
   })
 
-  test("executes shrink via MemoryManager when capability is negotiated", async () => {
+  test('executes shrink via MemoryManager when capability is negotiated', async () => {
     let passedReason: string | undefined
     const mockMemoryManager = {
       shrink: async (reason: string) => {
@@ -141,7 +141,7 @@ describe("system/shrinkMemory RPC", () => {
     const value = await fixture({ memoryManager: mockMemoryManager as never })
     await value.initialize()
 
-    const response = await value.call("system/shrinkMemory", { reason: "idle" })
+    const response = await value.call('system/shrinkMemory', { reason: 'idle' })
     expect(response.result).toMatchObject({
       success: true,
       stats: {
@@ -150,15 +150,15 @@ describe("system/shrinkMemory RPC", () => {
       },
       freedRssBytes: 2048,
     })
-    expect(passedReason).toBe("idle")
+    expect(passedReason).toBe('idle')
     value.db.close()
   })
 
-  test("falls back to process.memoryUsage if MemoryManager is not provided", async () => {
+  test('falls back to process.memoryUsage if MemoryManager is not provided', async () => {
     const value = await fixture()
     await value.initialize()
 
-    const response = await value.call("system/shrinkMemory", { reason: "turn_end" })
+    const response = await value.call('system/shrinkMemory', { reason: 'turn_end' })
     expect(response.result).toMatchObject({
       success: true,
       stats: {

@@ -21,25 +21,14 @@ export function ExtensionManagementRow({
 }: Props): React.ReactNode {
   const rowContent = (
     <>
-      <span
-        aria-hidden="true"
-        className="settings-management-row-icon"
-      >
+      <span aria-hidden="true" className="settings-management-row-icon">
         {icon}
       </span>
       <span className="settings-management-row-copy">
-        <strong className="settings-management-row-title">
-          {title}
-        </strong>
-        <span className="settings-management-row-description">
-          {description}
-        </span>
+        <strong className="settings-management-row-title">{title}</strong>
+        <span className="settings-management-row-description">{description}</span>
       </span>
-      {metadata ? (
-        <span className="settings-management-row-meta">
-          {metadata}
-        </span>
-      ) : null}
+      {metadata ? <span className="settings-management-row-meta">{metadata}</span> : null}
     </>
   )
 
@@ -51,21 +40,15 @@ export function ExtensionManagementRow({
       {onActivate ? (
         <button
           className="settings-management-row-main"
-          onClick={event => onActivate(event.currentTarget)}
+          onClick={(event) => onActivate(event.currentTarget)}
           type="button"
         >
           {rowContent}
         </button>
       ) : (
-        <div className="settings-management-row-main">
-          {rowContent}
-        </div>
+        <div className="settings-management-row-main">{rowContent}</div>
       )}
-      {actions ? (
-        <span className="settings-management-row-actions">
-          {actions}
-        </span>
-      ) : null}
+      {actions ? <span className="settings-management-row-actions">{actions}</span> : null}
     </article>
   )
 }

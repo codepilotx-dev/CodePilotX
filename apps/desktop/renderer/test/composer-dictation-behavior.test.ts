@@ -16,10 +16,7 @@ describe('听写录音设备', () => {
   test('首选设备失效时回退默认设备，并可停止所有轨道', async () => {
     const stopped: boolean[] = []
     const stream = {
-      getTracks: () => [
-        { stop: () => stopped.push(true) },
-        { stop: () => stopped.push(true) },
-      ],
+      getTracks: () => [{ stop: () => stopped.push(true) }, { stop: () => stopped.push(true) }],
     } as unknown as MediaStream
     const constraints: MediaStreamConstraints[] = []
     const mediaDevices = {
@@ -77,9 +74,11 @@ describe('听写文本插入', () => {
     expect(inserted.doc.textContent).toBe('hello Codex')
 
     let restored = inserted
-    expect(undo(inserted, transaction => {
-      restored = inserted.apply(transaction)
-    })).toBe(true)
+    expect(
+      undo(inserted, (transaction) => {
+        restored = inserted.apply(transaction)
+      }),
+    ).toBe(true)
     expect(restored.doc.textContent).toBe('hello world')
   })
 })

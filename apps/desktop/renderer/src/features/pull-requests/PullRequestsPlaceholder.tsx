@@ -1,10 +1,7 @@
 import type React from 'react'
 import { GitPullRequest } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import {
-  APP_ICON_STROKE_WIDTH,
-  APP_ICON_SIZES,
-} from '../../components/ui/iconTokens.js'
+import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 
 export function PullRequestsPlaceholder(): React.ReactNode {
@@ -20,10 +17,7 @@ export function PullRequestsPlaceholder(): React.ReactNode {
         className="pull-requests-placeholder__empty"
       >
         <span aria-hidden="true" className="pull-requests-placeholder__icon">
-          <GitPullRequest
-            size={APP_ICON_SIZES.lg}
-            strokeWidth={APP_ICON_STROKE_WIDTH}
-          />
+          <GitPullRequest size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
         </span>
         <h2 id="pull-requests-empty-title">拉取请求收件箱正在开发中</h2>
         <p>你仍然可以新建对话来检查、修改或评审当前工作区的代码。</p>

@@ -68,9 +68,7 @@
 
   &:focus-within {
     border-color: var(--cpx-sys-color-accent-subtle-border);
-    box-shadow:
-      var(--cpx-sys-shadow-raised),
-      var(--cpx-sys-focus-ring);
+    box-shadow: var(--cpx-sys-shadow-raised), var(--cpx-sys-focus-ring);
   }
 
   input {

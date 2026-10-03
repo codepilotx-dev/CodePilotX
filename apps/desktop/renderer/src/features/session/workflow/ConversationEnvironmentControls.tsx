@@ -85,10 +85,7 @@ export function shouldResumePendingHandoff(
   workspacePath: string,
   resumedThreadId: string | null,
 ): boolean {
-  return gitAvailable
-    && Boolean(threadId)
-    && Boolean(workspacePath)
-    && resumedThreadId !== threadId
+  return gitAvailable && Boolean(threadId) && Boolean(workspacePath) && resumedThreadId !== threadId
 }
 
 const stepLabel: Record<(typeof HANDOFF_PROGRESS_STEPS)[number], string> = {
@@ -158,10 +155,10 @@ export function ConversationEnvironmentControls({
       gitAvailableRef.current,
       threadId,
       {
-        listActions: targetThreadId => listTerminalActions(client, targetThreadId),
-        projectForThread: targetThreadId => client.projectForThread(targetThreadId),
-        listWorktrees: targetProjectId =>
-          client.listWorktrees(targetProjectId).then(value => value.worktrees),
+        listActions: (targetThreadId) => listTerminalActions(client, targetThreadId),
+        projectForThread: (targetThreadId) => client.projectForThread(targetThreadId),
+        listWorktrees: (targetProjectId) =>
+          client.listWorktrees(targetProjectId).then((value) => value.worktrees),
       },
       () => generation === refreshGenerationRef.current,
     )
@@ -194,83 +191,97 @@ export function ConversationEnvironmentControls({
   }, [clearGitEnvironment, gitAvailable, refresh])
 
   React.useEffect(() => {
-    if (!shouldResumePendingHandoff(
-      gitAvailableRef.current,
-      threadId,
-      workspacePath,
-      resumedThreadRef.current,
-    )) return
+    if (
+      !shouldResumePendingHandoff(
+        gitAvailableRef.current,
+        threadId,
+        workspacePath,
+        resumedThreadRef.current,
+      )
+    )
+      return
     resumedThreadRef.current = threadId
     let cancelled = false
     setBusy(true)
-    void loadDesktopTerminalClient().then(terminal => resumePendingHandoff({
-      sourceThreadId: threadId,
-      sourceWorkspacePath: workspacePath,
-      destination: { kind: 'local' },
-      client,
-      terminal,
-      onProgress: operation => {
-        if (cancelled) return
-        setHandoff(operation)
-        setHandoffOpen(true)
-      },
-      transferUiState: transferInput => transferUiState(
-        transferInput,
-        callbacksRef.current.onTransferAuxiliaryState,
-      ),
-    })).then(result => {
-      if (!result || cancelled) return
-      setNotice(handoffWarningMessage(result))
-      callbacksRef.current.onNavigateTarget(result.targetThreadId)
-    }).catch(cause => {
-      if (!cancelled) setError(message(cause))
-    }).finally(() => {
-      if (!cancelled) setBusy(false)
-    })
-    return () => { cancelled = true }
+    void loadDesktopTerminalClient()
+      .then((terminal) =>
+        resumePendingHandoff({
+          sourceThreadId: threadId,
+          sourceWorkspacePath: workspacePath,
+          destination: { kind: 'local' },
+          client,
+          terminal,
+          onProgress: (operation) => {
+            if (cancelled) return
+            setHandoff(operation)
+            setHandoffOpen(true)
+          },
+          transferUiState: (transferInput) =>
+            transferUiState(transferInput, callbacksRef.current.onTransferAuxiliaryState),
+        }),
+      )
+      .then((result) => {
+        if (!result || cancelled) return
+        setNotice(handoffWarningMessage(result))
+        callbacksRef.current.onNavigateTarget(result.targetThreadId)
+      })
+      .catch((cause) => {
+        if (!cancelled) setError(message(cause))
+      })
+      .finally(() => {
+        if (!cancelled) setBusy(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [client, gitAvailable, threadId, workspacePath])
 
-  const executeAction = React.useCallback(async (action: LocalEnvironmentActionMetadata) => {
-    setBusy(true)
-    setError(null)
-    try {
-      await runTerminalAction({
-        terminal: await loadDesktopTerminalClient(),
-        threadId,
-        action,
-        profileId: terminalProfileId,
-      })
-    } catch (cause) {
-      setError(message(cause))
-    } finally {
-      setBusy(false)
-    }
-  }, [terminalProfileId, threadId])
+  const executeAction = React.useCallback(
+    async (action: LocalEnvironmentActionMetadata) => {
+      setBusy(true)
+      setError(null)
+      try {
+        await runTerminalAction({
+          terminal: await loadDesktopTerminalClient(),
+          threadId,
+          action,
+          profileId: terminalProfileId,
+        })
+      } catch (cause) {
+        setError(message(cause))
+      } finally {
+        setBusy(false)
+      }
+    },
+    [terminalProfileId, threadId],
+  )
 
-  const start = React.useCallback(async (
-    destination: { kind: 'local' } | { kind: 'worktree'; worktreeId: string },
-  ) => {
-    setBusy(true)
-    setError(null)
-    setNotice(null)
-    try {
-      const result = await runHandoff({
-        sourceThreadId: threadId,
-        sourceWorkspacePath: workspacePath,
-        destination,
-        client,
-        terminal: await loadDesktopTerminalClient(),
-        onProgress: setHandoff,
-        transferUiState: transferInput => transferUiState(transferInput, onTransferAuxiliaryState),
-      })
-      setNotice(handoffWarningMessage(result))
-      onNavigateTarget(result.targetThreadId)
-    } catch (cause) {
-      setError(message(cause))
-    } finally {
-      setBusy(false)
-    }
-  }, [client, onNavigateTarget, onTransferAuxiliaryState, threadId, workspacePath])
+  const start = React.useCallback(
+    async (destination: { kind: 'local' } | { kind: 'worktree'; worktreeId: string }) => {
+      setBusy(true)
+      setError(null)
+      setNotice(null)
+      try {
+        const result = await runHandoff({
+          sourceThreadId: threadId,
+          sourceWorkspacePath: workspacePath,
+          destination,
+          client,
+          terminal: await loadDesktopTerminalClient(),
+          onProgress: setHandoff,
+          transferUiState: (transferInput) =>
+            transferUiState(transferInput, onTransferAuxiliaryState),
+        })
+        setNotice(handoffWarningMessage(result))
+        onNavigateTarget(result.targetThreadId)
+      } catch (cause) {
+        setError(message(cause))
+      } finally {
+        setBusy(false)
+      }
+    },
+    [client, onNavigateTarget, onTransferAuxiliaryState, threadId, workspacePath],
+  )
 
   const createWorktree = React.useCallback(async () => {
     if (!projectId) return
@@ -344,8 +355,11 @@ export function ConversationEnvironmentControls({
     return registerCommandMenuActions(commandMenuActionStore, commandActions)
   }, [commandActions])
 
-  const readyWorktrees = worktrees.filter(worktree => worktree.status === 'ready'
-    || (worktree.status === 'ready-with-setup-error' && worktree.continuedWithoutSetup))
+  const readyWorktrees = worktrees.filter(
+    (worktree) =>
+      worktree.status === 'ready' ||
+      (worktree.status === 'ready-with-setup-error' && worktree.continuedWithoutSetup),
+  )
 
   return (
     <>
@@ -359,29 +373,33 @@ export function ConversationEnvironmentControls({
             <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
               <div className="tw:grid tw:gap-1">
                 <Dialog.Title asChild>
-                  <h2 className="tw:m-0 u-type-title-md tw:text-app-text">
-                    移交当前任务
-                  </h2>
+                  <h2 className="tw:m-0 u-type-title-md tw:text-app-text">移交当前任务</h2>
                 </Dialog.Title>
                 <Dialog.Description className="tw:m-0 u-type-body-sm tw:text-app-text-soft">
                   移交会停止并归档当前任务，再把修改和界面状态迁移到目标环境。
                 </Dialog.Description>
               </div>
               <Dialog.Close asChild>
-                <IconButton color="ghostSecondary" disabled={busy} size="toolbar" title="关闭移交对话框">
-                  <X
-                    aria-hidden="true"
-                    size={APP_ICON_SIZE}
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
+                <IconButton
+                  color="ghostSecondary"
+                  disabled={busy}
+                  size="toolbar"
+                  title="关闭移交对话框"
+                >
+                  <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 </IconButton>
               </Dialog.Close>
             </header>
 
             {handoff && busy ? (
-              <div className="tw:grid tw:min-h-24 tw:place-content-center tw:gap-2 tw:text-center" role="status">
+              <div
+                className="tw:grid tw:min-h-24 tw:place-content-center tw:gap-2 tw:text-center"
+                role="status"
+              >
                 <span className="ui-button-spinner tw:mx-auto" aria-hidden="true" />
-                <strong className="u-type-control tw:text-app-text">{stepLabel[handoff.step]}</strong>
+                <strong className="u-type-control tw:text-app-text">
+                  {stepLabel[handoff.step]}
+                </strong>
                 <span className="u-type-caption tw:text-app-text-soft">
                   {completedHandoffStepCount(handoff)}/{HANDOFF_PROGRESS_STEPS.length}
                 </span>
@@ -389,9 +407,7 @@ export function ConversationEnvironmentControls({
             ) : (
               <div className="tw:grid tw:gap-2">
                 {!gitAvailable ? (
-                  <p className="tw:m-0 u-type-body-sm tw:text-app-text-soft">
-                    仅 Git 项目可用。
-                  </p>
+                  <p className="tw:m-0 u-type-body-sm tw:text-app-text-soft">仅 Git 项目可用。</p>
                 ) : null}
                 <Button
                   color="secondary"
@@ -400,7 +416,7 @@ export function ConversationEnvironmentControls({
                 >
                   移交到 Local
                 </Button>
-                {readyWorktrees.map(worktree => (
+                {readyWorktrees.map((worktree) => (
                   <Button
                     color="secondary"
                     disabled={busy}
@@ -410,24 +426,35 @@ export function ConversationEnvironmentControls({
                     移交到 {worktree.branchName ?? worktree.id.slice(0, 8)}
                   </Button>
                 ))}
-                <Button color="secondary" disabled={!projectId || busy || !gitAvailable} onClick={() => void createWorktree()}>
+                <Button
+                  color="secondary"
+                  disabled={!projectId || busy || !gitAvailable}
+                  onClick={() => void createWorktree()}
+                >
                   新建托管工作树…
                 </Button>
               </div>
             )}
 
             <div className="tw:flex tw:flex-wrap tw:justify-end tw:gap-2">
-              <Button color="ghostSecondary" onClick={() => {
-                setHandoffOpen(false)
-                onOpenEnvironmentSettings()
-              }}>
+              <Button
+                color="ghostSecondary"
+                onClick={() => {
+                  setHandoffOpen(false)
+                  onOpenEnvironmentSettings()
+                }}
+              >
                 配置 Local environment…
               </Button>
-              <Button color="ghostSecondary" disabled={!projectId || !gitAvailable} onClick={() => {
-                if (!projectId) return
-                setHandoffOpen(false)
-                onOpenWorktreeSettings(projectId)
-              }}>
+              <Button
+                color="ghostSecondary"
+                disabled={!projectId || !gitAvailable}
+                onClick={() => {
+                  if (!projectId) return
+                  setHandoffOpen(false)
+                  onOpenWorktreeSettings(projectId)
+                }}
+              >
                 管理 Worktrees…
               </Button>
               <Button color="ghostSecondary" disabled={busy} onClick={() => void refresh()}>
@@ -448,10 +475,7 @@ function handoffWarningMessage(result: {
   warning: 'LOCAL_STORAGE_UNAVAILABLE' | null
   warnings: readonly string[]
 }): string | null {
-  const warnings = [
-    ...(result.warning ? ['部分本地界面状态未能复制。'] : []),
-    ...result.warnings,
-  ]
+  const warnings = [...(result.warning ? ['部分本地界面状态未能复制。'] : []), ...result.warnings]
   return warnings.length ? `任务已移交；${warnings.join('；')}` : null
 }
 

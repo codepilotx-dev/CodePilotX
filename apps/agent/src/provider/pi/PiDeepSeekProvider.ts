@@ -5,26 +5,20 @@ import {
   type Model,
   type Provider,
   type RefreshModelsContext,
-} from "@earendil-works/pi-ai";
-import { piProviderApiStreams } from "./PiProviderApis";
-import {
-  DEEPSEEK_PROTOCOL_ENDPOINTS,
-  type DeepSeekProtocol,
-} from "./PiProviderConfig";
+} from '@earendil-works/pi-ai'
+import { piProviderApiStreams } from './PiProviderApis'
+import { DEEPSEEK_PROTOCOL_ENDPOINTS, type DeepSeekProtocol } from './PiProviderConfig'
 
-const toProtocolModel = (
-  model: Model<Api>,
-  protocol: DeepSeekProtocol,
-): Model<Api> => {
-  const { compat, ...rest } = model;
+const toProtocolModel = (model: Model<Api>, protocol: DeepSeekProtocol): Model<Api> => {
+  const { compat, ...rest } = model
   return {
     ...rest,
     api: protocol,
     baseUrl: DEEPSEEK_PROTOCOL_ENDPOINTS[protocol],
     // compat 描述单个 API 的传输细节，切换协议后不能沿用旧协议的取值。
     ...(compat && model.api === protocol ? { compat } : {}),
-  };
-};
+  }
+}
 
 /**
  * Rebuilds the bundled DeepSeek provider on another wire protocol while
@@ -50,10 +44,8 @@ export const createPiDeepSeekProvider = (
       : {}),
     ...(source.filterModels
       ? {
-          filterModels: (
-            models: readonly Model<Api>[],
-            credential: Credential | undefined,
-          ) => source.filterModels!.call(source, models, credential),
+          filterModels: (models: readonly Model<Api>[], credential: Credential | undefined) =>
+            source.filterModels!.call(source, models, credential),
         }
       : {}),
-  });
+  })

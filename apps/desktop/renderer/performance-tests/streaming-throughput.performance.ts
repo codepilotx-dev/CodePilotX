@@ -66,21 +66,18 @@ test('streaming throughput keeps commits and long tasks bounded', async ({ page 
   const mountedTurnId = await readMountedTurnId(page)
 
   for (let sample = 1; sample <= 3; sample += 1) {
-    await page.evaluate(
-      (turnId: string) => {
-        ;(
-          window as typeof window & {
-            __codePilotXStreamingPerfCounters?: { reset(): void }
-          }
-        ).__codePilotXStreamingPerfCounters?.reset()
-        ;(
-          window as typeof window & {
-            __codePilotXStreamingPerfHarness?: { beginSample(id?: string): void }
-          }
-        ).__codePilotXStreamingPerfHarness?.beginSample(turnId)
-      },
-      mountedTurnId,
-    )
+    await page.evaluate((turnId: string) => {
+      ;(
+        window as typeof window & {
+          __codePilotXStreamingPerfCounters?: { reset(): void }
+        }
+      ).__codePilotXStreamingPerfCounters?.reset()
+      ;(
+        window as typeof window & {
+          __codePilotXStreamingPerfHarness?: { beginSample(id?: string): void }
+        }
+      ).__codePilotXStreamingPerfHarness?.beginSample(turnId)
+    }, mountedTurnId)
     await startInteractionProbe(page)
     // 以突发速率持续注入，模拟工具输出等高频流式场景。
     await page.evaluate(
@@ -94,7 +91,7 @@ test('streaming throughput keeps commits and long tasks bounded', async ({ page 
           }
         ).__codePilotXStreamingPerfHarness
         if (!harness) throw new Error('流式性能钩子未安装')
-        await new Promise<void>(resolve => {
+        await new Promise<void>((resolve) => {
           let tick = 0
           const timer = setInterval(() => {
             if (tick >= tickCount) {
@@ -140,9 +137,9 @@ test('streaming throughput keeps commits and long tasks bounded', async ({ page 
       streamedItemTextMatches: snapshot.streamedItemTextLength === expectedCharacters ? 1 : 0,
       // 只渲染尾部 item：渲染次数不应超过"尾部通知 + 提交"的量级。
       tailIsolationSlack:
-        snapshot.counters.streamingItemRenderCount
-        - snapshot.counters.tailNotificationCount
-        - snapshot.counters.canonicalCommitCount,
+        snapshot.counters.streamingItemRenderCount -
+        snapshot.counters.tailNotificationCount -
+        snapshot.counters.canonicalCommitCount,
     })
   }
 })

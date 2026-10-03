@@ -45,15 +45,17 @@ function historyPage() {
   return {
     thread,
     subagents: [],
-    turns: [{
-      turn,
-      inputs: [],
-      messages: [],
-      agents: [],
-      items: [],
-      approvals: [],
-      attachments: [],
-    }],
+    turns: [
+      {
+        turn,
+        inputs: [],
+        messages: [],
+        agents: [],
+        items: [],
+        approvals: [],
+        attachments: [],
+      },
+    ],
     queue: {
       version: 0,
       pauseReason: null,
@@ -146,7 +148,7 @@ describe('CanonicalThreadIngestionCoordinator', () => {
     let notifications = 0
     const coordinator = new CanonicalThreadIngestionCoordinator({
       threadId: thread.id,
-      onCommit: state => {
+      onCommit: (state) => {
         committedStatuses.push(state.turnsById.get(turn.id)?.status ?? 'missing')
       },
     })
@@ -158,8 +160,7 @@ describe('CanonicalThreadIngestionCoordinator', () => {
     await coordinator.deliverBatch([statusEvent()])
     await coordinator.deliverBatch([statusEvent()])
 
-    expect(coordinator.getSnapshot()?.turnsById.get(turn.id)?.status)
-      .toBe('completed')
+    expect(coordinator.getSnapshot()?.turnsById.get(turn.id)?.status).toBe('completed')
     expect(committedStatuses).toEqual(['running', 'completed'])
     expect(notifications).toBe(2)
   })
@@ -170,10 +171,10 @@ describe('CanonicalThreadIngestionCoordinator', () => {
     })
     coordinator.rehydrate(historyPage())
 
-    await expect(coordinator.deliverBatch([statusEvent('event-wrong', 'thread-2')]))
-      .rejects.toThrow('stream')
-    expect(coordinator.getSnapshot()?.turnsById.get(turn.id)?.status)
-      .toBe('running')
+    await expect(
+      coordinator.deliverBatch([statusEvent('event-wrong', 'thread-2')]),
+    ).rejects.toThrow('stream')
+    expect(coordinator.getSnapshot()?.turnsById.get(turn.id)?.status).toBe('running')
   })
 })
 
@@ -197,17 +198,19 @@ describe('canonical batch terminal reconciliation', () => {
     reconciled.turns[0] = {
       ...reconciled.turns[0],
       turn: { ...turn, status: 'completed', finishedAt: 9 },
-      items: [{
-        id: 'assistant-final',
-        messageID: 'message-final',
-        turnId: turn.id,
-        agentId: 'agent-1',
-        type: 'text' as const,
-        placement: 'result' as const,
-        text: '当前页实时更新正常',
-        status: 'completed' as const,
-        createdAt: 9,
-      }],
+      items: [
+        {
+          id: 'assistant-final',
+          messageID: 'message-final',
+          turnId: turn.id,
+          agentId: 'agent-1',
+          type: 'text' as const,
+          placement: 'result' as const,
+          text: '当前页实时更新正常',
+          status: 'completed' as const,
+          createdAt: 9,
+        },
+      ],
     }
 
     const performed = await deliverCanonicalBatch([completedEvent()], {
@@ -236,11 +239,7 @@ describe('canonical batch terminal reconciliation', () => {
     coordinator.rehydrate(historyPage())
     let readCalls = 0
 
-    await deliverCanonicalBatch([
-      completedEvent(2),
-      failedEvent(3),
-      interruptedEvent(4),
-    ], {
+    await deliverCanonicalBatch([completedEvent(2), failedEvent(3), interruptedEvent(4)], {
       coordinator,
       readLatest: async () => {
         readCalls += 1
@@ -313,7 +312,7 @@ describe('canonical batch terminal reconciliation', () => {
         throw new Error('历史读取失败')
       },
       isCurrent: () => true,
-      onReconciliationError: cause => diagnostics.push(cause),
+      onReconciliationError: (cause) => diagnostics.push(cause),
     })
 
     expect(performed).toBe(true)

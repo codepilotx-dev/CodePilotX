@@ -1,9 +1,6 @@
 import type React from 'react'
 import { memo, useSyncExternalStore } from 'react'
-import type {
-  WorkbenchTabId,
-  WorkbenchTabsState,
-} from '../dock/rightDockState.js'
+import type { WorkbenchTabId, WorkbenchTabsState } from '../dock/rightDockState.js'
 import {
   getWorkbenchTabDefinition,
   getWorkbenchTabDisplayTitle,
@@ -27,9 +24,8 @@ export const AuxiliaryWindowsHost = memo(function AuxiliaryWindowsHost({
   onDockBack,
 }: AuxiliaryWindowsHostProps): React.ReactNode {
   // 订阅辅助窗口服务状态变动
-  useSyncExternalStore(
-    auxiliaryWindowService.subscribe.bind(auxiliaryWindowService),
-    () => auxiliaryWindowService.getFloatingTabIds().join(','),
+  useSyncExternalStore(auxiliaryWindowService.subscribe.bind(auxiliaryWindowService), () =>
+    auxiliaryWindowService.getFloatingTabIds().join(','),
   )
 
   if (!floatingTabIds || floatingTabIds.length === 0) {
@@ -38,7 +34,7 @@ export const AuxiliaryWindowsHost = memo(function AuxiliaryWindowsHost({
 
   return (
     <>
-      {floatingTabIds.map(tabId => {
+      {floatingTabIds.map((tabId) => {
         const tab = tabsById[tabId]
         if (!tab) return null
         let entry = auxiliaryWindowService.getEntry(tabId)

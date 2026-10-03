@@ -1,8 +1,4 @@
-import {
-  useMotionTemplate,
-  useMotionValue,
-  type MotionValue,
-} from 'motion/react'
+import { useMotionTemplate, useMotionValue, type MotionValue } from 'motion/react'
 import { useCallback, useLayoutEffect, useRef } from 'react'
 
 export type LiveResizeValue = {
@@ -15,9 +11,7 @@ export function normalizeLiveResizeSize(
   size: number,
   pixelRatio = typeof window === 'undefined' ? 1 : window.devicePixelRatio,
 ): number {
-  const safePixelRatio = Number.isFinite(pixelRatio)
-    ? Math.max(1, pixelRatio)
-    : 1
+  const safePixelRatio = Number.isFinite(pixelRatio) ? Math.max(1, pixelRatio) : 1
   return Math.round(size * safePixelRatio) / safePixelRatio
 }
 

@@ -55,9 +55,7 @@ export function isSafeHttpsMediaSource(source: string): boolean {
   }
 }
 
-export function mediaKindForUrl(
-  source: string,
-): 'audio' | 'image' | 'video' | null {
+export function mediaKindForUrl(source: string): 'audio' | 'image' | 'video' | null {
   if (!isSafeHttpsMediaSource(source)) return null
   const pathname = new URL(source).pathname.toLowerCase()
   if (/\.(?:avif|gif|jpe?g|png|svg|webp)$/u.test(pathname)) return 'image'
@@ -71,12 +69,9 @@ export function isLikelyFileReference(value: string): boolean {
   return target.kind === 'file'
 }
 
-export function parseMarkdownFileReference(
-  value: string,
-): MarkdownFileReference {
+export function parseMarkdownFileReference(value: string): MarkdownFileReference {
   const source = value.trim()
-  const hashMatch =
-    /#L(\d+)(?:C(\d+))?(?:-L?(\d+)(?:C(\d+))?)?$/iu.exec(source)
+  const hashMatch = /#L(\d+)(?:C(\d+))?(?:-L?(\d+)(?:C(\d+))?)?$/iu.exec(source)
   if (hashMatch?.index !== undefined) {
     return compactReference({
       path: source.slice(0, hashMatch.index),
@@ -104,9 +99,7 @@ function decodeFileUrl(url: URL): string {
   return pathname
 }
 
-function compactReference(
-  reference: MarkdownFileReference,
-): MarkdownFileReference {
+function compactReference(reference: MarkdownFileReference): MarkdownFileReference {
   return Object.fromEntries(
     Object.entries(reference).filter(([, value]) => value !== undefined),
   ) as MarkdownFileReference

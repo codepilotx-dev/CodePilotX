@@ -17,9 +17,7 @@ import type {
  * request. Returns `null` when the value is missing or does not
  * match the expected object-schema shape.
  */
-export function parseMcpElicitationSchema(
-  raw: unknown,
-): McpElicitationSchema | null {
+export function parseMcpElicitationSchema(raw: unknown): McpElicitationSchema | null {
   if (!raw || typeof raw !== 'object') return null
 
   const obj = raw as Record<string, unknown>
@@ -47,16 +45,12 @@ export function parseMcpElicitationSchema(
     // Silently skip unrecognised field schemas
   }
 
-  return Object.keys(parsed.properties).length > 0 || propKeys.length === 0
-    ? parsed
-    : null
+  return Object.keys(parsed.properties).length > 0 || propKeys.length === 0 ? parsed : null
 }
 
 // ── Field-level parsing ──────────────────────────────────────
 
-function parsePrimitiveSchema(
-  raw: unknown,
-): McpElicitationPrimitiveSchema | null {
+function parsePrimitiveSchema(raw: unknown): McpElicitationPrimitiveSchema | null {
   if (!raw || typeof raw !== 'object') return null
 
   const obj = raw as Record<string, unknown>
@@ -82,10 +76,7 @@ function parseStringOrEnumSchema(
   obj: Record<string, unknown>,
 ): McpElicitationStringSchema | McpElicitationSingleSelectEnumSchema {
   // Has enum/oneOf options → treat as single-select
-  if (
-    Array.isArray(obj.enum) ||
-    Array.isArray(obj.oneOf)
-  ) {
+  if (Array.isArray(obj.enum) || Array.isArray(obj.oneOf)) {
     return {
       type: 'string',
       title: optionalString(obj.title),
@@ -94,9 +85,7 @@ function parseStringOrEnumSchema(
       enum: Array.isArray(obj.enum)
         ? obj.enum.filter((e): e is string => typeof e === 'string')
         : undefined,
-      oneOf: Array.isArray(obj.oneOf)
-        ? parseConstOptions(obj.oneOf)
-        : undefined,
+      oneOf: Array.isArray(obj.oneOf) ? parseConstOptions(obj.oneOf) : undefined,
     }
   }
 
@@ -107,19 +96,12 @@ function parseStringOrEnumSchema(
     description: optionalString(obj.description),
     minLength: optionalNumber(obj.minLength),
     maxLength: optionalNumber(obj.maxLength),
-    format: optionalString(obj.format) as
-      | 'email'
-      | 'uri'
-      | 'date'
-      | 'date-time'
-      | undefined,
+    format: optionalString(obj.format) as 'email' | 'uri' | 'date' | 'date-time' | undefined,
     default: optionalString(obj.default),
   }
 }
 
-function parseNumberSchema(
-  obj: Record<string, unknown>,
-): McpElicitationNumberSchema {
+function parseNumberSchema(obj: Record<string, unknown>): McpElicitationNumberSchema {
   return {
     type: obj.type === 'integer' ? 'integer' : 'number',
     title: optionalString(obj.title),
@@ -130,15 +112,12 @@ function parseNumberSchema(
   }
 }
 
-function parseBooleanSchema(
-  obj: Record<string, unknown>,
-): McpElicitationBooleanSchema {
+function parseBooleanSchema(obj: Record<string, unknown>): McpElicitationBooleanSchema {
   return {
     type: 'boolean',
     title: optionalString(obj.title),
     description: optionalString(obj.description),
-    default:
-      typeof obj.default === 'boolean' ? obj.default : undefined,
+    default: typeof obj.default === 'boolean' ? obj.default : undefined,
   }
 }
 
@@ -168,10 +147,7 @@ function parseMultiSelectSchema(
   }
 
   // Untitled multi-select: items.type === 'string' && items.enum
-  if (
-    itemsObj.type === 'string' &&
-    Array.isArray(itemsObj.enum)
-  ) {
+  if (itemsObj.type === 'string' && Array.isArray(itemsObj.enum)) {
     return {
       type: 'array',
       title: optionalString(obj.title),
@@ -183,9 +159,7 @@ function parseMultiSelectSchema(
         : undefined,
       items: {
         type: 'string',
-        enum: itemsObj.enum.filter(
-          (e: unknown): e is string => typeof e === 'string',
-        ),
+        enum: itemsObj.enum.filter((e: unknown): e is string => typeof e === 'string'),
       },
     }
   }
@@ -193,26 +167,24 @@ function parseMultiSelectSchema(
   return null
 }
 
-function parseConstOptions(
-  arr: unknown[],
-): McpElicitationConstOption[] {
-  return arr.filter(
-    (item): item is McpElicitationConstOption =>
-      typeof item === 'object' &&
-      item !== null &&
-      typeof (item as Record<string, unknown>).const === 'string' &&
-      typeof (item as Record<string, unknown>).title === 'string',
-  ).map((item) => ({
-    const: (item as Record<string, unknown>).const as string,
-    title: (item as Record<string, unknown>).title as string,
-  }))
+function parseConstOptions(arr: unknown[]): McpElicitationConstOption[] {
+  return arr
+    .filter(
+      (item): item is McpElicitationConstOption =>
+        typeof item === 'object' &&
+        item !== null &&
+        typeof (item as Record<string, unknown>).const === 'string' &&
+        typeof (item as Record<string, unknown>).title === 'string',
+    )
+    .map((item) => ({
+      const: (item as Record<string, unknown>).const as string,
+      title: (item as Record<string, unknown>).title as string,
+    }))
 }
 
 // ── Default value extraction ─────────────────────────────────
 
-export function getFieldDefault(
-  schema: McpElicitationPrimitiveSchema,
-): unknown {
+export function getFieldDefault(schema: McpElicitationPrimitiveSchema): unknown {
   switch (schema.type) {
     case 'string':
       return schema.default ?? ''
@@ -291,15 +263,13 @@ export function validateField(
   }
 }
 
-function isEmptyValue(
-  value: unknown,
-  schema: McpElicitationPrimitiveSchema,
-): boolean {
+function isEmptyValue(value: unknown, schema: McpElicitationPrimitiveSchema): boolean {
   if (value === null || value === undefined) return true
   if (
     (schema.type === 'string' || schema.type === 'number' || schema.type === 'integer') &&
     value === ''
-  ) return true
+  )
+    return true
   if (schema.type === 'array' && Array.isArray(value) && value.length === 0) return true
   return false
 }
@@ -334,19 +304,12 @@ function optionalString(value: unknown): string | undefined {
 }
 
 function optionalNumber(value: unknown): number | undefined {
-  return typeof value === 'number' && !Number.isNaN(value)
-    ? value
-    : undefined
+  return typeof value === 'number' && !Number.isNaN(value) ? value : undefined
 }
 
 /** Type guard: is the string-typed schema a single-select enum? */
-function isSingleSelectEnum(
-  schema: McpElicitationPrimitiveSchema,
-): boolean {
+function isSingleSelectEnum(schema: McpElicitationPrimitiveSchema): boolean {
   if (schema.type !== 'string') return false
-  const maybe =
-    schema as unknown as McpElicitationSingleSelectEnumSchema
-  return (
-    Array.isArray(maybe.enum) || Array.isArray(maybe.oneOf)
-  )
+  const maybe = schema as unknown as McpElicitationSingleSelectEnumSchema
+  return Array.isArray(maybe.enum) || Array.isArray(maybe.oneOf)
 }

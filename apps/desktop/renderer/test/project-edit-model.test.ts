@@ -9,18 +9,20 @@ describe('project edit folder save plan', () => {
       folder('docs', 'D:\\docs', 'secondary'),
     ]
 
-    expect(createProjectFolderSavePlan(original, [
-      {
-        originalId: 'primary',
-        path: 'C:\\repo',
-        role: 'secondary',
-      },
-      {
-        originalId: null,
-        path: 'E:\\replacement',
-        role: 'primary',
-      },
-    ])).toEqual({
+    expect(
+      createProjectFolderSavePlan(original, [
+        {
+          originalId: 'primary',
+          path: 'C:\\repo',
+          role: 'secondary',
+        },
+        {
+          originalId: null,
+          path: 'E:\\replacement',
+          role: 'primary',
+        },
+      ]),
+    ).toEqual({
       addPaths: ['E:\\replacement'],
       desiredPrimaryPath: 'E:\\replacement',
       removeFolderIds: ['docs'],
@@ -28,10 +30,12 @@ describe('project edit folder save plan', () => {
   })
 
   test('rejects a draft without a primary folder', () => {
-    expect(() => createProjectFolderSavePlan(
-      [folder('primary', 'C:\\repo', 'primary')],
-      [{ originalId: 'primary', path: 'C:\\repo', role: 'secondary' }],
-    )).toThrow('项目必须保留一个主目录')
+    expect(() =>
+      createProjectFolderSavePlan(
+        [folder('primary', 'C:\\repo', 'primary')],
+        [{ originalId: 'primary', path: 'C:\\repo', role: 'secondary' }],
+      ),
+    ).toThrow('项目必须保留一个主目录')
   })
 })
 

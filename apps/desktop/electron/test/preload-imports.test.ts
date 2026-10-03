@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { expectSourceContains, expectSourceNotContains } from './source-contract.js'
 
 const preloadSource = readFileSync(
   fileURLToPath(new URL('../src/preload.cts', import.meta.url)),
@@ -17,33 +18,31 @@ describe('preload 模块边界', () => {
     // 每条 import 语句单独分析，避免跨语句匹配。
     const statements = preloadSource
       .split(/\n(?=import\s)/)
-      .filter(statement => statement.startsWith('import '))
-    const workspaceImports = statements.filter(statement =>
-      /from\s+"@codepilotx\//.test(statement),
+      .filter((statement) => statement.startsWith('import '))
+    const workspaceImports = statements.filter((statement) =>
+      /from\s+['"]@codepilotx\//.test(statement),
     )
     expect(workspaceImports.length).toBeGreaterThan(0)
 
     const offenders = workspaceImports
-      .filter(statement => {
+      .filter((statement) => {
         if (/^import\s+type\s/.test(statement)) return false
-        const clause = /^import\s+([\s\S]*?)\s+from\s+"/.exec(statement)?.[1] ?? ''
+        const clause = /^import\s+([\s\S]*?)\s+from\s+['"]/.exec(statement)?.[1] ?? ''
         if (clause.trim().startsWith('type ')) return false
         const specifiers = clause
           .replace(/^\{|\}$/g, '')
           .split(',')
-          .map(specifier => specifier.trim())
-          .filter(specifier => specifier.length > 0)
-        return specifiers.some(specifier => !specifier.startsWith('type '))
+          .map((specifier) => specifier.trim())
+          .filter((specifier) => specifier.length > 0)
+        return specifiers.some((specifier) => !specifier.startsWith('type '))
       })
-      .map(statement => /from\s+"(@codepilotx\/[^"]+)"/.exec(statement)?.[1])
+      .map((statement) => /from\s+['"](@codepilotx\/[^'"]+)['"]/.exec(statement)?.[1])
 
     expect(offenders).toEqual([])
   })
 
   test('缩放活动校验在本地实现，避免运行时依赖', () => {
-    expect(preloadSource).toContain('function isDesktopResizeActivity(')
-    expect(preloadSource).not.toContain(
-      'import {\n  isDesktopResizeActivity,',
-    )
+    expectSourceContains(preloadSource, 'function isDesktopResizeActivity(')
+    expectSourceNotContains(preloadSource, 'import {\n  isDesktopResizeActivity,')
   })
 })

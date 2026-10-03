@@ -1,12 +1,6 @@
-import type {
-  DesktopApi,
-  DesktopSessionSnapshot,
-} from '../../../shared/types.js'
+import type { DesktopApi, DesktopSessionSnapshot } from '../../../shared/types.js'
 import type { ThreadListItem } from '@codepilotx/shared/thread'
-import type {
-  RpcParams,
-  RpcResult,
-} from '@codepilotx/agent-protocol'
+import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
 import { sessionDisplayTitle } from '../../uiTypes.js'
 
 type WithAgentOrMock = <T>(
@@ -30,17 +24,18 @@ export function regenerateSessionTitle(
 ): Promise<DesktopSessionSnapshot> {
   return withAgentOrMock(
     async () =>
-      cacheThread((await rpc.call('thread/title/regenerate', {
-        threadId: sessionId,
-        operationId: crypto.randomUUID(),
-      })).thread),
+      cacheThread(
+        (
+          await rpc.call('thread/title/regenerate', {
+            threadId: sessionId,
+            operationId: crypto.randomUUID(),
+          })
+        ).thread,
+      ),
     async () =>
       mockClient.renameSession(
         sessionId,
-        sessionDisplayTitle(
-          null,
-          (await mockClient.getSession(sessionId)).item.firstPrompt,
-        ),
+        sessionDisplayTitle(null, (await mockClient.getSession(sessionId)).item.firstPrompt),
       ),
   )
 }

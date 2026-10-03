@@ -1,5 +1,8 @@
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
-import { mergeCatalogProjects, useSidebarProjectCatalog } from '../layout/sidebar/useSidebarProjectCatalog.js'
+import {
+  mergeCatalogProjects,
+  useSidebarProjectCatalog,
+} from '../layout/sidebar/useSidebarProjectCatalog.js'
 import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { DesktopWorkspace } from '../../../shared/types.js'
@@ -8,7 +11,11 @@ import { AnchoredPopover } from '../../components/ui/AnchoredPopover.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
-import { buildProjectSessionBuckets, normalizeSidebarPath, sidebarProjectKey } from '../layout/sidebar/sidebarViewModel.js'
+import {
+  buildProjectSessionBuckets,
+  normalizeSidebarPath,
+  sidebarProjectKey,
+} from '../layout/sidebar/sidebarViewModel.js'
 import { DEFAULT_PROJECT_APPEARANCE, ProjectAppearanceGlyph } from './projectAppearance.js'
 import { ProjectDetailsCard } from './ProjectDetailsCard.js'
 import { ProjectManagementDialogs } from './ProjectManagementDialogs.js'
@@ -23,21 +30,38 @@ type Props = {
   onPinWorkspace: (project: DesktopWorkspace) => void
   onUnpinWorkspace: (project: DesktopWorkspace) => void
   onRemoveWorkspace: (project: DesktopWorkspace) => void
-  onArchiveSessions: (ids: readonly string[]) => Promise<{ failedSessionIds: string[]; succeededSessionIds: string[] }>
+  onArchiveSessions: (
+    ids: readonly string[],
+  ) => Promise<{ failedSessionIds: string[]; succeededSessionIds: string[] }>
   onReport: (message: string) => void
 }
 
 export function ConversationProjectDetails(props: Props): React.ReactNode {
   const { projectCatalogState } = useSidebarProjectCatalog({ onReport: props.onReport })
-  const projects = useMemo(() => mergeCatalogProjects(projectCatalogState.projects, props.projects),
-    [projectCatalogState.projects, props.projects])
+  const projects = useMemo(
+    () => mergeCatalogProjects(projectCatalogState.projects, props.projects),
+    [projectCatalogState.projects, props.projects],
+  )
   const project = resolveConversationProject(props.session, projects, props.currentWorkspace)
   if (!project || !props.session) return null
-  return <ProjectDetailsTrigger {...props} key={`${props.session.id}:${sidebarProjectKey(project)}`} project={project} />
+  return (
+    <ProjectDetailsTrigger
+      {...props}
+      key={`${props.session.id}:${sidebarProjectKey(project)}`}
+      project={project}
+    />
+  )
 }
 
-function ProjectDetailsTrigger({ project, sessions, unavailableWorkspacePaths,
-  onPinWorkspace, onUnpinWorkspace, onRemoveWorkspace, onArchiveSessions, onReport,
+function ProjectDetailsTrigger({
+  project,
+  sessions,
+  unavailableWorkspacePaths,
+  onPinWorkspace,
+  onUnpinWorkspace,
+  onRemoveWorkspace,
+  onArchiveSessions,
+  onReport,
 }: Props & { project: DesktopWorkspace }): React.ReactNode {
   const [managedProject, setManagedProject] = useState(project)
   const [open, setOpen] = useState(false)
@@ -47,18 +71,27 @@ function ProjectDetailsTrigger({ project, sessions, unavailableWorkspacePaths,
   const editFrameRef = useRef<number | null>(null)
   const { projectAppearances } = useDesktopSettings()
   useEffect(() => setManagedProject(project), [project])
-  useEffect(() => () => {
-    if (editFrameRef.current !== null) cancelAnimationFrame(editFrameRef.current)
-  }, [])
-  const bucket = useMemo(() => buildProjectSessionBuckets(
-    sessions.filter(session => !session.archivedAt && !session.standalone), [],
-  ).get(sidebarProjectKey(managedProject)), [sessions, managedProject])
+  useEffect(
+    () => () => {
+      if (editFrameRef.current !== null) cancelAnimationFrame(editFrameRef.current)
+    },
+    [],
+  )
+  const bucket = useMemo(
+    () =>
+      buildProjectSessionBuckets(
+        sessions.filter((session) => !session.archivedAt && !session.standalone),
+        [],
+      ).get(sidebarProjectKey(managedProject)),
+    [sessions, managedProject],
+  )
   const appearance = managedProject.projectId
-    ? projectAppearances[managedProject.projectId] ?? DEFAULT_PROJECT_APPEARANCE
+    ? (projectAppearances[managedProject.projectId] ?? DEFAULT_PROJECT_APPEARANCE)
     : DEFAULT_PROJECT_APPEARANCE
   const isPinned = Boolean(managedProject.pinnedAt)
-  const isUnavailable = [...unavailableWorkspacePaths].some(path =>
-    normalizeSidebarPath(path) === normalizeSidebarPath(managedProject.path))
+  const isUnavailable = [...unavailableWorkspacePaths].some(
+    (path) => normalizeSidebarPath(path) === normalizeSidebarPath(managedProject.path),
+  )
 
   return (
     <>
@@ -72,12 +105,18 @@ function ProjectDetailsTrigger({ project, sessions, unavailableWorkspacePaths,
         side="bottom"
         sideOffset={4}
         onOpenChange={setOpen}
-        onCloseAutoFocus={event => {
+        onCloseAutoFocus={(event) => {
           event.preventDefault()
           triggerRef.current?.focus()
         }}
         trigger={
-          <IconButton ref={triggerRef} className="chat-session-project-details" color="ghostSecondary" size="toolbar" title={`项目详情：${managedProject.name}`}>
+          <IconButton
+            ref={triggerRef}
+            className="chat-session-project-details"
+            color="ghostSecondary"
+            size="toolbar"
+            title={`项目详情：${managedProject.name}`}
+          >
             <ProjectAppearanceGlyph size={APP_ICON_SIZE} appearance={appearance} />
           </IconButton>
         }
@@ -95,7 +134,7 @@ function ProjectDetailsTrigger({ project, sessions, unavailableWorkspacePaths,
             else onPinWorkspace(managedProject)
             setOpen(false)
           }}
-          onOpenFolder={path => {
+          onOpenFolder={(path) => {
             void desktopClient.openPathWithDefaultTarget(path)
             setOpen(false)
           }}
@@ -114,9 +153,13 @@ function ProjectDetailsTrigger({ project, sessions, unavailableWorkspacePaths,
         setConfirmRemoveOpen={setConfirmRemoveOpen}
         onProjectChange={setManagedProject}
         onArchiveSessions={async () => {
-          const result = await onArchiveSessions(bucket?.allSessions.map(session => session.id) ?? [])
+          const result = await onArchiveSessions(
+            bucket?.allSessions.map((session) => session.id) ?? [],
+          )
           if (result.failedSessionIds.length > 0) {
-            onReport(`已归档 ${result.succeededSessionIds.length} 个任务，${result.failedSessionIds.length} 个失败。`)
+            onReport(
+              `已归档 ${result.succeededSessionIds.length} 个任务，${result.failedSessionIds.length} 个失败。`,
+            )
           }
           return result.failedSessionIds.length === 0
         }}

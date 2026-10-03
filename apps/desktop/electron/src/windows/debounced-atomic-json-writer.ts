@@ -1,6 +1,6 @@
-import { randomUUID } from "node:crypto"
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
-import { dirname } from "node:path"
+import { randomUUID } from 'node:crypto'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { dirname } from 'node:path'
 
 export interface StateLogger {
   warn(event: string, fields?: Record<string, unknown>): void
@@ -22,12 +22,7 @@ export class DebouncedAtomicJsonWriter<T> {
   #timer?: ReturnType<typeof setTimeout>
   #queue: Promise<void> = Promise.resolve()
 
-  constructor(
-    filePath: string,
-    delayMs = 250,
-    logCategory = "state",
-    logger?: StateLogger,
-  ) {
+  constructor(filePath: string, delayMs = 250, logCategory = 'state', logger?: StateLogger) {
     this.#filePath = filePath
     this.#delayMs = delayMs
     this.#logCategory = logCategory
@@ -38,12 +33,9 @@ export class DebouncedAtomicJsonWriter<T> {
     return this.#filePath
   }
 
-  async load<R>(
-    fallback: () => R,
-    normalize: (parsed: unknown) => R,
-  ): Promise<R> {
+  async load<R>(fallback: () => R, normalize: (parsed: unknown) => R): Promise<R> {
     try {
-      const source = await readFile(this.#filePath, "utf8")
+      const source = await readFile(this.#filePath, 'utf8')
       return normalize(JSON.parse(source))
     } catch (error) {
       if (!isMissingFileError(error)) {
@@ -80,19 +72,15 @@ export class DebouncedAtomicJsonWriter<T> {
       this.#logger?.warn(`${this.#logCategory}.save-failed`, { error })
     })
   }
-
 }
 
-export async function writeJsonAtomically(
-  filePath: string,
-  value: unknown,
-): Promise<void> {
+export async function writeJsonAtomically(filePath: string, value: unknown): Promise<void> {
   const directory = dirname(filePath)
   const temporaryPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`
   await mkdir(directory, { recursive: true })
   try {
     await writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, {
-      encoding: "utf8",
+      encoding: 'utf8',
       mode: 0o600,
     })
     await rename(temporaryPath, filePath)
@@ -101,19 +89,14 @@ export async function writeJsonAtomically(
   }
 }
 
-export function intersectionArea(
-  left: DesktopWindowBounds,
-  right: DesktopWindowBounds,
-): number {
+export function intersectionArea(left: DesktopWindowBounds, right: DesktopWindowBounds): number {
   const width = Math.max(
     0,
-    Math.min(left.x + left.width, right.x + right.width)
-      - Math.max(left.x, right.x),
+    Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x),
   )
   const height = Math.max(
     0,
-    Math.min(left.y + left.height, right.y + right.height)
-      - Math.max(left.y, right.y),
+    Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y),
   )
   return width * height
 }
@@ -123,9 +106,9 @@ export function clamp(value: number, minimum: number, maximum: number): number {
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 export function isMissingFileError(error: unknown): boolean {
-  return isRecord(error) && error.code === "ENOENT"
+  return isRecord(error) && error.code === 'ENOENT'
 }

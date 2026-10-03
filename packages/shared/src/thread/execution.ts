@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Schema } from 'effect'
 
 const VersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
 
@@ -7,13 +7,13 @@ const VersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
  * the worktree RPC surface cannot drift apart.
  */
 export const WorktreeStatusSchema = Schema.Literals([
-  "creating",
-  "ready",
-  "ready-with-setup-error",
-  "deleting",
-  "cleaned",
-  "restoring",
-  "restore-conflict",
+  'creating',
+  'ready',
+  'ready-with-setup-error',
+  'deleting',
+  'cleaned',
+  'restoring',
+  'restore-conflict',
 ])
 export type WorktreeStatus = typeof WorktreeStatusSchema.Type
 
@@ -23,12 +23,12 @@ export type WorktreeStatus = typeof WorktreeStatusSchema.Type
  */
 export const ThreadExecutionEnvironmentSchema = Schema.Union([
   Schema.Struct({
-    kind: Schema.Literal("local"),
+    kind: Schema.Literal('local'),
     cwd: Schema.String,
     revision: VersionSchema,
   }),
   Schema.Struct({
-    kind: Schema.Literal("worktree"),
+    kind: Schema.Literal('worktree'),
     worktreeId: Schema.String,
     cwd: Schema.String,
     branchName: Schema.NullOr(Schema.String),

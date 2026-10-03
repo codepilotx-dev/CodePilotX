@@ -1,7 +1,4 @@
-import type {
-  Attachment,
-  AttachmentKind,
-} from '@codepilotx/core/attachments/types.js'
+import type { Attachment, AttachmentKind } from '@codepilotx/core/attachments/types.js'
 import type {
   DesktopComposerAttachment,
   DesktopUserMessageInput,
@@ -11,22 +8,18 @@ import type {
 export function hasBlockingComposerAttachmentErrors(
   attachments: DesktopComposerAttachment[] | undefined,
 ): boolean {
-  return (attachments ?? []).some(attachment => attachment.status === 'error')
+  return (attachments ?? []).some((attachment) => attachment.status === 'error')
 }
 
-export function desktopUserMessageInputToPreviewText(
-  input: DesktopUserMessageInput,
-): string {
+export function desktopUserMessageInputToPreviewText(input: DesktopUserMessageInput): string {
   const text = input.text.trim()
   const attachments = input.attachments ?? []
   const parts = [
-    ...(input.skills?.map(skill => `$${skill.name}`) ?? []),
+    ...(input.skills?.map((skill) => `$${skill.name}`) ?? []),
     formatCanonicalSkillInvocation(input.skillInvocation, text),
   ]
   if (attachments.length > 0) {
-    const attachmentSummary = attachments
-      .map(attachment => `[${attachment.name}]`)
-      .join(' ')
+    const attachmentSummary = attachments.map((attachment) => `[${attachment.name}]`).join(' ')
     parts.push(attachmentSummary)
   }
   return parts.filter(Boolean).join(' ')
@@ -38,9 +31,7 @@ export function desktopUserMessageInputToPreviewText(
  *
  * Strips UI-only fields (id, status, error, previewDataUrl, truncated).
  */
-export function desktopAttachmentToAttachment(
-  input: DesktopComposerAttachment,
-): Attachment {
+export function desktopAttachmentToAttachment(input: DesktopComposerAttachment): Attachment {
   return {
     kind: input.kind as AttachmentKind,
     name: input.name,
@@ -67,7 +58,7 @@ export function buildDesktopUserMessageContent(
   return {
     text: formatCanonicalSkillInvocation(input.skillInvocation, text),
     attachments: (input.attachments ?? [])
-      .filter(a => a.status !== 'error' && a.storage !== 'local-path')
+      .filter((a) => a.status !== 'error' && a.storage !== 'local-path')
       .map(desktopAttachmentToAttachment),
   }
 }

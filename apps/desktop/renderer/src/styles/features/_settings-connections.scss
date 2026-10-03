@@ -45,15 +45,13 @@
     &.ok {
       background: color-mix(in srgb, var(--cpx-sys-color-success) 12%, transparent);
       color: var(--cpx-sys-color-success);
-      border: 1px solid
-        color-mix(in srgb, var(--cpx-sys-color-success) 24%, transparent);
+      border: 1px solid color-mix(in srgb, var(--cpx-sys-color-success) 24%, transparent);
     }
 
     &.warn {
       background: color-mix(in srgb, var(--cpx-sys-color-warning) 12%, transparent);
       color: var(--cpx-sys-color-warning);
-      border: 1px solid
-        color-mix(in srgb, var(--cpx-sys-color-warning) 24%, transparent);
+      border: 1px solid color-mix(in srgb, var(--cpx-sys-color-warning) 24%, transparent);
     }
   }
 
@@ -274,7 +272,7 @@
   object-fit: contain;
 }
 
-.settings-dropdown:not([data-variant="theme"]) {
+.settings-dropdown:not([data-variant='theme']) {
   max-width: min(360px, 48vw);
 }
 

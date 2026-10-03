@@ -214,7 +214,7 @@
   white-space: nowrap;
 }
 
-.file-breadcrumb-toolbar__action[aria-pressed="true"] {
+.file-breadcrumb-toolbar__action[aria-pressed='true'] {
   background: var(--cpx-sys-color-selected);
   color: var(--cpx-sys-color-fg-primary);
 }
@@ -387,7 +387,7 @@
     left: 3px;
     width: 2px;
     background: transparent;
-    content: "";
+    content: '';
   }
 
   &:hover::after,
@@ -490,7 +490,6 @@
   }
 }
 
-
 .right-dock-file-tree {
   min-width: 0;
   min-height: 0;
@@ -515,7 +514,7 @@
     left: 4px;
     width: 2px;
     background: transparent;
-    content: "";
+    content: '';
   }
 
   &:hover::after,
@@ -757,7 +756,7 @@
   box-shadow: none;
 }
 
-:root[data-reduce-motion="on"] {
+:root[data-reduce-motion='on'] {
   .file-breadcrumb-toolbar__action,
   .right-dock-editor-tree-resize-handle {
     transition: none;
@@ -843,9 +842,9 @@
 }
 
 .file-breadcrumb-toolbar .icon-button[data-color] {
-  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"])):hover,
-  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"]))[data-state="open"],
-  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"]))[data-active] {
+  &:where(:enabled:not([aria-disabled='true']):not([aria-pressed='true'])):hover,
+  &:where(:enabled:not([aria-disabled='true']):not([aria-pressed='true']))[data-state='open'],
+  &:where(:enabled:not([aria-disabled='true']):not([aria-pressed='true']))[data-active] {
     background: var(--cpx-sys-color-hover);
     color: var(--cpx-sys-color-fg-primary);
   }

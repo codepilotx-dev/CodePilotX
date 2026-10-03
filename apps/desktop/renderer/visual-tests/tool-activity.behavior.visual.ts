@@ -1,13 +1,19 @@
 import { expect, test } from '@playwright/test'
 
-test('tool file links and disclosure support independent mouse and keyboard actions', async ({ page }) => {
+test('tool file links and disclosure support independent mouse and keyboard actions', async ({
+  page,
+}) => {
   const errors: string[] = []
-  page.on('pageerror', error => errors.push(error.message))
-  page.on('console', message => {
+  page.on('pageerror', (error) => errors.push(error.message))
+  page.on('console', (message) => {
     if (message.type() !== 'error') return
     // Visual fixtures have no Agent backend; retain all other runtime errors.
-    if (message.location().url.endsWith('/rpc') && message.text() ===
-      'Failed to load resource: the server responded with a status of 404 (Not Found)') return
+    if (
+      message.location().url.endsWith('/rpc') &&
+      message.text() ===
+        'Failed to load resource: the server responded with a status of 404 (Not Found)'
+    )
+      return
     errors.push(message.text())
   })
   await page.setViewportSize({ width: 1440, height: 920 })
@@ -35,7 +41,10 @@ test('tool file links and disclosure support independent mouse and keyboard acti
   })
   const header = item.locator(':scope > .cpx-agent-activity__item-header')
   const toggle = header.locator('.cpx-agent-activity__item-toggle')
-  const fileLink = header.getByRole('button', { name: '打开文件 src/ConversationPage.tsx', exact: true })
+  const fileLink = header.getByRole('button', {
+    name: '打开文件 src/ConversationPage.tsx',
+    exact: true,
+  })
   await expect(fileLink).toBeVisible()
   await expect(item.locator('button button')).toHaveCount(0)
   await expect(toggle).toHaveAttribute('aria-expanded', 'false')

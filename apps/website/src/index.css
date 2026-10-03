@@ -1,21 +1,22 @@
-@import "@fontsource-variable/manrope";
-@import "@fontsource/ibm-plex-mono";
-@import "tailwindcss";
+@import '@fontsource-variable/manrope';
+@import '@fontsource/ibm-plex-mono';
+@import 'tailwindcss';
 
 @theme {
-  --font-sans: "Manrope Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans:
+    'Manrope Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  --color-canvas: #F4F0E7;
-  --color-paper: #FCFAF5;
-  --color-ink: #17211D;
-  --color-moss: #63715A;
-  --color-clay: #C9936E;
-  --color-line: #DCD6CB;
+  --color-canvas: #f4f0e7;
+  --color-paper: #fcfaf5;
+  --color-ink: #17211d;
+  --color-moss: #63715a;
+  --color-clay: #c9936e;
+  --color-line: #dcd6cb;
 
-  --color-moss-light: #F0F4EC;
-  --color-clay-light: #FBF4EE;
-  --color-ink-muted: #55625D;
+  --color-moss-light: #f0f4ec;
+  --color-clay-light: #fbf4ee;
+  --color-ink-muted: #55625d;
 
   --radius-card: 28px;
   --radius-card-lg: 36px;
@@ -62,7 +63,7 @@
   position: absolute;
   inset: 0 0 auto;
   height: 112px;
-  content: "";
+  content: '';
   pointer-events: none;
   opacity: 0;
   background: linear-gradient(
@@ -180,44 +181,44 @@ main > .hero-canvas + section {
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
-.site-shell :where(main > section, footer) [class*="text-[#17211D]"] {
+.site-shell :where(main > section, footer) [class*='text-[#17211D]'] {
   color: #f3f1ec !important;
 }
 
-.site-shell :where(main > section, footer) [class*="text-[#55625D]"] {
+.site-shell :where(main > section, footer) [class*='text-[#55625D]'] {
   color: #a9ada9 !important;
 }
 
-.site-shell :where(main > section, footer) [class*="text-[#63715A]"] {
+.site-shell :where(main > section, footer) [class*='text-[#63715A]'] {
   color: #9daa94 !important;
 }
 
-.site-shell :where(main > section, footer) [class*="text-[#C9936E]"] {
+.site-shell :where(main > section, footer) [class*='text-[#C9936E]'] {
   color: #cf9d7d !important;
 }
 
-.site-shell :where(main > section, footer) [class*="bg-[#FCFAF5]"] {
+.site-shell :where(main > section, footer) [class*='bg-[#FCFAF5]'] {
   background-color: #121313 !important;
 }
 
-.site-shell :where(main > section, footer) [class*="bg-[#F4F0E7]"] {
+.site-shell :where(main > section, footer) [class*='bg-[#F4F0E7]'] {
   background-color: #0a0b0b !important;
 }
 
-.site-shell :where(main > section, footer) [class*="bg-[#DCD6CB]"] {
+.site-shell :where(main > section, footer) [class*='bg-[#DCD6CB]'] {
   background-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-.site-shell :where(main > section, footer) [class*="bg-[#17211D]"] {
+.site-shell :where(main > section, footer) [class*='bg-[#17211D]'] {
   background-color: #ecebe7 !important;
   color: #111313 !important;
 }
 
-.site-shell :where(main > section, footer) [class*="border-[#DCD6CB]"] {
+.site-shell :where(main > section, footer) [class*='border-[#DCD6CB]'] {
   border-color: rgba(255, 255, 255, 0.11) !important;
 }
 
-.site-shell :where(main > section, footer) [class*="border-[#17211D]"] {
+.site-shell :where(main > section, footer) [class*='border-[#17211D]'] {
   border-color: rgba(255, 255, 255, 0.35) !important;
 }
 
@@ -263,7 +264,9 @@ main > .hero-canvas + section {
 
 /* Motion reduction compliance */
 @media (prefers-reduced-motion: reduce) {
-  *, ::before, ::after {
+  *,
+  ::before,
+  ::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

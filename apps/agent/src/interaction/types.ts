@@ -1,23 +1,23 @@
-import type { PermissionGrantResolution } from "../permission/ApprovalService"
+import type { PermissionGrantResolution } from '../permission/ApprovalService'
 
-export type ResumeCheckpointConsumer = "main" | "subagent"
-export type ResumeCheckpointKind = "permission" | "question" | "hook-trust" | "subagent-wait"
-export type ResumeCheckpointLeaseStatus = "available" | "acquired" | "completed" | "interrupted"
+export type ResumeCheckpointConsumer = 'main' | 'subagent'
+export type ResumeCheckpointKind = 'permission' | 'question' | 'hook-trust' | 'subagent-wait'
+export type ResumeCheckpointLeaseStatus = 'available' | 'acquired' | 'completed' | 'interrupted'
 
 export type ResolvedResumeCheckpoint =
   | {
-      kind: "permission"
+      kind: 'permission'
       approvalID: string
       toolCallID: string
       state: string
       interruption: unknown
-      decision: "allow" | "deny"
+      decision: 'allow' | 'deny'
       answer: string | null
       authorizationFingerprint?: string
       permissionGrant?: PermissionGrantResolution
     }
   | {
-      kind: "question"
+      kind: 'question'
       questionID: string
       toolCallID: string
       state: string
@@ -25,15 +25,15 @@ export type ResolvedResumeCheckpoint =
       answer: string | null
     }
   | {
-      kind: "hook-trust"
+      kind: 'hook-trust'
       requestID: string
       state: string
       interruption: unknown
-      decision: "allow" | "deny"
+      decision: 'allow' | 'deny'
       answer: string | null
     }
   | {
-      kind: "subagent-wait"
+      kind: 'subagent-wait'
       state: string
       interruption: unknown
       answer: string | null

@@ -23,12 +23,7 @@ import type {
   LocalRouterMode,
   ModelProviderID,
 } from '../../../../shared/types.js'
-import type {
-  Message,
-  SessionListItem,
-  SessionViewState,
-  ToolLogEntry,
-} from '../../../uiTypes.js'
+import type { Message, SessionListItem, SessionViewState, ToolLogEntry } from '../../../uiTypes.js'
 import { sessionViewFallbackTitle } from '../../../uiTypes.js'
 import {
   activateSession,
@@ -48,10 +43,7 @@ import {
   type SessionActionContext,
   type SessionSettingsSnapshot,
 } from './sessionActions.js'
-import {
-  appendUniqueWorkflowEvent,
-  dedupeWorkflowEvents,
-} from '../workflow/workflowEventDedup.js'
+import { appendUniqueWorkflowEvent, dedupeWorkflowEvents } from '../workflow/workflowEventDedup.js'
 import { mergeSessionStoreSnapshotView } from './sessionStoreMerge.js'
 import { deriveWorkflowViewPatch } from '../workflow/workflowViewPatch.js'
 import {
@@ -64,10 +56,7 @@ import {
   type UpdateSessionView,
 } from './sessionViewState.js'
 import { sortSessionsByRecency } from './sessionSorting.js'
-import type {
-  ComposerDraftContentSnapshot,
-  ComposerDraftKey,
-} from '../composer/composerTypes.js'
+import type { ComposerDraftContentSnapshot, ComposerDraftKey } from '../composer/composerTypes.js'
 import {
   composerDraftStore,
   resolveActivatedSessionComposerInput,
@@ -133,10 +122,7 @@ export type UseSessionStateResult = {
     draftKey: ComposerDraftKey,
     attachments: DesktopComposerAttachment[],
   ) => void
-  removeComposerAttachmentForDraft: (
-    draftKey: ComposerDraftKey,
-    attachmentId: string,
-  ) => void
+  removeComposerAttachmentForDraft: (draftKey: ComposerDraftKey, attachmentId: string) => void
   clearComposerDraftIfUnchanged: (
     draftKey: ComposerDraftKey,
     snapshot: ComposerDraftContentSnapshot,
@@ -164,21 +150,15 @@ export type UseSessionStateResult = {
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
-    decisionExtras?: {
-    },
+    decisionExtras?: {},
   ) => Promise<void>
   closeSession: (targetSessionId: string) => Promise<CloseSessionResult | null>
   updateSessionMetadata: (
     targetSessionId: string,
     patch: DesktopSessionMetadataPatch,
   ) => Promise<CloseSessionResult | null>
-  archiveSessions: (
-    targetSessionIds: readonly string[],
-  ) => Promise<ArchiveSessionsResult>
-  renameSession: (
-    targetSessionId: string,
-    title: string,
-  ) => Promise<SessionListItem | null>
+  archiveSessions: (targetSessionIds: readonly string[]) => Promise<ArchiveSessionsResult>
+  renameSession: (targetSessionId: string, title: string) => Promise<SessionListItem | null>
   setSessionPermissionMode: (
     targetSessionId: string,
     mode: DesktopPermissionMode,
@@ -194,9 +174,7 @@ export type UseSessionStateResult = {
   toggleToolLogEntry: (entryId: string) => void
 }
 
-export function useSessionState(
-  options: UseSessionStateOptions,
-): UseSessionStateResult {
+export function useSessionState(options: UseSessionStateOptions): UseSessionStateResult {
   const {
     permissionMode,
     permissionConfig,
@@ -218,59 +196,56 @@ export function useSessionState(
   } = options
 
   const [sessionId, setSessionId] = useState<string | null>(null)
-  const modelSelectionState = useSyncExternalStore(
-    sessionModelSelections.subscribe,
-    () => sessionModelSelections.getSnapshot(sessionId),
+  const modelSelectionState = useSyncExternalStore(sessionModelSelections.subscribe, () =>
+    sessionModelSelections.getSnapshot(sessionId),
   )
   const reloadModelSelection = useCallback(() => {
-    void sessionModelSelections.load(sessionId).catch(error => onErrorRef.current(toUserErrorMessage(error)))
-  }, [sessionId])
-  useEffect(() => { reloadModelSelection() }, [reloadModelSelection])
-  const setModelSelection = useCallback((selection: SessionModelSelection) => {
-    sessionModelSelections.set(sessionId, selection)
-    // 一级页切换模型立即记住；已有任务保持任务级隔离。
-    // 只有最后一次选择保存失败时才提示，中间失败不覆盖更新的选择。
     void sessionModelSelections
-      .persistRecent(sessionId, selection)
-      .catch(error => onErrorRef.current(toUserErrorMessage(error)))
+      .load(sessionId)
+      .catch((error) => onErrorRef.current(toUserErrorMessage(error)))
   }, [sessionId])
+  useEffect(() => {
+    reloadModelSelection()
+  }, [reloadModelSelection])
+  const setModelSelection = useCallback(
+    (selection: SessionModelSelection) => {
+      sessionModelSelections.set(sessionId, selection)
+      // 一级页切换模型立即记住；已有任务保持任务级隔离。
+      // 只有最后一次选择保存失败时才提示，中间失败不覆盖更新的选择。
+      void sessionModelSelections
+        .persistRecent(sessionId, selection)
+        .catch((error) => onErrorRef.current(toUserErrorMessage(error)))
+    },
+    [sessionId],
+  )
   const [sessionsHydrated, setSessionsHydrated] = useState(false)
   const [catalogStatus, setCatalogStatus] = useState<DesktopSessionCatalogStatus>({
     state: 'loading',
   })
   const [sessions, setSessions] = useState<SessionListItem[]>([])
-  const [sessionFallbackTitles, setSessionFallbackTitles] = useState<
-    Record<string, string>
-  >({})
-  const [sessionStatus, setSessionStatus] =
-    useState<DesktopSessionStatus>('idle')
+  const [sessionFallbackTitles, setSessionFallbackTitles] = useState<Record<string, string>>({})
+  const [sessionStatus, setSessionStatus] = useState<DesktopSessionStatus>('idle')
   const [messages, setMessages] = useState<Message[]>([])
   const [events, setEvents] = useState<DesktopSessionEvent[]>([])
   const [workflowEvents, setWorkflowEvents] = useState<DesktopWorkflowEvent[]>([])
   const [toolLog, setToolLog] = useState<ToolLogEntry[]>([])
-  const [pendingPermissions, setPendingPermissions] = useState<
-    DesktopPermissionRequest[]
-  >([])
-  const [pendingPermissionSessionIds, setPendingPermissionSessionIds] =
-    useState<Set<string>>(() => new Set())
-  const [contextUsage, setContextUsage] =
-    useState<DesktopContextUsage | null>(null)
+  const [pendingPermissions, setPendingPermissions] = useState<DesktopPermissionRequest[]>([])
+  const [pendingPermissionSessionIds, setPendingPermissionSessionIds] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const [contextUsage, setContextUsage] = useState<DesktopContextUsage | null>(null)
   const [queuedFollowUps, setQueuedFollowUps] = useState<DesktopQueuedFollowUp[]>([])
   const [queuePauseReason, setQueuePauseReason] = useState<DesktopQueuePauseReason | null>(null)
   const [input, setInput] = useState('')
-  const [composerAttachments, setComposerAttachments] = useState<
-    DesktopComposerAttachment[]
-  >([])
+  const [composerAttachments, setComposerAttachments] = useState<DesktopComposerAttachment[]>([])
   const activeSessionItem = useMemo(
-    () => sessions.find(session => session.id === sessionId) ?? null,
+    () => sessions.find((session) => session.id === sessionId) ?? null,
     [sessions, sessionId],
   )
-  const effectivePermissionMode =
-    activeSessionItem?.permissionMode ?? permissionMode
-  const effectivePlanModeActive =
-    activeSessionItem?.planModeActive ?? planModeActive
+  const effectivePermissionMode = activeSessionItem?.permissionMode ?? permissionMode
+  const effectivePlanModeActive = activeSessionItem?.planModeActive ?? planModeActive
   const effectiveLocalRouterMode = activeSessionItem?.id.startsWith('browser-mock-')
-    ? activeSessionItem.localRouterMode ?? localRouterMode
+    ? (activeSessionItem.localRouterMode ?? localRouterMode)
     : 'off'
 
   const activeSessionIdRef = useRef<string | null>(null)
@@ -279,13 +254,16 @@ export function useSessionState(
   const sessionViewsRef = useRef<Record<string, SessionViewState>>({})
   const sessionWorkspacesRef = useRef<Record<string, DesktopWorkspace>>({})
   const inputBySessionRef = useRef<Record<string, string>>({})
-  const attachmentsBySessionRef = useRef<
-    Record<string, DesktopComposerAttachment[]>
+  const attachmentsBySessionRef = useRef<Record<string, DesktopComposerAttachment[]>>({})
+  const queueStateBySessionRef = useRef<
+    Record<
+      string,
+      {
+        items: DesktopQueuedFollowUp[]
+        pauseReason: DesktopQueuePauseReason | null
+      }
+    >
   >({})
-  const queueStateBySessionRef = useRef<Record<string, {
-    items: DesktopQueuedFollowUp[]
-    pauseReason: DesktopQueuePauseReason | null
-  }>>({})
   const onErrorRef = useRef(onError)
   onErrorRef.current = onError
   const onOpenDrawerPermissionsRef = useRef(onOpenDrawerPermissions)
@@ -302,10 +280,7 @@ export function useSessionState(
     }),
     [],
   )
-  const viewRefs = useMemo<SessionViewRefs>(
-    () => ({ activeSessionIdRef, sessionViewsRef }),
-    [],
-  )
+  const viewRefs = useMemo<SessionViewRefs>(() => ({ activeSessionIdRef, sessionViewsRef }), [])
   const actionContext = useMemo<SessionActionContext>(
     () => ({
       activeSessionIdRef,
@@ -357,17 +332,14 @@ export function useSessionState(
   )
 
   const appendComposerAttachmentsForDraft = useCallback(
-    (
-      draftKey: ComposerDraftKey,
-      nextAttachments: DesktopComposerAttachment[],
-    ): void => {
+    (draftKey: ComposerDraftKey, nextAttachments: DesktopComposerAttachment[]): void => {
       if (nextAttachments.length === 0) return
       const key = composerDraftStorageKey(draftKey)
       const current = attachmentsBySessionRef.current[key] ?? []
-      const existingIds = new Set(current.map(attachment => attachment.id))
+      const existingIds = new Set(current.map((attachment) => attachment.id))
       const next = [
         ...current,
-        ...nextAttachments.filter(attachment => !existingIds.has(attachment.id)),
+        ...nextAttachments.filter((attachment) => !existingIds.has(attachment.id)),
       ]
       attachmentsBySessionRef.current = {
         ...attachmentsBySessionRef.current,
@@ -384,7 +356,7 @@ export function useSessionState(
     (draftKey: ComposerDraftKey, attachmentId: string): void => {
       const key = composerDraftStorageKey(draftKey)
       const current = attachmentsBySessionRef.current[key] ?? []
-      const next = current.filter(attachment => attachment.id !== attachmentId)
+      const next = current.filter((attachment) => attachment.id !== attachmentId)
       attachmentsBySessionRef.current = {
         ...attachmentsBySessionRef.current,
         [key]: next,
@@ -397,10 +369,7 @@ export function useSessionState(
   )
 
   const clearComposerDraftIfUnchanged = useCallback(
-    (
-      draftKey: ComposerDraftKey,
-      snapshot: ComposerDraftContentSnapshot,
-    ): boolean => {
+    (draftKey: ComposerDraftKey, snapshot: ComposerDraftContentSnapshot): boolean => {
       const key = composerDraftStorageKey(draftKey)
       const currentInput = inputBySessionRef.current[key] ?? ''
       const currentAttachments = attachmentsBySessionRef.current[key] ?? []
@@ -429,22 +398,18 @@ export function useSessionState(
 
   const syncPendingPermissionSessionIds = useCallback((): void => {
     const next = buildPendingPermissionSessionIds(sessionViewsRef.current)
-    setPendingPermissionSessionIds(current =>
-      sameSessionIdSet(current, next) ? current : next,
-    )
+    setPendingPermissionSessionIds((current) => (sameSessionIdSet(current, next) ? current : next))
   }, [])
 
   const updateSessionView = useCallback<UpdateSessionView>(
     (targetSessionId, updater) => {
-      const nextView = updater(
-        sessionViewsRef.current[targetSessionId] ?? createEmptySessionView(),
-      )
+      const nextView = updater(sessionViewsRef.current[targetSessionId] ?? createEmptySessionView())
       setSessionView(sessionViewsRef, targetSessionId, nextView)
       if (targetSessionId === activeSessionIdRef.current) {
         applySessionView(nextView, viewSetters)
       }
       syncPendingPermissionSessionIds()
-      setSessionFallbackTitles(current =>
+      setSessionFallbackTitles((current) =>
         updateSessionFallbackTitle(
           current,
           targetSessionId,
@@ -464,7 +429,7 @@ export function useSessionState(
 
   const handleWorkflowEvent = useCallback(
     (event: DesktopWorkflowEvent): void => {
-      if (!sessionsRef.current.some(session => session.id === event.threadId)) {
+      if (!sessionsRef.current.some((session) => session.id === event.threadId)) {
         return
       }
       const shouldOpenPermissions =
@@ -472,7 +437,7 @@ export function useSessionState(
         'item' in event &&
         event.item.type === 'permission_request' &&
         event.item.status === 'in_progress'
-      updateSessionView(event.threadId, view => ({
+      updateSessionView(event.threadId, (view) => ({
         ...view,
         ...deriveWorkflowViewPatch(
           appendUniqueWorkflowEvent(view.workflowEvents, event),
@@ -488,33 +453,23 @@ export function useSessionState(
   )
 
   useEffect(() => {
-    const unsubscribeWorkflow =
-      desktopClient.onWorkflowEvent(handleWorkflowEvent)
+    const unsubscribeWorkflow = desktopClient.onWorkflowEvent(handleWorkflowEvent)
     return () => {
       unsubscribeWorkflow()
     }
   }, [handleWorkflowEvent])
 
   useEffect(() => {
-    const unsubscribe = desktopClient.onSessionStoreChange(change => {
-      const nextSessions = sortSessionsByRecency(
-        change.sessions.map(snapshot => snapshot.item),
-      )
+    const unsubscribe = desktopClient.onSessionStoreChange((change) => {
+      const nextSessions = sortSessionsByRecency(change.sessions.map((snapshot) => snapshot.item))
       const nextViews = { ...sessionViewsRef.current }
       const nextWorkspaces = { ...sessionWorkspacesRef.current }
       const nextQueueStates = { ...queueStateBySessionRef.current }
       for (const snapshot of change.sessions) {
-        const snapshotView = mergeSessionStoreSnapshotView(
-          nextViews[snapshot.item.id],
-          snapshot,
-        )
+        const snapshotView = mergeSessionStoreSnapshotView(nextViews[snapshot.item.id], snapshot)
         nextViews[snapshot.item.id] = {
           ...snapshotView,
-          ...deriveWorkflowViewPatch(
-            snapshotView.workflowEvents,
-            snapshotView,
-            snapshot.item.id,
-          ),
+          ...deriveWorkflowViewPatch(snapshotView.workflowEvents, snapshotView, snapshot.item.id),
         }
         nextWorkspaces[snapshot.item.id] = snapshot.workspace
         nextQueueStates[snapshot.item.id] = {
@@ -522,7 +477,7 @@ export function useSessionState(
           pauseReason: snapshot.queuePauseReason ?? null,
         }
       }
-      const knownIds = new Set(change.sessions.map(snapshot => snapshot.item.id))
+      const knownIds = new Set(change.sessions.map((snapshot) => snapshot.item.id))
       for (const id of Object.keys(nextViews)) {
         if (!knownIds.has(id)) {
           delete nextViews[id]
@@ -552,7 +507,7 @@ export function useSessionState(
 
       const currentId = activeSessionIdRef.current
       if (!currentId) return
-      const currentSession = nextSessions.find(session => session.id === currentId)
+      const currentSession = nextSessions.find((session) => session.id === currentId)
       if (!currentSession || currentSession.archivedAt) {
         activeSessionIdRef.current = null
         setSessionId(null)
@@ -561,19 +516,14 @@ export function useSessionState(
         setQueuePauseReason(null)
         applySessionView(createEmptySessionView(), viewSetters)
         setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
-        setComposerAttachments(
-          attachmentsBySessionRef.current[HOME_INPUT_KEY] ?? [],
-        )
+        setComposerAttachments(attachmentsBySessionRef.current[HOME_INPUT_KEY] ?? [])
         return
       }
       setSessionStatus(currentSession.status)
       const currentQueueState = nextQueueStates[currentId]
       setQueuedFollowUps(currentQueueState?.items ?? [])
       setQueuePauseReason(currentQueueState?.pauseReason ?? null)
-      applySessionView(
-        nextViews[currentId] ?? createEmptySessionView(),
-        viewSetters,
-      )
+      applySessionView(nextViews[currentId] ?? createEmptySessionView(), viewSetters)
     })
     return () => {
       unsubscribe()
@@ -581,7 +531,7 @@ export function useSessionState(
   }, [viewSetters])
 
   useEffect(() => {
-    const unsubscribe = desktopClient.onReconciliationError?.(error => {
+    const unsubscribe = desktopClient.onReconciliationError?.((error) => {
       onErrorRef.current(toUserErrorMessage(error, 'thread-read'))
     })
     return () => {
@@ -600,7 +550,7 @@ export function useSessionState(
         setCatalogStatus(nextCatalogStatus)
 
         const nextSessions = sortSessionsByRecency(
-          sessionSnapshots.map(snapshot => snapshot.item),
+          sessionSnapshots.map((snapshot) => snapshot.item),
         )
         const nextViews: Record<string, SessionViewState> = {}
         const nextWorkspaces: Record<string, DesktopWorkspace> = {}
@@ -616,11 +566,7 @@ export function useSessionState(
           }
           nextViews[snapshot.item.id] = {
             ...snapshotView,
-            ...deriveWorkflowViewPatch(
-              snapshotView.workflowEvents,
-              snapshotView,
-              snapshot.item.id,
-            ),
+            ...deriveWorkflowViewPatch(snapshotView.workflowEvents, snapshotView, snapshot.item.id),
           }
           nextWorkspaces[snapshot.item.id] = snapshot.workspace
           nextQueueStates[snapshot.item.id] = {
@@ -633,9 +579,7 @@ export function useSessionState(
         sessionWorkspacesRef.current = nextWorkspaces
         queueStateBySessionRef.current = nextQueueStates
         sessionsRef.current = nextSessions
-        setPendingPermissionSessionIds(
-          buildPendingPermissionSessionIds(nextViews),
-        )
+        setPendingPermissionSessionIds(buildPendingPermissionSessionIds(nextViews))
         setSessions(nextSessions)
         setSessionFallbackTitles(buildSessionFallbackTitles(nextViews))
 
@@ -646,9 +590,7 @@ export function useSessionState(
         setQueuePauseReason(null)
         applySessionView(createEmptySessionView(), viewSetters)
         setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
-        setComposerAttachments(
-          attachmentsBySessionRef.current[HOME_INPUT_KEY] ?? [],
-        )
+        setComposerAttachments(attachmentsBySessionRef.current[HOME_INPUT_KEY] ?? [])
         setSessionsHydrated(true)
       } catch (error) {
         setCatalogStatus({
@@ -726,10 +668,8 @@ export function useSessionState(
       sessionModelSelections.set(nextSessionId, selection)
 
       const homeInput = inputBySessionRef.current[HOME_INPUT_KEY] ?? ''
-      const homeAttachments =
-        attachmentsBySessionRef.current[HOME_INPUT_KEY] ?? []
-      const { [HOME_INPUT_KEY]: _homeInput, ...remainingInputs } =
-        inputBySessionRef.current
+      const homeAttachments = attachmentsBySessionRef.current[HOME_INPUT_KEY] ?? []
+      const { [HOME_INPUT_KEY]: _homeInput, ...remainingInputs } = inputBySessionRef.current
       const { [HOME_INPUT_KEY]: _homeAttachments, ...remainingAttachments } =
         attachmentsBySessionRef.current
       inputBySessionRef.current = {
@@ -746,9 +686,7 @@ export function useSessionState(
   )
 
   const activateSessionById = useCallback(
-    (
-      targetSessionId: string | null,
-    ): DesktopWorkspace | null => {
+    (targetSessionId: string | null): DesktopWorkspace | null => {
       if (!targetSessionId) {
         activateSession(actionContext, null)
         setSessionStatus('idle')
@@ -756,15 +694,11 @@ export function useSessionState(
         setQueuePauseReason(null)
         applySessionView(createEmptySessionView(), viewSetters)
         setInput(inputBySessionRef.current[HOME_INPUT_KEY] ?? '')
-        setComposerAttachments(
-          attachmentsBySessionRef.current[HOME_INPUT_KEY] ?? [],
-        )
+        setComposerAttachments(attachmentsBySessionRef.current[HOME_INPUT_KEY] ?? [])
         return null
       }
 
-      const targetSession = sessionsRef.current.find(
-        session => session.id === targetSessionId,
-      )
+      const targetSession = sessionsRef.current.find((session) => session.id === targetSessionId)
       if (!targetSession) {
         return null
       }
@@ -790,80 +724,78 @@ export function useSessionState(
         }
       }
       setInput(nextInput)
-      setComposerAttachments(
-        attachmentsBySessionRef.current[targetSessionId] ?? [],
-      )
+      setComposerAttachments(attachmentsBySessionRef.current[targetSessionId] ?? [])
       if (targetSession.standalone) {
         return null
       }
-      return sessionWorkspacesRef.current[targetSessionId] ?? {
-        name: targetSession.workspaceName,
-        path: targetSession.workspacePath,
-      }
+      return (
+        sessionWorkspacesRef.current[targetSessionId] ?? {
+          name: targetSession.workspaceName,
+          path: targetSession.workspacePath,
+        }
+      )
     },
     [actionContext, viewSetters],
   )
 
   const canSubmit = useMemo(
-    () =>
-      Boolean(
-        sessionId && modelSelectionState.selection?.model &&
-          input.trim(),
-      ),
+    () => Boolean(sessionId && modelSelectionState.selection?.model && input.trim()),
     [input, sessionId, modelSelectionState.selection],
   )
 
-  const submitToSession = useCallback(async (
-    targetSessionId: string,
-    value: DesktopUserMessageInput,
-    options?: {
-      delivery?: 'default' | 'follow-up'
-      inputId?: string
-      propagateError?: boolean
-    },
-  ): Promise<'sent' | 'queued' | 'steered' | null> => {
-    const targetStatus =
-      sessionsRef.current.find(session => session.id === targetSessionId)
-        ?.status ??
-      (activeSessionIdRef.current === targetSessionId
-        ? sessionStatusRef.current
-        : 'idle')
-    let selection: SessionModelSelection
-    try {
-      selection = await sessionModelSelections.load(targetSessionId)
-      if (!selection.providerID || !selection.model) throw new Error('请先选择会话模型')
-    } catch (error) {
-      onErrorRef.current(toUserErrorMessage(error))
-      if (options?.propagateError) throw error
-      return null
-    }
-    return submitSessionMessageAction(
-      onErrorRef,
-      targetSessionId,
-      value,
-      Boolean(
+  const submitToSession = useCallback(
+    async (
+      targetSessionId: string,
+      value: DesktopUserMessageInput,
+      options?: {
+        delivery?: 'default' | 'follow-up'
+        inputId?: string
+        propagateError?: boolean
+      },
+    ): Promise<'sent' | 'queued' | 'steered' | null> => {
+      const targetStatus =
+        sessionsRef.current.find((session) => session.id === targetSessionId)?.status ??
+        (activeSessionIdRef.current === targetSessionId ? sessionStatusRef.current : 'idle')
+      let selection: SessionModelSelection
+      try {
+        selection = await sessionModelSelections.load(targetSessionId)
+        if (!selection.providerID || !selection.model) throw new Error('请先选择会话模型')
+      } catch (error) {
+        onErrorRef.current(toUserErrorMessage(error))
+        if (options?.propagateError) throw error
+        return null
+      }
+      return submitSessionMessageAction(
+        onErrorRef,
+        targetSessionId,
+        value,
+        Boolean(
           targetSessionId &&
           (value.text.trim() ||
             (value.attachments?.length ?? 0) > 0 ||
-            value.skillInvocation || value.skills?.length),
-      ),
-      { ...settingsSnapshot, ...selection, providerBaseURL: '' },
-      {
-        sessionStatus: targetStatus,
-        delivery: options?.delivery,
-        inputId: options?.inputId,
-        propagateError: options?.propagateError,
-      },
-    )
-  }, [settingsSnapshot])
+            value.skillInvocation ||
+            value.skills?.length),
+        ),
+        { ...settingsSnapshot, ...selection, providerBaseURL: '' },
+        {
+          sessionStatus: targetStatus,
+          delivery: options?.delivery,
+          inputId: options?.inputId,
+          propagateError: options?.propagateError,
+        },
+      )
+    },
+    [settingsSnapshot],
+  )
 
-  const submit = useCallback(async (target?: DesktopWorkspace | null): Promise<void> => {
-    const targetSessionId =
-      sessionId ??
-      (await createSessionForWorkspace(target ?? null))
-    if (!targetSessionId) return
-    await submitToSession(targetSessionId, { text: input })
-  }, [createSessionForWorkspace, input, sessionId, submitToSession])
+  const submit = useCallback(
+    async (target?: DesktopWorkspace | null): Promise<void> => {
+      const targetSessionId = sessionId ?? (await createSessionForWorkspace(target ?? null))
+      if (!targetSessionId) return
+      await submitToSession(targetSessionId, { text: input })
+    },
+    [createSessionForWorkspace, input, sessionId, submitToSession],
+  )
 
   const interrupt = useCallback(async (): Promise<void> => {
     await interruptSessionAction(onErrorRef, sessionId)
@@ -903,12 +835,7 @@ export function useSessionState(
       targetSessionId: string,
       patch: DesktopSessionMetadataPatch,
     ): Promise<CloseSessionResult | null> =>
-      updateSessionMetadataAction(
-        actionContext,
-        sessions,
-        targetSessionId,
-        patch,
-      ),
+      updateSessionMetadataAction(actionContext, sessions, targetSessionId, patch),
     [actionContext, sessions],
   )
 
@@ -919,53 +846,26 @@ export function useSessionState(
   )
 
   const renameSession = useCallback(
-    async (
-      targetSessionId: string,
-      title: string,
-    ): Promise<SessionListItem | null> =>
+    async (targetSessionId: string, title: string): Promise<SessionListItem | null> =>
       renameSessionAction(actionContext, targetSessionId, title),
     [actionContext],
   )
 
   const setSessionPermissionMode = useCallback(
-    async (
-      targetSessionId: string,
-      mode: DesktopPermissionMode,
-    ): Promise<SessionListItem | null> =>
-      setSessionPermissionModeAction(
-        actionContext,
-        sessions,
-        targetSessionId,
-        mode,
-      ),
+    async (targetSessionId: string, mode: DesktopPermissionMode): Promise<SessionListItem | null> =>
+      setSessionPermissionModeAction(actionContext, sessions, targetSessionId, mode),
     [actionContext, sessions],
   )
 
   const setSessionPlanModeActive = useCallback(
-    async (
-      targetSessionId: string,
-      active: boolean,
-    ): Promise<SessionListItem | null> =>
-      setSessionPlanModeActiveAction(
-        actionContext,
-        sessions,
-        targetSessionId,
-        active,
-      ),
+    async (targetSessionId: string, active: boolean): Promise<SessionListItem | null> =>
+      setSessionPlanModeActiveAction(actionContext, sessions, targetSessionId, active),
     [actionContext, sessions],
   )
 
   const setSessionLocalRouterMode = useCallback(
-    async (
-      targetSessionId: string,
-      mode: LocalRouterMode,
-    ): Promise<SessionListItem | null> =>
-      setSessionLocalRouterModeAction(
-        actionContext,
-        sessions,
-        targetSessionId,
-        mode,
-      ),
+    async (targetSessionId: string, mode: LocalRouterMode): Promise<SessionListItem | null> =>
+      setSessionLocalRouterModeAction(actionContext, sessions, targetSessionId, mode),
     [actionContext, sessions],
   )
 
@@ -1059,9 +959,7 @@ function buildSessionFallbackTitles(
   return titles
 }
 
-function buildPendingPermissionSessionIds(
-  views: Record<string, SessionViewState>,
-): Set<string> {
+function buildPendingPermissionSessionIds(views: Record<string, SessionViewState>): Set<string> {
   const ids = new Set<string>()
   for (const [sessionId, view] of Object.entries(views)) {
     if (view.pendingPermissions.length > 0) {
@@ -1071,10 +969,7 @@ function buildPendingPermissionSessionIds(
   return ids
 }
 
-function sameSessionIdSet(
-  left: ReadonlySet<string>,
-  right: ReadonlySet<string>,
-): boolean {
+function sameSessionIdSet(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
   if (left.size !== right.size) return false
   for (const id of left) {
     if (!right.has(id)) return false

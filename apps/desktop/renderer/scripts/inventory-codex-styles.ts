@@ -82,14 +82,8 @@ type StaticJsStylesheet = {
 const SCRIPT_VERSION = 2
 const defaultAssetsRoot = 'E:\\迅雷下载\\Codex\\app_asar_extracted\\webview\\assets'
 const repositoryRoot = resolve(import.meta.dir, '../../../..')
-const defaultMarkdownPath = join(
-  repositoryRoot,
-  'docs/research/codex-webview-style-inventory.md',
-)
-const defaultJsonPath = join(
-  repositoryRoot,
-  'docs/research/codex-webview-style-inventory.json',
-)
+const defaultMarkdownPath = join(repositoryRoot, 'docs/research/codex-webview-style-inventory.md')
+const defaultJsonPath = join(repositoryRoot, 'docs/research/codex-webview-style-inventory.json')
 const utf8Decoder = new TextDecoder('utf-8', { fatal: true })
 
 function printHelp(): void {
@@ -192,12 +186,14 @@ async function listFiles(directory: string): Promise<string[]> {
       return entry.isDirectory() ? listFiles(path) : Promise.resolve([path])
     }),
   )
-  return nested.flat().sort((left, right) =>
-    normalizePath(relative(directory, left)).localeCompare(
-      normalizePath(relative(directory, right)),
-      'en',
-    ),
-  )
+  return nested
+    .flat()
+    .sort((left, right) =>
+      normalizePath(relative(directory, left)).localeCompare(
+        normalizePath(relative(directory, right)),
+        'en',
+      ),
+    )
 }
 
 function compareText(left: string, right: string): number {
@@ -230,11 +226,14 @@ function addSpecificity(left: Specificity, right: Specificity): Specificity {
 }
 
 function maxSpecificity(values: Specificity[]): Specificity {
-  return values.reduce<Specificity>((best, value) => {
-    if (value[0] !== best[0]) return value[0] > best[0] ? value : best
-    if (value[1] !== best[1]) return value[1] > best[1] ? value : best
-    return value[2] > best[2] ? value : best
-  }, [0, 0, 0])
+  return values.reduce<Specificity>(
+    (best, value) => {
+      if (value[0] !== best[0]) return value[0] > best[0] ? value : best
+      if (value[1] !== best[1]) return value[1] > best[1] ? value : best
+      return value[2] > best[2] ? value : best
+    },
+    [0, 0, 0],
+  )
 }
 
 function selectorNodeSpecificity(node: any): Specificity {
@@ -246,24 +245,19 @@ function selectorNodeSpecificity(node: any): Specificity {
     if (value.startsWith('::')) return [0, 0, 1]
     if (value === ':where') return [0, 0, 0]
     if (value === ':is' || value === ':not' || value === ':has') {
-      return maxSpecificity(
-        (node.nodes ?? []).map((child: any) => selectorNodeSpecificity(child)),
-      )
+      return maxSpecificity((node.nodes ?? []).map((child: any) => selectorNodeSpecificity(child)))
     }
     if (value === ':nth-child' || value === ':nth-last-child') {
       return addSpecificity(
         [0, 1, 0],
-        maxSpecificity(
-          (node.nodes ?? []).map((child: any) => selectorNodeSpecificity(child)),
-        ),
+        maxSpecificity((node.nodes ?? []).map((child: any) => selectorNodeSpecificity(child))),
       )
     }
     return [0, 1, 0]
   }
   if (node.nodes) {
     return node.nodes.reduce(
-      (total: Specificity, child: any) =>
-        addSpecificity(total, selectorNodeSpecificity(child)),
+      (total: Specificity, child: any) => addSpecificity(total, selectorNodeSpecificity(child)),
       [0, 0, 0] as Specificity,
     )
   }
@@ -319,8 +313,7 @@ function parseUrls(value: string, declarationOffset: number, property: string): 
     if (node.type !== 'function' || node.value.toLowerCase() !== 'url') return
     const raw = valueParser.stringify(node.nodes).trim()
     const unquoted =
-      (raw.startsWith('"') && raw.endsWith('"')) ||
-      (raw.startsWith("'") && raw.endsWith("'"))
+      (raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))
         ? raw.slice(1, -1)
         : raw
     urls.push({
@@ -401,7 +394,8 @@ function collectStyleEvidence(source: string): StyleEvidence[] {
     },
     {
       kind: 'root-custom-property',
-      pattern: /(?:document\.documentElement|document\.querySelector\([^)]*\))[^;]{0,180}\.style\.setProperty\s*\(/g,
+      pattern:
+        /(?:document\.documentElement|document\.querySelector\([^)]*\))[^;]{0,180}\.style\.setProperty\s*\(/g,
       recoverable: false,
       reason: 'The call is retained, but minified runtime expressions may not have a static value.',
     },
@@ -472,9 +466,7 @@ function collectStyleEvidence(source: string): StyleEvidence[] {
     .sort((left, right) => left.offset - right.offset || compareText(left.kind, right.kind))
     .filter(
       (item, index, all) =>
-        index === 0 ||
-        item.kind !== all[index - 1].kind ||
-        item.offset !== all[index - 1].offset,
+        index === 0 || item.kind !== all[index - 1].kind || item.offset !== all[index - 1].offset,
     )
 }
 
@@ -520,9 +512,7 @@ function extractThemes(source: string, path: string): ExtractedTheme[] {
             : typeof parsed.displayName === 'string'
               ? parsed.displayName
               : 'unnamed-theme',
-        ...(typeof parsed.displayName === 'string'
-          ? { displayName: parsed.displayName }
-          : {}),
+        ...(typeof parsed.displayName === 'string' ? { displayName: parsed.displayName } : {}),
         ...(typeof parsed.type === 'string' ? { type: parsed.type } : {}),
         colorCount: Object.keys(colors).length,
         tokenColorCount: Array.isArray(tokenColors) ? tokenColors.length : 0,
@@ -539,7 +529,10 @@ function extractThemes(source: string, path: string): ExtractedTheme[] {
   )?.[1]
   if (defaultExport && !themes.some((theme) => theme.offset >= 0)) {
     const defaultAssignment = findAssignedLiteral(source, defaultExport)
-    if (defaultAssignment?.value.startsWith('{') && defaultAssignment.value.includes('tokenColors:')) {
+    if (
+      defaultAssignment?.value.startsWith('{') &&
+      defaultAssignment.value.includes('tokenColors:')
+    ) {
       const fieldVariables = new Map<string, string>()
       for (const field of ['name', 'displayName', 'type', 'colors', 'tokenColors']) {
         const match = defaultAssignment.value.match(
@@ -585,14 +578,13 @@ function extractThemes(source: string, path: string): ExtractedTheme[] {
       }
     }
   }
-  if (
-    themes.length === 0 &&
-    source.length < 100_000 &&
-    source.includes('editor.background')
-  ) {
+  if (themes.length === 0 && source.length < 100_000 && source.includes('editor.background')) {
     const colorCount = new Set(
-      [...source.matchAll(/["']([A-Za-z][\w.-]*\.(?:background|foreground|border|accent|color))["']\s*:/g)]
-        .map((match) => match[1]),
+      [
+        ...source.matchAll(
+          /["']([A-Za-z][\w.-]*\.(?:background|foreground|border|accent|color))["']\s*:/g,
+        ),
+      ].map((match) => match[1]),
     ).size
     const tokenColorCount = [...source.matchAll(/\bscope\s*:/g)].length
     themes.push({
@@ -762,13 +754,10 @@ function resolvePartialTemplate(
     const expression = rawExpression.trim()
     const candidates = /^[A-Za-z_$][\w$]*$/.test(expression)
       ? assignments.filter(
-          (assignment) =>
-            assignment.binding === expression && assignment.end <= literal.offset,
+          (assignment) => assignment.binding === expression && assignment.end <= literal.offset,
         )
       : []
-    const resolved = candidates.length > 0
-      ? decodeExactLiteral(candidates.at(-1)!.literal)
-      : null
+    const resolved = candidates.length > 0 ? decodeExactLiteral(candidates.at(-1)!.literal) : null
     interpolations.push({ expression, resolved: resolved !== null })
     return resolved ?? `__CODEX_DYNAMIC_${dynamicIndex++}__`
   })
@@ -817,9 +806,7 @@ function extractJsStylesheets(source: string): StaticJsStylesheet[] {
     if (['"', "'", '`'].includes(directQuote)) {
       literal = readStringLiteralAt(source, sink.expressionOffset)
     } else {
-      const wrapped = expression.match(
-        /^([A-Za-z_$][\w$]*)\(\s*([A-Za-z_$][\w$]*)\s*\)/,
-      )
+      const wrapped = expression.match(/^([A-Za-z_$][\w$]*)\(\s*([A-Za-z_$][\w$]*)\s*\)/)
       const direct = expression.match(/^([A-Za-z_$][\w$]*)/)
       if (wrapped) {
         wrapper = wrapped[1]
@@ -840,13 +827,9 @@ function extractJsStylesheets(source: string): StaticJsStylesheet[] {
             })
             .sort((left, right) => {
               const leftDistance =
-                left.end <= sink.offset
-                  ? sink.offset - left.end
-                  : left.offset - sink.offset
+                left.end <= sink.offset ? sink.offset - left.end : left.offset - sink.offset
               const rightDistance =
-                right.end <= sink.offset
-                  ? sink.offset - right.end
-                  : right.offset - sink.offset
+                right.end <= sink.offset ? sink.offset - right.end : right.offset - sink.offset
               return (
                 leftDistance - rightDistance ||
                 Number(right.end <= sink.offset) - Number(left.end <= sink.offset)
@@ -878,9 +861,7 @@ function extractJsStylesheets(source: string): StaticJsStylesheet[] {
       source: resolved.source,
     })
   }
-  return [...extracted.values()].sort(
-    (left, right) => left.literalOffset - right.literalOffset,
-  )
+  return [...extracted.values()].sort((left, right) => left.literalOffset - right.literalOffset)
 }
 
 function extractCustomPropertyWrites(source: string): Array<{
@@ -898,10 +879,7 @@ function extractCustomPropertyWrites(source: string): Array<{
         .trim(),
       offset: match.index,
     }))
-    .sort(
-      (left, right) =>
-        left.offset - right.offset || compareText(left.name, right.name),
-    )
+    .sort((left, right) => left.offset - right.offset || compareText(left.name, right.name))
 }
 
 function classifyJs(
@@ -1012,7 +990,9 @@ function classifyJs(
   }
 }
 
-function classifyAssetReference(value: string): 'file' | 'data' | 'fragment' | 'remote' | 'invalid' {
+function classifyAssetReference(
+  value: string,
+): 'file' | 'data' | 'fragment' | 'remote' | 'invalid' {
   if (!value) return 'invalid'
   if (value.startsWith('data:')) return 'data'
   if (value.startsWith('#')) return 'fragment'
@@ -1073,9 +1053,7 @@ function analyzeStyleSource(options: {
   const keyframes: any[] = []
   const fontFaces: any[] = []
   const properties: any[] = []
-  const urlOccurrences: Array<
-    UrlOccurrence & { sourceFile: string; resolutionBase: string }
-  > = []
+  const urlOccurrences: Array<UrlOccurrence & { sourceFile: string; resolutionBase: string }> = []
   let ruleDeclarationCount = 0
   let atRuleDeclarationCount = 0
   let selectorItemCount = 0
@@ -1104,11 +1082,7 @@ function analyzeStyleSource(options: {
           }
           const references = parseVariableReferences(declaration.value)
           for (const reference of references) customPropertyReferences.add(reference.name)
-          const urls = parseUrls(
-            declaration.value,
-            absoluteOffset(declaration),
-            declaration.prop,
-          )
+          const urls = parseUrls(declaration.value, absoluteOffset(declaration), declaration.prop)
           urlOccurrences.push(
             ...urls.map((url) => ({
               ...url,
@@ -1152,11 +1126,7 @@ function analyzeStyleSource(options: {
           }
           const references = parseVariableReferences(declaration.value)
           for (const reference of references) customPropertyReferences.add(reference.name)
-          const urls = parseUrls(
-            declaration.value,
-            absoluteOffset(declaration),
-            declaration.prop,
-          )
+          const urls = parseUrls(declaration.value, absoluteOffset(declaration), declaration.prop)
           urlOccurrences.push(
             ...urls.map((url) => ({
               ...url,
@@ -1219,18 +1189,11 @@ function analyzeStyleSource(options: {
       atRuleDeclarations: atRuleDeclarationCount,
       totalDeclarations: ruleDeclarationCount + atRuleDeclarationCount,
       selectorItems: selectorItemCount,
-      parsedTopLevelSelectors: rules.reduce(
-        (total, rule) => total + rule.selectors.length,
-        0,
-      ),
+      parsedTopLevelSelectors: rules.reduce((total, rule) => total + rule.selectors.length, 0),
       atRules: atRules.length,
       mediaQueries: atRules.filter((item) => item.name.toLowerCase() === 'media').length,
-      containerQueries: atRules.filter(
-        (item) => item.name.toLowerCase() === 'container',
-      ).length,
-      supportsQueries: atRules.filter(
-        (item) => item.name.toLowerCase() === 'supports',
-      ).length,
+      containerQueries: atRules.filter((item) => item.name.toLowerCase() === 'container').length,
+      supportsQueries: atRules.filter((item) => item.name.toLowerCase() === 'supports').length,
       layers: atRules.filter((item) => item.name.toLowerCase() === 'layer').length,
       customPropertyDefinitions: customPropertyDefinitions.size,
       customPropertyReferences: customPropertyReferences.size,
@@ -1260,11 +1223,7 @@ function analyzeStyleSource(options: {
 function tokenGroup(name: string): string {
   if (name.startsWith('--tw-')) return 'tailwind-internal'
   if (name.startsWith('--vscode-')) return 'vscode-compat'
-  if (
-    /^--(?:color-|gray-|red-|orange-|yellow-|green-|blue-|purple-|alpha-)/.test(
-      name,
-    )
-  ) {
+  if (/^--(?:color-|gray-|red-|orange-|yellow-|green-|blue-|purple-|alpha-)/.test(name)) {
     return 'color'
   }
   if (/^--(?:font-|text-|leading-|tracking-)/.test(name)) return 'typography'
@@ -1326,10 +1285,7 @@ function summarizeAtRules(styleSources: any[], name: string): any[] {
   }
   return [...queries.values()]
     .map((query) => ({ ...query, files: [...query.files].sort(compareText) }))
-    .sort(
-      (left, right) =>
-        right.count - left.count || compareText(left.params, right.params),
-    )
+    .sort((left, right) => right.count - left.count || compareText(left.params, right.params))
 }
 
 function buildDesignSystem(styleSources: any[]): any {
@@ -1337,10 +1293,7 @@ function buildDesignSystem(styleSources: any[]): any {
     styleSource.analysis.rules.flatMap((rule: any) =>
       rule.declarations
         .filter(
-          () =>
-            !rule.context.some((context: string) =>
-              /@(?:-\w+-)?keyframes\b/i.test(context),
-            ),
+          () => !rule.context.some((context: string) => /@(?:-\w+-)?keyframes\b/i.test(context)),
         )
         .map((declaration: any) => ({
           ...declaration,
@@ -1354,9 +1307,7 @@ function buildDesignSystem(styleSources: any[]): any {
     .flatMap((styleSource) => styleSource.analysis.customProperties.records)
     .filter(
       (definition: any) =>
-        !definition.context.some((context: string) =>
-          /@(?:-\w+-)?keyframes\b/i.test(context),
-        ),
+        !definition.context.some((context: string) => /@(?:-\w+-)?keyframes\b/i.test(context)),
     )
     .map((definition: any) => ({
       ...definition,
@@ -1368,9 +1319,7 @@ function buildDesignSystem(styleSources: any[]): any {
         compareText(left.sourceFile, right.sourceFile) ||
         left.offset - right.offset,
     )
-  const tokenNames = uniqueSorted(
-    tokenDefinitions.map((definition: any) => definition.name),
-  )
+  const tokenNames = uniqueSorted(tokenDefinitions.map((definition: any) => definition.name))
   const externalTokenNames = uniqueSorted(
     tokenDefinitions
       .filter((definition: any) => !definition.sourceFile.includes('#static-css@'))
@@ -1379,8 +1328,7 @@ function buildDesignSystem(styleSources: any[]): any {
   const groups: Record<string, number> = {}
   for (const name of tokenNames) increment(groups, tokenGroup(name))
 
-  const primitivePattern =
-    /^--(?:gray|red|orange|yellow|green|blue|purple)-\d+$/
+  const primitivePattern = /^--(?:gray|red|orange|yellow|green|blue|purple)-\d+$/
   const tailwindPalettePattern =
     /^--color-(?:red|orange|amber|yellow|green|blue|purple|slate|gray|black|white)-?\d*$/
   const semanticPattern =
@@ -1408,10 +1356,7 @@ function buildDesignSystem(styleSources: any[]): any {
   for (const styleSource of styleSources) {
     for (const fontFace of styleSource.analysis.fontFaces) {
       const values = Object.fromEntries(
-        fontFace.declarations.map((declaration: any) => [
-          declaration.property,
-          declaration.value,
-        ]),
+        fontFace.declarations.map((declaration: any) => [declaration.property, declaration.value]),
       )
       const key = [
         values['font-family'] ?? '',
@@ -1465,15 +1410,9 @@ function buildDesignSystem(styleSources: any[]): any {
   return {
     tokens: { names: tokenNames, definitions: tokenDefinitions, groups },
     colors: {
-      primitiveTokens: externalTokenNames.filter((name) =>
-        primitivePattern.test(name),
-      ),
-      tailwindPaletteTokens: tokenNames.filter((name) =>
-        tailwindPalettePattern.test(name),
-      ),
-      productTokens: tokenNames.filter((name) =>
-        name.startsWith('--color-token-'),
-      ),
+      primitiveTokens: externalTokenNames.filter((name) => primitivePattern.test(name)),
+      tailwindPaletteTokens: tokenNames.filter((name) => tailwindPalettePattern.test(name)),
+      productTokens: tokenNames.filter((name) => name.startsWith('--color-token-')),
       semanticTokens: tokenNames.filter((name) => semanticPattern.test(name)),
       vscodeTokens: tokenNames.filter((name) => name.startsWith('--vscode-')),
       componentTokens: tokenNames.filter(
@@ -1482,25 +1421,17 @@ function buildDesignSystem(styleSources: any[]): any {
           !tailwindPalettePattern.test(name) &&
           !semanticPattern.test(name) &&
           !name.startsWith('--vscode-') &&
-          /color|foreground|background|surface|border|scrim|accent|status/.test(
-            name,
-          ),
+          /color|foreground|background|surface|border|scrim|accent|status/.test(name),
       ),
       formats: colorFormats,
       themeVariants: tokenDefinitions.filter(
         (definition: any) =>
-          /(?:^|[^\w-])\.(?:electron-)?(?:light|dark)(?![\w-])/.test(
-            definition.selector ?? '',
-          ) ||
-          definition.context.some((context: string) =>
-            /prefers-color-scheme/.test(context),
-          ),
+          /(?:^|[^\w-])\.(?:electron-)?(?:light|dark)(?![\w-])/.test(definition.selector ?? '') ||
+          definition.context.some((context: string) => /prefers-color-scheme/.test(context)),
       ),
     },
     typography: {
-      tokens: tokenNames.filter((name) =>
-        /^--(?:font-|text-|leading-|tracking-)/.test(name),
-      ),
+      tokens: tokenNames.filter((name) => /^--(?:font-|text-|leading-|tracking-)/.test(name)),
       fontFaces,
       properties: summarizeValues(declarations, (property) =>
         /^(?:font|font-family|font-size|font-style|font-weight|font-feature-settings|line-height|letter-spacing|text-transform)$/.test(
@@ -1513,9 +1444,7 @@ function buildDesignSystem(styleSources: any[]): any {
         /^--(?:spacing(?:-|$)|padding-|margin-|gap-|inset-)/.test(name),
       ),
       properties: summarizeValues(declarations, (property) =>
-        /^(?:margin|padding|gap|row-gap|column-gap|scroll-margin|scroll-padding)/.test(
-          property,
-        ),
+        /^(?:margin|padding|gap|row-gap|column-gap|scroll-margin|scroll-padding)/.test(property),
       ),
     },
     radii: {
@@ -1530,8 +1459,7 @@ function buildDesignSystem(styleSources: any[]): any {
         declarations,
         (property, value) =>
           /^(?:box-shadow|text-shadow)$/.test(property) ||
-          (/^(?:filter|backdrop-filter)$/.test(property) &&
-            value.includes('drop-shadow(')),
+          (/^(?:filter|backdrop-filter)$/.test(property) && value.includes('drop-shadow(')),
       ),
     },
     motion: {
@@ -1540,9 +1468,7 @@ function buildDesignSystem(styleSources: any[]): any {
       ),
       keyframes,
       properties: summarizeValues(declarations, (property) =>
-        /^(?:animation|transition|scroll-timeline|view-transition-name)/.test(
-          property,
-        ),
+        /^(?:animation|transition|scroll-timeline|view-transition-name)/.test(property),
       ),
     },
   }
@@ -1576,10 +1502,7 @@ function buildBehavior(styleSources: any[]): any {
     }
     return [...values.values()]
       .map((value) => ({ ...value, files: [...value.files].sort(compareText) }))
-      .sort(
-        (left, right) =>
-          right.count - left.count || compareText(left.value, right.value),
-      )
+      .sort((left, right) => right.count - left.count || compareText(left.value, right.value))
   }
   const media = summarizeAtRules(styleSources, 'media')
   const container = summarizeAtRules(styleSources, 'container')
@@ -1593,10 +1516,7 @@ function buildBehavior(styleSources: any[]): any {
         /\[data-codex-window-type\s*=\s*["']?([^\]"']+)/g,
         (match) => match[1],
       ),
-      operatingSystems: evidenceMap(
-        /\[data-codex-os\s*=\s*["']?([^\]"']+)/g,
-        (match) => match[1],
-      ),
+      operatingSystems: evidenceMap(/\[data-codex-os\s*=\s*["']?([^\]"']+)/g, (match) => match[1]),
       themeSelectors: evidenceMap(
         /(?:^|[^\w\\-])\.(electron-(?:light|dark)|light|dark)(?![\w-])/g,
         (match) => match[1],
@@ -1615,9 +1535,7 @@ function buildBehavior(styleSources: any[]): any {
       dataStateRules: countRules(/\[data-state/),
     },
     accessibility: {
-      reducedMotion: media.filter((query) =>
-        /prefers-reduced-motion/.test(query.params),
-      ),
+      reducedMotion: media.filter((query) => /prefers-reduced-motion/.test(query.params)),
       reducedTransparency: media.filter((query) =>
         /prefers-reduced-transparency/.test(query.params),
       ),
@@ -1986,14 +1904,11 @@ async function scan(options: CliOptions): Promise<{
   const relativeFiles = allFiles.map((path) => normalizePath(relative(assetsRoot, path)))
   const fileSet = new Set(relativeFiles)
   const cssPaths = allFiles.filter((path) => extname(path).toLowerCase() === '.css')
-  const jsPaths = allFiles.filter((path) =>
-    ['.js', '.mjs'].includes(extname(path).toLowerCase()),
-  )
+  const jsPaths = allFiles.filter((path) => ['.js', '.mjs'].includes(extname(path).toLowerCase()))
   const fileHashes = new Map<string, string>()
   const cssFiles: any[] = []
-  const cssUrlOccurrences: Array<
-    UrlOccurrence & { sourceFile: string; resolutionBase: string }
-  > = []
+  const cssUrlOccurrences: Array<UrlOccurrence & { sourceFile: string; resolutionBase: string }> =
+    []
   const parseErrors: string[] = []
   const observedCustomProperties = new Set<string>()
 
@@ -2008,9 +1923,7 @@ async function scan(options: CliOptions): Promise<{
       resolutionBase: '.',
     })
     parseErrors.push(
-      ...analysis.parse.postcss.errors.map(
-        (error: string) => `${path} / PostCSS: ${error}`,
-      ),
+      ...analysis.parse.postcss.errors.map((error: string) => `${path} / PostCSS: ${error}`),
       ...analysis.parse.lightningcss.errors.map(
         (error: string) => `${path} / LightningCSS: ${error}`,
       ),
@@ -2067,14 +1980,11 @@ async function scan(options: CliOptions): Promise<{
       })
       const fatalErrors = [
         ...analysis.parse.postcss.errors,
-        ...(stylesheet.recoverability === 'exact'
-          ? analysis.parse.lightningcss.errors
-          : []),
+        ...(stylesheet.recoverability === 'exact' ? analysis.parse.lightningcss.errors : []),
       ]
       parseErrors.push(
         ...fatalErrors.map(
-          (error: string) =>
-            `${path} / static CSS @ ${stylesheet.literalOffset}: ${error}`,
+          (error: string) => `${path} / static CSS @ ${stylesheet.literalOffset}: ${error}`,
         ),
       )
       cssUrlOccurrences.push(...analysis.urlOccurrences)
@@ -2124,7 +2034,11 @@ async function scan(options: CliOptions): Promise<{
     const htmlName = basename(htmlPath)
     htmlHashes.set(htmlName, hash)
     const assets = uniqueSorted(
-      [...source.matchAll(/(?:src|href)\s*=\s*["'](?:\.\/|\/)?assets\/([^"'?#]+)(?:[?#][^"']*)?["']/g)]
+      [
+        ...source.matchAll(
+          /(?:src|href)\s*=\s*["'](?:\.\/|\/)?assets\/([^"'?#]+)(?:[?#][^"']*)?["']/g,
+        ),
+      ]
         .map((match) => match[1])
         .filter((path) => fileSet.has(path)),
     )
@@ -2232,9 +2146,7 @@ async function scan(options: CliOptions): Promise<{
   for (const file of cssFiles) {
     file.loadedBy = uniqueSorted([
       ...(cssImporters.get(file.path) ?? []),
-      ...htmlEntries
-        .filter((entry) => entry.assets.includes(file.path))
-        .map((entry) => entry.path),
+      ...htmlEntries.filter((entry) => entry.assets.includes(file.path)).map((entry) => entry.path),
     ])
     file.entryReachable = reachable.has(file.path)
   }
@@ -2254,10 +2166,7 @@ async function scan(options: CliOptions): Promise<{
     if (kind === 'file') {
       const cleanValue = occurrence.value.split(/[?#]/, 1)[0].replaceAll('\\', '/')
       const normalizedTarget = normalizePath(
-        relative(
-          assetsRoot,
-          resolve(assetsRoot, occurrence.resolutionBase, cleanValue),
-        ),
+        relative(assetsRoot, resolve(assetsRoot, occurrence.resolutionBase, cleanValue)),
       )
       target = normalizedTarget
       const targetPath = resolve(assetsRoot, normalizedTarget)
@@ -2265,7 +2174,9 @@ async function scan(options: CliOptions): Promise<{
         !normalizedTarget.startsWith('../') &&
         normalizedTarget !== '..' &&
         (await fileExists(targetPath))
-      targetHash = exists ? (fileHashes.get(normalizedTarget) ?? sha256(await readFile(targetPath))) : null
+      targetHash = exists
+        ? (fileHashes.get(normalizedTarget) ?? sha256(await readFile(targetPath)))
+        : null
     }
     assetReferences.push({
       sourceFile: occurrence.sourceFile,
@@ -2297,10 +2208,7 @@ async function scan(options: CliOptions): Promise<{
       status: 'document-only' as InventoryStatus,
     }
     current.physicalFiles.push(theme.sourceFile)
-    if (
-      current.recoverability !== 'structured' &&
-      theme.recoverability === 'structured'
-    ) {
+    if (current.recoverability !== 'structured' && theme.recoverability === 'structured') {
       current.name = theme.name
       current.displayName = theme.displayName
       current.type = theme.type
@@ -2396,9 +2304,7 @@ async function scan(options: CliOptions): Promise<{
     ),
     shadowDom: jsFiles.flatMap((file) =>
       file.runtimeStyleEvidence
-        .filter((evidence: any) =>
-          ['shadow-root', 'adopted-stylesheets'].includes(evidence.kind),
-        )
+        .filter((evidence: any) => ['shadow-root', 'adopted-stylesheets'].includes(evidence.kind))
         .map((evidence: any) => ({ sourceFile: file.path, ...evidence })),
     ),
     styleUsage: {
@@ -2425,23 +2331,14 @@ async function scan(options: CliOptions): Promise<{
     assetFiles: relativeFiles.length,
     cssFiles: cssFiles.length,
     htmlFiles: htmlFiles.length,
-    htmlStyleBlocks: htmlFiles.reduce(
-      (total, file) => total + file.styleBlocks.length,
-      0,
-    ),
-    htmlStyleAttributes: htmlFiles.reduce(
-      (total, file) => total + file.styleAttributes.length,
-      0,
-    ),
+    htmlStyleBlocks: htmlFiles.reduce((total, file) => total + file.styleBlocks.length, 0),
+    htmlStyleAttributes: htmlFiles.reduce((total, file) => total + file.styleAttributes.length, 0),
     scriptFiles: jsFiles.length,
     jsFiles: jsFiles.filter((file) => file.path.endsWith('.js')).length,
     mjsFiles: jsFiles.filter((file) => file.path.endsWith('.mjs')).length,
     cssBytes: cssFiles.reduce((total, file) => total + file.bytes, 0),
     cssRules: cssFiles.reduce((total, file) => total + file.counts.rules, 0),
-    cssDeclarations: cssFiles.reduce(
-      (total, file) => total + file.counts.declarations,
-      0,
-    ),
+    cssDeclarations: cssFiles.reduce((total, file) => total + file.counts.declarations, 0),
     cssAtRuleDeclarations: cssFiles.reduce(
       (total, file) => total + file.counts.atRuleDeclarations,
       0,
@@ -2454,8 +2351,7 @@ async function scan(options: CliOptions): Promise<{
       (total, file) =>
         total +
         file.styleBlocks.reduce(
-          (blockTotal: number, block: any) =>
-            blockTotal + block.analysis.counts.rules,
+          (blockTotal: number, block: any) => blockTotal + block.analysis.counts.rules,
           0,
         ),
       0,
@@ -2464,8 +2360,7 @@ async function scan(options: CliOptions): Promise<{
       (total, file) =>
         total +
         file.styleBlocks.reduce(
-          (blockTotal: number, block: any) =>
-            blockTotal + block.analysis.counts.declarations,
+          (blockTotal: number, block: any) => blockTotal + block.analysis.counts.declarations,
           0,
         ) +
         file.styleAttributes.reduce(
@@ -2480,10 +2375,7 @@ async function scan(options: CliOptions): Promise<{
       (total, stylesheet) => total + stylesheet.rawChars,
       0,
     ),
-    selectorItems: cssFiles.reduce(
-      (total, file) => total + file.counts.selectorItems,
-      0,
-    ),
+    selectorItems: cssFiles.reduce((total, file) => total + file.counts.selectorItems, 0),
     parsedTopLevelSelectors: cssFiles.reduce(
       (total, file) => total + file.counts.parsedTopLevelSelectors,
       0,
@@ -2493,14 +2385,8 @@ async function scan(options: CliOptions): Promise<{
     allDefinedCustomProperties: definedCustomProperties.size,
     allObservedCustomProperties: observedCustomProperties.size,
     keyframes: cssFiles.reduce((total, file) => total + file.counts.keyframes, 0),
-    mediaQueries: cssFiles.reduce(
-      (total, file) => total + file.counts.mediaQueries,
-      0,
-    ),
-    containerQueries: cssFiles.reduce(
-      (total, file) => total + file.counts.containerQueries,
-      0,
-    ),
+    mediaQueries: cssFiles.reduce((total, file) => total + file.counts.mediaQueries, 0),
+    containerQueries: cssFiles.reduce((total, file) => total + file.counts.containerQueries, 0),
     fontFaces: cssFiles.reduce((total, file) => total + file.counts.fontFaces, 0),
     postcssParsed: cssFiles.filter((file) => file.parse.postcss.ok).length,
     lightningcssParsed: cssFiles.filter((file) => file.parse.lightningcss.ok).length,
@@ -2508,19 +2394,15 @@ async function scan(options: CliOptions): Promise<{
     jsCategories,
     physicalThemeFiles: new Set(themeInstances.map((theme) => theme.sourceFile)).size,
     logicalThemes: logicalThemes.length,
-    fileAssetReferences: assetReferences.filter((reference) => reference.kind === 'file')
-      .length,
+    fileAssetReferences: assetReferences.filter((reference) => reference.kind === 'file').length,
     missingAssetReferences: assetReferences.filter(
       (reference) => reference.kind === 'file' && reference.exists === false,
     ).length,
-    dataAssetReferences: assetReferences.filter((reference) => reference.kind === 'data')
+    dataAssetReferences: assetReferences.filter((reference) => reference.kind === 'data').length,
+    fragmentAssetReferences: assetReferences.filter((reference) => reference.kind === 'fragment')
       .length,
-    fragmentAssetReferences: assetReferences.filter(
-      (reference) => reference.kind === 'fragment',
-    ).length,
-    remoteAssetReferences: assetReferences.filter(
-      (reference) => reference.kind === 'remote',
-    ).length,
+    remoteAssetReferences: assetReferences.filter((reference) => reference.kind === 'remote')
+      .length,
     entryReachableAssets: reachable.size,
     entryUnreachableAssets: relativeFiles.length - reachable.size,
   }
@@ -2559,8 +2441,7 @@ async function scan(options: CliOptions): Promise<{
       area: 'runtime theme',
       status: 'map' as InventoryStatus,
       target: 'src/features/theme/themeVariables.ts',
-      recommendation:
-        '对照 Electron 明暗类和根节点 setProperty 证据，动态值不固化为 SCSS 默认值。',
+      recommendation: '对照 Electron 明暗类和根节点 setProperty 证据，动态值不固化为 SCSS 默认值。',
     },
     {
       area: 'UI primitives',
@@ -2580,8 +2461,7 @@ async function scan(options: CliOptions): Promise<{
       area: 'session/composer/settings/search/review',
       status: 'adapt' as InventoryStatus,
       target: 'src/styles/features',
-      recommendation:
-        '按现有 feature partial 分域适配，不把 CSS Modules 哈希类作为公共接口。',
+      recommendation: '按现有 feature partial 分域适配，不把 CSS Modules 哈希类作为公共接口。',
     },
     {
       area: 'vendor styles',
@@ -2623,9 +2503,7 @@ async function scan(options: CliOptions): Promise<{
     behavior,
     runtimeStyles,
     highlightThemes: {
-      physicalFiles: uniqueSorted(
-        themeInstances.map((theme) => theme.sourceFile),
-      ),
+      physicalFiles: uniqueSorted(themeInstances.map((theme) => theme.sourceFile)),
       logicalThemes,
     },
     logicalThemes,

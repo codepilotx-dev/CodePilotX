@@ -1,9 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import type { ComposerCapabilities } from './composerTypes.js'
-import type {
-  ComposerSlashCommand,
-  ComposerSlashCommandId,
-} from './composerSlashCommands.js'
+import type { ComposerSlashCommand, ComposerSlashCommandId } from './composerSlashCommands.js'
 
 type UseComposerSlashCommandsOptions = {
   capabilities: ComposerCapabilities
@@ -69,15 +66,10 @@ export function useComposerSlashCommands({
   executeCommand: (command: ComposerSlashCommand) => Promise<void>
 } {
   const executingRef = useRef<ComposerSlashCommandId | null>(null)
-  const [executingCommandId, setExecutingCommandId] =
-    useState<ComposerSlashCommandId | null>(null)
+  const [executingCommandId, setExecutingCommandId] = useState<ComposerSlashCommandId | null>(null)
 
   const compactEnabled =
-    hasThread &&
-    hasConversationMessages &&
-    !subagentMode &&
-    !sessionBusy &&
-    Boolean(onCompact)
+    hasThread && hasConversationMessages && !subagentMode && !sessionBusy && Boolean(onCompact)
 
   const commands = useMemo<ComposerSlashCommand[]>(
     () => [

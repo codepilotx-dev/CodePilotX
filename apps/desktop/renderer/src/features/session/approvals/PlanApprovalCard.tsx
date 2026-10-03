@@ -4,9 +4,7 @@ import { QuestionAnswerForm } from './AskUserQuestionApproval.js'
 import type { AskUserQuestion, QuestionState } from './askUserQuestionModel.js'
 
 export type PlanApprovalResponse =
-  | { action: 'implement' }
-  | { action: 'feedback'; feedback: string }
-  | { action: 'close' }
+  { action: 'implement' } | { action: 'feedback'; feedback: string } | { action: 'close' }
 
 export type PlanApprovalCardProps = {
   approval: PlanApproval
@@ -34,19 +32,26 @@ export function planResponseFromDraft(state: QuestionState | undefined): PlanApp
   throw new Error('请选择实施计划或填写修改意见。')
 }
 
-export function PlanApprovalCard({ approval, identity, disabledReason, onRespond }: PlanApprovalCardProps): React.ReactNode {
+export function PlanApprovalCard({
+  approval,
+  identity,
+  disabledReason,
+  onRespond,
+}: PlanApprovalCardProps): React.ReactNode {
   const close = () => onRespond({ action: 'close' })
-  return <QuestionAnswerForm
-    requestId={`${approval.id}:${approval.version}`}
-    questions={[PLAN_QUESTION]}
-    variant="plan"
-    identity={identity}
-    disabledReason={disabledReason}
-    dismissLabel="关闭"
-    closeLabel="关闭计划"
-    closeError="关闭计划失败，请重试。"
-    onInterrupt={close}
-    onReject={close}
-    onSubmit={(_input, states) => onRespond(planResponseFromDraft(states[PLAN_QUESTION_ID]))}
-  />
+  return (
+    <QuestionAnswerForm
+      requestId={`${approval.id}:${approval.version}`}
+      questions={[PLAN_QUESTION]}
+      variant="plan"
+      identity={identity}
+      disabledReason={disabledReason}
+      dismissLabel="关闭"
+      closeLabel="关闭计划"
+      closeError="关闭计划失败，请重试。"
+      onInterrupt={close}
+      onReject={close}
+      onSubmit={(_input, states) => onRespond(planResponseFromDraft(states[PLAN_QUESTION_ID]))}
+    />
+  )
 }

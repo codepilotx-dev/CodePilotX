@@ -7,10 +7,7 @@ import {
 } from '../src/features/session/conversation/ConversationTurnNavRail.js'
 import { ConversationTurnRowRegistry } from '../src/features/session/conversation/useConversationTurnRowVisibility.js'
 
-type NavTurn = Pick<
-  RenderTurnEntry,
-  'id' | 'userInputs' | 'assistantResultItems' | 'patchItems'
->
+type NavTurn = Pick<RenderTurnEntry, 'id' | 'userInputs' | 'assistantResultItems' | 'patchItems'>
 
 function navTurn({
   assistantTexts = [],
@@ -35,7 +32,7 @@ function navTurn({
     })),
     patchItems: files.map((paths, patchIndex) => ({
       id: `${id}-patch-${patchIndex}`,
-      files: paths.map(path => ({ path })),
+      files: paths.map((path) => ({ path })),
     })),
   } as NavTurn as RenderTurnEntry
 }
@@ -48,11 +45,9 @@ describe('canonical conversation navigation', () => {
   })
 
   test('creates a compact plain-text turn preview from Markdown', () => {
-    expect(
-      markdownToTurnPreview(
-        '# 标题\n\n- 第一项\n- `code` [链接](https://example.com)',
-      ),
-    ).toBe('标题 第一项 code 链接')
+    expect(markdownToTurnPreview('# 标题\n\n- 第一项\n- `code` [链接](https://example.com)')).toBe(
+      '标题 第一项 code 链接',
+    )
   })
 
   test('derives canonical turn navigation text and unique file outputs', () => {
@@ -126,7 +121,7 @@ describe('canonical conversation navigation', () => {
     const observed: HTMLElement[] = []
     const unobserved: HTMLElement[] = []
     const unregistered: string[] = []
-    const registry = new ConversationTurnRowRegistry(id => unregistered.push(id))
+    const registry = new ConversationTurnRowRegistry((id) => unregistered.push(id))
     const observer = {
       observe: (node: HTMLElement) => observed.push(node),
       unobserve: (node: HTMLElement) => unobserved.push(node),

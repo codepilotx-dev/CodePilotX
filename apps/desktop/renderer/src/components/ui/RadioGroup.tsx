@@ -62,7 +62,11 @@ export function RadioItem({
   ariaLabel,
 }: RadioItemProps): React.ReactNode {
   return (
-    <label className={cx('ui-radio-item', className)} data-disabled={disabled || undefined} data-variant={variant}>
+    <label
+      className={cx('ui-radio-item', className)}
+      data-disabled={disabled || undefined}
+      data-variant={variant}
+    >
       <RadioGroupPrimitive.Item
         aria-label={ariaLabel}
         className="ui-radio-control"
@@ -71,7 +75,11 @@ export function RadioItem({
       >
         <RadioGroupPrimitive.Indicator className="ui-radio-indicator" />
       </RadioGroupPrimitive.Item>
-      {icon ? <span aria-hidden="true" className="ui-radio-icon">{icon}</span> : null}
+      {icon ? (
+        <span aria-hidden="true" className="ui-radio-icon">
+          {icon}
+        </span>
+      ) : null}
       <span className="ui-radio-copy">
         <span className="ui-radio-label">{label ?? children}</span>
         {detail ? <span className="ui-radio-detail">{detail}</span> : null}

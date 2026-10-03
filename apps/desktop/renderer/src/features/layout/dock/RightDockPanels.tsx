@@ -15,10 +15,7 @@ import {
   useTransform,
   type MotionValue,
 } from 'motion/react'
-import type {
-  DesktopFileEntry,
-  DesktopWorkspace,
-} from '../../../../shared/types.js'
+import type { DesktopFileEntry, DesktopWorkspace } from '../../../../shared/types.js'
 import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
@@ -34,15 +31,9 @@ import {
   updateFileDocument,
   useFileDocument,
 } from '../../workspace/fileDocumentStore.js'
-import {
-  WorkbenchPanelError,
-  WorkbenchPanelLoading,
-} from '../panels/WorkbenchPanelStates.js'
+import { WorkbenchPanelError, WorkbenchPanelLoading } from '../panels/WorkbenchPanelStates.js'
 import { FileBreadcrumbToolbar } from '../panels/FileBreadcrumbToolbar.js'
-import type {
-  MarkdownFileViewMode,
-  SkillPreviewTab,
-} from './rightDockState.js'
+import type { MarkdownFileViewMode, SkillPreviewTab } from './rightDockState.js'
 import {
   getSendableFilePath,
   WorkspaceFileTree,
@@ -59,8 +50,14 @@ import {
 import { readRuntimeSkill } from '../../settings/plugins/skillClientAdapter.js'
 import { desktopClipboard } from '../../../services/desktop-client/index.js'
 
-const ConflictMergeEditor = lazy(() => import('../../editor/ConflictMergeEditor.js').then(module => ({ default: module.ConflictMergeEditor })))
-const FileEditor = lazy(() => import('../../editor/FileEditor.js').then(module => ({ default: module.FileEditor })))
+const ConflictMergeEditor = lazy(() =>
+  import('../../editor/ConflictMergeEditor.js').then((module) => ({
+    default: module.ConflictMergeEditor,
+  })),
+)
+const FileEditor = lazy(() =>
+  import('../../editor/FileEditor.js').then((module) => ({ default: module.FileEditor })),
+)
 
 const FILE_TREE_DEFAULT_WIDTH = 280
 const FILE_TREE_MIN_WIDTH = 200
@@ -74,10 +71,7 @@ type FilesPanelProps = {
   activePath?: string | null
   workspace: DesktopWorkspace | null
   revealToken?: number
-  onOpenFile: (
-    file: DesktopFileEntry,
-    options: WorkspaceFileOpenOptions,
-  ) => void
+  onOpenFile: (file: DesktopFileEntry, options: WorkspaceFileOpenOptions) => void
   onAddComposerFiles?: (filePaths: string[]) => void
 }
 
@@ -85,11 +79,7 @@ type PlanPanelProps = {
   content: string | null
 }
 
-export function RightDockSkillPreviewPanel({
-  tab,
-}: {
-  tab: SkillPreviewTab
-}): React.ReactNode {
+export function RightDockSkillPreviewPanel({ tab }: { tab: SkillPreviewTab }): React.ReactNode {
   const [content, setContent] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [retryVersion, setRetryVersion] = useState(0)
@@ -104,16 +94,12 @@ export function RightDockSkillPreviewPanel({
     setContent(null)
     setError(null)
     void readRuntimeSkill(tab.skill.workspacePath, tab.skill.path)
-      .then(result => {
+      .then((result) => {
         if (!cancelled) setContent(result.content)
       })
-      .catch(cause => {
+      .catch((cause) => {
         if (cancelled) return
-        setError(
-          cause instanceof Error && cause.message
-            ? cause.message
-            : '技能内容读取失败。',
-        )
+        setError(cause instanceof Error && cause.message ? cause.message : '技能内容读取失败。')
       })
     return () => {
       cancelled = true
@@ -126,7 +112,7 @@ export function RightDockSkillPreviewPanel({
         title="无法打开技能"
         message={error}
         retryable={!tab.skill.path.startsWith('builtin://')}
-        onRetry={() => setRetryVersion(version => version + 1)}
+        onRetry={() => setRetryVersion((version) => version + 1)}
       />
     )
   }
@@ -148,9 +134,7 @@ export function RightDockSkillPreviewPanel({
   )
 }
 
-export function RightDockPlanPanel({
-  content,
-}: PlanPanelProps): React.ReactNode {
+export function RightDockPlanPanel({ content }: PlanPanelProps): React.ReactNode {
   if (!content) {
     return (
       <ScrollArea
@@ -161,7 +145,9 @@ export function RightDockPlanPanel({
         <div className="right-dock-empty-state tw:grid tw:h-full tw:w-full tw:place-content-center tw:justify-items-center tw:gap-2 tw:p-6 tw:text-center tw:text-app-text-soft">
           <ListChecks size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
           <strong className="tw:text-app-text">暂无计划</strong>
-          <span className="tw:max-w-full tw:text-app-text-soft">从主对话里的计划卡片打开计划书</span>
+          <span className="tw:max-w-full tw:text-app-text-soft">
+            从主对话里的计划卡片打开计划书
+          </span>
         </div>
       </ScrollArea>
     )
@@ -190,9 +176,7 @@ export function RightDockFilesPanel({
 }: FilesPanelProps): React.ReactNode {
   const workspacePath = workspace?.path ?? ''
   const initialTreeState = useRef(readFileTreeViewState(workspacePath, true))
-  const [treeVisible, setTreeVisible] = useState(
-    initialTreeState.current.visible,
-  )
+  const [treeVisible, setTreeVisible] = useState(initialTreeState.current.visible)
   const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
   const [copied, setCopied] = useState(false)
   const layoutRef = useRef<HTMLDivElement | null>(null)
@@ -218,9 +202,7 @@ export function RightDockFilesPanel({
     })
   }
 
-  const rootDisplayName = workspacePath
-    ? workspacePath.replace(/\\/g, '/').replace(/\/$/, '')
-    : '/'
+  const rootDisplayName = workspacePath ? workspacePath.replace(/\\/g, '/').replace(/\/$/, '') : '/'
 
   return (
     <section className="right-dock-file-browser" aria-label="打开文件">
@@ -241,10 +223,7 @@ export function RightDockFilesPanel({
             aria-label={`文件路径：${rootDisplayName}`}
             className="file-breadcrumb-toolbar__path"
           >
-            <strong
-              className="file-breadcrumb-toolbar__root"
-              title={workspacePath}
-            >
+            <strong className="file-breadcrumb-toolbar__root" title={workspacePath}>
               {rootDisplayName}
             </strong>
           </div>
@@ -281,7 +260,7 @@ export function RightDockFilesPanel({
               size="toolbar"
               title={treeVisible ? '隐藏文件树' : '显示文件树'}
               type="button"
-              onClick={() => setTreeVisible(current => !current)}
+              onClick={() => setTreeVisible((current) => !current)}
             >
               <FolderOpen
                 aria-hidden="true"
@@ -343,10 +322,7 @@ export function RightDockFilesPanel({
               onKeyDown={treeResize.handleKeyDown}
               onPointerDown={treeResize.startResize}
             />
-            <aside
-              aria-label="工作区文件树"
-              className="right-dock-editor-file-tree"
-            >
+            <aside aria-label="工作区文件树" className="right-dock-editor-file-tree">
               <WorkspaceFileTree
                 key={workspacePath}
                 activePath={activePath}
@@ -396,20 +372,12 @@ export function RightDockFilePreviewPanel({
   onSetMarkdownViewMode: (mode: MarkdownFileViewMode) => void
   onAppendComposerText?: (text: string) => void
   onAddComposerFiles?: (filePaths: string[]) => void
-  onOpenFile: (
-    file: DesktopFileEntry,
-    options: WorkspaceFileOpenOptions,
-  ) => void
-  onLoadError?: (
-    error: Error,
-    phase: FileDocumentLoadErrorPhase,
-  ) => void
+  onOpenFile: (file: DesktopFileEntry, options: WorkspaceFileOpenOptions) => void
+  onLoadError?: (error: Error, phase: FileDocumentLoadErrorPhase) => void
 }): React.ReactNode {
   const [selectedText, setSelectedText] = useState('')
   const initialTreeState = useRef(readFileTreeViewState(workspacePath))
-  const [treeVisible, setTreeVisible] = useState(
-    initialTreeState.current.visible,
-  )
+  const [treeVisible, setTreeVisible] = useState(initialTreeState.current.visible)
   const [treeWidth, setTreeWidth] = useState(initialTreeState.current.width)
   const [switchingMarkdownMode, setSwitchingMarkdownMode] = useState(false)
   const layoutRef = useRef<HTMLDivElement | null>(null)
@@ -425,9 +393,7 @@ export function RightDockFilePreviewPanel({
   const document = useFileDocument(workspacePath, expectedPath, documentScope)
   const language = resolveLanguageFromPath(expectedPath)
   const isMarkdown = isMarkdownFilePath(expectedPath)
-  const resolvedMarkdownViewMode = isMarkdown
-    ? (markdownViewMode ?? 'rich')
-    : undefined
+  const resolvedMarkdownViewMode = isMarkdown ? (markdownViewMode ?? 'rich') : undefined
 
   useEffect(() => {
     onLoadErrorRef.current = onLoadError
@@ -437,16 +403,9 @@ export function RightDockFilePreviewPanel({
     const loadKey = `${projectId ?? ''}\u0000${folderId ?? ''}\u0000${workspacePath}\u0000${expectedPath}`
     if (initialLoadKeyRef.current === loadKey) return
     initialLoadKeyRef.current = loadKey
-    void prefetchFileDocument(
-      workspacePath,
-      expectedPath,
-      documentScope,
-    ).catch(error => {
+    void prefetchFileDocument(workspacePath, expectedPath, documentScope).catch((error) => {
       if (initialLoadKeyRef.current !== loadKey) return
-      onLoadErrorRef.current?.(
-        error instanceof Error ? error : new Error(String(error)),
-        'initial',
-      )
+      onLoadErrorRef.current?.(error instanceof Error ? error : new Error(String(error)), 'initial')
     })
   }, [expectedPath, folderId, projectId, workspacePath])
 
@@ -456,8 +415,7 @@ export function RightDockFilePreviewPanel({
       workspacePath,
       expectedPath,
       {
-        onLoadError: error =>
-          onLoadErrorRef.current?.(error, 'external-sync'),
+        onLoadError: (error) => onLoadErrorRef.current?.(error, 'external-sync'),
       },
       documentScope,
     )
@@ -481,9 +439,7 @@ export function RightDockFilePreviewPanel({
     setSelectedText('')
   }
 
-  async function toggleMarkdownViewMode(
-    targetMode: MarkdownFileViewMode,
-  ): Promise<void> {
+  async function toggleMarkdownViewMode(targetMode: MarkdownFileViewMode): Promise<void> {
     if (
       !resolvedMarkdownViewMode ||
       targetMode === resolvedMarkdownViewMode ||
@@ -494,10 +450,7 @@ export function RightDockFilePreviewPanel({
     }
     setSwitchingMarkdownMode(true)
     try {
-      if (
-        document.dirty &&
-        !(await saveFileDocument(workspacePath, expectedPath, documentScope))
-      ) {
+      if (document.dirty && !(await saveFileDocument(workspacePath, expectedPath, documentScope))) {
         return
       }
       onSetMarkdownViewMode(targetMode)
@@ -507,19 +460,12 @@ export function RightDockFilePreviewPanel({
   }
 
   if (document.status === 'error') {
-    const presentation = fileDocumentLoadErrorMessage(
-      document.loadErrorCode,
-      document.loadError,
-    )
+    const presentation = fileDocumentLoadErrorMessage(document.loadErrorCode, document.loadError)
     return (
       <WorkbenchPanelError
         {...presentation}
         onRetry={() => {
-          void prefetchFileDocument(
-            workspacePath,
-            expectedPath,
-            documentScope,
-          ).catch(error => {
+          void prefetchFileDocument(workspacePath, expectedPath, documentScope).catch((error) => {
             onLoadErrorRef.current?.(
               error instanceof Error ? error : new Error(String(error)),
               'initial',
@@ -560,14 +506,12 @@ export function RightDockFilePreviewPanel({
           readonly={document.readonly}
           treeAvailable
           treeVisible={treeVisible}
-          markdownViewMode={
-            document.conflict ? undefined : resolvedMarkdownViewMode
-          }
+          markdownViewMode={document.conflict ? undefined : resolvedMarkdownViewMode}
           switching={switchingMarkdownMode}
           workspace={workspace}
           workspacePath={workspacePath}
-          onToggleTree={() => setTreeVisible(current => !current)}
-          onToggleMarkdownViewMode={targetMode => {
+          onToggleTree={() => setTreeVisible((current) => !current)}
+          onToggleMarkdownViewMode={(targetMode) => {
             void toggleMarkdownViewMode(targetMode)
           }}
         />
@@ -597,9 +541,7 @@ export function RightDockFilePreviewPanel({
             trigger={
               <div
                 className="right-dock-file-selection-target"
-                onContextMenu={() =>
-                  setSelectedText(window.getSelection()?.toString() ?? '')
-                }
+                onContextMenu={() => setSelectedText(window.getSelection()?.toString() ?? '')}
               >
                 <Suspense fallback={<WorkbenchPanelLoading label="正在加载文件编辑器…" />}>
                   {document.conflict ? (
@@ -610,13 +552,8 @@ export function RightDockFilePreviewPanel({
                       localValue={document.draftContent}
                       path={expectedPath}
                       saving={document.saving}
-                      onChangeLocal={value =>
-                        updateFileDocument(
-                          workspacePath,
-                          expectedPath,
-                          value,
-                          documentScope,
-                        )
+                      onChangeLocal={(value) =>
+                        updateFileDocument(workspacePath, expectedPath, value, documentScope)
                       }
                       onKeepLocal={() =>
                         resolveFileDocumentConflict(
@@ -645,29 +582,18 @@ export function RightDockFilePreviewPanel({
                       language={language}
                       path={expectedPath}
                       presentation={
-                        resolvedMarkdownViewMode === 'rich'
-                          ? 'markdown-rich'
-                          : 'source'
+                        resolvedMarkdownViewMode === 'rich' ? 'markdown-rich' : 'source'
                       }
                       readonly={document.readonly}
                       revealLine={revealLine}
                       saving={document.saving}
                       value={document.draftContent}
-                      onChange={value => {
+                      onChange={(value) => {
                         if (previewTab) onPinTab()
-                        updateFileDocument(
-                          workspacePath,
-                          expectedPath,
-                          value,
-                          documentScope,
-                        )
+                        updateFileDocument(workspacePath, expectedPath, value, documentScope)
                       }}
                       onSave={async () => {
-                        await saveFileDocument(
-                          workspacePath,
-                          expectedPath,
-                          documentScope,
-                        )
+                        await saveFileDocument(workspacePath, expectedPath, documentScope)
                       }}
                     />
                   )}
@@ -696,18 +622,15 @@ export function RightDockFilePreviewPanel({
               onKeyDown={treeResize.handleKeyDown}
               onPointerDown={treeResize.startResize}
             />
-            <aside
-              aria-label="当前文件的工作区文件树"
-              className="right-dock-editor-file-tree"
-            >
-                <WorkspaceFileTree
-                  activePath={expectedPath}
-                  files={files}
-                  workspace={workspace}
-                  onAddComposerFiles={onAddComposerFiles}
-                  onEscape={() => setTreeVisible(false)}
-                  onOpenFile={onOpenFile}
-                />
+            <aside aria-label="当前文件的工作区文件树" className="right-dock-editor-file-tree">
+              <WorkspaceFileTree
+                activePath={expectedPath}
+                files={files}
+                workspace={workspace}
+                onAddComposerFiles={onAddComposerFiles}
+                onEscape={() => setTreeVisible(false)}
+                onOpenFile={onOpenFile}
+              />
             </aside>
           </EditorFileTreePresence>
         </motion.div>
@@ -729,14 +652,9 @@ export function buildFileSelectionPrompt({
 }): string {
   const extension = path.split(/[\\/]/).pop()?.split('.').pop()
   const fence = extension && extension !== path ? extension : ''
-  return [
-    '文件选区：',
-    `- 文件：${path}`,
-    '',
-    `\`\`\`${fence}`,
-    selectedText.trim(),
-    '```',
-  ].join('\n')
+  return ['文件选区：', `- 文件：${path}`, '', `\`\`\`${fence}`, selectedText.trim(), '```'].join(
+    '\n',
+  )
 }
 
 export function shouldShowSelectionSendAction(selectedText: string): boolean {
@@ -768,24 +686,16 @@ type ActiveFileTreeResize = {
   finish: (outcome: 'commit' | 'restore') => void
 }
 
-function resolveFileTreeMaximumWidth(
-  layout: HTMLDivElement | null,
-): number {
+function resolveFileTreeMaximumWidth(layout: HTMLDivElement | null): number {
   const layoutWidth = layout?.getBoundingClientRect().width ?? 0
   return Math.round(
     layoutWidth > 0
-      ? Math.max(
-          FILE_TREE_MIN_WIDTH,
-          layoutWidth * FILE_TREE_MAX_WIDTH_RATIO,
-        )
+      ? Math.max(FILE_TREE_MIN_WIDTH, layoutWidth * FILE_TREE_MAX_WIDTH_RATIO)
       : FILE_TREE_FALLBACK_MAX_WIDTH,
   )
 }
 
-function clampFileTreeWidth(
-  width: number,
-  layout: HTMLDivElement | null,
-): number {
+function clampFileTreeWidth(width: number, layout: HTMLDivElement | null): number {
   return Math.min(
     resolveFileTreeMaximumWidth(layout),
     Math.max(FILE_TREE_MIN_WIDTH, Math.round(width)),
@@ -834,9 +744,7 @@ function useEditorFileTreeResize({
     onCommitWidth(nextWidth)
   }
 
-  function startResize(
-    event: React.PointerEvent<HTMLDivElement>,
-  ): void {
+  function startResize(event: React.PointerEvent<HTMLDivElement>): void {
     if (event.button !== 0) return
     event.preventDefault()
     activeResizeRef.current?.finish('restore')
@@ -892,10 +800,7 @@ function useEditorFileTreeResize({
     }
     const onPointerUp = (upEvent: PointerEvent): void => {
       if (upEvent.pointerId !== pointerId) return
-      pendingWidth = clampFileTreeWidth(
-        startWidth + startX - upEvent.clientX,
-        layoutRef.current,
-      )
+      pendingWidth = clampFileTreeWidth(startWidth + startX - upEvent.clientX, layoutRef.current)
       finish('commit')
     }
     const onPointerCancel = (cancelEvent: PointerEvent): void => {
@@ -915,9 +820,7 @@ function useEditorFileTreeResize({
     handle.setPointerCapture(pointerId)
   }
 
-  function handleKeyDown(
-    event: React.KeyboardEvent<HTMLDivElement>,
-  ): void {
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>): void {
     const step = event.shiftKey ? 40 : 10
     if (event.key === 'ArrowLeft') {
       event.preventDefault()
@@ -994,7 +897,7 @@ function EditorFileTreePresenceItem({
   const [isPresent, safeToRemove] = usePresence()
   const shellRef = useRef<HTMLDivElement | null>(null)
   const [entryComplete, setEntryComplete] = useState(skipEnterAnimation)
-  const liveShellWidth = useTransform(liveWidth, value => value + 8)
+  const liveShellWidth = useTransform(liveWidth, (value) => value + 8)
   const visibleState = { opacity: 1, width: width + 8, x: 0 }
   const hiddenState = { opacity: 0, width: 0, x: 8 }
 
@@ -1002,10 +905,7 @@ function EditorFileTreePresenceItem({
     if (isPresent) return
     setEntryComplete(false)
     const activeElement = document.activeElement
-    if (
-      activeElement instanceof HTMLElement
-      && shellRef.current?.contains(activeElement)
-    ) {
+    if (activeElement instanceof HTMLElement && shellRef.current?.contains(activeElement)) {
       focusReturnRef.current?.focus({ preventScroll: true })
     }
   }, [focusReturnRef, isPresent])
@@ -1035,12 +935,14 @@ function EditorFileTreePresenceItem({
         }
       }}
       aria-hidden={!isPresent ? true : undefined}
-      animate={isPresent
-        ? visibleState
-        : {
-            ...hiddenState,
-            transition: motionTransition(reducedMotion, exitTween),
-          }}
+      animate={
+        isPresent
+          ? visibleState
+          : {
+              ...hiddenState,
+              transition: motionTransition(reducedMotion, exitTween),
+            }
+      }
       className="right-dock-editor-file-tree-presence"
       data-file-tree-presence={isPresent ? 'open' : 'exiting'}
       data-presence={isPresent ? 'present' : 'exiting'}
@@ -1054,10 +956,7 @@ function EditorFileTreePresenceItem({
         width: liveShellWidth,
         minWidth: isPresent && entryComplete ? FILE_TREE_MIN_WIDTH + 8 : 0,
       }}
-      transition={motionTransition(
-        reducedMotion,
-        entryComplete ? instantTween : layoutTween,
-      )}
+      transition={motionTransition(reducedMotion, entryComplete ? instantTween : layoutTween)}
     >
       {children}
     </motion.div>
@@ -1065,15 +964,10 @@ function EditorFileTreePresenceItem({
 }
 
 function fileTreeViewStorageKey(workspacePath: string): string {
-  return `codepilotx.desktop.fileTreeView:${workspacePath
-    .replace(/\\/g, '/')
-    .toLowerCase()}`
+  return `codepilotx.desktop.fileTreeView:${workspacePath.replace(/\\/g, '/').toLowerCase()}`
 }
 
-function readFileTreeViewState(
-  workspacePath: string,
-  defaultVisible = true,
-): FileTreeViewState {
+function readFileTreeViewState(workspacePath: string, defaultVisible = true): FileTreeViewState {
   const fallback = {
     visible: defaultVisible,
     width: FILE_TREE_DEFAULT_WIDTH,
@@ -1087,8 +981,7 @@ function readFileTreeViewState(
       width?: unknown
     }
     return {
-      visible:
-        typeof parsed.visible === 'boolean' ? parsed.visible : fallback.visible,
+      visible: typeof parsed.visible === 'boolean' ? parsed.visible : fallback.visible,
       width:
         typeof parsed.width === 'number' && Number.isFinite(parsed.width)
           ? Math.max(FILE_TREE_MIN_WIDTH, Math.round(parsed.width))
@@ -1099,16 +992,10 @@ function readFileTreeViewState(
   }
 }
 
-function writeFileTreeViewState(
-  workspacePath: string,
-  state: FileTreeViewState,
-): void {
+function writeFileTreeViewState(workspacePath: string, state: FileTreeViewState): void {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.setItem(
-      fileTreeViewStorageKey(workspacePath),
-      JSON.stringify(state),
-    )
+    window.localStorage.setItem(fileTreeViewStorageKey(workspacePath), JSON.stringify(state))
   } catch {
     // File tree view persistence is best-effort.
   }

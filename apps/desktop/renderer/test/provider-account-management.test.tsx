@@ -6,33 +6,35 @@ import {
   ProviderCatalog,
   type ProviderCatalogItem,
 } from '../src/features/models/ProviderCatalog.js'
-import {
-  getProviderConnectionChoices,
-} from '../src/features/models/provider-management/ProviderConnectionDialog.js'
+import { getProviderConnectionChoices } from '../src/features/models/provider-management/ProviderConnectionDialog.js'
 
 describe('model center account management', () => {
   test('OpenAI 同时提供 ChatGPT 登录和 API Key，选项 ID 独立', () => {
     const provider: DesktopModelProviderSummary = {
-      ...modelProvider('openai', 'OpenAI'), authMethods: ['api-key', 'oauth'],
+      ...modelProvider('openai', 'OpenAI'),
+      authMethods: ['api-key', 'oauth'],
     }
     const choices = getProviderConnectionChoices(provider, [])
-    expect(choices.map(choice => choice.kind)).toEqual(['inference-oauth', 'inference-key'])
-    expect(new Set(choices.map(choice => choice.id)).size).toBe(2)
-    expect(getProviderConnectionChoices({ ...provider, authMethods: ['api-key'] }, [])
-      .map(choice => choice.kind)).toEqual(['inference-key'])
-    expect(getProviderConnectionChoices({ ...provider, authMethods: ['oauth'] }, [])
-      .map(choice => choice.kind)).toEqual(['inference-oauth'])
+    expect(choices.map((choice) => choice.kind)).toEqual(['inference-oauth', 'inference-key'])
+    expect(new Set(choices.map((choice) => choice.id)).size).toBe(2)
+    expect(
+      getProviderConnectionChoices({ ...provider, authMethods: ['api-key'] }, []).map(
+        (choice) => choice.kind,
+      ),
+    ).toEqual(['inference-key'])
+    expect(
+      getProviderConnectionChoices({ ...provider, authMethods: ['oauth'] }, []).map(
+        (choice) => choice.kind,
+      ),
+    ).toEqual(['inference-oauth'])
   })
 
   test('offers billing and OAuth choices while configured catalog cards link to accounts', () => {
     const choices = getProviderConnectionChoices(
       { ...modelProvider('anthropic', 'Anthropic'), authMethods: ['oauth'] },
-      [
-      billingSource(),
-      subscriptionSource(),
-      ],
+      [billingSource(), subscriptionSource()],
     )
-    expect(choices.map(choice => choice.kind)).toEqual([
+    expect(choices.map((choice) => choice.kind)).toEqual([
       'inference-oauth',
       'billing',
       'usage-oauth',
@@ -72,15 +74,11 @@ describe('model center account management', () => {
       ),
     ).text()
 
-    expect(source).toMatch(
-      /<div\s+className="provider-editor-model-card-header"\s*>/,
-    )
+    expect(source).toMatch(/<div\s+className="provider-editor-model-card-header"\s*>/)
     expect(source).toMatch(
       /<button\s+aria-controls=\{contentId\}\s+aria-expanded=\{expanded\}\s+className="provider-editor-model-card-summary"/,
     )
-    expect(source).toMatch(
-      /<\/button>\s+<div className="provider-editor-model-card-controls">/,
-    )
+    expect(source).toMatch(/<\/button>\s+<div className="provider-editor-model-card-controls">/)
     expect(source).not.toContain('onClick={event => event.stopPropagation()}')
     expect(source).toContain('mountPolicy="always"')
     expect(source).toContain('const [expanded, setExpanded] = useState(defaultExpanded)')
@@ -94,12 +92,14 @@ function billingSource(): UsageSourceDescriptor {
     connectionMethod: {
       kind: 'billing-key',
       sourceId: 'anthropic-admin',
-      fields: [{
-        name: 'key',
-        label: 'Admin Key',
-        secret: true,
-        required: true,
-      }],
+      fields: [
+        {
+          name: 'key',
+          label: 'Admin Key',
+          secret: true,
+          required: true,
+        },
+      ],
     },
   })
 }
@@ -136,10 +136,7 @@ function source(input: {
   } as UsageSourceDescriptor
 }
 
-function catalogItem(
-  id: string,
-  canAddConnection: boolean,
-): ProviderCatalogItem {
+function catalogItem(id: string, canAddConnection: boolean): ProviderCatalogItem {
   return {
     id,
     name: id,
@@ -154,10 +151,7 @@ function catalogItem(
   }
 }
 
-function modelProvider(
-  providerID: string,
-  displayName: string,
-): DesktopModelProviderSummary {
+function modelProvider(providerID: string, displayName: string): DesktopModelProviderSummary {
   return {
     providerID,
     displayName,

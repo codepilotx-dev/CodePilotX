@@ -1,4 +1,4 @@
-import type React from "react";
+import type React from 'react'
 import {
   Fragment,
   lazy,
@@ -9,10 +9,10 @@ import {
   useCallback,
   useRef,
   useState,
-} from "react";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import * as Popover from "@radix-ui/react-popover";
-import * as Select from "@radix-ui/react-select";
+} from 'react'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import * as Popover from '@radix-ui/react-popover'
+import * as Select from '@radix-ui/react-select'
 import {
   Activity,
   Archive,
@@ -43,12 +43,12 @@ import {
   Wrench,
   X,
   Zap,
-} from "lucide-react";
+} from 'lucide-react'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from "../../../components/ui/iconTokens.js";
+} from '../../../components/ui/iconTokens.js'
 import type {
   DesktopPermissionMode,
   DesktopQueuedFollowUp,
@@ -64,29 +64,23 @@ import type {
   DesktopModelProviderSummary,
   LocalRouterMode,
   ModelProviderID,
-} from "../../../../shared/types.js";
-import type { ModelPreset } from "../../../modelPresets.js";
-import { IconButton } from "../../../components/ui/IconButton.js";
-import { MetaChip } from "../../../components/ui/MetaChip.js";
-import { SessionFollowUpDock } from "../SessionFollowUpDock.js";
-import { PopoverItem } from "../../../components/ui/PopoverItem.js";
-import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
-import { SearchablePopoverContent } from "../../../components/ui/SearchablePopoverContent.js";
-import { buildPopoverSizingStyle } from "../../../components/ui/popoverSizing.js";
-import { ProjectSwitcherPopover } from "./ProjectSwitcherPopover.js";
-import { ChatInputDropdown } from "./ChatInputDropdown.js";
-import { BranchSelectPopover } from "./BranchSelectPopover.js";
-import { ModelPickerPopover } from "./ModelPickerPopover.js";
-import { ModelSelectTrigger } from "./ModelSelectTrigger.js";
-import {
-  resolveThinkingLabel,
-  resolveThinkingOptions,
-} from "./ThinkingLevelPopover.js";
-import { ComposerStatusOverlay } from "./ComposerStatusOverlay.js";
-import type {
-  ComposerEditorHandle,
-  ComposerEditorProps,
-} from "./ComposerEditor.js";
+} from '../../../../shared/types.js'
+import type { ModelPreset } from '../../../modelPresets.js'
+import { IconButton } from '../../../components/ui/IconButton.js'
+import { MetaChip } from '../../../components/ui/MetaChip.js'
+import { SessionFollowUpDock } from '../SessionFollowUpDock.js'
+import { PopoverItem } from '../../../components/ui/PopoverItem.js'
+import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
+import { SearchablePopoverContent } from '../../../components/ui/SearchablePopoverContent.js'
+import { buildPopoverSizingStyle } from '../../../components/ui/popoverSizing.js'
+import { ProjectSwitcherPopover } from './ProjectSwitcherPopover.js'
+import { ChatInputDropdown } from './ChatInputDropdown.js'
+import { BranchSelectPopover } from './BranchSelectPopover.js'
+import { ModelPickerPopover } from './ModelPickerPopover.js'
+import { ModelSelectTrigger } from './ModelSelectTrigger.js'
+import { resolveThinkingLabel, resolveThinkingOptions } from './ThinkingLevelPopover.js'
+import { ComposerStatusOverlay } from './ComposerStatusOverlay.js'
+import type { ComposerEditorHandle, ComposerEditorProps } from './ComposerEditor.js'
 import {
   DEFAULT_COMPOSER_CAPABILITIES,
   isInlineComposerFailure,
@@ -104,11 +98,11 @@ import {
   type ComposerSurface,
   type ComposerUtilityBarVariant,
   type WorkingPlugin,
-} from "./composerTypes.js";
+} from './composerTypes.js'
 import {
   createComposerDocumentWithSkill,
   skillInvocationFromComposerToken,
-} from './composerSkillToken.js';
+} from './composerSkillToken.js'
 import {
   getActiveSkillTokenQuery,
   getActiveSlashCommandQuery,
@@ -118,9 +112,9 @@ import {
   type ComposerSkillCommand,
   type ComposerSlashCommand,
   type ComposerSlashCommandId,
-} from "./composerSlashCommands.js";
-import { useComposerSlashCommands } from "./useComposerSlashCommands.js";
-import { BuiltinSkillIcon, skillScopeLabel } from "../../plugins/builtinSkillPresentation.js";
+} from './composerSlashCommands.js'
+import { useComposerSlashCommands } from './useComposerSlashCommands.js'
+import { BuiltinSkillIcon, skillScopeLabel } from '../../plugins/builtinSkillPresentation.js'
 import { buildThreadDeepLink } from '@codepilotx/shared/thread-reference'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
@@ -132,161 +126,159 @@ import {
 } from './ComposerCommandMenu.js'
 import { SessionGroupEditorDialog } from '../../session-groups/SessionGroupEditorDialog.js'
 import { SessionGroupSwitcherPopover } from '../../session-groups/SessionGroupSwitcherPopover.js'
-import { readPreferredSessionGroupId, writePreferredSessionGroupId } from '../../session-groups/sessionGroupPreference.js'
+import {
+  readPreferredSessionGroupId,
+  writePreferredSessionGroupId,
+} from '../../session-groups/sessionGroupPreference.js'
 import type { DesktopSessionGroup } from '../../../services/desktop-client/types.js'
 
 type Option<T extends string> = {
-  value: T;
-  label: string;
-  detail?: string;
-};
+  value: T
+  label: string
+  detail?: string
+}
 
 type ProviderModelOption = {
-  providerID: ModelProviderID;
-  displayName: string;
-  modelPresets: ModelPreset[];
-};
+  providerID: ModelProviderID
+  displayName: string
+  modelPresets: ModelPreset[]
+}
 
 type ComposerDropdown =
-  | "context"
-  | "permission"
-  | "model"
-  | "project"
-  | "session-group"
-  | "mode"
-  | "branch"
-  | "status"
-  | "goal"
-  | "plugin";
+  | 'context'
+  | 'permission'
+  | 'model'
+  | 'project'
+  | 'session-group'
+  | 'mode'
+  | 'branch'
+  | 'status'
+  | 'goal'
+  | 'plugin'
 
 const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
-  default: "permission-chip permission-chip-default",
-  "auto-review": "permission-chip permission-chip-auto",
-  "full-access": "permission-chip permission-chip-bypassPermissions",
-  custom: "permission-chip permission-chip-customConfig",
-};
+  default: 'permission-chip permission-chip-default',
+  'auto-review': 'permission-chip permission-chip-auto',
+  'full-access': 'permission-chip permission-chip-bypassPermissions',
+  custom: 'permission-chip permission-chip-customConfig',
+}
 
 type Props = {
-  draftKey: ComposerDraftKey;
-  input: string;
-  canSubmit: boolean;
-  sessionStatus: DesktopSessionStatus;
-  permissionMode: DesktopPermissionMode;
-  planModeActive?: boolean;
-  goalModeEnabled?: boolean;
-  onGoalModeChange?: (enabled: boolean) => void;
-  localRouterMode?: LocalRouterMode;
-  enableParetoCodeRouter?: boolean;
-  enableFusionRouter?: boolean;
-  thinkingMode: DesktopThinkingMode;
-  modelVariant?: string;
-  modelVariantOptions?: Option<string>[];
-  onModelVariantChange?: (value: string) => void;
-  selectedProviderID: ModelProviderID;
-  selectedModelPreset: string;
-  modelConfigured?: boolean;
-  modelCatalogLoading?: boolean;
-  submitDisabledReason?: string;
-  showThinkingOptions: boolean;
-  deepSeekThinkingControls: boolean;
-  showContextUsage: boolean;
-  contextUsage: DesktopContextUsage | null;
-  modelPresets: ModelPreset[];
-  providerOptions: ProviderModelOption[];
-  allProviders?: readonly DesktopModelProviderSummary[];
-  permissionOptions: Option<DesktopPermissionMode>[];
-  thinkingOptions: Option<DesktopThinkingMode>[];
-  branchName: string;
-  branches: string[];
-  recentWorkspaces: DesktopWorkspace[];
-  workspace: DesktopWorkspace | null;
-  attachments?: DesktopComposerAttachment[];
-  document?: ComposerDocument;
-  skillCommands?: ComposerSkillCommand[];
-  selectedSkillToken?: ComposerSkillCommand;
-  contextTasks?: ComposerContextTask[];
-  browserContext?: ComposerBrowserContext | null;
-  placeholder?: string;
-  onChooseWorkspace: () => void;
-  onInputChange: (value: string) => void;
-  onDocumentChange?: (document: ComposerDocument) => void;
-  onSkillTokenActivate?: (skill: { name: string; path: string }) => void;
-  onInterrupt: () => void;
-  onProviderModelChange: (
-    providerID: ModelProviderID,
-    modelPresetID: string,
-  ) => void;
-  onProviderOpen?: (providerID: ModelProviderID) => void;
-  onProviderSearch?: (providerID: ModelProviderID, query: string) => void;
-  onAddFiles?: (files: FileList) => void;
-  onAddFilePaths?: (paths: string[]) => Promise<void>;
-  onRemoveAttachment?: (attachmentId: string) => void;
-  onOpenAttachment?: (attachment: DesktopComposerAttachment) => void;
-  onOpenWorkspace: (workspace: DesktopWorkspace) => void;
-  onCloneGithub?: () => void;
-  onClearWorkspace: () => void;
-  onOpenMcpSettings?: () => void;
-  onOpenModelSettings?: () => void;
-  onOpenSideChat?: () => void;
-  onForkConversation?: () => void;
-  canForkConversation?: boolean;
-  onArchiveConversation?: () => void;
-  onBranchSelect: (branch: string) => void;
-  onCreateBranch: () => void;
+  draftKey: ComposerDraftKey
+  input: string
+  canSubmit: boolean
+  sessionStatus: DesktopSessionStatus
+  permissionMode: DesktopPermissionMode
+  planModeActive?: boolean
+  goalModeEnabled?: boolean
+  onGoalModeChange?: (enabled: boolean) => void
+  localRouterMode?: LocalRouterMode
+  enableParetoCodeRouter?: boolean
+  enableFusionRouter?: boolean
+  thinkingMode: DesktopThinkingMode
+  modelVariant?: string
+  modelVariantOptions?: Option<string>[]
+  onModelVariantChange?: (value: string) => void
+  selectedProviderID: ModelProviderID
+  selectedModelPreset: string
+  modelConfigured?: boolean
+  modelCatalogLoading?: boolean
+  submitDisabledReason?: string
+  showThinkingOptions: boolean
+  deepSeekThinkingControls: boolean
+  showContextUsage: boolean
+  contextUsage: DesktopContextUsage | null
+  modelPresets: ModelPreset[]
+  providerOptions: ProviderModelOption[]
+  allProviders?: readonly DesktopModelProviderSummary[]
+  permissionOptions: Option<DesktopPermissionMode>[]
+  thinkingOptions: Option<DesktopThinkingMode>[]
+  branchName: string
+  branches: string[]
+  recentWorkspaces: DesktopWorkspace[]
+  workspace: DesktopWorkspace | null
+  attachments?: DesktopComposerAttachment[]
+  document?: ComposerDocument
+  skillCommands?: ComposerSkillCommand[]
+  selectedSkillToken?: ComposerSkillCommand
+  contextTasks?: ComposerContextTask[]
+  browserContext?: ComposerBrowserContext | null
+  placeholder?: string
+  onChooseWorkspace: () => void
+  onInputChange: (value: string) => void
+  onDocumentChange?: (document: ComposerDocument) => void
+  onSkillTokenActivate?: (skill: { name: string; path: string }) => void
+  onInterrupt: () => void
+  onProviderModelChange: (providerID: ModelProviderID, modelPresetID: string) => void
+  onProviderOpen?: (providerID: ModelProviderID) => void
+  onProviderSearch?: (providerID: ModelProviderID, query: string) => void
+  onAddFiles?: (files: FileList) => void
+  onAddFilePaths?: (paths: string[]) => Promise<void>
+  onRemoveAttachment?: (attachmentId: string) => void
+  onOpenAttachment?: (attachment: DesktopComposerAttachment) => void
+  onOpenWorkspace: (workspace: DesktopWorkspace) => void
+  onCloneGithub?: () => void
+  onClearWorkspace: () => void
+  onOpenMcpSettings?: () => void
+  onOpenModelSettings?: () => void
+  onOpenSideChat?: () => void
+  onForkConversation?: () => void
+  canForkConversation?: boolean
+  onArchiveConversation?: () => void
+  onBranchSelect: (branch: string) => void
+  onCreateBranch: () => void
   onStartReview?: (
-    target:
-      | { type: "uncommittedChanges" }
-      | { type: "baseBranch"; branch: string },
-  ) => void;
-  onPermissionChange: (value: DesktopPermissionMode) => void;
-  onPlanModeChange?: (active: boolean) => void;
-  onLocalRouterModeChange?: (mode: LocalRouterMode) => void;
-  onSubmit: (delivery?: ComposerDeliveryIntent) => void;
-  onCompact?: () => Promise<void>;
-  onCommandError?: (message: string) => void;
-  onThinkingChange: (value: DesktopThinkingMode) => void;
-  onSkillSelect?: (skill: ComposerSkillCommand) => void;
-  hasConversationMessages?: boolean;
-  routedSessionId?: string | null;
-  contextDropdownSide?: "top" | "bottom";
-  queuedFollowUps?: DesktopQueuedFollowUp[];
-  queuePauseReason?: DesktopQueuePauseReason | null;
-  onFollowUpEdit?: (followUpId: string, input: DesktopUserMessageInput) => void;
-  onFollowUpRemove?: (followUpId: string) => void;
-  onFollowUpResume?: () => void;
-  threadGoal?: DesktopThreadGoal | null;
-  onGoalPause?: () => void;
-  onGoalResume?: () => void;
-  onGoalComplete?: () => void;
-  onGoalClear?: () => void;
-  placement?: ComposerPlacement;
-  capabilities?: Partial<ComposerCapabilities>;
-  submitting?: boolean;
-  submitOutcome?: ComposerSubmitOutcome | null;
-  onCompositionStart?: () => void;
-  onCompositionEnd?: () => void;
-  submitShortcut?: ComposerSubmitShortcut;
-  surface?: ComposerSurface;
-  layout?: ComposerLayout;
-  radiusVariant?: ComposerRadiusVariant;
-  utilityBarVariant?: ComposerUtilityBarVariant;
-  workingPlugin?: WorkingPlugin | null;
-  onWorkingPluginChange?: (plugin: WorkingPlugin | null) => void;
-};
+    target: { type: 'uncommittedChanges' } | { type: 'baseBranch'; branch: string },
+  ) => void
+  onPermissionChange: (value: DesktopPermissionMode) => void
+  onPlanModeChange?: (active: boolean) => void
+  onLocalRouterModeChange?: (mode: LocalRouterMode) => void
+  onSubmit: (delivery?: ComposerDeliveryIntent) => void
+  onCompact?: () => Promise<void>
+  onCommandError?: (message: string) => void
+  onThinkingChange: (value: DesktopThinkingMode) => void
+  onSkillSelect?: (skill: ComposerSkillCommand) => void
+  hasConversationMessages?: boolean
+  routedSessionId?: string | null
+  contextDropdownSide?: 'top' | 'bottom'
+  queuedFollowUps?: DesktopQueuedFollowUp[]
+  queuePauseReason?: DesktopQueuePauseReason | null
+  onFollowUpEdit?: (followUpId: string, input: DesktopUserMessageInput) => void
+  onFollowUpRemove?: (followUpId: string) => void
+  onFollowUpResume?: () => void
+  threadGoal?: DesktopThreadGoal | null
+  onGoalPause?: () => void
+  onGoalResume?: () => void
+  onGoalComplete?: () => void
+  onGoalClear?: () => void
+  placement?: ComposerPlacement
+  capabilities?: Partial<ComposerCapabilities>
+  submitting?: boolean
+  submitOutcome?: ComposerSubmitOutcome | null
+  onCompositionStart?: () => void
+  onCompositionEnd?: () => void
+  submitShortcut?: ComposerSubmitShortcut
+  surface?: ComposerSurface
+  layout?: ComposerLayout
+  radiusVariant?: ComposerRadiusVariant
+  utilityBarVariant?: ComposerUtilityBarVariant
+  workingPlugin?: WorkingPlugin | null
+  onWorkingPluginChange?: (plugin: WorkingPlugin | null) => void
+}
 
 const ComposerEditor = lazy(async () => {
-  const module = await import("./ComposerEditor.js");
+  const module = await import('./ComposerEditor.js')
   return {
     default: module.ComposerEditor as React.ForwardRefExoticComponent<
       ComposerEditorProps & React.RefAttributes<ComposerEditorHandle>
     >,
-  };
-});
+  }
+})
 
 const ComposerAttachmentTray = lazy(async () => {
-  const module = await import("./ComposerAttachmentTray.js");
-  return { default: module.ComposerAttachmentTray };
-});
+  const module = await import('./ComposerAttachmentTray.js')
+  return { default: module.ComposerAttachmentTray }
+})
 const ComposerDictationControl = lazy(async () => {
   const module = await import('./ComposerDictationControl.js')
   return { default: module.ComposerDictationControl }
@@ -301,7 +293,7 @@ export function ComposerCard({
   planModeActive = false,
   goalModeEnabled = false,
   onGoalModeChange,
-  localRouterMode = "off",
+  localRouterMode = 'off',
   enableParetoCodeRouter = false,
   enableFusionRouter = false,
   thinkingMode,
@@ -332,7 +324,7 @@ export function ComposerCard({
   selectedSkillToken,
   contextTasks = [],
   browserContext,
-  placeholder = "随心输入",
+  placeholder = '随心输入',
   onChooseWorkspace,
   onInputChange,
   onDocumentChange,
@@ -378,41 +370,36 @@ export function ComposerCard({
   onGoalResume,
   onGoalComplete,
   onGoalClear,
-  placement = "thread",
+  placement = 'thread',
   capabilities: capabilityOverrides,
   submitting = false,
   submitOutcome,
   onCompositionStart,
   onCompositionEnd,
-  submitShortcut = "enter",
+  submitShortcut = 'enter',
   surface,
-  layout = "multiline",
-  radiusVariant = "default",
-  utilityBarVariant = "default",
+  layout = 'multiline',
+  radiusVariant = 'default',
+  utilityBarVariant = 'default',
   workingPlugin,
   onWorkingPluginChange,
 }: Props): React.ReactNode {
-  const editorRef = useRef<ComposerEditorHandle | null>(null);
-  const menuId = useId();
-  const menuItemId = (key: string): string =>
-    `${menuId}-item-${encodeURIComponent(key)}`;
+  const editorRef = useRef<ComposerEditorHandle | null>(null)
+  const menuId = useId()
+  const menuItemId = (key: string): string => `${menuId}-item-${encodeURIComponent(key)}`
   const capabilities = useMemo(
     () => ({ ...DEFAULT_COMPOSER_CAPABILITIES, ...capabilityOverrides }),
     [capabilityOverrides],
-  );
-  const dictationToggleRef = useRef<(() => void) | null>(null);
+  )
+  const dictationToggleRef = useRef<(() => void) | null>(null)
   const registerDictationToggle = useCallback((toggle: (() => void) | null) => {
-    dictationToggleRef.current = toggle;
-  }, []);
-  const submitErrorId = `${menuId}-submit-error`;
-  const inlineSubmitFailure = isInlineComposerFailure(submitOutcome)
-    ? submitOutcome
-    : null;
-  const subagentMode = placement === "side-task";
-  const contextDropdownSide = contextDropdownSideOverride ?? "top";
-  const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(
-    null,
-  );
+    dictationToggleRef.current = toggle
+  }, [])
+  const submitErrorId = `${menuId}-submit-error`
+  const inlineSubmitFailure = isInlineComposerFailure(submitOutcome) ? submitOutcome : null
+  const subagentMode = placement === 'side-task'
+  const contextDropdownSide = contextDropdownSideOverride ?? 'top'
+  const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(null)
   const [selectedSessionGroup, setSelectedSessionGroup] = useState<DesktopSessionGroup | null>(null)
   const [sessionGroupEditorOpen, setSessionGroupEditorOpen] = useState(false)
   const [sessionGroupDraftName, setSessionGroupDraftName] = useState('')
@@ -453,183 +440,175 @@ export function ComposerCard({
     const preferredId = readPreferredSessionGroupId()
     if (!preferredId) return
     let active = true
-    void desktopClient.listSessionGroups().then(groups => {
-      if (!active) return
-      const preferred = groups.find(group => group.id === preferredId) ?? null
-      setSelectedSessionGroup(preferred)
-      if (!preferred) writePreferredSessionGroupId(null)
-    }).catch(() => {})
-    return () => { active = false }
+    void desktopClient
+      .listSessionGroups()
+      .then((groups) => {
+        if (!active) return
+        const preferred = groups.find((group) => group.id === preferredId) ?? null
+        setSelectedSessionGroup(preferred)
+        if (!preferred) writePreferredSessionGroupId(null)
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
   }, [])
-  const [thinkingPreviewMode, setThinkingPreviewMode] =
-    useState<string | null>(null);
+  const [thinkingPreviewMode, setThinkingPreviewMode] = useState<string | null>(null)
   useEffect(() => {
-    setThinkingPreviewMode(null);
-    setOpenDropdown(null);
-  }, [draftKey]);
-  const [reviewMenuRequested, setReviewMenuRequested] = useState(false);
+    setThinkingPreviewMode(null)
+    setOpenDropdown(null)
+  }, [draftKey])
+  const [reviewMenuRequested, setReviewMenuRequested] = useState(false)
   const [buttonContextRequest, setButtonContextRequest] = useState<{
-    start: number;
-    end: number;
-    query: string;
-    input: string;
-  } | null>(null);
-  const [branchSearch, setBranchSearch] = useState("");
-  const [dismissedSlashInput, setDismissedSlashInput] = useState<string | null>(
-    null,
-  );
-  const [isComposing, setIsComposing] = useState(false);
-  const [fileDragActive, setFileDragActive] = useState(false);
-  const fileDragDepthRef = useRef(0);
+    start: number
+    end: number
+    query: string
+    input: string
+  } | null>(null)
+  const [branchSearch, setBranchSearch] = useState('')
+  const [dismissedSlashInput, setDismissedSlashInput] = useState<string | null>(null)
+  const [isComposing, setIsComposing] = useState(false)
+  const [fileDragActive, setFileDragActive] = useState(false)
+  const fileDragDepthRef = useRef(0)
 
   useEffect(() => {
     const clearFileDrag = (): void => {
-      fileDragDepthRef.current = 0;
-      setFileDragActive(false);
-    };
-    window.addEventListener("dragend", clearFileDrag);
-    window.addEventListener("drop", clearFileDrag);
+      fileDragDepthRef.current = 0
+      setFileDragActive(false)
+    }
+    window.addEventListener('dragend', clearFileDrag)
+    window.addEventListener('drop', clearFileDrag)
     return () => {
-      window.removeEventListener("dragend", clearFileDrag);
-      window.removeEventListener("drop", clearFileDrag);
-    };
-  }, []);
+      window.removeEventListener('dragend', clearFileDrag)
+      window.removeEventListener('drop', clearFileDrag)
+    }
+  }, [])
 
   useEffect(() => {
-    if (submitOutcome?.status === "failed") editorRef.current?.focus();
-  }, [submitOutcome]);
-  const [dismissedMention, setDismissedMention] = useState<number | null>(null);
-  const [dismissedSkillInput, setDismissedSkillInput] = useState<string | null>(
-    null,
-  );
-  const [selectionStart, setSelectionStart] = useState<number | null>(null);
-  const [archiveConfirmationOpen, setArchiveConfirmationOpen] = useState(false);
-  const [contextDirectory, setContextDirectory] = useState('.');
-  const [contextEntries, setContextEntries] = useState<DesktopFileEntry[]>([]);
-  const [contextEntriesLoading, setContextEntriesLoading] = useState(false);
-  const [contextEntriesError, setContextEntriesError] = useState<string | null>(null);
-  const [contextReloadToken, setContextReloadToken] = useState(0);
-  const contextLoadGenerationRef = useRef(0);
-  const selectedPermission = permissionOptions.find(
-    (option) => option.value === permissionMode,
-  );
+    if (submitOutcome?.status === 'failed') editorRef.current?.focus()
+  }, [submitOutcome])
+  const [dismissedMention, setDismissedMention] = useState<number | null>(null)
+  const [dismissedSkillInput, setDismissedSkillInput] = useState<string | null>(null)
+  const [selectionStart, setSelectionStart] = useState<number | null>(null)
+  const [archiveConfirmationOpen, setArchiveConfirmationOpen] = useState(false)
+  const [contextDirectory, setContextDirectory] = useState('.')
+  const [contextEntries, setContextEntries] = useState<DesktopFileEntry[]>([])
+  const [contextEntriesLoading, setContextEntriesLoading] = useState(false)
+  const [contextEntriesError, setContextEntriesError] = useState<string | null>(null)
+  const [contextReloadToken, setContextReloadToken] = useState(0)
+  const contextLoadGenerationRef = useRef(0)
+  const selectedPermission = permissionOptions.find((option) => option.value === permissionMode)
   const composerPlaceholder = modelCatalogLoading
-    ? "加载模型列表中……"
+    ? '加载模型列表中……'
     : goalModeEnabled
-      ? "粘贴你的计划或目标…"
+      ? '粘贴你的计划或目标…'
       : planModeActive
-        ? "Describe your task to generate a plan..."
-        : placeholder;
+        ? 'Describe your task to generate a plan...'
+        : placeholder
   const selectedProvider = providerOptions.find(
     (provider) => provider.providerID === selectedProviderID,
-  );
+  )
   const selectedModel =
     modelPresets.find((preset) => preset.id === selectedModelPreset) ??
-    selectedProvider?.modelPresets.find(
-      (preset) => preset.id === selectedModelPreset,
-    );
+    selectedProvider?.modelPresets.find((preset) => preset.id === selectedModelPreset)
   const selectedModelLabel = modelCatalogLoading
-    ? "加载模型列表中……"
+    ? '加载模型列表中……'
     : !modelConfigured
-      ? "配置模型"
-      : (selectedModel?.label ?? "未选择模型");
+      ? '配置模型'
+      : (selectedModel?.label ?? '未选择模型')
   const selectedModelTitle = modelCatalogLoading
-    ? "加载模型列表中……"
+    ? '加载模型列表中……'
     : !modelConfigured
-      ? "打开模型配置"
-      : (selectedModel?.label ?? "未选择模型");
+      ? '打开模型配置'
+      : (selectedModel?.label ?? '未选择模型')
   const effectiveThinkingOptions = resolveThinkingOptions(
     modelVariantOptions ? false : deepSeekThinkingControls,
     modelVariantOptions ?? thinkingOptions,
-  );
+  )
   const selectedThinkingLabel = resolveThinkingLabel(
     effectiveThinkingOptions,
     thinkingPreviewMode ?? modelVariant ?? thinkingMode,
-  );
+  )
   const composerDocument = useMemo(
-    () => document ?? (selectedSkillToken
-      ? createComposerDocumentWithSkill(input, {
-          name: selectedSkillToken.skill.name,
-          path: selectedSkillToken.skill.path,
-        })
-      : undefined),
+    () =>
+      document ??
+      (selectedSkillToken
+        ? createComposerDocumentWithSkill(input, {
+            name: selectedSkillToken.skill.name,
+            path: selectedSkillToken.skill.path,
+          })
+        : undefined),
     [document, input, selectedSkillToken],
-  );
+  )
 
-  const sessionBusy =
-    sessionStatus === "running" || sessionStatus === "waiting";
-  const { commands: builtinSlashCommands, executeCommand } =
-    useComposerSlashCommands({
-      capabilities,
-      planModeActive,
-      goalModeEnabled,
-      hasConversationMessages,
-      hasThread: Boolean(routedSessionId),
-      canReview: Boolean(onStartReview && workspace),
-      subagentMode,
-      sessionBusy,
-      reasoningAvailable: showThinkingOptions,
-      onOpenModel: () => setOpenDropdown("model"),
-      onOpenReasoning: () => setOpenDropdown("model"),
-      onOpenStatus: () => setOpenDropdown("status"),
-      onOpenMcp: onOpenMcpSettings,
-      onPlanModeChange,
-      onGoalModeChange,
-      onOpenReview: () => setReviewMenuRequested(true),
-      onCompact,
-      onOpenSide: onOpenSideChat,
-      onFork: onForkConversation,
-      onArchive: () => setArchiveConfirmationOpen(true),
-      onChooseProject: onChooseWorkspace,
-      onClearProject: onClearWorkspace,
-      showThreadActions:
-        placement === 'thread' && !subagentMode && Boolean(routedSessionId),
-      showNewSessionActions: placement === 'new-session' && !subagentMode,
-      canFork: canForkConversation,
-      hasProject: Boolean(workspace),
-      onError: onCommandError,
-    });
+  const sessionBusy = sessionStatus === 'running' || sessionStatus === 'waiting'
+  const { commands: builtinSlashCommands, executeCommand } = useComposerSlashCommands({
+    capabilities,
+    planModeActive,
+    goalModeEnabled,
+    hasConversationMessages,
+    hasThread: Boolean(routedSessionId),
+    canReview: Boolean(onStartReview && workspace),
+    subagentMode,
+    sessionBusy,
+    reasoningAvailable: showThinkingOptions,
+    onOpenModel: () => setOpenDropdown('model'),
+    onOpenReasoning: () => setOpenDropdown('model'),
+    onOpenStatus: () => setOpenDropdown('status'),
+    onOpenMcp: onOpenMcpSettings,
+    onPlanModeChange,
+    onGoalModeChange,
+    onOpenReview: () => setReviewMenuRequested(true),
+    onCompact,
+    onOpenSide: onOpenSideChat,
+    onFork: onForkConversation,
+    onArchive: () => setArchiveConfirmationOpen(true),
+    onChooseProject: onChooseWorkspace,
+    onClearProject: onClearWorkspace,
+    showThreadActions: placement === 'thread' && !subagentMode && Boolean(routedSessionId),
+    showNewSessionActions: placement === 'new-session' && !subagentMode,
+    canFork: canForkConversation,
+    hasProject: Boolean(workspace),
+    onError: onCommandError,
+  })
 
   const activeSlashQuery = useMemo(() => {
-    if (isComposing || dismissedSlashInput === input) return null;
-    return getActiveSlashCommandQuery(input, selectionStart);
-  }, [dismissedSlashInput, input, isComposing, selectionStart]);
+    if (isComposing || dismissedSlashInput === input) return null
+    return getActiveSlashCommandQuery(input, selectionStart)
+  }, [dismissedSlashInput, input, isComposing, selectionStart])
 
   const activeMention = useMemo(() => {
-    if (isComposing) return null;
-    if (dismissedMention !== null) return null;
-    return getActiveComposerMention(input, selectionStart);
-  }, [input, isComposing, dismissedMention, selectionStart]);
-  const activeContextRequest = activeMention ?? (
-    buttonContextRequest?.input === input ? buttonContextRequest : null
-  );
-  const buttonContextOpen = Boolean(
-    buttonContextRequest && buttonContextRequest.input === input,
-  );
+    if (isComposing) return null
+    if (dismissedMention !== null) return null
+    return getActiveComposerMention(input, selectionStart)
+  }, [input, isComposing, dismissedMention, selectionStart])
+  const activeContextRequest =
+    activeMention ?? (buttonContextRequest?.input === input ? buttonContextRequest : null)
+  const buttonContextOpen = Boolean(buttonContextRequest && buttonContextRequest.input === input)
 
   useEffect(() => {
-    if (activeMention && buttonContextRequest) setButtonContextRequest(null);
-  }, [activeMention, buttonContextRequest]);
+    if (activeMention && buttonContextRequest) setButtonContextRequest(null)
+  }, [activeMention, buttonContextRequest])
 
   const activeSkillQuery = useMemo(() => {
-    if (isComposing || dismissedSkillInput === input) return null;
-    return getActiveSkillTokenQuery(input, selectionStart);
-  }, [dismissedSkillInput, input, isComposing, selectionStart]);
+    if (isComposing || dismissedSkillInput === input) return null
+    return getActiveSkillTokenQuery(input, selectionStart)
+  }, [dismissedSkillInput, input, isComposing, selectionStart])
 
   const showSlashContextDropdown =
-    Boolean(activeSlashQuery) && !activeContextRequest && !activeSkillQuery;
+    Boolean(activeSlashQuery) && !activeContextRequest && !activeSkillQuery
 
   useEffect(() => {
-    const generation = ++contextLoadGenerationRef.current;
+    const generation = ++contextLoadGenerationRef.current
     if (!activeContextRequest || !workspace) {
-      setContextDirectory('.');
-      setContextEntries([]);
-      setContextEntriesError(null);
-      setContextEntriesLoading(false);
-      return;
+      setContextDirectory('.')
+      setContextEntries([])
+      setContextEntriesError(null)
+      setContextEntriesLoading(false)
+      return
     }
-    setContextEntriesLoading(true);
-    setContextEntriesError(null);
+    setContextEntriesLoading(true)
+    setContextEntriesError(null)
     void desktopClient
       .listWorkspaceFiles(
         workspace.path,
@@ -637,19 +616,19 @@ export function ComposerCard({
         workspace.primaryFolderId,
         workspace.projectId,
       )
-      .then(entries => {
-        if (contextLoadGenerationRef.current === generation) setContextEntries(entries);
+      .then((entries) => {
+        if (contextLoadGenerationRef.current === generation) setContextEntries(entries)
       })
-      .catch(error => {
+      .catch((error) => {
         if (contextLoadGenerationRef.current === generation) {
-          setContextEntries([]);
-          setContextEntriesError(error instanceof Error ? error.message : String(error));
+          setContextEntries([])
+          setContextEntriesError(error instanceof Error ? error.message : String(error))
         }
       })
       .finally(() => {
-        if (contextLoadGenerationRef.current === generation) setContextEntriesLoading(false);
-      });
-  }, [Boolean(activeContextRequest), contextDirectory, contextReloadToken, workspace]);
+        if (contextLoadGenerationRef.current === generation) setContextEntriesLoading(false)
+      })
+  }, [Boolean(activeContextRequest), contextDirectory, contextReloadToken, workspace])
 
   const slashMenuItems = useMemo(
     () =>
@@ -657,62 +636,66 @@ export function ComposerCard({
         composerCommandMenuItem(command, executeCommand, onSkillSelect),
       ),
     [builtinSlashCommands, executeCommand, onSkillSelect, skillCommands],
-  );
+  )
   const skillMenuItems = useMemo(
     () =>
       skillCommands.map((command) =>
         composerCommandMenuItem(command, executeCommand, onSkillSelect),
       ),
     [executeCommand, onSkillSelect, skillCommands],
-  );
-  const reviewMenuItems = useMemo((): ComposerMenuItem[] => [
-    {
-      key: 'code-review-uncommitted',
-      label: '审阅未提交的更改',
-      description: '审查当前工作树和暂存区中的变更',
-      icon: <ShieldCheck size={APP_ICON_SIZE} />,
-      matchText: '代码审查 review uncommitted',
-      onSelect: () => onStartReview?.({ type: 'uncommittedChanges' }),
-    },
-    ...branches
-      .filter(candidate => candidate && candidate !== branchName)
-      .slice(0, 6)
-      .map(branch => ({
-        key: `code-review-branch:${branch}`,
-        label: `与 ${branch} 比较`,
-        description: '从 merge-base 开始审阅当前分支的变更',
-        icon: <GitBranch size={APP_ICON_SIZE} />,
-        matchText: `代码审查 branch review ${branch}`,
-        onSelect: () => onStartReview?.({ type: 'baseBranch', branch }),
-      })),
-  ], [branchName, branches, onStartReview]);
+  )
+  const reviewMenuItems = useMemo(
+    (): ComposerMenuItem[] => [
+      {
+        key: 'code-review-uncommitted',
+        label: '审阅未提交的更改',
+        description: '审查当前工作树和暂存区中的变更',
+        icon: <ShieldCheck size={APP_ICON_SIZE} />,
+        matchText: '代码审查 review uncommitted',
+        onSelect: () => onStartReview?.({ type: 'uncommittedChanges' }),
+      },
+      ...branches
+        .filter((candidate) => candidate && candidate !== branchName)
+        .slice(0, 6)
+        .map((branch) => ({
+          key: `code-review-branch:${branch}`,
+          label: `与 ${branch} 比较`,
+          description: '从 merge-base 开始审阅当前分支的变更',
+          icon: <GitBranch size={APP_ICON_SIZE} />,
+          matchText: `代码审查 branch review ${branch}`,
+          onSelect: () => onStartReview?.({ type: 'baseBranch', branch }),
+        })),
+    ],
+    [branchName, branches, onStartReview],
+  )
 
   const mentionMenuItems = useMemo((): ComposerMenuItem[] => {
-    if (!activeContextRequest) return [];
-    const insertReference = (
-      kind: 'thread' | 'browser',
-      label: string,
-      value: string,
-    ): void => {
-      editorRef.current?.replaceTextRangeWithToken(activeContextRequest.start, activeContextRequest.end, {
-        id: crypto.randomUUID(),
-        kind,
-        label,
-        value,
-        from: activeContextRequest.start,
-        to: activeContextRequest.start,
-      });
-      closeDropdown();
-    };
-    const items: ComposerMenuItem[] = contextTasks.map(task => ({
+    if (!activeContextRequest) return []
+    const insertReference = (kind: 'thread' | 'browser', label: string, value: string): void => {
+      editorRef.current?.replaceTextRangeWithToken(
+        activeContextRequest.start,
+        activeContextRequest.end,
+        {
+          id: crypto.randomUUID(),
+          kind,
+          label,
+          value,
+          from: activeContextRequest.start,
+          to: activeContextRequest.start,
+        },
+      )
+      closeDropdown()
+    }
+    const items: ComposerMenuItem[] = contextTasks.map((task) => ({
       key: `thread:${task.id}`,
       section: '最近任务',
       label: task.title,
       description: task.workspaceName,
       icon: <MessageSquare size={APP_ICON_SIZE} />,
       matchText: `${task.title} ${task.workspaceName ?? ''} task thread`,
-      onSelect: () => insertReference('thread', `任务：${task.title}`, buildThreadDeepLink(task.id)),
-    }));
+      onSelect: () =>
+        insertReference('thread', `任务：${task.title}`, buildThreadDeepLink(task.id)),
+    }))
     if (browserContext) {
       items.push({
         key: 'browser:current',
@@ -721,8 +704,13 @@ export function ComposerCard({
         description: browserContext.url,
         icon: <Globe2 size={APP_ICON_SIZE} />,
         matchText: `${browserContext.title} ${browserContext.url} browser 网页`,
-        onSelect: () => insertReference('browser', `网页：${browserContext.title || browserContext.url}`, browserContext.url),
-      });
+        onSelect: () =>
+          insertReference(
+            'browser',
+            `网页：${browserContext.title || browserContext.url}`,
+            browserContext.url,
+          ),
+      })
     }
     if (workspace && capabilities.fileAttachments && onAddFilePaths) {
       if (contextDirectory !== '.') {
@@ -734,12 +722,12 @@ export function ComposerCard({
           icon: <ChevronLeft size={APP_ICON_SIZE} />,
           matchText: '返回 上一级 parent',
           onSelect: () => {
-            setContextDirectory(parentWorkspacePath(contextDirectory));
+            setContextDirectory(parentWorkspacePath(contextDirectory))
             if (activeMention) {
-              editorRef.current?.replaceTextRange(activeMention.start, activeMention.end, '@');
+              editorRef.current?.replaceTextRange(activeMention.start, activeMention.end, '@')
             }
           },
-        });
+        })
       }
       items.push({
         key: `files:current:${contextDirectory}`,
@@ -749,7 +737,7 @@ export function ComposerCard({
         icon: <Folder size={APP_ICON_SIZE} />,
         matchText: `引用 当前 目录 ${contextDirectory}`,
         onSelect: () => void addWorkspaceContextPath(contextDirectory, activeContextRequest),
-      });
+      })
       for (const entry of contextEntries) {
         items.push({
           key: `files:${entry.type}:${entry.path}`,
@@ -757,17 +745,23 @@ export function ComposerCard({
           label: entry.name,
           description: entry.path,
           meta: entry.type === 'directory' ? '进入' : undefined,
-          icon: entry.type === 'directory' ? <Folder size={APP_ICON_SIZE} /> : <File size={APP_ICON_SIZE} />,
+          icon:
+            entry.type === 'directory' ? (
+              <Folder size={APP_ICON_SIZE} />
+            ) : (
+              <File size={APP_ICON_SIZE} />
+            ),
           matchText: `${entry.name} ${entry.path}`,
-          onSelect: entry.type === 'directory'
-            ? () => {
-                setContextDirectory(entry.path);
-                if (activeMention) {
-                  editorRef.current?.replaceTextRange(activeMention.start, activeMention.end, '@');
+          onSelect:
+            entry.type === 'directory'
+              ? () => {
+                  setContextDirectory(entry.path)
+                  if (activeMention) {
+                    editorRef.current?.replaceTextRange(activeMention.start, activeMention.end, '@')
+                  }
                 }
-              }
-            : () => void addWorkspaceContextPath(entry.path, activeContextRequest),
-        });
+              : () => void addWorkspaceContextPath(entry.path, activeContextRequest),
+        })
       }
       if (contextEntriesLoading) {
         items.push({
@@ -778,7 +772,7 @@ export function ComposerCard({
           matchText: 'loading 加载',
           disabled: true,
           onSelect: () => {},
-        });
+        })
       } else if (contextEntriesError) {
         items.push({
           key: 'files:retry',
@@ -787,11 +781,11 @@ export function ComposerCard({
           description: contextEntriesError,
           icon: <Activity size={APP_ICON_SIZE} />,
           matchText: 'retry 重试 重新加载',
-          onSelect: () => setContextReloadToken(value => value + 1),
-        });
+          onSelect: () => setContextReloadToken((value) => value + 1),
+        })
       }
     }
-    return items;
+    return items
   }, [
     activeContextRequest,
     activeMention,
@@ -804,16 +798,14 @@ export function ComposerCard({
     contextTasks,
     onAddFilePaths,
     workspace,
-  ]);
-  const activeMenuScopeRef = useRef("");
-  const [storedActiveMenuKey, setStoredActiveMenuKey] = useState<string | null>(
-    null,
-  );
+  ])
+  const activeMenuScopeRef = useRef('')
+  const [storedActiveMenuKey, setStoredActiveMenuKey] = useState<string | null>(null)
   const activeMenuKeyword = reviewMenuRequested
-    ? ""
+    ? ''
     : activeSkillQuery
       ? activeSkillQuery.query
-      : (activeContextRequest?.query ?? activeSlashQuery?.query ?? '');
+      : (activeContextRequest?.query ?? activeSlashQuery?.query ?? '')
   const activeMenuItems = useMemo(() => {
     const source = reviewMenuRequested
       ? reviewMenuItems
@@ -821,8 +813,8 @@ export function ComposerCard({
         ? skillMenuItems
         : activeContextRequest
           ? mentionMenuItems
-          : slashMenuItems;
-    return filterComposerMenuItems(source, activeMenuKeyword);
+          : slashMenuItems
+    return filterComposerMenuItems(source, activeMenuKeyword)
   }, [
     activeMenuKeyword,
     activeSkillQuery,
@@ -832,194 +824,179 @@ export function ComposerCard({
     reviewMenuRequested,
     skillMenuItems,
     slashMenuItems,
-  ]);
+  ])
   const unifiedMenuOpen =
     showSlashContextDropdown ||
     Boolean(activeContextRequest) ||
     Boolean(activeSkillQuery) ||
-    reviewMenuRequested;
+    reviewMenuRequested
 
-  const activeMenuScopeKey = `${reviewMenuRequested
-    ? 0
-    : activeSkillQuery
-      ? 1
-      : activeContextRequest
-        ? `2:${activeContextRequest.start}:${contextDirectory}`
-        : 3}:${activeMenuKeyword}`;
-  const firstActiveMenuKey =
-    activeMenuItems[firstEnabledMenuIndex(activeMenuItems)]?.key ?? null;
+  const activeMenuScopeKey = `${
+    reviewMenuRequested
+      ? 0
+      : activeSkillQuery
+        ? 1
+        : activeContextRequest
+          ? `2:${activeContextRequest.start}:${contextDirectory}`
+          : 3
+  }:${activeMenuKeyword}`
+  const firstActiveMenuKey = activeMenuItems[firstEnabledMenuIndex(activeMenuItems)]?.key ?? null
   const storedActiveMenuAvailable = activeMenuItems.some(
     (item) => item.key === storedActiveMenuKey && !item.disabled,
-  );
+  )
   const activeMenuKey = unifiedMenuOpen
-    ? activeMenuScopeRef.current === activeMenuScopeKey &&
-      storedActiveMenuAvailable
+    ? activeMenuScopeRef.current === activeMenuScopeKey && storedActiveMenuAvailable
       ? storedActiveMenuKey
       : firstActiveMenuKey
-    : null;
-  const activeMenuItem = activeMenuItems.find(
-    (item) => item.key === activeMenuKey,
-  );
-  const activeMenuIndex = activeMenuItem
-    ? activeMenuItems.indexOf(activeMenuItem)
-    : -1;
+    : null
+  const activeMenuItem = activeMenuItems.find((item) => item.key === activeMenuKey)
+  const activeMenuIndex = activeMenuItem ? activeMenuItems.indexOf(activeMenuItem) : -1
 
   function setActiveMenuKey(itemKey: string | null): void {
-    activeMenuScopeRef.current = activeMenuScopeKey;
-    setStoredActiveMenuKey(itemKey);
+    activeMenuScopeRef.current = activeMenuScopeKey
+    setStoredActiveMenuKey(itemKey)
   }
 
   useEffect(() => {
     if (!unifiedMenuOpen) {
-      activeMenuScopeRef.current = "";
-      return;
+      activeMenuScopeRef.current = ''
+      return
     }
-    if (
-      activeMenuScopeRef.current === activeMenuScopeKey &&
-      storedActiveMenuAvailable
-    ) {
-      return;
+    if (activeMenuScopeRef.current === activeMenuScopeKey && storedActiveMenuAvailable) {
+      return
     }
-    activeMenuScopeRef.current = activeMenuScopeKey;
-    setStoredActiveMenuKey(firstActiveMenuKey);
-  }, [
-    activeMenuScopeKey,
-    firstActiveMenuKey,
-    storedActiveMenuAvailable,
-    unifiedMenuOpen,
-  ]);
+    activeMenuScopeRef.current = activeMenuScopeKey
+    setStoredActiveMenuKey(firstActiveMenuKey)
+  }, [activeMenuScopeKey, firstActiveMenuKey, storedActiveMenuAvailable, unifiedMenuOpen])
 
   useEffect(() => {
     if (dismissedSlashInput !== null && dismissedSlashInput !== input) {
-      setDismissedSlashInput(null);
+      setDismissedSlashInput(null)
     }
-  }, [dismissedSlashInput, input]);
+  }, [dismissedSlashInput, input])
 
   useEffect(() => {
     if (dismissedSkillInput !== null && dismissedSkillInput !== input) {
-      setDismissedSkillInput(null);
+      setDismissedSkillInput(null)
     }
-  }, [dismissedSkillInput, input]);
+  }, [dismissedSkillInput, input])
 
   useEffect(() => {
     // Reset mention dismissal when input changes away from the @ position
     if (dismissedMention !== null) {
-      const atIndex = input.lastIndexOf("@", dismissedMention);
-      if (atIndex === -1 || input.slice(atIndex).includes(" ")) {
-        setDismissedMention(null);
+      const atIndex = input.lastIndexOf('@', dismissedMention)
+      if (atIndex === -1 || input.slice(atIndex).includes(' ')) {
+        setDismissedMention(null)
       }
     }
-  }, [input, dismissedMention]);
+  }, [input, dismissedMention])
 
   function closeDropdown(): void {
-    setOpenDropdown(null);
-    setReviewMenuRequested(false);
-    setButtonContextRequest(null);
+    setOpenDropdown(null)
+    setReviewMenuRequested(false)
+    setButtonContextRequest(null)
   }
 
   function handleUnifiedSlashSelect(item: ComposerMenuItem): void {
-    if (item.disabled || !activeSlashQuery) return;
-    editorRef.current?.replaceTextRange(activeSlashQuery.start, activeSlashQuery.end, '');
-    setDismissedSlashInput(input);
+    if (item.disabled || !activeSlashQuery) return
+    editorRef.current?.replaceTextRange(activeSlashQuery.start, activeSlashQuery.end, '')
+    setDismissedSlashInput(input)
     // Same logic as handleUnifiedPlusSelect: skip closeDropdown for items
     // that open a sub-dropown, otherwise React batches both setOpenDropdown
     // calls and the sub-dropdown never opens.
     const managesOwnDropdown =
-      item.command?.source === "builtin" &&
-      (item.command.id === "status" ||
-        item.command.id === "model" ||
-        item.command.id === "reasoning" ||
-        item.command.id === "review");
-    item.onSelect();
+      item.command?.source === 'builtin' &&
+      (item.command.id === 'status' ||
+        item.command.id === 'model' ||
+        item.command.id === 'reasoning' ||
+        item.command.id === 'review')
+    item.onSelect()
     if (!managesOwnDropdown) {
-      closeDropdown();
+      closeDropdown()
     }
   }
 
   function handleUnifiedMentionSelect(item: ComposerMenuItem): void {
-    if (!item.disabled) item.onSelect();
+    if (!item.disabled) item.onSelect()
   }
 
   async function addWorkspaceContextPath(
     relativePath: string,
     mention: { start: number; end: number },
   ): Promise<void> {
-    if (!workspace || !onAddFilePaths) return;
+    if (!workspace || !onAddFilePaths) return
     try {
-      await onAddFilePaths(resolveWorkspaceContextPath(workspace.path, relativePath));
-      editorRef.current?.replaceTextRange(mention.start, mention.end, '');
-      closeDropdown();
+      await onAddFilePaths(resolveWorkspaceContextPath(workspace.path, relativePath))
+      editorRef.current?.replaceTextRange(mention.start, mention.end, '')
+      closeDropdown()
     } catch (error) {
-      onCommandError?.(error instanceof Error ? error.message : String(error));
+      onCommandError?.(error instanceof Error ? error.message : String(error))
     }
   }
 
   function handleSkillQuerySelect(item: ComposerMenuItem): void {
-    if (item.disabled || !activeSkillQuery) return;
-    editorRef.current?.replaceTextRange(activeSkillQuery.start, activeSkillQuery.end, '');
-    item.onSelect();
-    closeDropdown();
+    if (item.disabled || !activeSkillQuery) return
+    editorRef.current?.replaceTextRange(activeSkillQuery.start, activeSkillQuery.end, '')
+    item.onSelect()
+    closeDropdown()
   }
 
   function handleReviewSelect(item: ComposerMenuItem): void {
-    if (item.disabled) return;
-    item.onSelect();
-    setReviewMenuRequested(false);
+    if (item.disabled) return
+    item.onSelect()
+    setReviewMenuRequested(false)
   }
 
   function handleDirectSlashSubmission(): boolean {
-    const parsed = parseSlashInvocation(input, builtinSlashCommands);
-    if (parsed.kind === "unknown") return false;
-    if (parsed.kind === "disabled") {
-      onCommandError?.(parsed.reason);
-      return true;
+    const parsed = parseSlashInvocation(input, builtinSlashCommands)
+    if (parsed.kind === 'unknown') return false
+    if (parsed.kind === 'disabled') {
+      onCommandError?.(parsed.reason)
+      return true
     }
-    onInputChange("");
-    void executeCommand(parsed.command);
-    return true;
+    onInputChange('')
+    void executeCommand(parsed.command)
+    return true
   }
 
   function handleFileDrop(event: React.DragEvent<HTMLDivElement>): void {
-    if (!onAddFiles) return;
-    fileDragDepthRef.current = 0;
-    setFileDragActive(false);
-    if (event.dataTransfer.files.length === 0) return;
-    event.preventDefault();
-    onAddFiles(event.dataTransfer.files);
+    if (!onAddFiles) return
+    fileDragDepthRef.current = 0
+    setFileDragActive(false)
+    if (event.dataTransfer.files.length === 0) return
+    event.preventDefault()
+    onAddFiles(event.dataTransfer.files)
   }
 
   function getPermissionIcon(value: DesktopPermissionMode): React.ReactNode {
-    if (value === "default") return <Hand size={APP_ICON_SIZE} />;
-    if (value === "full-access") return <ShieldAlert size={APP_ICON_SIZE} />;
-    if (value === "custom") return <Wrench size={APP_ICON_SIZE} />;
-    return <ShieldCheck size={APP_ICON_SIZE} />;
+    if (value === 'default') return <Hand size={APP_ICON_SIZE} />
+    if (value === 'full-access') return <ShieldAlert size={APP_ICON_SIZE} />
+    if (value === 'custom') return <Wrench size={APP_ICON_SIZE} />
+    return <ShieldCheck size={APP_ICON_SIZE} />
   }
 
   function getPermissionClassName(value: DesktopPermissionMode): string {
-    return PERMISSION_CHIP_CLASS_NAMES[value];
+    return PERMISSION_CHIP_CLASS_NAMES[value]
   }
 
-  const isRunning = sessionStatus === "running" || sessionStatus === "waiting";
+  const isRunning = sessionStatus === 'running' || sessionStatus === 'waiting'
   const contextUsedText = contextUsage
     ? `${formatCompactNumber(contextUsage.usedTokens)} / ${formatCompactNumber(
         contextUsage.contextWindow,
       )} token`
-    : "暂无上下文统计";
-  const promptCacheReadTokens = contextUsage?.promptCacheReadTokens ?? 0;
-  const promptCacheWriteTokens = contextUsage?.promptCacheWriteTokens ?? 0;
-  const promptUncachedTokens = contextUsage?.promptUncachedTokens ?? 0;
+    : '暂无上下文统计'
+  const promptCacheReadTokens = contextUsage?.promptCacheReadTokens ?? 0
+  const promptCacheWriteTokens = contextUsage?.promptCacheWriteTokens ?? 0
+  const promptUncachedTokens = contextUsage?.promptUncachedTokens ?? 0
   const promptCacheTotalTokens =
-    promptCacheReadTokens + promptCacheWriteTokens + promptUncachedTokens;
+    promptCacheReadTokens + promptCacheWriteTokens + promptUncachedTokens
   const promptCacheHitRate =
     promptCacheTotalTokens > 0
       ? Math.round((promptCacheReadTokens / promptCacheTotalTokens) * 100)
-      : 0;
-  const reasoningTokens = contextUsage?.reasoningTokens ?? 0;
-  const showContextUsageDetails =
-    promptCacheTotalTokens > 0 || reasoningTokens > 0;
-  const usedPercent = contextUsage
-    ? Math.min(100, Math.max(0, contextUsage.usedPercent))
-    : 0;
+      : 0
+  const reasoningTokens = contextUsage?.reasoningTokens ?? 0
+  const showContextUsageDetails = promptCacheTotalTokens > 0 || reasoningTokens > 0
+  const usedPercent = contextUsage ? Math.min(100, Math.max(0, contextUsage.usedPercent)) : 0
   return (
     <div
       className="composer-stack tw:relative tw:flex tw:w-full tw:flex-col"
@@ -1030,22 +1007,23 @@ export function ComposerCard({
       data-composer-utility-bar-variant={utilityBarVariant}
       aria-busy={submitting}
       onDragEnter={(event) => {
-        if (!onAddFiles || !event.dataTransfer.types.includes("Files")) return;
-        event.preventDefault();
-        fileDragDepthRef.current += 1;
-        setFileDragActive(true);
+        if (!onAddFiles || !event.dataTransfer.types.includes('Files')) return
+        event.preventDefault()
+        fileDragDepthRef.current += 1
+        setFileDragActive(true)
       }}
       onDragLeave={(event) => {
         if (
           event.relatedTarget instanceof Node &&
           event.currentTarget.contains(event.relatedTarget)
-        ) return;
-        fileDragDepthRef.current = Math.max(0, fileDragDepthRef.current - 1);
-        if (fileDragDepthRef.current === 0) setFileDragActive(false);
+        )
+          return
+        fileDragDepthRef.current = Math.max(0, fileDragDepthRef.current - 1)
+        if (fileDragDepthRef.current === 0) setFileDragActive(false)
       }}
       onDragOver={(event) => {
-        if (onAddFiles && event.dataTransfer.types.includes("Files")) {
-          event.preventDefault();
+        if (onAddFiles && event.dataTransfer.types.includes('Files')) {
+          event.preventDefault()
         }
       }}
       onDrop={handleFileDrop}
@@ -1063,11 +1041,7 @@ export function ComposerCard({
         inert={submitting || undefined}
       >
         {inlineSubmitFailure ? (
-          <div
-            className="composer-submit-error"
-            id={submitErrorId}
-            role="alert"
-          >
+          <div className="composer-submit-error" id={submitErrorId} role="alert">
             {inlineSubmitFailure.message}，请修改后重试。
           </div>
         ) : null}
@@ -1083,8 +1057,7 @@ export function ComposerCard({
         <div
           className="composer-input tw:flex tw:min-w-0 tw:items-start"
           onPointerDown={(event) => {
-            if (event.target === event.currentTarget)
-              editorRef.current?.focus();
+            if (event.target === event.currentTarget) editorRef.current?.focus()
           }}
         >
           <Suspense
@@ -1104,139 +1077,132 @@ export function ComposerCard({
                   : undefined
               }
               ariaControls={unifiedMenuOpen ? menuId : undefined}
-              ariaDescribedBy={
-                inlineSubmitFailure ? submitErrorId : undefined
-              }
+              ariaDescribedBy={inlineSubmitFailure ? submitErrorId : undefined}
               ariaExpanded={unifiedMenuOpen}
               ref={editorRef}
               document={composerDocument}
               value={input}
               onChange={onInputChange}
               onDocumentChange={(nextDocument) => {
-                if (onDocumentChange) onDocumentChange(nextDocument);
-                else onInputChange(nextDocument.text);
+                if (onDocumentChange) onDocumentChange(nextDocument)
+                else onInputChange(nextDocument.text)
               }}
               onTokenActivate={(token) => {
-                const skill = skillInvocationFromComposerToken(token);
-                if (skill) onSkillTokenActivate?.(skill);
+                const skill = skillInvocationFromComposerToken(token)
+                if (skill) onSkillTokenActivate?.(skill)
               }}
               onSelectionChange={setSelectionStart}
               onCompositionChange={(composing) => {
-                setIsComposing(composing);
-                if (composing) onCompositionStart?.();
-                else onCompositionEnd?.();
+                setIsComposing(composing)
+                if (composing) onCompositionStart?.()
+                else onCompositionEnd?.()
               }}
               onKeyDown={(event) => {
-                if (event.isComposing || event.keyCode === 229) return false;
+                if (event.isComposing || event.keyCode === 229) return false
                 if (
-                  event.ctrlKey && event.shiftKey && !event.altKey
-                  && event.key.toLowerCase() === "d"
+                  event.ctrlKey &&
+                  event.shiftKey &&
+                  !event.altKey &&
+                  event.key.toLowerCase() === 'd'
                 ) {
-                  event.preventDefault();
-                  dictationToggleRef.current?.();
-                  return true;
+                  event.preventDefault()
+                  dictationToggleRef.current?.()
+                  return true
                 }
                 if (unifiedMenuOpen) {
-                  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                    event.preventDefault();
+                  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    event.preventDefault()
                     const nextIndex = nextEnabledMenuIndex(
                       activeMenuItems,
                       activeMenuIndex,
-                      event.key === "ArrowDown" ? 1 : -1,
-                    );
-                    const nextItem = activeMenuItems[nextIndex];
-                    if (nextItem) setActiveMenuKey(nextItem.key);
-                    return true;
+                      event.key === 'ArrowDown' ? 1 : -1,
+                    )
+                    const nextItem = activeMenuItems[nextIndex]
+                    if (nextItem) setActiveMenuKey(nextItem.key)
+                    return true
                   }
-                  if (event.key === "Home" || event.key === "End") {
-                    event.preventDefault();
+                  if (event.key === 'Home' || event.key === 'End') {
+                    event.preventDefault()
                     const boundaryIndex =
-                      event.key === "Home"
+                      event.key === 'Home'
                         ? firstEnabledMenuIndex(activeMenuItems)
-                        : lastEnabledMenuIndex(activeMenuItems);
-                    const boundaryItem = activeMenuItems[boundaryIndex];
-                    if (boundaryItem) setActiveMenuKey(boundaryItem.key);
-                    return true;
+                        : lastEnabledMenuIndex(activeMenuItems)
+                    const boundaryItem = activeMenuItems[boundaryIndex]
+                    if (boundaryItem) setActiveMenuKey(boundaryItem.key)
+                    return true
                   }
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    const item = activeMenuItem;
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    const item = activeMenuItem
                     if (item && !item.disabled) {
-                      event.preventDefault();
-                      if (reviewMenuRequested) handleReviewSelect(item);
-                      else if (activeSkillQuery) handleSkillQuerySelect(item);
-                      else if (activeContextRequest) handleUnifiedMentionSelect(item);
-                      else handleUnifiedSlashSelect(item);
-                      return true;
+                      event.preventDefault()
+                      if (reviewMenuRequested) handleReviewSelect(item)
+                      else if (activeSkillQuery) handleSkillQuerySelect(item)
+                      else if (activeContextRequest) handleUnifiedMentionSelect(item)
+                      else handleUnifiedSlashSelect(item)
+                      return true
                     }
                   }
                 }
 
                 // Escape: dismiss dropdowns or interrupt session
-                if (event.key === "Escape") {
+                if (event.key === 'Escape') {
                   if (showSlashContextDropdown) {
-                    event.preventDefault();
-                    setDismissedSlashInput(input);
-                    return true;
+                    event.preventDefault()
+                    setDismissedSlashInput(input)
+                    return true
                   }
                   if (activeMention) {
-                    event.preventDefault();
-                    setDismissedMention(activeMention.start);
-                    return true;
+                    event.preventDefault()
+                    setDismissedMention(activeMention.start)
+                    return true
                   }
                   if (buttonContextOpen) {
-                    event.preventDefault();
-                    setButtonContextRequest(null);
-                    return true;
+                    event.preventDefault()
+                    setButtonContextRequest(null)
+                    return true
                   }
                   if (activeSkillQuery) {
-                    event.preventDefault();
-                    setDismissedSkillInput(input);
-                    return true;
+                    event.preventDefault()
+                    setDismissedSkillInput(input)
+                    return true
                   }
                   if (reviewMenuRequested) {
-                    event.preventDefault();
-                    setReviewMenuRequested(false);
-                    return true;
+                    event.preventDefault()
+                    setReviewMenuRequested(false)
+                    return true
                   }
-                  if (
-                    sessionStatus === "running" ||
-                    sessionStatus === "waiting"
-                  ) {
-                    event.preventDefault();
-                    onInterrupt();
-                    return true;
+                  if (sessionStatus === 'running' || sessionStatus === 'waiting') {
+                    event.preventDefault()
+                    onInterrupt()
+                    return true
                   }
                 }
 
-                if (event.key === "Backspace" && input.length === 0) {
+                if (event.key === 'Backspace' && input.length === 0) {
                   if (goalModeEnabled) {
-                    event.preventDefault();
-                    onGoalModeChange?.(false);
-                    return true;
+                    event.preventDefault()
+                    onGoalModeChange?.(false)
+                    return true
                   }
                   if (planModeActive) {
-                    event.preventDefault();
-                    onPlanModeChange?.(false);
-                    return true;
+                    event.preventDefault()
+                    onPlanModeChange?.(false)
+                    return true
                   }
                 }
 
-                const delivery = resolveComposerSubmitIntent(
-                  event,
-                  submitShortcut,
-                  input,
-                );
-                if (!delivery) return false;
-                event.preventDefault();
-                if (handleDirectSlashSubmission()) return true;
-                if (canSubmit) onSubmit(delivery);
-                return true;
+                const delivery = resolveComposerSubmitIntent(event, submitShortcut, input)
+                if (!delivery) return false
+                event.preventDefault()
+                if (handleDirectSlashSubmission()) return true
+                if (canSubmit) onSubmit(delivery)
+                return true
               }}
               onPasteFiles={(files) => {
-                if (!onAddFiles) return false;
-                if (files.length === 0) return false;
-                onAddFiles(files);
-                return true;
+                if (!onAddFiles) return false
+                if (files.length === 0) return false
+                onAddFiles(files)
+                return true
               }}
               placeholder={composerPlaceholder}
             />
@@ -1249,14 +1215,14 @@ export function ComposerCard({
           width="100%"
           maxWidth="100%"
           onClose={() => {
-            setDismissedSlashInput(input);
+            setDismissedSlashInput(input)
           }}
         >
-              <ComposerCommandMenu
-                id={menuId}
-                activeKey={activeMenuKey}
-                items={slashMenuItems}
-                keyword={activeSlashQuery?.query ?? ''}
+          <ComposerCommandMenu
+            id={menuId}
+            activeKey={activeMenuKey}
+            items={slashMenuItems}
+            keyword={activeSlashQuery?.query ?? ''}
             onActiveKeyChange={setActiveMenuKey}
             onItemSelect={handleUnifiedSlashSelect}
           />
@@ -1269,11 +1235,11 @@ export function ComposerCard({
           maxWidth="100%"
           onClose={() => setDismissedSkillInput(input)}
         >
-              <ComposerCommandMenu
-                id={menuId}
+          <ComposerCommandMenu
+            id={menuId}
             activeKey={activeMenuKey}
             items={skillMenuItems}
-            keyword={activeSkillQuery?.query ?? ""}
+            keyword={activeSkillQuery?.query ?? ''}
             onActiveKeyChange={setActiveMenuKey}
             onItemSelect={handleSkillQuerySelect}
           />
@@ -1286,8 +1252,8 @@ export function ComposerCard({
           maxWidth="100%"
           onClose={() => setReviewMenuRequested(false)}
         >
-              <ComposerCommandMenu
-                id={menuId}
+          <ComposerCommandMenu
+            id={menuId}
             activeKey={activeMenuKey}
             items={reviewMenuItems}
             keyword=""
@@ -1302,15 +1268,15 @@ export function ComposerCard({
           width="100%"
           maxWidth="100%"
           onClose={() => {
-            if (activeMention) setDismissedMention(activeMention.start);
-            setButtonContextRequest(null);
+            if (activeMention) setDismissedMention(activeMention.start)
+            setButtonContextRequest(null)
           }}
         >
-              <ComposerCommandMenu
-                id={menuId}
+          <ComposerCommandMenu
+            id={menuId}
             activeKey={activeMenuKey}
             items={mentionMenuItems}
-            keyword={activeContextRequest?.query ?? ""}
+            keyword={activeContextRequest?.query ?? ''}
             onActiveKeyChange={setActiveMenuKey}
             onItemSelect={handleUnifiedMentionSelect}
           />
@@ -1321,59 +1287,54 @@ export function ComposerCard({
             <IconButton
               active={buttonContextOpen}
               aria-expanded={buttonContextOpen}
-              color={buttonContextOpen ? "ghostActive" : "ghostSecondary"}
+              color={buttonContextOpen ? 'ghostActive' : 'ghostSecondary'}
               size="composer"
               title="添加文件等内容"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
                 if (buttonContextOpen) {
-                  setButtonContextRequest(null);
-                  return;
+                  setButtonContextRequest(null)
+                  return
                 }
                 setButtonContextRequest({
                   start: selectionStart,
                   end: selectionStart,
                   query: '',
                   input,
-                });
-                setDismissedMention(activeMention?.start ?? null);
-                setDismissedSlashInput(input);
-                setDismissedSkillInput(input);
+                })
+                setDismissedMention(activeMention?.start ?? null)
+                setDismissedSlashInput(input)
+                setDismissedSkillInput(input)
               }}
             >
               <Plus size={APP_ICON_SIZE} />
             </IconButton>
             <Select.Root
-              open={openDropdown === "permission"}
+              open={openDropdown === 'permission'}
               value={permissionMode}
-              onOpenChange={(open) =>
-                setOpenDropdown(open ? "permission" : null)
-              }
+              onOpenChange={(open) => setOpenDropdown(open ? 'permission' : null)}
               onValueChange={(value) => {
-                onPermissionChange(value as DesktopPermissionMode);
-                closeDropdown();
+                onPermissionChange(value as DesktopPermissionMode)
+                closeDropdown()
               }}
             >
               <Select.Trigger
                 aria-label="选择权限模式"
                 data-theme-component="dropdown-trigger"
                 className={[
-                  "chip-button",
+                  'chip-button',
                   getPermissionClassName(permissionMode),
-                  openDropdown === "permission" ? "active" : "",
-                  "permission-select-trigger",
-                ].join(" ")}
+                  openDropdown === 'permission' ? 'active' : '',
+                  'permission-select-trigger',
+                ].join(' ')}
                 title="选择权限模式"
               >
                 {getPermissionIcon(permissionMode)}
                 <span className="permission-select-trigger-label">
-                  {selectedPermission?.label ?? "默认权限"}
+                  {selectedPermission?.label ?? '默认权限'}
                 </span>
                 <Select.Icon asChild>
-                  <ChevronDown
-                    size={APP_ICON_SIZES.sm}
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
+                  <ChevronDown size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 </Select.Icon>
               </Select.Trigger>
               <Select.Portal>
@@ -1402,11 +1363,9 @@ export function ComposerCard({
                             <Select.ItemText>{option.label}</Select.ItemText>
                             {option.detail ? (
                               <span className="permission-select-item-detail">
-                                {option.value === "auto-review" ? (
+                                {option.value === 'auto-review' ? (
                                   <>
-                                    <span>
-                                      {option.detail.replace(/了解更多.*$/, "")}
-                                    </span>
+                                    <span>{option.detail.replace(/了解更多.*$/, '')}</span>
                                     <span className="permission-select-item-detail-more">
                                       了解更多
                                     </span>
@@ -1418,10 +1377,7 @@ export function ComposerCard({
                             ) : null}
                           </span>
                           <Select.ItemIndicator className="permission-select-item-indicator">
-                            <Check
-                              size={APP_ICON_SIZES.sm}
-                              strokeWidth={APP_ICON_STROKE_WIDTH}
-                            />
+                            <Check size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                           </Select.ItemIndicator>
                         </Select.Item>
                       ))}
@@ -1437,15 +1393,12 @@ export function ComposerCard({
                   aria-pressed="true"
                   className="chip-button composer-plan-mode-chip active"
                   onClick={() => {
-                    onGoalModeChange?.(false);
+                    onGoalModeChange?.(false)
                   }}
                   title="目标模式"
                   type="button"
                 >
-                  <span
-                    aria-hidden="true"
-                    className="composer-plan-mode-chip-icon"
-                  >
+                  <span aria-hidden="true" className="composer-plan-mode-chip-icon">
                     <Target
                       className="composer-plan-mode-chip-icon-plan"
                       size={APP_ICON_SIZE}
@@ -1468,15 +1421,12 @@ export function ComposerCard({
                   aria-pressed="true"
                   className="chip-button composer-plan-mode-chip active"
                   onClick={() => {
-                    onPlanModeChange?.(false);
+                    onPlanModeChange?.(false)
                   }}
                   title="计划模式"
                   type="button"
                 >
-                  <span
-                    aria-hidden="true"
-                    className="composer-plan-mode-chip-icon"
-                  >
+                  <span aria-hidden="true" className="composer-plan-mode-chip-icon">
                     <ListChecks
                       className="composer-plan-mode-chip-icon-plan"
                       size={APP_ICON_SIZE}
@@ -1492,26 +1442,19 @@ export function ComposerCard({
                 </button>
               </>
             ) : null}
-            {localRouterMode !== "off" ? (
+            {localRouterMode !== 'off' ? (
               <>
                 <span className="toolbar-divider" />
                 <button
                   aria-pressed="true"
                   className="chip-button composer-plan-mode-chip active"
                   onClick={() => {
-                    onLocalRouterModeChange?.("off");
+                    onLocalRouterModeChange?.('off')
                   }}
-                  title={
-                    localRouterMode === "pareto-code"
-                      ? "Pareto Code Router"
-                      : "Fusion Router"
-                  }
+                  title={localRouterMode === 'pareto-code' ? 'Pareto Code Router' : 'Fusion Router'}
                   type="button"
                 >
-                  <span
-                    aria-hidden="true"
-                    className="composer-plan-mode-chip-icon"
-                  >
+                  <span aria-hidden="true" className="composer-plan-mode-chip-icon">
                     <Sparkles
                       className="composer-plan-mode-chip-icon-plan"
                       size={APP_ICON_SIZE}
@@ -1523,9 +1466,7 @@ export function ComposerCard({
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
                   </span>
-                  <span>
-                    {localRouterMode === "pareto-code" ? "Pareto" : "Fusion"}
-                  </span>
+                  <span>{localRouterMode === 'pareto-code' ? 'Pareto' : 'Fusion'}</span>
                 </button>
               </>
             ) : null}
@@ -1545,12 +1486,12 @@ export function ComposerCard({
           <div className="toolbar-right tw:flex tw:min-w-0 tw:items-center tw:gap-1.5">
             {showContextUsage ? (
               <span
-                aria-label={`上下文窗口使用量：${contextUsage ? `已用 ${usedPercent}%，剩余 ${100 - usedPercent}%` : "暂无数据"}`}
+                aria-label={`上下文窗口使用量：${contextUsage ? `已用 ${usedPercent}%，剩余 ${100 - usedPercent}%` : '暂无数据'}`}
                 className="context-usage-chip"
                 tabIndex={0}
                 style={
                   {
-                    "--context-usage-progress": usedPercent,
+                    '--context-usage-progress': usedPercent,
                   } as React.CSSProperties
                 }
               >
@@ -1560,8 +1501,7 @@ export function ComposerCard({
                   {contextUsage ? (
                     <>
                       <strong>
-                        已用 {contextUsage.usedPercent}%，剩余{" "}
-                        {contextUsage.remainingPercent}%
+                        已用 {contextUsage.usedPercent}%，剩余 {contextUsage.remainingPercent}%
                       </strong>
                       <span>已使用 {contextUsedText}</span>
                       {showContextUsageDetails ? (
@@ -1570,31 +1510,20 @@ export function ComposerCard({
                             <>
                               <span>缓存详情：</span>
                               <span>
-                                缓存读取{" "}
-                                {formatCompactNumber(promptCacheReadTokens)}{" "}
-                                (命中率 {promptCacheHitRate}%)
+                                缓存读取 {formatCompactNumber(promptCacheReadTokens)} (命中率{' '}
+                                {promptCacheHitRate}%)
                               </span>
-                              <span>
-                                缓存写入{" "}
-                                {formatCompactNumber(promptCacheWriteTokens)}
-                              </span>
-                              <span>
-                                未缓存{" "}
-                                {formatCompactNumber(promptUncachedTokens)}
-                              </span>
+                              <span>缓存写入 {formatCompactNumber(promptCacheWriteTokens)}</span>
+                              <span>未缓存 {formatCompactNumber(promptUncachedTokens)}</span>
                             </>
                           ) : null}
                           {reasoningTokens > 0 ? (
-                            <span>
-                              推理 token: {formatCompactNumber(reasoningTokens)}
-                            </span>
+                            <span>推理 token: {formatCompactNumber(reasoningTokens)}</span>
                           ) : null}
                         </>
                       ) : null}
                       <span>
-                        {contextUsage.provider
-                          ? `${contextUsage.provider} · `
-                          : ""}
+                        {contextUsage.provider ? `${contextUsage.provider} · ` : ''}
                         {contextUsage.model}
                       </span>
                     </>
@@ -1607,7 +1536,7 @@ export function ComposerCard({
             <ModelPickerPopover
               align="end"
               deepSeekThinkingControls={modelVariantOptions ? false : deepSeekThinkingControls}
-              open={openDropdown === "model"}
+              open={openDropdown === 'model'}
               providerOptions={providerOptions}
               allProviders={allProviders}
               selectedModelPreset={selectedModelPreset}
@@ -1620,16 +1549,22 @@ export function ComposerCard({
               thinkingOptions={modelVariantOptions ?? thinkingOptions}
               trigger={
                 <ModelSelectTrigger
-                  isOpen={openDropdown === "model"}
+                  isOpen={openDropdown === 'model'}
                   loading={modelCatalogLoading}
                   modelName={selectedModelLabel}
-                  onThinkingChange={value => {
-                    if (onModelVariantChange) onModelVariantChange(value);
-                    else if (value === 'default' || value === 'enabled' || value === 'adaptive' || value === 'disabled') onThinkingChange(value);
+                  onThinkingChange={(value) => {
+                    if (onModelVariantChange) onModelVariantChange(value)
+                    else if (
+                      value === 'default' ||
+                      value === 'enabled' ||
+                      value === 'adaptive' ||
+                      value === 'disabled'
+                    )
+                      onThinkingChange(value)
                   }}
                   onThinkingPreviewChange={setThinkingPreviewMode}
                   onToggleOpen={() => {
-                    setOpenDropdown(openDropdown === "model" ? null : "model");
+                    setOpenDropdown(openDropdown === 'model' ? null : 'model')
                   }}
                   showThinkingOptions={showThinkingOptions}
                   thinkingLabel={selectedThinkingLabel}
@@ -1638,49 +1573,41 @@ export function ComposerCard({
                   thinkingPreviewMode={thinkingPreviewMode}
                   tooltipTitle={
                     showThinkingOptions
-                      ? `${selectedProvider?.displayName ?? "模型"} · ${selectedModelTitle} · 推理强度：${selectedThinkingLabel}`
-                      : `${selectedProvider?.displayName ?? "模型"} · ${selectedModelTitle}`
+                      ? `${selectedProvider?.displayName ?? '模型'} · ${selectedModelTitle} · 推理强度：${selectedThinkingLabel}`
+                      : `${selectedProvider?.displayName ?? '模型'} · ${selectedModelTitle}`
                   }
                 />
               }
               onOpenChange={(open) => {
-                if (!open) setThinkingPreviewMode(null);
-                setOpenDropdown(open ? "model" : null);
+                if (!open) setThinkingPreviewMode(null)
+                setOpenDropdown(open ? 'model' : null)
               }}
               onProviderModelChange={onProviderModelChange}
               onProviderOpen={onProviderOpen}
               onProviderSearch={onProviderSearch}
               onOpenModelSettings={onOpenModelSettings}
-              onThinkingChange={value => {
-                if (onModelVariantChange) onModelVariantChange(value);
-                else if (value === 'default' || value === 'enabled' || value === 'adaptive' || value === 'disabled') onThinkingChange(value);
+              onThinkingChange={(value) => {
+                if (onModelVariantChange) onModelVariantChange(value)
+                else if (
+                  value === 'default' ||
+                  value === 'enabled' ||
+                  value === 'adaptive' ||
+                  value === 'disabled'
+                )
+                  onThinkingChange(value)
               }}
               onThinkingPreviewChange={setThinkingPreviewMode}
             />
 
             <IconButton
-              aria-label={
-                submitting
-                  ? "正在发送"
-                  : isRunning && !canSubmit
-                    ? "停止"
-                    : "发送"
-              }
-              className={`send-button${submitting ? " is-submitting" : ""}`}
+              aria-label={submitting ? '正在发送' : isRunning && !canSubmit ? '停止' : '发送'}
+              className={`send-button${submitting ? ' is-submitting' : ''}`}
               color="primary"
               size="composer"
               iconSize="lg"
               disabled={!isRunning && !canSubmit}
-              onClick={
-                isRunning && !canSubmit
-                  ? onInterrupt
-                  : () => onSubmit("default")
-              }
-              title={
-                isRunning && !canSubmit
-                  ? "停止 Esc"
-                  : (submitDisabledReason ?? "发送")
-              }
+              onClick={isRunning && !canSubmit ? onInterrupt : () => onSubmit('default')}
+              title={isRunning && !canSubmit ? '停止 Esc' : (submitDisabledReason ?? '发送')}
               type="button"
             >
               {submitting ? (
@@ -1688,16 +1615,13 @@ export function ComposerCard({
               ) : isRunning && !canSubmit ? (
                 <Square size={APP_ICON_SIZES.lg} fill="currentColor" />
               ) : (
-                <ArrowUp
-                  size={APP_ICON_SIZES.lg}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
+                <ArrowUp size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
               )}
             </IconButton>
           </div>
         </div>
         <ComposerStatusOverlay
-          open={openDropdown === "status"}
+          open={openDropdown === 'status'}
           onClose={closeDropdown}
           routedSessionId={routedSessionId}
           contextUsage={contextUsage}
@@ -1706,43 +1630,40 @@ export function ComposerCard({
         />
       </div>
 
-      {placement !== "thread" ? (
+      {placement !== 'thread' ? (
         <div className="composer-bottom composer-utility-bar tw:flex tw:min-w-0 tw:items-center tw:gap-2">
-          {surface === "chat" ? null : subagentMode ? (
+          {surface === 'chat' ? null : subagentMode ? (
             <MetaChip
               icon={<Folder size={APP_ICON_SIZE} />}
-              label={workspace?.name ?? "项目"}
+              label={workspace?.name ?? '项目'}
               title="子 Agent 工作区固定"
             />
           ) : (
             <ProjectSwitcherPopover
               side="top"
-              open={openDropdown === "project"}
+              open={openDropdown === 'project'}
               width={200}
-              onOpenChange={(open) => setOpenDropdown(open ? "project" : null)}
+              onOpenChange={(open) => setOpenDropdown(open ? 'project' : null)}
               recentWorkspaces={recentWorkspaces}
               workspace={workspace}
               onOpenWorkspace={onOpenWorkspace}
               onChooseWorkspace={() => {
-                onChooseWorkspace();
-                closeDropdown();
+                onChooseWorkspace()
+                closeDropdown()
               }}
               onCloneGithub={() => {
-                onCloneGithub?.();
-                closeDropdown();
+                onCloneGithub?.()
+                closeDropdown()
               }}
               onClearWorkspace={() => {
-                onClearWorkspace();
-                closeDropdown();
+                onClearWorkspace()
+                closeDropdown()
               }}
               trigger={
                 <MetaChip
-                  active={openDropdown === "project"}
+                  active={openDropdown === 'project'}
                   icon={<Folder size={APP_ICON_SIZE} />}
-                  label={
-                    workspace?.name ??
-                    (surface === "working" ? "选择文件夹" : "进入项目工作")
-                  }
+                  label={workspace?.name ?? (surface === 'working' ? '选择文件夹' : '进入项目工作')}
                   title="选择项目"
                 />
               }
@@ -1750,21 +1671,25 @@ export function ComposerCard({
           )}
 
           <SessionGroupSwitcherPopover
-            open={openDropdown === "session-group"}
+            open={openDropdown === 'session-group'}
             side="top"
             value={selectedSessionGroup?.id ?? null}
-            onOpenChange={open => setOpenDropdown(open ? "session-group" : null)}
+            onOpenChange={(open) => setOpenDropdown(open ? 'session-group' : null)}
             onCreate={openSessionGroupEditor}
-            onChange={group => {
+            onChange={(group) => {
               setSelectedSessionGroup(group)
               writePreferredSessionGroupId(group?.id ?? null)
             }}
             trigger={
               <MetaChip
-                active={openDropdown === "session-group"}
+                active={openDropdown === 'session-group'}
                 icon={<MessagesSquare size={APP_ICON_SIZE} />}
-                label={selectedSessionGroup?.name ?? "工作流"}
-                title={selectedSessionGroup ? `使用工作流：${selectedSessionGroup.name}` : "选择工作流（可不使用）"}
+                label={selectedSessionGroup?.name ?? '工作流'}
+                title={
+                  selectedSessionGroup
+                    ? `使用工作流：${selectedSessionGroup.name}`
+                    : '选择工作流（可不使用）'
+                }
               />
             }
           />
@@ -1774,26 +1699,26 @@ export function ComposerCard({
               {threadGoal ? (
                 <PopoverMenu
                   className="popover-goal popover-menu--grid"
-                  open={openDropdown === "goal"}
+                  open={openDropdown === 'goal'}
                   side="top"
                   width={200}
-                  onOpenChange={(open) => setOpenDropdown(open ? "goal" : null)}
+                  onOpenChange={(open) => setOpenDropdown(open ? 'goal' : null)}
                   trigger={
                     <MetaChip
-                      active={openDropdown === "goal"}
+                      active={openDropdown === 'goal'}
                       icon={<Target size={APP_ICON_SIZE} />}
                       label={
-                        threadGoal.status === "active"
-                          ? "目标运行中"
-                          : threadGoal.status === "paused"
-                            ? "目标已暂停"
-                            : threadGoal.status === "complete"
-                              ? "目标已完成"
-                              : threadGoal.status === "blocked"
-                                ? "目标受阻"
-                                : threadGoal.status === "usage-limited"
-                                  ? "用量受限"
-                                  : "预算已用完"
+                        threadGoal.status === 'active'
+                          ? '目标运行中'
+                          : threadGoal.status === 'paused'
+                            ? '目标已暂停'
+                            : threadGoal.status === 'complete'
+                              ? '目标已完成'
+                              : threadGoal.status === 'blocked'
+                                ? '目标受阻'
+                                : threadGoal.status === 'usage-limited'
+                                  ? '用量受限'
+                                  : '预算已用完'
                       }
                       title={threadGoal.objective}
                     />
@@ -1801,46 +1726,48 @@ export function ComposerCard({
                 >
                   <div className="popover-header">目标</div>
                   <div className="popover-section">
-                    <div className="popover-item-text">
-                      {threadGoal.objective}
-                    </div>
+                    <div className="popover-item-text">{threadGoal.objective}</div>
                     <div className="popover-item-meta">
                       已用 Tokens: {threadGoal.tokensUsed}
-                      {threadGoal.tokenBudget === null ? " / 不限额" : ` / ${threadGoal.tokenBudget}`}
+                      {threadGoal.tokenBudget === null
+                        ? ' / 不限额'
+                        : ` / ${threadGoal.tokenBudget}`}
                       {threadGoal.timeUsedSeconds > 0
                         ? ` | 用时: ${Math.round(threadGoal.timeUsedSeconds / 60)}分`
-                        : ""}
+                        : ''}
                     </div>
                   </div>
                   <div className="popover-section">
-                    {threadGoal.status === "active" ? (
+                    {threadGoal.status === 'active' ? (
                       <PopoverItem
                         icon={<Target size={APP_ICON_SIZE} />}
                         onClick={() => {
-                          closeDropdown();
-                          onGoalPause?.();
+                          closeDropdown()
+                          onGoalPause?.()
                         }}
                       >
                         暂停
                       </PopoverItem>
                     ) : null}
-                    {["paused", "blocked", "usage-limited", "budget-limited"].includes(threadGoal.status) ? (
+                    {['paused', 'blocked', 'usage-limited', 'budget-limited'].includes(
+                      threadGoal.status,
+                    ) ? (
                       <PopoverItem
                         icon={<Target size={APP_ICON_SIZE} />}
                         onClick={() => {
-                          closeDropdown();
-                          onGoalResume?.();
+                          closeDropdown()
+                          onGoalResume?.()
                         }}
                       >
                         继续
                       </PopoverItem>
                     ) : null}
-                    {threadGoal.status !== "complete" ? (
+                    {threadGoal.status !== 'complete' ? (
                       <PopoverItem
                         icon={<Check size={APP_ICON_SIZE} />}
                         onClick={() => {
-                          closeDropdown();
-                          onGoalComplete?.();
+                          closeDropdown()
+                          onGoalComplete?.()
                         }}
                       >
                         标记完成
@@ -1848,10 +1775,10 @@ export function ComposerCard({
                     ) : null}
                     <PopoverItem
                       icon={<X size={APP_ICON_SIZE} />}
-                      disabled={threadGoal.status === "active"}
+                      disabled={threadGoal.status === 'active'}
                       onClick={() => {
-                        closeDropdown();
-                        onGoalClear?.();
+                        closeDropdown()
+                        onGoalClear?.()
                       }}
                     >
                       清除目标
@@ -1860,23 +1787,23 @@ export function ComposerCard({
                 </PopoverMenu>
               ) : null}
 
-              {surface !== "working" ? (
+              {surface !== 'working' ? (
                 <BranchSelectPopover
                   align="end"
                   branchSearch={branchSearch}
                   branches={branches}
                   className="popover-branch"
                   currentBranchName={branchName}
-                  open={openDropdown === "branch"}
+                  open={openDropdown === 'branch'}
                   side="top"
                   width={420}
                   onBranchSearchChange={setBranchSearch}
                   onBranchSelect={onBranchSelect}
                   onCreateBranch={onCreateBranch}
-                  onOpenChange={(open) => setOpenDropdown(open ? "branch" : null)}
+                  onOpenChange={(open) => setOpenDropdown(open ? 'branch' : null)}
                   trigger={
                     <MetaChip
-                      active={openDropdown === "branch"}
+                      active={openDropdown === 'branch'}
                       icon={<GitBranch size={APP_ICON_SIZE} />}
                       label={branchName}
                       title="选择分支"
@@ -1923,7 +1850,7 @@ export function ComposerCard({
         onCancel={() => setArchiveConfirmationOpen(false)}
       />
     </div>
-  );
+  )
 }
 
 function parentWorkspacePath(path: string): string {
@@ -1932,27 +1859,26 @@ function parentWorkspacePath(path: string): string {
   return parts.length > 0 ? parts.join('/') : '.'
 }
 
-function resolveWorkspaceContextPath(
-  workspacePath: string,
-  relativePath: string,
-): string[] {
+function resolveWorkspaceContextPath(workspacePath: string, relativePath: string): string[] {
   if (relativePath === '.') return [workspacePath]
   const separator = workspacePath.includes('\\') ? '\\' : '/'
-  return [`${workspacePath.replace(/[\\/]+$/u, '')}${separator}${relativePath.replace(/^[.][\\/]/u, '')}`]
+  return [
+    `${workspacePath.replace(/[\\/]+$/u, '')}${separator}${relativePath.replace(/^[.][\\/]/u, '')}`,
+  ]
 }
 
 function formatCompactNumber(value: number): string {
   if (value >= 1_000_000) {
-    return `${trimNumber(value / 1_000_000)}M`;
+    return `${trimNumber(value / 1_000_000)}M`
   }
   if (value >= 1_000) {
-    return `${trimNumber(value / 1_000)}k`;
+    return `${trimNumber(value / 1_000)}k`
   }
-  return String(value);
+  return String(value)
 }
 
 function trimNumber(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
 function composerCommandMenuItem(
@@ -1961,113 +1887,101 @@ function composerCommandMenuItem(
   onSkillSelect: ((skill: ComposerSkillCommand) => void) | undefined,
 ): ComposerMenuItem {
   return {
-    key:
-      command.source === "skill"
-        ? `skill-${command.trigger}`
-        : `slash-${command.id}`,
+    key: command.source === 'skill' ? `skill-${command.trigger}` : `slash-${command.id}`,
     label: command.title,
     description: command.description,
     meta: command.source === 'skill' ? skillScopeLabel(command.skill.scope) : undefined,
     icon:
-      command.source === "skill" ? (
+      command.source === 'skill' ? (
         <BuiltinSkillIcon skill={command.skill} size={14} />
       ) : (
         composerSlashCommandIcon(command.id)
       ),
     command,
     matchText: `${command.trigger} ${command.title} ${command.description}`,
-    disabled:
-      command.source === "builtin" && !command.availability.enabled,
-    disabledReason:
-      command.source === 'builtin' ? command.availability.disabledReason : undefined,
+    disabled: command.source === 'builtin' && !command.availability.enabled,
+    disabledReason: command.source === 'builtin' ? command.availability.disabledReason : undefined,
     onSelect: () => {
-      if (command.source === "skill") {
-        onSkillSelect?.(command);
-        return;
+      if (command.source === 'skill') {
+        onSkillSelect?.(command)
+        return
       }
-      void executeCommand(command);
+      void executeCommand(command)
     },
-  };
+  }
 }
 
-function composerSlashCommandIcon(
-  id: ComposerSlashCommandId,
-): React.ReactNode {
+function composerSlashCommandIcon(id: ComposerSlashCommandId): React.ReactNode {
   switch (id) {
-    case "model":
-      return <Box size={APP_ICON_SIZE} />;
-    case "reasoning":
-      return <Brain size={APP_ICON_SIZE} />;
-    case "plan":
-      return <ListChecks size={APP_ICON_SIZE} />;
-    case "goal":
-      return <Target size={APP_ICON_SIZE} />;
-    case "review":
-      return <ShieldCheck size={APP_ICON_SIZE} />;
-    case "compact":
-      return <Zap size={APP_ICON_SIZE} />;
-    case "mcp":
-      return <Paperclip size={APP_ICON_SIZE} />;
-    case "status":
-      return <Activity size={APP_ICON_SIZE} />;
-    case "side":
-      return <MessageSquarePlus size={APP_ICON_SIZE} />;
-    case "fork":
-      return <Split size={APP_ICON_SIZE} />;
-    case "archive":
-      return <Archive size={APP_ICON_SIZE} />;
-    case "project":
-      return <Folder size={APP_ICON_SIZE} />;
-    case "task":
-      return <MessageSquare size={APP_ICON_SIZE} />;
+    case 'model':
+      return <Box size={APP_ICON_SIZE} />
+    case 'reasoning':
+      return <Brain size={APP_ICON_SIZE} />
+    case 'plan':
+      return <ListChecks size={APP_ICON_SIZE} />
+    case 'goal':
+      return <Target size={APP_ICON_SIZE} />
+    case 'review':
+      return <ShieldCheck size={APP_ICON_SIZE} />
+    case 'compact':
+      return <Zap size={APP_ICON_SIZE} />
+    case 'mcp':
+      return <Paperclip size={APP_ICON_SIZE} />
+    case 'status':
+      return <Activity size={APP_ICON_SIZE} />
+    case 'side':
+      return <MessageSquarePlus size={APP_ICON_SIZE} />
+    case 'fork':
+      return <Split size={APP_ICON_SIZE} />
+    case 'archive':
+      return <Archive size={APP_ICON_SIZE} />
+    case 'project':
+      return <Folder size={APP_ICON_SIZE} />
+    case 'task':
+      return <MessageSquare size={APP_ICON_SIZE} />
   }
 }
 
 export function shouldSubmitComposerKey(
   event: Pick<
     KeyboardEvent,
-    "key" | "shiftKey" | "ctrlKey" | "metaKey" | "isComposing" | "keyCode"
+    'key' | 'shiftKey' | 'ctrlKey' | 'metaKey' | 'isComposing' | 'keyCode'
   >,
   shortcut: ComposerSubmitShortcut,
   input: string,
 ): boolean {
-  if (
-    event.key !== "Enter" ||
-    event.shiftKey ||
-    event.isComposing ||
-    event.keyCode === 229
-  ) {
-    return false;
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing || event.keyCode === 229) {
+    return false
   }
-  const modifierPressed = event.ctrlKey || event.metaKey;
-  if (shortcut === "ctrl-enter") return modifierPressed;
-  if (shortcut === "multiline-ctrl-enter" && input.includes("\n")) {
-    return modifierPressed;
+  const modifierPressed = event.ctrlKey || event.metaKey
+  if (shortcut === 'ctrl-enter') return modifierPressed
+  if (shortcut === 'multiline-ctrl-enter' && input.includes('\n')) {
+    return modifierPressed
   }
-  return true;
+  return true
 }
 
 export function resolveComposerSubmitIntent(
   event: Pick<
     KeyboardEvent,
-    "key" | "shiftKey" | "ctrlKey" | "metaKey" | "isComposing" | "keyCode"
+    'key' | 'shiftKey' | 'ctrlKey' | 'metaKey' | 'isComposing' | 'keyCode'
   >,
   shortcut: ComposerSubmitShortcut,
   input: string,
 ): ComposerDeliveryIntent | null {
-  if (!shouldSubmitComposerKey(event, shortcut, input)) return null;
-  return event.ctrlKey || event.metaKey ? "follow-up" : "default";
+  if (!shouldSubmitComposerKey(event, shortcut, input)) return null
+  return event.ctrlKey || event.metaKey ? 'follow-up' : 'default'
 }
 
 function firstEnabledMenuIndex(items: ComposerMenuItem[]): number {
-  return items.findIndex((item) => !item.disabled);
+  return items.findIndex((item) => !item.disabled)
 }
 
 function lastEnabledMenuIndex(items: ComposerMenuItem[]): number {
   for (let index = items.length - 1; index >= 0; index -= 1) {
-    if (!items[index]?.disabled) return index;
+    if (!items[index]?.disabled) return index
   }
-  return -1;
+  return -1
 }
 
 function nextEnabledMenuIndex(
@@ -2075,13 +1989,13 @@ function nextEnabledMenuIndex(
   current: number,
   direction: 1 | -1,
 ): number {
-  if (items.length === 0) return -1;
-  let index = current;
+  if (items.length === 0) return -1
+  let index = current
   for (let attempts = 0; attempts < items.length; attempts += 1) {
-    index = (index + direction + items.length) % items.length;
-    if (!items[index]?.disabled) return index;
+    index = (index + direction + items.length) % items.length
+    if (!items[index]?.disabled) return index
   }
-  return -1;
+  return -1
 }
 
 /**
@@ -2097,17 +2011,17 @@ export function getActiveComposerMention(
   input: string,
   selectionStart: number | null,
 ): { start: number; end: number; query: string } | null {
-  if (selectionStart == null || selectionStart <= 0) return null;
-  const textBefore = input.slice(0, selectionStart);
-  const atIndex = textBefore.lastIndexOf("@");
-  if (atIndex === -1) return null;
-  if (atIndex > 0 && !/\s/u.test(input[atIndex - 1] ?? '')) return null;
-  const query = textBefore.slice(atIndex + 1);
-  if (query.includes(" ")) return null;
+  if (selectionStart == null || selectionStart <= 0) return null
+  const textBefore = input.slice(0, selectionStart)
+  const atIndex = textBefore.lastIndexOf('@')
+  if (atIndex === -1) return null
+  if (atIndex > 0 && !/\s/u.test(input[atIndex - 1] ?? '')) return null
+  const query = textBefore.slice(atIndex + 1)
+  if (query.includes(' ')) return null
   // Cursor must be at end of query — no valid mention chars immediately after
-  const charAfterCursor = input[selectionStart];
+  const charAfterCursor = input[selectionStart]
   if (charAfterCursor && /[a-zA-Z0-9\u4e00-\u9fff-]/.test(charAfterCursor)) {
-    return null;
+    return null
   }
-  return { start: atIndex, end: selectionStart, query };
+  return { start: atIndex, end: selectionStart, query }
 }

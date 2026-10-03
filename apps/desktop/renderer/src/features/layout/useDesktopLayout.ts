@@ -1,17 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from 'react'
 
-export const SIDEBAR_WIDTH_STORAGE_KEY = "layout.sidebarWidth";
-export const SIDEBAR_COLLAPSED_STORAGE_KEY = "layout.sidebarCollapsed";
-export const SIDEBAR_LAYOUT_RESET_EVENT = "codepilotx:sidebar-layout-reset";
-export const SIDEBAR_MIN_WIDTH = 240;
-export const SIDEBAR_MAX_WIDTH = 520;
-export const DEFAULT_SIDEBAR_WIDTH = 275;
+export const SIDEBAR_WIDTH_STORAGE_KEY = 'layout.sidebarWidth'
+export const SIDEBAR_COLLAPSED_STORAGE_KEY = 'layout.sidebarCollapsed'
+export const SIDEBAR_LAYOUT_RESET_EVENT = 'codepilotx:sidebar-layout-reset'
+export const SIDEBAR_MIN_WIDTH = 240
+export const SIDEBAR_MAX_WIDTH = 520
+export const DEFAULT_SIDEBAR_WIDTH = 275
 
 export function clampSidebarWidth(value: number): number {
-  return Math.min(
-    SIDEBAR_MAX_WIDTH,
-    Math.max(SIDEBAR_MIN_WIDTH, Math.round(value)),
-  );
+  return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, Math.round(value)))
 }
 
 export function readStoredSidebarWidth(defaultWidth = DEFAULT_SIDEBAR_WIDTH): number {
@@ -21,47 +18,43 @@ export function readStoredSidebarWidth(defaultWidth = DEFAULT_SIDEBAR_WIDTH): nu
   } catch {
     return clampSidebarWidth(defaultWidth)
   }
-  if (!raw) return clampSidebarWidth(defaultWidth);
-  const parsed = Number.parseInt(raw, 10);
+  if (!raw) return clampSidebarWidth(defaultWidth)
+  const parsed = Number.parseInt(raw, 10)
   if (Number.isNaN(parsed)) {
-    return clampSidebarWidth(defaultWidth);
+    return clampSidebarWidth(defaultWidth)
   }
-  return clampSidebarWidth(parsed);
+  return clampSidebarWidth(parsed)
 }
 
 export function readStoredSidebarCollapsed(): boolean {
   try {
-    return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true";
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true'
   } catch {
-    return false;
+    return false
   }
 }
 
 export function resetStoredSidebarLayout(): void {
   try {
-    window.localStorage.removeItem(SIDEBAR_WIDTH_STORAGE_KEY);
-    window.localStorage.removeItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+    window.localStorage.removeItem(SIDEBAR_WIDTH_STORAGE_KEY)
+    window.localStorage.removeItem(SIDEBAR_COLLAPSED_STORAGE_KEY)
   } catch {
     /* localStorage may be disabled; the reset event still restores in-memory state. */
   }
-  window.dispatchEvent(new Event(SIDEBAR_LAYOUT_RESET_EVENT));
+  window.dispatchEvent(new Event(SIDEBAR_LAYOUT_RESET_EVENT))
 }
 
 export type UseDesktopLayoutResult = {
-  sidebarCollapsed: boolean;
-  sidebarWidth: number;
-  setSidebarCollapsed: (collapsed: boolean) => void;
-  setSidebarWidth: (width: number) => void;
-  toggleSidebarCollapsed: () => void;
-};
+  sidebarCollapsed: boolean
+  sidebarWidth: number
+  setSidebarCollapsed: (collapsed: boolean) => void
+  setSidebarWidth: (width: number) => void
+  toggleSidebarCollapsed: () => void
+}
 
 export function useDesktopLayout(defaultWidth = DEFAULT_SIDEBAR_WIDTH): UseDesktopLayoutResult {
-  const [sidebarCollapsed, setSidebarCollapsedState] = useState(() =>
-    readStoredSidebarCollapsed(),
-  );
-  const [sidebarWidth, setSidebarWidthState] = useState(() =>
-    readStoredSidebarWidth(defaultWidth),
-  );
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState(() => readStoredSidebarCollapsed())
+  const [sidebarWidth, setSidebarWidthState] = useState(() => readStoredSidebarWidth(defaultWidth))
 
   useEffect(() => {
     setSidebarWidthState(readStoredSidebarWidth(defaultWidth))
@@ -69,54 +62,44 @@ export function useDesktopLayout(defaultWidth = DEFAULT_SIDEBAR_WIDTH): UseDeskt
 
   useEffect(() => {
     function handleSidebarLayoutReset(): void {
-      setSidebarCollapsedState(false);
-      setSidebarWidthState(defaultWidth);
+      setSidebarCollapsedState(false)
+      setSidebarWidthState(defaultWidth)
     }
 
-    window.addEventListener(SIDEBAR_LAYOUT_RESET_EVENT, handleSidebarLayoutReset);
-    return () =>
-      window.removeEventListener(
-        SIDEBAR_LAYOUT_RESET_EVENT,
-        handleSidebarLayoutReset,
-      );
-  }, [defaultWidth]);
+    window.addEventListener(SIDEBAR_LAYOUT_RESET_EVENT, handleSidebarLayoutReset)
+    return () => window.removeEventListener(SIDEBAR_LAYOUT_RESET_EVENT, handleSidebarLayoutReset)
+  }, [defaultWidth])
 
   const setSidebarWidth = useCallback((nextWidth: number): void => {
-    const clamped = clampSidebarWidth(nextWidth);
-    setSidebarWidthState(clamped);
+    const clamped = clampSidebarWidth(nextWidth)
+    setSidebarWidthState(clamped)
     try {
-      window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clamped));
+      window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clamped))
     } catch {
       /* localStorage full or disabled; keep the in-memory width. */
     }
-  }, []);
+  }, [])
 
   const setSidebarCollapsed = useCallback((collapsed: boolean): void => {
-    setSidebarCollapsedState(collapsed);
+    setSidebarCollapsedState(collapsed)
     try {
-      window.localStorage.setItem(
-        SIDEBAR_COLLAPSED_STORAGE_KEY,
-        collapsed ? "true" : "false",
-      );
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, collapsed ? 'true' : 'false')
     } catch {
       /* localStorage full or disabled; keep the in-memory state. */
     }
-  }, []);
+  }, [])
 
   const toggleSidebarCollapsed = useCallback((): void => {
     setSidebarCollapsedState((current) => {
-      const next = !current;
+      const next = !current
       try {
-        window.localStorage.setItem(
-          SIDEBAR_COLLAPSED_STORAGE_KEY,
-          next ? "true" : "false",
-        );
+        window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, next ? 'true' : 'false')
       } catch {
         /* localStorage full or disabled; keep the in-memory state. */
       }
-      return next;
-    });
-  }, []);
+      return next
+    })
+  }, [])
 
   return {
     sidebarCollapsed,
@@ -124,5 +107,5 @@ export function useDesktopLayout(defaultWidth = DEFAULT_SIDEBAR_WIDTH): UseDeskt
     setSidebarCollapsed,
     setSidebarWidth,
     toggleSidebarCollapsed,
-  };
+  }
 }

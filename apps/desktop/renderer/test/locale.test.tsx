@@ -2,7 +2,10 @@ import { describe, expect, test } from 'bun:test'
 import { resolveAppLocale } from '../src/features/i18n/locale.js'
 import { enUS } from '../src/features/i18n/messages.en.js'
 import { createDesktopSettingsDraft } from '../src/features/settings/useDesktopSettings.js'
-import { defaultDesktopStoredSettings, normalizeDesktopStoredSettings } from '../shared/settingsSchema.js'
+import {
+  defaultDesktopStoredSettings,
+  normalizeDesktopStoredSettings,
+} from '../shared/settingsSchema.js'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { LocaleProvider, useLocale } from '../src/features/i18n/LocaleProvider.js'
 
@@ -22,7 +25,7 @@ describe('界面语言', () => {
 
   test('语言偏好经设置草稿保存并往返保留', async () => {
     let persisted = defaultDesktopStoredSettings()
-    const draft = createDesktopSettingsDraft(persisted, async next => {
+    const draft = createDesktopSettingsDraft(persisted, async (next) => {
       persisted = normalizeDesktopStoredSettings(next)
       return persisted
     })
@@ -36,7 +39,19 @@ describe('界面语言', () => {
     function Label() {
       return <span>{useLocale().t('设置')}</span>
     }
-    expect(renderToStaticMarkup(<LocaleProvider preference="zh-CN"><Label /></LocaleProvider>)).toContain('设置')
-    expect(renderToStaticMarkup(<LocaleProvider preference="en-US"><Label /></LocaleProvider>)).toContain('Settings')
+    expect(
+      renderToStaticMarkup(
+        <LocaleProvider preference="zh-CN">
+          <Label />
+        </LocaleProvider>,
+      ),
+    ).toContain('设置')
+    expect(
+      renderToStaticMarkup(
+        <LocaleProvider preference="en-US">
+          <Label />
+        </LocaleProvider>,
+      ),
+    ).toContain('Settings')
   })
 })

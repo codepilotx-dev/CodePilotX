@@ -4,13 +4,13 @@ import { lazy, Suspense } from 'react'
 import { File, Folder, type LucideProps } from 'lucide-react'
 
 const MaterialFileIcon = lazy(() =>
-  import('@codepilotx/material-icon-theme').then(module => ({
+  import('@codepilotx/material-icon-theme').then((module) => ({
     default: module.FileIcon,
   })),
 )
 
 const MaterialFolderIcon = lazy(() =>
-  import('@codepilotx/material-icon-theme').then(module => ({
+  import('@codepilotx/material-icon-theme').then((module) => ({
     default: module.FolderIcon,
   })),
 )

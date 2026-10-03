@@ -2,26 +2,23 @@ import {
   spawn,
   type ChildProcessWithoutNullStreams,
   type SpawnOptionsWithoutStdio,
-} from "node:child_process"
-import { randomBytes } from "node:crypto"
-import { join, resolve } from "node:path"
-import type { DesktopLogger } from "../logging/desktop-logger.js"
-import {
-  HostProcessTreeKiller,
-  type ProcessTreeKiller,
-} from "../terminal/process-tree.js"
-import { normalizeOrigin } from "../security/navigation.js"
+} from 'node:child_process'
+import { randomBytes } from 'node:crypto'
+import { join, resolve } from 'node:path'
+import type { DesktopLogger } from '../logging/desktop-logger.js'
+import { HostProcessTreeKiller, type ProcessTreeKiller } from '../terminal/process-tree.js'
+import { normalizeOrigin } from '../security/navigation.js'
 import {
   missingPackagedSidecarError,
   resolveSidecarCommand,
   SidecarInstallationError,
   type SidecarCommand,
-} from "./command.js"
+} from './command.js'
 import {
   readSidecarFailureCode,
   SidecarTerminationError,
   type SidecarConnectStage,
-} from "./failure-diagnostics.js"
+} from './failure-diagnostics.js'
 
 import {
   formatError,
@@ -30,17 +27,15 @@ import {
   waitForReady,
   waitForReadyMessage,
   type ReadyMessage,
-} from "./readiness.js"
+} from './readiness.js'
 
-type DocumentsPathName = "documents" | "home"
+type DocumentsPathName = 'documents' | 'home'
 
-export function resolveDocumentsDirectory(
-  getPath: (name: DocumentsPathName) => string,
-): string {
+export function resolveDocumentsDirectory(getPath: (name: DocumentsPathName) => string): string {
   try {
-    return getPath("documents")
+    return getPath('documents')
   } catch {
-    return join(getPath("home"), "Documents")
+    return join(getPath('home'), 'Documents')
   }
 }
 
@@ -50,11 +45,11 @@ const PROCESS_TREE_TIMEOUT_MS = 2_000
 const WATCHDOG_INTERVAL_MS = 2_000
 const WATCHDOG_FAILURE_LIMIT = 3
 
-export type AgentConnectionState = "connected" | "disconnected" | "unknown"
+export type AgentConnectionState = 'connected' | 'disconnected' | 'unknown'
 
 export interface ConnectionStatus {
   state: AgentConnectionState
-  phase: "starting" | "connecting" | "authenticating" | "loading" | "reconnecting"
+  phase: 'starting' | 'connecting' | 'authenticating' | 'loading' | 'reconnecting'
   attempt: number
   message?: string
 }
@@ -85,7 +80,7 @@ export interface SidecarDataLocation {
 export interface SidecarAppRuntime {
   readonly isPackaged: boolean
   readonly resourcesPath: string
-  getPath(name: "userData" | "home" | "documents"): string
+  getPath(name: 'userData' | 'home' | 'documents'): string
 }
 
 interface OwnedSidecarProcess {
@@ -145,13 +140,13 @@ export class SidecarSupervisor {
   readonly #moduleDirectory: string
   readonly #dataLocation: SidecarDataLocation
   readonly #app: SidecarAppRuntime
-  readonly #spawnProcess: NonNullable<SidecarSupervisorDependencies["spawnProcess"]>
+  readonly #spawnProcess: NonNullable<SidecarSupervisorDependencies['spawnProcess']>
   readonly #fetch: FetchLike
-  readonly #resolveCommand: NonNullable<SidecarSupervisorDependencies["resolveCommand"]>
-  readonly #waitForReadyMessage: NonNullable<SidecarSupervisorDependencies["waitForReadyMessage"]>
-  readonly #waitForReady: NonNullable<SidecarSupervisorDependencies["waitForReady"]>
-  readonly #probeReady: NonNullable<SidecarSupervisorDependencies["probeReady"]>
-  readonly #sleep: NonNullable<SidecarSupervisorDependencies["sleep"]>
+  readonly #resolveCommand: NonNullable<SidecarSupervisorDependencies['resolveCommand']>
+  readonly #waitForReadyMessage: NonNullable<SidecarSupervisorDependencies['waitForReadyMessage']>
+  readonly #waitForReady: NonNullable<SidecarSupervisorDependencies['waitForReady']>
+  readonly #probeReady: NonNullable<SidecarSupervisorDependencies['probeReady']>
+  readonly #sleep: NonNullable<SidecarSupervisorDependencies['sleep']>
   readonly #processTreeKiller: ProcessTreeKiller
   readonly #randomInstanceToken: () => string
   readonly #shutdownTimeoutMs: number
@@ -184,32 +179,27 @@ export class SidecarSupervisor {
     this.#moduleDirectory = moduleDirectory
     this.#dataLocation = dataLocation
     this.#app = dependencies.appRuntime
-    this.#spawnProcess = dependencies.spawnProcess
-      ?? ((executable, args, options) => spawn(executable, [...args], {
-        ...options,
-        stdio: ["pipe", "pipe", "pipe"],
-      }))
+    this.#spawnProcess =
+      dependencies.spawnProcess ??
+      ((executable, args, options) =>
+        spawn(executable, [...args], {
+          ...options,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        }))
     this.#fetch = dependencies.fetcher ?? fetch
     this.#resolveCommand = dependencies.resolveCommand ?? resolveSidecarCommand
-    this.#waitForReadyMessage = dependencies.waitForReadyMessage
-      ?? waitForReadyMessage
+    this.#waitForReadyMessage = dependencies.waitForReadyMessage ?? waitForReadyMessage
     this.#waitForReady = dependencies.waitForReady ?? waitForReady
     this.#probeReady = dependencies.probeReady ?? probeReady
     this.#sleep = dependencies.sleep ?? sleep
-    this.#processTreeKiller = dependencies.processTreeKiller
-      ?? new HostProcessTreeKiller()
-    this.#randomInstanceToken = dependencies.randomInstanceToken
-      ?? (() => randomBytes(32).toString("base64url"))
-    this.#shutdownTimeoutMs = dependencies.shutdownTimeoutMs
-      ?? SHUTDOWN_TIMEOUT_MS
-    this.#sigtermTimeoutMs = dependencies.sigtermTimeoutMs
-      ?? SIGTERM_TIMEOUT_MS
-    this.#processTreeTimeoutMs = dependencies.processTreeTimeoutMs
-      ?? PROCESS_TREE_TIMEOUT_MS
-    this.#watchdogIntervalMs = dependencies.watchdogIntervalMs
-      ?? WATCHDOG_INTERVAL_MS
-    this.#watchdogFailureLimit = dependencies.watchdogFailureLimit
-      ?? WATCHDOG_FAILURE_LIMIT
+    this.#processTreeKiller = dependencies.processTreeKiller ?? new HostProcessTreeKiller()
+    this.#randomInstanceToken =
+      dependencies.randomInstanceToken ?? (() => randomBytes(32).toString('base64url'))
+    this.#shutdownTimeoutMs = dependencies.shutdownTimeoutMs ?? SHUTDOWN_TIMEOUT_MS
+    this.#sigtermTimeoutMs = dependencies.sigtermTimeoutMs ?? SIGTERM_TIMEOUT_MS
+    this.#processTreeTimeoutMs = dependencies.processTreeTimeoutMs ?? PROCESS_TREE_TIMEOUT_MS
+    this.#watchdogIntervalMs = dependencies.watchdogIntervalMs ?? WATCHDOG_INTERVAL_MS
+    this.#watchdogFailureLimit = dependencies.watchdogFailureLimit ?? WATCHDOG_FAILURE_LIMIT
   }
 
   onStateChange(listener: (status: ConnectionStatus) => void): void {
@@ -224,10 +214,10 @@ export class SidecarSupervisor {
     let delay = 0
     while (!this.#stopping) {
       attempt += 1
-      let stage: SidecarConnectStage = "select-connection"
+      let stage: SidecarConnectStage = 'select-connection'
       this.#onStateChange?.({
-        state: "disconnected",
-        phase: attempt === 1 ? "connecting" : "reconnecting",
+        state: 'disconnected',
+        phase: attempt === 1 ? 'connecting' : 'reconnecting',
         attempt,
       })
       try {
@@ -237,14 +227,14 @@ export class SidecarSupervisor {
         this.#assertConnectionCurrent(connection)
         this.#connection = connection
         this.#onStateChange?.({
-          state: "disconnected",
-          phase: "authenticating",
+          state: 'disconnected',
+          phase: 'authenticating',
           attempt,
         })
-        stage = "validate-connection"
+        stage = 'validate-connection'
         await validate(connection)
         this.#assertConnectionCurrent(connection)
-        this.#logger.info("sidecar.connected", {
+        this.#logger.info('sidecar.connected', {
           origin: connection.origin,
           managed: connection.managed,
           port: connection.port,
@@ -259,16 +249,13 @@ export class SidecarSupervisor {
         } catch (disposeError) {
           throw this.#rememberTerminationFailure(disposeError)
         }
-        if (
-          error instanceof SidecarInstallationError
-          || error instanceof SidecarTerminationError
-        ) {
+        if (error instanceof SidecarInstallationError || error instanceof SidecarTerminationError) {
           throw error
         }
         if (this.#dataLocation.relocation) throw error
         const message = formatError(error)
         const failureCode = readSidecarFailureCode(error)
-        this.#logger.warn("sidecar.connect-failed", {
+        this.#logger.warn('sidecar.connect-failed', {
           attempt,
           stage,
           failureCode,
@@ -276,12 +263,10 @@ export class SidecarSupervisor {
         })
         if (this.#stopping) break
         delay = delay === 0 ? 500 : Math.min(10_000, delay * 2)
-        await this.#sleep(
-          delay + Math.round(Math.random() * Math.min(500, delay * 0.2)),
-        )
+        await this.#sleep(delay + Math.round(Math.random() * Math.min(500, delay * 0.2)))
       }
     }
-    throw new Error("Agent 连接已停止")
+    throw new Error('Agent 连接已停止')
   }
 
   stop(): Promise<void> {
@@ -307,11 +292,10 @@ export class SidecarSupervisor {
     let failures = 0
     this.#watchdog = setInterval(() => {
       if (
-        watchdogEpoch !== this.#watchdogEpoch
-        ||
-        this.#watchdogBusy
-        || this.#stopping
-        || !this.#isConnectionCurrent(connection)
+        watchdogEpoch !== this.#watchdogEpoch ||
+        this.#watchdogBusy ||
+        this.#stopping ||
+        !this.#isConnectionCurrent(connection)
       ) {
         return
       }
@@ -332,7 +316,7 @@ export class SidecarSupervisor {
           if (watchdogEpoch !== this.#watchdogEpoch) return
           if (!this.#isConnectionCurrent(connection)) return
           failures += 1
-          this.#logger.warn("sidecar.watchdog-error", {
+          this.#logger.warn('sidecar.watchdog-error', {
             origin: connection.origin,
             failures,
             message: formatError(error),
@@ -342,10 +326,7 @@ export class SidecarSupervisor {
         .finally(() => {
           if (watchdogEpoch !== this.#watchdogEpoch) return
           this.#watchdogBusy = false
-          if (
-            failures < this.#watchdogFailureLimit
-            || !this.#isConnectionCurrent(connection)
-          ) {
+          if (failures < this.#watchdogFailureLimit || !this.#isConnectionCurrent(connection)) {
             return
           }
           this.#clearWatchdog()
@@ -356,10 +337,10 @@ export class SidecarSupervisor {
 
   async request(path: string, init: RequestInit = {}): Promise<Response> {
     const connection = this.#connection
-    if (!connection) throw new Error("Agent 尚未连接")
+    if (!connection) throw new Error('Agent 尚未连接')
     this.#assertConnectionCurrent(connection)
     const headers = new Headers(init.headers)
-    headers.set("Authorization", `Bearer ${this.#token}`)
+    headers.set('Authorization', `Bearer ${this.#token}`)
     let response: Response
     try {
       response = await this.#fetch(`${connection.origin}${path}`, {
@@ -369,19 +350,17 @@ export class SidecarSupervisor {
       })
     } catch (error) {
       if (!this.#isConnectionCurrent(connection)) {
-        throw new Error("忽略过期的 Agent 请求响应")
+        throw new Error('忽略过期的 Agent 请求响应')
       }
       throw error
     }
     this.#assertConnectionCurrent(connection)
     if (!response.ok) {
-      const body = await response.json().catch(() => null) as {
+      const body = (await response.json().catch(() => null)) as {
         error?: { message?: string }
       } | null
       this.#assertConnectionCurrent(connection)
-      throw new Error(
-        body?.error?.message ?? `Agent 请求失败（HTTP ${response.status}）`,
-      )
+      throw new Error(body?.error?.message ?? `Agent 请求失败（HTTP ${response.status}）`)
     }
     return response
   }
@@ -408,10 +387,10 @@ export class SidecarSupervisor {
   ): Promise<SidecarConnection> {
     const managedOrigin = process.env.CODEPILOTX_AGENT_URL
     if (managedOrigin) {
-      reportStage("managed-origin")
+      reportStage('managed-origin')
       const origin = normalizeOrigin(managedOrigin)
       const generation = ++this.#generation
-      reportStage("managed-ready")
+      reportStage('managed-ready')
       await this.#waitForReady(origin, this.#token, this.#logger, attempt)
       return {
         origin,
@@ -431,7 +410,7 @@ export class SidecarSupervisor {
     if (this.#owned) {
       throw new SidecarTerminationError()
     }
-    reportStage("resolve-command")
+    reportStage('resolve-command')
     const command = this.#resolveCommand({
       packaged: this.#app.isPackaged,
       resourcesPath: this.#app.resourcesPath,
@@ -443,34 +422,33 @@ export class SidecarSupervisor {
       generation: ++this.#generation,
       instanceToken: this.#randomInstanceToken(),
     }
-    reportStage("resolve-environment")
+    reportStage('resolve-environment')
     const childEnvironment: NodeJS.ProcessEnv = {
       ...process.env,
-      CODEPILOTX_HOST: "127.0.0.1",
+      CODEPILOTX_HOST: '127.0.0.1',
       CODEPILOTX_PORT: String(this.#preferredPort ?? 0),
       CODEPILOTX_AUTH_TOKEN: this.#token,
-      CODEPILOTX_DESKTOP_MANAGED: "1",
+      CODEPILOTX_DESKTOP_MANAGED: '1',
       CODEPILOTX_SIDECAR_INSTANCE_TOKEN: identity.instanceToken,
       CODEPILOTX_DATA_DIR: dataDirectory,
-      CODEPILOTX_PETS_DIR: join(dataDirectory, "pets"),
-      CODEPILOTX_TOOLING_HOME: join(dataDirectory, "tooling"),
+      CODEPILOTX_PETS_DIR: join(dataDirectory, 'pets'),
+      CODEPILOTX_TOOLING_HOME: join(dataDirectory, 'tooling'),
       CODEPILOTX_BUILTIN_SKILLS_DIR: this.#app.isPackaged
-        ? join(this.#app.resourcesPath, "agent", "skills")
+        ? join(this.#app.resourcesPath, 'agent', 'skills')
         : process.env.CODEPILOTX_BUILTIN_SKILLS_DIR,
       CODEPILOTX_BUILTIN_PLUGINS_DIR: this.#app.isPackaged
-        ? join(this.#app.resourcesPath, "agent", "plugins")
+        ? join(this.#app.resourcesPath, 'agent', 'plugins')
         : process.env.CODEPILOTX_BUILTIN_PLUGINS_DIR,
       CODEPILOTX_BUILTIN_INTEGRATIONS_DIR: this.#app.isPackaged
-        ? join(this.#app.resourcesPath, "agent", "integrations")
+        ? join(this.#app.resourcesPath, 'agent', 'integrations')
         : process.env.CODEPILOTX_BUILTIN_INTEGRATIONS_DIR,
-      CODEPILOTX_LEGACY_DATA_DIR: join(this.#app.getPath("userData"), "agent"),
+      CODEPILOTX_LEGACY_DATA_DIR: join(this.#app.getPath('userData'), 'agent'),
       CODEPILOTX_LEGACY_APPEARANCE_SETTINGS_PATH: join(
-        this.#app.getPath("userData"),
-        "appearance-settings.json",
+        this.#app.getPath('userData'),
+        'appearance-settings.json',
       ),
-      CODEPILOTX_DOCUMENTS_DIR: resolveDocumentsDirectory(name =>
-        this.#app.getPath(name)),
-      CODEPILOTX_LOG_DIR: join(dataDirectory, "logs"),
+      CODEPILOTX_DOCUMENTS_DIR: resolveDocumentsDirectory((name) => this.#app.getPath(name)),
+      CODEPILOTX_LOG_DIR: join(dataDirectory, 'logs'),
       ...(relocation
         ? {
             CODEPILOTX_RELOCATION_SOURCE_DIR: relocation.sourceDataDir,
@@ -481,10 +459,10 @@ export class SidecarSupervisor {
             CODEPILOTX_RELOCATION_OPERATION_ID: undefined,
           }),
       CODEPILOTX_STATIC_DIR: this.#app.isPackaged
-        ? join(this.#app.resourcesPath, "renderer")
+        ? join(this.#app.resourcesPath, 'renderer')
         : process.env.CODEPILOTX_STATIC_DIR,
     }
-    reportStage("spawn-process")
+    reportStage('spawn-process')
     const child = this.#spawnProcess(command.executable, command.args, {
       cwd: command.cwd,
       windowsHide: true,
@@ -492,25 +470,25 @@ export class SidecarSupervisor {
     })
     const owned: OwnedSidecarProcess = { child, identity }
     this.#owned = owned
-    reportStage("close-stdin")
+    reportStage('close-stdin')
     child.stdin.end()
 
-    this.#logger.info("sidecar.spawned", {
+    this.#logger.info('sidecar.spawned', {
       pid: child.pid,
       attempt,
       preferredPort: this.#preferredPort ?? null,
       generation: identity.generation,
     })
-    child.stderr.on("data", (chunk: Buffer) => {
+    child.stderr.on('data', (chunk: Buffer) => {
       if (!this.#isOwnedCurrent(owned)) return
-      this.#logger.error("sidecar.stderr", {
+      this.#logger.error('sidecar.stderr', {
         pid: child.pid,
-        text: chunk.toString("utf8"),
+        text: chunk.toString('utf8'),
         generation: identity.generation,
       })
     })
-    child.once("exit", (code, signal) => {
-      this.#logger.warn("sidecar.exit", {
+    child.once('exit', (code, signal) => {
+      this.#logger.warn('sidecar.exit', {
         pid: child.pid,
         code,
         signal,
@@ -519,28 +497,24 @@ export class SidecarSupervisor {
       if (!this.#isOwnedCurrent(owned)) return
       const connection = this.#connection
       if (
-        !this.#stopping
-        && connection
-        && !connection.managed
-        && connection.generation === identity.generation
-        && connection.instanceToken === identity.instanceToken
+        !this.#stopping &&
+        connection &&
+        !connection.managed &&
+        connection.generation === identity.generation &&
+        connection.instanceToken === identity.instanceToken
       ) {
         this.#onConnectionLost?.()
       }
     })
 
     try {
-      reportStage("await-ready-message")
-      const ready = await this.#waitForReadyMessage(
-        child,
-        this.#logger,
-        identity.instanceToken,
-      )
+      reportStage('await-ready-message')
+      const ready = await this.#waitForReadyMessage(child, this.#logger, identity.instanceToken)
       this.#assertOwnedCurrent(owned)
-      const host = ready.host === "localhost" ? "localhost" : "127.0.0.1"
+      const host = ready.host === 'localhost' ? 'localhost' : '127.0.0.1'
       owned.origin = `http://${host}:${ready.port}`
       this.#preferredPort = ready.port
-      reportStage("probe-ready")
+      reportStage('probe-ready')
       await this.#waitForReady(
         owned.origin,
         this.#token,
@@ -570,14 +544,16 @@ export class SidecarSupervisor {
   }
 
   #isOwnedCurrent(owned: OwnedSidecarProcess): boolean {
-    return this.#owned === owned
-      && this.#owned.identity.generation === owned.identity.generation
-      && this.#owned.identity.instanceToken === owned.identity.instanceToken
+    return (
+      this.#owned === owned &&
+      this.#owned.identity.generation === owned.identity.generation &&
+      this.#owned.identity.instanceToken === owned.identity.instanceToken
+    )
   }
 
   #assertOwnedCurrent(owned: OwnedSidecarProcess): void {
     if (!this.#isOwnedCurrent(owned)) {
-      throw new Error("忽略过期的 Agent 生命周期回调")
+      throw new Error('忽略过期的 Agent 生命周期回调')
     }
   }
 
@@ -586,9 +562,9 @@ export class SidecarSupervisor {
     if (connection.managed) return true
     const owned = this.#owned
     return Boolean(
-      owned
-      && owned.identity.generation === connection.generation
-      && owned.identity.instanceToken === connection.instanceToken,
+      owned &&
+      owned.identity.generation === connection.generation &&
+      owned.identity.instanceToken === connection.instanceToken,
     )
   }
 
@@ -596,11 +572,11 @@ export class SidecarSupervisor {
     if (connection.managed) return
     const owned = this.#owned
     if (
-      !owned
-      || owned.identity.generation !== connection.generation
-      || owned.identity.instanceToken !== connection.instanceToken
+      !owned ||
+      owned.identity.generation !== connection.generation ||
+      owned.identity.instanceToken !== connection.instanceToken
     ) {
-      throw new Error("忽略过期的 Agent 连接回调")
+      throw new Error('忽略过期的 Agent 连接回调')
     }
   }
 
@@ -636,12 +612,12 @@ export class SidecarSupervisor {
 
     if (owned.origin) {
       try {
-        this.#logger.info("sidecar.shutdown-request", {
+        this.#logger.info('sidecar.shutdown-request', {
           origin: owned.origin,
           generation: owned.identity.generation,
         })
         await this.#fetch(`${owned.origin}/api/shutdown`, {
-          method: "POST",
+          method: 'POST',
           headers: { Authorization: `Bearer ${this.#token}` },
           signal: AbortSignal.timeout(this.#shutdownTimeoutMs),
         })
@@ -652,7 +628,7 @@ export class SidecarSupervisor {
     }
 
     try {
-      child.kill("SIGTERM")
+      child.kill('SIGTERM')
     } catch {
       // 继续通过 exit/close 或严格进程树清理确认。
     }
@@ -667,7 +643,7 @@ export class SidecarSupervisor {
         this.#processTreeKiller.kill(Number(pid)),
         this.#processTreeTimeoutMs,
       )
-      if (confirmation === "process-not-found") return
+      if (confirmation === 'process-not-found') return
       if (await waitForChildExit(child, this.#processTreeTimeoutMs)) return
       throw new SidecarTerminationError()
     } catch {
@@ -678,10 +654,9 @@ export class SidecarSupervisor {
 
   #rememberTerminationFailure(error: unknown): SidecarTerminationError {
     if (this.#terminationFailure) return this.#terminationFailure
-    this.#terminationFailure = error instanceof SidecarTerminationError
-      ? error
-      : new SidecarTerminationError()
-    this.#logger.error("sidecar.termination-unconfirmed", {
+    this.#terminationFailure =
+      error instanceof SidecarTerminationError ? error : new SidecarTerminationError()
+    this.#logger.error('sidecar.termination-unconfirmed', {
       code: this.#terminationFailure.code,
     })
     return this.#terminationFailure
@@ -697,38 +672,35 @@ function waitForChildExit(
   timeoutMs: number,
 ): Promise<boolean> {
   if (hasChildExited(child)) return Promise.resolve(true)
-  return new Promise(resolveExit => {
+  return new Promise((resolveExit) => {
     let settled = false
     const finish = (exited: boolean): void => {
       if (settled) return
       settled = true
       clearTimeout(timer)
-      child.removeListener("exit", onExit)
-      child.removeListener("close", onExit)
-      child.removeListener("error", onError)
+      child.removeListener('exit', onExit)
+      child.removeListener('close', onExit)
+      child.removeListener('error', onError)
       resolveExit(exited)
     }
     const onExit = (): void => finish(true)
     const onError = (): void => finish(hasChildExited(child))
     const timer = setTimeout(() => finish(hasChildExited(child)), timeoutMs)
-    child.once("exit", onExit)
-    child.once("close", onExit)
-    child.once("error", onError)
+    child.once('exit', onExit)
+    child.once('close', onExit)
+    child.once('error', onError)
   })
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return new Promise<T>((resolveValue, rejectValue) => {
-    const timer = setTimeout(
-      () => rejectValue(new Error("进程树清理超时")),
-      timeoutMs,
-    )
+    const timer = setTimeout(() => rejectValue(new Error('进程树清理超时')), timeoutMs)
     promise.then(
-      value => {
+      (value) => {
         clearTimeout(timer)
         resolveValue(value)
       },
-      error => {
+      (error) => {
         clearTimeout(timer)
         rejectValue(error)
       },

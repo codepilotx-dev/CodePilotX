@@ -1,5 +1,5 @@
-import type { EnvironmentDeltaStore } from "../../local-environment/EnvironmentDeltaStore"
-import type { SideChatRepository } from "../../storage/repositories/side-chat-repository"
+import type { EnvironmentDeltaStore } from '../../local-environment/EnvironmentDeltaStore'
+import type { SideChatRepository } from '../../storage/repositories/side-chat-repository'
 
 /** Captures external side-chat resources before their owning source thread cascades away. */
 export class SideChatEnvironmentCleanup {
@@ -8,10 +8,7 @@ export class SideChatEnvironmentCleanup {
     private readonly environments: EnvironmentDeltaStore,
   ) {}
 
-  prepareSource(
-    sourceThreadID: string,
-    next?: () => Promise<void>,
-  ): () => Promise<void> {
+  prepareSource(sourceThreadID: string, next?: () => Promise<void>): () => Promise<void> {
     const bindingIDs = this.repository.bindingIDsForSource(sourceThreadID)
     return async () => {
       await next?.()

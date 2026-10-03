@@ -47,14 +47,19 @@ export class QuestionAutoResolutionScheduler {
         () => this.forget(registration.id),
         () => {
           let pending = true
-          try { pending = this.options.isPending(registration.id) } catch { pending = true }
+          try {
+            pending = this.options.isPending(registration.id)
+          } catch {
+            pending = true
+          }
           if (!pending) {
             this.forget(registration.id)
             return
           }
           const attempt = this.attempts.get(registration.id) ?? 0
           this.attempts.set(registration.id, attempt + 1)
-          const retryDelay = this.retryDelaysMs[Math.min(attempt, this.retryDelaysMs.length - 1)] ?? 30_000
+          const retryDelay =
+            this.retryDelaysMs[Math.min(attempt, this.retryDelaysMs.length - 1)] ?? 30_000
           this.schedule(registration, retryDelay)
         },
       )

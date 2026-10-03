@@ -23,7 +23,8 @@ export const FooterCta: React.FC = () => {
             </h2>
 
             <p className="mt-6 text-base sm:text-lg text-white/80 leading-relaxed">
-              Clone the repository, configure your preferred provider, and start pairing with an agent that respects your code, your files, and your review standards.
+              Clone the repository, configure your preferred provider, and start pairing with an
+              agent that respects your code, your files, and your review standards.
             </p>
 
             <div className="mt-10 flex flex-wrap items-center justify-center gap-4">

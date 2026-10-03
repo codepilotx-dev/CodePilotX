@@ -16,20 +16,19 @@ export function parseStartupThemeSeed(url: string): StartupThemeSeed | null {
     if (!raw) return null
     const seed = JSON.parse(raw) as Partial<StartupThemeSeed> | null
     if (
-      seed?.version !== 1
-      || (seed.variant !== 'light' && seed.variant !== 'dark')
-      || !isHexColor(seed.surface)
-      || !isHexColor(seed.ink)
-    ) return null
+      seed?.version !== 1 ||
+      (seed.variant !== 'light' && seed.variant !== 'dark') ||
+      !isHexColor(seed.surface) ||
+      !isHexColor(seed.ink)
+    )
+      return null
     return seed as StartupThemeSeed
   } catch {
     return null
   }
 }
 
-export function resolveStartupThemeSettings(
-  url: string,
-): DesktopThemeSettings {
+export function resolveStartupThemeSettings(url: string): DesktopThemeSettings {
   const seed = parseStartupThemeSeed(url)
   if (!seed) return cloneDefaultSettings()
   return {
@@ -43,8 +42,7 @@ export function resolveStartupThemeSettings(
           ...DEFAULT_DESKTOP_THEME_SETTINGS.chromeThemes[seed.variant].fonts,
         },
         semanticColors: {
-          ...DEFAULT_DESKTOP_THEME_SETTINGS.chromeThemes[seed.variant]
-            .semanticColors,
+          ...DEFAULT_DESKTOP_THEME_SETTINGS.chromeThemes[seed.variant].semanticColors,
         },
         surface: seed.surface,
         ink: seed.ink,
@@ -53,10 +51,7 @@ export function resolveStartupThemeSettings(
   }
 }
 
-export function withStartupThemeSeed(
-  url: string,
-  seed: StartupThemeSeed,
-): string {
+export function withStartupThemeSeed(url: string, seed: StartupThemeSeed): string {
   const target = new URL(url)
   target.searchParams.set(STARTUP_THEME_QUERY_PARAM, JSON.stringify(seed))
   return target.href

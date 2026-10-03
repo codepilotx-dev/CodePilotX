@@ -5,11 +5,11 @@ import {
   PetInstallPreviewParamsSchema,
   PetRemoveParamsSchema,
   type RpcMethod,
-} from "@codepilotx/agent-protocol"
-import { Schema } from "effect"
-import type { RpcRouter } from "../RpcRouter"
-import type { RpcRouterContext } from "../request-context"
-import type { RpcHandlerGroup } from "./types"
+} from '@codepilotx/agent-protocol'
+import { Schema } from 'effect'
+import type { RpcRouter } from '../RpcRouter'
+import type { RpcRouterContext } from '../request-context'
+import type { RpcHandlerGroup } from './types'
 
 const decodePreview = Schema.decodeUnknownSync(PetInstallPreviewParamsSchema)
 const decodeInstall = Schema.decodeUnknownSync(PetInstallParamsSchema)
@@ -18,14 +18,14 @@ const decodeCatalogList = Schema.decodeUnknownSync(PetCatalogListParamsSchema)
 const decodeCatalogInstall = Schema.decodeUnknownSync(PetCatalogInstallParamsSchema)
 
 export const petHandlers = {
-  name: "pet",
+  name: 'pet',
   methods: [
-    "pet/list",
-    "pet/catalog/list",
-    "pet/catalog/install",
-    "pet/install/preview",
-    "pet/install",
-    "pet/remove",
+    'pet/list',
+    'pet/catalog/list',
+    'pet/catalog/install',
+    'pet/install/preview',
+    'pet/install',
+    'pet/remove',
   ],
   async handle(
     runtime: RpcRouter,
@@ -35,22 +35,21 @@ export const petHandlers = {
   ): Promise<unknown> {
     const pets = runtime.dependencies.pets
     switch (method) {
-      case "pet/list":
+      case 'pet/list':
         return { pets: await pets.list() }
-      case "pet/catalog/list":
+      case 'pet/catalog/list':
         return pets.catalog(decodeCatalogList(rawParams).refresh ?? false)
-      case "pet/catalog/install": {
-        const { slug, acceptedRestrictedLicense } =
-          decodeCatalogInstall(rawParams)
+      case 'pet/catalog/install': {
+        const { slug, acceptedRestrictedLicense } = decodeCatalogInstall(rawParams)
         return {
           pet: await pets.installCatalog(slug, acceptedRestrictedLicense),
         }
       }
-      case "pet/install/preview":
+      case 'pet/install/preview':
         return pets.preview(decodePreview(rawParams).url)
-      case "pet/install":
+      case 'pet/install':
         return { pet: await pets.install(decodeInstall(rawParams).url) }
-      case "pet/remove": {
+      case 'pet/remove': {
         const { id } = decodeRemove(rawParams)
         await pets.remove(id)
         return { id, removed: true }

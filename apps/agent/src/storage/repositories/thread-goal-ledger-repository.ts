@@ -1,7 +1,7 @@
-import { randomUUID } from "node:crypto"
-import type { ThreadGoal, ThreadGoalStatus } from "@codepilotx/shared/thread"
-import type { EventEnvelope } from "../../domain"
-import type { RepositoryDatabase } from "./RepositoryDatabase"
+import { randomUUID } from 'node:crypto'
+import type { ThreadGoal, ThreadGoalStatus } from '@codepilotx/shared/thread'
+import type { EventEnvelope } from '../../domain'
+import type { RepositoryDatabase } from './RepositoryDatabase'
 
 /**
  * Goal measurement storage. `goal_id` deliberately carries no foreign key to
@@ -23,7 +23,7 @@ export const THREAD_GOAL_LEDGER_SCHEMA = [
     created_at INTEGER NOT NULL,
     PRIMARY KEY (goal_id, source_kind, source_entry_id)
   )`,
-  "CREATE INDEX thread_goal_usage_ledger_goal ON thread_goal_usage_ledger(goal_id, created_at)",
+  'CREATE INDEX thread_goal_usage_ledger_goal ON thread_goal_usage_ledger(goal_id, created_at)',
   `CREATE TABLE thread_goal_active_intervals (
     id TEXT PRIMARY KEY,
     thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
@@ -34,8 +34,8 @@ export const THREAD_GOAL_LEDGER_SCHEMA = [
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
   )`,
-  "CREATE INDEX thread_goal_active_intervals_agent ON thread_goal_active_intervals(agent_id, ended_at)",
-  "CREATE INDEX thread_goal_active_intervals_goal ON thread_goal_active_intervals(goal_id, started_at)",
+  'CREATE INDEX thread_goal_active_intervals_agent ON thread_goal_active_intervals(agent_id, ended_at)',
+  'CREATE INDEX thread_goal_active_intervals_goal ON thread_goal_active_intervals(goal_id, started_at)',
 ] as const
 
 /** Cache tokens are counted alongside uncached input, matching measured-usage accounting. */
@@ -80,36 +80,66 @@ const token = (value: unknown): number => {
  * Only the history connection and the outbox writer are needed; narrowing the type
  * keeps this usable from mid-hierarchy repositories such as the execution layer.
  */
-export type ThreadGoalLedgerDatabase = Pick<RepositoryDatabase, "sqlite" | "insertEvent">
+export type ThreadGoalLedgerDatabase = Pick<RepositoryDatabase, 'sqlite' | 'insertEvent'>
 
 export class ThreadGoalLedgerRepository {
-  constructor(private readonly db: ThreadGoalLedgerDatabase, private readonly now: () => number = Date.now) {}
+  constructor(
+    private readonly db: ThreadGoalLedgerDatabase,
+    private readonly now: () => number = Date.now,
+  ) {}
 
   private hasTable(name: string): boolean {
-    return Boolean(this.db.sqlite.query(
-      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
-    ).get(name))
+    return Boolean(
+      this.db.sqlite
+        .query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")
+        .get(name),
+    )
   }
 
   private hasColumns(name: string, required: readonly string[]): boolean {
     if (!this.hasTable(name)) return false
-    const columns = new Set((this.db.sqlite.query(`PRAGMA table_info(${name})`).all() as Array<{ name: string }>).map(({ name }) => name))
+    const columns = new Set(
+      (this.db.sqlite.query(`PRAGMA table_info(${name})`).all() as Array<{ name: string }>).map(
+        ({ name }) => name,
+      ),
+    )
     return required.every((column) => columns.has(column))
   }
 
   /** Both measurement tables are required before any accounting is attempted. */
   available(): boolean {
-    return this.hasColumns("thread_goal_usage_ledger", [
-      "thread_id", "goal_id", "source_kind", "source_entry_id", "agent_id",
-      "input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens", "reasoning_tokens", "created_at",
-    ]) && this.hasColumns("thread_goal_active_intervals", [
-      "id", "thread_id", "goal_id", "agent_id", "started_at", "ended_at", "created_at", "updated_at",
-    ])
+    return (
+      this.hasColumns('thread_goal_usage_ledger', [
+        'thread_id',
+        'goal_id',
+        'source_kind',
+        'source_entry_id',
+        'agent_id',
+        'input_tokens',
+        'output_tokens',
+        'cache_read_tokens',
+        'cache_write_tokens',
+        'reasoning_tokens',
+        'created_at',
+      ]) &&
+      this.hasColumns('thread_goal_active_intervals', [
+        'id',
+        'thread_id',
+        'goal_id',
+        'agent_id',
+        'started_at',
+        'ended_at',
+        'created_at',
+        'updated_at',
+      ])
+    )
   }
 
   private visibleGoal(threadId: string): VisibleGoalRow | null {
-    if (!this.hasTable("thread_goals")) return null
-    return this.db.sqlite.query("SELECT * FROM thread_goals WHERE thread_id = ?").get(threadId) as VisibleGoalRow | null
+    if (!this.hasTable('thread_goals')) return null
+    return this.db.sqlite
+      .query('SELECT * FROM thread_goals WHERE thread_id = ?')
+      .get(threadId) as VisibleGoalRow | null
   }
 
   /**
@@ -118,7 +148,7 @@ export class ThreadGoalLedgerRepository {
    * a restart, or a duplicate measurement can never bill the same entry twice.
    */
   recordUsage(entries: readonly GoalUsageEntry[]): number {
-    if (entries.length === 0 || !this.hasTable("thread_goal_usage_ledger")) return 0
+    if (entries.length === 0 || !this.hasTable('thread_goal_usage_ledger')) return 0
     const timestamp = this.now()
     const insert = this.db.sqlite.query(`
       INSERT INTO thread_goal_usage_ledger (thread_id, goal_id, source_kind, source_entry_id, agent_id,
@@ -129,9 +159,16 @@ export class ThreadGoalLedgerRepository {
     let inserted = 0
     for (const entry of entries) {
       const result = insert.run(
-        entry.threadId, entry.goalId, entry.sourceEntryId, entry.agentId,
-        entry.inputTokens, entry.outputTokens, entry.cacheReadTokens,
-        entry.cacheWriteTokens, entry.reasoningTokens, timestamp,
+        entry.threadId,
+        entry.goalId,
+        entry.sourceEntryId,
+        entry.agentId,
+        entry.inputTokens,
+        entry.outputTokens,
+        entry.cacheReadTokens,
+        entry.cacheWriteTokens,
+        entry.reasoningTokens,
+        timestamp,
       )
       inserted += result.changes
     }
@@ -143,9 +180,16 @@ export class ThreadGoalLedgerRepository {
    * goal took effect. Descendants are reached through `parent_agent_id`, which
    * crosses into child threads, so every subagent level is included exactly once.
    */
-  measuredUsageForTurn(input: { threadId: string; goalId: string; since: number; turnId: string }): GoalUsageEntry[] {
-    if (!this.hasTable("thread_goal_usage_ledger")) return []
-    const rows = this.db.sqlite.query(`
+  measuredUsageForTurn(input: {
+    threadId: string
+    goalId: string
+    since: number
+    turnId: string
+  }): GoalUsageEntry[] {
+    if (!this.hasTable('thread_goal_usage_ledger')) return []
+    const rows = this.db.sqlite
+      .query(
+        `
       WITH RECURSIVE agent_tree(id) AS (
         SELECT root_agent_id FROM turns WHERE id = ? AND root_agent_id IS NOT NULL
         UNION ALL
@@ -158,14 +202,19 @@ export class ThreadGoalLedgerRepository {
       WHERE item.type = 'text'
         AND json_type(item.data, '$.usage') = 'object'
         AND item.created_at >= ?
-    `).all(input.turnId, input.since) as Array<{ agent_id: string; item_id: string; data: string }>
+    `,
+      )
+      .all(input.turnId, input.since) as Array<{ agent_id: string; item_id: string; data: string }>
 
     const entries: GoalUsageEntry[] = []
     for (const row of rows) {
       let usage: Record<string, unknown> | null = null
       try {
         const parsed = JSON.parse(row.data) as { usage?: unknown }
-        usage = parsed.usage && typeof parsed.usage === "object" ? parsed.usage as Record<string, unknown> : null
+        usage =
+          parsed.usage && typeof parsed.usage === 'object'
+            ? (parsed.usage as Record<string, unknown>)
+            : null
       } catch {
         usage = null
       }
@@ -181,8 +230,15 @@ export class ThreadGoalLedgerRepository {
         cacheWriteTokens: token(usage.cacheWrite),
         reasoningTokens: token(usage.reasoning),
       }
-      if (entry.inputTokens + entry.outputTokens + entry.cacheReadTokens
-        + entry.cacheWriteTokens + entry.reasoningTokens === 0) continue
+      if (
+        entry.inputTokens +
+          entry.outputTokens +
+          entry.cacheReadTokens +
+          entry.cacheWriteTokens +
+          entry.reasoningTokens ===
+        0
+      )
+        continue
       entries.push(entry)
     }
     return entries
@@ -193,25 +249,31 @@ export class ThreadGoalLedgerRepository {
     if (!this.available()) return null
     const goal = this.visibleGoal(input.threadId)
     if (!goal) return null
-    const open = this.db.sqlite.query(
-      "SELECT id FROM thread_goal_active_intervals WHERE agent_id = ? AND ended_at IS NULL",
-    ).get(input.agentId)
+    const open = this.db.sqlite
+      .query('SELECT id FROM thread_goal_active_intervals WHERE agent_id = ? AND ended_at IS NULL')
+      .get(input.agentId)
     if (open) return null
     const timestamp = this.now()
     const id = randomUUID()
-    this.db.sqlite.query(`
+    this.db.sqlite
+      .query(
+        `
       INSERT INTO thread_goal_active_intervals (id, thread_id, goal_id, agent_id, started_at, ended_at, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, NULL, ?, ?)
-    `).run(id, input.threadId, goal.id, input.agentId, timestamp, timestamp, timestamp)
+    `,
+      )
+      .run(id, input.threadId, goal.id, input.agentId, timestamp, timestamp, timestamp)
     return id
   }
 
   /** Closes every open interval for an agent; an agent runs for one goal at a time. */
   closeAgentIntervals(agentId: string, endedAt = this.now()): number {
-    if (!this.hasTable("thread_goal_active_intervals")) return 0
-    return this.db.sqlite.query(
-      "UPDATE thread_goal_active_intervals SET ended_at = ?, updated_at = ? WHERE agent_id = ? AND ended_at IS NULL",
-    ).run(endedAt, endedAt, agentId).changes
+    if (!this.hasTable('thread_goal_active_intervals')) return 0
+    return this.db.sqlite
+      .query(
+        'UPDATE thread_goal_active_intervals SET ended_at = ?, updated_at = ? WHERE agent_id = ? AND ended_at IS NULL',
+      )
+      .run(endedAt, endedAt, agentId).changes
   }
 
   /**
@@ -219,29 +281,39 @@ export class ThreadGoalLedgerRepository {
    * resumes, so wall time spent while the application was offline is never counted.
    */
   closeOpenIntervals(endedAt = this.now()): number {
-    if (!this.hasTable("thread_goal_active_intervals")) return 0
-    return this.db.sqlite.query(
-      "UPDATE thread_goal_active_intervals SET ended_at = ?, updated_at = ? WHERE ended_at IS NULL",
-    ).run(endedAt, endedAt).changes
+    if (!this.hasTable('thread_goal_active_intervals')) return 0
+    return this.db.sqlite
+      .query(
+        'UPDATE thread_goal_active_intervals SET ended_at = ?, updated_at = ? WHERE ended_at IS NULL',
+      )
+      .run(endedAt, endedAt).changes
   }
 
   /** Tokens billed to a goal. Reasoning stays in the ledger for audit but is not billed. */
   tokensUsed(goalId: string): number {
-    if (!this.hasTable("thread_goal_usage_ledger")) return 0
-    const row = this.db.sqlite.query(`
+    if (!this.hasTable('thread_goal_usage_ledger')) return 0
+    const row = this.db.sqlite
+      .query(
+        `
       SELECT COALESCE(SUM(input_tokens + output_tokens + cache_read_tokens + cache_write_tokens), 0) AS total
       FROM thread_goal_usage_ledger WHERE goal_id = ?
-    `).get(goalId) as { total: number }
+    `,
+      )
+      .get(goalId) as { total: number }
     return Number(row.total)
   }
 
   /** Wall-clock seconds as the union of run intervals, so parallel agents are not double counted. */
   timeUsedSeconds(goalId: string): number {
-    if (!this.hasTable("thread_goal_active_intervals")) return 0
-    const rows = this.db.sqlite.query(`
+    if (!this.hasTable('thread_goal_active_intervals')) return 0
+    const rows = this.db.sqlite
+      .query(
+        `
       SELECT started_at, ended_at FROM thread_goal_active_intervals
       WHERE goal_id = ? AND ended_at IS NOT NULL ORDER BY started_at, ended_at
-    `).all(goalId) as Array<{ started_at: number; ended_at: number }>
+    `,
+      )
+      .all(goalId) as Array<{ started_at: number; ended_at: number }>
     let total = 0
     let currentStart: number | null = null
     let currentEnd = 0
@@ -276,12 +348,14 @@ export class ThreadGoalLedgerRepository {
     goal: { id: string; createdAt: number }
   }): GoalMeasurement | null {
     if (!this.available()) return null
-    this.recordUsage(this.measuredUsageForTurn({
-      threadId: input.threadId,
-      goalId: input.goal.id,
-      since: input.goal.createdAt,
-      turnId: input.turnId,
-    }))
+    this.recordUsage(
+      this.measuredUsageForTurn({
+        threadId: input.threadId,
+        goalId: input.goal.id,
+        since: input.goal.createdAt,
+        turnId: input.turnId,
+      }),
+    )
     return this.refreshMeasurement(input.threadId)
   }
 
@@ -297,13 +371,21 @@ export class ThreadGoalLedgerRepository {
     const timeUsedSeconds = this.timeUsedSeconds(goal.id)
     const status = this.deriveStatus(goal, tokensUsed)
     // A turn that changed nothing measurable must not bump the version or emit an event.
-    if (tokensUsed === goal.tokens_used && timeUsedSeconds === goal.time_used_seconds
-      && status === goal.status) return null
+    if (
+      tokensUsed === goal.tokens_used &&
+      timeUsedSeconds === goal.time_used_seconds &&
+      status === goal.status
+    )
+      return null
     const timestamp = this.now()
-    this.db.sqlite.query(`
+    this.db.sqlite
+      .query(
+        `
       UPDATE thread_goals SET tokens_used = ?, time_used_seconds = ?, status = ?,
         version = version + 1, updated_at = ? WHERE id = ?
-    `).run(tokensUsed, timeUsedSeconds, status, timestamp, goal.id)
+    `,
+      )
+      .run(tokensUsed, timeUsedSeconds, status, timestamp, goal.id)
 
     const updated: ThreadGoal = {
       id: goal.id,
@@ -318,7 +400,7 @@ export class ThreadGoalLedgerRepository {
       updatedAt: timestamp,
       completedAt: goal.completed_at,
     }
-    const event = this.db.insertEvent(threadId, null, "thread/goal/updated", {
+    const event = this.db.insertEvent(threadId, null, 'thread/goal/updated', {
       threadId,
       goal: updated,
       version: updated.version,
@@ -331,8 +413,8 @@ export class ThreadGoalLedgerRepository {
    * approval and quota states owned by other subsystems, is never overwritten here.
    */
   private deriveStatus(goal: VisibleGoalRow, tokensUsed: number): ThreadGoalStatus {
-    if (goal.status !== "active" && goal.status !== "budget-limited") return goal.status
-    if (goal.token_budget !== null && tokensUsed >= goal.token_budget) return "budget-limited"
-    return "active"
+    if (goal.status !== 'active' && goal.status !== 'budget-limited') return goal.status
+    if (goal.token_budget !== null && tokensUsed >= goal.token_budget) return 'budget-limited'
+    return 'active'
   }
 }

@@ -31,10 +31,7 @@ export const WorkbenchPanelContent = forwardRef<
     target: WorkbenchPanelTarget
     children: React.ReactNode
   }
->(function WorkbenchPanelContent(
-  { target, children },
-  ref,
-): React.ReactNode {
+>(function WorkbenchPanelContent({ target, children }, ref): React.ReactNode {
   return (
     <div
       ref={ref}

@@ -13,15 +13,15 @@ import {
 import type { DesktopBrowserState } from '../../../shared/types.js'
 import { desktopBrowserClient } from '../../services/desktop-client/desktop-browser-client.js'
 import { formatBrowserDisplayURL } from './browserDisplayURL.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
+} from '../../components/ui/iconTokens.js'
 import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
-import {
-  enterTween,
-  exitTween,
-  motionTransition,
-} from '../motion/motionTransitions.js'
+import { enterTween, exitTween, motionTransition } from '../motion/motionTransitions.js'
 
 type Props = {
   state: DesktopBrowserState
@@ -62,18 +62,11 @@ export function DesktopBrowserPanel({
     }
   }, [state.url])
 
-  useEffect(
-    () => desktopBrowserClient.onBrowserStateChange(onStateChange),
-    [onStateChange],
-  )
+  useEffect(() => desktopBrowserClient.onBrowserStateChange(onStateChange), [onStateChange])
 
   useEffect(() => {
-    if (
-      !desktopBrowserClient.available
-      || !state.open
-      || annotationOpen
-      || boundsPausedRef.current
-    ) return
+    if (!desktopBrowserClient.available || !state.open || annotationOpen || boundsPausedRef.current)
+      return
     void desktopBrowserClient
       .setBrowserVisible(true)
       .then(onStateChange)
@@ -146,9 +139,7 @@ export function DesktopBrowserPanel({
     }
   }, [onStateChange, state.open, state.url])
 
-  async function runBrowserAction(
-    action: () => Promise<DesktopBrowserState>,
-  ): Promise<void> {
+  async function runBrowserAction(action: () => Promise<DesktopBrowserState>): Promise<void> {
     try {
       const next = await action()
       onStateChange(next)
@@ -188,8 +179,8 @@ export function DesktopBrowserPanel({
     annotationPanelRef.current?.setAttribute('data-presence', 'exiting')
     const activeElement = document.activeElement
     if (
-      activeElement instanceof HTMLElement
-      && annotationPanelRef.current?.contains(activeElement)
+      activeElement instanceof HTMLElement &&
+      annotationPanelRef.current?.contains(activeElement)
     ) {
       annotationToggleRef.current?.focus({ preventScroll: true })
     }
@@ -200,7 +191,7 @@ export function DesktopBrowserPanel({
     boundsPausedRef.current = true
     void desktopBrowserClient
       .setBrowserVisible(false)
-      .then(next => {
+      .then((next) => {
         onStateChange(next)
         setAnnotationOpen(true)
       })
@@ -208,7 +199,8 @@ export function DesktopBrowserPanel({
   }
 
   function finishAnnotationExit(): void {
-    void syncBrowserBoundsRef.current()
+    void syncBrowserBoundsRef
+      .current()
       .then(() => desktopBrowserClient.setBrowserVisible(true))
       .then(onStateChange)
       .catch(() => undefined)
@@ -221,18 +213,12 @@ export function DesktopBrowserPanel({
     const url = state.url || address
     if (!url.trim()) return
     onAppendComposerText?.(
-      [
-        '浏览器页面：',
-        `- 标题：${state.title || '未命名页面'}`,
-        `- URL：${url}`,
-      ].join('\n'),
+      ['浏览器页面：', `- 标题：${state.title || '未命名页面'}`, `- URL：${url}`].join('\n'),
     )
   }
 
   const compactAddress =
-    !addressFocused && address === state.url
-      ? formatBrowserDisplayURL(address)
-      : address
+    !addressFocused && address === state.url ? formatBrowserDisplayURL(address) : address
   const addressStatus = state.error
     ? state.error
     : state.loading
@@ -265,11 +251,13 @@ export function DesktopBrowserPanel({
             color="ghostSecondary"
             size="toolbar"
             title={state.loading ? '停止加载' : '重新加载'}
-            onClick={() => void runBrowserAction(
-              state.loading
-                ? desktopBrowserClient.stopBrowser
-                : desktopBrowserClient.reloadBrowser,
-            )}
+            onClick={() =>
+              void runBrowserAction(
+                state.loading
+                  ? desktopBrowserClient.stopBrowser
+                  : desktopBrowserClient.reloadBrowser,
+              )
+            }
           >
             <RefreshCw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
@@ -277,7 +265,7 @@ export function DesktopBrowserPanel({
         <form
           className="browser-address-form"
           title={addressStatus}
-          onSubmit={event => {
+          onSubmit={(event) => {
             event.preventDefault()
             handleNavigate()
           }}
@@ -287,7 +275,7 @@ export function DesktopBrowserPanel({
             placeholder="输入 URL"
             value={compactAddress}
             onBlur={() => setAddressFocused(false)}
-            onChange={event => setAddress(event.target.value)}
+            onChange={(event) => setAddress(event.target.value)}
             onFocus={() => setAddressFocused(true)}
           />
           {state.loading ? <span className="browser-address-state">加载中</span> : null}
@@ -301,10 +289,7 @@ export function DesktopBrowserPanel({
             title="发送当前页面到对话框"
             onClick={handleSendPageToComposer}
           >
-            <MessageSquarePlus
-              size={APP_ICON_SIZE}
-              strokeWidth={APP_ICON_STROKE_WIDTH}
-            />
+            <MessageSquarePlus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <IconButton
             ref={annotationToggleRef}
@@ -316,10 +301,7 @@ export function DesktopBrowserPanel({
               else openAnnotation()
             }}
           >
-            <MessageSquarePlus
-              size={APP_ICON_SIZE}
-              strokeWidth={APP_ICON_STROKE_WIDTH}
-            />
+            <MessageSquarePlus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <IconButton color="ghostSecondary" size="toolbar" title="更多">
             <MoreVertical size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -334,11 +316,13 @@ export function DesktopBrowserPanel({
             color="secondary"
             disabled={!state.url && !address.trim()}
             type="button"
-            onClick={() => void runBrowserAction(
-              state.url
-                ? desktopBrowserClient.reloadBrowser
-                : () => desktopBrowserClient.navigateBrowser(address),
-            )}
+            onClick={() =>
+              void runBrowserAction(
+                state.url
+                  ? desktopBrowserClient.reloadBrowser
+                  : () => desktopBrowserClient.navigateBrowser(address),
+              )
+            }
           >
             重试
           </Button>
@@ -378,7 +362,7 @@ export function DesktopBrowserPanel({
             }}
             initial={{ height: 0, opacity: 0, y: 8 }}
             transition={motionTransition(reducedMotion, enterTween)}
-            onKeyDown={event => {
+            onKeyDown={(event) => {
               if (event.key !== 'Escape') return
               event.preventDefault()
               event.stopPropagation()
@@ -396,16 +380,17 @@ export function DesktopBrowserPanel({
                 aria-label="批注位置"
                 placeholder="位置或元素描述，例如 顶部导航按钮"
                 value={annotationTarget}
-                onChange={event => setAnnotationTarget(event.target.value)}
+                onChange={(event) => setAnnotationTarget(event.target.value)}
               />
               <textarea
                 aria-label="批注内容"
                 placeholder="描述需要调整的视觉问题"
                 rows={3}
                 value={annotationBody}
-                onChange={event => setAnnotationBody(event.target.value)}
+                onChange={(event) => setAnnotationBody(event.target.value)}
               />
-              <Button color="primary"
+              <Button
+                color="primary"
                 disabled={!annotationBody.trim()}
                 onClick={handleSubmitAnnotation}
               >

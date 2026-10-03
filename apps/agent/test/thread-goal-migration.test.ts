@@ -1,12 +1,12 @@
-import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp } from "node:fs/promises"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { Effect } from "effect"
-import { ThreadGoalService } from "../src/session/ThreadGoalService"
-import { AgentDatabase, SCHEMA_VERSION } from "../src/storage/database/AgentDatabase"
-import { EventHub } from "../src/storage/events/EventHub"
-import { removeFixturePaths } from "./fixture-cleanup"
+import { afterEach, describe, expect, test } from 'bun:test'
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { Effect } from 'effect'
+import { ThreadGoalService } from '../src/session/ThreadGoalService'
+import { AgentDatabase, SCHEMA_VERSION } from '../src/storage/database/AgentDatabase'
+import { EventHub } from '../src/storage/events/EventHub'
+import { removeFixturePaths } from './fixture-cleanup'
 
 const paths: string[] = []
 afterEach(async () => removeFixturePaths(paths.splice(0)), 30_000)
@@ -27,39 +27,48 @@ const LEGACY_GOAL_TABLE = `
   )
 `
 
-const tableNames = (db: AgentDatabase) => (db.sqlite.query(
-  "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'thread_goal%' ORDER BY name",
-).all() as Array<{ name: string }>).map(row => row.name)
+const tableNames = (db: AgentDatabase) =>
+  (
+    db.sqlite
+      .query(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'thread_goal%' ORDER BY name",
+      )
+      .all() as Array<{ name: string }>
+  ).map((row) => row.name)
 
-describe("thread goal schema migration", () => {
-  test("schema 45 回填可见与已清除 Goal 并保留消耗与创建时间", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-goal-migration-"))
+describe('thread goal schema migration', () => {
+  test('schema 45 回填可见与已清除 Goal 并保留消耗与创建时间', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'codepilotx-goal-migration-'))
     paths.push(root)
-    const path = join(root, "agent.sqlite")
+    const path = join(root, 'agent.sqlite')
     const seeded = new AgentDatabase(path)
 
-    const visibleThread = seeded.createThread("可见目标线程")
-    const clearedThread = seeded.createThread("已清除目标线程")
-    seeded.sqlite.exec(`DROP TABLE thread_goal_history; DROP TABLE thread_goals; ${LEGACY_GOAL_TABLE}`)
+    const visibleThread = seeded.createThread('可见目标线程')
+    const clearedThread = seeded.createThread('已清除目标线程')
+    seeded.sqlite.exec(
+      `DROP TABLE thread_goal_history; DROP TABLE thread_goals; ${LEGACY_GOAL_TABLE}`,
+    )
     const insert = seeded.sqlite.query(`
       INSERT INTO thread_goals (thread_id, objective, status, token_budget, tokens_used,
         time_used_seconds, version, cleared_at, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
-    insert.run(visibleThread.id, "保留中的目标", "active", 200_000, 500, 60, 3, null, 1_000, 2_000)
-    insert.run(clearedThread.id, "已清除的目标", "complete", null, 900, 120, 5, 3_000, 1_500, 3_000)
-    seeded.sqlite.exec("PRAGMA user_version = 45")
+    insert.run(visibleThread.id, '保留中的目标', 'active', 200_000, 500, 60, 3, null, 1_000, 2_000)
+    insert.run(clearedThread.id, '已清除的目标', 'complete', null, 900, 120, 5, 3_000, 1_500, 3_000)
+    seeded.sqlite.exec('PRAGMA user_version = 45')
     seeded.close()
 
     const migrated = new AgentDatabase(path)
     expect(SCHEMA_VERSION).toBe(50)
-    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
+    expect(migrated.sqlite.query('PRAGMA user_version').get()).toEqual({
+      user_version: SCHEMA_VERSION,
+    })
 
     const visible = migrated.repositories.threadGoals.get(visibleThread.id)
     expect(visible).toMatchObject({
       threadId: visibleThread.id,
-      objective: "保留中的目标",
-      status: "active",
+      objective: '保留中的目标',
+      status: 'active',
       tokenBudget: 200_000,
       tokensUsed: 500,
       timeUsedSeconds: 60,
@@ -76,8 +85,8 @@ describe("thread goal schema migration", () => {
     const history = migrated.repositories.threadGoals.history(clearedThread.id)
     expect(history).toHaveLength(1)
     expect(history[0]).toMatchObject({
-      objective: "已清除的目标",
-      status: "complete",
+      objective: '已清除的目标',
+      status: 'complete',
       tokenBudget: null,
       tokensUsed: 900,
       timeUsedSeconds: 120,
@@ -97,16 +106,18 @@ describe("thread goal schema migration", () => {
     migrated.close()
     const reopened = new AgentDatabase(path)
     expect(reopened.repositories.threadGoals.get(visibleThread.id)?.id).toBe(identities.visible)
-    expect(reopened.repositories.threadGoals.history(clearedThread.id)[0]?.id).toBe(identities.archived)
+    expect(reopened.repositories.threadGoals.history(clearedThread.id)[0]?.id).toBe(
+      identities.archived,
+    )
     reopened.close()
   })
 
-  test("schema 44 依次迁移到 47，建立 Goal 身份与计量表并保留未知对象", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-goal-chain-"))
+  test('schema 44 依次迁移到 47，建立 Goal 身份与计量表并保留未知对象', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'codepilotx-goal-chain-'))
     paths.push(root)
-    const path = join(root, "agent.sqlite")
+    const path = join(root, 'agent.sqlite')
     const seeded = new AgentDatabase(path)
-    const thread = seeded.createThread("链路线程")
+    const thread = seeded.createThread('链路线程')
     seeded.sqlite.exec(`
       DROP TABLE thread_goal_history;
       DROP TABLE thread_goals;
@@ -118,31 +129,45 @@ describe("thread goal schema migration", () => {
     seeded.close()
 
     const migrated = new AgentDatabase(path)
-    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
+    expect(migrated.sqlite.query('PRAGMA user_version').get()).toEqual({
+      user_version: SCHEMA_VERSION,
+    })
     expect(tableNames(migrated)).toEqual([
-      "thread_goal_active_intervals", "thread_goal_continuations", "thread_goal_history", "thread_goal_operations",
-      "thread_goal_usage_ledger", "thread_goals",
+      'thread_goal_active_intervals',
+      'thread_goal_continuations',
+      'thread_goal_history',
+      'thread_goal_operations',
+      'thread_goal_usage_ledger',
+      'thread_goals',
     ])
-    expect(migrated.sqlite.query("SELECT value FROM future_fixture WHERE id = 'kept'").get())
-      .toEqual({ value: "unknown" })
+    expect(
+      migrated.sqlite.query("SELECT value FROM future_fixture WHERE id = 'kept'").get(),
+    ).toEqual({ value: 'unknown' })
     expect(migrated.repositories.threadGoals.available()).toBe(true)
 
     const service = new ThreadGoalService(migrated, await Effect.runPromise(EventHub.make))
-    const goal = (await service.set({
-      threadId: thread.id,
-      objective: "迁移后新建的目标",
-      expectedVersion: null,
-      operationId: "goal:set:after-migration",
-    })).goal
-    expect(goal).toMatchObject({ objective: "迁移后新建的目标", version: 1, tokensUsed: 0, createdAt: expect.any(Number) })
+    const goal = (
+      await service.set({
+        threadId: thread.id,
+        objective: '迁移后新建的目标',
+        expectedVersion: null,
+        operationId: 'goal:set:after-migration',
+      })
+    ).goal
+    expect(goal).toMatchObject({
+      objective: '迁移后新建的目标',
+      version: 1,
+      tokensUsed: 0,
+      createdAt: expect.any(Number),
+    })
     expect(goal.id).toBeTruthy()
     migrated.close()
   })
 
-  test("更高版本的未知 schema 保留 user_version 与未知表", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-goal-future-"))
+  test('更高版本的未知 schema 保留 user_version 与未知表', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'codepilotx-goal-future-'))
     paths.push(root)
-    const path = join(root, "agent.sqlite")
+    const path = join(root, 'agent.sqlite')
     const seeded = new AgentDatabase(path)
     seeded.sqlite.exec(`
       DROP TABLE thread_goal_history;
@@ -153,11 +178,14 @@ describe("thread goal schema migration", () => {
     seeded.close()
 
     const reopened = new AgentDatabase(path)
-    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION + 1 })
-    expect(reopened.sqlite.query("SELECT value FROM future_goal_owner WHERE id = 'kept'").get())
-      .toEqual({ value: "future" })
+    expect(reopened.sqlite.query('PRAGMA user_version').get()).toEqual({
+      user_version: SCHEMA_VERSION + 1,
+    })
+    expect(
+      reopened.sqlite.query("SELECT value FROM future_goal_owner WHERE id = 'kept'").get(),
+    ).toEqual({ value: 'future' })
     // Must not recreate a table the newer schema deliberately removed.
-    expect(tableNames(reopened)).not.toContain("thread_goal_history")
+    expect(tableNames(reopened)).not.toContain('thread_goal_history')
     reopened.close()
   })
 })

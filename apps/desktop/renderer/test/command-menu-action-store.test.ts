@@ -30,14 +30,10 @@ describe('命令菜单动作注册表', () => {
     const disposeFirst = store.register(action('first', { order: 10 }))
     const disposeSameOrder = store.register(action('same-order', { order: 10 }))
 
-    expect(store.getSnapshot().map(item => item.id)).toEqual([
-      'first',
-      'same-order',
-      'second',
-    ])
+    expect(store.getSnapshot().map((item) => item.id)).toEqual(['first', 'same-order', 'second'])
 
     disposeFirst()
-    expect(store.getSnapshot().map(item => item.id)).toEqual(['same-order', 'second'])
+    expect(store.getSnapshot().map((item) => item.id)).toEqual(['same-order', 'second'])
     disposeSecond()
     disposeSameOrder()
     expect(store.getSnapshot()).toEqual([])
@@ -51,7 +47,7 @@ describe('命令菜单动作注册表', () => {
 
     store.update(token, action('updated', { order: 10, label: '已更新' }))
 
-    expect(store.getSnapshot().map(item => item.id)).toEqual(['updated', 'after'])
+    expect(store.getSnapshot().map((item) => item.id)).toEqual(['updated', 'after'])
     expect(store.getSnapshot()[0]?.label).toBe('已更新')
   })
 
@@ -59,16 +55,24 @@ describe('命令菜单动作注册表', () => {
     const store = createCommandMenuActionStore()
     let oldRuns = 0
     let newRuns = 0
-    const disposeOld = registerCommandMenuActions(store, [action('old', {
-      execute: () => { oldRuns += 1 },
-    })])
+    const disposeOld = registerCommandMenuActions(store, [
+      action('old', {
+        execute: () => {
+          oldRuns += 1
+        },
+      }),
+    ])
     const staleAction = store.getSnapshot()[0]
 
     disposeOld()
     await staleAction?.execute()
-    const disposeNew = registerCommandMenuActions(store, [action('new', {
-      execute: () => { newRuns += 1 },
-    })])
+    const disposeNew = registerCommandMenuActions(store, [
+      action('new', {
+        execute: () => {
+          newRuns += 1
+        },
+      }),
+    ])
     await store.getSnapshot()[0]?.execute()
 
     expect(oldRuns).toBe(0)
@@ -78,14 +82,16 @@ describe('命令菜单动作注册表', () => {
 
   test('按标题、说明、禁用原因和关键词过滤', () => {
     const store = createCommandMenuActionStore()
-    store.register(action('handoff', {
-      group: 'task-transfer',
-      label: '移交当前任务…',
-      description: '迁移到工作树',
-      keywords: ['handoff', 'worktree'],
-      availability: 'disabled',
-      disabledReason: '操作正在进行中',
-    }))
+    store.register(
+      action('handoff', {
+        group: 'task-transfer',
+        label: '移交当前任务…',
+        description: '迁移到工作树',
+        keywords: ['handoff', 'worktree'],
+        availability: 'disabled',
+        disabledReason: '操作正在进行中',
+      }),
+    )
 
     for (const query of ['移交', '工作树', 'HANDOFF', 'worktree', '进行中']) {
       expect(filterCommandMenuActions(store.getSnapshot(), query)).toHaveLength(1)

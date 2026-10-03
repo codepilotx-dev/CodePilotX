@@ -7,7 +7,11 @@ import {
 
 describe('session status overrides', () => {
   test('keeps the row identity when there is nothing to change', () => {
-    const running = { id: 'thread-1', status: 'running' as const, latestTurnStatus: 'running' as const }
+    const running = {
+      id: 'thread-1',
+      status: 'running' as const,
+      latestTurnStatus: 'running' as const,
+    }
 
     expect(withSessionStatusOverride(running, undefined)).toBe(running)
     expect(
@@ -19,7 +23,11 @@ describe('session status overrides', () => {
   })
 
   test('replaces status and latest turn status for a covered thread', () => {
-    const running = { id: 'thread-1', status: 'running' as const, latestTurnStatus: 'running' as const }
+    const running = {
+      id: 'thread-1',
+      status: 'running' as const,
+      latestTurnStatus: 'running' as const,
+    }
 
     expect(
       withSessionStatusOverride(running, {

@@ -48,8 +48,7 @@ export type WorkbenchPanelLiveResize = LiveResizeValue & {
   target: WorkbenchPanelTarget
 }
 
-const WorkbenchPanelResizePreviewContext =
-  createContext<WorkbenchPanelLiveResize | null>(null)
+const WorkbenchPanelResizePreviewContext = createContext<WorkbenchPanelLiveResize | null>(null)
 
 export function useWorkbenchPanelLiveResize(
   target: WorkbenchPanelTarget,
@@ -116,18 +115,18 @@ function WorkbenchPanelPresenceItem({
   const isBottom = target === 'bottom'
   const { liveSize, liveSizePixels, previewSize } = liveResize
 
-  useMotionValueEvent(liveSizePixels, 'change', nextSize => {
+  useMotionValueEvent(liveSizePixels, 'change', (nextSize) => {
     if (target !== 'right') return
-    workspaceRef.current?.style.setProperty(
-      '--workspace-right-panel-live-width',
-      nextSize,
-    )
+    workspaceRef.current?.style.setProperty('--workspace-right-panel-live-width', nextSize)
   })
 
-  const updateResizePhase = useCallback((phase: ResizePhase): void => {
-    setResizePhase(current => current === phase ? current : phase)
-    onResizePhaseChange?.(phase)
-  }, [onResizePhaseChange])
+  const updateResizePhase = useCallback(
+    (phase: ResizePhase): void => {
+      setResizePhase((current) => (current === phase ? current : phase))
+      onResizePhaseChange?.(phase)
+    },
+    [onResizePhaseChange],
+  )
   const resizePreviewContext = useMemo<WorkbenchPanelLiveResize>(
     () => ({
       committedSize: size,
@@ -138,22 +137,10 @@ function WorkbenchPanelPresenceItem({
       setPhase: updateResizePhase,
       target,
     }),
-    [
-      liveSize,
-      liveSizePixels,
-      previewSize,
-      resizePhase,
-      size,
-      target,
-      updateResizePhase,
-    ],
+    [liveSize, liveSizePixels, previewSize, resizePhase, size, target, updateResizePhase],
   )
-  const visibleState = isBottom
-    ? { height: size, opacity: 1, y: 0 }
-    : { opacity: 1, x: 0 }
-  const hiddenState = isBottom
-    ? { height: 0, opacity: 0, y: 8 }
-    : { opacity: 0, x: 8 }
+  const visibleState = isBottom ? { height: size, opacity: 1, y: 0 } : { opacity: 1, x: 0 }
+  const hiddenState = isBottom ? { height: 0, opacity: 0, y: 8 } : { opacity: 0, x: 8 }
   const spacerVisibleState = { height: size }
   const spacerHiddenState = { height: 0 }
   const enforcedMinSize = isPresent && entryComplete ? minSize : 0
@@ -170,9 +157,7 @@ function WorkbenchPanelPresenceItem({
     }
     return () => {
       if (target === 'right') {
-        workspaceRef.current?.style.removeProperty(
-          '--workspace-right-panel-live-width',
-        )
+        workspaceRef.current?.style.removeProperty('--workspace-right-panel-live-width')
       }
     }
   }, [liveSize, target, workspaceRef])
@@ -180,11 +165,7 @@ function WorkbenchPanelPresenceItem({
   useLayoutEffect(() => {
     if (target !== 'right') return
     if (!isPresent) {
-      const controls = animateMotionValue(
-        liveSize,
-        0,
-        motionTransition(reducedMotion, exitTween),
-      )
+      const controls = animateMotionValue(liveSize, 0, motionTransition(reducedMotion, exitTween))
       return () => controls.stop()
     }
     if (entryComplete) return
@@ -199,31 +180,23 @@ function WorkbenchPanelPresenceItem({
       motionTransition(reducedMotion, layoutTween),
     )
     return () => controls.stop()
-  }, [
-    entryComplete,
-    isPresent,
-    liveSize,
-    reducedMotion,
-    size,
-    skipEnterAnimation,
-    target,
-  ])
+  }, [entryComplete, isPresent, liveSize, reducedMotion, size, skipEnterAnimation, target])
 
   useLayoutEffect(() => {
     if (isPresent) return
     setEntryComplete(false)
     const activeElement = document.activeElement
-    if (
-      activeElement instanceof HTMLElement
-      && shellRef.current?.contains(activeElement)
-    ) {
+    if (activeElement instanceof HTMLElement && shellRef.current?.contains(activeElement)) {
       mainRouteRef.current?.focus({ preventScroll: true })
     }
   }, [isPresent, mainRouteRef])
 
-  useEffect(() => () => {
-    onResizePhaseChange?.('idle')
-  }, [onResizePhaseChange])
+  useEffect(
+    () => () => {
+      onResizePhaseChange?.('idle')
+    },
+    [onResizePhaseChange],
+  )
 
   useEffect(() => {
     if (!reducedMotion || !isPresent) return
@@ -244,35 +217,38 @@ function WorkbenchPanelPresenceItem({
       {isBottom ? (
         <motion.div
           aria-hidden="true"
-          animate={isPresent
-            ? spacerVisibleState
-            : {
-                ...spacerHiddenState,
-                transition: motionTransition(reducedMotion, exitTween),
-              }}
+          animate={
+            isPresent
+              ? spacerVisibleState
+              : {
+                  ...spacerHiddenState,
+                  transition: motionTransition(reducedMotion, exitTween),
+                }
+          }
           className="desktop-workspace-panel-spacer desktop-workspace-panel-spacer--bottom"
           initial={skipEnterAnimation ? false : spacerHiddenState}
           style={liveSizeStyle}
-          transition={motionTransition(
-            reducedMotion,
-            entryComplete ? instantTween : layoutTween,
-          )}
+          transition={motionTransition(reducedMotion, entryComplete ? instantTween : layoutTween)}
         />
       ) : null}
       <motion.div
         ref={shellRef}
         aria-hidden={!isPresent ? true : undefined}
-        animate={isPresent
-          ? visibleState
-          : {
-              ...hiddenState,
-              transition: motionTransition(reducedMotion, exitTween),
-            }}
+        animate={
+          isPresent
+            ? visibleState
+            : {
+                ...hiddenState,
+                transition: motionTransition(reducedMotion, exitTween),
+              }
+        }
         className={[
           'desktop-workspace-panel',
           `desktop-workspace-panel--${target === 'right' ? 'right' : 'bottom'}`,
           fullWidth ? 'full-width' : '',
-        ].filter(Boolean).join(' ')}
+        ]
+          .filter(Boolean)
+          .join(' ')}
         data-workbench-panel-presence={isPresent ? 'open' : 'exiting'}
         initial={skipEnterAnimation ? false : hiddenState}
         inert={!isPresent ? true : undefined}
@@ -280,14 +256,9 @@ function WorkbenchPanelPresenceItem({
           if (isPresent) setEntryComplete(true)
         }}
         style={liveSizeStyle}
-        transition={motionTransition(
-          reducedMotion,
-          entryComplete ? instantTween : layoutTween,
-        )}
+        transition={motionTransition(reducedMotion, entryComplete ? instantTween : layoutTween)}
       >
-        <div className="desktop-workspace-panel__surface">
-          {children}
-        </div>
+        <div className="desktop-workspace-panel__surface">{children}</div>
       </motion.div>
     </WorkbenchPanelResizePreviewContext.Provider>
   )

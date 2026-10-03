@@ -1,11 +1,11 @@
-import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../wire/definition"
-import { OperationParamsSchema, SequenceSchema, TimestampSchema } from "../wire/primitives"
+import { Schema } from 'effect'
+import { defineMethod, type MethodMap } from '../wire/definition'
+import { OperationParamsSchema, SequenceSchema, TimestampSchema } from '../wire/primitives'
 
 const SkillPathSchema = Schema.String.check(Schema.isMinLength(1))
 
-export const SkillScopeSchema = Schema.Literals(["workspace", "user"])
-export const SkillFormatSchema = Schema.Literals(["codepilotx", "agents", "codex", "claude"])
+export const SkillScopeSchema = Schema.Literals(['workspace', 'user'])
+export const SkillFormatSchema = Schema.Literals(['codepilotx', 'agents', 'codex', 'claude'])
 
 export const InstalledSkillSchema = Schema.Struct({
   name: Schema.String.check(Schema.isMinLength(1)),
@@ -49,37 +49,32 @@ export const SkillSetEnabledResultSchema = Schema.Struct({
   updatedAt: TimestampSchema,
 })
 
-const SkillErrors = [
-  "SKILL_NOT_FOUND",
-  "PATH_DENIED",
-  "CONFLICT",
-  "INTERNAL_ERROR",
-] as const
+const SkillErrors = ['SKILL_NOT_FOUND', 'PATH_DENIED', 'CONFLICT', 'INTERNAL_ERROR'] as const
 
 export const SkillRpcMethods = {
-  "skill/list": defineMethod({
+  'skill/list': defineMethod({
     params: SkillListParamsSchema,
     result: SkillListResultSchema,
     errors: SkillErrors,
-    capability: "skills.manage.v1",
+    capability: 'skills.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "skill/read": defineMethod({
+  'skill/read': defineMethod({
     params: SkillReadParamsSchema,
     result: SkillReadResultSchema,
     errors: SkillErrors,
-    capability: "skills.manage.v1",
+    capability: 'skills.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "skill/setEnabled": defineMethod({
+  'skill/setEnabled': defineMethod({
     params: SkillSetEnabledParamsSchema,
     result: SkillSetEnabledResultSchema,
     errors: SkillErrors,
-    capability: "skills.manage.v1",
+    capability: 'skills.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,

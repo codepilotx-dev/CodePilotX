@@ -60,10 +60,10 @@ export function useScrollEdgeState(
         scrollHeight: container.scrollHeight,
         clientHeight: container.clientHeight,
       })
-      setState(current =>
-        current.atStart === next.atStart
-          && current.atEnd === next.atEnd
-          && current.scrollable === next.scrollable
+      setState((current) =>
+        current.atStart === next.atStart &&
+        current.atEnd === next.atEnd &&
+        current.scrollable === next.scrollable
           ? current
           : next,
       )

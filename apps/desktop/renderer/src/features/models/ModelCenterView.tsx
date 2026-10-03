@@ -12,10 +12,7 @@ export function ProviderSettings({
 }): React.ReactNode {
   return (
     <div className="model-center-page">
-      <ModelCenterWorkbench
-        onError={onError}
-        onNotice={onNotice}
-      />
+      <ModelCenterWorkbench onError={onError} onNotice={onNotice} />
     </div>
   )
 }

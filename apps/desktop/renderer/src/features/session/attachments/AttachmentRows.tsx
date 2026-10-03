@@ -17,8 +17,8 @@ export function ThreadAttachmentRows({
   onOpen,
   onRemove,
 }: ThreadAttachmentRowsProps): React.ReactNode {
-  const images = attachments.filter(attachment => attachment.kind === 'image')
-  const files = attachments.filter(attachment => attachment.kind !== 'image')
+  const images = attachments.filter((attachment) => attachment.kind === 'image')
+  const files = attachments.filter((attachment) => attachment.kind !== 'image')
 
   if (attachments.length === 0) return null
 
@@ -26,7 +26,7 @@ export function ThreadAttachmentRows({
     <div className="thread-attachment-rows">
       {images.length > 0 ? (
         <AttachmentHorizontalRow ariaLabel="图片附件" reverse>
-          {images.map(attachment => (
+          {images.map((attachment) => (
             <ThreadAttachmentImageTile
               attachment={attachment}
               key={attachment.id}
@@ -38,7 +38,7 @@ export function ThreadAttachmentRows({
       ) : null}
       {files.length > 0 ? (
         <AttachmentHorizontalRow ariaLabel="文件附件" reverse>
-          {files.map(attachment => (
+          {files.map((attachment) => (
             <AttachmentFilePill
               detail={formatAttachmentDetail(attachment)}
               key={attachment.id}

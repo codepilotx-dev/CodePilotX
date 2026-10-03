@@ -8,12 +8,20 @@ const dir = await mkdtemp(join(tmpdir(), 'codepilotx-menu-smoke-'))
 const bun = 'C:/nvm4w/nodejs/node_modules/bun/bin/bun.exe'
 let app
 try {
-  app = await electron.launch({ args: [join(root, 'apps/desktop/electron')], cwd: root, env: {
-    ...process.env, CODEPILOTX_BUN_PATH: bun,
-    CODEPILOTX_USER_DATA_DIR: dir, CODEPILOTX_DATA_DIR: join(dir, 'agent-home'),
-    CODEPILOTX_LOG_DIR: join(dir, 'logs'), CODEPILOTX_STATIC_DIR: join(root, 'dist/renderer'),
-    NO_PROXY: '127.0.0.1,localhost,::1', no_proxy: '127.0.0.1,localhost,::1',
-  } })
+  app = await electron.launch({
+    args: [join(root, 'apps/desktop/electron')],
+    cwd: root,
+    env: {
+      ...process.env,
+      CODEPILOTX_BUN_PATH: bun,
+      CODEPILOTX_USER_DATA_DIR: dir,
+      CODEPILOTX_DATA_DIR: join(dir, 'agent-home'),
+      CODEPILOTX_LOG_DIR: join(dir, 'logs'),
+      CODEPILOTX_STATIC_DIR: join(root, 'dist/renderer'),
+      NO_PROXY: '127.0.0.1,localhost,::1',
+      no_proxy: '127.0.0.1,localhost,::1',
+    },
+  })
   const page = await app.firstWindow()
   page.setDefaultTimeout(30000)
   async function ready(p) {
@@ -27,28 +35,63 @@ try {
     const trigger = page.locator('.menubar-trigger').filter({ hasText: menu })
     await trigger.focus()
     await trigger.press('ArrowDown')
-    await page.locator('.menubar-content[data-state="open"]').getByText(label, { exact: true }).click()
+    await page
+      .locator('.menubar-content[data-state="open"]')
+      .getByText(label, { exact: true })
+      .click()
   }
   await select('文件', '新建窗口')
   await expect.poll(() => app.windows().length).toBe(2)
-  const child = app.windows().find(p => p !== page)
+  const child = app.windows().find((p) => p !== page)
   await ready(child)
-  await child.keyboard.press('Control+w').catch(error => { if (!child.isClosed()) throw error })
+  await child.keyboard.press('Control+w').catch((error) => {
+    if (!child.isClosed()) throw error
+  })
   await expect.poll(() => app.windows().length).toBe(1)
   await select('窗口', '最小化')
-  await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMinimized())).toBe(true)
-  await app.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows()[0]; w.restore(); w.focus() })
+  await expect
+    .poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMinimized()))
+    .toBe(true)
+  await app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows()[0]
+    w.restore()
+    w.focus()
+  })
   await select('窗口', '缩放')
-  await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMaximized())).toBe(true)
+  await expect
+    .poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMaximized()))
+    .toBe(true)
   await select('窗口', '缩放')
-  await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMaximized())).toBe(false)
+  await expect
+    .poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isMaximized()))
+    .toBe(false)
   await select('查看', '放大')
-  await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.getZoomFactor())).toBeGreaterThan(1)
+  await expect
+    .poll(() =>
+      app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0].webContents.getZoomFactor(),
+      ),
+    )
+    .toBeGreaterThan(1)
   await page.keyboard.press('Control+0')
-  await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.getZoomFactor())).toBe(1)
-  const exited = new Promise(resolve => app.process().once('exit', resolve))
-  await select('文件', '退出应用').catch(error => { if (!page.isClosed()) throw error })
-  await Promise.race([exited, new Promise((_, reject) => { const t = setTimeout(() => reject(new Error('exit timed out')), 20000); t.unref() })])
+  await expect
+    .poll(() =>
+      app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0].webContents.getZoomFactor(),
+      ),
+    )
+    .toBe(1)
+  const exited = new Promise((resolve) => app.process().once('exit', resolve))
+  await select('文件', '退出应用').catch((error) => {
+    if (!page.isClosed()) throw error
+  })
+  await Promise.race([
+    exited,
+    new Promise((_, reject) => {
+      const t = setTimeout(() => reject(new Error('exit timed out')), 20000)
+      t.unref()
+    }),
+  ])
   console.log('PASS: native menu window create/close/minimize/maximize/restore/zoom/quit')
 } finally {
   if (app && app.process().exitCode === null) await app.close()

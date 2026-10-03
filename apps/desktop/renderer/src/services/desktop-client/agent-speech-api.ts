@@ -22,11 +22,11 @@ export function createAgentSpeechApi(
       requireSpeech()
       return (await rpc.call('speech/install', force ? { force } : {})).status
     },
-    transcribeSpeech: async input => {
+    transcribeSpeech: async (input) => {
       requireSpeech()
       return rpc.call('speech/transcribe', input)
     },
-    cancelSpeech: async operationId => {
+    cancelSpeech: async (operationId) => {
       requireSpeech()
       return (await rpc.call('speech/cancel', { operationId })).cancelled
     },

@@ -60,7 +60,7 @@ export function ApiKeyEditorForm({
 
   useEffect(() => {
     const fallbackProviderId = providers.some(
-      provider => provider.providerID === initialProviderId,
+      (provider) => provider.providerID === initialProviderId,
     )
       ? initialProviderId
       : providers[0]?.providerID
@@ -88,20 +88,22 @@ export function ApiKeyEditorForm({
 
   const canSubmit = label.trim().length > 0 && (editing || secret.trim().length > 0)
   const providerName = providers.find(
-    provider => provider.providerID === currentApiKey?.providerId,
+    (provider) => provider.providerID === currentApiKey?.providerId,
   )?.displayName
 
   return (
     <form
       className={['model-center-key-dialog-form', className].filter(Boolean).join(' ')}
-      onSubmit={event => void handleSubmit(event)}
+      onSubmit={(event) => void handleSubmit(event)}
     >
       <div className="settings-management-dialog-card model-center-key-dialog-fields">
         {!hideProvider ? (
           <label className="settings-management-dialog-row model-center-field">
             <span>Provider</span>
             {editing ? (
-              <div className="model-center-key-dialog-provider">{providerName ?? currentApiKey?.providerId}</div>
+              <div className="model-center-key-dialog-provider">
+                {providerName ?? currentApiKey?.providerId}
+              </div>
             ) : (
               <SettingsDropdown
                 ariaLabel="Provider"
@@ -109,12 +111,12 @@ export function ApiKeyEditorForm({
                 searchPlaceholder="搜索 Provider"
                 width="var(--radix-select-trigger-width)"
                 value={providerId}
-                options={providers.map(provider => ({
+                options={providers.map((provider) => ({
                   value: provider.providerID,
                   label: provider.displayName,
                   detail: provider.providerID,
                 }))}
-                onChange={value => setProviderId(value as ModelProviderID)}
+                onChange={(value) => setProviderId(value as ModelProviderID)}
               />
             )}
           </label>
@@ -126,7 +128,7 @@ export function ApiKeyEditorForm({
             maxLength={80}
             placeholder="例如：个人主账号"
             value={label}
-            onChange={event => setLabel(event.target.value)}
+            onChange={(event) => setLabel(event.target.value)}
           />
         </label>
         <label className="settings-management-dialog-row model-center-field">
@@ -136,14 +138,18 @@ export function ApiKeyEditorForm({
             placeholder={editing ? '留空则保留现有 Key' : '粘贴 API Key'}
             type="password"
             value={secret}
-            onChange={event => setSecret(event.target.value)}
+            onChange={(event) => setSecret(event.target.value)}
           />
           {editing ? <small>输入新 Key 后，健康状态会重置为“未测试”。</small> : null}
         </label>
       </div>
 
       <footer className="settings-management-dialog-footer model-center-key-dialog-actions">
-        {onCancel ? <Button color="secondary" onClick={onCancel}>取消</Button> : null}
+        {onCancel ? (
+          <Button color="secondary" onClick={onCancel}>
+            取消
+          </Button>
+        ) : null}
         <Button color="primary" disabled={!canSubmit} loading={busy} type="submit">
           {submitLabel ?? (editing ? '保存更改' : '安全保存')}
         </Button>
@@ -178,49 +184,52 @@ export function ApiKeyEditorDialog({
   const titleId = useId()
   const descriptionId = useId()
   const editing = Boolean(apiKey)
-  const { onCloseAutoFocus } = useDialogFocusRestore(
-    open,
-    restoreFocusElement,
-  )
+  const { onCloseAutoFocus } = useDialogFocusRestore(open, restoreFocusElement)
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-            aria-describedby={descriptionId}
-            aria-labelledby={titleId}
-            className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog model-center-key-dialog"
-            data-dialog-size="credential"
-            onCloseAutoFocus={onCloseAutoFocus}
-          >
-            <header className="settings-management-dialog-header model-center-key-dialog-header">
-              <div className="settings-management-dialog-heading model-center-key-dialog-heading">
-                <span className="model-center-key-dialog-icon"><KeyRound size={APP_ICON_SIZE} aria-hidden /></span>
-                <div>
-                  <Dialog.Title id={titleId}>{editing ? '编辑 API Key' : '新增 API Key'}</Dialog.Title>
-                  <Dialog.Description id={descriptionId}>
-                    {editing
-                      ? '修改名称，或输入新 Key 完成安全更换。旧密钥不会回填。'
-                      : '密钥保存后只显示名称和尾号，页面不会再次展示明文。'}
-                  </Dialog.Description>
-                </div>
+          aria-describedby={descriptionId}
+          aria-labelledby={titleId}
+          className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog model-center-key-dialog"
+          data-dialog-size="credential"
+          onCloseAutoFocus={onCloseAutoFocus}
+        >
+          <header className="settings-management-dialog-header model-center-key-dialog-header">
+            <div className="settings-management-dialog-heading model-center-key-dialog-heading">
+              <span className="model-center-key-dialog-icon">
+                <KeyRound size={APP_ICON_SIZE} aria-hidden />
+              </span>
+              <div>
+                <Dialog.Title id={titleId}>
+                  {editing ? '编辑 API Key' : '新增 API Key'}
+                </Dialog.Title>
+                <Dialog.Description id={descriptionId}>
+                  {editing
+                    ? '修改名称，或输入新 Key 完成安全更换。旧密钥不会回填。'
+                    : '密钥保存后只显示名称和尾号，页面不会再次展示明文。'}
+                </Dialog.Description>
               </div>
-              <Dialog.Close asChild>
-                <IconButton color="ghostSecondary" size="toolbar" title="关闭"><X size={APP_ICON_SIZE} aria-hidden /></IconButton>
-              </Dialog.Close>
-            </header>
-            <ApiKeyEditorForm
-              apiKey={apiKey}
-              busy={busy}
-              autoFocusLabel
-              initialProviderId={initialProviderId}
-              providers={providers}
-              resetSignal={open}
-              submitLabel={editing ? '保存更改' : '安全保存'}
-              onCancel={() => onOpenChange(false)}
-              onSubmit={onSubmit}
-            />
+            </div>
+            <Dialog.Close asChild>
+              <IconButton color="ghostSecondary" size="toolbar" title="关闭">
+                <X size={APP_ICON_SIZE} aria-hidden />
+              </IconButton>
+            </Dialog.Close>
+          </header>
+          <ApiKeyEditorForm
+            apiKey={apiKey}
+            busy={busy}
+            autoFocusLabel
+            initialProviderId={initialProviderId}
+            providers={providers}
+            resetSignal={open}
+            submitLabel={editing ? '保存更改' : '安全保存'}
+            onCancel={() => onOpenChange(false)}
+            onSubmit={onSubmit}
+          />
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

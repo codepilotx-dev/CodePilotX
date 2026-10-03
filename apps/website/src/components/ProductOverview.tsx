@@ -43,9 +43,7 @@ export const ProductOverview: React.FC = () => {
                     </span>
                   </div>
 
-                  <h3 className="text-xl font-bold text-[#17211D]">
-                    {pillar.title}
-                  </h3>
+                  <h3 className="text-xl font-bold text-[#17211D]">{pillar.title}</h3>
 
                   <p className="mt-4 text-sm text-[#55625D] leading-relaxed">
                     {pillar.description}

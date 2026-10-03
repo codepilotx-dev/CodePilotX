@@ -8,8 +8,10 @@ type HookTrustPayloadSource = {
 
 const firstHook = (request: HookTrustPayloadSource) => {
   const hooks = Array.isArray(request.auditSummary.hooks) ? request.auditSummary.hooks : []
-  return hooks.find((candidate): candidate is Record<string, unknown> =>
-    Boolean(candidate) && typeof candidate === "object" && !Array.isArray(candidate))
+  return hooks.find(
+    (candidate): candidate is Record<string, unknown> =>
+      Boolean(candidate) && typeof candidate === 'object' && !Array.isArray(candidate),
+  )
 }
 
 export const hookTrustRequestedPayload = (
@@ -17,7 +19,7 @@ export const hookTrustRequestedPayload = (
   waiter: { threadID: string; turnID: string; agentID: string },
 ) => {
   const hook = firstHook(request)
-  const hookID = typeof hook?.id === "string" && hook.id ? hook.id : "project-hooks"
+  const hookID = typeof hook?.id === 'string' && hook.id ? hook.id : 'project-hooks'
   return {
     interactionId: request.id,
     threadId: waiter.threadID,
@@ -25,21 +27,22 @@ export const hookTrustRequestedPayload = (
     agentId: waiter.agentID,
     createdAt: request.createdAt,
     version: 1,
-    kind: "hookTrust" as const,
+    kind: 'hookTrust' as const,
     configPath: request.configPath,
     sha256: request.configHash,
     hook: {
       id: hookID,
-      name: hookID === "project-hooks" ? "项目 Hook" : hookID,
-      event: typeof hook?.event === "string" && hook.event ? hook.event : "unknown",
-      command: typeof hook?.command === "string" && hook.command ? hook.command : "(multiple hooks)",
+      name: hookID === 'project-hooks' ? '项目 Hook' : hookID,
+      event: typeof hook?.event === 'string' && hook.event ? hook.event : 'unknown',
+      command:
+        typeof hook?.command === 'string' && hook.command ? hook.command : '(multiple hooks)',
     },
   }
 }
 
 export const hookTrustResolvedPayload = (
-  request: Pick<HookTrustPayloadSource, "id" | "configPath" | "configHash">,
-  decision: "allow" | "block",
+  request: Pick<HookTrustPayloadSource, 'id' | 'configPath' | 'configHash'>,
+  decision: 'allow' | 'block',
   resumed: boolean,
   resolvedAt: number,
 ) => ({

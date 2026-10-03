@@ -18,7 +18,11 @@ export function getSidebarScrollModeKey({
   timelineEnabled: boolean
   pane?: SidebarPane
 }): SidebarScrollModeKey {
-  const mode = timelineEnabled ? 'timeline:priority' : organization === 'projects' ? 'standard:projects' : 'standard:flat'
+  const mode = timelineEnabled
+    ? 'timeline:priority'
+    : organization === 'projects'
+      ? 'standard:projects'
+      : 'standard:flat'
   return pane ? `modern:${pane}:${mode}` : mode
 }
 
@@ -84,7 +88,7 @@ export function useSidebarScrollController({
 
     let disposed = false
     let stopObserving: (() => void) | undefined
-    void import('./sidebarActiveSessionObserver.js').then(module => {
+    void import('./sidebarActiveSessionObserver.js').then((module) => {
       if (disposed) return
       stopObserving = module.observeActiveSidebarSession({
         activeSessionId,

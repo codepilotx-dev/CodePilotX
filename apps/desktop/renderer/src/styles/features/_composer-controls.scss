@@ -17,10 +17,7 @@
     --composer-permission-chip-hover-border,
     var(--composer-permission-chip-border, transparent)
   );
-  background: var(
-    --composer-permission-chip-hover-bg,
-    var(--cpx-sys-color-hover)
-  );
+  background: var(--composer-permission-chip-hover-bg, var(--cpx-sys-color-hover));
   color: var(
     --composer-permission-chip-hover-color,
     var(--composer-permission-chip-color, var(--cpx-sys-color-fg-primary))
@@ -28,14 +25,12 @@
 }
 
 .chip-button.permission-chip.active,
-.permission-select-trigger[data-state="open"] {
+.permission-select-trigger[data-state='open'] {
   border-color: var(
     --composer-permission-chip-hover-border,
     var(--composer-permission-chip-border, transparent)
   );
-  background: var(
-    --composer-permission-chip-open-bg
-  );
+  background: var(--composer-permission-chip-open-bg);
   color: var(
     --composer-permission-chip-hover-color,
     var(--composer-permission-chip-color, var(--cpx-sys-color-fg-primary))
@@ -48,9 +43,7 @@
   --composer-permission-chip-border: transparent;
   --composer-permission-chip-color: var(--cpx-sys-color-fg-primary);
   --composer-permission-chip-hover-bg: var(--cpx-sys-color-hover);
-  --composer-permission-chip-hover-border: var(
-    --composer-permission-chip-border
-  );
+  --composer-permission-chip-hover-border: var(--composer-permission-chip-border);
   --composer-permission-chip-hover-color: var(--cpx-sys-color-fg-primary);
 }
 
@@ -59,9 +52,7 @@
   --composer-permission-chip-border: transparent;
   --composer-permission-chip-color: var(--cpx-sys-color-fg-primary);
   --composer-permission-chip-hover-bg: var(--cpx-sys-color-hover);
-  --composer-permission-chip-hover-border: var(
-    --composer-permission-chip-border
-  );
+  --composer-permission-chip-hover-border: var(--composer-permission-chip-border);
   --composer-permission-chip-hover-color: var(--cpx-sys-color-fg-primary);
 }
 
@@ -70,9 +61,7 @@
   --composer-permission-chip-border: transparent;
   --composer-permission-chip-color: var(--cpx-sys-color-warning);
   --composer-permission-chip-hover-bg: var(--cpx-sys-color-hover);
-  --composer-permission-chip-hover-border: var(
-    --composer-permission-chip-border
-  );
+  --composer-permission-chip-hover-border: var(--composer-permission-chip-border);
   --composer-permission-chip-hover-color: var(--cpx-sys-color-warning);
 }
 
@@ -239,7 +228,7 @@
   );
 
   &::before {
-    content: "";
+    content: '';
     position: absolute;
     inset: 2px;
     border-radius: var(--cpx-sys-radius-full);
@@ -313,7 +302,7 @@
     padding-inline: var(--cpx-sys-space-2);
   }
 
-  .composer-model-chip:not([aria-expanded="true"]) {
+  .composer-model-chip:not([aria-expanded='true']) {
     max-width: 96px;
     padding-inline: var(--cpx-sys-space-2);
   }
@@ -386,22 +375,20 @@
   }
 }
 
-:root[data-reduce-motion="on"] :is(
-  .composer-card,
-  .composer-frame,
-  .composer-input,
-  .context-usage-popover,
-  .composer-mode-switch-thumb,
-  .composer-plan-mode-chip-icon-plan,
-  .composer-plan-mode-chip-icon-exit
-) {
+:root[data-reduce-motion='on']
+  :is(
+    .composer-card,
+    .composer-frame,
+    .composer-input,
+    .context-usage-popover,
+    .composer-mode-switch-thumb,
+    .composer-plan-mode-chip-icon-plan,
+    .composer-plan-mode-chip-icon-exit
+  ) {
   transition: none;
 }
 
-:root[data-reduce-motion="on"] :is(
-  .composer-chip-spinner,
-  .composer-utility-bar
-) {
+:root[data-reduce-motion='on'] :is(.composer-chip-spinner, .composer-utility-bar) {
   animation: none;
 }
 
@@ -554,7 +541,7 @@
     display: none;
   }
 
-  .composer .composer-model-chip:not([aria-expanded="true"]) {
+  .composer .composer-model-chip:not([aria-expanded='true']) {
     max-width: 128px;
   }
 }
@@ -863,7 +850,8 @@
   flex: 1 1 0%;
   min-width: 0;
   background: var(--cpx-sys-color-surface-raised);
-  border-radius: 0 var(--composer-model-right-panel-radius) var(--composer-model-right-panel-radius) 0;
+  border-radius: 0 var(--composer-model-right-panel-radius) var(--composer-model-right-panel-radius)
+    0;
   padding: var(--composer-model-space-10);
   display: flex;
   flex-direction: column;

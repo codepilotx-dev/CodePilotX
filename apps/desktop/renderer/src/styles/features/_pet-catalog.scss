@@ -164,8 +164,8 @@
   font: var(--cpx-sys-type-caption);
 }
 
-.pet-catalog-tags > span[data-license="restricted"],
-.pet-catalog-tags > span[data-license="unknown"] {
+.pet-catalog-tags > span[data-license='restricted'],
+.pet-catalog-tags > span[data-license='unknown'] {
   color: var(--cpx-sys-color-warning);
 }
 

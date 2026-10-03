@@ -8,22 +8,20 @@ type Props = {
   disabled?: boolean
 }
 
-export const ToggleSwitch = forwardRef<HTMLButtonElement, Props>(
-  function ToggleSwitch(
-    { checked, onChange, ariaLabel, disabled = false },
-    ref,
-  ) {
-    return (
-      <Switch.Root
-        ref={ref}
-        aria-label={ariaLabel}
-        className="toggle-switch"
-        checked={checked}
-        disabled={disabled}
-        onCheckedChange={onChange}
-      >
-        <Switch.Thumb className="toggle-knob" />
-      </Switch.Root>
-    )
-  },
-)
+export const ToggleSwitch = forwardRef<HTMLButtonElement, Props>(function ToggleSwitch(
+  { checked, onChange, ariaLabel, disabled = false },
+  ref,
+) {
+  return (
+    <Switch.Root
+      ref={ref}
+      aria-label={ariaLabel}
+      className="toggle-switch"
+      checked={checked}
+      disabled={disabled}
+      onCheckedChange={onChange}
+    >
+      <Switch.Thumb className="toggle-knob" />
+    </Switch.Root>
+  )
+})

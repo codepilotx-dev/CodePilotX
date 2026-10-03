@@ -1,4 +1,4 @@
-import { join } from "node:path"
+import { join } from 'node:path'
 import {
   DebouncedAtomicJsonWriter,
   clamp,
@@ -6,11 +6,8 @@ import {
   isRecord,
   type DesktopWindowBounds,
   type StateLogger as WindowStateLogger,
-} from "./debounced-atomic-json-writer.js"
-import {
-  DEFAULT_PAGE_ZOOM_PERCENT,
-  normalizePageZoomPercent,
-} from "./page-zoom.js"
+} from './debounced-atomic-json-writer.js'
+import { DEFAULT_PAGE_ZOOM_PERCENT, normalizePageZoomPercent } from './page-zoom.js'
 
 export const MAIN_WINDOW_MIN_WIDTH = 960
 export const MAIN_WINDOW_MIN_HEIGHT = 640
@@ -36,12 +33,12 @@ export class WindowStateStore {
   constructor(
     userDataDirectory: string,
     logger?: WindowStateLogger,
-    fileName = "window-state.json",
+    fileName = 'window-state.json',
   ) {
     this.#writer = new DebouncedAtomicJsonWriter<DesktopWindowStateV1>(
       join(userDataDirectory, fileName),
       WINDOW_STATE_WRITE_DELAY_MS,
-      "window-state",
+      'window-state',
       logger,
     )
   }
@@ -56,7 +53,7 @@ export class WindowStateStore {
   ): Promise<DesktopWindowStateV1> {
     return this.#writer.load(
       () => createDefaultWindowState(primaryDisplay),
-      parsed => normalizeWindowState(parsed, displays, primaryDisplay),
+      (parsed) => normalizeWindowState(parsed, displays, primaryDisplay),
     )
   }
 
@@ -96,7 +93,7 @@ export function normalizeWindowState(
 
   const availableDisplays = displays.length > 0 ? displays : [primaryDisplay]
   const targetDisplay = availableDisplays
-    .map(display => ({
+    .map((display) => ({
       display,
       overlap: intersectionArea(value.bounds, display),
     }))
@@ -139,13 +136,15 @@ function isWindowState(value: unknown): value is {
   zoomPercent?: unknown
 } {
   if (!isRecord(value) || value.version !== WINDOW_STATE_VERSION) return false
-  if (typeof value.maximized !== "boolean" || !isRecord(value.bounds)) return false
+  if (typeof value.maximized !== 'boolean' || !isRecord(value.bounds)) return false
   const bounds = value.bounds
-  return ["x", "y", "width", "height"].every(
-    key => typeof bounds[key] === "number"
-      && Number.isFinite(bounds[key]),
-  ) && typeof bounds.width === "number"
-    && typeof bounds.height === "number"
-    && bounds.width > 0
-    && bounds.height > 0
+  return (
+    ['x', 'y', 'width', 'height'].every(
+      (key) => typeof bounds[key] === 'number' && Number.isFinite(bounds[key]),
+    ) &&
+    typeof bounds.width === 'number' &&
+    typeof bounds.height === 'number' &&
+    bounds.width > 0 &&
+    bounds.height > 0
+  )
 }

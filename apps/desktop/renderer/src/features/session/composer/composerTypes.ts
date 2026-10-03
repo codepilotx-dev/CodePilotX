@@ -3,10 +3,7 @@ import type {
   DesktopUserMessageInput,
 } from '../../../../shared/types.js'
 
-export type ComposerPlacement =
-  | 'new-session'
-  | 'thread'
-  | 'side-task'
+export type ComposerPlacement = 'new-session' | 'thread' | 'side-task'
 
 export type ComposerLayout = 'single-line' | 'multiline'
 
@@ -24,10 +21,7 @@ export type ComposerExecutionMode = 'local' | 'worktree' | 'cloud'
 
 export type ComposerCollaborationMode = 'default' | 'plan'
 
-export type ComposerSubmitShortcut =
-  | 'enter'
-  | 'multiline-ctrl-enter'
-  | 'ctrl-enter'
+export type ComposerSubmitShortcut = 'enter' | 'multiline-ctrl-enter' | 'ctrl-enter'
 
 export type ComposerDeliveryIntent = 'default' | 'follow-up'
 
@@ -59,24 +53,23 @@ export type ComposerCapabilities = {
  * Capabilities backed by the current renderer and desktop client. Features
  * without a real data source stay false so consumers can omit them entirely.
  */
-export const DEFAULT_COMPOSER_CAPABILITIES: Readonly<ComposerCapabilities> =
-  Object.freeze({
-    localExecution: true,
-    worktreeExecution: false,
-    cloudExecution: false,
-    remoteHost: false,
-    fileAttachments: true,
-    clipboardBlobAttachments: false,
-    skills: true,
-    plugins: false,
-    mcpResources: false,
-    ideContext: false,
-    dictation: false,
-    voiceMode: false,
-    review: true,
-    goals: true,
-    status: true,
-  })
+export const DEFAULT_COMPOSER_CAPABILITIES: Readonly<ComposerCapabilities> = Object.freeze({
+  localExecution: true,
+  worktreeExecution: false,
+  cloudExecution: false,
+  remoteHost: false,
+  fileAttachments: true,
+  clipboardBlobAttachments: false,
+  skills: true,
+  plugins: false,
+  mcpResources: false,
+  ideContext: false,
+  dictation: false,
+  voiceMode: false,
+  review: true,
+  goals: true,
+  status: true,
+})
 
 export function resolveComposerCapabilities(
   overrides: Partial<ComposerCapabilities> = {},
@@ -128,10 +121,7 @@ export type ComposerBrowserContext = {
   url: string
 }
 
-export type ComposerDraftKey =
-  | 'home'
-  | `session:${string}`
-  | `side-chat:${string}`
+export type ComposerDraftKey = 'home' | `session:${string}` | `side-chat:${string}`
 
 export type ComposerSkillInvocation = {
   name: string

@@ -112,9 +112,6 @@ export function useResizeActivityResizing(): boolean {
     (listener: () => void) => resizeActivityCoordinator.subscribe(listener),
     [],
   )
-  const getSnapshot = React.useCallback(
-    () => resizeActivityCoordinator.isResizing(),
-    [],
-  )
+  const getSnapshot = React.useCallback(() => resizeActivityCoordinator.isResizing(), [])
   return React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 }

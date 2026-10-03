@@ -2,27 +2,44 @@ import { describe, expect, test } from 'bun:test'
 import type { MiniMaxCliStatus, PluginSummary } from '@codepilotx/agent-protocol'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { PluginCatalogCard } from '../src/features/plugins/PluginCatalogCard.js'
-import { PLUGIN_CATALOG_DESCRIPTORS, mergePluginCatalog } from '../src/features/plugins/pluginCatalog.js'
+import {
+  PLUGIN_CATALOG_DESCRIPTORS,
+  mergePluginCatalog,
+} from '../src/features/plugins/pluginCatalog.js'
 
 const taskPlanning: PluginSummary = {
-  id: 'task-planning', name: '任务规划', version: '1.0.0',
-  description: '拆解和规划复杂工作', developerName: 'CodePilotX',
-  category: 'Productivity', source: 'bundled',
-  installationPolicy: 'INSTALLED_BY_DEFAULT', installed: true, enabled: true,
-  status: 'ready', capabilities: ['task-planning'], skills: ['task-planning'],
+  id: 'task-planning',
+  name: '任务规划',
+  version: '1.0.0',
+  description: '拆解和规划复杂工作',
+  developerName: 'CodePilotX',
+  category: 'Productivity',
+  source: 'bundled',
+  installationPolicy: 'INSTALLED_BY_DEFAULT',
+  installed: true,
+  enabled: true,
+  status: 'ready',
+  capabilities: ['task-planning'],
+  skills: ['task-planning'],
 }
 
-function renderCard(id: 'task-planning' | 'browser' | 'minimax', miniMax?: MiniMaxCliStatus): string {
+function renderCard(
+  id: 'task-planning' | 'browser' | 'minimax',
+  miniMax?: MiniMaxCliStatus,
+): string {
   const item = mergePluginCatalog(
     PLUGIN_CATALOG_DESCRIPTORS,
     [taskPlanning],
     null,
     miniMax ? { status: miniMax } : undefined,
-  )
-    .find(candidate => candidate.id === id)
+  ).find((candidate) => candidate.id === id)
   if (!item) throw new Error(`Missing plugin fixture: ${id}`)
   return renderToStaticMarkup(
-    <PluginCatalogCard item={item} onOpenDetails={() => undefined} onPrimaryAction={() => undefined} />,
+    <PluginCatalogCard
+      item={item}
+      onOpenDetails={() => undefined}
+      onPrimaryAction={() => undefined}
+    />,
   )
 }
 
@@ -56,9 +73,13 @@ describe('plugin catalog controls', () => {
 
   test('renders MiniMax CLI as an install action when supported but not installed', () => {
     const html = renderCard('minimax', {
-      installationStatus: 'not-installed', updateAvailable: false,
-      nodeVersion: 'v22.0.0', npmVersion: '10.0.0', authStatus: 'not-authenticated',
-      generation: 1, updatedAt: 1,
+      installationStatus: 'not-installed',
+      updateAvailable: false,
+      nodeVersion: 'v22.0.0',
+      npmVersion: '10.0.0',
+      authStatus: 'not-authenticated',
+      generation: 1,
+      updatedAt: 1,
     })
     expect(html).toContain('安装')
     expect(html).toContain('未安装')

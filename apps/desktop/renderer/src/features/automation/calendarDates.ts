@@ -11,10 +11,7 @@ export type CalendarDateCell = {
   today: boolean
 }
 
-export function calendarDates(
-  month: Date,
-  today: Date = new Date(),
-): readonly CalendarDateCell[] {
+export function calendarDates(month: Date, today: Date = new Date()): readonly CalendarDateCell[] {
   const firstDay = new Date(month.getFullYear(), month.getMonth(), 1, 12)
   const mondayOffset = (firstDay.getDay() + 6) % 7
   const start = new Date(
@@ -26,20 +23,14 @@ export function calendarDates(
   const todayValue = formatDateValue(today)
 
   return Array.from({ length: 42 }, (_, index) => {
-    const date = new Date(
-      start.getFullYear(),
-      start.getMonth(),
-      start.getDate() + index,
-      12,
-    )
+    const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + index, 12)
     const value = formatDateValue(date)
     return {
       date,
       value,
       day: date.getDate(),
       currentMonth:
-        date.getFullYear() === firstDay.getFullYear() &&
-        date.getMonth() === firstDay.getMonth(),
+        date.getFullYear() === firstDay.getFullYear() && date.getMonth() === firstDay.getMonth(),
       today: value === todayValue,
     }
   })
@@ -75,7 +66,7 @@ export function filterCalendarOccurrences(
   filter: CalendarFilter,
 ): readonly CalendarOccurrence[] {
   const needle = query.trim().toLocaleLowerCase()
-  return occurrences.filter(occurrence => {
+  return occurrences.filter((occurrence) => {
     if (needle && !occurrence.title.toLocaleLowerCase().includes(needle)) return false
     if (filter === 'execution') return occurrence.runId !== null
     if (filter === 'scheduled-task') {

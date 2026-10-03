@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { expectSourceContains, expectSourceNotContains } from './source-contract.js'
 
 const rendererRoot = resolve(import.meta.dir, '..')
 
@@ -10,51 +11,44 @@ function readRendererFile(path: string): string {
 
 describe('workbench chrome contract', () => {
   test('keeps the renderer title bar at a deterministic logical height', () => {
-    const shell = readRendererFile(
-      'src/features/layout/shell/WorkbenchShellView.tsx',
-    )
-    const tokens = readRendererFile(
-      'src/styles/design-system/tokens.scss',
-    )
+    const shell = readRendererFile('src/features/layout/shell/WorkbenchShellView.tsx')
+    const tokens = readRendererFile('src/styles/design-system/tokens.scss')
 
-    expect(shell).toContain('className="desktop-menubar tw:shrink-0"')
-    expect(shell).not.toContain('updateTitleBarOverlay')
-    expect(shell).not.toContain('getBoundingClientRect().height')
-    expect(tokens).toContain('--application-menubar-height: 36px')
-    expect(tokens).not.toContain('env(titlebar-area-height')
+    expectSourceContains(shell, 'className="desktop-menubar tw:shrink-0"')
+    expectSourceNotContains(shell, 'updateTitleBarOverlay')
+    expectSourceNotContains(shell, 'getBoundingClientRect().height')
+    expectSourceContains(tokens, '--application-menubar-height: 36px')
+    expectSourceNotContains(tokens, 'env(titlebar-area-height')
   })
 
   test('keeps application chrome separate from the workspace toolbar', () => {
     const chrome = readRendererFile('src/styles/features/layout-chrome.scss')
-    const workspaceHeader = readRendererFile(
-      'src/styles/features/_layout-workspace-header.scss',
-    )
+    const workspaceHeader = readRendererFile('src/styles/features/_layout-workspace-header.scss')
     const layout = readRendererFile('src/features/layout/shell/DesktopLayout.tsx')
 
-    expect(chrome).toContain(
-      '--desktop-titlebar-height: var(--application-menubar-height)',
-    )
-    expect(chrome).toContain('--cpx-sys-color-workbench-titlebar-bg')
-    expect(workspaceHeader).toContain('height: var(--workspace-header-height)')
-    expect(workspaceHeader).toContain('position: absolute')
-    expect(workspaceHeader).toContain('background: transparent')
-    expect(workspaceHeader).toContain(
+    expectSourceContains(chrome, '--desktop-titlebar-height: var(--application-menubar-height)')
+    expectSourceContains(chrome, '--cpx-sys-color-workbench-titlebar-bg')
+    expectSourceContains(workspaceHeader, 'height: var(--workspace-header-height)')
+    expectSourceContains(workspaceHeader, 'position: absolute')
+    expectSourceContains(workspaceHeader, 'background: transparent')
+    expectSourceContains(
+      workspaceHeader,
       'border-bottom: 1px solid var(--cpx-sys-color-border-subtle)',
     )
-    expect(workspaceHeader).not.toContain('--cpx-sys-color-workbench-titlebar-bg')
-    expect(layout).toContain('<DesktopWorkspaceHeader')
-    expect(layout).toContain('desktop-main-route__header-spacer')
+    expectSourceNotContains(workspaceHeader, '--cpx-sys-color-workbench-titlebar-bg')
+    expectSourceContains(layout, '<DesktopWorkspaceHeader')
+    expectSourceContains(layout, 'desktop-main-route__header-spacer')
   })
 
   test('keeps route content out of the application menu bar', () => {
     const menuBar = readRendererFile('src/features/layout/MenuBar.tsx')
     const windowControlsIndex = menuBar.indexOf('<WindowControls')
 
-    expect(menuBar).not.toContain('workspaceHeader')
-    expect(menuBar).not.toContain('menubar-workspace-header')
+    expectSourceNotContains(menuBar, 'workspaceHeader')
+    expectSourceNotContains(menuBar, 'menubar-workspace-header')
     expect(windowControlsIndex).toBeGreaterThan(menuBar.indexOf('</Menubar.Root>'))
     for (const label of ['文件', '编辑', '查看', '窗口', '帮助']) {
-      expect(menuBar).toContain(`label="${label}"`)
+      expectSourceContains(menuBar, `label="${label}"`)
     }
   })
 
@@ -62,40 +56,39 @@ describe('workbench chrome contract', () => {
     const layout = readRendererFile('src/features/layout/shell/DesktopLayout.tsx')
     const menuBar = readRendererFile('src/features/layout/MenuBar.tsx')
 
-    expect(layout).toContain('useDesktopRuntimeSettings()')
-    expect(layout).not.toContain('useDesktopSettings()')
-    expect(layout).not.toContain('useEditCommands()')
-    expect(menuBar).toContain('useEditCommands()')
+    expectSourceContains(layout, 'useDesktopRuntimeSettings()')
+    expectSourceNotContains(layout, 'useDesktopSettings()')
+    expectSourceNotContains(layout, 'useEditCommands()')
+    expectSourceContains(menuBar, 'useEditCommands()')
   })
 })
 
 describe('workbench resize commit contract', () => {
   test('commits panel ratios synchronously without layout-state feedback', () => {
-    const controller = readRendererFile(
-      'src/features/layout/shell/useWorkbenchShellController.ts',
-    )
-    const desktopLayout = readRendererFile(
-      'src/features/layout/useDesktopLayout.ts',
-    )
+    const controller = readRendererFile('src/features/layout/shell/useWorkbenchShellController.ts')
+    const desktopLayout = readRendererFile('src/features/layout/useDesktopLayout.ts')
 
-    expect(controller).not.toContain('startTransition')
-    expect(controller).toContain('setRightDockWidthRatio(nextRatio)')
-    expect(controller).toContain('setBottomPanelHeightRatio(nextRatio)')
-    expect(controller).toContain('rightPanelLiveResizeRef.current.previewSize(')
-    expect(controller).toContain('bottomPanelLiveResizeRef.current.previewSize(')
-    expect(controller).toContain('settleTimerRef.current = setTimeout(')
+    expectSourceNotContains(controller, 'startTransition')
+    expectSourceContains(controller, 'setRightDockWidthRatio(nextRatio)')
+    expectSourceContains(controller, 'setBottomPanelHeightRatio(nextRatio)')
+    expectSourceContains(controller, 'rightPanelLiveResizeRef.current.previewSize(')
+    expectSourceContains(controller, 'bottomPanelLiveResizeRef.current.previewSize(')
+    expectSourceContains(controller, 'settleTimerRef.current = setTimeout(')
     // 原生缩放状态由 resizeActivityCoordinator 统一维护（按窗口 + revision +
     // 看门狗），不再是易失布尔 ref；旧版 Electron 的布尔信号在入口处合成事件。
-    expect(controller).not.toContain('nativeResizeActiveRef')
-    expect(controller).toContain('resizeActivityCoordinator.applyNativeActivity(activity)')
-    expect(controller).toContain('handleResizePhase(activity.phase)')
-    expect(controller).toContain('onWindowResizeStateChanged?.(resizing =>')
-    expect(controller).toContain('resizeActivityFromLegacy(resizing, legacyRevision)')
-    expect(controller).toContain('if (!resizeActivityCoordinator.isResizing()) scheduleFallbackSettlement()')
-    expect(controller).toContain('resizeActivityCoordinator.reset()')
-    expect(controller).toContain('NON_NATIVE_RESIZE_SETTLE_MS = 500')
-    expect(controller).toContain('rightPanelLiveResizeRef.current.previewSize(null)')
-    expect(controller).toContain('bottomPanelLiveResizeRef.current.previewSize(null)')
-    expect(desktopLayout).not.toContain('viewportWidth')
+    expectSourceNotContains(controller, 'nativeResizeActiveRef')
+    expectSourceContains(controller, 'resizeActivityCoordinator.applyNativeActivity(activity)')
+    expectSourceContains(controller, 'handleResizePhase(activity.phase)')
+    expectSourceContains(controller, 'onWindowResizeStateChanged?.(resizing =>')
+    expectSourceContains(controller, 'resizeActivityFromLegacy(resizing, legacyRevision)')
+    expectSourceContains(
+      controller,
+      'if (!resizeActivityCoordinator.isResizing()) scheduleFallbackSettlement()',
+    )
+    expectSourceContains(controller, 'resizeActivityCoordinator.reset()')
+    expectSourceContains(controller, 'NON_NATIVE_RESIZE_SETTLE_MS = 500')
+    expectSourceContains(controller, 'rightPanelLiveResizeRef.current.previewSize(null)')
+    expectSourceContains(controller, 'bottomPanelLiveResizeRef.current.previewSize(null)')
+    expectSourceNotContains(desktopLayout, 'viewportWidth')
   })
 })

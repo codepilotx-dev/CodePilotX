@@ -1,15 +1,8 @@
-import type {
-  Automation,
-  AutomationRun,
-  AutomationSchedule,
-} from '@codepilotx/shared/automation'
+import type { Automation, AutomationRun, AutomationSchedule } from '@codepilotx/shared/automation'
 import type { DesktopSessionListItem } from '../../../shared/types.js'
 
 export type AutomationFilter = 'all' | 'active' | 'paused' | 'completed'
-export type AutomationTemplateId =
-  | 'daily-brief'
-  | 'weekly-review'
-  | 'follow-up-monitor'
+export type AutomationTemplateId = 'daily-brief' | 'weekly-review' | 'follow-up-monitor'
 
 export type AutomationTemplate = {
   id: AutomationTemplateId
@@ -25,8 +18,7 @@ export const AUTOMATION_TEMPLATES: readonly AutomationTemplate[] = [
     id: 'daily-brief',
     name: '每日简报',
     description: '以日历、未读邮件和优先事项摘要开启每个工作日',
-    prompt:
-      '为我整理晨间简报，包括今天的日历、重要未读邮件，以及今天需要我关注的事项。',
+    prompt: '为我整理晨间简报，包括今天的日历、重要未读邮件，以及今天需要我关注的事项。',
     schedule: { mode: 'weekdays', time: '08:00' },
     tone: 'info',
   },
@@ -42,8 +34,7 @@ export const AUTOMATION_TEMPLATES: readonly AutomationTemplate[] = [
     id: 'follow-up-monitor',
     name: '跟进监控',
     description: '查看最近的邮件和日历活动，并标记需要关注的事项',
-    prompt:
-      '查看最近的邮件和日历活动，突出有意义的变化，并标记需要我关注的事项。',
+    prompt: '查看最近的邮件和日历活动，突出有意义的变化，并标记需要我关注的事项。',
     schedule: { mode: 'weekdays', time: '09:00' },
     tone: 'success',
   },
@@ -70,7 +61,7 @@ export function defaultAutomationDraft(input: {
   model: Automation['model']
   template?: AutomationTemplateId
 }): AutomationDraft {
-  const template = AUTOMATION_TEMPLATES.find(item => item.id === input.template)
+  const template = AUTOMATION_TEMPLATES.find((item) => item.id === input.template)
   return {
     kind: 'standalone',
     name: template?.name ?? '',
@@ -86,8 +77,7 @@ export function defaultAutomationDraft(input: {
       approvalsReviewer: 'user',
     },
     schedule: template?.schedule ?? { mode: 'daily', time: '09:00' },
-    timeZone:
-      Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
     notificationPolicy: 'all',
   }
 }
@@ -97,7 +87,7 @@ export function hasActiveAutomationRun(
   runs: readonly AutomationRun[],
 ): boolean {
   return runs.some(
-    run =>
+    (run) =>
       run.automationId === automationId &&
       ['claimed', 'preparing', 'queued', 'running'].includes(run.status),
   )
@@ -135,22 +125,15 @@ export function validateAutomationDraft(draft: AutomationDraft): string | null {
   if (!draft.name.trim()) return '请输入自动化名称。'
   if (!draft.prompt.trim()) return '请输入要执行的任务。'
   if (draft.kind === 'standalone' && !draft.projectId) return '请选择项目。'
-  if (draft.kind === 'thread' && !draft.targetThreadId)
-    return '请选择目标聊天。'
-  if (
-    draft.execution?.kind === 'new-worktree' &&
-    !draft.execution.branchName.trim()
-  ) {
+  if (draft.kind === 'thread' && !draft.targetThreadId) return '请选择目标聊天。'
+  if (draft.execution?.kind === 'new-worktree' && !draft.execution.branchName.trim()) {
     return '请输入 Worktree 的基础分支。'
   }
-  if (draft.schedule.mode === 'custom' && !draft.schedule.rrule.trim())
-    return '请输入 RRULE。'
+  if (draft.schedule.mode === 'custom' && !draft.schedule.rrule.trim()) return '请输入 RRULE。'
   return null
 }
 
-export function automationScheduleSummary(
-  schedule: AutomationSchedule,
-): string {
+export function automationScheduleSummary(schedule: AutomationSchedule): string {
   if (schedule.mode === 'hourly') return `每 ${schedule.intervalMinutes} 分钟`
   if (schedule.mode === 'daily') return `每天 ${schedule.time}`
   if (schedule.mode === 'weekdays') return `工作日 ${schedule.time}`
@@ -164,7 +147,7 @@ export function automationScheduleSummary(
       SA: '周六',
       SU: '周日',
     }
-    return `${schedule.weekdays.map(day => labels[day] ?? day).join('、')} ${schedule.time}`
+    return `${schedule.weekdays.map((day) => labels[day] ?? day).join('、')} ${schedule.time}`
   }
   return schedule.rrule
 }
@@ -179,13 +162,8 @@ export function automationTargetLabel(
       ? (projectNames.get(automation.projectId) ?? '项目已移除')
       : '未选择项目'
   }
-  const thread = sessions.find(item => item.id === automation.targetThreadId)
-  return (
-    thread?.customTitle ??
-    thread?.aiTitle ??
-    thread?.sessionName ??
-    '聊天已不可用'
-  )
+  const thread = sessions.find((item) => item.id === automation.targetThreadId)
+  return thread?.customTitle ?? thread?.aiTitle ?? thread?.sessionName ?? '聊天已不可用'
 }
 
 export function formatAutomationTime(value: number | null): string {

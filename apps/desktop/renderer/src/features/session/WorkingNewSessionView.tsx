@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type React from "react";
-import type { WorkingPlugin } from "./composer/composerTypes.js";
-import { DesktopComposer } from "./composer/DesktopComposer.js";
-import { useQuickChatContext } from "./QuickChatContext.js";
-import { WorkingSuggestionsPanel } from "./WorkingSuggestionsPanel.js";
-import { useContextualTaskSuggestions } from "./useContextualTaskSuggestions.js";
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type React from 'react'
+import type { WorkingPlugin } from './composer/composerTypes.js'
+import { DesktopComposer } from './composer/DesktopComposer.js'
+import { useQuickChatContext } from './QuickChatContext.js'
+import { WorkingSuggestionsPanel } from './WorkingSuggestionsPanel.js'
+import { useContextualTaskSuggestions } from './useContextualTaskSuggestions.js'
 import {
   buildWorkingContextualTaskSuggestions,
   createWorkingSuggestionState,
@@ -20,9 +20,9 @@ import {
   type WorkingSuggestionCategory,
   type WorkingSuggestionState,
   type WorkingSuggestionTask,
-} from "./workingSuggestions.js";
+} from './workingSuggestions.js'
 
-const WORKING_COMPOSER_PLACEHOLDER = "使用 CodePilotX Working";
+const WORKING_COMPOSER_PLACEHOLDER = '使用 CodePilotX Working'
 
 export function WorkingNewSessionView(): React.ReactNode {
   const {
@@ -34,158 +34,133 @@ export function WorkingNewSessionView(): React.ReactNode {
     workspaceName,
     workspacePath,
     onAppendComposerText,
-  } = useQuickChatContext();
-  const [workingPlugin, setWorkingPlugin] = useState<WorkingPlugin | null>(
-    null,
-  );
-  const [taskPlanningAvailable, setTaskPlanningAvailable] = useState(false);
-  const [observedComposerValue, setObservedComposerValue] = useState(
-    composerDraft?.value ?? "",
-  );
-  const [suggestionState, setSuggestionState] = useState<WorkingSuggestionState>(
-    () => createWorkingSuggestionState(composerDraft?.value ?? ""),
-  );
-  const pageRef = useRef<HTMLDivElement | null>(null);
-  const programmaticValueRef = useRef<string | null>(null);
-  const composerDraftValue = composerDraft?.value;
+  } = useQuickChatContext()
+  const [workingPlugin, setWorkingPlugin] = useState<WorkingPlugin | null>(null)
+  const [taskPlanningAvailable, setTaskPlanningAvailable] = useState(false)
+  const [observedComposerValue, setObservedComposerValue] = useState(composerDraft?.value ?? '')
+  const [suggestionState, setSuggestionState] = useState<WorkingSuggestionState>(() =>
+    createWorkingSuggestionState(composerDraft?.value ?? ''),
+  )
+  const pageRef = useRef<HTMLDivElement | null>(null)
+  const programmaticValueRef = useRef<string | null>(null)
+  const composerDraftValue = composerDraft?.value
   const { suggestions, markInteracted } = useContextualTaskSuggestions({
-    surface: "working",
+    surface: 'working',
     buildWorkingSuggestions: buildWorkingContextualTaskSuggestions,
-    active:
-      suggestionState.kind === "root" &&
-      observedComposerValue.trim().length === 0,
+    active: suggestionState.kind === 'root' && observedComposerValue.trim().length === 0,
     workspaceName,
     workspacePath,
     branchName,
     gitStatus,
     recentTasks,
-  });
+  })
 
   useEffect(() => {
-    if (composerDraftValue === undefined) return;
-    setObservedComposerValue(composerDraftValue);
+    if (composerDraftValue === undefined) return
+    setObservedComposerValue(composerDraftValue)
     if (programmaticValueRef.current === composerDraftValue) {
-      programmaticValueRef.current = null;
-      return;
+      programmaticValueRef.current = null
+      return
     }
-    setSuggestionState(current =>
-      syncWorkingSuggestionState(current, composerDraftValue),
-    );
-  }, [composerDraftValue]);
+    setSuggestionState((current) => syncWorkingSuggestionState(current, composerDraftValue))
+  }, [composerDraftValue])
 
   const focusComposer = useCallback(() => {
     if (composerDraft?.focus) {
-      composerDraft.focus();
-      return;
+      composerDraft.focus()
+      return
     }
-    const editor = pageRef.current?.querySelector<HTMLElement>(
-      "textarea, [contenteditable='true']",
-    );
-    editor?.focus();
-  }, [composerDraft]);
+    const editor = pageRef.current?.querySelector<HTMLElement>("textarea, [contenteditable='true']")
+    editor?.focus()
+  }, [composerDraft])
 
   const replaceComposerValue = useCallback(
     (value: string) => {
-      programmaticValueRef.current = value;
-      setObservedComposerValue(value);
+      programmaticValueRef.current = value
+      setObservedComposerValue(value)
       if (composerDraft) {
-        composerDraft.replace(value);
+        composerDraft.replace(value)
       } else if (observedComposerValue.length === 0) {
-        onAppendComposerText(value);
+        onAppendComposerText(value)
       }
-      requestAnimationFrame(focusComposer);
+      requestAnimationFrame(focusComposer)
     },
     [composerDraft, focusComposer, observedComposerValue, onAppendComposerText],
-  );
+  )
 
   const handleSelectCategory = useCallback(
     (category: WorkingSuggestionCategory) => {
-      markInteracted();
-      setSuggestionState(
-        selectWorkingSuggestionCategory(category.id, category.starterPrompt),
-      );
-      replaceComposerValue(category.starterPrompt);
+      markInteracted()
+      setSuggestionState(selectWorkingSuggestionCategory(category.id, category.starterPrompt))
+      replaceComposerValue(category.starterPrompt)
     },
     [markInteracted, replaceComposerValue],
-  );
+  )
 
   const handleSelectSuggestion = useCallback(
     (suggestion: WorkingContextualSuggestion) => {
-      markInteracted();
-      const result = selectWorkingContextualSuggestion(suggestion);
-      setSuggestionState(result.state);
-      setWorkingPlugin(taskPlanningAvailable ? result.plugin : null);
-      replaceComposerValue(result.prompt);
+      markInteracted()
+      const result = selectWorkingContextualSuggestion(suggestion)
+      setSuggestionState(result.state)
+      setWorkingPlugin(taskPlanningAvailable ? result.plugin : null)
+      replaceComposerValue(result.prompt)
     },
     [markInteracted, replaceComposerValue, taskPlanningAvailable],
-  );
+  )
 
   const handleShowTemplates = useCallback(() => {
-    markInteracted();
-    setSuggestionState(showWorkingSuggestionTemplates());
-  }, [markInteracted]);
+    markInteracted()
+    setSuggestionState(showWorkingSuggestionTemplates())
+  }, [markInteracted])
 
   const handleShowSuggestions = useCallback(() => {
-    markInteracted();
-    setSuggestionState(showContextualWorkingSuggestions());
-  }, [markInteracted]);
+    markInteracted()
+    setSuggestionState(showContextualWorkingSuggestions())
+  }, [markInteracted])
 
   const handleSelectTask = useCallback(
     (_category: WorkingSuggestionCategory, task: WorkingSuggestionTask) => {
-      markInteracted();
-      const result = selectWorkingSuggestionTask(suggestionState, task.id);
-      if (!result) return;
-      setSuggestionState(result.state);
-      setWorkingPlugin(taskPlanningAvailable ? result.plugin : null);
-      replaceComposerValue(result.prompt);
+      markInteracted()
+      const result = selectWorkingSuggestionTask(suggestionState, task.id)
+      if (!result) return
+      setSuggestionState(result.state)
+      setWorkingPlugin(taskPlanningAvailable ? result.plugin : null)
+      replaceComposerValue(result.prompt)
     },
     [markInteracted, replaceComposerValue, suggestionState, taskPlanningAvailable],
-  );
+  )
 
   const handleBack = useCallback(
     (_category: WorkingSuggestionCategory) => {
-      markInteracted();
-      const next = returnToWorkingSuggestionTemplates(
-        suggestionState,
-        observedComposerValue,
-      );
-      setSuggestionState(next.state);
+      markInteracted()
+      const next = returnToWorkingSuggestionTemplates(suggestionState, observedComposerValue)
+      setSuggestionState(next.state)
       if (next.composerValue !== observedComposerValue) {
-        replaceComposerValue(next.composerValue);
+        replaceComposerValue(next.composerValue)
       }
     },
-    [
-      markInteracted,
-      observedComposerValue,
-      replaceComposerValue,
-      suggestionState,
-    ],
-  );
+    [markInteracted, observedComposerValue, replaceComposerValue, suggestionState],
+  )
 
   const handleComposerInputCapture = useCallback(
     (event: React.FormEvent<HTMLDivElement>) => {
-      const target = event.target;
-      let value: string | null = null;
-      if (
-        target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLInputElement
-      ) {
-        value = target.value;
+      const target = event.target
+      let value: string | null = null
+      if (target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement) {
+        value = target.value
       } else if (target instanceof HTMLElement && target.isContentEditable) {
-        value = target.textContent ?? "";
+        value = target.textContent ?? ''
       }
-      if (value === null) return;
-      markInteracted();
-      programmaticValueRef.current = null;
-      setObservedComposerValue(value);
-      setSuggestionState(current =>
-        syncWorkingSuggestionState(current, value),
-      );
+      if (value === null) return
+      markInteracted()
+      programmaticValueRef.current = null
+      setObservedComposerValue(value)
+      setSuggestionState((current) => syncWorkingSuggestionState(current, value))
     },
     [markInteracted],
-  );
+  )
 
-  const showSuggestions = shouldShowWorkingSuggestions(suggestionState);
+  const showSuggestions = shouldShowWorkingSuggestions(suggestionState)
 
   return (
     <div ref={pageRef} className="quick-chat-workspace working-chat-workspace">
@@ -197,9 +172,7 @@ export function WorkingNewSessionView(): React.ReactNode {
           <div className="quick-chat-hero working-chat-hero tw:gap-0">
             <h1>我们该处理什么工作？</h1>
           </div>
-          <div
-            className="working-composer-interaction tw:flex tw:w-full tw:flex-col tw:items-center tw:gap-3"
-          >
+          <div className="working-composer-interaction tw:flex tw:w-full tw:flex-col tw:items-center tw:gap-3">
             {composerProps ? (
               <div className="chat-composer">
                 <DesktopComposer
@@ -228,5 +201,5 @@ export function WorkingNewSessionView(): React.ReactNode {
         </section>
       </main>
     </div>
-  );
+  )
 }

@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import type { Project } from '@codepilotx/shared'
 import type { ThreadListItem, ThreadSnapshot } from '@codepilotx/shared/thread'
-import { createDesktopClient, type DesktopClientEnvironment } from '../src/services/desktop-client/index.js'
+import {
+  createDesktopClient,
+  type DesktopClientEnvironment,
+} from '../src/services/desktop-client/index.js'
 import { DEFAULT_DESKTOP_THEME_SETTINGS } from '../shared/theme.js'
 
 const now = 1_700_000_000_000
@@ -55,11 +58,13 @@ const projectWorkspace = {
   kind: 'project' as const,
   projectID: project.id,
   cwd: projectRootPath,
-  runtimeWorkspaceRoots: [{
-    folderId: primaryFolder.id,
-    path: projectRootPath,
-    role: 'primary' as const,
-  }],
+  runtimeWorkspaceRoots: [
+    {
+      folderId: primaryFolder.id,
+      path: projectRootPath,
+      role: 'primary' as const,
+    },
+  ],
   instructionSources: [],
   outputDirectory: null,
 }
@@ -106,7 +111,11 @@ function sessionSnapshot(overrides: Partial<ThreadSnapshot['thread']> = {}): Thr
         delivery: 'start',
         mode: 'chat',
         model: { providerID: 'openai', id: 'gpt-5' },
-        permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
+        permissionConfig: {
+          sandboxMode: 'workspace-write',
+          approvalPolicy: 'on-request',
+          approvalsReviewer: 'user',
+        },
         state: 'completed',
         createdAt: now,
       },
@@ -135,7 +144,7 @@ describe('desktop history client', () => {
         codePilotXDesktop: {
           pickWorkspaceDirectory: async () => null,
           getAppearanceSettings: async () => stored,
-          saveAppearanceSettings: async settings => {
+          saveAppearanceSettings: async (settings) => {
             stored = settings
             return settings
           },
@@ -162,50 +171,75 @@ describe('desktop history client', () => {
       },
     })
     const reloaded = await createDesktopClient(environment).getThemeSettings()
-    expect(reloaded.chromeThemes.light).toMatchObject({ accent: '#000000', accentPreset: 'default' })
+    expect(reloaded.chromeThemes.light).toMatchObject({
+      accent: '#000000',
+      accentPreset: 'default',
+    })
     expect(reloaded.chromeThemes.dark).toMatchObject({ accent: '#ffffff', accentPreset: 'black' })
   })
 
   test('saves accent presets through config key paths while preserving unknown settings', async () => {
     const appearance: Record<string, unknown> = {
-      ...structuredClone(DEFAULT_DESKTOP_THEME_SETTINGS), unknownField: 'kept',
+      ...structuredClone(DEFAULT_DESKTOP_THEME_SETTINGS),
+      unknownField: 'kept',
     }
     const edits: Array<{ keyPath: string[]; value: unknown }> = []
     const version = 'a'.repeat(64)
-    const client = createDesktopClient({ fetch: async (_path, init) => {
-      const body = JSON.parse(String(init?.body))
-      if (body.method === 'initialize') return rpc(body.id, initializedResult())
-      if (body.method === 'initialized') return new Response(null, { status: 204 })
-      if (body.method === 'config/read') return rpc(body.id, {
-        config: { desktop: { appearance } }, origins: {}, diagnostics: [],
-        profileState: { activeProfile: null, selectedProfile: null, restartRequired: false },
-        layers: [{ kind: 'user', displayName: 'User', version, writable: true, trusted: true, config: {} }],
-      })
-      if (body.method === 'config/batchWrite') {
-        expect(body.params.expectedVersion).toBe(version)
-        edits.push(...body.params.edits)
-        for (const edit of edits) {
-          expect(edit.keyPath.slice(0, 2)).toEqual(['desktop', 'appearance'])
-          const keys = edit.keyPath.slice(2)
-          let target = appearance
-          for (const key of keys.slice(0, -1)) target = target[key] as Record<string, unknown>
-          target[keys.at(-1)!] = edit.value
+    const client = createDesktopClient({
+      fetch: async (_path, init) => {
+        const body = JSON.parse(String(init?.body))
+        if (body.method === 'initialize') return rpc(body.id, initializedResult())
+        if (body.method === 'initialized') return new Response(null, { status: 204 })
+        if (body.method === 'config/read')
+          return rpc(body.id, {
+            config: { desktop: { appearance } },
+            origins: {},
+            diagnostics: [],
+            profileState: { activeProfile: null, selectedProfile: null, restartRequired: false },
+            layers: [
+              {
+                kind: 'user',
+                displayName: 'User',
+                version,
+                writable: true,
+                trusted: true,
+                config: {},
+              },
+            ],
+          })
+        if (body.method === 'config/batchWrite') {
+          expect(body.params.expectedVersion).toBe(version)
+          edits.push(...body.params.edits)
+          for (const edit of edits) {
+            expect(edit.keyPath.slice(0, 2)).toEqual(['desktop', 'appearance'])
+            const keys = edit.keyPath.slice(2)
+            let target = appearance
+            for (const key of keys.slice(0, -1)) target = target[key] as Record<string, unknown>
+            target[keys.at(-1)!] = edit.value
+          }
+          return rpc(body.id, { status: 'ok', version, filePath: 'config.toml' })
         }
-        return rpc(body.id, { status: 'ok', version, filePath: 'config.toml' })
-      }
-      throw new Error(`Unexpected RPC method: ${body.method}`)
-    } })
+        throw new Error(`Unexpected RPC method: ${body.method}`)
+      },
+    })
     await client.getRuntimeCapabilities()
     const loaded = await client.getThemeSettings()
     await client.saveThemeSettings({
-      ...loaded, chromeThemes: {
+      ...loaded,
+      chromeThemes: {
         ...loaded.chromeThemes,
         light: { ...loaded.chromeThemes.light, accent: '#3566F0', accentPreset: 'blue' },
       },
     })
-    expect(edits).toContainEqual({ keyPath: ['desktop', 'appearance', 'chromeThemes', 'light', 'accentPreset'], value: 'blue' })
+    expect(edits).toContainEqual({
+      keyPath: ['desktop', 'appearance', 'chromeThemes', 'light', 'accentPreset'],
+      value: 'blue',
+    })
     expect(appearance.unknownField).toBe('kept')
-    expect((await client.getThemeSettings()).chromeThemes.light).toMatchObject({ accent: '#3566f0', accentPreset: 'blue' })
+    expect((await client.getThemeSettings()).chromeThemes.light).toMatchObject({
+      accent: '#3566f0',
+      accentPreset: 'blue',
+    })
   })
 
   test('never batch-writes over a newer Agent appearance generation', async () => {
@@ -234,7 +268,7 @@ describe('desktop history client', () => {
 
     await client.saveThemeSettings({ ...fallback, mode: 'light' })
 
-    expect(rpcMethods.filter(method => method === 'config/read')).toHaveLength(2)
+    expect(rpcMethods.filter((method) => method === 'config/read')).toHaveLength(2)
     expect(rpcMethods).not.toContain('config/batchWrite')
   })
 
@@ -323,7 +357,11 @@ describe('desktop history client', () => {
           inputId: expect.any(String),
           content: '继续推进',
           model: { providerID: 'anthropic', id: 'claude-opus-4-1' },
-          permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' },
+          permissionConfig: {
+            sandboxMode: 'workspace-write',
+            approvalPolicy: 'on-request',
+            approvalsReviewer: 'user',
+          },
           taskMode: 'chat',
         })
         return rpc(body.id, {
@@ -386,22 +424,14 @@ describe('desktop history client', () => {
 
     const listed = await client.listSessions()
     expect(listed[0]?.item.workspacePath).toBe(projectRootPath)
-    expect(listed[0]?.item.unreadAt).toBe(
-      new Date(now + 500).toISOString(),
-    )
+    expect(listed[0]?.item.unreadAt).toBe(new Date(now + 500).toISOString())
 
-    const read = await client.markSessionRead(
-      'session-1',
-      new Date(now + 500).toISOString(),
-    )
+    const read = await client.markSessionRead('session-1', new Date(now + 500).toISOString())
     expect(read.unreadAt).toBeNull()
     currentItem = { ...currentItem, unreadAt: now + 500 }
     expect((await client.listSessions())[0]?.item.unreadAt).toBeNull()
 
-    const unread = await client.markSessionUnread(
-      'session-1',
-      new Date(now + 600).toISOString(),
-    )
+    const unread = await client.markSessionUnread('session-1', new Date(now + 600).toISOString())
     expect(unread.unreadAt).toBe(new Date(now + 600).toISOString())
 
     const created = await client.createSession({
@@ -416,23 +446,24 @@ describe('desktop history client', () => {
     snapshot.item.aiTitle = '旧 AI 标题'
 
     // The next turn must use the new selection, not the OpenAI model in history.
-    await client.sendUserMessage('session-1', { text: '继续推进' }, {
-      providerID: 'anthropic',
-      model: 'claude-opus-4-1',
-    })
+    await client.sendUserMessage(
+      'session-1',
+      { text: '继续推进' },
+      {
+        providerID: 'anthropic',
+        model: 'claude-opus-4-1',
+      },
+    )
     expect(
-      requests.some(request =>
-        (request.body as { method?: string } | null)?.method === 'model/list',
+      requests.some(
+        (request) => (request.body as { method?: string } | null)?.method === 'model/list',
       ),
     ).toBe(false)
 
-    let renamedStoreItem:
-      | Awaited<ReturnType<typeof client.getSession>>['item']
-      | null = null
-    const unsubscribe = client.onSessionStoreChange(change => {
+    let renamedStoreItem: Awaited<ReturnType<typeof client.getSession>>['item'] | null = null
+    const unsubscribe = client.onSessionStoreChange((change) => {
       renamedStoreItem =
-        change.sessions.find(candidate => candidate.item.id === 'session-1')
-          ?.item ?? null
+        change.sessions.find((candidate) => candidate.item.id === 'session-1')?.item ?? null
     })
     const renamed = await client.renameSession('session-1', '改名后')
     unsubscribe()
@@ -444,19 +475,15 @@ describe('desktop history client', () => {
       customTitle: null,
       aiTitle: null,
     })
-    expect(renamed.item.lastMessageAt).toBe(
-      new Date(now + 1000).toISOString(),
-    )
+    expect(renamed.item.lastMessageAt).toBe(new Date(now + 1000).toISOString())
 
     const regenerated = await client.regenerateSessionTitle('session-1')
     expect(regenerated.item.sessionName).toBe('自动更新后的标题')
-    expect(regenerated.item.lastMessageAt).toBe(
-      new Date(now + 1000).toISOString(),
-    )
+    expect(regenerated.item.lastMessageAt).toBe(new Date(now + 1000).toISOString())
     expect(
-      requests.map(request => request.body).find(
-        body => body?.method === 'thread/title/regenerate',
-      )?.params,
+      requests
+        .map((request) => request.body)
+        .find((body) => body?.method === 'thread/title/regenerate')?.params,
     ).toMatchObject({
       threadId: 'session-1',
       operationId: expect.any(String),
@@ -468,7 +495,9 @@ describe('desktop history client', () => {
     expect(archived.item.archivedAt).toBe('2023-11-14T22:13:23.000Z')
 
     await client.disposeSession('session-1')
-    expect(requests.map(request => request.body).some(body => body?.method === 'thread/delete')).toBe(true)
+    expect(
+      requests.map((request) => request.body).some((body) => body?.method === 'thread/delete'),
+    ).toBe(true)
   })
 
   test('responds to dynamic permission requests with grant/deny and the chosen scope', async () => {
@@ -514,8 +543,10 @@ describe('desktop history client', () => {
         })
       }
       if (rpcMethod === 'thread/read') return rpc(body.id, snapshotResult(sessionSnapshot()))
-      if (rpcMethod === 'project/list') return rpc(body.id, { projects: [project], nextCursor: null })
-      if (rpcMethod === 'thread/list') return rpc(body.id, { threads: [sessionItem()], nextCursor: null })
+      if (rpcMethod === 'project/list')
+        return rpc(body.id, { projects: [project], nextCursor: null })
+      if (rpcMethod === 'thread/list')
+        return rpc(body.id, { threads: [sessionItem()], nextCursor: null })
       throw new Error(`Unhandled RPC method: ${rpcMethod}`)
     }
     const client = createDesktopClient({ fetch: fetcher })
@@ -548,10 +579,12 @@ describe('desktop history client', () => {
 
     // Granting a scope outside allowedScopes must fail before any RPC is sent.
     respondRequests.length = 0
-    await expect(client.respondToPermission('session-1', 'permission-1', {
-      behavior: 'allow',
-      grantScope: 'session',
-    })).rejects.toThrow('不在 Agent 允许的范围内')
+    await expect(
+      client.respondToPermission('session-1', 'permission-1', {
+        behavior: 'allow',
+        grantScope: 'session',
+      }),
+    ).rejects.toThrow('不在 Agent 允许的范围内')
     expect(respondRequests).toHaveLength(0)
   })
 
@@ -565,17 +598,19 @@ describe('desktop history client', () => {
       agentId: 'agent-1',
       createdAt: now,
       version: 1,
-      questions: [{
-        id: 'filter_mode',
-        header: '筛选模式',
-        prompt: '状态筛选使用单选还是多选？',
-        choices: [
-          { id: 'single', label: '单选', description: '一次选择一个状态', recommended: true },
-          { id: 'multiple', label: '多选', description: '可选择多个状态', recommended: false },
-        ],
-        allowFreeform: true,
-        required: true,
-      }],
+      questions: [
+        {
+          id: 'filter_mode',
+          header: '筛选模式',
+          prompt: '状态筛选使用单选还是多选？',
+          choices: [
+            { id: 'single', label: '单选', description: '一次选择一个状态', recommended: true },
+            { id: 'multiple', label: '多选', description: '可选择多个状态', recommended: false },
+          ],
+          allowFreeform: true,
+          required: true,
+        },
+      ],
     }
     const client = createDesktopClient({
       fetch: async (path, init) => {
@@ -601,22 +636,23 @@ describe('desktop history client', () => {
       },
     })
 
-    await client.respondToPermission(
-      'session-1',
-      'question:question-request-1',
-      { behavior: 'allow', updatedInput: { answer: '单选' } },
-    )
+    await client.respondToPermission('session-1', 'question:question-request-1', {
+      behavior: 'allow',
+      updatedInput: { answer: '单选' },
+    })
 
-    expect(respondRequests).toEqual([expect.objectContaining({
-      interactionId: 'question-request-1',
-      expectedVersion: 1,
-      response: {
-        kind: 'question',
-        status: 'answered',
-        resolution: 'user',
-        answers: [{ questionId: 'filter_mode', choiceIds: ['single'] }],
-      },
-    })])
+    expect(respondRequests).toEqual([
+      expect.objectContaining({
+        interactionId: 'question-request-1',
+        expectedVersion: 1,
+        response: {
+          kind: 'question',
+          status: 'answered',
+          resolution: 'user',
+          answers: [{ questionId: 'filter_mode', choiceIds: ['single'] }],
+        },
+      }),
+    ])
   })
 
   test('responds to hook trust through the typed hookTrust decision', async () => {
@@ -672,7 +708,7 @@ describe('desktop history client', () => {
       behavior: 'deny',
     })
 
-    expect(responses.map(response => response.response)).toEqual([
+    expect(responses.map((response) => response.response)).toEqual([
       { kind: 'hookTrust', decision: 'allow' },
       { kind: 'hookTrust', decision: 'block' },
     ])
@@ -692,10 +728,12 @@ describe('desktop history client', () => {
 
     expect(created.sessionId).toStartWith('browser-mock-')
     expect(created.standalone).toBe(true)
-    await expect(client.listPendingAgentInteractions({
-      threadId: created.sessionId,
-      limit: 500,
-    })).resolves.toEqual({ interactions: [], nextCursor: null })
+    await expect(
+      client.listPendingAgentInteractions({
+        threadId: created.sessionId,
+        limit: 500,
+      }),
+    ).resolves.toEqual({ interactions: [], nextCursor: null })
   })
 
   test('restores authoritative unread state when mark-read fails', async () => {
@@ -723,13 +761,10 @@ describe('desktop history client', () => {
     })
 
     await client.listSessions()
-    await expect(client.markSessionRead(
-      'session-1',
-      new Date(now + 500).toISOString(),
-    )).rejects.toThrow()
-    expect((await client.listSessions())[0]?.item.unreadAt).toBe(
-      new Date(now + 500).toISOString(),
-    )
+    await expect(
+      client.markSessionRead('session-1', new Date(now + 500).toISOString()),
+    ).rejects.toThrow()
+    expect((await client.listSessions())[0]?.item.unreadAt).toBe(new Date(now + 500).toISOString())
   })
 
   test('restores authoritative read state when mark-unread fails', async () => {
@@ -758,16 +793,14 @@ describe('desktop history client', () => {
     })
 
     await client.listSessions()
-    const unsubscribe = client.onSessionStoreChange(change => {
-      const unreadAt = change.sessions.find(
-        session => session.item.id === 'session-1',
-      )?.item.unreadAt
+    const unsubscribe = client.onSessionStoreChange((change) => {
+      const unreadAt = change.sessions.find((session) => session.item.id === 'session-1')?.item
+        .unreadAt
       if (unreadAt) optimisticUnreadAt ??= unreadAt
     })
-    await expect(client.markSessionUnread(
-      'session-1',
-      new Date(now + 600).toISOString(),
-    )).rejects.toThrow()
+    await expect(
+      client.markSessionUnread('session-1', new Date(now + 600).toISOString()),
+    ).rejects.toThrow()
     unsubscribe()
     expect(optimisticUnreadAt).toBe(new Date(now + 600).toISOString())
     expect((await client.listSessions())[0]?.item.unreadAt).toBeNull()
@@ -820,7 +853,7 @@ describe('desktop history client', () => {
         codePilotXDesktop: {
           pickWorkspaceDirectory: async () => projectRootPath,
           getDesktopSettings: async () => storedSettings,
-          saveDesktopSettings: async settings => {
+          saveDesktopSettings: async (settings) => {
             storedSettings = settings
             return settings
           },
@@ -844,11 +877,7 @@ describe('desktop history client', () => {
     await client.openWorkspace(projectRootPath)
     await client.getWorkspaceContext(projectRootPath)
     await client.addProjectFolder(project.id, secondaryFolder.path)
-    expect(openedPaths).toEqual([
-      project.id,
-      project.id,
-      project.id,
-    ])
+    expect(openedPaths).toEqual([project.id, project.id, project.id])
     expect(trustRequests).toEqual([
       { method: 'project/trust/read', cwd: primaryFolder.path },
       { method: 'project/trust/update', cwd: primaryFolder.path },
@@ -955,7 +984,7 @@ describe('desktop history client', () => {
   test('coalesces identical desktop settings saves and serializes distinct snapshots', async () => {
     const savedSessionNames: Array<string | undefined> = []
     let releaseFirstSave: (() => void) | undefined
-    const firstSaveGate = new Promise<void>(resolve => {
+    const firstSaveGate = new Promise<void>((resolve) => {
       releaseFirstSave = resolve
     })
     let failRetryOnce = true
@@ -963,7 +992,7 @@ describe('desktop history client', () => {
       window: {
         codePilotXDesktop: {
           getDesktopSettings: async () => null,
-          saveDesktopSettings: async settings => {
+          saveDesktopSettings: async (settings) => {
             savedSessionNames.push(settings.sessionName)
             if (settings.sessionName === 'first') await firstSaveGate
             if (settings.sessionName === 'retry' && failRetryOnce) {
@@ -982,7 +1011,7 @@ describe('desktop history client', () => {
     const firstSave = client.saveDesktopSettings(firstSnapshot)
     const duplicateSave = client.saveDesktopSettings({ ...firstSnapshot })
     const secondSave = client.saveDesktopSettings(secondSnapshot)
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await new Promise((resolve) => setTimeout(resolve, 0))
     expect(savedSessionNames).toEqual(['first'])
 
     releaseFirstSave?.()
@@ -990,14 +1019,20 @@ describe('desktop history client', () => {
     expect((await secondSave).sessionName).toBe('second')
     expect(savedSessionNames).toEqual(['first', 'second'])
 
-    await expect(client.saveDesktopSettings({
-      ...defaults,
-      sessionName: 'retry',
-    })).rejects.toThrow('retryable save failure')
-    expect((await client.saveDesktopSettings({
-      ...defaults,
-      sessionName: 'retry',
-    })).sessionName).toBe('retry')
+    await expect(
+      client.saveDesktopSettings({
+        ...defaults,
+        sessionName: 'retry',
+      }),
+    ).rejects.toThrow('retryable save failure')
+    expect(
+      (
+        await client.saveDesktopSettings({
+          ...defaults,
+          sessionName: 'retry',
+        })
+      ).sessionName,
+    ).toBe('retry')
     expect(savedSessionNames).toEqual(['first', 'second', 'retry', 'retry'])
   })
 

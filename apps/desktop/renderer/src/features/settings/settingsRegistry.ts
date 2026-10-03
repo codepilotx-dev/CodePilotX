@@ -144,7 +144,10 @@ export const SETTINGS_GROUPS = [
         description: '智能体默认设置、诊断、专用模型与数据设置',
         icon: Sliders,
         rows: [
-          row('智能体默认设置', '配置用户或项目 config.json、权限预设、工具范围、Shell 风险处理和审批方式'),
+          row(
+            '智能体默认设置',
+            '配置用户或项目 config.json、权限预设、工具范围、Shell 风险处理和审批方式',
+          ),
           row('Profile', '选择跨桌面端和 CLI/TUI 共享的启动配置；切换后关闭所有客户端再重新打开'),
           row('权限预设', '快速选择默认权限、自动审查、完全访问或自定义批准策略'),
           row('文件访问范围', '设置结构化文件工具范围；终端命令在本机执行并经过风险、Hook 和审批'),
@@ -348,13 +351,11 @@ export const SETTINGS_GROUPS = [
   },
 ] as const satisfies readonly SettingsRegistryGroup[]
 
-export type SettingsTabId =
-  (typeof SETTINGS_GROUPS)[number]['items'][number]['routeId']
+export type SettingsTabId = (typeof SETTINGS_GROUPS)[number]['items'][number]['routeId']
 
-export const SETTINGS_ITEMS: readonly SettingsRegistryItem[] =
-  SETTINGS_GROUPS.flatMap(
-    group => group.items as readonly SettingsRegistryItem[],
-  )
+export const SETTINGS_ITEMS: readonly SettingsRegistryItem[] = SETTINGS_GROUPS.flatMap(
+  (group) => group.items as readonly SettingsRegistryItem[],
+)
 
 export type SettingsSearchDocument = {
   key: string
@@ -366,9 +367,9 @@ export type SettingsSearchDocument = {
   targetId: string
 }
 
-export const SETTINGS_SEARCH_DOCUMENTS: readonly SettingsSearchDocument[] =
-  SETTINGS_GROUPS.flatMap(group =>
-    group.items.flatMap(item => [
+export const SETTINGS_SEARCH_DOCUMENTS: readonly SettingsSearchDocument[] = SETTINGS_GROUPS.flatMap(
+  (group) =>
+    group.items.flatMap((item) => [
       {
         key: `${item.id}:page`,
         tabId: item.routeId,
@@ -387,15 +388,10 @@ export const SETTINGS_SEARCH_DOCUMENTS: readonly SettingsSearchDocument[] =
         targetId: createSettingsTargetId(item.id, searchRow.title),
       })),
     ]),
-  )
+)
 
-export function createSettingsTargetId(
-  tabId: string,
-  rowTitle?: string,
-): string {
-  return rowTitle
-    ? `settings-${tabId}-${toTargetSegment(rowTitle)}`
-    : `settings-${tabId}-page`
+export function createSettingsTargetId(tabId: string, rowTitle?: string): string {
+  return rowTitle ? `settings-${tabId}-${toTargetSegment(rowTitle)}` : `settings-${tabId}-page`
 }
 
 function toTargetSegment(value: string): string {

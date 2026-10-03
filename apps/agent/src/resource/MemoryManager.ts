@@ -2,13 +2,13 @@ import type {
   MemoryStats,
   SystemShrinkMemoryResult,
   SystemShrinkReason,
-} from "@codepilotx/agent-protocol"
-import type { AgentLogger } from "../observability/AgentLogger"
+} from '@codepilotx/agent-protocol'
+import type { AgentLogger } from '../observability/AgentLogger'
 
 export type MemoryShrinkHook = () => Promise<void> | void
 
 export interface MemoryManagerOptions {
-  readonly logger?: Pick<AgentLogger, "info" | "warn" | "debug" | "error"> | undefined
+  readonly logger?: Pick<AgentLogger, 'info' | 'warn' | 'debug' | 'error'> | undefined
   readonly debounceMs?: number | undefined
   readonly idleIntervalMs?: number | undefined
   readonly now?: (() => number) | undefined
@@ -18,7 +18,7 @@ const DEFAULT_DEBOUNCE_MS = 1_500
 const DEFAULT_IDLE_INTERVAL_MS = 60_000
 
 export class MemoryManager {
-  private readonly logger: Pick<AgentLogger, "info" | "warn" | "debug" | "error"> | undefined
+  private readonly logger: Pick<AgentLogger, 'info' | 'warn' | 'debug' | 'error'> | undefined
   private readonly debounceMs: number
   private readonly idleIntervalMs: number
   private readonly now: () => number
@@ -103,7 +103,7 @@ export class MemoryManager {
    * Performs memory shrinkage and garbage collection.
    * Safe: will skip execution if there are active turns running.
    */
-  async shrink(reason: SystemShrinkReason = "manual"): Promise<SystemShrinkMemoryResult> {
+  async shrink(reason: SystemShrinkReason = 'manual'): Promise<SystemShrinkMemoryResult> {
     if (this.disposed || this.activeTurns > 0 || this.isShrinking) {
       return {
         success: false,
@@ -121,7 +121,7 @@ export class MemoryManager {
         try {
           await hook()
         } catch (cause) {
-          this.logger?.warn("memory.hook_failed", {
+          this.logger?.warn('memory.hook_failed', {
             hook: name,
             message: cause instanceof Error ? cause.message : String(cause),
           })
@@ -138,7 +138,7 @@ export class MemoryManager {
       this.shrinkCount++
       this.lastShrinkAt = this.now()
 
-      this.logger?.info("memory.shrink", {
+      this.logger?.info('memory.shrink', {
         reason,
         durationMs,
         rssBefore: statsBefore.rss,
@@ -162,9 +162,9 @@ export class MemoryManager {
 
   private triggerRuntimeGc(): void {
     try {
-      if (typeof Bun !== "undefined" && typeof (Bun as { gc?: unknown }).gc === "function") {
-        (Bun as { gc: (sync: boolean) => void }).gc(true)
-      } else if (typeof globalThis.gc === "function") {
+      if (typeof Bun !== 'undefined' && typeof (Bun as { gc?: unknown }).gc === 'function') {
+        ;(Bun as { gc: (sync: boolean) => void }).gc(true)
+      } else if (typeof globalThis.gc === 'function') {
         globalThis.gc()
       }
     } catch {}
@@ -174,7 +174,7 @@ export class MemoryManager {
     this.clearDebounceTimer()
     this.debounceTimer = setTimeout(() => {
       this.debounceTimer = null
-      void this.shrink("turn_end")
+      void this.shrink('turn_end')
     }, this.debounceMs)
   }
 
@@ -188,7 +188,7 @@ export class MemoryManager {
 
   private async onIdleTimeout(): Promise<void> {
     if (this.disposed || this.activeTurns > 0) return
-    await this.shrink("idle")
+    await this.shrink('idle')
     if (!this.disposed && this.activeTurns === 0) {
       this.armIdleTimer()
     }

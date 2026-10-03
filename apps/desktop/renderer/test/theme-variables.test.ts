@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { deriveDesktopSurfaceUnder, getDesktopAccentPresetColor, type DesktopAccentPreset } from '@codepilotx/shared/desktop-theme'
+import { expectSourceContains } from './source-contract.js'
+import {
+  deriveDesktopSurfaceUnder,
+  getDesktopAccentPresetColor,
+  type DesktopAccentPreset,
+} from '@codepilotx/shared/desktop-theme'
 
 import {
   DEFAULT_DARK_THEME,
@@ -19,9 +24,14 @@ describe('fixed Codex UI themes', () => {
     for (const variant of ['light', 'dark'] as const) {
       const monochrome = variant === 'light' ? '#000000' : '#FFFFFF'
       const presets: Array<[DesktopAccentPreset, `#${string}`]> = [
-        ['default', monochrome], ['blue', '#3566F0'], ['green', '#19B79E'],
-        ['yellow', '#FDCD54'], ['pink', '#FA70AB'], ['orange', '#FF8771'],
-        ['purple', '#AB5EFF'], ['black', monochrome],
+        ['default', monochrome],
+        ['blue', '#3566F0'],
+        ['green', '#19B79E'],
+        ['yellow', '#FDCD54'],
+        ['pink', '#FA70AB'],
+        ['orange', '#FF8771'],
+        ['purple', '#AB5EFF'],
+        ['black', monochrome],
       ]
       for (const [preset, accent] of presets) {
         expect(getDesktopAccentPresetColor(preset, variant)).toBe(accent)
@@ -54,9 +64,9 @@ describe('fixed Codex UI themes', () => {
     ]
 
     for (const seed of seeds) {
-      expect(
-        contrastRatio(ensureThemePreviewContrast(seed), seed.surface),
-      ).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(ensureThemePreviewContrast(seed), seed.surface)).toBeGreaterThanOrEqual(
+        4.5,
+      )
     }
     expect(ensureThemePreviewContrast(seeds[0]!)).not.toBe('#339cff')
     expect(ensureThemePreviewContrast(seeds[1]!)).toBe('#339cff')
@@ -80,16 +90,11 @@ describe('fixed Codex UI themes', () => {
     expect(customVariables['--cpx-sys-font-family-sans']).toBe(customFont)
 
     const stylesheet = await Bun.file(
-      new URL(
-        '../src/styles/design-system/tokens.scss',
-        import.meta.url,
-      ),
+      new URL('../src/styles/design-system/tokens.scss', import.meta.url),
     ).text()
     const normalizedStylesheet = stylesheet.replace(/\s+/g, ' ')
 
-    expect(normalizedStylesheet).toContain(
-      `--cpx-sys-font-family-sans: ${DEFAULT_UI_FONT};`,
-    )
+    expectSourceContains(stylesheet, `--cpx-sys-font-family-sans: ${DEFAULT_UI_FONT};`)
     expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-regular: 400;')
     expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-body: 400;')
     expect(normalizedStylesheet).toContain('--cpx-sys-font-weight-medium: 500;')
@@ -107,9 +112,7 @@ describe('fixed Codex UI themes', () => {
       '--cpx-sys-line-height-code: calc(var(--cpx-sys-font-size-code) + 7px);',
     )
 
-    const tailwind = await Bun.file(
-      new URL('../src/styles/tailwind.css', import.meta.url),
-    ).text()
+    const tailwind = await Bun.file(new URL('../src/styles/tailwind.css', import.meta.url)).text()
     const normalizedTailwind = tailwind.replace(/\s+/g, ' ')
     expect(normalizedTailwind).toContain(
       '--text-base--line-height: var(--cpx-sys-line-height-body);',
@@ -117,9 +120,7 @@ describe('fixed Codex UI themes', () => {
     expect(normalizedTailwind).toContain(
       '--text-sm--line-height: var(--cpx-sys-line-height-body-sm);',
     )
-    expect(normalizedTailwind).toContain(
-      '--text-code: var(--cpx-sys-font-size-code);',
-    )
+    expect(normalizedTailwind).toContain('--text-code: var(--cpx-sys-font-size-code);')
     expect(normalizedTailwind).toContain(
       '--text-code--line-height: var(--cpx-sys-line-height-code);',
     )
@@ -143,12 +144,8 @@ describe('fixed Codex UI themes', () => {
     expect(light['--cpx-sys-color-border-subtle']).toBe('rgba(26, 28, 31, 0.049)')
     expect(light['--cpx-sys-color-border-default']).toBe('rgba(26, 28, 31, 0.078)')
     expect(light['--cpx-sys-color-border-strong']).toBe('rgba(26, 28, 31, 0.117)')
-    expect(light['--cpx-sys-color-hover']).toBe(
-      'rgba(26, 28, 31, 0.05)',
-    )
-    expect(light['--cpx-sys-color-selected']).toBe(
-      'rgba(26, 28, 31, 0.05)',
-    )
+    expect(light['--cpx-sys-color-hover']).toBe('rgba(26, 28, 31, 0.05)')
+    expect(light['--cpx-sys-color-selected']).toBe('rgba(26, 28, 31, 0.05)')
     expect(light['--cpx-sys-color-diff-added-line']).not.toBe(
       light['--cpx-sys-color-surface-editor'],
     )
@@ -167,26 +164,14 @@ describe('fixed Codex UI themes', () => {
       dark['--cpx-sys-color-surface-canvas'],
     )
     expect(dark['--cpx-sys-color-fg-primary']).toBe('#ffffff')
-    expect(dark['--cpx-sys-color-surface-panel']).not.toBe(
-      dark['--cpx-sys-color-surface-canvas'],
-    )
+    expect(dark['--cpx-sys-color-surface-panel']).not.toBe(dark['--cpx-sys-color-surface-canvas'])
     expect(dark['--cpx-sys-color-fg-secondary']).toBe('rgba(255, 255, 255, 0.65)')
     expect(dark['--cpx-sys-color-fg-tertiary']).toBe('rgba(255, 255, 255, 0.498)')
-    expect(dark['--cpx-sys-color-border-subtle']).toBe(
-      'rgba(255, 255, 255, 0.042)',
-    )
-    expect(dark['--cpx-sys-color-border-default']).toBe(
-      'rgba(255, 255, 255, 0.084)',
-    )
-    expect(dark['--cpx-sys-color-border-strong']).toBe(
-      'rgba(255, 255, 255, 0.156)',
-    )
-    expect(dark['--cpx-sys-color-hover']).toBe(
-      'rgba(255, 255, 255, 0.08)',
-    )
-    expect(dark['--cpx-sys-color-selected']).toBe(
-      'rgba(255, 255, 255, 0.05)',
-    )
+    expect(dark['--cpx-sys-color-border-subtle']).toBe('rgba(255, 255, 255, 0.042)')
+    expect(dark['--cpx-sys-color-border-default']).toBe('rgba(255, 255, 255, 0.084)')
+    expect(dark['--cpx-sys-color-border-strong']).toBe('rgba(255, 255, 255, 0.156)')
+    expect(dark['--cpx-sys-color-hover']).toBe('rgba(255, 255, 255, 0.08)')
+    expect(dark['--cpx-sys-color-selected']).toBe('rgba(255, 255, 255, 0.05)')
     expect(dark['--cpx-sys-color-fg-on-accent']).toBe('#ffffff')
   })
 
@@ -221,15 +206,14 @@ describe('fixed Codex UI themes', () => {
     const dark = deriveThemeVariables(DEFAULT_DARK_THEME)
 
     expect(light['--cpx-sys-shadow-resting']).toBe('0 1px 2px rgb(0 0 0 / 2%)')
-    expect(light['--cpx-sys-shadow-raised']).toBe('0 2px 8px rgb(0 0 0 / 4%), 0 1px 2px rgb(0 0 0 / 2%)')
+    expect(light['--cpx-sys-shadow-raised']).toBe(
+      '0 2px 8px rgb(0 0 0 / 4%), 0 1px 2px rgb(0 0 0 / 2%)',
+    )
     expect(dark['--cpx-sys-shadow-resting']).toBe('0 1px 2px rgb(0 0 0 / 20%)')
     expect(dark['--cpx-sys-shadow-raised']).toBe('0 2px 8px rgb(0 0 0 / 40%)')
 
     const stylesheet = await Bun.file(
-      new URL(
-        '../src/styles/design-system/tokens.scss',
-        import.meta.url,
-      ),
+      new URL('../src/styles/design-system/tokens.scss', import.meta.url),
     ).text()
     const normalizedStylesheet = stylesheet.replace(/\s+/g, ' ')
 
@@ -274,12 +258,8 @@ describe('fixed Codex UI themes', () => {
     expect(variables['--cpx-sys-color-diff-removed-line']).not.toBe(
       variables['--cpx-sys-color-danger'],
     )
-    expect(variables['--cpx-sys-color-diff-added-line']).toMatch(
-      /^#[\da-f]{6}$/,
-    )
-    expect(variables['--cpx-sys-color-diff-removed-text']).toMatch(
-      /^#[\da-f]{6}$/,
-    )
+    expect(variables['--cpx-sys-color-diff-added-line']).toMatch(/^#[\da-f]{6}$/)
+    expect(variables['--cpx-sys-color-diff-removed-text']).toMatch(/^#[\da-f]{6}$/)
   })
 
   test('keeps semantic foregrounds readable against editor surfaces', () => {
@@ -331,7 +311,7 @@ describe('fixed Codex UI themes', () => {
         '--cpx-sys-color-surface-raised',
         '--cpx-sys-color-surface-editor',
       ] as const
-      for (const role of roleNames.map(name => variables[name])) {
+      for (const role of roleNames.map((name) => variables[name])) {
         expect(role).toBeDefined()
         expect(role).not.toContain('rgba')
       }
@@ -355,18 +335,10 @@ describe('fixed Codex UI themes', () => {
     const raised = variables['--cpx-sys-color-surface-raised']
 
     expect(variables['--cpx-sys-color-surface-editor']).toBe('#f6f4ef')
-    expect(recessed).toBe(
-      deriveDesktopSurfaceUnder('#f5f3ed', '#2f312d', 'light', 40),
-    )
-    expect(luminance(parseColor(recessed))).toBeLessThan(
-      luminance(parseColor(canvas)),
-    )
-    expect(luminance(parseColor(control))).toBeGreaterThan(
-      luminance(parseColor(canvas)),
-    )
-    expect(luminance(parseColor(raised))).toBeGreaterThan(
-      luminance(parseColor(canvas)),
-    )
+    expect(recessed).toBe(deriveDesktopSurfaceUnder('#f5f3ed', '#2f312d', 'light', 40))
+    expect(luminance(parseColor(recessed))).toBeLessThan(luminance(parseColor(canvas)))
+    expect(luminance(parseColor(control))).toBeGreaterThan(luminance(parseColor(canvas)))
+    expect(luminance(parseColor(raised))).toBeGreaterThan(luminance(parseColor(canvas)))
   })
 
   test('keeps dark chrome recessed while control and raised surfaces lift', () => {
@@ -379,39 +351,32 @@ describe('fixed Codex UI themes', () => {
         contrast: 60,
       },
     })
-    const canvasLuminance = luminance(
-      parseColor(variables['--cpx-sys-color-surface-canvas']),
-    )
+    const canvasLuminance = luminance(parseColor(variables['--cpx-sys-color-surface-canvas']))
 
     expect(variables['--cpx-sys-color-surface-recessed']).toBe(
       deriveDesktopSurfaceUnder('#282a36', '#f8f8f2', 'dark', 60),
     )
-    expect(luminance(
-      parseColor(variables['--cpx-sys-color-surface-recessed']),
-    )).toBeLessThan(canvasLuminance)
-    expect(luminance(
-      parseColor(variables['--cpx-sys-color-surface-control']),
-    )).toBeGreaterThan(canvasLuminance)
-    expect(luminance(
-      parseColor(variables['--cpx-sys-color-surface-raised']),
-    )).toBeGreaterThan(canvasLuminance)
+    expect(luminance(parseColor(variables['--cpx-sys-color-surface-recessed']))).toBeLessThan(
+      canvasLuminance,
+    )
+    expect(luminance(parseColor(variables['--cpx-sys-color-surface-control']))).toBeGreaterThan(
+      canvasLuminance,
+    )
+    expect(luminance(parseColor(variables['--cpx-sys-color-surface-raised']))).toBeGreaterThan(
+      canvasLuminance,
+    )
   })
 
   test('keeps every semantic foreground readable on its subtle background', () => {
     for (const config of [DEFAULT_LIGHT_THEME, DEFAULT_DARK_THEME]) {
       const variables = deriveThemeVariables(config)
-      for (const tone of [
-        'accent',
-        'danger',
-        'warning',
-        'success',
-        'skill',
-        'info',
-      ] as const) {
-        expect(contrastRatio(
-          variables[`--cpx-sys-color-${tone}-fg`],
-          variables[`--cpx-sys-color-${tone}-subtle-bg`],
-        )).toBeGreaterThanOrEqual(4.5)
+      for (const tone of ['accent', 'danger', 'warning', 'success', 'skill', 'info'] as const) {
+        expect(
+          contrastRatio(
+            variables[`--cpx-sys-color-${tone}-fg`],
+            variables[`--cpx-sys-color-${tone}-subtle-bg`],
+          ),
+        ).toBeGreaterThanOrEqual(4.5)
       }
     }
   })
@@ -434,13 +399,15 @@ describe('fixed Codex UI themes', () => {
       })
 
       expect(variables['--cpx-sys-color-border-default']).toBe(border)
-      expect(deriveThemeVariables({
-        ...DEFAULT_LIGHT_THEME,
-        theme: {
-          ...DEFAULT_LIGHT_THEME.theme,
-          contrast,
-        },
-      })).toEqual(variables)
+      expect(
+        deriveThemeVariables({
+          ...DEFAULT_LIGHT_THEME,
+          theme: {
+            ...DEFAULT_LIGHT_THEME.theme,
+            contrast,
+          },
+        }),
+      ).toEqual(variables)
     }
   })
 
@@ -551,9 +518,7 @@ describe('fixed Codex UI themes', () => {
       },
     })
 
-    expect(getCodeThemeSelectionForVariant(settings, 'light')).toBe(
-      'proof-light',
-    )
+    expect(getCodeThemeSelectionForVariant(settings, 'light')).toBe('proof-light')
     expect(getCodeThemeSelectionForVariant(settings, 'dark')).toBe('dracula')
   })
 
@@ -623,11 +588,9 @@ function parseColor(value: string): readonly [number, number, number] {
 }
 
 function luminance(color: readonly [number, number, number]): number {
-  const channels = color.map(value => {
+  const channels = color.map((value) => {
     const normalized = value / 255
-    return normalized <= 0.04045
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4
+    return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
   })
   return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
 }

@@ -16,16 +16,10 @@ export const Footer: React.FC = () => {
           {/* Brand Info */}
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FCFAF5] p-2 border border-[#DCD6CB]">
-              <img
-                src="/whale-icon.svg"
-                alt=""
-                className="h-full w-full object-contain"
-              />
+              <img src="/whale-icon.svg" alt="" className="h-full w-full object-contain" />
             </div>
             <div>
-              <div className="text-base font-bold text-[#17211D]">
-                CodePilotX
-              </div>
+              <div className="text-base font-bold text-[#17211D]">CodePilotX</div>
               <div className="text-xs text-[#55625D]">
                 Open-source AI coding workbench for Windows.
               </div>
@@ -85,11 +79,10 @@ export const Footer: React.FC = () => {
         {/* Bottom copyright */}
         <div className="mt-12 pt-8 border-t border-[#DCD6CB]/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
           <div>
-            &copy; {new Date().getFullYear()} CodePilotX Contributors. Released under the MIT License.
+            &copy; {new Date().getFullYear()} CodePilotX Contributors. Released under the MIT
+            License.
           </div>
-          <div className="font-mono text-[11px] text-[#63715A]">
-            Current Version: v0.2.0-beta.5
-          </div>
+          <div className="font-mono text-[11px] text-[#63715A]">Current Version: v0.2.0-beta.5</div>
         </div>
       </div>
     </footer>

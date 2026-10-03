@@ -26,16 +26,24 @@ type Props = {
   onReport: (message: string) => void
 }
 
-export function ProjectManagementDialogs({ project, managerOpen, confirmRemoveOpen,
-  busy = false, setManagerOpen, setConfirmRemoveOpen, onProjectChange,
-  onArchiveSessions, onRemoveWorkspace, onReport,
+export function ProjectManagementDialogs({
+  project,
+  managerOpen,
+  confirmRemoveOpen,
+  busy = false,
+  setManagerOpen,
+  setConfirmRemoveOpen,
+  onProjectChange,
+  onArchiveSessions,
+  onRemoveWorkspace,
+  onReport,
 }: Props): React.ReactNode {
   const confirmationDialogMounted = useEverOpened(confirmRemoveOpen)
   const managerDialogMounted = useEverOpened(managerOpen)
   const [processingAction, setProcessingAction] = useState<'remove' | null>(null)
   const { projectAppearances, setProjectAppearances } = useDesktopSettings()
   const appearance = project.projectId
-    ? projectAppearances[project.projectId] ?? DEFAULT_PROJECT_APPEARANCE
+    ? (projectAppearances[project.projectId] ?? DEFAULT_PROJECT_APPEARANCE)
     : DEFAULT_PROJECT_APPEARANCE
   return (
     <>
@@ -51,30 +59,24 @@ export function ProjectManagementDialogs({ project, managerOpen, confirmRemoveOp
             onAction={() => {
               if (busy || processingAction) return
               setProcessingAction('remove')
-              void (project.projectId
-                ? desktopClient
-                    .removeProject(project.projectId)
-                    .then(() => true)
-                : onArchiveSessions()
+              void (
+                project.projectId
+                  ? desktopClient.removeProject(project.projectId).then(() => true)
+                  : onArchiveSessions()
               )
-                .then(success => {
+                .then((success) => {
                   if (!success) return
                   setConfirmRemoveOpen(false)
                   if (project.projectId) {
-                    setProjectAppearances(current => {
-                      const {
-                        [project.projectId as string]: _removed,
-                        ...next
-                      } = current
+                    setProjectAppearances((current) => {
+                      const { [project.projectId as string]: _removed, ...next } = current
                       return next
                     })
                   }
                   onRemoveWorkspace(project)
                   notifyProjectCatalogChanged()
                 })
-                .catch(error => onReport(
-                  error instanceof Error ? error.message : String(error),
-                ))
+                .catch((error) => onReport(error instanceof Error ? error.message : String(error)))
                 .finally(() => setProcessingAction(null))
             }}
             onCancel={() => setConfirmRemoveOpen(false)}
@@ -88,9 +90,9 @@ export function ProjectManagementDialogs({ project, managerOpen, confirmRemoveOp
             appearance={appearance}
             open={managerOpen}
             project={project}
-            onAppearanceChange={nextAppearance => {
+            onAppearanceChange={(nextAppearance) => {
               if (!project.projectId) return
-              setProjectAppearances(current => ({
+              setProjectAppearances((current) => ({
                 ...current,
                 [project.projectId as string]: nextAppearance,
               }))

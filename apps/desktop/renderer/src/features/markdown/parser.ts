@@ -18,14 +18,11 @@ import { normalizeDirectiveName } from './directives.js'
 
 const TOKEN_CACHE = new LruCache<string, MarkdownToken[]>(100, {
   maxWeight: 2 * 1024 * 1024,
-  weigh: source => new TextEncoder().encode(source).byteLength,
+  weigh: (source) => new TextEncoder().encode(source).byteLength,
 })
 const BLOCK_START = /^(?: {0,3})(:{1,3}[a-zA-Z][\w-]*|\$\$)[^\r\n]*(?:\r?\n|$)/m
 
-export function parseMarkdown(
-  text: string,
-  streaming = false,
-): MarkdownParseResult {
+export function parseMarkdown(text: string, streaming = false): MarkdownParseResult {
   const source = text ?? ''
   if (!streaming) {
     return {
@@ -52,10 +49,7 @@ export function parseMarkdown(
         offset < segment.pendingText.length;
         offset += STREAMING_TEXT_CHUNK_CHARACTERS
       ) {
-        const text = segment.pendingText.slice(
-          offset,
-          offset + STREAMING_TEXT_CHUNK_CHARACTERS,
-        )
+        const text = segment.pendingText.slice(offset, offset + STREAMING_TEXT_CHUNK_CHARACTERS)
         const pendingText: MarkdownStreamingTextToken = {
           type: 'streaming_text',
           raw: text,
@@ -108,7 +102,7 @@ export function buildMarkdownBlocks(
     candidates.push(candidate)
     rawOffset += raw.length
   }
-  const pendingIndex = candidates.findLastIndex(block => block.state === 'pending')
+  const pendingIndex = candidates.findLastIndex((block) => block.state === 'pending')
   if (pendingIndex >= 0 && parsed.pendingText) {
     // Pending tokens are produced from a parse-only completed copy. Keep the
     // block identity/source tied to the model output, never to synthetic
@@ -119,27 +113,25 @@ export function buildMarkdownBlocks(
   }
   return candidates.map((candidate, index) => {
     const old = canReuse ? previous[index] : undefined
-    return old && old.raw === candidate.raw && old.state === candidate.state
-      ? old
-      : candidate
+    return old && old.raw === candidate.raw && old.state === candidate.state ? old : candidate
   })
 }
 
 function visibleTextForToken(token: MarkdownToken): string {
   if (token.type === 'streaming_code' || token.type === 'streaming_text') return token.text
   if ('tokens' in token && Array.isArray(token.tokens)) {
-    return token.tokens.map(child => visibleTextForToken(child)).join('')
+    return token.tokens.map((child) => visibleTextForToken(child)).join('')
   }
   if (token.type === 'list') {
     return token.items
-      .flatMap(item => item.tokens)
-      .map(child => visibleTextForToken(child))
+      .flatMap((item) => item.tokens)
+      .map((child) => visibleTextForToken(child))
       .join('')
   }
   if (token.type === 'table') {
     return [...token.header, ...token.rows.flat()]
-      .flatMap(cell => cell.tokens)
-      .map(child => visibleTextForToken(child))
+      .flatMap((cell) => cell.tokens)
+      .map((child) => visibleTextForToken(child))
       .join('')
   }
   if ('text' in token && typeof token.text === 'string') return token.text
@@ -199,7 +191,7 @@ function lexMarked(text: string): MarkdownToken[] {
     breaks: true,
     gfm: true,
   }) as Token[]
-  return tokens.map(token => addInlineMath(token))
+  return tokens.map((token) => addInlineMath(token))
 }
 
 function addInlineMath(token: Token): MarkdownToken {
@@ -207,18 +199,18 @@ function addInlineMath(token: Token): MarkdownToken {
     token.tokens = splitInlineMathTokens(token.tokens)
   }
   if (token.type === 'list') {
-    token.items = token.items.map(item => ({
+    token.items = token.items.map((item) => ({
       ...item,
-      tokens: item.tokens.map(child => addInlineMath(child) as Token),
+      tokens: item.tokens.map((child) => addInlineMath(child) as Token),
     }))
   }
   if (token.type === 'table') {
-    token.header = token.header.map(cell => ({
+    token.header = token.header.map((cell) => ({
       ...cell,
       tokens: splitInlineMathTokens(cell.tokens),
     }))
-    token.rows = token.rows.map(row =>
-      row.map(cell => ({
+    token.rows = token.rows.map((row) =>
+      row.map((cell) => ({
         ...cell,
         tokens: splitInlineMathTokens(cell.tokens),
       })),
@@ -231,27 +223,22 @@ function splitInlineMathTokens(tokens: Token[]): Token[] {
   const result: Token[] = []
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index]
-    if (
-      token.type === 'escape' &&
-      (token.raw === '\\(' || token.raw === '\\[')
-    ) {
+    if (token.type === 'escape' && (token.raw === '\\(' || token.raw === '\\[')) {
       const closingRaw = token.raw === '\\(' ? '\\)' : '\\]'
       const closingIndex = tokens.findIndex(
         (candidate, candidateIndex) =>
-          candidateIndex > index &&
-          candidate.type === 'escape' &&
-          candidate.raw === closingRaw,
+          candidateIndex > index && candidate.type === 'escape' && candidate.raw === closingRaw,
       )
       if (closingIndex > index) {
         result.push({
           type: 'math',
           raw: tokens
             .slice(index, closingIndex + 1)
-            .map(candidate => candidate.raw)
+            .map((candidate) => candidate.raw)
             .join(''),
           text: tokens
             .slice(index + 1, closingIndex)
-            .map(candidate => candidate.raw)
+            .map((candidate) => candidate.raw)
             .join(''),
           display: token.raw === '\\[',
         } as unknown as Token)
@@ -262,9 +249,7 @@ function splitInlineMathTokens(tokens: Token[]): Token[] {
 
     if (
       token.type !== 'text' ||
-      (!token.text.includes('$') &&
-        !token.text.includes('\\(') &&
-        !token.text.includes('\\['))
+      (!token.text.includes('$') && !token.text.includes('\\(') && !token.text.includes('\\['))
     ) {
       result.push(addInlineMath(token) as Token)
       continue
@@ -277,8 +262,7 @@ function splitInlineMathTokens(tokens: Token[]): Token[] {
 
 function splitInlineMath(text: string): Array<Token | MarkdownMathToken> {
   const result: Array<Token | MarkdownMathToken> = []
-  const pattern =
-    /(?<!\\)\$(?!\$)(.+?)(?<!\\)\$|\\\((.+?)\\\)|\\\[([\s\S]+?)\\\]/gu
+  const pattern = /(?<!\\)\$(?!\$)(.+?)(?<!\\)\$|\\\((.+?)\\\)|\\\[([\s\S]+?)\\\]/gu
   let cursor = 0
   for (const match of text.matchAll(pattern)) {
     if (match.index === undefined) continue
@@ -297,9 +281,7 @@ function splitInlineMath(text: string): Array<Token | MarkdownMathToken> {
   return result.length > 0 ? result : [textToken(text)]
 }
 
-function readMathBlock(
-  source: string,
-): { length: number; token: MarkdownMathToken } | null {
+function readMathBlock(source: string): { length: number; token: MarkdownMathToken } | null {
   const match = /^\$\$[^\S\r\n]*(?:\r?\n)?([\s\S]*?)(?:\r?\n)?\$\$[^\S\r\n]*(?:\r?\n|$)/u.exec(
     source,
   )
@@ -318,9 +300,10 @@ function readMathBlock(
 function readDirectiveBlock(
   source: string,
 ): { length: number; token: MarkdownDirectiveToken } | null {
-  const inline = /^(:{1,2})([a-zA-Z][\w-]*)(?:\{((?:[^}"']|"[^"]*"|'[^']*')*)\})?(?:[ \t]+([^\r\n]*))?[ \t]*(?:\r?\n|$)/u.exec(
-    source,
-  )
+  const inline =
+    /^(:{1,2})([a-zA-Z][\w-]*)(?:\{((?:[^}"']|"[^"]*"|'[^']*')*)\})?(?:[ \t]+([^\r\n]*))?[ \t]*(?:\r?\n|$)/u.exec(
+      source,
+    )
   if (inline) {
     const name = normalizeDirectiveName(inline[2])
     return {
@@ -337,9 +320,7 @@ function readDirectiveBlock(
     }
   }
 
-  const opener = /^:::([a-zA-Z][\w-]*)(?:[ \t]+([^\r\n]*))?[ \t]*(?:\r?\n|$)/u.exec(
-    source,
-  )
+  const opener = /^:::([a-zA-Z][\w-]*)(?:[ \t]+([^\r\n]*))?[ \t]*(?:\r?\n|$)/u.exec(source)
   if (!opener) return null
   const bodyStart = opener[0].length
   const closer = /(?:^|\r?\n):::[ \t]*(?:\r?\n|$)/mu
@@ -381,10 +362,7 @@ function parseDirectiveAttributes(source: string): Record<string, string> {
     }
     const keyStart = cursor
     cursor += 1
-    while (
-      cursor < source.length
-      && isAttributeNameCode(source.charCodeAt(cursor))
-    ) {
+    while (cursor < source.length && isAttributeNameCode(source.charCodeAt(cursor))) {
       cursor += 1
     }
     const key = source.slice(keyStart, cursor).toLowerCase()
@@ -392,9 +370,7 @@ function parseDirectiveAttributes(source: string): Record<string, string> {
     cursor += 1
     if (cursor >= source.length) continue
 
-    const quote = source[cursor] === '"' || source[cursor] === "'"
-      ? source[cursor]
-      : null
+    const quote = source[cursor] === '"' || source[cursor] === "'" ? source[cursor] : null
     if (quote) cursor += 1
     let value = ''
     let closed = quote === null
@@ -408,9 +384,7 @@ function parseDirectiveAttributes(source: string): Record<string, string> {
       if (!quote && isAttributeWhitespace(char)) break
       if (quote && char === '\\' && cursor + 1 < source.length) {
         const escaped = source[cursor + 1]
-        value += escaped === '"' || escaped === "'" || escaped === '\\'
-          ? escaped
-          : '\\' + escaped
+        value += escaped === '"' || escaped === "'" || escaped === '\\' ? escaped : '\\' + escaped
         cursor += 2
         continue
       }
@@ -429,18 +403,11 @@ function isAsciiLetter(code: number): boolean {
 }
 
 function isAttributeNameCode(code: number): boolean {
-  return isAsciiLetter(code)
-    || (code >= 48 && code <= 57)
-    || code === 45
-    || code === 95
+  return isAsciiLetter(code) || (code >= 48 && code <= 57) || code === 45 || code === 95
 }
 
 function isAttributeWhitespace(char: string | undefined): boolean {
-  return char === ' '
-    || char === '\t'
-    || char === '\r'
-    || char === '\n'
-    || char === '\f'
+  return char === ' ' || char === '\t' || char === '\r' || char === '\n' || char === '\f'
 }
 
 function textToken(text: string): Tokens.Text {

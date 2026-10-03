@@ -72,17 +72,38 @@ async function buildHarness(): Promise<string> {
     target: 'browser',
     format: 'iife',
     define: { 'process.env.NODE_ENV': '"development"' },
-    plugins: [{
-      name: 'model-selection-harness',
-      setup(builder) {
-        builder.onResolve({ filter: /^react(?:\/.*)?$/ }, args => ({ path: Bun.resolveSync(args.path, rendererRoot), namespace: 'file' }))
-        builder.onResolve({ filter: /^react-dom\/client$/ }, args => ({ path: Bun.resolveSync(args.path, rendererRoot), namespace: 'file' }))
-        builder.onResolve({ filter: /^model-selection-harness$/ }, () => ({ path: 'harness', namespace: 'model-selection' }))
-        builder.onLoad({ filter: /^harness$/, namespace: 'model-selection' }, () => ({ contents: harness, loader: 'jsx', resolveDir: rendererRoot }))
-        builder.onResolve({ filter: /(?:desktop-client\/index\.js$|^model-selection-client$)/ }, () => ({ path: 'client', namespace: 'model-selection' }))
-        builder.onLoad({ filter: /^client$/, namespace: 'model-selection' }, () => ({ contents: clientMock, loader: 'js' }))
+    plugins: [
+      {
+        name: 'model-selection-harness',
+        setup(builder) {
+          builder.onResolve({ filter: /^react(?:\/.*)?$/ }, (args) => ({
+            path: Bun.resolveSync(args.path, rendererRoot),
+            namespace: 'file',
+          }))
+          builder.onResolve({ filter: /^react-dom\/client$/ }, (args) => ({
+            path: Bun.resolveSync(args.path, rendererRoot),
+            namespace: 'file',
+          }))
+          builder.onResolve({ filter: /^model-selection-harness$/ }, () => ({
+            path: 'harness',
+            namespace: 'model-selection',
+          }))
+          builder.onLoad({ filter: /^harness$/, namespace: 'model-selection' }, () => ({
+            contents: harness,
+            loader: 'jsx',
+            resolveDir: rendererRoot,
+          }))
+          builder.onResolve(
+            { filter: /(?:desktop-client\/index\.js$|^model-selection-client$)/ },
+            () => ({ path: 'client', namespace: 'model-selection' }),
+          )
+          builder.onLoad({ filter: /^client$/, namespace: 'model-selection' }, () => ({
+            contents: clientMock,
+            loader: 'js',
+          }))
+        },
       },
-    }],
+    ],
   })
   assert.ok(build.success, build.logs.map(String).join('\n'))
   return build.outputs[0]!.text()
@@ -102,7 +123,10 @@ const browser = await chromium.launch({ channel: 'chrome', headless: true })
 try {
   const page = await browser.newPage()
   const errors: string[] = []
-  page.on('pageerror', error => { errors.push(error.message); console.error(error.message) })
+  page.on('pageerror', (error) => {
+    errors.push(error.message)
+    console.error(error.message)
+  })
   await page.setContent('<div id="root"></div>')
   await page.addScriptTag({ content: script })
   const selection = page.locator('#selection')
@@ -150,7 +174,9 @@ try {
   await page.getByRole('button', { name: 'Refresh catalog' }).click()
   await expect(selection).toHaveText('minimax-cn-coding-plan/missing-model')
   assert.deepEqual(errors, [])
-  console.log('Session model/variant remain isolated across catalog refresh, delayed requests, home and loading; no global saves.')
+  console.log(
+    'Session model/variant remain isolated across catalog refresh, delayed requests, home and loading; no global saves.',
+  )
 } finally {
   await browser.close()
 }

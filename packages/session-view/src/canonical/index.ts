@@ -11,24 +11,24 @@ import type {
   Thread,
   ThreadSnapshot,
   Turn,
-} from "@codepilotx/shared/thread"
-import type { EventEnvelope, RpcResult } from "@codepilotx/agent-protocol"
+} from '@codepilotx/shared/thread'
+import type { EventEnvelope, RpcResult } from '@codepilotx/agent-protocol'
 
 export type ThreadEventEnvelopeLike = EventEnvelope
 
-type ProtocolThreadHistoryPage = RpcResult<"thread/history/read">
+type ProtocolThreadHistoryPage = RpcResult<'thread/history/read'>
 export type PendingHookTrustInteraction = Extract<
-  RpcResult<"interaction/listPending">["interactions"][number],
-  { kind: "hookTrust" }
+  RpcResult<'interaction/listPending'>['interactions'][number],
+  { kind: 'hookTrust' }
 >
 
-export type ThreadStreamPosition = ProtocolThreadHistoryPage["streamPosition"]
+export type ThreadStreamPosition = ProtocolThreadHistoryPage['streamPosition']
 
-export type ThreadTurnBundle = ProtocolThreadHistoryPage["turns"][number]
+export type ThreadTurnBundle = ProtocolThreadHistoryPage['turns'][number]
 
 /** Renderer-facing history page with an optional queue for snapshot adapters. */
-export type CanonicalThreadPage = Omit<ProtocolThreadHistoryPage, "queue"> & {
-  queue?: ProtocolThreadHistoryPage["queue"]
+export type CanonicalThreadPage = Omit<ProtocolThreadHistoryPage, 'queue'> & {
+  queue?: ProtocolThreadHistoryPage['queue']
   pendingHookTrusts?: readonly PendingHookTrustInteraction[]
 }
 
@@ -36,7 +36,7 @@ export type ThreadHistoryPageLike = CanonicalThreadPage
 
 export interface CanonicalQueueState {
   version: number
-  pauseReason: "interrupted" | "turn_failed" | null
+  pauseReason: 'interrupted' | 'turn_failed' | null
   turnIds: string[]
   inputIds: string[]
 }
@@ -84,9 +84,9 @@ export interface CanonicalThreadState {
 }
 
 export type ThreadConversationScope =
-  | { type: "main" }
-  | { type: "subagent"; runId: string }
-  | { type: "side-chat"; inheritedThroughTurnId: string | null }
+  | { type: 'main' }
+  | { type: 'subagent'; runId: string }
+  | { type: 'side-chat'; inheritedThroughTurnId: string | null }
 
 export interface VisibleTurnEntry {
   id: string
@@ -102,25 +102,30 @@ export interface VisibleTurnEntry {
 export type RenderItem = Item
 
 export type RenderContentBlock =
-  | { kind: "assistant"; id: string; items: Array<Extract<Item, { type: "text" }>> }
-  | { kind: "process"; id: string; items: RenderItem[] }
-  | { kind: "plan"; id: string; item: Extract<Item, { type: "plan" }> }
-  | { kind: "execution-plan"; id: string; item: Extract<Item, { type: "execution-plan" }> }
-  | { kind: "patch"; id: string; item: Extract<Item, { type: "patch" }> }
-  | { kind: "post"; id: string; item: RenderItem }
+  | { kind: 'assistant'; id: string; items: Array<Extract<Item, { type: 'text' }>> }
+  | { kind: 'process'; id: string; items: RenderItem[] }
+  | { kind: 'plan'; id: string; item: Extract<Item, { type: 'plan' }> }
+  | { kind: 'execution-plan'; id: string; item: Extract<Item, { type: 'execution-plan' }> }
+  | { kind: 'patch'; id: string; item: Extract<Item, { type: 'patch' }> }
+  | { kind: 'post'; id: string; item: RenderItem }
 
 export type RenderBlocker =
-  | { kind: "approval"; id: string; createdAt: number; approval: ApprovalRequest }
-  | { kind: "question"; id: string; createdAt: number; question: Extract<Item, { type: "question" }> }
+  | { kind: 'approval'; id: string; createdAt: number; approval: ApprovalRequest }
+  | {
+      kind: 'question'
+      id: string
+      createdAt: number
+      question: Extract<Item, { type: 'question' }>
+    }
 
 export interface RenderTurnEntry extends VisibleTurnEntry {
   userItems: Input[]
   processItems: RenderItem[]
-  assistantResultItems: Array<Extract<Item, { type: "text" }>>
+  assistantResultItems: Array<Extract<Item, { type: 'text' }>>
   postAssistantItems: RenderItem[]
-  patchItems: Array<Extract<Item, { type: "patch" }>>
-  planItem: Extract<Item, { type: "plan" }> | null
-  executionPlanItems: Array<Extract<Item, { type: "execution-plan" }>>
+  patchItems: Array<Extract<Item, { type: 'patch' }>>
+  planItem: Extract<Item, { type: 'plan' }> | null
+  executionPlanItems: Array<Extract<Item, { type: 'execution-plan' }>>
   contentBlocks: RenderContentBlock[]
   blockers: RenderBlocker[]
   systemItems: RenderItem[]
@@ -128,7 +133,7 @@ export interface RenderTurnEntry extends VisibleTurnEntry {
 
 export function pageFromThreadSnapshot(
   snapshot: ThreadSnapshot,
-  streamPosition: ThreadStreamPosition = { streamId: "snapshot", sequence: 0 },
+  streamPosition: ThreadStreamPosition = { streamId: 'snapshot', sequence: 0 },
 ): CanonicalThreadPage {
   return {
     thread: snapshot.thread,
@@ -142,19 +147,20 @@ export function pageFromThreadSnapshot(
       items: snapshot.items.filter((item) => item.turnId === turn.id),
       approvals: snapshot.approvals.filter((approval) => approval.turnId === turn.id),
       attachments: [],
-      contextReferences: (snapshot.contextReferences ?? []).filter(reference =>
-        snapshot.inputs.some(input =>
-          input.turnId === turn.id
-          && input.contextReferenceIds?.includes(reference.id),
+      contextReferences: (snapshot.contextReferences ?? []).filter((reference) =>
+        snapshot.inputs.some(
+          (input) => input.turnId === turn.id && input.contextReferenceIds?.includes(reference.id),
         ),
       ),
     })),
-    queue: snapshot.queue ? {
-      version: snapshot.queue.version,
-      pauseReason: snapshot.queue.pauseReason,
-      turns: snapshot.turns.filter((turn) => turn.status === "queued"),
-      inputs: snapshot.inputs.filter((input) => input.state === "queued"),
-    } : undefined,
+    queue: snapshot.queue
+      ? {
+          version: snapshot.queue.version,
+          pauseReason: snapshot.queue.pauseReason,
+          turns: snapshot.turns.filter((turn) => turn.status === 'queued'),
+          inputs: snapshot.inputs.filter((input) => input.state === 'queued'),
+        }
+      : undefined,
     olderCursor: null,
     hasOlder: false,
     streamPosition,
@@ -172,8 +178,8 @@ export function reconcileLatestThreadPage(
   const fresh = createCanonicalThreadState(page)
   fresh.history.generation = cached.history.generation + 1
   if (
-    cached.thread.id !== page.thread.id
-    || cached.stream.streamId !== page.streamPosition.streamId
+    cached.thread.id !== page.thread.id ||
+    cached.stream.streamId !== page.streamPosition.streamId
   ) {
     return fresh
   }
@@ -183,10 +189,11 @@ export function reconcileLatestThreadPage(
     ...(page.queue?.turns.map((turn) => turn.id) ?? []),
   ])
   const cachedQueuedTurnIds = new Set(cached.queue.turnIds)
-  const preservedTurnIds = cached.turnOrder.filter((turnId) =>
-    !refreshedTurnIds.has(turnId)
-    && !cachedQueuedTurnIds.has(turnId)
-    && cached.turnsById.has(turnId),
+  const preservedTurnIds = cached.turnOrder.filter(
+    (turnId) =>
+      !refreshedTurnIds.has(turnId) &&
+      !cachedQueuedTurnIds.has(turnId) &&
+      cached.turnsById.has(turnId),
   )
   if (preservedTurnIds.length === 0) return fresh
 
@@ -243,7 +250,7 @@ export function hydrateLatestThreadPage(
 ): CanonicalThreadState {
   const next = emptyState(page.thread)
   next.pendingPlanApproval = page.pendingPlanApproval ?? null
-  mergePageEntities(next, page, "replace")
+  mergePageEntities(next, page, 'replace')
   next.subagentsByTaskId = mapBy(page.subagents, (projection) => projection.task.id)
   next.hookTrustsById = mapBy(
     page.pendingHookTrusts ?? [],
@@ -270,7 +277,7 @@ export function prependOlderThreadPage(
 ): CanonicalThreadState {
   if (page.thread.id !== state.thread.id) return state
   const next = cloneState(state)
-  mergePageEntities(next, page, "prepend")
+  mergePageEntities(next, page, 'prepend')
   for (const projection of page.subagents) {
     next.subagentsByTaskId.set(projection.task.id, projection)
   }
@@ -304,14 +311,15 @@ export function applyThreadEnvelopes(
     const current = next ?? state
     if (envelope.threadId && envelope.threadId !== current.thread.id) continue
     if (envelope.streamId !== current.stream.streamId) continue
-    if (envelope.durability === "durable" && envelope.sequence <= current.stream.appliedSequence) continue
-    if (envelope.durability === "live") {
+    if (envelope.durability === 'durable' && envelope.sequence <= current.stream.appliedSequence)
+      continue
+    if (envelope.durability === 'live') {
       if (envelope.afterSequence < current.stream.appliedSequence) continue
       if (current.stream.appliedEventIds.has(envelope.eventId)) continue
     }
 
     next ??= cloneState(state)
-    if (envelope.durability === "durable") {
+    if (envelope.durability === 'durable') {
       next.stream.appliedSequence = envelope.sequence
     } else {
       rememberLiveEvent(next.stream.appliedEventIds, envelope.eventId)
@@ -324,25 +332,28 @@ export function applyThreadEnvelopes(
 
 export function selectVisibleTurnEntries(
   state: CanonicalThreadState,
-  scope: ThreadConversationScope = { type: "main" },
+  scope: ThreadConversationScope = { type: 'main' },
 ): VisibleTurnEntry[] {
   const queueTurnIds = new Set(state.queue.turnIds)
   // inputs 每个 turn 至多一条，按 turn 分组的代价与 turn 数同阶，无需单独索引。
   const inputsByTurnId = groupSortedByTurn(state.inputsById.values())
-  const allowedAgentIds = scope.type === "subagent"
-    ? new Set(state.groups.agentIdsBySubagentRunId.get(scope.runId) ?? [])
-    : null
+  const allowedAgentIds =
+    scope.type === 'subagent'
+      ? new Set(state.groups.agentIdsBySubagentRunId.get(scope.runId) ?? [])
+      : null
   const agentsByTurnId = state.groups.agentsByTurnId
   const itemsByTurnId = state.groups.itemsByTurnId
   const approvalsByTurnId = state.groups.approvalsByTurnId
 
   const entries: VisibleTurnEntry[] = []
-  const inheritedBoundaryIndex = scope.type === "side-chat" && scope.inheritedThroughTurnId !== null
-    ? state.turnOrder.indexOf(scope.inheritedThroughTurnId)
-    : -1
-  const visibleTurnOrder = inheritedBoundaryIndex >= 0
-    ? state.turnOrder.slice(inheritedBoundaryIndex + 1)
-    : state.turnOrder
+  const inheritedBoundaryIndex =
+    scope.type === 'side-chat' && scope.inheritedThroughTurnId !== null
+      ? state.turnOrder.indexOf(scope.inheritedThroughTurnId)
+      : -1
+  const visibleTurnOrder =
+    inheritedBoundaryIndex >= 0
+      ? state.turnOrder.slice(inheritedBoundaryIndex + 1)
+      : state.turnOrder
   for (const turnId of visibleTurnOrder) {
     const turn = state.turnsById.get(turnId)
     if (!turn || queueTurnIds.has(turnId)) continue
@@ -353,10 +364,11 @@ export function selectVisibleTurnEntries(
       approvalsByTurnId.get(turnId) ?? [],
       allowedAgentIds,
     )
-    if (allowedAgentIds && agents.length === 0 && items.length === 0 && approvals.length === 0) continue
+    if (allowedAgentIds && agents.length === 0 && items.length === 0 && approvals.length === 0)
+      continue
     const attachmentIds = new Set(userInputs.flatMap((input) => input.attachmentIds ?? []))
     const contextReferenceIds = new Set(
-      userInputs.flatMap(input => input.contextReferenceIds ?? []),
+      userInputs.flatMap((input) => input.contextReferenceIds ?? []),
     )
     entries.push({
       id: turn.id,
@@ -369,7 +381,7 @@ export function selectVisibleTurnEntries(
         .map((attachmentId) => state.attachmentsById.get(attachmentId))
         .filter((attachment): attachment is Attachment => attachment !== undefined),
       contextReferences: [...contextReferenceIds]
-        .map(referenceId => state.contextReferencesById.get(referenceId))
+        .map((referenceId) => state.contextReferencesById.get(referenceId))
         .filter((reference): reference is LocalContextReference => reference !== undefined),
     })
   }
@@ -381,7 +393,7 @@ function filterItemsByAllowedAgents(
   allowedAgentIds: ReadonlySet<string> | null,
 ): Item[] {
   if (!allowedAgentIds) return items as Item[]
-  return items.filter(item => allowedAgentIds.has(item.agentId))
+  return items.filter((item) => allowedAgentIds.has(item.agentId))
 }
 
 function filterApprovalsByAllowedAgents(
@@ -389,12 +401,12 @@ function filterApprovalsByAllowedAgents(
   allowedAgentIds: ReadonlySet<string> | null,
 ): ApprovalRequest[] {
   if (!allowedAgentIds) return approvals as ApprovalRequest[]
-  return approvals.filter(approval => allowedAgentIds.has(approval.agentId))
+  return approvals.filter((approval) => allowedAgentIds.has(approval.agentId))
 }
 
 export function selectRenderTurnEntries(
   state: CanonicalThreadState,
-  scope: ThreadConversationScope = { type: "main" },
+  scope: ThreadConversationScope = { type: 'main' },
 ): RenderTurnEntry[] {
   return selectVisibleTurnEntries(state, scope).map(buildRenderTurnEntry)
 }
@@ -405,19 +417,20 @@ export type RenderTurnEntriesSelector = (
 ) => RenderTurnEntry[]
 
 export function createRenderTurnEntriesSelector(): RenderTurnEntriesSelector {
-  let cacheKey = ""
+  let cacheKey = ''
   let previousEntries: RenderTurnEntry[] = []
   let previousByTurnId = new Map<string, RenderTurnEntry>()
 
   return (
     state: CanonicalThreadState,
-    scope: ThreadConversationScope = { type: "main" },
+    scope: ThreadConversationScope = { type: 'main' },
   ): RenderTurnEntry[] => {
-    const scopeCacheKey = scope.type === "main"
-      ? "main"
-      : scope.type === "subagent"
-        ? `subagent:${scope.runId}`
-        : `side-chat:${scope.inheritedThroughTurnId ?? "none"}`
+    const scopeCacheKey =
+      scope.type === 'main'
+        ? 'main'
+        : scope.type === 'subagent'
+          ? `subagent:${scope.runId}`
+          : `side-chat:${scope.inheritedThroughTurnId ?? 'none'}`
     const nextCacheKey = `${state.thread.id}:${scopeCacheKey}`
     if (nextCacheKey !== cacheKey) {
       cacheKey = nextCacheKey
@@ -432,9 +445,7 @@ export function createRenderTurnEntriesSelector(): RenderTurnEntriesSelector {
         ? previous
         : buildRenderTurnEntry(entry)
     })
-    const result = sameReferences(previousEntries, nextEntries)
-      ? previousEntries
-      : nextEntries
+    const result = sameReferences(previousEntries, nextEntries) ? previousEntries : nextEntries
     previousEntries = result
     previousByTurnId = new Map(result.map((entry) => [entry.id, entry]))
     return result
@@ -443,59 +454,72 @@ export function createRenderTurnEntriesSelector(): RenderTurnEntriesSelector {
 
 export function buildRenderTurnEntry(entry: VisibleTurnEntry): RenderTurnEntry {
   const processItems: Item[] = []
-  const assistantResultItems: Array<Extract<Item, { type: "text" }>> = []
+  const assistantResultItems: Array<Extract<Item, { type: 'text' }>> = []
   const postAssistantItems: Item[] = []
-  const patchItems: Array<Extract<Item, { type: "patch" }>> = []
-  const executionPlanItems: Array<Extract<Item, { type: "execution-plan" }>> = []
+  const patchItems: Array<Extract<Item, { type: 'patch' }>> = []
+  const executionPlanItems: Array<Extract<Item, { type: 'execution-plan' }>> = []
   const contentBlocks: RenderContentBlock[] = []
-  let planItem: Extract<Item, { type: "plan" }> | null = null
+  let planItem: Extract<Item, { type: 'plan' }> | null = null
   const lastProcessItemIndex = findLastProcessItemIndex(entry.items)
   const assistantResultIndex = findAssistantResultIndex(entry.items, lastProcessItemIndex)
 
   for (const [itemIndex, item] of entry.items.entries()) {
-    if (item.type === "text") {
+    if (item.type === 'text') {
       if (!item.text.trim()) continue
       if (itemIndex === assistantResultIndex) {
         assistantResultItems.push(item)
         const previous = contentBlocks.at(-1)
-        if (previous?.kind === "assistant") previous.items.push(item)
-        else contentBlocks.push({ kind: "assistant", id: `assistant:${item.id}`, items: [item] })
+        if (previous?.kind === 'assistant') previous.items.push(item)
+        else contentBlocks.push({ kind: 'assistant', id: `assistant:${item.id}`, items: [item] })
       } else {
         processItems.push(item)
         appendProcessBlock(contentBlocks, item)
       }
-    } else if (item.type === "patch") {
+    } else if (item.type === 'patch') {
       patchItems.push(item)
-      contentBlocks.push({ kind: "patch", id: `patch:${item.id}`, item })
-    } else if (item.type === "plan") {
+      contentBlocks.push({ kind: 'patch', id: `patch:${item.id}`, item })
+    } else if (item.type === 'plan') {
       planItem = item
-      contentBlocks.push({ kind: "plan", id: `plan:${item.id}`, item })
-    } else if (item.type === "execution-plan") {
+      contentBlocks.push({ kind: 'plan', id: `plan:${item.id}`, item })
+    } else if (item.type === 'execution-plan') {
       executionPlanItems.push(item)
-      contentBlocks.push({ kind: "execution-plan", id: `execution-plan:${item.id}`, item })
+      contentBlocks.push({ kind: 'execution-plan', id: `execution-plan:${item.id}`, item })
     } else if (isContextCompressionActivity(item)) {
       postAssistantItems.push(item)
-    } else if (item.type === "question" && item.status !== "pending") {
+    } else if (item.type === 'question' && item.status !== 'pending') {
       postAssistantItems.push(item)
-      contentBlocks.push({ kind: "post", id: `post:${item.id}`, item })
-    } else if (item.type !== "question") {
+      contentBlocks.push({ kind: 'post', id: `post:${item.id}`, item })
+    } else if (item.type !== 'question') {
       processItems.push(item)
       appendProcessBlock(contentBlocks, item)
     }
   }
   for (const item of postAssistantItems) {
     if (isContextCompressionActivity(item)) {
-      contentBlocks.push({ kind: "post", id: `post:${item.id}`, item })
+      contentBlocks.push({ kind: 'post', id: `post:${item.id}`, item })
     }
   }
 
   const blockers: RenderBlocker[] = [
     ...entry.approvals
-      .filter((approval) => approval.status === "pending")
-      .map((approval): RenderBlocker => ({ kind: "approval", id: `approval:${approval.id}`, createdAt: approval.createdAt, approval })),
+      .filter((approval) => approval.status === 'pending')
+      .map((approval): RenderBlocker => ({
+        kind: 'approval',
+        id: `approval:${approval.id}`,
+        createdAt: approval.createdAt,
+        approval,
+      })),
     ...entry.items
-      .filter((item): item is Extract<Item, { type: "question" }> => item.type === "question" && item.status === "pending")
-      .map((question): RenderBlocker => ({ kind: "question", id: `question:${question.id}`, createdAt: question.createdAt, question })),
+      .filter(
+        (item): item is Extract<Item, { type: 'question' }> =>
+          item.type === 'question' && item.status === 'pending',
+      )
+      .map((question): RenderBlocker => ({
+        kind: 'question',
+        id: `question:${question.id}`,
+        createdAt: question.createdAt,
+        question,
+      })),
   ].sort(compareCreated)
 
   return {
@@ -518,15 +542,15 @@ function findLastProcessItemIndex(items: readonly Item[]): number {
     const item = items[index]
     if (!item) continue
     if (isContextCompressionActivity(item)) continue
-    if (item.type === "text") {
-      if (item.placement === "process" && item.text.trim()) return index
+    if (item.type === 'text') {
+      if (item.placement === 'process' && item.text.trim()) return index
       continue
     }
     if (
-      item.type !== "patch"
-      && item.type !== "plan"
-      && item.type !== "execution-plan"
-      && item.type !== "question"
+      item.type !== 'patch' &&
+      item.type !== 'plan' &&
+      item.type !== 'execution-plan' &&
+      item.type !== 'question'
     ) {
       return index
     }
@@ -534,20 +558,14 @@ function findLastProcessItemIndex(items: readonly Item[]): number {
   return -1
 }
 
-function isContextCompressionActivity(
-  item: Item,
-): item is Extract<Item, { type: "activity" }> {
-  return item.type === "activity" && item.activity === "context-compression"
+function isContextCompressionActivity(item: Item): item is Extract<Item, { type: 'activity' }> {
+  return item.type === 'activity' && item.activity === 'context-compression'
 }
 
 function findAssistantResultIndex(items: readonly Item[], lastProcessItemIndex: number): number {
   for (let index = items.length - 1; index > lastProcessItemIndex; index -= 1) {
     const item = items[index]
-    if (
-      item?.type === "text"
-      && item.placement === "result"
-      && item.text.trim()
-    ) {
+    if (item?.type === 'text' && item.placement === 'result' && item.text.trim()) {
       return index
     }
   }
@@ -556,147 +574,196 @@ function findAssistantResultIndex(items: readonly Item[], lastProcessItemIndex: 
 
 function appendProcessBlock(blocks: RenderContentBlock[], item: RenderItem): void {
   const previous = blocks.at(-1)
-  if (previous?.kind === "process") previous.items.push(item)
-  else blocks.push({ kind: "process", id: `process:${item.id}`, items: [item] })
+  if (previous?.kind === 'process') previous.items.push(item)
+  else blocks.push({ kind: 'process', id: `process:${item.id}`, items: [item] })
 }
 
-function applyEnvelopePayload(state: CanonicalThreadState, envelope: ThreadEventEnvelopeLike): void {
+function applyEnvelopePayload(
+  state: CanonicalThreadState,
+  envelope: ThreadEventEnvelopeLike,
+): void {
   switch (envelope.type) {
-    case "thread/created":
-    case "thread/updated":
+    case 'thread/created':
+    case 'thread/updated':
       state.thread = envelope.payload.thread
       return
-    case "thread/settings/updated":
+    case 'thread/settings/updated':
       state.thread = { ...state.thread, settings: envelope.payload.settings }
-      if (envelope.payload.settings.taskMode === "chat") state.pendingPlanApproval = null
+      if (envelope.payload.settings.taskMode === 'chat') state.pendingPlanApproval = null
       return
-    case "turn/queued":
+    case 'turn/queued':
       state.pendingPlanApproval = null
       upsertTurn(state, envelope.payload.turn)
       state.inputsById.set(envelope.payload.input.id, envelope.payload.input)
-      if (!state.queue.turnIds.includes(envelope.payload.turn.id)) state.queue.turnIds.push(envelope.payload.turn.id)
+      if (!state.queue.turnIds.includes(envelope.payload.turn.id))
+        state.queue.turnIds.push(envelope.payload.turn.id)
       return
-    case "turn/started":
+    case 'turn/started':
       state.pendingPlanApproval = null
       upsertTurn(state, envelope.payload.turn)
       state.inputsById.set(envelope.payload.input.id, envelope.payload.input)
       state.queue.turnIds = state.queue.turnIds.filter((id) => id !== envelope.payload.turn.id)
       return
-    case "turn/completed":
-    case "turn/failed":
-    case "turn/interrupted":
+    case 'turn/completed':
+    case 'turn/failed':
+    case 'turn/interrupted':
       upsertTurn(state, envelope.payload.turn)
       for (const item of state.itemsById.values()) {
-        if (item.type === "question" && item.turnId === envelope.payload.turn.id && item.status === "pending") {
-          upsertItem(state, { ...item, status: "cancelled" })
+        if (
+          item.type === 'question' &&
+          item.turnId === envelope.payload.turn.id &&
+          item.status === 'pending'
+        ) {
+          upsertItem(state, { ...item, status: 'cancelled' })
         }
       }
       state.queue.turnIds = state.queue.turnIds.filter((id) => id !== envelope.payload.turn.id)
       return
-    case "turn/statusChanged": {
+    case 'turn/statusChanged': {
       const turn = state.turnsById.get(envelope.payload.turnId)
       if (turn) state.turnsById.set(turn.id, { ...turn, status: envelope.payload.status })
       return
     }
-    case "agent/upserted":
+    case 'agent/upserted':
       upsertAgent(state, envelope.payload.agent)
       return
-    case "subagent/created":
-    case "subagent/updated":
-    case "subagent/workspaceUpdated":
+    case 'subagent/created':
+    case 'subagent/updated':
+    case 'subagent/workspaceUpdated':
       state.subagentsByTaskId.set(envelope.payload.projection.task.id, envelope.payload.projection)
       reconcileSubagentItems(state, envelope.payload.projection)
       return
-    case "item/started":
-    case "item/completed":
+    case 'item/started':
+    case 'item/completed':
       upsertItem(state, envelope.payload.item)
       return
-    case "item/agentMessage/delta":
-      appendItemDelta(state, envelope.payload.itemId, envelope.payload.delta, "text", envelope.payload, envelope.occurredAt)
+    case 'item/agentMessage/delta':
+      appendItemDelta(
+        state,
+        envelope.payload.itemId,
+        envelope.payload.delta,
+        'text',
+        envelope.payload,
+        envelope.occurredAt,
+      )
       return
-    case "reasoning/textDelta":
-    case "reasoning/summaryTextDelta":
-      appendItemDelta(state, envelope.payload.itemId, envelope.payload.delta, "reasoning", envelope.payload, envelope.occurredAt)
+    case 'reasoning/textDelta':
+    case 'reasoning/summaryTextDelta':
+      appendItemDelta(
+        state,
+        envelope.payload.itemId,
+        envelope.payload.delta,
+        'reasoning',
+        envelope.payload,
+        envelope.occurredAt,
+      )
       return
-    case "reasoning/summaryPartAdded":
+    case 'reasoning/summaryPartAdded':
       return
-    case "plan/delta":
-      appendItemDelta(state, envelope.payload.itemId, envelope.payload.delta, "plan", envelope.payload, envelope.occurredAt)
+    case 'plan/delta':
+      appendItemDelta(
+        state,
+        envelope.payload.itemId,
+        envelope.payload.delta,
+        'plan',
+        envelope.payload,
+        envelope.occurredAt,
+      )
       return
-    case "turn/plan/updated":
+    case 'turn/plan/updated':
       upsertItem(state, envelope.payload.item)
       return
-    case "tool/callStarted":
-    case "tool/callCompleted":
-    case "tool/error":
+    case 'tool/callStarted':
+    case 'tool/callCompleted':
+    case 'tool/error':
       upsertItem(state, envelope.payload.item)
       return
-    case "tool/outputDelta":
-      appendItemDelta(state, envelope.payload.itemId, envelope.payload.delta, "tool", envelope.payload, envelope.occurredAt)
+    case 'tool/outputDelta':
+      appendItemDelta(
+        state,
+        envelope.payload.itemId,
+        envelope.payload.delta,
+        'tool',
+        envelope.payload,
+        envelope.occurredAt,
+      )
       return
-    case "approval/requested":
+    case 'approval/requested':
       upsertApproval(state, approvalFromPayload(envelope.payload))
       return
-    case "permission/requested":
+    case 'permission/requested':
       upsertApproval(state, permissionFromPayload(envelope.payload))
       return
-    case "hook/trust/requested":
+    case 'hook/trust/requested':
       state.hookTrustsById.set(envelope.payload.interactionId, envelope.payload)
       return
-    case "hook/trust/resolved":
+    case 'hook/trust/resolved':
       state.hookTrustsById.delete(envelope.payload.interactionId)
       return
-    case "approval/cancelled": {
+    case 'approval/cancelled': {
       const approval = state.approvalsById.get(envelope.payload.interactionId)
-      if (approval) upsertApproval(state, { ...approval, status: "cancelled" })
+      if (approval) upsertApproval(state, { ...approval, status: 'cancelled' })
       return
     }
-    case "question/requested": {
+    case 'question/requested': {
       const item = questionFromPayload(envelope.payload)
       upsertItem(state, item)
       return
     }
-    case "interaction/resolved": {
+    case 'interaction/resolved': {
       // Newer events carry the interaction identifier so the pending approval
       // can be closed precisely; historical events without it keep waiting for
       // snapshot reconciliation instead of guessing which request to close.
-      if (typeof envelope.payload.interactionId !== "string") return
+      if (typeof envelope.payload.interactionId !== 'string') return
       const question = state.itemsById.get(envelope.payload.interactionId)
-      if (question?.type === "question" && envelope.payload.result.kind === "question") {
+      if (question?.type === 'question' && envelope.payload.result.kind === 'question') {
         const result = envelope.payload.result
-        const firstAnswer = result.status === "answered"
-          ? result.answers.find((answer) => answer.questionId === question.questions?.[0]?.id) ?? result.answers[0]
-          : undefined
+        const firstAnswer =
+          result.status === 'answered'
+            ? (result.answers.find((answer) => answer.questionId === question.questions?.[0]?.id) ??
+              result.answers[0])
+            : undefined
         upsertItem(state, {
           ...question,
           status: result.status,
-          ...(result.status === "answered" ? {
-            answers: result.answers,
-            answer: firstAnswer?.text ?? firstAnswer?.choiceIds
-              .map((id) => question.choices.find((choice) => choice.id === id)?.label ?? id).join(", ") ?? null,
-          } : {}),
+          ...(result.status === 'answered'
+            ? {
+                answers: result.answers,
+                answer:
+                  firstAnswer?.text ??
+                  firstAnswer?.choiceIds
+                    .map((id) => question.choices.find((choice) => choice.id === id)?.label ?? id)
+                    .join(', ') ??
+                  null,
+              }
+            : {}),
         })
         return
       }
-      if (envelope.payload.result?.kind === "hookTrust") {
+      if (envelope.payload.result?.kind === 'hookTrust') {
         state.hookTrustsById.delete(envelope.payload.interactionId)
         return
       }
       const approval = state.approvalsById.get(envelope.payload.interactionId)
       if (!approval) return
       const result = envelope.payload.result
-      if (result?.kind !== "approval" && result?.kind !== "permission") return
-      const status = result.kind === "approval"
-        ? result.decision === "allow-once" ? "allowed" : "denied"
-        : result.decision === "grant" ? "allowed" : "denied"
+      if (result?.kind !== 'approval' && result?.kind !== 'permission') return
+      const status =
+        result.kind === 'approval'
+          ? result.decision === 'allow-once'
+            ? 'allowed'
+            : 'denied'
+          : result.decision === 'grant'
+            ? 'allowed'
+            : 'denied'
       upsertApproval(state, { ...approval, status })
       return
     }
-    case "context/compacted":
+    case 'context/compacted':
       projectContextCompaction(state, envelope)
       return
-    case "queue/updated":
-      if (envelope.payload.action === "added") state.pendingPlanApproval = null
+    case 'queue/updated':
+      if (envelope.payload.action === 'added') state.pendingPlanApproval = null
       applyQueueUpdate(state, envelope.payload)
       return
     default:
@@ -706,11 +773,12 @@ function applyEnvelopePayload(state: CanonicalThreadState, envelope: ThreadEvent
 
 function projectContextCompaction(
   state: CanonicalThreadState,
-  envelope: Extract<ThreadEventEnvelopeLike, { type: "context/compacted" }>,
+  envelope: Extract<ThreadEventEnvelopeLike, { type: 'context/compacted' }>,
 ): void {
-  const turnId = envelope.turnId && state.turnsById.has(envelope.turnId)
-    ? envelope.turnId
-    : state.turnOrder.at(-1)
+  const turnId =
+    envelope.turnId && state.turnsById.has(envelope.turnId)
+      ? envelope.turnId
+      : state.turnOrder.at(-1)
   if (!turnId) return
   const turn = state.turnsById.get(turnId)
   if (!turn) return
@@ -733,16 +801,16 @@ function projectContextCompaction(
     messageID: itemId,
     turnId,
     agentId: latestAgent?.id ?? turn.rootAgentId,
-    type: "activity",
-    activity: "context-compression",
-    title: "上下文已压缩",
-    detail: detailParts.join("；"),
-    status: "completed",
+    type: 'activity',
+    activity: 'context-compression',
+    title: '上下文已压缩',
+    detail: detailParts.join('；'),
+    status: 'completed',
     createdAt: envelope.occurredAt,
   })
 }
 
-export type ItemDeltaKind = "text" | "reasoning" | "plan" | "tool"
+export type ItemDeltaKind = 'text' | 'reasoning' | 'plan' | 'tool'
 
 /**
  * live delta 是否会被当前投影接受。`appendItemDelta` 与流式尾部缓冲共用这一
@@ -756,15 +824,19 @@ export function canApplyItemDelta(
   const existing = state.itemsById.get(itemId)
   if (!existing) {
     // 缺失时只有能新建条目的 delta 才会被接受；tool delta 需要先有 tool item。
-    return kind === "text" || kind === "reasoning" || kind === "plan"
+    return kind === 'text' || kind === 'reasoning' || kind === 'plan'
   }
-  if ((existing.type === "text" || existing.type === "reasoning") && existing.status !== "streaming") return false
-  if (existing.type === "tool" && existing.state !== "running") return false
-  if (existing.type === "plan" && existing.status !== "streaming") return false
-  if (kind === "text") return existing.type === "text"
-  if (kind === "reasoning") return existing.type === "reasoning"
-  if (kind === "plan") return existing.type === "plan"
-  return existing.type === "tool"
+  if (
+    (existing.type === 'text' || existing.type === 'reasoning') &&
+    existing.status !== 'streaming'
+  )
+    return false
+  if (existing.type === 'tool' && existing.state !== 'running') return false
+  if (existing.type === 'plan' && existing.status !== 'streaming') return false
+  if (kind === 'text') return existing.type === 'text'
+  if (kind === 'reasoning') return existing.type === 'reasoning'
+  if (kind === 'plan') return existing.type === 'plan'
+  return existing.type === 'tool'
 }
 
 function appendItemDelta(
@@ -778,16 +850,41 @@ function appendItemDelta(
   if (!canApplyItemDelta(state, itemId, kind)) return
   const existing = state.itemsById.get(itemId)
   if (!existing) {
-    const base = { id: itemId, messageID: itemId, turnId: identity.turnId, agentId: identity.agentId, createdAt: occurredAt }
-    if (kind === "text") upsertItem(state, { ...base, type: "text", placement: "result", text: delta, status: "streaming" })
-    else if (kind === "reasoning") upsertItem(state, { ...base, type: "reasoning", text: delta, status: "streaming" })
-    else if (kind === "plan") upsertItem(state, { ...base, type: "plan", title: "计划", markdown: delta, status: "streaming" })
+    const base = {
+      id: itemId,
+      messageID: itemId,
+      turnId: identity.turnId,
+      agentId: identity.agentId,
+      createdAt: occurredAt,
+    }
+    if (kind === 'text')
+      upsertItem(state, {
+        ...base,
+        type: 'text',
+        placement: 'result',
+        text: delta,
+        status: 'streaming',
+      })
+    else if (kind === 'reasoning')
+      upsertItem(state, { ...base, type: 'reasoning', text: delta, status: 'streaming' })
+    else if (kind === 'plan')
+      upsertItem(state, {
+        ...base,
+        type: 'plan',
+        title: '计划',
+        markdown: delta,
+        status: 'streaming',
+      })
     return
   }
-  if (kind === "text" && existing.type === "text") upsertItem(state, { ...existing, text: existing.text + delta, status: "streaming" })
-  else if (kind === "reasoning" && existing.type === "reasoning") upsertItem(state, { ...existing, text: existing.text + delta, status: "streaming" })
-  else if (kind === "plan" && existing.type === "plan") upsertItem(state, { ...existing, markdown: existing.markdown + delta, status: "streaming" })
-  else if (kind === "tool" && existing.type === "tool") upsertItem(state, { ...existing, output: (existing.output ?? "") + delta, state: "running" })
+  if (kind === 'text' && existing.type === 'text')
+    upsertItem(state, { ...existing, text: existing.text + delta, status: 'streaming' })
+  else if (kind === 'reasoning' && existing.type === 'reasoning')
+    upsertItem(state, { ...existing, text: existing.text + delta, status: 'streaming' })
+  else if (kind === 'plan' && existing.type === 'plan')
+    upsertItem(state, { ...existing, markdown: existing.markdown + delta, status: 'streaming' })
+  else if (kind === 'tool' && existing.type === 'tool')
+    upsertItem(state, { ...existing, output: (existing.output ?? '') + delta, state: 'running' })
 }
 
 function approvalFromPayload(payload: {
@@ -799,21 +896,22 @@ function approvalFromPayload(payload: {
   tool: string
   command?: string
   cwd?: string
-  affectedPaths?: readonly { path: string; operation: "create" | "update" }[]
+  affectedPaths?: readonly { path: string; operation: 'create' | 'update' }[]
   reviewSummary?: {
     fileCount: number
     hunkCount: number
     additions: number
     deletions: number
   }
-  requestedPermissions: ApprovalRequest["requestedPermissions"]
-  risk: ApprovalRequest["risk"]
+  requestedPermissions: ApprovalRequest['requestedPermissions']
+  risk: ApprovalRequest['risk']
   reason: string
   createdAt: number
 }): ApprovalRequest {
-  const affectedPaths = payload.affectedPaths === undefined
-    ? undefined
-    : payload.affectedPaths.map((affected) => ({ ...affected }))
+  const affectedPaths =
+    payload.affectedPaths === undefined
+      ? undefined
+      : payload.affectedPaths.map((affected) => ({ ...affected }))
   return {
     id: payload.interactionId,
     threadId: payload.threadId,
@@ -825,14 +923,17 @@ function approvalFromPayload(payload: {
     cwd: payload.cwd ?? null,
     paths: affectedPaths
       ? affectedPaths.map(({ path }) => path)
-      : [...(payload.requestedPermissions.writePaths ?? []), ...(payload.requestedPermissions.readPaths ?? [])],
+      : [
+          ...(payload.requestedPermissions.writePaths ?? []),
+          ...(payload.requestedPermissions.readPaths ?? []),
+        ],
     ...(affectedPaths ? { affectedPaths } : {}),
     ...(payload.reviewSummary ? { reviewSummary: { ...payload.reviewSummary } } : {}),
     requestedPermissions: payload.requestedPermissions,
     review: null,
     risk: payload.risk,
     reason: payload.reason,
-    status: "pending",
+    status: 'pending',
     createdAt: payload.createdAt,
   }
 }
@@ -845,10 +946,10 @@ function permissionFromPayload(payload: {
   toolCallId: string
   tool: string
   reason: string
-  requestedPermissions: ApprovalRequest["requestedPermissions"]
-  requestedScope: "tool-call" | "turn" | "session"
-  allowedScopes: ReadonlyArray<"tool-call" | "turn" | "session">
-  risk?: "low" | "medium" | "high" | "critical"
+  requestedPermissions: ApprovalRequest['requestedPermissions']
+  requestedScope: 'tool-call' | 'turn' | 'session'
+  allowedScopes: ReadonlyArray<'tool-call' | 'turn' | 'session'>
+  risk?: 'low' | 'medium' | 'high' | 'critical'
   createdAt: number
 }): ApprovalRequest {
   // The dynamic permission card displays every requested read path, write
@@ -870,9 +971,9 @@ function permissionFromPayload(payload: {
     paths,
     requestedPermissions: payload.requestedPermissions,
     review: null,
-    risk: payload.risk ?? "high",
+    risk: payload.risk ?? 'high',
     reason: payload.reason,
-    status: "pending",
+    status: 'pending',
     createdAt: payload.createdAt,
     permissionGrant: {
       requestedScope: payload.requestedScope,
@@ -885,33 +986,36 @@ function questionFromPayload(payload: {
   interactionId: string
   turnId: string
   agentId: string
-  questions: NonNullable<Extract<Item, { type: "question" }>["questions"]>
+  questions: NonNullable<Extract<Item, { type: 'question' }>['questions']>
   toolCallId?: string
   createdAt: number
-}): Extract<Item, { type: "question" }> {
+}): Extract<Item, { type: 'question' }> {
   const first = payload.questions[0]
   return {
     id: payload.interactionId,
     messageID: payload.interactionId,
     turnId: payload.turnId,
     agentId: payload.agentId,
-    type: "question",
-    prompt: first?.prompt ?? "需要你的选择",
+    type: 'question',
+    prompt: first?.prompt ?? '需要你的选择',
     choices: first?.choices ?? [],
     questions: payload.questions,
     ...(payload.toolCallId ? { toolCallId: payload.toolCallId } : {}),
-    status: "pending",
+    status: 'pending',
     answer: null,
     createdAt: payload.createdAt,
   }
 }
 
-function applyQueueUpdate(state: CanonicalThreadState, payload: {
-  turns?: readonly Turn[]
-  inputs?: readonly Input[]
-  version?: number
-  pauseReason?: "interrupted" | "turn_failed" | null
-}): void {
+function applyQueueUpdate(
+  state: CanonicalThreadState,
+  payload: {
+    turns?: readonly Turn[]
+    inputs?: readonly Input[]
+    version?: number
+    pauseReason?: 'interrupted' | 'turn_failed' | null
+  },
+): void {
   if (payload.turns) {
     state.queue.turnIds = payload.turns.map((turn) => turn.id)
     for (const turn of payload.turns) upsertTurn(state, turn)
@@ -926,7 +1030,7 @@ function applyQueueUpdate(state: CanonicalThreadState, payload: {
 
 function reconcileSubagentItems(state: CanonicalThreadState, projection: SubagentProjection): void {
   for (const item of state.itemsById.values()) {
-    if (item.type !== "subagent" || item.subagentTaskId !== projection.task.id) continue
+    if (item.type !== 'subagent' || item.subagentTaskId !== projection.task.id) continue
     const run = projection.currentRun
     upsertItem(state, {
       ...item,
@@ -942,7 +1046,11 @@ function reconcileSubagentItems(state: CanonicalThreadState, projection: Subagen
   }
 }
 
-function mergePageEntities(state: CanonicalThreadState, page: CanonicalThreadPage, mode: "replace" | "prepend"): void {
+function mergePageEntities(
+  state: CanonicalThreadState,
+  page: CanonicalThreadPage,
+  mode: 'replace' | 'prepend',
+): void {
   const pageTurnIds: string[] = []
   for (const bundle of page.turns) {
     pageTurnIds.push(bundle.turn.id)
@@ -952,14 +1060,14 @@ function mergePageEntities(state: CanonicalThreadState, page: CanonicalThreadPag
     for (const agent of bundle.agents) state.agentsById.set(agent.id, agent)
     for (const item of bundle.items) state.itemsById.set(item.id, item)
     for (const approval of bundle.approvals) state.approvalsById.set(approval.id, approval)
-    for (const attachment of bundle.attachments ?? []) state.attachmentsById.set(attachment.id, attachment)
+    for (const attachment of bundle.attachments ?? [])
+      state.attachmentsById.set(attachment.id, attachment)
     for (const reference of bundle.contextReferences ?? []) {
       state.contextReferencesById.set(reference.id, reference)
     }
   }
-  state.turnOrder = mode === "replace"
-    ? unique(pageTurnIds)
-    : unique([...pageTurnIds, ...state.turnOrder])
+  state.turnOrder =
+    mode === 'replace' ? unique(pageTurnIds) : unique([...pageTurnIds, ...state.turnOrder])
   if (page.queue) {
     state.queue = {
       version: page.queue.version,
@@ -995,7 +1103,7 @@ function emptyState(thread: Thread): CanonicalThreadState {
     groups: createEmptyTurnGroups(),
     queue: { version: 0, pauseReason: null, turnIds: [], inputIds: [] },
     history: { olderCursor: null, hasOlder: false, loadingOlder: false, generation: 0 },
-    stream: { streamId: "", appliedSequence: 0, appliedEventIds: new Set() },
+    stream: { streamId: '', appliedSequence: 0, appliedEventIds: new Set() },
   }
 }
 
@@ -1013,7 +1121,11 @@ function cloneState(state: CanonicalThreadState): CanonicalThreadState {
     contextReferencesById: new Map(state.contextReferencesById),
     subagentsByTaskId: new Map(state.subagentsByTaskId),
     groups: copyTurnGroups(state.groups),
-    queue: { ...state.queue, turnIds: [...state.queue.turnIds], inputIds: [...state.queue.inputIds] },
+    queue: {
+      ...state.queue,
+      turnIds: [...state.queue.turnIds],
+      inputIds: [...state.queue.inputIds],
+    },
     history: { ...state.history },
     stream: { ...state.stream, appliedEventIds: new Set(state.stream.appliedEventIds) },
   }
@@ -1044,20 +1156,13 @@ function copyEntitiesForTurns<T extends { id: string; turnId: string | null }>(
   }
 }
 
-function appendGrouped<T>(
-  groups: Map<string, T[]>,
-  turnId: string,
-  value: T,
-): void {
+function appendGrouped<T>(groups: Map<string, T[]>, turnId: string, value: T): void {
   const values = groups.get(turnId)
   if (values) values.push(value)
   else groups.set(turnId, [value])
 }
 
-function sortGrouped<T>(
-  groups: Map<string, T[]>,
-  compare: (left: T, right: T) => number,
-): void {
+function sortGrouped<T>(groups: Map<string, T[]>, compare: (left: T, right: T) => number): void {
   for (const values of groups.values()) values.sort(compare)
 }
 
@@ -1116,7 +1221,7 @@ function upsertGrouped<T extends { id: string; turnId: string | null; createdAt:
   for (const turnId of affectedTurnIds) {
     const current = groups.get(turnId)
     const remaining = current
-      ? current.filter(value => value !== previous && value.id !== next.id)
+      ? current.filter((value) => value !== previous && value.id !== next.id)
       : []
     if (next.turnId === turnId) insertSortedGrouped(remaining, next, compare)
     if (remaining.length > 0) groups.set(turnId, remaining)
@@ -1168,14 +1273,10 @@ function upsertApproval(state: CanonicalThreadState, approval: ApprovalRequest):
   upsertGrouped(state.groups.approvalsByTurnId, previous, approval, compareCreated)
 }
 
-function removeGroupedId(
-  groups: Map<string, string[]>,
-  key: string,
-  id: string,
-): void {
+function removeGroupedId(groups: Map<string, string[]>, key: string, id: string): void {
   const ids = groups.get(key)
   if (!ids) return
-  const next = ids.filter(value => value !== id)
+  const next = ids.filter((value) => value !== id)
   if (next.length > 0) groups.set(key, next)
   else groups.delete(key)
 }
@@ -1191,27 +1292,25 @@ function groupSortedByTurn<T extends { turnId: string | null; id: string; create
   return grouped
 }
 
-function hasSameVisibleSources(
-  previous: RenderTurnEntry,
-  next: VisibleTurnEntry,
-): boolean {
-  return previous.turn === next.turn
-    && sameReferences(previous.userInputs, next.userInputs)
-    && sameReferences(previous.agents, next.agents)
-    && sameReferences(previous.items, next.items)
-    && sameReferences(previous.approvals, next.approvals)
-    && sameReferences(previous.attachments, next.attachments)
+function hasSameVisibleSources(previous: RenderTurnEntry, next: VisibleTurnEntry): boolean {
+  return (
+    previous.turn === next.turn &&
+    sameReferences(previous.userInputs, next.userInputs) &&
+    sameReferences(previous.agents, next.agents) &&
+    sameReferences(previous.items, next.items) &&
+    sameReferences(previous.approvals, next.approvals) &&
+    sameReferences(previous.attachments, next.attachments)
+  )
 }
 
-function sameReferences<T>(
-  previous: readonly T[],
-  next: readonly T[],
-): boolean {
-  return previous.length === next.length
-    && previous.every((value, index) => value === next[index])
+function sameReferences<T>(previous: readonly T[], next: readonly T[]): boolean {
+  return previous.length === next.length && previous.every((value, index) => value === next[index])
 }
 
-function compareCreated(left: { id: string; createdAt: number }, right: { id: string; createdAt: number }): number {
+function compareCreated(
+  left: { id: string; createdAt: number },
+  right: { id: string; createdAt: number },
+): number {
   return left.createdAt - right.createdAt || left.id.localeCompare(right.id)
 }
 

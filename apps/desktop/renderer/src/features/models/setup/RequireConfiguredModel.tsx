@@ -12,11 +12,7 @@ import { providerManagementStore } from '../../provider-management/providerManag
 import { useProviderManagementSnapshot } from '../../provider-management/useProviderManagementSnapshot.js'
 import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 
-export type ModelSetupGateDecision =
-  | 'loading'
-  | 'recovery'
-  | 'setup'
-  | 'workbench'
+export type ModelSetupGateDecision = 'loading' | 'recovery' | 'setup' | 'workbench'
 
 /**
  * 跨 Provider 判断是否存在可用任务模型：当前 Provider 已连接且有模型，
@@ -30,8 +26,8 @@ export function hasUsableTaskModel(
   providers: readonly DesktopModelProviderSummary[] = [],
 ): boolean {
   if (state.apiKeyConfigured === true && state.models.length > 0) return true
-  return providers.some(provider =>
-    provider.apiKeyConfigured === true && isExecutableDesktopProvider(provider),
+  return providers.some(
+    (provider) => provider.apiKeyConfigured === true && isExecutableDesktopProvider(provider),
   )
 }
 
@@ -62,16 +58,14 @@ export function RequireConfiguredModel(): React.ReactNode {
 
   useEffect(() => {
     if (
-      !settings.settingsLoaded
-      || !snapshot.loaded
-      || snapshot.configurationError
-      || !snapshot.currentProviderState
-      || settings.firstUseSetupCompleted !== undefined
-    ) return
-    const inferred = hasUsableTaskModel(
-      snapshot.currentProviderState,
-      snapshot.providers,
-    ) ? 1 : 0
+      !settings.settingsLoaded ||
+      !snapshot.loaded ||
+      snapshot.configurationError ||
+      !snapshot.currentProviderState ||
+      settings.firstUseSetupCompleted !== undefined
+    )
+      return
+    const inferred = hasUsableTaskModel(snapshot.currentProviderState, snapshot.providers) ? 1 : 0
     void settings.saveFirstUseSetupCompleted(inferred).catch(() => undefined)
   }, [
     settings.firstUseSetupCompleted,
@@ -92,10 +86,7 @@ export function RequireConfiguredModel(): React.ReactNode {
   if (decision === 'loading') {
     return (
       <SetupBootState
-        label={resolveModelSetupLoadingLabel(
-          snapshot.loaded,
-          settings.settingsLoaded,
-        )}
+        label={resolveModelSetupLoadingLabel(snapshot.loaded, settings.settingsLoaded)}
       />
     )
   }
@@ -113,7 +104,7 @@ export function RequireConfiguredModel(): React.ReactNode {
       {decision === 'setup' ? (
         <ModelSetupGuideDialog
           open={!setupDialogDismissed}
-          onOpenChange={open => setSetupDialogDismissed(!open)}
+          onOpenChange={(open) => setSetupDialogDismissed(!open)}
         />
       ) : null}
     </>
@@ -140,9 +131,7 @@ function ModelSetupGuideDialog({
         >
           <header className="tw:flex tw:flex-col tw:gap-1.5">
             <Dialog.Title asChild>
-              <h2 className="u-type-title-md tw:m-0 tw:text-app-text">
-                先配置一个模型
-              </h2>
+              <h2 className="u-type-title-md tw:m-0 tw:text-app-text">先配置一个模型</h2>
             </Dialog.Title>
             <Dialog.Description asChild>
               <p className="u-type-body-sm tw:m-0 tw:text-app-text-soft">
@@ -199,9 +188,13 @@ export function SetupRecoveryState({
     >
       <div className="tw:max-w-md">
         <h1 className="u-type-title-md tw:m-0 tw:text-app-text">本地 Agent 暂时不可用</h1>
-        <p className="tw:mt-2 tw:mb-0 tw:text-app-text-soft">{message || '无法读取供应商配置。请确认 Agent 已启动，然后重试。'}</p>
+        <p className="tw:mt-2 tw:mb-0 tw:text-app-text-soft">
+          {message || '无法读取供应商配置。请确认 Agent 已启动，然后重试。'}
+        </p>
       </div>
-      <Button color="secondary" onClick={onRetry}>重试</Button>
+      <Button color="secondary" onClick={onRetry}>
+        重试
+      </Button>
     </main>
   )
 }

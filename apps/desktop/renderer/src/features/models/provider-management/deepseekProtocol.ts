@@ -6,10 +6,7 @@ import type {
 /** 唯一支持全局协议切换的内置 Provider。 */
 export const DEEPSEEK_PROVIDER_ID = 'deepseek'
 
-export type DeepSeekProtocol =
-  | 'openai-completions'
-  | 'openai-responses'
-  | 'anthropic-messages'
+export type DeepSeekProtocol = 'openai-completions' | 'openai-responses' | 'anthropic-messages'
 
 export type DeepSeekProtocolOption = {
   value: DeepSeekProtocol
@@ -37,8 +34,7 @@ export const DEEPSEEK_PROTOCOL_OPTIONS: readonly DeepSeekProtocolOption[] = [
 ]
 
 /** 配置缺失时 Agent 按 Chat Completions 执行，UI 显示同一默认值。 */
-export const DEFAULT_DEEPSEEK_PROTOCOL: DeepSeekProtocol =
-  'openai-completions'
+export const DEFAULT_DEEPSEEK_PROTOCOL: DeepSeekProtocol = 'openai-completions'
 
 export type DeepSeekManagedProvider = {
   provider: DesktopModelProviderSummary
@@ -46,7 +42,7 @@ export type DeepSeekManagedProvider = {
 }
 
 function isDeepSeekProtocol(value: unknown): value is DeepSeekProtocol {
-  return DEEPSEEK_PROTOCOL_OPTIONS.some(option => option.value === value)
+  return DEEPSEEK_PROTOCOL_OPTIONS.some((option) => option.value === value)
 }
 
 /**
@@ -65,12 +61,8 @@ export function deepSeekManagedProvider(
   return { provider, config }
 }
 
-export function deepSeekProtocolOf(
-  config: DesktopBuiltinProviderDefinition,
-): DeepSeekProtocol {
-  return isDeepSeekProtocol(config.protocol)
-    ? config.protocol
-    : DEFAULT_DEEPSEEK_PROTOCOL
+export function deepSeekProtocolOf(config: DesktopBuiltinProviderDefinition): DeepSeekProtocol {
+  return isDeepSeekProtocol(config.protocol) ? config.protocol : DEFAULT_DEEPSEEK_PROTOCOL
 }
 
 /**
@@ -80,16 +72,16 @@ export function canEditProviderConfig(
   provider: DesktopModelProviderSummary | undefined,
   deepSeekProtocolSupported = false,
 ): boolean {
-  return provider?.providerKind === 'custom'
-    || deepSeekManagedProvider(provider, deepSeekProtocolSupported) !== null
+  return (
+    provider?.providerKind === 'custom' ||
+    deepSeekManagedProvider(provider, deepSeekProtocolSupported) !== null
+  )
 }
 
-export function deepSeekProtocolOption(
-  protocol: DeepSeekProtocol,
-): DeepSeekProtocolOption {
+export function deepSeekProtocolOption(protocol: DeepSeekProtocol): DeepSeekProtocolOption {
   return (
-    DEEPSEEK_PROTOCOL_OPTIONS.find(option => option.value === protocol)
-      ?? DEEPSEEK_PROTOCOL_OPTIONS[0]!
+    DEEPSEEK_PROTOCOL_OPTIONS.find((option) => option.value === protocol) ??
+    DEEPSEEK_PROTOCOL_OPTIONS[0]!
   )
 }
 
@@ -108,7 +100,7 @@ export function buildDeepSeekProtocolDefinition(
     enabled: config.enabled,
     allowModels: [...config.allowModels],
     denyModels: [...config.denyModels],
-    models: config.models.map(model => ({ ...model })),
+    models: config.models.map((model) => ({ ...model })),
     ...(protocol === DEFAULT_DEEPSEEK_PROTOCOL ? {} : { protocol }),
   }
 }

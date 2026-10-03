@@ -11,7 +11,7 @@ export function createChatHomeHeroTitleRotation(): (
   let cursor = 0
   let lastLocationKey: string | null = null
 
-  return locationKey => {
+  return (locationKey) => {
     if (lastLocationKey === null) {
       lastLocationKey = locationKey
     } else if (locationKey !== lastLocationKey) {
@@ -25,8 +25,6 @@ export function createChatHomeHeroTitleRotation(): (
 
 const selectChatHomeHeroTitle = createChatHomeHeroTitleRotation()
 
-export function getChatHomeHeroTitle(
-  locationKey: string,
-): (typeof CHAT_HOME_HERO_TITLES)[number] {
+export function getChatHomeHeroTitle(locationKey: string): (typeof CHAT_HOME_HERO_TITLES)[number] {
   return selectChatHomeHeroTitle(locationKey)
 }

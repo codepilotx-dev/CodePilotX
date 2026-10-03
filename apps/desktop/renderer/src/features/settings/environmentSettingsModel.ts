@@ -1,8 +1,6 @@
 import type { DesktopWorkspace } from '../../../shared/types.js'
 
-export function sortEnvironmentProjects(
-  projects: readonly DesktopWorkspace[],
-): DesktopWorkspace[] {
+export function sortEnvironmentProjects(projects: readonly DesktopWorkspace[]): DesktopWorkspace[] {
   return [...projects].sort((left, right) => {
     const recent = timestamp(right.lastOpenedAt) - timestamp(left.lastOpenedAt)
     if (recent !== 0) return recent
@@ -16,11 +14,11 @@ export function filterEnvironmentProjects(
 ): DesktopWorkspace[] {
   const keyword = query.trim().toLocaleLowerCase()
   if (!keyword) return [...projects]
-  return projects.filter(project =>
+  return projects.filter((project) =>
     [
       project.name,
       project.path,
-      ...(project.folders ?? []).flatMap(folder => [folder.name, folder.path]),
+      ...(project.folders ?? []).flatMap((folder) => [folder.name, folder.path]),
     ]
       .join(' ')
       .toLocaleLowerCase()
@@ -36,9 +34,9 @@ export function isProjectSettingsConflict(error: unknown): boolean {
     data?: { code?: unknown }
   }
   return (
-    value.errorCode === 'PROJECT_SETTINGS_CONFLICT'
-    || value.code === 'PROJECT_SETTINGS_CONFLICT'
-    || value.data?.code === 'PROJECT_SETTINGS_CONFLICT'
+    value.errorCode === 'PROJECT_SETTINGS_CONFLICT' ||
+    value.code === 'PROJECT_SETTINGS_CONFLICT' ||
+    value.data?.code === 'PROJECT_SETTINGS_CONFLICT'
   )
 }
 

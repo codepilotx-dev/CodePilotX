@@ -8,7 +8,10 @@ import type {
 } from '../../../shared/types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { isExecutableDesktopProvider } from '../../services/desktop-client/provider-adapters.js'
-import { useModelCatalogLoading, withModelCatalogLoading } from '../../hooks/useModelCatalogLoading.js'
+import {
+  useModelCatalogLoading,
+  withModelCatalogLoading,
+} from '../../hooks/useModelCatalogLoading.js'
 import { buildModelPresets, resolveModelPresetId } from '../../modelPresets.js'
 import { buildVariantOptions } from '../models/reasoningVariantLabels.js'
 import type { SessionModelSelection } from '../session/state/sessionModelSelectionStore.js'
@@ -37,10 +40,7 @@ export function useModelProviderController({
   const [modelProviders, setModelProviders] = useState<DesktopModelProviderSummary[]>([])
   const modelCatalogLoading = useModelCatalogLoading()
   const modelPresets = useMemo(
-    () =>
-      buildModelPresets(
-        providerState?.models ?? providerState?.provider.defaultModels ?? [],
-      ),
+    () => buildModelPresets(providerState?.models ?? providerState?.provider.defaultModels ?? []),
     [providerState],
   )
   const providerIDRef = useRef(providerID)
@@ -49,54 +49,48 @@ export function useModelProviderController({
   const fetchedModelCatalogKeysRef = useRef<Set<string>>(new Set())
   const pendingModelCatalogKeysRef = useRef<Set<string>>(new Set())
   const openedProviderCatalogsRef = useRef<Set<ModelProviderID>>(new Set())
-  const providerModelOptions = useMemo(
-    () => {
-      const providers = [...modelProviders]
-      if (
-        providerState &&
-        !providers.some(
-          provider => provider.providerID === providerState.provider.providerID,
-        )
-      ) {
-        providers.unshift(providerState.provider)
-      }
-      return providers
-        .filter(provider => provider.apiKeyConfigured && isExecutableDesktopProvider(provider))
-        .map(provider => {
-          const isSelected =
-            provider.providerID === providerState?.selectedProviderID
-          const models = isSelected
-            ? providerState?.models ?? provider.defaultModels
-            : provider.defaultModels
-          return {
-            providerID: provider.providerID,
-            displayName: provider.displayName,
-            modelPresets: buildModelPresets(models),
-            baseURL: provider.baseURL,
-            logoURL: provider.logoURL,
-          }
-        })
-    },
-    [modelProviders, providerState],
-  )
+  const providerModelOptions = useMemo(() => {
+    const providers = [...modelProviders]
+    if (
+      providerState &&
+      !providers.some((provider) => provider.providerID === providerState.provider.providerID)
+    ) {
+      providers.unshift(providerState.provider)
+    }
+    return providers
+      .filter((provider) => provider.apiKeyConfigured && isExecutableDesktopProvider(provider))
+      .map((provider) => {
+        const isSelected = provider.providerID === providerState?.selectedProviderID
+        const models = isSelected
+          ? (providerState?.models ?? provider.defaultModels)
+          : provider.defaultModels
+        return {
+          providerID: provider.providerID,
+          displayName: provider.displayName,
+          modelPresets: buildModelPresets(models),
+          baseURL: provider.baseURL,
+          logoURL: provider.logoURL,
+        }
+      })
+  }, [modelProviders, providerState])
   const selectedProviderID = providerID
   const selectedProviderModelPresets =
-    providerModelOptions.find(
-      provider => provider.providerID === selectedProviderID,
-    )?.modelPresets ?? []
+    providerModelOptions.find((provider) => provider.providerID === selectedProviderID)
+      ?.modelPresets ?? []
   const resolvedSelectedModelPreset = resolveModelPresetId(
     model,
     undefined,
     selectedProviderModelPresets,
   )
   const selectedProviderSummary =
-    modelProviders.find(provider => provider.providerID === selectedProviderID) ??
+    modelProviders.find((provider) => provider.providerID === selectedProviderID) ??
     (providerState && providerState.provider.providerID === selectedProviderID
       ? providerState.provider
       : undefined)
   const selectedModelMetadata =
-    (providerState && providerState.selectedProviderID === selectedProviderID ? providerState.modelMetadata?.[model] : undefined)
-    ?? selectedProviderSummary?.modelMetadata?.[model]
+    (providerState && providerState.selectedProviderID === selectedProviderID
+      ? providerState.modelMetadata?.[model]
+      : undefined) ?? selectedProviderSummary?.modelMetadata?.[model]
   const selectedVariant = selection?.variant ?? 'default'
   const variantOptions = buildVariantOptions(selectedModelMetadata?.variants)
   const deepSeekThinkingControls = isDeepSeekThinkingModel({
@@ -107,23 +101,28 @@ export function useModelProviderController({
   const showThinkingOptions =
     deepSeekThinkingControls ||
     selectedProviderSummary?.kind === 'anthropic' ||
-    selectedModelMetadata?.reasoning === true || Boolean(selectedModelMetadata?.variants?.length)
+    selectedModelMetadata?.reasoning === true ||
+    Boolean(selectedModelMetadata?.variants?.length)
   const selectedModelAvailable = Boolean(
-    model
-    && selectedProviderSummary
-    && isExecutableDesktopProvider(selectedProviderSummary)
-    && (
-      selectedProviderID === providerState?.selectedProviderID
-        ? providerState.models.includes(model)
-        : selectedProviderSummary.defaultModels.includes(model)
-    ),
+    model &&
+    selectedProviderSummary &&
+    isExecutableDesktopProvider(selectedProviderSummary) &&
+    (selectedProviderID === providerState?.selectedProviderID
+      ? providerState.models.includes(model)
+      : selectedProviderSummary.defaultModels.includes(model)),
   )
-  const modelConfigured = !selectionLoading && selectedProviderSummary?.apiKeyConfigured === true
-    && selectedModelAvailable
-  const selectedModelUnavailableMessage = selection?.model && !selectionLoading && !modelCatalogLoading
-    && providerState?.selectedProviderID === selectedProviderID && !modelConfigured
-    ? `当前会话模型不可用：${selection.providerID}/${selection.model}，请检查提供商配置`
-    : null
+  const modelConfigured =
+    !selectionLoading &&
+    selectedProviderSummary?.apiKeyConfigured === true &&
+    selectedModelAvailable
+  const selectedModelUnavailableMessage =
+    selection?.model &&
+    !selectionLoading &&
+    !modelCatalogLoading &&
+    providerState?.selectedProviderID === selectedProviderID &&
+    !modelConfigured
+      ? `当前会话模型不可用：${selection.providerID}/${selection.model}，请检查提供商配置`
+      : null
 
   const refreshProviderState = useCallback(async (): Promise<void> => {
     const requestId = ++providerStateRequestIdRef.current
@@ -133,17 +132,17 @@ export function useModelProviderController({
         desktopClient.getModelProviderState(requestedProviderID),
         desktopClient.listModelProviders(),
       ])
-      if (requestId !== providerStateRequestIdRef.current || providerIDRef.current !== requestedProviderID) return
+      if (
+        requestId !== providerStateRequestIdRef.current ||
+        providerIDRef.current !== requestedProviderID
+      )
+        return
       setProviderState(next)
       setModelProviders(providers)
-      if (
-        next.selectedProviderID &&
-        next.apiKeyConfigured
-      ) {
-        const catalogKey = [
-          next.selectedProviderID,
-          next.apiKeyConfigured ? 'key' : 'no-key',
-        ].join('\0')
+      if (next.selectedProviderID && next.apiKeyConfigured) {
+        const catalogKey = [next.selectedProviderID, next.apiKeyConfigured ? 'key' : 'no-key'].join(
+          '\0',
+        )
         if (
           fetchedModelCatalogKeysRef.current.has(catalogKey) ||
           pendingModelCatalogKeysRef.current.has(catalogKey)
@@ -156,9 +155,13 @@ export function useModelProviderController({
             providerID: next.selectedProviderID,
           }),
         )
-          .then(result => {
-            if (requestId !== providerStateRequestIdRef.current || providerIDRef.current !== requestedProviderID) return
-            setProviderState(current => {
+          .then((result) => {
+            if (
+              requestId !== providerStateRequestIdRef.current ||
+              providerIDRef.current !== requestedProviderID
+            )
+              return
+            setProviderState((current) => {
               if (current?.selectedProviderID !== next.selectedProviderID) {
                 return current
               }
@@ -174,8 +177,12 @@ export function useModelProviderController({
             })
             fetchedModelCatalogKeysRef.current.add(catalogKey)
           })
-          .catch(error => {
-            if (requestId !== providerStateRequestIdRef.current || providerIDRef.current !== requestedProviderID) return
+          .catch((error) => {
+            if (
+              requestId !== providerStateRequestIdRef.current ||
+              providerIDRef.current !== requestedProviderID
+            )
+              return
             setErrorMessage(error instanceof Error ? error.message : String(error))
           })
           .finally(() => {
@@ -183,7 +190,11 @@ export function useModelProviderController({
           })
       }
     } catch (error) {
-      if (requestId !== providerStateRequestIdRef.current || providerIDRef.current !== requestedProviderID) return
+      if (
+        requestId !== providerStateRequestIdRef.current ||
+        providerIDRef.current !== requestedProviderID
+      )
+        return
       setErrorMessage(error instanceof Error ? error.message : String(error))
     }
   }, [providerID, setErrorMessage])
@@ -202,39 +213,77 @@ export function useModelProviderController({
   }, [refreshProviderState])
 
   useEffect(() => {
-    if (!selection || selectionLoading || !selectedModelMetadata || thinkingMode === 'default') return
+    if (!selection || selectionLoading || !selectedModelMetadata || thinkingMode === 'default')
+      return
     if (selectedModelMetadata.variants?.includes(thinkingMode)) return
     // A historical provider-specific variant stays intact until the user changes it.
     if (selection.variant && selection.variant !== thinkingMode) return
     onSelectionChange({ ...selection, thinkingMode: 'default', variant: undefined })
   }, [selection, selectionLoading, selectedModelMetadata, thinkingMode, onSelectionChange])
 
-  const handleVariantChange = useCallback((variant: string): void => {
-    if (!selection || selectionLoading) return
-    if (variant !== 'default' && !selectedModelMetadata?.variants?.includes(variant)) return
-    const nextThinkingMode = variant === 'enabled' || variant === 'adaptive' || variant === 'disabled' ? variant : 'default'
-    onSelectionChange({ ...selection, thinkingMode: nextThinkingMode, variant: variant === 'default' ? undefined : variant })
-  }, [selection, selectionLoading, selectedModelMetadata, onSelectionChange])
-  const handleThinkingChange = useCallback((mode: DesktopThinkingMode): void => {
-    handleVariantChange(mode)
-  }, [handleVariantChange])
+  const handleVariantChange = useCallback(
+    (variant: string): void => {
+      if (!selection || selectionLoading) return
+      if (variant !== 'default' && !selectedModelMetadata?.variants?.includes(variant)) return
+      const nextThinkingMode =
+        variant === 'enabled' || variant === 'adaptive' || variant === 'disabled'
+          ? variant
+          : 'default'
+      onSelectionChange({
+        ...selection,
+        thinkingMode: nextThinkingMode,
+        variant: variant === 'default' ? undefined : variant,
+      })
+    },
+    [selection, selectionLoading, selectedModelMetadata, onSelectionChange],
+  )
+  const handleThinkingChange = useCallback(
+    (mode: DesktopThinkingMode): void => {
+      handleVariantChange(mode)
+    },
+    [handleVariantChange],
+  )
 
   const handleProviderModelChange = useCallback(
     (providerID: ModelProviderID, nextPresetId: string): void => {
       if (!selection || selectionLoading) return
-      const providerOption = providerModelOptions.find(provider => provider.providerID === providerID)
-      const preset = providerOption?.modelPresets.find(item => item.id === nextPresetId)
-      if (!preset || (providerID === selection.providerID && preset.value === selection.model)) return
-      const metadata = (providerState?.selectedProviderID === providerID ? providerState.modelMetadata?.[preset.value] : undefined)
-        ?? modelProviders.find(provider => provider.providerID === providerID)?.modelMetadata?.[preset.value]
-      const variant = selection.variant ?? (selection.thinkingMode !== 'default' ? selection.thinkingMode : undefined)
+      const providerOption = providerModelOptions.find(
+        (provider) => provider.providerID === providerID,
+      )
+      const preset = providerOption?.modelPresets.find((item) => item.id === nextPresetId)
+      if (!preset || (providerID === selection.providerID && preset.value === selection.model))
+        return
+      const metadata =
+        (providerState?.selectedProviderID === providerID
+          ? providerState.modelMetadata?.[preset.value]
+          : undefined) ??
+        modelProviders.find((provider) => provider.providerID === providerID)?.modelMetadata?.[
+          preset.value
+        ]
+      const variant =
+        selection.variant ??
+        (selection.thinkingMode !== 'default' ? selection.thinkingMode : undefined)
       const preserveThinking = Boolean(variant && metadata?.variants?.includes(variant))
-      onSelectionChange({ ...selection, providerID, model: preset.value,
+      onSelectionChange({
+        ...selection,
+        providerID,
+        model: preset.value,
         variant: preserveThinking ? variant : undefined,
-        thinkingMode: preserveThinking ? selection.thinkingMode : 'default' })
+        thinkingMode: preserveThinking ? selection.thinkingMode : 'default',
+      })
       if (sessionId && hasMessages) setNoticeMessage('在对话过程中切换模型会降低性能表现')
     },
-    [selection, selectionLoading, providerModelOptions, providerState, modelProviders, onSelectionChange, sessionId, hasMessages, setNoticeMessage],
+    [
+      selection,
+      selectionLoading,
+      providerModelOptions,
+      providerState,
+      modelProviders,
+      onSelectionChange,
+      sessionId,
+      hasMessages,
+      setNoticeMessage,
+    ],
   )
 
   const handleProviderOpen = useCallback(
@@ -242,34 +291,39 @@ export function useModelProviderController({
       if (openedProviderCatalogsRef.current.has(providerID)) return
       openedProviderCatalogsRef.current.add(providerID)
       const requestId = providerStateRequestIdRef.current
-      void desktopClient.fetchProviderModels({ providerID, all: true })
-        .then(result => {
+      void desktopClient
+        .fetchProviderModels({ providerID, all: true })
+        .then((result) => {
           if (requestId !== providerStateRequestIdRef.current) return
-          setModelProviders(current => current.map(provider =>
-            provider.providerID === providerID
+          setModelProviders((current) =>
+            current.map((provider) =>
+              provider.providerID === providerID
+                ? {
+                    ...provider,
+                    defaultModels: result.models,
+                    modelMetadata: {
+                      ...provider.modelMetadata,
+                      ...result.modelMetadata,
+                    },
+                  }
+                : provider,
+            ),
+          )
+          setProviderState((current) =>
+            current?.selectedProviderID === providerID
               ? {
-                  ...provider,
-                  defaultModels: result.models,
+                  ...current,
+                  models: result.models,
                   modelMetadata: {
-                    ...provider.modelMetadata,
+                    ...current.modelMetadata,
                     ...result.modelMetadata,
                   },
+                  error: result.error,
                 }
-              : provider,
-          ))
-          setProviderState(current => current?.selectedProviderID === providerID
-            ? {
-                ...current,
-                models: result.models,
-                modelMetadata: {
-                  ...current.modelMetadata,
-                  ...result.modelMetadata,
-                },
-                error: result.error,
-              }
-            : current)
+              : current,
+          )
         })
-        .catch(error => {
+        .catch((error) => {
           if (requestId !== providerStateRequestIdRef.current) return
           openedProviderCatalogsRef.current.delete(providerID)
           setErrorMessage(error instanceof Error ? error.message : String(error))
@@ -280,40 +334,69 @@ export function useModelProviderController({
 
   const handleProviderSearch = useCallback(
     (() => {
-      const generations = new Map<string, number>();
+      const generations = new Map<string, number>()
       return (providerID: ModelProviderID, query: string): void => {
-        const requestId = providerStateRequestIdRef.current;
-        const generation = (generations.get(providerID) ?? 0) + 1;
-        generations.set(providerID, generation);
-        void desktopClient.fetchProviderModels({ providerID, query, limit: 100 })
-          .then(result => {
-            if (generations.get(providerID) !== generation || requestId !== providerStateRequestIdRef.current) return;
-            setModelProviders(current => current.map(provider =>
-              provider.providerID === providerID
-                ? {
-                    ...provider,
-                    defaultModels: result.models,
-                    modelMetadata: result.modelMetadata,
-                  }
-                : provider,
-            ));
+        const requestId = providerStateRequestIdRef.current
+        const generation = (generations.get(providerID) ?? 0) + 1
+        generations.set(providerID, generation)
+        void desktopClient
+          .fetchProviderModels({ providerID, query, limit: 100 })
+          .then((result) => {
+            if (
+              generations.get(providerID) !== generation ||
+              requestId !== providerStateRequestIdRef.current
+            )
+              return
+            setModelProviders((current) =>
+              current.map((provider) =>
+                provider.providerID === providerID
+                  ? {
+                      ...provider,
+                      defaultModels: result.models,
+                      modelMetadata: result.modelMetadata,
+                    }
+                  : provider,
+              ),
+            )
           })
-          .catch(error => {
-            if (generations.get(providerID) !== generation || requestId !== providerStateRequestIdRef.current) return;
-            setErrorMessage(error instanceof Error ? error.message : String(error));
-          });
-      };
+          .catch((error) => {
+            if (
+              generations.get(providerID) !== generation ||
+              requestId !== providerStateRequestIdRef.current
+            )
+              return
+            setErrorMessage(error instanceof Error ? error.message : String(error))
+          })
+      }
     })(),
     [setErrorMessage],
   )
 
   return {
-    providerState, modelProviders, modelCatalogLoading, modelPresets,
-    selectedProviderID, selectedProviderModelPresets, resolvedSelectedModelPreset,
-    selectedModelMetadata, deepSeekThinkingControls, showThinkingOptions,
-    modelConfigured, providerModelOptions, model, thinkingMode, selectionLoading,
-    handleProviderModelChange, handleThinkingChange, handleProviderOpen, handleProviderSearch,
-    selectedVariant, variantOptions, handleVariantChange, selectedModelUnavailableMessage, refreshProviderState,
+    providerState,
+    modelProviders,
+    modelCatalogLoading,
+    modelPresets,
+    selectedProviderID,
+    selectedProviderModelPresets,
+    resolvedSelectedModelPreset,
+    selectedModelMetadata,
+    deepSeekThinkingControls,
+    showThinkingOptions,
+    modelConfigured,
+    providerModelOptions,
+    model,
+    thinkingMode,
+    selectionLoading,
+    handleProviderModelChange,
+    handleThinkingChange,
+    handleProviderOpen,
+    handleProviderSearch,
+    selectedVariant,
+    variantOptions,
+    handleVariantChange,
+    selectedModelUnavailableMessage,
+    refreshProviderState,
   }
 }
 

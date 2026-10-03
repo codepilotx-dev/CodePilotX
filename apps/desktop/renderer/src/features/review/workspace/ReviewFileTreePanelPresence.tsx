@@ -1,4 +1,4 @@
-import type React from "react";
+import type React from 'react'
 import {
   AnimatePresence,
   animate,
@@ -7,31 +7,26 @@ import {
   useMotionValueEvent,
   usePresence,
   type MotionValue,
-} from "motion/react";
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
-import { usePrefersReducedMotion } from "../../../hooks/usePrefersReducedMotion.js";
+} from 'motion/react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
 import {
   exitTween,
   instantTween,
   layoutTween,
   motionTransition,
-} from "../../motion/motionTransitions.js";
-import { REVIEW_FILE_TREE_PANEL_MIN_WIDTH } from "../diff/WorkspaceReviewDiff.js";
+} from '../../motion/motionTransitions.js'
+import { REVIEW_FILE_TREE_PANEL_MIN_WIDTH } from '../diff/WorkspaceReviewDiff.js'
 
 type Props = {
-  children: React.ReactNode;
-  focusReturnRef: React.RefObject<HTMLButtonElement | null>;
-  liveWidthPixels: MotionValue<string>;
-  liveWidth: MotionValue<number>;
-  resizeHandle: React.ReactNode;
-  visible: boolean;
-  width: number;
-};
+  children: React.ReactNode
+  focusReturnRef: React.RefObject<HTMLButtonElement | null>
+  liveWidthPixels: MotionValue<string>
+  liveWidth: MotionValue<number>
+  resizeHandle: React.ReactNode
+  visible: boolean
+  width: number
+}
 
 export function ReviewFileTreePanelPresence({
   children,
@@ -42,7 +37,7 @@ export function ReviewFileTreePanelPresence({
   visible,
   width,
 }: Props): React.ReactNode {
-  const initiallyVisibleRef = useRef(visible);
+  const initiallyVisibleRef = useRef(visible)
 
   return (
     <AnimatePresence initial={false}>
@@ -60,7 +55,7 @@ export function ReviewFileTreePanelPresence({
         </ReviewFileTreePanelPresenceItem>
       ) : null}
     </AnimatePresence>
-  );
+  )
 }
 
 function ReviewFileTreePanelPresenceItem({
@@ -71,68 +66,68 @@ function ReviewFileTreePanelPresenceItem({
   resizeHandle,
   skipEnterAnimation,
   width,
-}: Omit<Props, "visible"> & {
-  skipEnterAnimation: boolean;
+}: Omit<Props, 'visible'> & {
+  skipEnterAnimation: boolean
 }): React.ReactNode {
-  const reducedMotion = usePrefersReducedMotion();
-  const [isPresent, safeToRemove] = usePresence();
-  const shellRef = useRef<HTMLElement | null>(null);
-  const [entryComplete, setEntryComplete] = useState(skipEnterAnimation);
-  const visibleState = { opacity: 1, x: 0 };
-  const hiddenState = { opacity: 0, x: 8 };
-  const allocatedWidth = useMotionValue(skipEnterAnimation ? width : 0);
-  const allocationAnimationRef = useRef<ReturnType<typeof animate> | null>(null);
-  const isPresentRef = useRef(isPresent);
-  isPresentRef.current = isPresent;
+  const reducedMotion = usePrefersReducedMotion()
+  const [isPresent, safeToRemove] = usePresence()
+  const shellRef = useRef<HTMLElement | null>(null)
+  const [entryComplete, setEntryComplete] = useState(skipEnterAnimation)
+  const visibleState = { opacity: 1, x: 0 }
+  const hiddenState = { opacity: 0, x: 8 }
+  const allocatedWidth = useMotionValue(skipEnterAnimation ? width : 0)
+  const allocationAnimationRef = useRef<ReturnType<typeof animate> | null>(null)
+  const isPresentRef = useRef(isPresent)
+  isPresentRef.current = isPresent
 
-  useMotionValueEvent(liveWidth, "change", nextWidth => {
-    if (!isPresentRef.current) return;
-    allocationAnimationRef.current?.stop();
-    allocationAnimationRef.current = null;
-    allocatedWidth.set(nextWidth);
-  });
+  useMotionValueEvent(liveWidth, 'change', (nextWidth) => {
+    if (!isPresentRef.current) return
+    allocationAnimationRef.current?.stop()
+    allocationAnimationRef.current = null
+    allocatedWidth.set(nextWidth)
+  })
 
   useEffect(() => {
     const animation = animate(
       allocatedWidth,
       isPresent ? liveWidth.get() : 0,
       motionTransition(reducedMotion, isPresent ? layoutTween : exitTween),
-    );
-    allocationAnimationRef.current = animation;
+    )
+    allocationAnimationRef.current = animation
     return () => {
-      animation.stop();
+      animation.stop()
       if (allocationAnimationRef.current === animation) {
-        allocationAnimationRef.current = null;
+        allocationAnimationRef.current = null
       }
-    };
-  }, [allocatedWidth, isPresent, liveWidth, reducedMotion, width]);
+    }
+  }, [allocatedWidth, isPresent, liveWidth, reducedMotion, width])
 
   useLayoutEffect(() => {
-    if (isPresent) return;
-    setEntryComplete(false);
-    const activeElement = document.activeElement;
+    if (isPresent) return
+    setEntryComplete(false)
+    const activeElement = document.activeElement
     if (
       activeElement instanceof HTMLElement &&
       (shellRef.current?.contains(activeElement) ||
-        activeElement.matches(".review-file-tree-resize-handle"))
+        activeElement.matches('.review-file-tree-resize-handle'))
     ) {
-      focusReturnRef.current?.focus({ preventScroll: true });
+      focusReturnRef.current?.focus({ preventScroll: true })
     }
-  }, [focusReturnRef, isPresent]);
+  }, [focusReturnRef, isPresent])
 
   useEffect(() => {
-    if (!reducedMotion || !isPresent) return;
-    setEntryComplete(true);
-  }, [isPresent, reducedMotion]);
+    if (!reducedMotion || !isPresent) return
+    setEntryComplete(true)
+  }, [isPresent, reducedMotion])
 
   useEffect(() => {
-    if (isPresent || !safeToRemove) return;
+    if (isPresent || !safeToRemove) return
     const timeout = window.setTimeout(
       safeToRemove,
       reducedMotion ? 0 : (exitTween.duration as number) * 1_000,
-    );
-    return () => window.clearTimeout(timeout);
-  }, [isPresent, reducedMotion, safeToRemove]);
+    )
+    return () => window.clearTimeout(timeout)
+  }, [isPresent, reducedMotion, safeToRemove])
 
   return (
     <>
@@ -156,33 +151,24 @@ function ReviewFileTreePanelPresenceItem({
               }
         }
         className="review-file-tree-panel"
-        data-presence={isPresent ? "present" : "exiting"}
-        data-review-file-tree-presence={isPresent ? "open" : "exiting"}
+        data-presence={isPresent ? 'present' : 'exiting'}
+        data-review-file-tree-presence={isPresent ? 'open' : 'exiting'}
         initial={skipEnterAnimation ? false : hiddenState}
         inert={!isPresent ? true : undefined}
         onAnimationComplete={() => {
-          if (isPresent) setEntryComplete(true);
+          if (isPresent) setEntryComplete(true)
         }}
         style={{
           flexBasis: allocatedWidth,
-          minWidth:
-            isPresent && entryComplete
-              ? REVIEW_FILE_TREE_PANEL_MIN_WIDTH
-              : 0,
+          minWidth: isPresent && entryComplete ? REVIEW_FILE_TREE_PANEL_MIN_WIDTH : 0,
           width: allocatedWidth,
         }}
-        transition={motionTransition(
-          reducedMotion,
-          entryComplete ? instantTween : layoutTween,
-        )}
+        transition={motionTransition(reducedMotion, entryComplete ? instantTween : layoutTween)}
       >
-        <motion.div
-          className="review-file-tree-panel-surface"
-          style={{ width: liveWidthPixels }}
-        >
+        <motion.div className="review-file-tree-panel-surface" style={{ width: liveWidthPixels }}>
           {children}
         </motion.div>
       </motion.section>
     </>
-  );
+  )
 }

@@ -20,11 +20,7 @@ import {
   planModeActiveFromCollaborationMode,
   resolveCodePilotXCollaborationMode,
 } from '../../shims/core/agent/codepilotxSessionContract.js'
-import type {
-  CatalogProvider,
-  ModelRef,
-  Project,
-} from '@codepilotx/shared'
+import type { CatalogProvider, ModelRef, Project } from '@codepilotx/shared'
 import type {
   PermissionConfig,
   SubagentProjection,
@@ -93,13 +89,9 @@ import {
   desktopPermissionModeToPermissionConfig,
   projectToDesktopWorkspace,
 } from '../agentThreadAdapter.js'
-import {
-  createAgentRpcClient,
-  type AgentRpcSubscription,
-} from '../agentRpcClient.js'
+import { createAgentRpcClient, type AgentRpcSubscription } from '../agentRpcClient.js'
 
-const BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY =
-  'codepilotx.desktop.appearance.v6'
+const BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY = 'codepilotx.desktop.appearance.v6'
 const LEGACY_BROWSER_APPEARANCE_SETTINGS_STORAGE_KEYS = [
   'codepilotx.desktop.appearance.v3',
   'codepilotx.desktop.appearance.v5',
@@ -129,9 +121,7 @@ export function readBrowserThemeSettings(storage?: Storage): DesktopThemeSetting
       storage?.removeItem(key)
     }
     const value = storage?.getItem(BROWSER_APPEARANCE_SETTINGS_STORAGE_KEY)
-    return value
-      ? normalizeDesktopThemeSettings(JSON.parse(value))
-      : defaultMockThemeSettings()
+    return value ? normalizeDesktopThemeSettings(JSON.parse(value)) : defaultMockThemeSettings()
   } catch {
     return defaultMockThemeSettings()
   }
@@ -173,7 +163,7 @@ export function emptyReviewDiff(): DesktopReviewDiffResult {
 export function mockWorkspace(path: string): DesktopWorkspace {
   return {
     path,
-    name: path ? path.split(/[\\/]/).filter(Boolean).at(-1) ?? path : '浏览器 Mock',
+    name: path ? (path.split(/[\\/]/).filter(Boolean).at(-1) ?? path) : '浏览器 Mock',
     branchName: null,
   }
 }
@@ -184,48 +174,59 @@ export function mockWorkspace(path: string): DesktopWorkspace {
  * conversation code never falls back to the legacy flattened timeline.
  */
 
-const VISUAL_ATTACHMENT_DATA = new Map<string, {
-  data: string
-  encoding: 'base64' | 'utf8'
-}>([
-  ['visual-rich-image-1', {
-    data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
-    encoding: 'base64',
-  }],
-  ['visual-rich-image-2', {
-    data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
-    encoding: 'base64',
-  }],
-  ['visual-rich-text-1', {
-    data: '# 附件说明\n\n用于验证编辑重发时保留附件。',
-    encoding: 'utf8',
-  }],
-  ['visual-rich-text-2', {
-    data: '长文件名附件用于验证窄窗口截断。',
-    encoding: 'utf8',
-  }],
+const VISUAL_ATTACHMENT_DATA = new Map<
+  string,
+  {
+    data: string
+    encoding: 'base64' | 'utf8'
+  }
+>([
+  [
+    'visual-rich-image-1',
+    {
+      data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      encoding: 'base64',
+    },
+  ],
+  [
+    'visual-rich-image-2',
+    {
+      data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      encoding: 'base64',
+    },
+  ],
+  [
+    'visual-rich-text-1',
+    {
+      data: '# 附件说明\n\n用于验证编辑重发时保留附件。',
+      encoding: 'utf8',
+    },
+  ],
+  [
+    'visual-rich-text-2',
+    {
+      data: '长文件名附件用于验证窄窗口截断。',
+      encoding: 'utf8',
+    },
+  ],
 ])
 
-export function readBrowserFixtureAttachment(
-  attachmentId: string,
-): RpcResult<'attachment/read'> {
+export function readBrowserFixtureAttachment(attachmentId: string): RpcResult<'attachment/read'> {
   if (attachmentId === 'visual-rich-image-error') {
     throw new Error('视觉用例模拟附件读取失败。')
   }
   const source = VISUAL_ATTACHMENT_DATA.get(attachmentId)
   if (!source) throw new Error('浏览器 mock 模式无法读取历史附件。')
   const metadata = VISUAL_ATTACHMENT_METADATA.get(attachmentId)
-  const kind = metadata?.kind
-    ?? (source.encoding === 'base64' ? 'image' as const : 'text' as const)
-  const name = metadata?.name
-    ?? (kind === 'image' ? `${attachmentId}.png` : `${attachmentId}.md`)
+  const kind =
+    metadata?.kind ?? (source.encoding === 'base64' ? ('image' as const) : ('text' as const))
+  const name = metadata?.name ?? (kind === 'image' ? `${attachmentId}.png` : `${attachmentId}.md`)
   return {
     attachment: {
       id: attachmentId,
       kind,
       name,
-      mediaType: metadata?.mediaType
-        ?? (kind === 'image' ? 'image/png' : 'text/markdown'),
+      mediaType: metadata?.mediaType ?? (kind === 'image' ? 'image/png' : 'text/markdown'),
       sizeBytes: source.data.length,
       sha256: `visual-${attachmentId}`,
       createdAt: Date.now(),
@@ -240,31 +241,46 @@ export function readBrowserFixtureAttachment(
   }
 }
 
-const VISUAL_ATTACHMENT_METADATA = new Map<string, {
-  kind: 'image' | 'text'
-  mediaType: string
-  name: string
-}>([
-  ['visual-rich-image-1', {
-    kind: 'image',
-    mediaType: 'image/png',
-    name: '工作台布局.png',
-  }],
-  ['visual-rich-image-2', {
-    kind: 'image',
-    mediaType: 'image/png',
-    name: '窄窗口对照.png',
-  }],
-  ['visual-rich-text-1', {
-    kind: 'text',
-    mediaType: 'text/markdown',
-    name: '附件说明.md',
-  }],
-  ['visual-rich-text-2', {
-    kind: 'text',
-    mediaType: 'text/markdown',
-    name: '用于验证窄窗口中文件名会正确截断而不会撑宽整个会话页面的特别长附件名称.md',
-  }],
+const VISUAL_ATTACHMENT_METADATA = new Map<
+  string,
+  {
+    kind: 'image' | 'text'
+    mediaType: string
+    name: string
+  }
+>([
+  [
+    'visual-rich-image-1',
+    {
+      kind: 'image',
+      mediaType: 'image/png',
+      name: '工作台布局.png',
+    },
+  ],
+  [
+    'visual-rich-image-2',
+    {
+      kind: 'image',
+      mediaType: 'image/png',
+      name: '窄窗口对照.png',
+    },
+  ],
+  [
+    'visual-rich-text-1',
+    {
+      kind: 'text',
+      mediaType: 'text/markdown',
+      name: '附件说明.md',
+    },
+  ],
+  [
+    'visual-rich-text-2',
+    {
+      kind: 'text',
+      mediaType: 'text/markdown',
+      name: '用于验证窄窗口中文件名会正确截断而不会撑宽整个会话页面的特别长附件名称.md',
+    },
+  ],
 ])
 
 export function mockSessionSnapshot(
@@ -278,7 +294,8 @@ export function mockSessionSnapshot(
     planModeActive: options.planModeActive,
   })
   const planModeActive = planModeActiveFromCollaborationMode(collaborationMode)
-  const permissionConfig = options.permissionConfig ?? desktopPermissionModeToPermissionConfig('default')
+  const permissionConfig =
+    options.permissionConfig ?? desktopPermissionModeToPermissionConfig('default')
   const permissionMode = permissionModeFromDesktopConfig(permissionConfig)
   return {
     item: {
@@ -334,34 +351,23 @@ export type BrowserPerformanceFixture = {
 }
 
 export function createBrowserPerformanceFixture(): BrowserPerformanceFixture | null {
-  if (
-    import.meta.env.MODE !== 'performance' ||
-    typeof window === 'undefined'
-  ) {
+  if (import.meta.env.MODE !== 'performance' || typeof window === 'undefined') {
     return null
   }
 
   const search = new URLSearchParams(window.location.search)
   const performanceCase = search.get('performanceCase')
-  if (
-    performanceCase !== 'desktop-ux' &&
-    performanceCase !== 'nested-scroll-edge-fade'
-  ) {
+  if (performanceCase !== 'desktop-ux' && performanceCase !== 'nested-scroll-edge-fade') {
     return null
   }
 
-  const turns = fixtureCount(
-    search.get('performanceTurns'),
-    PERFORMANCE_TURN_COUNTS,
-    250,
-  )
+  const turns = fixtureCount(search.get('performanceTurns'), PERFORMANCE_TURN_COUNTS, 250)
   const sessionCount = fixtureCount(
     search.get('performanceSessions'),
     PERFORMANCE_SESSION_COUNTS,
     30,
   )
-  const includeNestedScrollFixture =
-    performanceCase === 'nested-scroll-edge-fade'
+  const includeNestedScrollFixture = performanceCase === 'nested-scroll-edge-fade'
   const baseTime = Date.UTC(2026, 6, 30, 8, 0, 0)
   const sessions: DesktopSessionSnapshot[] = []
 
@@ -405,11 +411,7 @@ export function createBrowserPerformanceFixture(): BrowserPerformanceFixture | n
 
     // 首个会话的末轮插入一批工具项，为嵌套滚动边界渐隐场景提供
     // 可滚动的 process group（12 个 Bash 工具项超出 14rem 折叠高度）。
-    if (
-      includeNestedScrollFixture &&
-      sessionIndex === 0 &&
-      sessionTurns > 0
-    ) {
+    if (includeNestedScrollFixture && sessionIndex === 0 && sessionTurns > 0) {
       const lastTurnIndex = sessionTurns - 1
       const lastUser = messages[lastTurnIndex * 2]!
       const toolEvents: DesktopSessionEvent[] = []
@@ -442,7 +444,7 @@ export function createBrowserPerformanceFixture(): BrowserPerformanceFixture | n
           },
         )
       }
-      snapshot.events = messages.map(message => ({
+      snapshot.events = messages.map((message) => ({
         id: message.id,
         sessionId,
         type: 'message' as const,
@@ -451,11 +453,7 @@ export function createBrowserPerformanceFixture(): BrowserPerformanceFixture | n
         createdAt: message.createdAt,
         metadata: message.metadata,
       }))
-      snapshot.events.splice(
-        lastTurnIndex * 2 + 1,
-        0,
-        ...toolEvents,
-      )
+      snapshot.events.splice(lastTurnIndex * 2 + 1, 0, ...toolEvents)
     }
 
     snapshot.view.messages = messages
@@ -470,11 +468,7 @@ export function createBrowserPerformanceFixture(): BrowserPerformanceFixture | n
   }
 }
 
-function fixtureCount(
-  raw: string | null,
-  allowed: ReadonlySet<number>,
-  fallback: number,
-): number {
+function fixtureCount(raw: string | null, allowed: ReadonlySet<number>, fallback: number): number {
   const parsed = Number.parseInt(raw ?? '', 10)
   return allowed.has(parsed) ? parsed : fallback
 }
@@ -516,8 +510,7 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
     thinkingMode: 'adaptive',
   })
   const baseTime = Date.now()
-  const timestamp = (offsetMs: number): string =>
-    new Date(baseTime + offsetMs).toISOString()
+  const timestamp = (offsetMs: number): string => new Date(baseTime + offsetMs).toISOString()
   const createdAt = timestamp(0)
   const richUserMessage = [
     '请把外围内容一起校准到 Codex 的阅读轴：',
@@ -606,57 +599,55 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
               ? richUserMessage
               : '把核心工作台重构成 Codex 风格，并保留现有 Agent 边界。',
       createdAt,
-      metadata: visualCase === 'rich'
-        ? {
-            attachments: [
-              {
-                id: 'visual-rich-image-1',
-                kind: 'image',
-                name: '工作台布局.png',
-                mediaType: 'image/png',
-                sizeBytes: 684,
-              },
-              {
-                id: 'visual-rich-image-2',
-                kind: 'image',
-                name: '窄窗口对照.png',
-                mediaType: 'image/png',
-                sizeBytes: 684,
-              },
-              {
-                id: 'visual-rich-image-error',
-                kind: 'image',
-                name: '读取失败.png',
-                mediaType: 'image/png',
-                sizeBytes: 0,
-              },
-              {
-                id: 'visual-rich-text-1',
-                kind: 'text',
-                name: '附件说明.md',
-                mediaType: 'text/markdown',
-                sizeBytes: 62,
-              },
-              {
-                id: 'visual-rich-text-2',
-                kind: 'text',
-                name: '用于验证窄窗口中文件名会正确截断而不会撑宽整个会话页面的特别长附件名称.md',
-                mediaType: 'text/markdown',
-                sizeBytes: 48,
-              },
-            ],
-          }
-        : undefined,
+      metadata:
+        visualCase === 'rich'
+          ? {
+              attachments: [
+                {
+                  id: 'visual-rich-image-1',
+                  kind: 'image',
+                  name: '工作台布局.png',
+                  mediaType: 'image/png',
+                  sizeBytes: 684,
+                },
+                {
+                  id: 'visual-rich-image-2',
+                  kind: 'image',
+                  name: '窄窗口对照.png',
+                  mediaType: 'image/png',
+                  sizeBytes: 684,
+                },
+                {
+                  id: 'visual-rich-image-error',
+                  kind: 'image',
+                  name: '读取失败.png',
+                  mediaType: 'image/png',
+                  sizeBytes: 0,
+                },
+                {
+                  id: 'visual-rich-text-1',
+                  kind: 'text',
+                  name: '附件说明.md',
+                  mediaType: 'text/markdown',
+                  sizeBytes: 62,
+                },
+                {
+                  id: 'visual-rich-text-2',
+                  kind: 'text',
+                  name: '用于验证窄窗口中文件名会正确截断而不会撑宽整个会话页面的特别长附件名称.md',
+                  mediaType: 'text/markdown',
+                  sizeBytes: 48,
+                },
+              ],
+            }
+          : undefined,
     },
     {
       id: `${sessionId}-assistant`,
       sessionId,
       type: 'message',
       role: 'assistant',
-      content:
-        visualCase === 'turn-nav'
-          ? '第一轮已完成。'
-          : richAssistantMarkdown,
+      content: visualCase === 'turn-nav' ? '第一轮已完成。' : richAssistantMarkdown,
       createdAt: timestamp(visualCase === 'rich' ? 4_500 : 2_000),
       metadata: visualCase === 'rich' ? { streaming: false } : undefined,
     },
@@ -715,25 +706,26 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
           type: 'tool_call',
           content: `Bash: bun run --cwd apps/desktop/renderer test --run ${toolIndex}`,
           createdAt: timestamp(300 + toolIndex * 40),
-          metadata: toolIndex === 0
-            ? {
-                toolName: 'Read',
-                toolUseId: toolId,
-                activity: {
-                  type: 'read',
-                  subject: 'file',
-                  target: {
-                    displayLabel: 'src/ConversationPage.tsx',
-                    workspacePath: 'src/ConversationPage.tsx',
+          metadata:
+            toolIndex === 0
+              ? {
+                  toolName: 'Read',
+                  toolUseId: toolId,
+                  activity: {
+                    type: 'read',
+                    subject: 'file',
+                    target: {
+                      displayLabel: 'src/ConversationPage.tsx',
+                      workspacePath: 'src/ConversationPage.tsx',
+                    },
                   },
+                }
+              : {
+                  toolName: 'Bash',
+                  toolUseId: toolId,
+                  command: `bun run --cwd apps/desktop/renderer test --run ${toolIndex}`,
+                  activity: { type: 'command', kind: 'test' },
                 },
-              }
-            : {
-                toolName: 'Bash',
-                toolUseId: toolId,
-                command: `bun run --cwd apps/desktop/renderer test --run ${toolIndex}`,
-                activity: { type: 'command', kind: 'test' },
-              },
         },
         {
           id: `${toolId}-output`,
@@ -753,14 +745,8 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
       createdAt: timestamp(1_500),
       metadata: {
         steps: Array.from({ length: 16 }, (_, index) => ({
-          step:
-            `滚动边界第 ${index + 1} 步：验证嵌套滚动容器顶部与底部的渐隐状态。`,
-          status:
-            index < 2
-              ? 'completed'
-              : index === 2
-                ? 'in_progress'
-                : 'pending',
+          step: `滚动边界第 ${index + 1} 步：验证嵌套滚动容器顶部与底部的渐隐状态。`,
+          status: index < 2 ? 'completed' : index === 2 ? 'in_progress' : 'pending',
         })),
         status: 'streaming',
       },
@@ -776,9 +762,18 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
       createdAt: timestamp(3_000),
       metadata: {
         steps: [
-          { step: '把会话正文改造成 Codex 语义表面，并固定主题色板与圆角基线。', status: 'completed' },
-          { step: '将计划弹层从胶囊包含块解耦，改为相对完整摘要区域自适应居中。', status: 'in_progress' },
-          { step: '验证窄窗口下弹层按可用正文宽度收缩、长步骤文本正常换行且无横向溢出。', status: 'pending' },
+          {
+            step: '把会话正文改造成 Codex 语义表面，并固定主题色板与圆角基线。',
+            status: 'completed',
+          },
+          {
+            step: '将计划弹层从胶囊包含块解耦，改为相对完整摘要区域自适应居中。',
+            status: 'in_progress',
+          },
+          {
+            step: '验证窄窗口下弹层按可用正文宽度收缩、长步骤文本正常换行且无横向溢出。',
+            status: 'pending',
+          },
         ],
         status: 'streaming',
       },
@@ -806,27 +801,29 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
         id: `${sessionId}-tool`,
         sessionId,
         type: 'tool_call',
-        content: visualCase === 'rich' ? 'Read: src/ConversationPage.tsx' : 'Bash: bun run typecheck',
+        content:
+          visualCase === 'rich' ? 'Read: src/ConversationPage.tsx' : 'Bash: bun run typecheck',
         createdAt: timestamp(3_000),
-        metadata: visualCase === 'rich'
-          ? {
-              toolName: 'Read',
-              toolUseId: 'visual-tool-1',
-              activity: {
-                type: 'read',
-                subject: 'file',
-                target: {
-                  displayLabel: 'src/ConversationPage.tsx',
-                  workspacePath: 'src/ConversationPage.tsx',
+        metadata:
+          visualCase === 'rich'
+            ? {
+                toolName: 'Read',
+                toolUseId: 'visual-tool-1',
+                activity: {
+                  type: 'read',
+                  subject: 'file',
+                  target: {
+                    displayLabel: 'src/ConversationPage.tsx',
+                    workspacePath: 'src/ConversationPage.tsx',
+                  },
                 },
+              }
+            : {
+                toolName: 'Bash',
+                toolUseId: 'visual-tool-1',
+                command: 'bun run typecheck',
+                activity: { type: 'command', kind: 'test' },
               },
-            }
-          : {
-              toolName: 'Bash',
-              toolUseId: 'visual-tool-1',
-              command: 'bun run typecheck',
-              activity: { type: 'command', kind: 'test' },
-            },
       },
       {
         id: `${sessionId}-tool-output`,
@@ -872,9 +869,21 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
           files: [
             { path: 'apps/desktop/renderer/shared/theme.ts', additions: 18, deletions: 4 },
             { path: 'apps/desktop/renderer/src/styles/index.scss', additions: 7, deletions: 2 },
-            { path: 'apps/desktop/renderer/src/features/session/attachments/AttachmentRows.tsx', additions: 146, deletions: 0 },
-            { path: 'apps/desktop/renderer/src/features/session/timeline/CanonicalItemRenderer.tsx', additions: 94, deletions: 31 },
-            { path: 'apps/desktop/renderer/src/features/layout/panels/responsive-layout-verification/ExtremelyLongPatchFileNameThatMustTruncateWithoutCompressingTheChangeCounters.tsx', additions: 22, deletions: 8 },
+            {
+              path: 'apps/desktop/renderer/src/features/session/attachments/AttachmentRows.tsx',
+              additions: 146,
+              deletions: 0,
+            },
+            {
+              path: 'apps/desktop/renderer/src/features/session/timeline/CanonicalItemRenderer.tsx',
+              additions: 94,
+              deletions: 31,
+            },
+            {
+              path: 'apps/desktop/renderer/src/features/layout/panels/responsive-layout-verification/ExtremelyLongPatchFileNameThatMustTruncateWithoutCompressingTheChangeCounters.tsx',
+              additions: 22,
+              deletions: 8,
+            },
           ],
         },
       },
@@ -904,8 +913,8 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
 
   snapshot.events = events
   snapshot.view.messages = events
-    .filter(event => event.type === 'message')
-    .map(event => ({
+    .filter((event) => event.type === 'message')
+    .map((event) => ({
       id: event.id,
       role: event.role as 'user' | 'assistant',
       text: event.content,
@@ -923,19 +932,18 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
 
 const VISUAL_REVIEW_GENERATION = 'visual-review-generation'
 const VISUAL_REVIEW_REVISION = 'visual-review-revision'
-const VISUAL_REVIEW_SMALL_PATH =
-  'apps/desktop/renderer/test/codex-style-contracts.test.ts'
+const VISUAL_REVIEW_SMALL_PATH = 'apps/desktop/renderer/test/codex-style-contracts.test.ts'
 const VISUAL_REVIEW_LARGE_PATH =
   'apps/desktop/renderer/src/features/review/diff/WorkspaceReviewDiff.tsx'
-const VISUAL_REVIEW_ADDED_PATH =
-  'apps/desktop/renderer/src/features/review/status-added.ts'
-const VISUAL_REVIEW_DELETED_PATH =
-  'apps/desktop/renderer/src/features/review/status-deleted.ts'
+const VISUAL_REVIEW_ADDED_PATH = 'apps/desktop/renderer/src/features/review/status-added.ts'
+const VISUAL_REVIEW_DELETED_PATH = 'apps/desktop/renderer/src/features/review/status-deleted.ts'
 
 export function isBrowserVisualReviewCase(): boolean {
-  return import.meta.env.DEV &&
+  return (
+    import.meta.env.DEV &&
     typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('visualCase') === 'review'
+  )
 }
 
 function createBrowserVisualReviewLargePatch(): string {
@@ -995,18 +1003,16 @@ function createBrowserVisualReviewSmallPatch(): string {
   ]
   return [
     '@@ -1,7 +1,35 @@',
-    ...context.map(line => ` ${line}`),
-    ...removed.map(line => `-${line}`),
-    ...added.map(line => `+${line}`),
+    ...context.map((line) => ` ${line}`),
+    ...removed.map((line) => `-${line}`),
+    ...added.map((line) => `+${line}`),
   ].join('\n')
 }
 
 const VISUAL_REVIEW_LARGE_PATCH = createBrowserVisualReviewLargePatch()
 const VISUAL_REVIEW_SMALL_PATCH = createBrowserVisualReviewSmallPatch()
 
-export function browserVisualReviewSummary(
-  source: DesktopReviewSource,
-) {
+export function browserVisualReviewSummary(source: DesktopReviewSource) {
   if (!isBrowserVisualReviewCase()) return null
   const changedLines = 1_074
   return {
@@ -1076,13 +1082,10 @@ export function browserVisualReviewSummary(
   }
 }
 
-export function browserVisualReviewFileDiff(
-  source: DesktopReviewSource,
-  path: string,
-) {
+export function browserVisualReviewFileDiff(source: DesktopReviewSource, path: string) {
   if (!isBrowserVisualReviewCase()) return null
   const summary = browserVisualReviewSummary(source)!
-  const file = summary.snapshot.files.find(candidate => candidate.path === path)
+  const file = summary.snapshot.files.find((candidate) => candidate.path === path)
   if (!file) return null
   const smallFile = path === VISUAL_REVIEW_SMALL_PATH
   const largeFile = path === VISUAL_REVIEW_LARGE_PATH
@@ -1104,15 +1107,17 @@ export function browserVisualReviewFileDiff(
     file,
     revision: VISUAL_REVIEW_REVISION,
     patch,
-    hunks: [{
-      id: `visual-review-${file.status}-hunk`,
-      header,
-      oldStart: path === VISUAL_REVIEW_ADDED_PATH ? 0 : 1,
-      oldLines: smallFile ? 7 : largeFile ? 520 : file.status === 'deleted' ? 1 : 0,
-      newStart: path === VISUAL_REVIEW_DELETED_PATH ? 0 : 1,
-      newLines: smallFile ? 35 : largeFile ? 520 : file.status === 'added' ? 1 : 0,
-      patch,
-    }],
+    hunks: [
+      {
+        id: `visual-review-${file.status}-hunk`,
+        header,
+        oldStart: path === VISUAL_REVIEW_ADDED_PATH ? 0 : 1,
+        oldLines: smallFile ? 7 : largeFile ? 520 : file.status === 'deleted' ? 1 : 0,
+        newStart: path === VISUAL_REVIEW_DELETED_PATH ? 0 : 1,
+        newLines: smallFile ? 35 : largeFile ? 520 : file.status === 'added' ? 1 : 0,
+        patch,
+      },
+    ],
     renderable: true,
     tooLargeReason: null,
   }
@@ -1171,7 +1176,6 @@ export function githubLoginFailure(
     elapsedMs: 0,
   }
 }
-
 
 export function noop(): void {}
 

@@ -8,9 +8,7 @@ import {
 
 describe('FullScreenWhaleLoading', () => {
   test('renders the shared whale contract without a button spinner', () => {
-    const html = renderToStaticMarkup(
-      <FullScreenWhaleLoading label="正在读取模型配置…" />,
-    )
+    const html = renderToStaticMarkup(<FullScreenWhaleLoading label="正在读取模型配置…" />)
 
     expect(html).toContain('class="full-screen-whale-loader"')
     expect(html).toContain('data-full-screen-loading="true"')
@@ -23,9 +21,7 @@ describe('FullScreenWhaleLoading', () => {
   })
 
   test('exposes the status region semantics and hides decorative art', () => {
-    const html = renderToStaticMarkup(
-      <FullScreenWhaleLoading label="正在打开模型设置…" />,
-    )
+    const html = renderToStaticMarkup(<FullScreenWhaleLoading label="正在打开模型设置…" />)
 
     expect(html).toContain('role="status"')
     expect(html).toContain('aria-live="polite"')
@@ -37,9 +33,7 @@ describe('FullScreenWhaleLoading', () => {
   })
 
   test('SetupBootState delegates to the full-screen whale loader', () => {
-    const html = renderToStaticMarkup(
-      <SetupBootState label="正在读取桌面设置…" />,
-    )
+    const html = renderToStaticMarkup(<SetupBootState label="正在读取桌面设置…" />)
 
     expect(html).toContain('data-full-screen-loading="true"')
     expect(html).toContain('data-loading-label="正在读取桌面设置…"')
@@ -49,10 +43,7 @@ describe('FullScreenWhaleLoading', () => {
 
   test('renders contained variant without fullscreen attribute and with contained class', () => {
     const html = renderToStaticMarkup(
-      <FullScreenWhaleLoading
-        label="正在加载会话内容…"
-        variant="contained"
-      />,
+      <FullScreenWhaleLoading label="正在加载会话内容…" variant="contained" />,
     )
 
     expect(html).toContain('class="full-screen-whale-loader full-screen-whale-loader--contained"')

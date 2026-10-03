@@ -1,10 +1,9 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-} from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import * as Slider from '@radix-ui/react-slider'
-import { getDesktopAccentPresetColor, type DesktopAccentPreset } from '@codepilotx/shared/desktop-theme'
+import {
+  getDesktopAccentPresetColor,
+  type DesktopAccentPreset,
+} from '@codepilotx/shared/desktop-theme'
 
 import { AnchoredPopover } from '../../components/ui/AnchoredPopover.js'
 import { Input } from '../../components/ui/Input.js'
@@ -26,10 +25,7 @@ import {
   mergeChromeThemeSeed,
   applyChromeThemeAccentPreset,
 } from '../theme/codeThemeSeed.js'
-import {
-  deriveThemeVariables,
-  ensureThemePreviewContrast,
-} from '../theme/themeVariables.js'
+import { deriveThemeVariables, ensureThemePreviewContrast } from '../theme/themeVariables.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
@@ -43,9 +39,7 @@ type Props = {
   onError?: (message: string) => void
 }
 
-type ThemeSettingsUpdater = (
-  current: DesktopThemeSettings,
-) => DesktopThemeSettings
+type ThemeSettingsUpdater = (current: DesktopThemeSettings) => DesktopThemeSettings
 
 const VARIANTS = ['light', 'dark'] as const
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
@@ -67,9 +61,7 @@ function visualThemeSeedDelay(): Promise<void> {
   if (!search.has('visualCase')) return Promise.resolve()
   const delay = Number.parseInt(search.get('visualThemeSeedDelayMs') ?? '', 10)
   if (!Number.isFinite(delay) || delay <= 0) return Promise.resolve()
-  return new Promise(resolve =>
-    window.setTimeout(resolve, Math.min(delay, 5_000)),
-  )
+  return new Promise((resolve) => window.setTimeout(resolve, Math.min(delay, 5_000)))
 }
 
 const THEME_MODE_OPTIONS: Array<{
@@ -119,8 +111,8 @@ function NumberInput({
         type="number"
         value={inputValue}
         onBlur={commit}
-        onChange={event => setInputValue(event.target.value)}
-        onKeyDown={event => {
+        onChange={(event) => setInputValue(event.target.value)}
+        onKeyDown={(event) => {
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') {
             setInputValue(String(value))
@@ -163,21 +155,23 @@ function ColorControl({
         className="appearance-color-popover"
         contentLabel={`${ariaLabel}颜色选项`}
         contentRole="dialog"
-        trigger={(
+        trigger={
           <button
             aria-label={`${ariaLabel}颜色选择器`}
             className="appearance-color-swatch"
-            style={{
-              '--appearance-color-swatch-background': normalizedValue,
-            } as React.CSSProperties}
+            style={
+              {
+                '--appearance-color-swatch-background': normalizedValue,
+              } as React.CSSProperties
+            }
             type="button"
           />
-        )}
+        }
         width="auto"
       >
         <ColorPalette
           value={normalizedValue}
-          onChange={next => {
+          onChange={(next) => {
             setDraft(next)
             onCommit(next)
           }}
@@ -192,7 +186,7 @@ function ColorControl({
         type="text"
         value={draft}
         onBlur={commit}
-        onChange={event => {
+        onChange={(event) => {
           const sanitized = sanitizeHexColor(event.target.value)
           setDraft(sanitized as `#${string}`)
           if (HEX_COLOR.test(sanitized)) {
@@ -201,7 +195,7 @@ function ColorControl({
             onCommit(next)
           }
         }}
-        onKeyDown={event => {
+        onKeyDown={(event) => {
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') {
             setDraft(normalizedValue)
@@ -226,9 +220,11 @@ function sanitizeHexColor(value: string): string {
 
 function hexToRgb(value: string): [number, number, number] {
   const normalized = value.replace('#', '').padEnd(6, '0')
-  return [0, 2, 4].map(offset =>
-    Number.parseInt(normalized.slice(offset, offset + 2), 16),
-  ) as [number, number, number]
+  return [0, 2, 4].map((offset) => Number.parseInt(normalized.slice(offset, offset + 2), 16)) as [
+    number,
+    number,
+    number,
+  ]
 }
 
 function rgbToHex(red: number, green: number, blue: number): `#${string}` {
@@ -240,12 +236,8 @@ function rgbToHex(red: number, green: number, blue: number): `#${string}` {
   return `#${channel(red)}${channel(green)}${channel(blue)}`
 }
 
-function rgbToHsv(
-  red: number,
-  green: number,
-  blue: number,
-): [number, number, number] {
-  const [r, g, b] = [red, green, blue].map(channel => channel / 255)
+function rgbToHsv(red: number, green: number, blue: number): [number, number, number] {
+  const [r, g, b] = [red, green, blue].map((channel) => channel / 255)
   const maximum = Math.max(r, g, b)
   const minimum = Math.min(r, g, b)
   const delta = maximum - minimum
@@ -255,34 +247,27 @@ function rgbToHsv(
     else if (maximum === g) hue = 60 * ((b - r) / delta + 2)
     else hue = 60 * ((r - g) / delta + 4)
   }
-  return [
-    hue < 0 ? hue + 360 : hue,
-    maximum === 0 ? 0 : delta / maximum,
-    maximum,
-  ]
+  return [hue < 0 ? hue + 360 : hue, maximum === 0 ? 0 : delta / maximum, maximum]
 }
 
-function hsvToRgb(
-  hue: number,
-  saturation: number,
-  value: number,
-): [number, number, number] {
+function hsvToRgb(hue: number, saturation: number, value: number): [number, number, number] {
   const chroma = value * saturation
   const segment = hue / 60
   const intermediate = chroma * (1 - Math.abs((segment % 2) - 1))
   const [red, green, blue] =
-    segment < 1 ? [chroma, intermediate, 0]
-      : segment < 2 ? [intermediate, chroma, 0]
-        : segment < 3 ? [0, chroma, intermediate]
-          : segment < 4 ? [0, intermediate, chroma]
-            : segment < 5 ? [intermediate, 0, chroma]
+    segment < 1
+      ? [chroma, intermediate, 0]
+      : segment < 2
+        ? [intermediate, chroma, 0]
+        : segment < 3
+          ? [0, chroma, intermediate]
+          : segment < 4
+            ? [0, intermediate, chroma]
+            : segment < 5
+              ? [intermediate, 0, chroma]
               : [chroma, 0, intermediate]
   const match = value - chroma
-  return [
-    (red + match) * 255,
-    (green + match) * 255,
-    (blue + match) * 255,
-  ]
+  return [(red + match) * 255, (green + match) * 255, (blue + match) * 255]
 }
 
 function ColorPalette({
@@ -295,14 +280,9 @@ function ColorPalette({
   const [hue, saturation, brightness] = rgbToHsv(...hexToRgb(value))
   const hueColor = rgbToHex(...hsvToRgb(hue, 1, 1))
 
-  const updateSaturation = (
-    event: React.PointerEvent<HTMLDivElement>,
-  ): void => {
+  const updateSaturation = (event: React.PointerEvent<HTMLDivElement>): void => {
     const bounds = event.currentTarget.getBoundingClientRect()
-    const nextSaturation = Math.max(
-      0,
-      Math.min(1, (event.clientX - bounds.left) / bounds.width),
-    )
+    const nextSaturation = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width))
     const nextBrightness = Math.max(
       0,
       Math.min(1, 1 - (event.clientY - bounds.top) / bounds.height),
@@ -317,7 +297,7 @@ function ColorPalette({
         className="appearance-color-palette-square"
         style={{ '--appearance-picker-hue': hueColor } as React.CSSProperties}
         onPointerDown={updateSaturation}
-        onPointerMove={event => {
+        onPointerMove={(event) => {
           if (event.currentTarget.hasPointerCapture(event.pointerId)) {
             updateSaturation(event)
           }
@@ -335,12 +315,10 @@ function ColorPalette({
           max={100}
           min={0}
           value={[Math.round(saturation * 100)]}
-          onValueChange={values => {
+          onValueChange={(values) => {
             const nextSaturation = values[0]
             if (nextSaturation === undefined) return
-            onChange(rgbToHex(
-              ...hsvToRgb(hue, nextSaturation / 100, brightness),
-            ))
+            onChange(rgbToHex(...hsvToRgb(hue, nextSaturation / 100, brightness)))
           }}
         >
           <Slider.Track>
@@ -357,12 +335,10 @@ function ColorPalette({
           max={100}
           min={0}
           value={[Math.round(brightness * 100)]}
-          onValueChange={values => {
+          onValueChange={(values) => {
             const nextBrightness = values[0]
             if (nextBrightness === undefined) return
-            onChange(rgbToHex(
-              ...hsvToRgb(hue, saturation, nextBrightness / 100),
-            ))
+            onChange(rgbToHex(...hsvToRgb(hue, saturation, nextBrightness / 100)))
           }}
         >
           <Slider.Track>
@@ -382,15 +358,9 @@ function ColorPalette({
         min={0}
         type="range"
         value={Math.round(hue)}
-        onChange={event =>
+        onChange={(event) =>
           onChange(
-            rgbToHex(
-              ...hsvToRgb(
-                Number.parseInt(event.target.value, 10),
-                saturation,
-                brightness,
-              ),
-            ),
+            rgbToHex(...hsvToRgb(Number.parseInt(event.target.value, 10), saturation, brightness)),
           )
         }
       />
@@ -430,11 +400,7 @@ function ThemeModeCard({
   )
 }
 
-function ThemeModePreview({
-  mode,
-}: {
-  mode: DesktopThemeMode
-}): React.ReactNode {
+function ThemeModePreview({ mode }: { mode: DesktopThemeMode }): React.ReactNode {
   if (mode === 'system') {
     return (
       <svg viewBox="0 0 170 120">
@@ -446,45 +412,18 @@ function ThemeModePreview({
         <g clipPath="url(#appearance-system-preview-sheet)">
           <path fill="#f3f3f3" d="M7 34h78v86H7z" />
           <path fill="#393939" d="M85 34h78v86H85z" />
-          <path
-            fill="#cdcdcd"
-            d="M73 59h12v6H73a3 3 0 0 1 0-6Z"
-          />
+          <path fill="#cdcdcd" d="M73 59h12v6H73a3 3 0 0 1 0-6Z" />
           <path fill="#767676" d="M85 59h9a3 3 0 0 1 0 6h-9Z" />
           <path fill="#dfdfdf" d="M53 68h32v3H53z" />
           <path fill="#8f8f8f" d="M85 68h32v3H85z" />
-          <path
-            fill="#fff"
-            d="M26 84a7 7 0 0 1 7-7h52v43H26V84Z"
-          />
-          <path
-            fill="#4f4f4f"
-            d="M85 77h52a7 7 0 0 1 7 7v36H85V77Z"
-          />
-          <path
-            fill="#dfdfdf"
-            d="M32 88a3 3 0 0 1 3-3h29a3 3 0 0 1 0 6H35a3 3 0 0 1-3-3Z"
-          />
-          <path
-            fill="#767676"
-            d="M103 88a3 3 0 0 1 3-3h29a3 3 0 0 1 0 6h-29a3 3 0 0 1-3-3Z"
-          />
-          <path
-            fill="#f3f3f3"
-            d="M32 96h53v2H32zM26 105h59v1H26z"
-          />
-          <path
-            fill="#767676"
-            d="M85 96h53v2H85zM85 105h59v1H85z"
-          />
-          <path
-            fill="#dfdfdf"
-            d="M32 114a3 3 0 0 1 3-3h29a3 3 0 0 1 0 6H35a3 3 0 0 1-3-3Z"
-          />
-          <path
-            fill="#767676"
-            d="M103 114a3 3 0 0 1 3-3h29a3 3 0 0 1 0 6h-29a3 3 0 0 1-3-3Z"
-          />
+          <path fill="#fff" d="M26 84a7 7 0 0 1 7-7h52v43H26V84Z" />
+          <path fill="#4f4f4f" d="M85 77h52a7 7 0 0 1 7 7v36H85V77Z" />
+          <path fill="#dfdfdf" d="M32 88a3 3 0 0 1 3-3h29a3 3 0 0 1 0 6H35a3 3 0 0 1-3-3Z" />
+          <path fill="#767676" d="M103 88a3 3 0 0 1 3-3h29a3 3 0 0 1 0 6h-29a3 3 0 0 1-3-3Z" />
+          <path fill="#f3f3f3" d="M32 96h53v2H32zM26 105h59v1H26z" />
+          <path fill="#767676" d="M85 96h53v2H85zM85 105h59v1H85z" />
+          <path fill="#dfdfdf" d="M32 114a3 3 0 0 1 3-3h29a3 3 0 0 1 0 6H35a3 3 0 0 1-3-3Z" />
+          <path fill="#767676" d="M103 114a3 3 0 0 1 3-3h29a3 3 0 0 1 0 6h-29a3 3 0 0 1-3-3Z" />
         </g>
       </svg>
     )
@@ -493,32 +432,14 @@ function ThemeModePreview({
   const dark = mode === 'dark'
   return (
     <svg viewBox="0 0 170 120">
-      <path
-        fill={dark ? '#9f9f9f' : '#cdcdcd'}
-        d="M49 26h72a3 3 0 0 1 0 6H49a3 3 0 0 1 0-6Z"
-      />
-      <path
-        fill={dark ? '#8f8f8f' : '#dfdfdf'}
-        d="M28 35h114a2 2 0 0 1 0 4H28a2 2 0 0 1 0-4Z"
-      />
-      <path
-        fill="#fff"
-        d="M15 52a8 8 0 0 1 8-8h124a8 8 0 0 1 8 8v68H15V52Z"
-      />
-      <path
-        fill="#dfdfdf"
-        d="M22 59a3 3 0 0 1 3-3h39a3 3 0 0 1 0 6H25a3 3 0 0 1-3-3Z"
-      />
+      <path fill={dark ? '#9f9f9f' : '#cdcdcd'} d="M49 26h72a3 3 0 0 1 0 6H49a3 3 0 0 1 0-6Z" />
+      <path fill={dark ? '#8f8f8f' : '#dfdfdf'} d="M28 35h114a2 2 0 0 1 0 4H28a2 2 0 0 1 0-4Z" />
+      <path fill="#fff" d="M15 52a8 8 0 0 1 8-8h124a8 8 0 0 1 8 8v68H15V52Z" />
+      <path fill="#dfdfdf" d="M22 59a3 3 0 0 1 3-3h39a3 3 0 0 1 0 6H25a3 3 0 0 1-3-3Z" />
       <path fill="#f3f3f3" d="M22 67h65v2H22zM15 76h140v1H15z" />
-      <path
-        fill="#dfdfdf"
-        d="M22 83a3 3 0 0 1 3-3h39a3 3 0 0 1 0 6H25a3 3 0 0 1-3-3Z"
-      />
+      <path fill="#dfdfdf" d="M22 83a3 3 0 0 1 3-3h39a3 3 0 0 1 0 6H25a3 3 0 0 1-3-3Z" />
       <path fill="#f3f3f3" d="M22 91h65v2H22zM15 100h140v1H15z" />
-      <path
-        fill="#dfdfdf"
-        d="M22 107a3 3 0 0 1 3-3h39a3 3 0 0 1 0 6H25a3 3 0 0 1-3-3Z"
-      />
+      <path fill="#dfdfdf" d="M22 107a3 3 0 0 1 3-3h39a3 3 0 0 1 0 6H25a3 3 0 0 1-3-3Z" />
       <path fill="#f3f3f3" d="M22 115h65v2H22z" />
     </svg>
   )
@@ -683,13 +604,19 @@ function VariantThemeEditor({
     Record<string, Pick<DesktopChromeTheme, 'surface' | 'ink' | 'accent'>>
   >({})
   const [themeSeedsReady, setThemeSeedsReady] = useState(false)
-  const accentOptions: SelectOption<DesktopAccentPreset>[] = ACCENT_PRESET_OPTIONS.map(option => {
+  const accentOptions: SelectOption<DesktopAccentPreset>[] = ACCENT_PRESET_OPTIONS.map((option) => {
     const color = getDesktopAccentPresetColor(option.value, variant)
     return {
       value: option.value,
       label: t(option.value === 'black' && variant === 'dark' ? '白色' : option.label),
       disabled: option.value === 'custom' && accentPreset !== 'custom' && !themeSeeds[codeThemeId],
-      icon: color ? <span aria-hidden="true" className="appearance-accent-dot" style={{ backgroundColor: color }} /> : undefined,
+      icon: color ? (
+        <span
+          aria-hidden="true"
+          className="appearance-accent-dot"
+          style={{ backgroundColor: color }}
+        />
+      ) : undefined,
     }
   })
 
@@ -697,16 +624,16 @@ function VariantThemeEditor({
     let cancelled = false
     setThemeSeedsReady(false)
     void Promise.allSettled(
-      themes.map(async theme => {
+      themes.map(async (theme) => {
         await visualThemeSeedDelay()
         return {
           slug: theme.slug,
           seed: await loadChromeThemeSeed(theme.slug, variant),
         }
       }),
-    ).then(results => {
+    ).then((results) => {
       if (cancelled) return
-      const entries = results.flatMap(result =>
+      const entries = results.flatMap((result) =>
         result.status === 'fulfilled' ? [result.value] : [],
       )
       setThemeSeeds(
@@ -733,7 +660,7 @@ function VariantThemeEditor({
 
   const codeThemeOptions = useMemo(
     () =>
-      themes.map(theme => {
+      themes.map((theme) => {
         const seed = themeSeeds[theme.slug]
         return {
           value: theme.slug,
@@ -761,7 +688,7 @@ function VariantThemeEditor({
   )
 
   const updateChromeTheme = (patch: Partial<DesktopChromeTheme>): void => {
-    onUpdate(current => {
+    onUpdate((current) => {
       const currentTheme = current.chromeThemes[variant]
       return {
         ...current,
@@ -773,10 +700,8 @@ function VariantThemeEditor({
     })
   }
 
-  const updateFonts = (
-    patch: Partial<DesktopChromeTheme['fonts']>,
-  ): void => {
-    onUpdate(current => {
+  const updateFonts = (patch: Partial<DesktopChromeTheme['fonts']>): void => {
+    onUpdate((current) => {
       const currentTheme = current.chromeThemes[variant]
       return {
         ...current,
@@ -792,10 +717,7 @@ function VariantThemeEditor({
   }
 
   return (
-    <article
-      aria-busy={!themeSeedsReady}
-      className="appearance-theme-editor settings-card"
-    >
+    <article aria-busy={!themeSeedsReady} className="appearance-theme-editor settings-card">
       <SettingsRow
         title={`${variantLabel}主题`}
         control={
@@ -806,14 +728,11 @@ function VariantThemeEditor({
             value={codeThemeId}
             variant="theme"
             width={180}
-            onChange={nextId => {
-              const nextCodeThemeId =
-                nextId as DesktopThemeSettings['codeThemeIds'][typeof variant]
-              void Promise.resolve(
-                loadChromeThemeSeed(nextCodeThemeId, variant),
-              )
-                .then(seed => {
-                  onUpdate(current => {
+            onChange={(nextId) => {
+              const nextCodeThemeId = nextId as DesktopThemeSettings['codeThemeIds'][typeof variant]
+              void Promise.resolve(loadChromeThemeSeed(nextCodeThemeId, variant))
+                .then((seed) => {
+                  onUpdate((current) => {
                     const currentTheme = current.chromeThemes[variant]
                     return {
                       ...current,
@@ -828,12 +747,8 @@ function VariantThemeEditor({
                     }
                   })
                 })
-                .catch(error => {
-                  onError(
-                    error instanceof Error
-                      ? error.message
-                      : '无法加载代码主题',
-                  )
+                .catch((error) => {
+                  onError(error instanceof Error ? error.message : '无法加载代码主题')
                 })
             }}
           />
@@ -853,22 +768,26 @@ function VariantThemeEditor({
                 triggerClassName="appearance-accent-select"
                 value={accentPreset}
                 width={180}
-                onValueChange={preset => onUpdate(current => ({
-                  ...current,
-                  chromeThemes: {
-                    ...current.chromeThemes,
-                    [variant]: applyChromeThemeAccentPreset(
-                      current.chromeThemes[variant], preset, variant,
-                      themeSeeds[current.codeThemeIds[variant]]?.accent,
-                    ),
-                  },
-                }))}
+                onValueChange={(preset) =>
+                  onUpdate((current) => ({
+                    ...current,
+                    chromeThemes: {
+                      ...current.chromeThemes,
+                      [variant]: applyChromeThemeAccentPreset(
+                        current.chromeThemes[variant],
+                        preset,
+                        variant,
+                        themeSeeds[current.codeThemeIds[variant]]?.accent,
+                      ),
+                    },
+                  }))
+                }
               />
               {accentPreset === 'custom' ? (
                 <ColorControl
                   ariaLabel={`${variantLabel}强调色`}
                   value={chromeTheme.accent}
-                  onCommit={accent => updateChromeTheme({ accent, accentPreset: 'custom' })}
+                  onCommit={(accent) => updateChromeTheme({ accent, accentPreset: 'custom' })}
                 />
               ) : null}
             </div>
@@ -881,7 +800,7 @@ function VariantThemeEditor({
             <ColorControl
               ariaLabel={`${variantLabel}背景色`}
               value={chromeTheme.surface}
-              onCommit={surface => updateChromeTheme({ surface })}
+              onCommit={(surface) => updateChromeTheme({ surface })}
             />
           }
         />
@@ -892,7 +811,7 @@ function VariantThemeEditor({
             <ColorControl
               ariaLabel={`${variantLabel}前景色`}
               value={chromeTheme.ink}
-              onCommit={ink => updateChromeTheme({ ink })}
+              onCommit={(ink) => updateChromeTheme({ ink })}
             />
           }
         />
@@ -933,13 +852,15 @@ function VariantThemeEditor({
                 aria-label={`${variantLabel}对比度`}
                 max={100}
                 min={0}
-                style={{
-                  '--appearance-slider-accent': chromeTheme.accent,
-                  '--appearance-slider-surface': chromeTheme.surface,
-                } as React.CSSProperties}
+                style={
+                  {
+                    '--appearance-slider-accent': chromeTheme.accent,
+                    '--appearance-slider-surface': chromeTheme.surface,
+                  } as React.CSSProperties
+                }
                 type="range"
                 value={chromeTheme.contrast}
-                onChange={event =>
+                onChange={(event) =>
                   updateChromeTheme({
                     contrast: Number.parseInt(event.target.value, 10),
                   })
@@ -950,39 +871,29 @@ function VariantThemeEditor({
           }
         />
       </div>
-
     </article>
   )
 }
 
-export function AppearanceSettings({
-  onError,
-}: Props): React.ReactNode {
+export function AppearanceSettings({ onError }: Props): React.ReactNode {
   const theme = useDesktopTheme()
   const desktopSettings = useDesktopSettings()
   const { settings, resolvedVariant } = theme.draft
-  const visibleVariants =
-    settings.mode === 'system' ? VARIANTS : ([resolvedVariant] as const)
+  const visibleVariants = settings.mode === 'system' ? VARIANTS : ([resolvedVariant] as const)
 
   const reportError = onError ?? (() => undefined)
 
   const saveThemeSettings = (updater: ThemeSettingsUpdater): void => {
-    void theme.draft.updateAndAutoSave(updater).catch(error => {
-      reportError(
-        error instanceof Error ? error.message : '外观设置保存失败',
-      )
+    void theme.draft.updateAndAutoSave(updater).catch((error) => {
+      reportError(error instanceof Error ? error.message : '外观设置保存失败')
     })
   }
 
-  const updateThemeSettings = (
-    patch: Partial<DesktopThemeSettings>,
-  ): void => {
-    saveThemeSettings(current => ({ ...current, ...patch }))
+  const updateThemeSettings = (patch: Partial<DesktopThemeSettings>): void => {
+    saveThemeSettings((current) => ({ ...current, ...patch }))
   }
 
-  const updateDiffMarkerStyle = (
-    diffMarkerStyle: DesktopDiffMarkerStyle,
-  ): void => {
+  const updateDiffMarkerStyle = (diffMarkerStyle: DesktopDiffMarkerStyle): void => {
     desktopSettings.draft.setValue('diffMarkerStyle', diffMarkerStyle)
     desktopSettings.draft.autoSave()
   }
@@ -999,7 +910,7 @@ export function AppearanceSettings({
             aria-label="外观模式"
             className="appearance-mode-gallery"
             role="radiogroup"
-            onKeyDown={event => {
+            onKeyDown={(event) => {
               const keyOffsets: Partial<Record<string, number>> = {
                 ArrowLeft: -1,
                 ArrowUp: -1,
@@ -1007,7 +918,7 @@ export function AppearanceSettings({
                 ArrowDown: 1,
               }
               const currentIndex = THEME_MODE_OPTIONS.findIndex(
-                option => option.value === settings.mode,
+                (option) => option.value === settings.mode,
               )
               let nextIndex = currentIndex
               if (event.key === 'Home') nextIndex = 0
@@ -1015,9 +926,7 @@ export function AppearanceSettings({
                 nextIndex = THEME_MODE_OPTIONS.length - 1
               } else if (keyOffsets[event.key]) {
                 nextIndex =
-                  (currentIndex +
-                    (keyOffsets[event.key] ?? 0) +
-                    THEME_MODE_OPTIONS.length) %
+                  (currentIndex + (keyOffsets[event.key] ?? 0) + THEME_MODE_OPTIONS.length) %
                   THEME_MODE_OPTIONS.length
               } else {
                 return
@@ -1026,22 +935,21 @@ export function AppearanceSettings({
               event.preventDefault()
               const nextMode = THEME_MODE_OPTIONS[nextIndex]?.value
               if (!nextMode) return
-              const nextInput =
-                event.currentTarget.querySelector<HTMLInputElement>(
-                  `input[value="${nextMode}"]`,
-                )
+              const nextInput = event.currentTarget.querySelector<HTMLInputElement>(
+                `input[value="${nextMode}"]`,
+              )
               nextInput?.focus()
               nextInput?.click()
             }}
           >
-            {THEME_MODE_OPTIONS.map(option => (
+            {THEME_MODE_OPTIONS.map((option) => (
               <ThemeModeCard
                 key={option.value}
                 label={option.label}
                 mode={option.value}
                 selected={settings.mode === option.value}
                 onSelect={() => {
-                  saveThemeSettings(current => ({
+                  saveThemeSettings((current) => ({
                     ...current,
                     mode: option.value,
                   }))
@@ -1058,7 +966,7 @@ export function AppearanceSettings({
           />
 
           <div className="appearance-theme-editors">
-            {visibleVariants.map(variant => (
+            {visibleVariants.map((variant) => (
               <VariantThemeEditor
                 key={variant}
                 settings={settings}
@@ -1068,7 +976,6 @@ export function AppearanceSettings({
               />
             ))}
           </div>
-
         </SettingsSection>
 
         <SettingsSection title="界面设置">
@@ -1084,9 +991,9 @@ export function AppearanceSettings({
                   { value: 'classic', label: '经典' },
                 ]}
                 value={desktopSettings.draft.values.sidebarLayout}
-                onChange={sidebarLayout => {
+                onChange={(sidebarLayout) => {
                   desktopSettings.draft.setValue('sidebarLayout', sidebarLayout)
-                  void desktopSettings.draft.save().catch(error => {
+                  void desktopSettings.draft.save().catch((error) => {
                     reportError(error instanceof Error ? error.message : '侧边栏设置保存失败')
                   })
                 }}
@@ -1108,7 +1015,7 @@ export function AppearanceSettings({
                   { value: 'wide', label: '宽' },
                 ]}
                 value={desktopSettings.draft.values.conversationWidth}
-                onChange={conversationWidth => {
+                onChange={(conversationWidth) => {
                   desktopSettings.draft.setValue('conversationWidth', conversationWidth)
                   desktopSettings.draft.autoSave()
                 }}
@@ -1123,9 +1030,7 @@ export function AppearanceSettings({
               <ToggleSwitch
                 ariaLabel="使用指针光标"
                 checked={settings.pointerCursorEnabled}
-                onChange={pointerCursorEnabled =>
-                  updateThemeSettings({ pointerCursorEnabled })
-                }
+                onChange={(pointerCursorEnabled) => updateThemeSettings({ pointerCursorEnabled })}
               />
             }
           />
@@ -1142,7 +1047,7 @@ export function AppearanceSettings({
                   { value: 'off', label: '关闭' },
                 ]}
                 value={settings.reduceMotion}
-                onChange={reduceMotion => updateThemeSettings({ reduceMotion })}
+                onChange={(reduceMotion) => updateThemeSettings({ reduceMotion })}
               />
             }
           />
@@ -1154,8 +1059,8 @@ export function AppearanceSettings({
                 max={16}
                 min={11}
                 value={settings.fontSizes.ui}
-                onChange={ui =>
-                  saveThemeSettings(current => ({
+                onChange={(ui) =>
+                  saveThemeSettings((current) => ({
                     ...current,
                     fontSizes: { ...current.fontSizes, ui },
                   }))
@@ -1171,8 +1076,8 @@ export function AppearanceSettings({
                 max={24}
                 min={8}
                 value={settings.fontSizes.code}
-                onChange={code =>
-                  saveThemeSettings(current => ({
+                onChange={(code) =>
+                  saveThemeSettings((current) => ({
                     ...current,
                     fontSizes: { ...current.fontSizes, code },
                   }))
@@ -1205,9 +1110,7 @@ export function AppearanceSettings({
                 <ToggleSwitch
                   ariaLabel="字体平滑"
                   checked={settings.fontSmoothingEnabled}
-                  onChange={fontSmoothingEnabled =>
-                    updateThemeSettings({ fontSmoothingEnabled })
-                  }
+                  onChange={(fontSmoothingEnabled) => updateThemeSettings({ fontSmoothingEnabled })}
                 />
               }
             />

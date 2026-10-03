@@ -20,7 +20,9 @@ describe('catalog details deep links', () => {
   })
 
   test('rejects conflicting detail parameters', () => {
-    expect(parseCatalogLocation(new URLSearchParams('plugin=browser&skill=frontend-design'))).toMatchObject({
+    expect(
+      parseCatalogLocation(new URLSearchParams('plugin=browser&skill=frontend-design')),
+    ).toMatchObject({
       invalid: true,
       target: null,
     })
@@ -30,10 +32,12 @@ describe('catalog details deep links', () => {
     const current = new URLSearchParams('from=settings&tab=plugins&plugin=browser')
 
     expect(catalogBrowseParams(current, 'skills').toString()).toBe('from=settings&tab=skills')
-    expect(catalogDetailsParams(current, {
-      id: 'frontend-design',
-      kind: 'skill',
-      tab: 'skills',
-    }).toString()).toBe('from=settings&tab=skills&skill=frontend-design')
+    expect(
+      catalogDetailsParams(current, {
+        id: 'frontend-design',
+        kind: 'skill',
+        tab: 'skills',
+      }).toString(),
+    ).toBe('from=settings&tab=skills&skill=frontend-design')
   })
 })

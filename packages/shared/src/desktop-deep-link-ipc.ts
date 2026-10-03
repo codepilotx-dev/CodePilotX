@@ -1,6 +1,6 @@
 export const DESKTOP_DEEP_LINK_IPC_CHANNELS = {
-  consumePending: "desktop-deep-link:consume-pending",
-  activated: "desktop-deep-link:activated",
+  consumePending: 'desktop-deep-link:consume-pending',
+  activated: 'desktop-deep-link:activated',
 } as const
 
 export const DESKTOP_THREAD_DEEP_LINK_ID_MAX_LENGTH = 512
@@ -11,9 +11,7 @@ export type DesktopThreadDeepLinkPayload = {
 
 export interface DesktopDeepLinkIpcBridge {
   consumePendingThreadDeepLink(): Promise<DesktopThreadDeepLinkPayload | null>
-  onThreadDeepLinkActivated(
-    listener: (payload: DesktopThreadDeepLinkPayload) => void,
-  ): () => void
+  onThreadDeepLinkActivated(listener: (payload: DesktopThreadDeepLinkPayload) => void): () => void
 }
 
 // IPC-level validation shared by main and preload. Only a plain object whose
@@ -23,7 +21,7 @@ export function normalizeDesktopThreadDeepLinkPayload(
   value: unknown,
 ): DesktopThreadDeepLinkPayload | null {
   if (!isRecord(value)) return null
-  if (typeof value.threadId !== "string") return null
+  if (typeof value.threadId !== 'string') return null
   const threadId = value.threadId
   if (threadId.trim().length < 1) return null
   if (threadId.length > DESKTOP_THREAD_DEEP_LINK_ID_MAX_LENGTH) return null
@@ -37,5 +35,5 @@ export function isDesktopThreadDeepLinkPayload(
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

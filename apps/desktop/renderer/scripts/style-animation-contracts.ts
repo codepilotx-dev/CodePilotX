@@ -1,7 +1,4 @@
-export function selectorBlock(
-  source: string,
-  selector: string,
-): string | null {
+export function selectorBlock(source: string, selector: string): string | null {
   const start = source.indexOf(selector)
   if (start < 0) return null
   let depth = 0
@@ -25,12 +22,10 @@ export function nestedSelectorBlock(
 }
 
 export function transitionProperties(block: string): string[] {
-  const declarations = [
-    ...block.matchAll(/(?:^|[;{])\s*transition\s*:\s*([^;{}]+);/g),
-  ]
-  return declarations.flatMap(match =>
-    splitTopLevelCommas(match[1] ?? '').map(transition =>
-      transition.trim().split(/\s+/, 1)[0] ?? '',
+  const declarations = [...block.matchAll(/(?:^|[;{])\s*transition\s*:\s*([^;{}]+);/g)]
+  return declarations.flatMap((match) =>
+    splitTopLevelCommas(match[1] ?? '').map(
+      (transition) => transition.trim().split(/\s+/, 1)[0] ?? '',
     ),
   )
 }

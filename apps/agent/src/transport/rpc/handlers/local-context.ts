@@ -3,28 +3,35 @@ import {
   LocalContextPathListParamsSchema,
   LocalContextPathReadParamsSchema,
   type RpcMethod,
-} from "@codepilotx/agent-protocol"
-import { Schema } from "effect"
-import { AgentError } from "../../../domain"
-import type { RpcRouter } from "../RpcRouter"
-import type { RpcRouterContext } from "../request-context"
-import type { RpcHandlerGroup } from "./types"
+} from '@codepilotx/agent-protocol'
+import { Schema } from 'effect'
+import { AgentError } from '../../../domain'
+import type { RpcRouter } from '../RpcRouter'
+import type { RpcRouterContext } from '../request-context'
+import type { RpcHandlerGroup } from './types'
 
 const decodeImport = Schema.decodeUnknownSync(LocalContextPathImportParamsSchema)
 const decodeRead = Schema.decodeUnknownSync(LocalContextPathReadParamsSchema)
 const decodeList = Schema.decodeUnknownSync(LocalContextPathListParamsSchema)
 
 export const localContextHandlers = {
-  name: "local-context",
-  methods: ["context/path/import", "context/path/read", "context/path/list"],
-  async handle(runtime: RpcRouter, method: RpcMethod, rawParams: unknown, _context: RpcRouterContext): Promise<unknown> {
+  name: 'local-context',
+  methods: ['context/path/import', 'context/path/read', 'context/path/list'],
+  async handle(
+    runtime: RpcRouter,
+    method: RpcMethod,
+    rawParams: unknown,
+    _context: RpcRouterContext,
+  ): Promise<unknown> {
     const service = runtime.dependencies.localContextPaths
     switch (method) {
-      case "context/path/import": {
+      case 'context/path/import': {
         const params = decodeImport(rawParams)
-        return { references: await service.import(params.threadId, params.paths, params.operationId) }
+        return {
+          references: await service.import(params.threadId, params.paths, params.operationId),
+        }
       }
-      case "context/path/read": {
+      case 'context/path/read': {
         const params = decodeRead(rawParams)
         return service.read({
           threadID: params.threadId,
@@ -33,7 +40,7 @@ export const localContextHandlers = {
           ...(params.range === undefined ? {} : { range: params.range }),
         })
       }
-      case "context/path/list": {
+      case 'context/path/list': {
         const params = decodeList(rawParams)
         return service.list({
           threadID: params.threadId,
@@ -44,7 +51,7 @@ export const localContextHandlers = {
         })
       }
       default:
-        throw new AgentError("METHOD_NOT_FOUND", `未知 RPC 方法：${method}`, 404)
+        throw new AgentError('METHOD_NOT_FOUND', `未知 RPC 方法：${method}`, 404)
     }
   },
 } as const satisfies RpcHandlerGroup

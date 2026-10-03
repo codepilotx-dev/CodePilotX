@@ -1,6 +1,11 @@
-import { Database } from "bun:sqlite"
-import { isAbsolute, relative } from "node:path"
-import { DEFAULT_PERMISSION_CONFIG, decodeApprovalPolicy, type ProjectExecutionEnvironment, type ThreadSettings } from "@codepilotx/shared/thread"
+import { Database } from 'bun:sqlite'
+import { isAbsolute, relative } from 'node:path'
+import {
+  DEFAULT_PERMISSION_CONFIG,
+  decodeApprovalPolicy,
+  type ProjectExecutionEnvironment,
+  type ThreadSettings,
+} from '@codepilotx/shared/thread'
 import type {
   EventEnvelope,
   AgentExecution,
@@ -8,7 +13,7 @@ import type {
   PermissionConfig,
   TaskMode,
   ToolInvocation,
-} from "../../domain"
+} from '../../domain'
 
 export type ProjectModelSettings = {
   defaultModel: ModelRef | null
@@ -21,8 +26,8 @@ export type StoredProjectFolder = {
   id: string
   name: string
   path: string
-  role: "primary" | "secondary"
-  availability: "available" | "missing"
+  role: 'primary' | 'secondary'
+  availability: 'available' | 'missing'
   order: number
   createdAt: number
   updatedAt: number
@@ -31,7 +36,7 @@ export type StoredProjectFolder = {
 export type StoredEncryptedCredential = {
   id: string
   integrationID: string
-  kind: "api-key" | "oauth"
+  kind: 'api-key' | 'oauth'
   methodID: string | null
   label: string
   keySuffix: string | null
@@ -45,8 +50,9 @@ export type StoredEncryptedCredential = {
   updatedAt: number
 }
 
-export type CredentialHealthStatus = "untested" | "healthy" | "auth-failed" | "rate-limited" | "error"
-export type CredentialErrorCategory = "authentication" | "rate-limit" | "network" | "unknown"
+export type CredentialHealthStatus =
+  'untested' | 'healthy' | 'auth-failed' | 'rate-limited' | 'error'
+export type CredentialErrorCategory = 'authentication' | 'rate-limit' | 'network' | 'unknown'
 
 export type StoredCredentialHealth = {
   credentialID: string
@@ -76,7 +82,7 @@ export type AgentTurnCheckpoint = {
   agentID: string
   turnID: string
   threadID: string
-  state: "waiting_question" | "waiting_hook_trust" | "waiting_subagents" | "ready"
+  state: 'waiting_question' | 'waiting_hook_trust' | 'waiting_subagents' | 'ready'
   payload: Record<string, unknown>
   version: number
   createdAt: number
@@ -84,7 +90,7 @@ export type AgentTurnCheckpoint = {
 }
 
 export type SideEffectRecoveryPayload = {
-  kind: "side-effect-prompt-recovery"
+  kind: 'side-effect-prompt-recovery'
   attemptOrdinal: number
   completed: Array<{ toolCallID: string; tool: string; summary: string }>
   error: string
@@ -101,16 +107,16 @@ export type ResumableQuestion = {
 }
 
 export type ApprovalCheckpointPayload = {
-  kind: "tool-approval"
+  kind: 'tool-approval'
   invocation: ToolInvocation
   invocationHash: string
   permissionSnapshot: PermissionConfig
   sandbox: Record<string, unknown>
-  reviewer: PermissionConfig["approvalsReviewer"]
+  reviewer: PermissionConfig['approvalsReviewer']
   review: Record<string, unknown>
   runState?: string
   interruption?: unknown
-  resolution?: { decision: "allow" | "deny"; feedback?: string; resolvedAt: number }
+  resolution?: { decision: 'allow' | 'deny'; feedback?: string; resolvedAt: number }
   claimedAt?: number
 }
 
@@ -120,8 +126,8 @@ export type StoredApprovalCheckpoint = {
   turnID: string
   agentID: string
   toolCallID: string
-  status: "preparing" | "pending" | "resolved" | "claimed" | "cancelled"
-  decision: "allow" | "deny" | null
+  status: 'preparing' | 'pending' | 'resolved' | 'claimed' | 'cancelled'
+  decision: 'allow' | 'deny' | null
   risk: string
   reason: string
   payload: ApprovalCheckpointPayload
@@ -139,7 +145,7 @@ export type SandboxEscalation = {
   invocation: ToolInvocation
   invocationHash: string
   failure: string
-  status: "awaiting_request" | "claimed" | "completed" | "cancelled"
+  status: 'awaiting_request' | 'claimed' | 'completed' | 'cancelled'
   createdAt: number
 }
 
@@ -150,7 +156,7 @@ export type HookTrustRequest = {
   workspacePath: string
   configPath: string
   configHash: string
-  status: "pending" | "allowed" | "blocked"
+  status: 'pending' | 'allowed' | 'blocked'
   auditSummary: Record<string, unknown>
   createdAt: number
   resolvedAt: number | null
@@ -161,32 +167,43 @@ export type SqlValue = string | number | boolean | Uint8Array | null
 export const stringify = (value: unknown) => JSON.stringify(value ?? null)
 export const parse = <T>(value: string): T => JSON.parse(value) as T
 export const now = () => Date.now()
-export const previewText = (value: string, limit = 180) => value.replace(/\s+/g, " ").trim().slice(0, limit) || null
+export const previewText = (value: string, limit = 180) =>
+  value.replace(/\s+/g, ' ').trim().slice(0, limit) || null
 export const containedPath = (root: string, candidate: string) => {
   const path = relative(root, candidate)
-  return path === "" || (!path.startsWith("..") && !isAbsolute(path))
+  return path === '' || (!path.startsWith('..') && !isAbsolute(path))
 }
-export type QueuePauseReason = "interrupted" | "turn_failed" | null
+export type QueuePauseReason = 'interrupted' | 'turn_failed' | null
 export type QueueMutationMeta = { operationID: string; expectedVersion?: number }
 
 export type StoredThreadWorkspace =
   | {
-      kind: "project"
+      kind: 'project'
       projectID: string
       cwd: string
-      runtimeWorkspaceRoots: Array<{ folderId: string; path: string; role: "primary" | "secondary" }>
+      runtimeWorkspaceRoots: Array<{
+        folderId: string
+        path: string
+        role: 'primary' | 'secondary'
+      }>
       instructionSources: string[]
       outputDirectory: null
     }
-  | { kind: "projectless"; projectID: null; workspaceRoot: string; cwd: string; outputDirectory: string }
+  | {
+      kind: 'projectless'
+      projectID: null
+      workspaceRoot: string
+      cwd: string
+      outputDirectory: string
+    }
 
 export type CreateThreadInput = {
   id?: string
   title?: string | undefined
   settings?: ThreadSettings | undefined
   workspace:
-    | { kind: "project"; projectID: string }
-    | { kind: "projectless"; workspaceRoot: string; cwd: string; outputDirectory: string }
+    | { kind: 'project'; projectID: string }
+    | { kind: 'projectless'; workspaceRoot: string; cwd: string; outputDirectory: string }
   operationID?: string | undefined
   requestHash?: string | undefined
 }
@@ -203,9 +220,9 @@ export type CreatedThreadRecord = {
 }
 
 export type PermissionColumns = {
-  sandbox_mode: PermissionConfig["sandboxMode"]
+  sandbox_mode: PermissionConfig['sandboxMode']
   approval_policy: string
-  approvals_reviewer: PermissionConfig["approvalsReviewer"]
+  approvals_reviewer: PermissionConfig['approvalsReviewer']
 }
 
 export type ThreadSettingsColumns = PermissionColumns & {
@@ -224,7 +241,7 @@ export const threadSettingsFromRow = (row: ThreadSettingsColumns): ThreadSetting
 })
 
 export const defaultThreadSettings = (): ThreadSettings => ({
-  taskMode: "chat",
+  taskMode: 'chat',
   permissionConfig: { ...DEFAULT_PERMISSION_CONFIG },
 })
 
@@ -232,7 +249,12 @@ export abstract class RepositoryCore {
   // Domain repositories form one inheritance chain over the same connection.
   // Earlier domains may invoke operations implemented by a later domain
   // (for example thread creation emits through the event repository).
-  abstract insertEvent(threadId: string | null, turnId: string | null, method: string, params: unknown): EventEnvelope
+  abstract insertEvent(
+    threadId: string | null,
+    turnId: string | null,
+    method: string,
+    params: unknown,
+  ): EventEnvelope
   protected abstract requireProject(projectID: string): StoredProject
   abstract threadWorkspace(threadID: string): StoredThreadWorkspace | null
   abstract getAgentExecution(agentID: string): AgentExecution | null
@@ -249,59 +271,68 @@ export abstract class RepositoryCore {
   ) {}
 
   probeHealth(): void {
-    this.sqlite.query("SELECT 1").get()
+    this.sqlite.query('SELECT 1').get()
   }
 
   transaction<T>(work: () => T): T {
-      if (this.transactionDepth > 0) return work()
-      this.transactionDepth = 1
+    if (this.transactionDepth > 0) return work()
+    this.transactionDepth = 1
+    this.transactionCommitCallbacks = []
+    this.transactionRollbackCallbacks = []
+    try {
+      const result = this.sqlite.transaction(work)()
+      const callbacks = this.transactionCommitCallbacks
+      this.transactionDepth = 0
       this.transactionCommitCallbacks = []
       this.transactionRollbackCallbacks = []
-      try {
-        const result = this.sqlite.transaction(work)()
-        const callbacks = this.transactionCommitCallbacks
-        this.transactionDepth = 0
-        this.transactionCommitCallbacks = []
-        this.transactionRollbackCallbacks = []
-        for (const callback of callbacks) callback()
-        return result
-      } catch (cause) {
-        const callbacks = this.transactionRollbackCallbacks
-        this.transactionDepth = 0
-        this.transactionCommitCallbacks = []
-        this.transactionRollbackCallbacks = []
-        for (const callback of callbacks) callback()
-        throw cause
-      }
+      for (const callback of callbacks) callback()
+      return result
+    } catch (cause) {
+      const callbacks = this.transactionRollbackCallbacks
+      this.transactionDepth = 0
+      this.transactionCommitCallbacks = []
+      this.transactionRollbackCallbacks = []
+      for (const callback of callbacks) callback()
+      throw cause
     }
+  }
 
   onTransactionCommit(callback: () => void) {
-      if (this.transactionDepth === 0) callback()
-      else this.transactionCommitCallbacks.push(callback)
-    }
+    if (this.transactionDepth === 0) callback()
+    else this.transactionCommitCallbacks.push(callback)
+  }
 
   onTransactionRollback(callback: () => void) {
-      if (this.transactionDepth > 0) this.transactionRollbackCallbacks.push(callback)
-    }
+    if (this.transactionDepth > 0) this.transactionRollbackCallbacks.push(callback)
+  }
 
-  protected appendUserMessage(input: { id: string; threadID: string; turnID: string; content: string; createdAt: number }) {
-      const row = this.sqlite.query("SELECT COALESCE(MAX(ordinal), -1) + 1 AS ordinal FROM messages WHERE thread_id = ?").get(input.threadID) as { ordinal: number }
-      const preview = previewText(input.content)
-      this.sqlite.query(`INSERT INTO messages (id, thread_id, turn_id, role, content, created_at, ordinal) VALUES (?, ?, ?, 'user', ?, ?, ?)`).run(
-        input.id,
-        input.threadID,
-        input.turnID,
-        input.content,
-        input.createdAt,
-        row.ordinal,
+  protected appendUserMessage(input: {
+    id: string
+    threadID: string
+    turnID: string
+    content: string
+    createdAt: number
+  }) {
+    const row = this.sqlite
+      .query('SELECT COALESCE(MAX(ordinal), -1) + 1 AS ordinal FROM messages WHERE thread_id = ?')
+      .get(input.threadID) as { ordinal: number }
+    const preview = previewText(input.content)
+    this.sqlite
+      .query(
+        `INSERT INTO messages (id, thread_id, turn_id, role, content, created_at, ordinal) VALUES (?, ?, ?, 'user', ?, ?, ?)`,
       )
-      this.sqlite.query(`
+      .run(input.id, input.threadID, input.turnID, input.content, input.createdAt, row.ordinal)
+    this.sqlite
+      .query(
+        `
         UPDATE threads
         SET updated_at = ?,
           message_count = message_count + 1,
           first_user_message = COALESCE(first_user_message, ?),
           preview = COALESCE(?, preview)
         WHERE id = ?
-      `).run(input.createdAt, input.content, preview, input.threadID)
-    }
+      `,
+      )
+      .run(input.createdAt, input.content, preview, input.threadID)
+  }
 }

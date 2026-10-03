@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Automation, AutomationRun } from '@codepilotx/shared/automation'
-import type {
-  DesktopSessionListItem,
-  DesktopWorkspace,
-} from '../../../shared/types.js'
+import type { DesktopSessionListItem, DesktopWorkspace } from '../../../shared/types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import {
   automationScheduleSummary,
@@ -71,7 +68,7 @@ export function useAutomationController(
   const [filter, setFilter] = useState<AutomationFilter>('all')
   const refreshSequence = useRef(0)
   const saveSequence = useRef(0)
-  const selected = automations.find(item => item.id === selectedId) ?? null
+  const selected = automations.find((item) => item.id === selectedId) ?? null
 
   const refresh = useCallback(async (): Promise<void> => {
     const sequence = ++refreshSequence.current
@@ -95,16 +92,12 @@ export function useAutomationController(
       if (sequence !== refreshSequence.current) return
       setAutomations(list.automations)
       setRuns(runList.runs)
-      setProjects(projectList.filter(project => Boolean(project.projectId)))
-      setSessions(
-        sessionList
-          .map(snapshot => snapshot.item)
-          .filter(item => !item.archivedAt),
-      )
+      setProjects(projectList.filter((project) => Boolean(project.projectId)))
+      setSessions(sessionList.map((snapshot) => snapshot.item).filter((item) => !item.archivedAt))
       setLoading(false)
     } catch (cause) {
       if (sequence !== refreshSequence.current) return
-      setSupported(current => current ?? true)
+      setSupported((current) => current ?? true)
       setLoading(false)
       setError(errorMessage(cause))
     }
@@ -115,20 +108,18 @@ export function useAutomationController(
   }, [enabled, refresh])
   useEffect(
     () =>
-      enabled ? desktopClient.subscribeAgentEventEnvelopes(
-        { liveEventTypes: [] },
-        events => {
-          if (
-            events.some(
-              event =>
-                event.type === 'automation/changed' ||
-                event.type === 'automation/runChanged',
-            )
-          ) {
-            void refresh()
-          }
-        },
-      ) : undefined,
+      enabled
+        ? desktopClient.subscribeAgentEventEnvelopes({ liveEventTypes: [] }, (events) => {
+            if (
+              events.some(
+                (event) =>
+                  event.type === 'automation/changed' || event.type === 'automation/runChanged',
+              )
+            ) {
+              void refresh()
+            }
+          })
+        : undefined,
     [enabled, refresh],
   )
 
@@ -146,24 +137,21 @@ export function useAutomationController(
     setSaveState('idle')
   }, [])
 
-  const previewSchedule = useCallback(
-    async (value: AutomationDraft): Promise<boolean> => {
-      try {
-        const result = await desktopClient.previewAutomationSchedule({
-          schedule: value.schedule,
-          timeZone: value.timeZone,
-          count: 4,
-        })
-        setScheduleError(null)
-        setScheduleSummary(result.summary)
-        return true
-      } catch (cause) {
-        setScheduleError(errorMessage(cause))
-        return false
-      }
-    },
-    [],
-  )
+  const previewSchedule = useCallback(async (value: AutomationDraft): Promise<boolean> => {
+    try {
+      const result = await desktopClient.previewAutomationSchedule({
+        schedule: value.schedule,
+        timeZone: value.timeZone,
+        count: 4,
+      })
+      setScheduleError(null)
+      setScheduleSummary(result.summary)
+      return true
+    } catch (cause) {
+      setScheduleError(errorMessage(cause))
+      return false
+    }
+  }, [])
 
   const saveSelected = useCallback(
     async (value: AutomationDraft): Promise<void> => {
@@ -181,19 +169,15 @@ export function useAutomationController(
           patch: value,
         })
         if (sequence !== saveSequence.current) return
-        setAutomations(items =>
-          items.map(item =>
-            item.id === result.automation.id ? result.automation : item,
-          ),
+        setAutomations((items) =>
+          items.map((item) => (item.id === result.automation.id ? result.automation : item)),
         )
         setSaveState('saved')
       } catch (cause) {
         if (sequence !== saveSequence.current) return
         const message = errorMessage(cause)
         setSaveState(
-          message.includes('CONFLICT') || message.includes('冲突')
-            ? 'conflict'
-            : 'failed',
+          message.includes('CONFLICT') || message.includes('冲突') ? 'conflict' : 'failed',
         )
         setError(message)
       }
@@ -209,7 +193,8 @@ export function useAutomationController(
       saveState === 'saving' ||
       saveState === 'failed' ||
       saveState === 'conflict'
-    ) return
+    )
+      return
     const timer = window.setTimeout(() => {
       void saveSelected(draft)
     }, 600)
@@ -218,18 +203,16 @@ export function useAutomationController(
 
   const filteredAutomations = useMemo(() => {
     const projectNames = new Map(
-      projects.flatMap(project =>
+      projects.flatMap((project) =>
         project.projectId ? [[project.projectId, project.name] as const] : [],
       ),
     )
     const needle = query.trim().toLocaleLowerCase()
     const unreadByAutomation = new Set(
-      runs
-        .filter(run => !run.readAt && isTerminal(run))
-        .map(run => run.automationId),
+      runs.filter((run) => !run.readAt && isTerminal(run)).map((run) => run.automationId),
     )
     return automations
-      .filter(item => {
+      .filter((item) => {
         if (filter === 'all') return true
         if (filter === 'paused') return item.status === 'paused'
         if (filter === 'completed') return isCompletedAutomation(item, runs)
@@ -238,27 +221,26 @@ export function useAutomationController(
           (item.nextRunAt !== null || hasActiveAutomationRun(item.id, runs))
         )
       })
-      .filter(item =>
-        !needle ||
-        [
-          item.name,
-          item.prompt,
-          item.canonicalRrule,
-          automationScheduleSummary(item.schedule),
-          automationTargetLabel(item, projectNames, sessions),
-        ]
-          .join('\n')
-          .toLocaleLowerCase()
-          .includes(needle),
+      .filter(
+        (item) =>
+          !needle ||
+          [
+            item.name,
+            item.prompt,
+            item.canonicalRrule,
+            automationScheduleSummary(item.schedule),
+            automationTargetLabel(item, projectNames, sessions),
+          ]
+            .join('\n')
+            .toLocaleLowerCase()
+            .includes(needle),
       )
       .slice()
       .sort((left, right) => {
         const unread =
-          Number(unreadByAutomation.has(right.id)) -
-          Number(unreadByAutomation.has(left.id))
+          Number(unreadByAutomation.has(right.id)) - Number(unreadByAutomation.has(left.id))
         if (unread) return unread
-        const status =
-          automationSortRank(left, runs) - automationSortRank(right, runs)
+        const status = automationSortRank(left, runs) - automationSortRank(right, runs)
         if (status) return status
         if (
           left.status === 'active' &&
@@ -301,7 +283,7 @@ export function useAutomationController(
     }
     try {
       const result = await desktopClient.createAutomation(draft)
-      setAutomations(items => [result.automation, ...items])
+      setAutomations((items) => [result.automation, ...items])
       setDraftState(automationToDraft(result.automation))
       setSaveState('saved')
       return result.automation.id
@@ -328,7 +310,7 @@ export function useAutomationController(
   const projectNames = useMemo(
     () =>
       new Map(
-        projects.flatMap(project =>
+        projects.flatMap((project) =>
           project.projectId ? [[project.projectId, project.name] as const] : [],
         ),
       ),
@@ -351,7 +333,7 @@ export function useAutomationController(
     saveState,
     query,
     filter,
-    unreadCount: runs.filter(run => !run.readAt && isTerminal(run)).length,
+    unreadCount: runs.filter((run) => !run.readAt && isTerminal(run)).length,
     setQuery,
     setFilter,
     setDraft,
@@ -362,8 +344,7 @@ export function useAutomationController(
     retrySave: () => {
       if (selected && draft) void saveSelected(draft)
     },
-    runNow: id =>
-      mutate(() => desktopClient.runAutomation({ automationId: id })),
+    runNow: (id) => mutate(() => desktopClient.runAutomation({ automationId: id })),
     setPaused: (automation, paused) =>
       mutate(() =>
         desktopClient.updateAutomation({
@@ -372,36 +353,26 @@ export function useAutomationController(
           patch: { status: paused ? 'paused' : 'active' },
         }),
       ),
-    remove: automation =>
+    remove: (automation) =>
       mutate(() =>
         desktopClient.deleteAutomation({
           automationId: automation.id,
           expectedRevision: automation.revision,
         }),
       ),
-    markRunRead: runId =>
-      mutate(() => desktopClient.markAutomationRunRead({ runId })),
-    markAllRunsRead: () =>
-      mutate(() => desktopClient.markAllAutomationRunsRead({})),
-    targetLabel: automation =>
-      automationTargetLabel(automation, projectNames, sessions),
+    markRunRead: (runId) => mutate(() => desktopClient.markAutomationRunRead({ runId })),
+    markAllRunsRead: () => mutate(() => desktopClient.markAllAutomationRunsRead({})),
+    targetLabel: (automation) => automationTargetLabel(automation, projectNames, sessions),
   }
 }
 
-function automationSortRank(
-  automation: Automation,
-  runs: readonly AutomationRun[],
-): number {
+function automationSortRank(automation: Automation, runs: readonly AutomationRun[]): number {
   if (isCompletedAutomation(automation, runs)) return 2
   return automation.status === 'paused' ? 1 : 0
 }
 
 function isTerminal(run: AutomationRun): boolean {
-  return (
-    run.status === 'completed' ||
-    run.status === 'failed' ||
-    run.status === 'interrupted'
-  )
+  return run.status === 'completed' || run.status === 'failed' || run.status === 'interrupted'
 }
 
 function errorMessage(cause: unknown): string {

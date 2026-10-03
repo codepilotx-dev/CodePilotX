@@ -88,7 +88,7 @@
   pointer-events: none;
 
   &::before {
-    content: "";
+    content: '';
     position: absolute;
     z-index: -1;
     inset: calc(0px - var(--thread-scroll-footer-fade-height)) 0 0;
@@ -164,10 +164,7 @@
 .session-timeline-bottom-sentinel {
   position: relative;
   width: 100%;
-  height: calc(
-    var(--thread-scroll-footer-fade-height) +
-      var(--thread-scroll-content-bottom-gap)
-  );
+  height: calc(var(--thread-scroll-footer-fade-height) + var(--thread-scroll-content-bottom-gap));
   pointer-events: none;
 }
 
@@ -196,10 +193,9 @@
   transition:
     opacity var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out, var(--cpx-sys-ease-out)),
     visibility var(--cpx-sys-motion-instant) var(--cpx-sys-ease-linear) var(--cpx-sys-motion-enter);
-
 }
 
-.conversation-turn-nav-rail[data-visible="true"] {
+.conversation-turn-nav-rail[data-visible='true'] {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
@@ -262,28 +258,17 @@
   transform: scaleX(calc(0.2308 + 0.7692 * var(--marker-progress)));
   transform-origin: left center;
   transition:
-    transform var(--cpx-sys-motion-enter) var(--cpx-sys-ease-linear)(
-      0,
-      0.398 10%,
-      0.682 20%,
-      0.843 30%,
-      0.925 40%,
-      0.972 50%,
-      1.004 60%,
-      1.008 70%,
-      1.003 80%,
-      1
-    ),
+    transform var(--cpx-sys-motion-enter) var(--cpx-sys-ease-linear)
+      (0, 0.398 10%, 0.682 20%, 0.843 30%, 0.925 40%, 0.972 50%, 1.004 60%, 1.008 70%, 1.003 80%, 1),
     opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out, var(--cpx-sys-ease-out)),
     background-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-out, var(--cpx-sys-ease-out));
 }
 
-.conversation-turn-nav-item[aria-current="true"] .conversation-turn-nav-marker {
+.conversation-turn-nav-item[aria-current='true'] .conversation-turn-nav-marker {
   opacity: 0.6;
 }
 
-.conversation-turn-nav-item:is(:focus-visible, [data-scrub-target])
-  .conversation-turn-nav-marker {
+.conversation-turn-nav-item:is(:focus-visible, [data-scrub-target]) .conversation-turn-nav-marker {
   --marker-progress: 1;
 
   opacity: 1;
@@ -294,9 +279,7 @@
 :where(.conversation-turn-nav-item)[data-scrub-target]
   + :where(.conversation-turn-nav-item)
   .conversation-turn-nav-marker,
-:where(.conversation-turn-nav-item):has(
-    + :where(.conversation-turn-nav-item)[data-scrub-target]
-  )
+:where(.conversation-turn-nav-item):has(+ :where(.conversation-turn-nav-item)[data-scrub-target])
   .conversation-turn-nav-marker {
   --marker-progress: 0.7;
 }
@@ -306,8 +289,7 @@
   + :where(.conversation-turn-nav-item)
   .conversation-turn-nav-marker,
 :where(.conversation-turn-nav-item):has(
-    + :where(.conversation-turn-nav-item)
-      + :where(.conversation-turn-nav-item)[data-scrub-target]
+    + :where(.conversation-turn-nav-item) + :where(.conversation-turn-nav-item)[data-scrub-target]
   )
   .conversation-turn-nav-marker {
   --marker-progress: 0.4;
@@ -333,7 +315,7 @@
 
 :where(
     .conversation-turn-nav-list[data-scrubbing]
-      .conversation-turn-nav-item[aria-current="true"]:not([data-scrub-target])
+      .conversation-turn-nav-item[aria-current='true']:not([data-scrub-target])
   )
   .conversation-turn-nav-marker {
   background: var(--cpx-sys-color-fg-tertiary, var(--cpx-sys-color-fg-secondary));
@@ -343,17 +325,14 @@
 @media (hover: hover) and (pointer: fine) {
   :where(
       .conversation-turn-nav-list:not([data-scrubbing]):hover
-        .conversation-turn-nav-item[aria-current="true"]:not(:hover):not(:focus-visible)
+        .conversation-turn-nav-item[aria-current='true']:not(:hover):not(:focus-visible)
     )
     .conversation-turn-nav-marker {
     background: var(--cpx-sys-color-fg-tertiary, var(--cpx-sys-color-fg-secondary));
     opacity: 0.4;
   }
 
-  :where(
-      .conversation-turn-nav-list:not([data-scrubbing])
-        .conversation-turn-nav-item:hover
-    )
+  :where(.conversation-turn-nav-list:not([data-scrubbing]) .conversation-turn-nav-item:hover)
     .conversation-turn-nav-marker {
     --marker-progress: 1;
 
@@ -531,7 +510,7 @@
   flex: 0 0 auto;
 }
 
-:root[data-reduce-motion="on"] {
+:root[data-reduce-motion='on'] {
   .conversation-turn-nav-rail,
   .conversation-turn-nav-marker {
     transition: none;

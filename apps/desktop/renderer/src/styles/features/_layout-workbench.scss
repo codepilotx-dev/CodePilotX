@@ -149,7 +149,7 @@
   overflow: hidden;
 }
 
-.desktop-workspace-panel[data-workbench-panel-presence="exiting"] {
+.desktop-workspace-panel[data-workbench-panel-presence='exiting'] {
   pointer-events: none;
 }
 
@@ -199,7 +199,7 @@
   }
 }
 
-:root[data-reduce-motion="on"] {
+:root[data-reduce-motion='on'] {
   .chat-session-actions .icon-button {
     transition: none;
   }

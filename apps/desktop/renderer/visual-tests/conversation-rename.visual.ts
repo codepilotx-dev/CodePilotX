@@ -1,9 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 async function waitForConversationReady(page: Page): Promise<void> {
-  await expect(
-    page.getByText('已完成工作台结构梳理。', { exact: true }),
-  ).toBeVisible()
+  await expect(page.getByText('已完成工作台结构梳理。', { exact: true })).toBeVisible()
 }
 
 test.describe('conversation title rename & header layout', () => {
@@ -19,14 +17,12 @@ test.describe('conversation title rename & header layout', () => {
     await input.fill('重命名输入回归')
     await expect(input).toHaveValue('重命名输入回归')
     await page.getByRole('button', { name: '重命名', exact: true }).click()
-    await expect(
-      page.getByLabel('工作区工具栏').locator('.chat-session-title__text'),
-    ).toHaveText('重命名输入回归')
+    await expect(page.getByLabel('工作区工具栏').locator('.chat-session-title__text')).toHaveText(
+      '重命名输入回归',
+    )
   })
 
-  test('inline title edit saves on Enter and selects existing title on focus', async ({
-    page,
-  }) => {
+  test('inline title edit saves on Enter and selects existing title on focus', async ({ page }) => {
     await page.goto('/?visualCase=rich#/threads/visual-rich')
     await waitForConversationReady(page)
     const title = page.getByLabel('工作区工具栏').locator('.chat-session-title__text')
@@ -41,14 +37,9 @@ test.describe('conversation title rename & header layout', () => {
 
     // Verify existing text is fully selected
     const selected = await page.evaluate(() => {
-      const input = document.querySelector<HTMLInputElement>(
-        '.chat-session-title__input',
-      )
+      const input = document.querySelector<HTMLInputElement>('.chat-session-title__input')
       if (!input) return null
-      return input.value.substring(
-        input.selectionStart ?? 0,
-        input.selectionEnd ?? 0,
-      )
+      return input.value.substring(input.selectionStart ?? 0, input.selectionEnd ?? 0)
     })
     expect(selected).toBe(initialText)
 
@@ -161,9 +152,7 @@ test.describe('conversation title rename & header layout', () => {
   })
 
   test('inline title edit cancels when switching sessions', async ({ page }) => {
-    await page.goto(
-      '/?visualCase=rich&visualSwitchTargets=1#/threads/visual-rich',
-    )
+    await page.goto('/?visualCase=rich&visualSwitchTargets=1#/threads/visual-rich')
     await waitForConversationReady(page)
     const title = page.getByLabel('工作区工具栏').locator('.chat-session-title__text')
     await expect(title).toBeVisible()
@@ -181,9 +170,7 @@ test.describe('conversation title rename & header layout', () => {
 
     // Inline edit should be cancelled and input hidden
     await expect(inlineInput).toBeHidden()
-    await expect(
-      page.getByLabel('工作区工具栏').locator('.chat-session-title__text'),
-    ).toBeVisible()
+    await expect(page.getByLabel('工作区工具栏').locator('.chat-session-title__text')).toBeVisible()
   })
 
   test('IME composition Enter does not prematurely submit', async ({ page }) => {

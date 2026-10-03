@@ -55,25 +55,17 @@ describe('renderer data epoch', () => {
     expect(local.getItem('conversation.ui-state.thread-1')).toBeNull()
     expect(local.getItem('codepilotx.desktop.rightDockWidth')).toBe('600')
     expect(local.getItem('codepilotx.desktop.bottomPanelHeight')).toBe('280')
-    expect(
-      local.getItem('codepilotx.desktop.fileTreeView:c:/workspace'),
-    ).toBe('{"visible":true}')
+    expect(local.getItem('codepilotx.desktop.fileTreeView:c:/workspace')).toBe('{"visible":true}')
     expect(local.getItem('codepilotx.syntax.wrap-v1')).toBe('true')
-    expect(local.getItem('codepilotx.desktop.appearance.v3')).toBe(
-      '{"mode":"dark"}',
-    )
+    expect(local.getItem('codepilotx.desktop.appearance.v3')).toBe('{"mode":"dark"}')
     expect(local.getItem('layout.sidebarWidth')).toBe('300')
     expect(local.getItem('layout.sidebarCollapsed')).toBe('true')
-    expect(local.getItem('claude-code-desktop-settings')).toBe(
-      '{"provider":"legacy"}',
-    )
+    expect(local.getItem('claude-code-desktop-settings')).toBe('{"provider":"legacy"}')
     expect(local.getItem('other.application.setting')).toBe('keep')
     expect(session.getItem('codepilotx.subagent.scroll.thread-1')).toBeNull()
     expect(session.getItem('codepilotx.desktop.rightDockWidth')).toBe('500')
     expect(session.getItem('other.session.setting')).toBe('keep')
-    expect(local.getItem('codepilotx.dataEpoch')).toBe(
-      String(RENDERER_DATA_EPOCH),
-    )
+    expect(local.getItem('codepilotx.dataEpoch')).toBe(String(RENDERER_DATA_EPOCH))
     expect(ensureRendererDataEpoch(local, session)).toBe(false)
   })
 })

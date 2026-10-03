@@ -1,28 +1,25 @@
-import type { CalendarSourceRef } from "@codepilotx/shared/calendar"
+import type { CalendarSourceRef } from '@codepilotx/shared/calendar'
 import type {
   SchedulePlanExecutionDefaults,
   SchedulePlanHorizon,
   SchedulePlanItemDraft,
   SchedulePlanProposal,
-} from "@codepilotx/shared/schedule-plan"
-import type { Automation } from "@codepilotx/shared/automation"
-import type { ScheduledTask } from "@codepilotx/shared/scheduled-task"
+} from '@codepilotx/shared/schedule-plan'
+import type { Automation } from '@codepilotx/shared/automation'
+import type { ScheduledTask } from '@codepilotx/shared/scheduled-task'
 import {
   normalizeScheduledPermission,
   validateAutomationDefinition,
-} from "../automation/AutomationService"
-import {
-  canonicalizeAutomationSchedule,
-  nextAutomationOccurrence,
-} from "../automation/schedule"
-import { AgentError } from "../domain"
-import type { AutomationRepository } from "../storage/repositories/automation-repository"
+} from '../automation/AutomationService'
+import { canonicalizeAutomationSchedule, nextAutomationOccurrence } from '../automation/schedule'
+import { AgentError } from '../domain'
+import type { AutomationRepository } from '../storage/repositories/automation-repository'
 import type {
   ScheduleCalendarDatabase,
   SchedulePlanProposalRepository,
   ScheduledTaskRepository,
-} from "../storage/repositories/scheduled-task-repository"
-import { prepareScheduledTaskDefinition } from "./ScheduledTaskService"
+} from '../storage/repositories/scheduled-task-repository'
+import { prepareScheduledTaskDefinition } from './ScheduledTaskService'
 
 export type SchedulePlanProposalInput = {
   threadId: string
@@ -63,22 +60,26 @@ export class SchedulePlanService {
   }
 
   async propose(input: SchedulePlanProposalInput) {
-    if (!input.items.length || input.items.length > 100) throw new AgentError("INVALID_REQUEST", "规划草案必须包含 1 到 100 个任务", 400)
+    if (!input.items.length || input.items.length > 100)
+      throw new AgentError('INVALID_REQUEST', '规划草案必须包含 1 到 100 个任务', 400)
     const items = this.prepareItems(input.items, input.defaults)
-    const proposal = this.proposals.create({
-      ...input,
-      id: `schedule-plan:${input.toolCallId}`,
-      operationId: `schedule-plan-propose:${input.toolCallId}`,
-      defaults: this.prepareDefaults(input.defaults),
-      items,
-    }, this.now())
+    const proposal = this.proposals.create(
+      {
+        ...input,
+        id: `schedule-plan:${input.toolCallId}`,
+        operationId: `schedule-plan-propose:${input.toolCallId}`,
+        defaults: this.prepareDefaults(input.defaults),
+        items,
+      },
+      this.now(),
+    )
     await this.options.proposalChanged?.(proposal)
     return proposal
   }
 
   read(id: string) {
     const proposal = this.proposals.read(id)
-    if (!proposal) throw new AgentError("SCHEDULE_PLAN_NOT_FOUND", "规划草案不存在", 404)
+    if (!proposal) throw new AgentError('SCHEDULE_PLAN_NOT_FOUND', '规划草案不存在', 404)
     return proposal
   }
 
@@ -86,20 +87,21 @@ export class SchedulePlanService {
     const existing = this.proposals.findByCommitOperation(input.operationId)
     if (existing) {
       if (
-        existing.id !== input.id
-        || JSON.stringify(existing.defaults) !== JSON.stringify(input.defaults)
-        || JSON.stringify(existing.items) !== JSON.stringify(input.items)
-      ) throw new AgentError("OPERATION_ID_CONFLICT", "operationId 已用于其他规划确认请求", 409)
+        existing.id !== input.id ||
+        JSON.stringify(existing.defaults) !== JSON.stringify(input.defaults) ||
+        JSON.stringify(existing.items) !== JSON.stringify(input.items)
+      )
+        throw new AgentError('OPERATION_ID_CONFLICT', 'operationId 已用于其他规划确认请求', 409)
       return existing
     }
     const proposal = this.read(input.id)
-    if (proposal.status !== "pending" || proposal.revision !== input.expectedRevision) {
-      throw new AgentError("CONFLICT", "规划草案版本或状态已变化", 409)
+    if (proposal.status !== 'pending' || proposal.revision !== input.expectedRevision) {
+      throw new AgentError('CONFLICT', '规划草案版本或状态已变化', 409)
     }
     const defaults = this.prepareDefaults(input.defaults)
     const items = this.prepareItems(input.items, defaults)
-    const enabled = items.filter(item => item.enabled)
-    if (!enabled.length) throw new AgentError("INVALID_REQUEST", "请至少启用一个任务", 400)
+    const enabled = items.filter((item) => item.enabled)
+    if (!enabled.length) throw new AgentError('INVALID_REQUEST', '请至少启用一个任务', 400)
     const now = this.now()
     const changedAutomations: Automation[] = []
     const changedTasks: ScheduledTask[] = []
@@ -107,19 +109,22 @@ export class SchedulePlanService {
     const committed = this.db.transaction(() => {
       for (const item of enabled) {
         const childOperation = `schedule-plan:${proposal.id}:${item.key}`
-        if (item.kind === "one-off") {
-          const task = this.scheduledTasks.create({
-            ...prepareScheduledTaskDefinition(this.automations, {
-              ...defaults,
-              name: item.name,
-              prompt: item.prompt,
-              scheduledFor: item.scheduledFor,
-            }),
-            id: `scheduled-task:${childOperation}`,
-            operationId: childOperation,
-            proposalId: proposal.id,
-          }, now)
-          createdRefs.push({ kind: "scheduled-task", id: task.id })
+        if (item.kind === 'one-off') {
+          const task = this.scheduledTasks.create(
+            {
+              ...prepareScheduledTaskDefinition(this.automations, {
+                ...defaults,
+                name: item.name,
+                prompt: item.prompt,
+                scheduledFor: item.scheduledFor,
+              }),
+              id: `scheduled-task:${childOperation}`,
+              operationId: childOperation,
+              proposalId: proposal.id,
+            },
+            now,
+          )
+          createdRefs.push({ kind: 'scheduled-task', id: task.id })
           changedTasks.push(task)
           continue
         }
@@ -132,26 +137,33 @@ export class SchedulePlanService {
           permissionConfig: normalizeScheduledPermission(defaults.permissionConfig),
         }
         validateAutomationDefinition(this.automations, definition)
-        const automation = this.automations.create({
-          ...definition,
-          id: `automation:${childOperation}`,
-          canonicalRrule: canonicalizeAutomationSchedule(item.schedule),
-          nextRunAt: nextAutomationOccurrence(item.schedule, item.timeZone, now),
-        }, now)
-        createdRefs.push({ kind: "automation", id: automation.id })
+        const automation = this.automations.create(
+          {
+            ...definition,
+            id: `automation:${childOperation}`,
+            canonicalRrule: canonicalizeAutomationSchedule(item.schedule),
+            nextRunAt: nextAutomationOccurrence(item.schedule, item.timeZone, now),
+          },
+          now,
+        )
+        createdRefs.push({ kind: 'automation', id: automation.id })
         changedAutomations.push(automation)
       }
-      return this.proposals.commit(proposal.id, {
-        expectedRevision: proposal.revision,
-        operationId: input.operationId,
-        defaults,
-        items,
-        createdRefs,
-      }, now)
+      return this.proposals.commit(
+        proposal.id,
+        {
+          expectedRevision: proposal.revision,
+          operationId: input.operationId,
+          defaults,
+          items,
+          createdRefs,
+        },
+        now,
+      )
     })
     await Promise.all([
-      ...changedAutomations.map(value => this.options.automationChanged?.(value)),
-      ...changedTasks.map(value => this.options.scheduledTaskChanged?.(value)),
+      ...changedAutomations.map((value) => this.options.automationChanged?.(value)),
+      ...changedTasks.map((value) => this.options.scheduledTaskChanged?.(value)),
       this.options.proposalChanged?.(committed),
     ])
     await this.options.wakeScheduler?.()
@@ -165,24 +177,28 @@ export class SchedulePlanService {
     }
     validateAutomationDefinition(this.automations, {
       ...defaults,
-      name: "规划任务",
-      prompt: "执行规划任务",
+      name: '规划任务',
+      prompt: '执行规划任务',
     })
     try {
-      new Intl.DateTimeFormat("en-US", { timeZone: defaults.timeZone }).format(0)
+      new Intl.DateTimeFormat('en-US', { timeZone: defaults.timeZone }).format(0)
     } catch {
-      throw new AgentError("INVALID_REQUEST", "规划草案时区无效", 400)
+      throw new AgentError('INVALID_REQUEST', '规划草案时区无效', 400)
     }
     return defaults
   }
 
-  private prepareItems(items: readonly SchedulePlanItemDraft[], defaults: SchedulePlanExecutionDefaults) {
+  private prepareItems(
+    items: readonly SchedulePlanItemDraft[],
+    defaults: SchedulePlanExecutionDefaults,
+  ) {
     const keys = new Set<string>()
-    return items.map(item => {
+    return items.map((item) => {
       const key = item.key.trim()
-      if (!key || keys.has(key)) throw new AgentError("INVALID_REQUEST", "规划草案任务 key 不能为空或重复", 400)
+      if (!key || keys.has(key))
+        throw new AgentError('INVALID_REQUEST', '规划草案任务 key 不能为空或重复', 400)
       keys.add(key)
-      if (item.kind === "one-off") {
+      if (item.kind === 'one-off') {
         const prepared = prepareScheduledTaskDefinition(this.automations, {
           ...defaults,
           name: item.name,
@@ -201,9 +217,9 @@ export class SchedulePlanService {
       validateAutomationDefinition(this.automations, prepared)
       canonicalizeAutomationSchedule(item.schedule)
       try {
-        new Intl.DateTimeFormat("en-US", { timeZone: item.timeZone }).format(0)
+        new Intl.DateTimeFormat('en-US', { timeZone: item.timeZone }).format(0)
       } catch {
-        throw new AgentError("INVALID_REQUEST", "自动化时区无效", 400)
+        throw new AgentError('INVALID_REQUEST', '自动化时区无效', 400)
       }
       return { ...item, key, name: prepared.name, prompt: prepared.prompt }
     })

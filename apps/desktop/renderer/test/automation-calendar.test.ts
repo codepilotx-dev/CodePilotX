@@ -36,7 +36,7 @@ describe('automation calendar compact month & residing agenda', () => {
     expect(
       calendarOccurrencesByDate(occurrences)
         .get('2026-09-05')
-        ?.map(item => item.id),
+        ?.map((item) => item.id),
     ).toEqual(['earlier', 'later'])
   })
 
@@ -184,8 +184,12 @@ describe('automation calendar compact month & residing agenda', () => {
       new URL('../src/styles/features/automation-calendar.scss', import.meta.url),
       'utf8',
     )
-    expect(calendarStyles).toContain('.automation-calendar__toolbar {\n  display: flex;\n  align-items: flex-end;')
-    expect(calendarStyles).toContain('.automation-calendar__title-group {\n  display: flex;\n  align-items: flex-end;')
+    expect(calendarStyles).toContain(
+      '.automation-calendar__toolbar {\n  display: flex;\n  align-items: flex-end;',
+    )
+    expect(calendarStyles).toContain(
+      '.automation-calendar__title-group {\n  display: flex;\n  align-items: flex-end;',
+    )
   })
 })
 

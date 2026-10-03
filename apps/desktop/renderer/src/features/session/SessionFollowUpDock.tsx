@@ -1,12 +1,6 @@
 import { useState } from 'react'
 import type React from 'react'
-import {
-  Check,
-  MoreHorizontal,
-  Play,
-  Trash2,
-  X,
-} from 'lucide-react'
+import { Check, MoreHorizontal, Play, Trash2, X } from 'lucide-react'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -58,10 +52,7 @@ export function SessionFollowUpDock({
       {pauseReason ? (
         <div className="session-follow-up-header">
           <span>已排队 {items.length} 条</span>
-          <Button color="primary"
-            className="session-follow-up-resume"
-            onClick={onResume}
-          >
+          <Button color="primary" className="session-follow-up-resume" onClick={onResume}>
             <Play aria-hidden="true" size={APP_ICON_SIZE} />
             继续队列
           </Button>
@@ -89,8 +80,8 @@ export function SessionFollowUpDock({
                   aria-label="编辑排队消息"
                   autoFocus
                   className="session-follow-up-edit-input"
-                  onChange={event => setEditingText(event.target.value)}
-                  onKeyDown={event => {
+                  onChange={(event) => setEditingText(event.target.value)}
+                  onKeyDown={(event) => {
                     if (event.key === 'Enter') {
                       event.preventDefault()
                       finishEdit(item)

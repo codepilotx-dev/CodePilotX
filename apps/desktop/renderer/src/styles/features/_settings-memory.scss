@@ -98,7 +98,6 @@
   align-items: center;
   gap: var(--cpx-sys-space-2);
   flex-shrink: 0;
-
 }
 
 .memory-settings-list-scroll-area {
@@ -116,7 +115,8 @@
   display: grid;
   width: 100%;
   gap: var(--cpx-sys-space-1);
-  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3) var(--cpx-sys-space-3) var(--cpx-sys-space-3);
+  padding: var(--cpx-sys-space-3) var(--cpx-sys-space-3) var(--cpx-sys-space-3)
+    var(--cpx-sys-space-3);
   border-width: 0 0 1px;
   border-style: solid;
   border-color: var(--cpx-sys-color-border-default);
@@ -337,7 +337,7 @@
     }
 
     > span + span::before {
-      content: "·";
+      content: '·';
       margin: 0 var(--cpx-sys-space-1);
       color: var(--cpx-sys-color-fg-tertiary);
     }

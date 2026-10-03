@@ -37,7 +37,11 @@ const FORMAL_ROUTES = [
     route: '/?visualCase=rich#/threads/visual-rich',
     ready: '.workflow-page',
   },
-  { id: 'providers', route: '/?visualCase=empty#/settings/providers', ready: '.model-center-shell' },
+  {
+    id: 'providers',
+    route: '/?visualCase=empty#/settings/providers',
+    ready: '.model-center-shell',
+  },
   { id: 'plugins', route: '/?visualCase=empty#/plugins', ready: '.plugins-view' },
   {
     id: 'automations',
@@ -57,12 +61,12 @@ async function expectNewSessionComposerContract(
   page: Page,
   surface: NewSessionSurface,
 ): Promise<void> {
-  const stack = page.locator(
-    `.composer-stack[data-placement="new-session"][data-surface="${surface}"]`,
-  ).first()
+  const stack = page
+    .locator(`.composer-stack[data-placement="new-session"][data-surface="${surface}"]`)
+    .first()
   await expect(stack).toBeVisible()
 
-  const contract = await stack.evaluate(element => {
+  const contract = await stack.evaluate((element) => {
     const input = element.querySelector<HTMLElement>('.composer-input-surface')
     const utility = element.querySelector<HTMLElement>('.composer-utility-bar')
     if (!input) {
@@ -103,53 +107,34 @@ async function expectNewSessionComposerContract(
     expect(contract.utilityBorderRadius).toContain('8px')
   } else {
     expect(contract.utilityTop).not.toBeNull()
-    expect(contract.utilityTop!).toBeGreaterThanOrEqual(
-      contract.inputBottom - 2,
-    )
+    expect(contract.utilityTop!).toBeGreaterThanOrEqual(contract.inputBottom - 2)
     expect(contract.utilityBorderRadius).toContain('8px')
   }
 }
 
 async function expectWorkingHomeContract(page: Page): Promise<void> {
-  await expect(
-    page.getByRole('heading', { name: '我们该处理什么工作？' }),
-  ).toBeVisible()
-  await expect(
-    page.locator('.working-chat-view .working-suggestions'),
-  ).toHaveCount(1)
-  await expect(
-    page.locator('.working-chat-view .working-suggestion-row'),
-  ).toHaveCount(3)
-  await expect(
-    page.locator('.working-chat-view .new-session-suggestion-card'),
-  ).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: '我们该处理什么工作？' })).toBeVisible()
+  await expect(page.locator('.working-chat-view .working-suggestions')).toHaveCount(1)
+  await expect(page.locator('.working-chat-view .working-suggestion-row')).toHaveCount(3)
+  await expect(page.locator('.working-chat-view .new-session-suggestion-card')).toHaveCount(0)
 }
 
 async function expectChatHomeContract(page: Page): Promise<void> {
-  await expect(
-    page.getByRole('heading', { name: '随时可以开始。' }),
-  ).toBeVisible()
-  await expect(
-    page.locator('.chat-home-view .new-session-suggestions'),
-  ).toHaveCount(0)
-  await expect(
-    page.locator('.chat-home-view .working-suggestions'),
-  ).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: '随时可以开始。' })).toBeVisible()
+  await expect(page.locator('.chat-home-view .new-session-suggestions')).toHaveCount(0)
+  await expect(page.locator('.chat-home-view .working-suggestions')).toHaveCount(0)
 }
 
-async function expectCodingHomeContract(
-  page: Page,
-  isDesktop: boolean,
-): Promise<void> {
-  await expect(
-    page.locator('.coding-chat-view h1'),
-  ).toHaveText(/(?:要在|我们应该在).+(?:内开发什么|中做些什么)？|我们该构建什么？/)
+async function expectCodingHomeContract(page: Page, isDesktop: boolean): Promise<void> {
+  await expect(page.locator('.coding-chat-view h1')).toHaveText(
+    /(?:要在|我们应该在).+(?:内开发什么|中做些什么)？|我们该构建什么？/,
+  )
 
   const mark = page.locator('.coding-chat-view .quick-chat-mark')
   await expect(mark).toBeVisible()
   await expect(mark).toHaveCSS('width', '56px')
   await expect(mark).toHaveCSS('height', '56px')
-  const maskImage = await mark.evaluate(element => {
+  const maskImage = await mark.evaluate((element) => {
     const style = getComputedStyle(element)
     return style.maskImage || style.webkitMaskImage
   })
@@ -157,24 +142,24 @@ async function expectCodingHomeContract(
 
   const cards = page.locator('.coding-chat-view .new-session-suggestion-card')
   await expect(cards).toHaveCount(4)
-  const visibleCards = await cards.evaluateAll(elements =>
+  const visibleCards = await cards.evaluateAll((elements) =>
     elements
-      .filter(element => {
+      .filter((element) => {
         const rect = element.getBoundingClientRect()
-        return (
-          getComputedStyle(element).display !== 'none' &&
-          rect.width > 0 &&
-          rect.height > 0
-        )
+        return getComputedStyle(element).display !== 'none' && rect.width > 0 && rect.height > 0
       })
-      .map(element => getComputedStyle(element).borderTopWidth),
+      .map((element) => getComputedStyle(element).borderTopWidth),
   )
   expect(visibleCards).toHaveLength(4)
-  expect(visibleCards.every(width => width === '1px')).toBe(true)
+  expect(visibleCards.every((width) => width === '1px')).toBe(true)
 
   const layout = await page.evaluate(() => {
-    const card = document.querySelector<HTMLElement>('.coding-chat-view .new-session-suggestion-card')
-    const composer = document.querySelector<HTMLElement>('.coding-chat-view .composer-input-surface')
+    const card = document.querySelector<HTMLElement>(
+      '.coding-chat-view .new-session-suggestion-card',
+    )
+    const composer = document.querySelector<HTMLElement>(
+      '.coding-chat-view .composer-input-surface',
+    )
     const mark = document.querySelector<HTMLElement>('.coding-chat-view .quick-chat-mark')
     if (!card || !composer || !mark) throw new Error('Coding home layout surfaces are missing')
     const cardRect = card.getBoundingClientRect()
@@ -199,7 +184,9 @@ async function expectCodingHomeContract(
 
   const gridColumnCount = await page
     .locator('.coding-chat-view .new-session-suggestion-grid')
-    .evaluate(element => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length)
+    .evaluate(
+      (element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length,
+    )
   expect(gridColumnCount).toBe(isDesktop ? 4 : 2)
 }
 
@@ -245,12 +232,12 @@ visualTest('provider catalog preserves logo slot and three-column spacing', asyn
   await expect(cards.nth(1).locator('.ui-remote-image')).toHaveAttribute('data-state', 'error')
   await expect(cards.nth(1).locator('.ui-remote-image-fallback')).toBeVisible()
 
-  const contract = await page.locator('.model-center-catalog-list').evaluate(element => {
+  const contract = await page.locator('.model-center-catalog-list').evaluate((element) => {
     const gridStyle = getComputedStyle(element)
     const cardElements = Array.from(element.querySelectorAll<HTMLElement>('.provider-card'))
     return {
       columnCount: gridStyle.gridTemplateColumns.split(' ').filter(Boolean).length,
-      cards: cardElements.map(card => {
+      cards: cardElements.map((card) => {
         const main = card.querySelector<HTMLElement>('.provider-card-main')!
         const logo = card.querySelector<HTMLElement>('.provider-card-logo')!
         const copy = card.querySelector<HTMLElement>('.provider-card-copy')!
@@ -298,11 +285,8 @@ visualTest('provider catalog preserves logo slot and three-column spacing', asyn
 
 for (const mode of VISUAL_MODES) {
   for (const scenario of FORMAL_ROUTES.filter(
-    route =>
-      route.id === 'new' ||
-      route.id === 'chat' ||
-      route.id === 'working' ||
-      route.id === 'thread',
+    (route) =>
+      route.id === 'new' || route.id === 'chat' || route.id === 'working' || route.id === 'thread',
   )) {
     visualTest(`formal page ${scenario.id} ${mode} compact`, async ({ page }) => {
       await page.setViewportSize(COMPACT_VIEWPORT)

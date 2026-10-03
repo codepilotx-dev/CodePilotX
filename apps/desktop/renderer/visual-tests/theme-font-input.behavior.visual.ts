@@ -1,21 +1,12 @@
 import { expect, test } from '@playwright/test'
-import {
-  prepareVisualTheme,
-  waitForVisualPage,
-} from './visual-test-helpers.js'
+import { prepareVisualTheme, waitForVisualPage } from './visual-test-helpers.js'
 
 const THEME_STORAGE_KEY = 'codepilotx.desktop.appearance.v6'
 
-test('theme font inputs preserve rapid edits and keyboard semantics', async ({
-  page,
-}) => {
+test('theme font inputs preserve rapid edits and keyboard semantics', async ({ page }) => {
   await prepareVisualTheme(page, 'dark')
   await page.goto('/?visualCase=empty#/settings/appearance')
-  await waitForVisualPage(
-    page,
-    'dark',
-    page.getByRole('heading', { name: '外观' }),
-  )
+  await waitForVisualPage(page, 'dark', page.getByRole('heading', { name: '外观' }))
 
   let uiFont = page.getByRole('textbox', { name: '深色界面字体' })
   let codeFont = page.getByRole('textbox', { name: '深色代码字体' })
@@ -30,19 +21,21 @@ test('theme font inputs preserve rapid edits and keyboard semantics', async ({
   await codeFont.fill('"JetBrains Mono", monospace')
   await codeFont.press('Enter')
 
-  await expect.poll(async () =>
-    page.evaluate(storageKey => {
-      const raw = localStorage.getItem(storageKey)
-      if (!raw) return null
-      const settings = JSON.parse(raw)
-      return settings.chromeThemes.dark.fonts
-    }, THEME_STORAGE_KEY),
-  ).toEqual({
-    ui: 'Inter, sans-serif',
-    uiFace: null,
-    code: '"JetBrains Mono", monospace',
-    codeFace: null,
-  })
+  await expect
+    .poll(async () =>
+      page.evaluate((storageKey) => {
+        const raw = localStorage.getItem(storageKey)
+        if (!raw) return null
+        const settings = JSON.parse(raw)
+        return settings.chromeThemes.dark.fonts
+      }, THEME_STORAGE_KEY),
+    )
+    .toEqual({
+      ui: 'Inter, sans-serif',
+      uiFace: null,
+      code: '"JetBrains Mono", monospace',
+      codeFace: null,
+    })
 
   const restoredPage = await page.context().newPage()
   await restoredPage.goto('/?visualCase=empty#/settings/appearance')
@@ -56,7 +49,7 @@ test('theme font inputs preserve rapid edits and keyboard semantics', async ({
   await uiFont.selectText()
   await expect
     .poll(() =>
-      uiFont.evaluate(input => ({
+      uiFont.evaluate((input) => ({
         end: input.selectionEnd,
         start: input.selectionStart,
       })),

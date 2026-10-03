@@ -1,8 +1,5 @@
 import type { ProtocolCapability, RpcParams, RpcResult } from '@codepilotx/agent-protocol'
-import type {
-  DesktopModelRef,
-  ModelProviderID,
-} from '../../../shared/types.js'
+import type { DesktopModelRef, ModelProviderID } from '../../../shared/types.js'
 import type { createAgentRpcClient } from '../agentRpcClient.js'
 import type { CodePilotXDesktopClient } from './types.js'
 
@@ -16,9 +13,7 @@ type ModelHealthApiMethod =
 type ModelHealthApi = Pick<CodePilotXDesktopClient, ModelHealthApiMethod>
 
 type Dependencies = {
-  requireAgentCapability: (
-    name: Extract<ProtocolCapability, 'model.health.v1'>,
-  ) => void
+  requireAgentCapability: (name: Extract<ProtocolCapability, 'model.health.v1'>) => void
   rpc: Pick<ReturnType<typeof createAgentRpcClient>, 'call'>
   mockClient: ModelHealthApi
   withAgentOrMock: <T>(
@@ -42,7 +37,7 @@ export function createAgentModelHealthApi({
         },
         () => mockClient.previewModelHealth(),
       ),
-    startModelHealth: operationId =>
+    startModelHealth: (operationId) =>
       withAgentOrMock(
         async () => {
           requireAgentCapability('model.health.v1')
@@ -52,7 +47,7 @@ export function createAgentModelHealthApi({
         },
         () => mockClient.startModelHealth(operationId),
       ),
-    readModelHealth: runId =>
+    readModelHealth: (runId) =>
       withAgentOrMock(
         async () => {
           requireAgentCapability('model.health.v1')
@@ -78,9 +73,11 @@ export function createAgentModelHealthApi({
         async () => {
           const params: RpcParams<'provider/test'> = {
             providerId: providerID as RpcParams<'provider/test'>['providerId'],
-            ...(model ? {
-              model: model as RpcParams<'provider/test'>['model'],
-            } : {}),
+            ...(model
+              ? {
+                  model: model as RpcParams<'provider/test'>['model'],
+                }
+              : {}),
           }
           return rpc.call('provider/test', params)
         },

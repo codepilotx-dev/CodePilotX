@@ -50,19 +50,14 @@ describe('desktop pet catalog client', () => {
 
     const client = createDesktopClient({ fetch: fetcher })
     const catalog = await client.listPetCatalog(true)
-    const installed = await client.installCatalogPet(
-      catalogPet.slug,
-      false,
-    )
+    const installed = await client.installCatalogPet(catalogPet.slug, false)
 
     expect(catalog.pets[0]?.slug).toBe(catalogPet.slug)
     expect(installed.id).toBe(catalogPet.slug)
-    expect(requests.find(request =>
-      request.method === 'pet/catalog/list'
-    )?.params).toEqual({ refresh: true })
-    expect(requests.find(request =>
-      request.method === 'pet/catalog/install'
-    )?.params).toEqual({
+    expect(requests.find((request) => request.method === 'pet/catalog/list')?.params).toEqual({
+      refresh: true,
+    })
+    expect(requests.find((request) => request.method === 'pet/catalog/install')?.params).toEqual({
       slug: catalogPet.slug,
       acceptedRestrictedLicense: false,
       operationId: expect.any(String),

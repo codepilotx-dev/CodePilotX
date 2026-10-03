@@ -44,10 +44,7 @@ export class ComposerDraftStore {
     return cloneDraft(next)
   }
 
-  update(
-    key: ComposerDraftKey,
-    update: (draft: ComposerDraft) => ComposerDraft,
-  ): ComposerDraft {
+  update(key: ComposerDraftKey, update: (draft: ComposerDraft) => ComposerDraft): ComposerDraft {
     return this.set(key, update(this.get(key)))
   }
 
@@ -69,7 +66,7 @@ export class ComposerDraftStore {
     key: ComposerDraftKey,
     skillInvocation: ComposerSkillInvocation | undefined,
   ): ComposerDraft {
-    const next = this.update(key, current => ({
+    const next = this.update(key, (current) => ({
       ...current,
       skillInvocation,
       skills: skillInvocation ? [{ ...skillInvocation }] : [],
@@ -79,10 +76,7 @@ export class ComposerDraftStore {
   }
 
   /** Hand a draft to its new session and rotate the source identity atomically. */
-  handoff(
-    from: ComposerDraftKey,
-    to: ComposerDraftKey,
-  ): ComposerDraftHandoff | undefined {
+  handoff(from: ComposerDraftKey, to: ComposerDraftKey): ComposerDraftHandoff | undefined {
     const submitted = this.#drafts.get(from)
     if (!submitted) return undefined
     const replacement = createEmptyComposerDraft(this.#createClientId())
@@ -101,15 +95,22 @@ export class ComposerDraftStore {
   }
 
   setSkills(key: ComposerDraftKey, skills: ComposerSkillInvocation[]): ComposerDraft {
-    const next = this.update(key, current => ({ ...current, skills, skillInvocation: undefined }))
+    const next = this.update(key, (current) => ({ ...current, skills, skillInvocation: undefined }))
     this.#emit()
     return next
   }
 
   addSkill(key: ComposerDraftKey, skill: ComposerSkillInvocation): ComposerDraft {
     const current = this.get(key)
-    const skills = current.skills ?? (current.skillInvocation ? [current.skillInvocation] : skillInvocationsFromComposerDocument(current.document))
-    return this.setSkills(key, skills.some(selected => selected.path === skill.path) ? skills : [...skills, skill])
+    const skills =
+      current.skills ??
+      (current.skillInvocation
+        ? [current.skillInvocation]
+        : skillInvocationsFromComposerDocument(current.document))
+    return this.setSkills(
+      key,
+      skills.some((selected) => selected.path === skill.path) ? skills : [...skills, skill],
+    )
   }
 
   completeSubmission(
@@ -175,13 +176,13 @@ export function resolveActivatedSessionComposerInput(
   currentInput: string | undefined,
   draftText: string | undefined,
 ): string {
-  return currentInput?.trim() ? currentInput : draftText ?? currentInput ?? ''
+  return currentInput?.trim() ? currentInput : (draftText ?? currentInput ?? '')
 }
 
 function cloneDocument(document: ComposerDocument): ComposerDocument {
   return {
     text: document.text,
-    tokens: document.tokens.map(token => ({ ...token })),
+    tokens: document.tokens.map((token) => ({ ...token })),
   }
 }
 
@@ -189,11 +190,9 @@ export function cloneDraft(draft: ComposerDraft): ComposerDraft {
   return {
     ...draft,
     document: cloneDocument(draft.document),
-    attachments: draft.attachments.map(attachment => ({ ...attachment })),
-    skills: draft.skills?.map(skill => ({ ...skill })),
-    skillInvocation: draft.skillInvocation
-      ? { ...draft.skillInvocation }
-      : undefined,
+    attachments: draft.attachments.map((attachment) => ({ ...attachment })),
+    skills: draft.skills?.map((skill) => ({ ...skill })),
+    skillInvocation: draft.skillInvocation ? { ...draft.skillInvocation } : undefined,
   }
 }
 

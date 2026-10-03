@@ -1,7 +1,4 @@
-import {
-  DEFAULT_CODE_FONT,
-  DEFAULT_UI_FONT,
-} from '../../../shared/theme.js'
+import { DEFAULT_CODE_FONT, DEFAULT_UI_FONT } from '../../../shared/theme.js'
 import { deriveDesktopSurfaceUnder } from '@codepilotx/shared/desktop-theme'
 import type { DesktopThemeConfigV1 } from '../../../shared/types.js'
 import { fontFamilyWithFace } from './themeFontFaces.js'
@@ -53,12 +50,7 @@ export function ensureThemePreviewContrast({
   ink: string
   surface: string
 }): string {
-  return ensureContrast(
-    parseColor(accent),
-    parseColor(ink),
-    parseColor(surface),
-    4.5,
-  )
+  return ensureContrast(parseColor(accent), parseColor(ink), parseColor(surface), 4.5)
 }
 
 const CODEX_LIGHT_SYNTAX = {
@@ -81,21 +73,13 @@ const CODEX_DARK_SYNTAX = {
   punctuation: '#c9d1d9',
 }
 
-export function deriveThemeVariables(
-  config: DesktopThemeConfigV1,
-): ThemeVariableMap {
+export function deriveThemeVariables(config: DesktopThemeConfigV1): ThemeVariableMap {
   const { theme, variant } = config
   const dark = variant === 'dark'
   const interactionInk = parseHex(theme.ink)
   const interactionHover = rgba(interactionInk, dark ? 0.08 : 0.05)
   const interactionSelected = rgba(interactionInk, 0.05)
-  const roles = deriveCodexRoles(
-    theme.surface,
-    theme.ink,
-    theme.accent,
-    dark,
-    theme.contrast,
-  )
+  const roles = deriveCodexRoles(theme.surface, theme.ink, theme.accent, dark, theme.contrast)
   const added = deriveSemanticTone({
     hue: theme.semanticColors.diffAdded,
     editorBackground: roles.editorBackground,
@@ -123,24 +107,18 @@ export function deriveThemeVariables(
     editorBackground: roles.editorBackground,
     ink: theme.ink,
   })
-  const accentForeground = [
-    theme.surface, roles.editorBackground, roles.accentSubtle,
-  ].reduce((candidate, background) => ensureContrast(
-    parseColor(candidate), interactionInk, parseColor(background), 4.5,
-  ), roles.accentForeground)
+  const accentForeground = [theme.surface, roles.editorBackground, roles.accentSubtle].reduce(
+    (candidate, background) =>
+      ensureContrast(parseColor(candidate), interactionInk, parseColor(background), 4.5),
+    roles.accentForeground,
+  )
   const syntax = dark ? CODEX_DARK_SYNTAX : CODEX_LIGHT_SYNTAX
-  const shadowResting = dark
-    ? '0 1px 2px rgb(0 0 0 / 20%)'
-    : '0 1px 2px rgb(0 0 0 / 2%)'
+  const shadowResting = dark ? '0 1px 2px rgb(0 0 0 / 20%)' : '0 1px 2px rgb(0 0 0 / 2%)'
   const shadowRaised = dark
     ? '0 2px 8px rgb(0 0 0 / 40%)'
     : '0 2px 8px rgb(0 0 0 / 4%), 0 1px 2px rgb(0 0 0 / 2%)'
-  const shadowFloating = dark
-    ? '0 8px 30px rgb(0 0 0 / 50%)'
-    : '0 8px 30px rgb(0 0 0 / 12%)'
-  const shadowControl = dark
-    ? '0 1px 2px rgb(0 0 0 / 20%)'
-    : '0 1px 2px rgb(0 0 0 / 2%)'
+  const shadowFloating = dark ? '0 8px 30px rgb(0 0 0 / 50%)' : '0 8px 30px rgb(0 0 0 / 12%)'
+  const shadowControl = dark ? '0 1px 2px rgb(0 0 0 / 20%)' : '0 1px 2px rgb(0 0 0 / 2%)'
 
   return {
     // System Layer: Foundation & Contrast
@@ -286,33 +264,18 @@ function deriveCodexRoles(
   const accentRgb = parseHex(accent)
   const normalizedContrast = normalizeCodexContrast(contrast, variant)
   const white = { red: 255, green: 255, blue: 255 }
-  const panel = mixHex(surfaceRgb, dark ? inkRgb : white, dark
-    ? 0.03 + normalizedContrast * 0.03
-    : 0.18 + normalizedContrast * 0.008)
-  const editorBackground = mixHex(
-    surfaceRgb, dark ? inkRgb : white, dark ? 0.07 : 0.12,
+  const panel = mixHex(
+    surfaceRgb,
+    dark ? inkRgb : white,
+    dark ? 0.03 + normalizedContrast * 0.03 : 0.18 + normalizedContrast * 0.008,
   )
+  const editorBackground = mixHex(surfaceRgb, dark ? inkRgb : white, dark ? 0.07 : 0.12)
   const palette = dark
-    ? deriveDarkPalette(
-        surfaceRgb,
-        inkRgb,
-        accentRgb,
-        normalizedContrast,
-      )
-    : deriveLightPalette(
-        surfaceRgb,
-        inkRgb,
-        accentRgb,
-        normalizedContrast,
-      )
+    ? deriveDarkPalette(surfaceRgb, inkRgb, accentRgb, normalizedContrast)
+    : deriveLightPalette(surfaceRgb, inkRgb, accentRgb, normalizedContrast)
 
   return {
-    surfaceRecessed: deriveDesktopSurfaceUnder(
-      surface,
-      ink,
-      variant,
-      contrast,
-    ),
+    surfaceRecessed: deriveDesktopSurfaceUnder(surface, ink, variant, contrast),
     panel,
     control: palette.controlBackgroundOpaque,
     raised: palette.elevatedPrimaryOpaque,
@@ -357,12 +320,8 @@ function deriveSemanticTone({
   const textBackground = mixHex(editorRgb, hueRgb, 0.04)
   const backgrounds = [editorBackground, lineBackground, textBackground]
   const foreground = backgrounds.reduce(
-    (candidate, background) => ensureContrast(
-      parseHex(candidate),
-      inkRgb,
-      parseColor(background),
-      4.5,
-    ),
+    (candidate, background) =>
+      ensureContrast(parseHex(candidate), inkRgb, parseColor(background), 4.5),
     hue,
   )
 
@@ -424,28 +383,12 @@ function deriveLightPalette(
   const white = { red: 255, green: 255, blue: 255 }
   const black = { red: 0, green: 0, blue: 0 }
   const control = mixRgb(surface, white, 0.09 + contrast * 0.04)
-  const elevatedSecondary = mixRgb(
-    surface,
-    white,
-    0.08 + contrast * 0.08,
-  )
-  const elevatedPrimary = mixRgb(
-    surface,
-    white,
-    0.16 + contrast * 0.12,
-  )
+  const elevatedSecondary = mixRgb(surface, white, 0.08 + contrast * 0.08)
+  const elevatedPrimary = mixRgb(surface, white, 0.16 + contrast * 0.12)
   return {
     accentBackground: mixHex(surface, accent, 0.11 + contrast * 0.04),
-    accentBackgroundActive: mixHex(
-      surface,
-      accent,
-      0.13 + contrast * 0.05,
-    ),
-    accentBackgroundHover: mixHex(
-      surface,
-      accent,
-      0.12 + contrast * 0.045,
-    ),
+    accentBackgroundActive: mixHex(surface, accent, 0.13 + contrast * 0.05),
+    accentBackgroundHover: mixHex(surface, accent, 0.12 + contrast * 0.045),
     border: rgba(ink, 0.06 + contrast * 0.04),
     borderFocus: hexString(accent),
     borderHeavy: rgba(ink, 0.09 + contrast * 0.06),
@@ -496,16 +439,8 @@ function deriveDarkPalette(
   const elevatedPrimary = mixRgb(surface, ink, 0.08 + contrast * 0.08)
   return {
     accentBackground: mixHex(black, accent, 0.2 + contrast * 0.08),
-    accentBackgroundActive: mixHex(
-      black,
-      accent,
-      0.22 + contrast * 0.12,
-    ),
-    accentBackgroundHover: mixHex(
-      black,
-      accent,
-      0.21 + contrast * 0.1,
-    ),
+    accentBackgroundActive: mixHex(black, accent, 0.22 + contrast * 0.12),
+    accentBackgroundHover: mixHex(black, accent, 0.21 + contrast * 0.1),
     border: rgba(ink, 0.06 + contrast * 0.04),
     borderFocus: rgba(accentOnDark, 0.7 + contrast * 0.1),
     borderHeavy: rgba(ink, 0.12 + contrast * 0.06),
@@ -526,11 +461,7 @@ function deriveDarkPalette(
     elevatedPrimary: rgba(elevatedPrimary, 0.96),
     elevatedPrimaryOpaque: rgbString(elevatedPrimary),
     elevatedSecondary: rgba(ink, 0.02 + contrast * 0.02),
-    elevatedSecondaryOpaque: mixHex(
-      surface,
-      ink,
-      0.04 + contrast * 0.05,
-    ),
+    elevatedSecondaryOpaque: mixHex(surface, ink, 0.04 + contrast * 0.05),
     iconAccent: rgbString(accentOnDark),
     iconPrimary: rgba(ink, 0.82 + contrast * 0.14),
     iconSecondary: rgba(ink, 0.65 + contrast * 0.1),
@@ -538,11 +469,7 @@ function deriveDarkPalette(
     simpleScrim: rgba(ink, 0.08 + contrast * 0.04),
     textAccent: rgbString(accentOnDark),
     textButtonPrimary: rgbString(primaryText),
-    textButtonSecondary: mixHex(
-      ink,
-      surface,
-      0.7 + contrast * 0.1,
-    ),
+    textButtonSecondary: mixHex(ink, surface, 0.7 + contrast * 0.1),
     textButtonTertiary: mixHex(surface, ink, 0.45 + contrast * 0.1),
     textForeground: hexString(ink),
     textForegroundSecondary: rgba(ink, 0.65 + contrast * 0.1),
@@ -550,16 +477,11 @@ function deriveDarkPalette(
   }
 }
 
-function normalizeCodexContrast(
-  value: number,
-  variant: 'light' | 'dark',
-): number {
+function normalizeCodexContrast(value: number, variant: 'light' | 'dark'): number {
   const base = variant === 'dark' ? 60 : 45
   const baseRatio = base / 100
   const adjusted = value / 100 + ((value - base) / 60) * 0.7
-  const normalized = value <= base
-    ? adjusted
-    : baseRatio + (adjusted - baseRatio) * 2
+  const normalized = value <= base ? adjusted : baseRatio + (adjusted - baseRatio) * 2
   return Math.min(1, Math.max(0, normalized))
 }
 
@@ -585,12 +507,7 @@ function parseColor(value: string): Rgb {
   }
 }
 
-function ensureContrast(
-  color: Rgb,
-  ink: Rgb,
-  background: Rgb,
-  minimumRatio: number,
-): string {
+function ensureContrast(color: Rgb, ink: Rgb, background: Rgb, minimumRatio: number): string {
   if (contrastRatio(color, background) >= minimumRatio) {
     return hexString(color)
   }
@@ -600,10 +517,7 @@ function ensureContrast(
     let high = 1
     for (let iteration = 0; iteration < 16; iteration += 1) {
       const amount = (low + high) / 2
-      if (
-        contrastRatio(mixRgb(color, ink, amount), background) >=
-        minimumRatio
-      ) {
+      if (contrastRatio(mixRgb(color, ink, amount), background) >= minimumRatio) {
         high = amount
       } else {
         low = amount
@@ -614,8 +528,7 @@ function ensureContrast(
 
   const black = { red: 0, green: 0, blue: 0 }
   const white = { red: 255, green: 255, blue: 255 }
-  return contrastRatio(black, background) >=
-    contrastRatio(white, background)
+  return contrastRatio(black, background) >= contrastRatio(white, background)
     ? hexString(black)
     : hexString(white)
 }
@@ -629,15 +542,9 @@ function contrastRatio(first: Rgb, second: Rgb): number {
 function relativeLuminance(color: Rgb): number {
   const channel = (value: number): number => {
     const normalized = value / 255
-    return normalized <= 0.04045
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4
+    return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
   }
-  return (
-    channel(color.red) * 0.2126 +
-    channel(color.green) * 0.7152 +
-    channel(color.blue) * 0.0722
-  )
+  return channel(color.red) * 0.2126 + channel(color.green) * 0.7152 + channel(color.blue) * 0.0722
 }
 
 function mixRgb(from: Rgb, to: Rgb, amount: number): Rgb {
@@ -667,7 +574,7 @@ function rgbString(color: Rgb): string {
 
 function hexString(color: Rgb): string {
   return `#${[color.red, color.green, color.blue]
-    .map(channel => channel.toString(16).padStart(2, '0'))
+    .map((channel) => channel.toString(16).padStart(2, '0'))
     .join('')}`
 }
 
@@ -676,13 +583,9 @@ function textOnAccent(accent: string): string {
   const color = parseHex(accent)
   const channel = (value: number): number => {
     const normalized = value / 255
-    return normalized <= 0.04045
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4
+    return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
   }
   const luminance =
-    channel(color.red) * 0.2126 +
-    channel(color.green) * 0.7152 +
-    channel(color.blue) * 0.0722
+    channel(color.red) * 0.2126 + channel(color.green) * 0.7152 + channel(color.blue) * 0.0722
   return luminance > 0.179 ? '#000000' : '#ffffff'
 }

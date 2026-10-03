@@ -1,6 +1,6 @@
 export const LOCAL_ENVIRONMENT_SCHEMA_VERSION = 1 as const
 
-export type SupportedEnvironmentPlatform = "windows" | "macos" | "linux"
+export type SupportedEnvironmentPlatform = 'windows' | 'macos' | 'linux'
 
 export type PlatformCommand = {
   script: string
@@ -32,8 +32,8 @@ export type EnvironmentDelta = {
   unset: string[]
 }
 
-export type LocalEnvironmentOperationKind = "setup" | "cleanup"
-export type LocalEnvironmentOperationStatus = "running" | "succeeded" | "failed"
+export type LocalEnvironmentOperationKind = 'setup' | 'cleanup'
+export type LocalEnvironmentOperationStatus = 'running' | 'succeeded' | 'failed'
 
 export type LocalEnvironmentOperation = {
   operationId: string
@@ -43,16 +43,16 @@ export type LocalEnvironmentOperation = {
   startedAt: number
   completedAt: number | null
   exitCode: number | null
-  errorCode: "LOCAL_ENVIRONMENT_COMMAND_FAILED" | null
+  errorCode: 'LOCAL_ENVIRONMENT_COMMAND_FAILED' | null
 }
 
 export const currentEnvironmentPlatform = (): SupportedEnvironmentPlatform => {
-  if (process.platform === "win32") return "windows"
-  if (process.platform === "darwin") return "macos"
-  return "linux"
+  if (process.platform === 'win32') return 'windows'
+  if (process.platform === 'darwin') return 'macos'
+  return 'linux'
 }
 
 export const resolvePlatformCommand = (
   command: PlatformCommand | LocalEnvironmentAction,
   platform: SupportedEnvironmentPlatform,
-) => command[platform] ?? ("script" in command ? command.script : command.command)
+) => command[platform] ?? ('script' in command ? command.script : command.command)

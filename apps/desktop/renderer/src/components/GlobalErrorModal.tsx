@@ -3,11 +3,7 @@ import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion, useIsPresent } from 'motion/react'
 
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
-import {
-  enterTween,
-  exitTween,
-  motionTransition,
-} from '../features/motion/motionTransitions.js'
+import { enterTween, exitTween, motionTransition } from '../features/motion/motionTransitions.js'
 import { IconButton } from './ui/IconButton.js'
 
 type Props = {
@@ -16,11 +12,7 @@ type Props = {
   tone?: 'error' | 'status'
 }
 
-export function GlobalErrorModal({
-  message,
-  onDismiss,
-  tone = 'error',
-}: Props): React.ReactNode {
+export function GlobalErrorModal({ message, onDismiss, tone = 'error' }: Props): React.ReactNode {
   const reducedMotion = usePrefersReducedMotion()
   const onDismissRef = useRef(onDismiss)
 

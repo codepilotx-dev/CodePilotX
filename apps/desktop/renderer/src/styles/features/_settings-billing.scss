@@ -816,7 +816,7 @@
     max-width: none;
   }
 
-  .settings-dropdown[data-variant="theme"] {
+  .settings-dropdown[data-variant='theme'] {
     min-width: 0;
   }
 }
@@ -849,7 +849,6 @@
     flex: 1 1 240px;
     min-width: 0;
   }
-
 }
 
 /* --- Browser settings --- */
@@ -891,7 +890,8 @@
 
 .keyboard-shortcuts-search input {
   width: 100%;
-  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4) var(--cpx-sys-space-2) calc(var(--cpx-sys-space-1) * 10);
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4) var(--cpx-sys-space-2)
+    calc(var(--cpx-sys-space-1) * 10);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
   background: var(--cpx-sys-color-surface-raised);
@@ -928,9 +928,7 @@
 
 .keyboard-shortcuts-header {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(170px, 0.64fr) var(
-      --cpx-sys-space-7
-    );
+  grid-template-columns: minmax(260px, 1fr) minmax(170px, 0.64fr) var(--cpx-sys-space-7);
   gap: var(--cpx-sys-space-3);
   padding: var(--cpx-sys-space-2) var(--cpx-sys-space-4);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
@@ -945,12 +943,11 @@
 
 .keyboard-shortcuts-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(170px, 0.64fr) var(
-      --cpx-sys-space-7
-    );
+  grid-template-columns: minmax(260px, 1fr) minmax(170px, 0.64fr) var(--cpx-sys-space-7);
   align-items: center;
   gap: var(--cpx-sys-space-3);
-  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3) var(--cpx-sys-space-2) var(--cpx-sys-space-4);
+  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3) var(--cpx-sys-space-2)
+    var(--cpx-sys-space-4);
   border-bottom: 1px solid var(--cpx-sys-color-border-subtle);
 
   &:last-child {

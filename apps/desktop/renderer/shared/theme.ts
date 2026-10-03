@@ -24,13 +24,9 @@ export const DEFAULT_LIGHT_THEME_ID = 'light-codex'
 export const DEFAULT_DARK_THEME_ID = 'dark-codex'
 export const DEFAULT_UI_FONT =
   '"Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"'
-export const DEFAULT_CODE_FONT =
-  '"JetBrains Mono", "SFMono-Regular", Consolas, monospace'
+export const DEFAULT_CODE_FONT = '"JetBrains Mono", "SFMono-Regular", Consolas, monospace'
 
-export {
-  DEFAULT_LIGHT_CHROME_THEME,
-  DEFAULT_DARK_CHROME_THEME,
-}
+export { DEFAULT_LIGHT_CHROME_THEME, DEFAULT_DARK_CHROME_THEME }
 
 export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 = {
   codeThemeId: 'codex-light',
@@ -72,31 +68,19 @@ export function getCodeThemeSelectionForVariant(
   return settings.codeThemeIds[variant]
 }
 
-export function normalizeDesktopThemeSettings(
-  value: unknown,
-): DesktopThemeSettings {
+export function normalizeDesktopThemeSettings(value: unknown): DesktopThemeSettings {
   const record = isRecord(value) ? value : {}
   if (record.version !== 6 && record.version !== 7) {
     return cloneDefaultDesktopThemeSettings()
   }
-  const chromeThemes = isRecord(record.chromeThemes)
-    ? record.chromeThemes
-    : {}
+  const chromeThemes = isRecord(record.chromeThemes) ? record.chromeThemes : {}
 
   return {
     version: 7,
     mode: normalizeMode(record.mode),
     chromeThemes: {
-      light: normalizeChromeTheme(
-        chromeThemes.light,
-        DEFAULT_LIGHT_CHROME_THEME,
-        'light',
-      ),
-      dark: normalizeChromeTheme(
-        chromeThemes.dark,
-        DEFAULT_DARK_CHROME_THEME,
-        'dark',
-      ),
+      light: normalizeChromeTheme(chromeThemes.light, DEFAULT_LIGHT_CHROME_THEME, 'light'),
+      dark: normalizeChromeTheme(chromeThemes.dark, DEFAULT_DARK_CHROME_THEME, 'dark'),
     },
     codeThemeIds: normalizeCodeThemeIds(record),
     pointerCursorEnabled:
@@ -140,9 +124,7 @@ function normalizeMode(value: unknown): DesktopThemeSettings['mode'] {
     : DEFAULT_DESKTOP_THEME_SETTINGS.mode
 }
 
-function normalizeReducedMotion(
-  value: unknown,
-): DesktopThemeSettings['reduceMotion'] {
+function normalizeReducedMotion(value: unknown): DesktopThemeSettings['reduceMotion'] {
   return value === 'on' || value === 'off' || value === 'system'
     ? value
     : DEFAULT_DESKTOP_THEME_SETTINGS.reduceMotion
@@ -155,9 +137,7 @@ function normalizeChromeTheme(
 ): DesktopChromeTheme {
   const record = isRecord(value) ? value : {}
   const fonts = isRecord(record.fonts) ? record.fonts : {}
-  const semanticColors = isRecord(record.semanticColors)
-    ? record.semanticColors
-    : {}
+  const semanticColors = isRecord(record.semanticColors) ? record.semanticColors : {}
   const code = normalizeOptionalFont(fonts.code)
   const ui = normalizeOptionalFont(fonts.ui)
   const codeFace = normalizeOptionalFontFace(fonts.codeFace)
@@ -175,18 +155,9 @@ function normalizeChromeTheme(
     },
     ink: normalizeHex(record.ink, fallback.ink),
     semanticColors: {
-      diffAdded: normalizeHex(
-        semanticColors.diffAdded,
-        fallback.semanticColors.diffAdded,
-      ),
-      diffRemoved: normalizeHex(
-        semanticColors.diffRemoved,
-        fallback.semanticColors.diffRemoved,
-      ),
-      skill: normalizeHex(
-        semanticColors.skill,
-        fallback.semanticColors.skill,
-      ),
+      diffAdded: normalizeHex(semanticColors.diffAdded, fallback.semanticColors.diffAdded),
+      diffRemoved: normalizeHex(semanticColors.diffRemoved, fallback.semanticColors.diffRemoved),
+      skill: normalizeHex(semanticColors.skill, fallback.semanticColors.skill),
     },
     surface: normalizeHex(record.surface, fallback.surface),
   }
@@ -197,18 +168,16 @@ function normalizeCodeThemeIds(
 ): DesktopThemeSettings['codeThemeIds'] {
   const selections = isRecord(value.codeThemeIds) ? value.codeThemeIds : {}
   const legacyTheme = isCodexHighlightThemeSlug(value.codeThemeId)
-    ? CODEX_HIGHLIGHT_THEMES.find(theme => theme.slug === value.codeThemeId)
+    ? CODEX_HIGHLIGHT_THEMES.find((theme) => theme.slug === value.codeThemeId)
     : undefined
 
   return {
     light: normalizeCodeThemeIdForVariant(
-      selections.light ??
-        (legacyTheme?.variant === 'light' ? legacyTheme.slug : undefined),
+      selections.light ?? (legacyTheme?.variant === 'light' ? legacyTheme.slug : undefined),
       'light',
     ),
     dark: normalizeCodeThemeIdForVariant(
-      selections.dark ??
-        (legacyTheme?.variant === 'dark' ? legacyTheme.slug : undefined),
+      selections.dark ?? (legacyTheme?.variant === 'dark' ? legacyTheme.slug : undefined),
       'dark',
     ),
   }
@@ -221,39 +190,22 @@ function normalizeCodeThemeIdForVariant(
   if (value === 'auto' || !isCodexHighlightThemeSlug(value)) {
     return variant === 'light' ? 'codex-light' : 'codex-dark'
   }
-  return CODEX_HIGHLIGHT_THEMES.some(
-    theme => theme.slug === value && theme.variant === variant,
-  )
+  return CODEX_HIGHLIGHT_THEMES.some((theme) => theme.slug === value && theme.variant === variant)
     ? value
     : variant === 'light'
       ? 'codex-light'
       : 'codex-dark'
 }
 
-function normalizeFontSizes(
-  value: unknown,
-): DesktopThemeSettings['fontSizes'] {
+function normalizeFontSizes(value: unknown): DesktopThemeSettings['fontSizes'] {
   const record = isRecord(value) ? value : {}
   return {
-    code: clampNumber(
-      record.code,
-      8,
-      24,
-      DEFAULT_DESKTOP_THEME_SETTINGS.fontSizes.code,
-    ),
-    ui: clampNumber(
-      record.ui,
-      11,
-      16,
-      DEFAULT_DESKTOP_THEME_SETTINGS.fontSizes.ui,
-    ),
+    code: clampNumber(record.code, 8, 24, DEFAULT_DESKTOP_THEME_SETTINGS.fontSizes.code),
+    ui: clampNumber(record.ui, 11, 16, DEFAULT_DESKTOP_THEME_SETTINGS.fontSizes.ui),
   }
 }
 
-function normalizeHex(
-  value: unknown,
-  fallback: `#${string}`,
-): `#${string}` {
+function normalizeHex(value: unknown, fallback: `#${string}`): `#${string}` {
   return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
     ? (value.toLowerCase() as `#${string}`)
     : fallback
@@ -265,9 +217,7 @@ function normalizeOptionalFont(value: unknown): string | null {
   return trimmed ? trimmed.slice(0, 512) : null
 }
 
-function normalizeOptionalFontFace(
-  value: unknown,
-): DesktopThemeFontFace | null {
+function normalizeOptionalFontFace(value: unknown): DesktopThemeFontFace | null {
   if (value === null) return null
   if (!isRecord(value)) return null
   const family = normalizeFontFaceField(value.family)
@@ -283,12 +233,7 @@ function normalizeFontFaceField(value: unknown): string | null {
   return trimmed.length > 0 && trimmed.length <= 200 ? trimmed : null
 }
 
-function clampNumber(
-  value: unknown,
-  minimum: number,
-  maximum: number,
-  fallback: number,
-): number {
+function clampNumber(value: unknown, minimum: number, maximum: number, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value)
     ? Math.min(maximum, Math.max(minimum, Math.round(value)))
     : fallback

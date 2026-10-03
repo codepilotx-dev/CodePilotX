@@ -1,39 +1,43 @@
 import { chooseSessionGroupForThread } from '../../session-groups/sessionGroupActions.js'
-import type React from "react";
+import type React from 'react'
+import { lazy, memo, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
-  lazy,
-  memo,
-  Suspense,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { Archive, Clock3, Copy, Eye, EyeOff, Folder, MessageCircle, MessageSquare, Pencil, Pin, PinOff, Split } from "lucide-react";
-import { Reorder } from "motion/react";
-import { APP_ICON_SIZE, APP_ICON_SIZES } from "../../../components/ui/iconTokens.js";
-import { ProjectAppearanceGlyph } from "../../projects/projectAppearance.js";
+  Archive,
+  Clock3,
+  Copy,
+  Eye,
+  EyeOff,
+  Folder,
+  MessageCircle,
+  MessageSquare,
+  Pencil,
+  Pin,
+  PinOff,
+  Split,
+} from 'lucide-react'
+import { Reorder } from 'motion/react'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { ProjectAppearanceGlyph } from '../../projects/projectAppearance.js'
 import {
   sessionDisplayTitle,
   sessionEditableTitle,
   type SessionListItem,
-} from "../../../uiTypes.js";
-import { Button } from "../../../components/ui/Button.js";
-import { IconButton } from "../../../components/ui/IconButton.js";
-import { Spinner } from "../../../components/ui/Spinner.js";
-import { SkeletonBlock } from "../../../components/ui/Skeleton.js";
+} from '../../../uiTypes.js'
+import { Button } from '../../../components/ui/Button.js'
+import { IconButton } from '../../../components/ui/IconButton.js'
+import { Spinner } from '../../../components/ui/Spinner.js'
+import { SkeletonBlock } from '../../../components/ui/Skeleton.js'
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
 import { useHeightTransition } from '../../../hooks/useHeightTransition.js'
 import { sortSessionsForSidebar } from '../../session/state/sessionSorting.js'
-import { SidebarRow } from "./SidebarRow.js";
+import { SidebarRow } from './SidebarRow.js'
 import { SidebarReorderItem } from './SidebarReorderItem.js'
 import { useEverOpened } from '../../../hooks/usePresenceRetention.js'
-import { cx } from "../../../utils/cx.js";
+import { cx } from '../../../utils/cx.js'
 import {
   AppContextMenu as SidebarContextMenu,
   type AppContextMenuAction as ContextMenuAction,
-} from "../../../components/ui/AppContextMenu.js";
+} from '../../../components/ui/AppContextMenu.js'
 import type { DesktopSidebarSort } from '../../../../shared/types.js'
 import { deriveSidebarSessionVisualState } from './sidebarViewModel.js'
 import { desktopClient, desktopClipboard } from '../../../services/desktop-client/index.js'
@@ -44,33 +48,33 @@ const SidebarSessionHoverCard = lazy(async () => {
   return { default: module.SidebarSessionHoverCard }
 })
 
-const GROUP_LIMIT = 5;
-const TITLE_SCROLL_MIN_SECONDS = 4;
-const TITLE_SCROLL_PIXELS_PER_SECOND = 20;
+const GROUP_LIMIT = 5
+const TITLE_SCROLL_MIN_SECONDS = 4
+const TITLE_SCROLL_PIXELS_PER_SECOND = 20
 
 type Props = {
-  activeSessionId: string | null;
-  groupKey: string;
-  now: number;
-  pendingPermissionSessionIds: ReadonlySet<string>;
-  titleLoadingIds: ReadonlySet<string>;
-  sessionFallbackTitles: Record<string, string>;
-  sessions: SessionListItem[];
-  showConversationIcon?: boolean;
+  activeSessionId: string | null
+  groupKey: string
+  now: number
+  pendingPermissionSessionIds: ReadonlySet<string>
+  titleLoadingIds: ReadonlySet<string>
+  sessionFallbackTitles: Record<string, string>
+  sessions: SessionListItem[]
+  showConversationIcon?: boolean
   /** 'preserve' 表示调用方已排好序，不再重排（时间线优先任务组使用） */
   sort?: DesktopSidebarSort | 'preserve'
   manualOrderByScope?: Record<string, string[]>
   presentation?: 'compact' | 'workspace-meta'
   pagination?: 'incremental' | 'all'
-  onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>;
+  onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
   onManualOrderChange?: (scopeKey: string, order: string[]) => void
-  onPinSession: (session: SessionListItem) => void;
-  onSelectSession: (session: SessionListItem) => void;
-  onToggleSessionUnread: (session: SessionListItem) => void;
-  onRenameSession: (sessionId: string, title: string) => Promise<boolean>;
+  onPinSession: (session: SessionListItem) => void
+  onSelectSession: (session: SessionListItem) => void
+  onToggleSessionUnread: (session: SessionListItem) => void
+  onRenameSession: (sessionId: string, title: string) => Promise<boolean>
   onSortChange?: (sort: 'manual') => void
-  onUnpinSession: (session: SessionListItem) => void;
-};
+  onUnpinSession: (session: SessionListItem) => void
+}
 
 function SidebarSessionGroupComponent({
   activeSessionId,
@@ -94,12 +98,10 @@ function SidebarSessionGroupComponent({
   onSortChange,
   onUnpinSession,
 }: Props): React.ReactNode {
-  const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null);
-  const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
-  const [confirmArchiveSessionId, setConfirmArchiveSessionId] = useState<
-    string | null
-  >(null);
-  const [visibleLimit, setVisibleLimit] = useState(GROUP_LIMIT);
+  const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null)
+  const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null)
+  const [confirmArchiveSessionId, setConfirmArchiveSessionId] = useState<string | null>(null)
+  const [visibleLimit, setVisibleLimit] = useState(GROUP_LIMIT)
   const [renameSession, setRenameSession] = useState<SessionListItem | null>(null)
   const renameDialogMounted = useEverOpened(renameSession !== null)
   const [renameValue, setRenameValue] = useState('')
@@ -108,7 +110,7 @@ function SidebarSessionGroupComponent({
   const reducedMotion = usePrefersReducedMotion()
   const needsInputSessionIds = pendingPermissionSessionIds
   const unreadSessionIds = useMemo(
-    () => new Set(sessions.filter(session => session.unreadAt).map(session => session.id)),
+    () => new Set(sessions.filter((session) => session.unreadAt).map((session) => session.id)),
     [sessions],
   )
   const sortedSessions = useMemo(
@@ -122,44 +124,34 @@ function SidebarSessionGroupComponent({
             scopeKey: groupKey,
             manualOrderByScope,
           }),
-    [
-      groupKey,
-      manualOrderByScope,
-      needsInputSessionIds,
-      sessions,
-      sort,
-      unreadSessionIds,
-    ],
+    [groupKey, manualOrderByScope, needsInputSessionIds, sessions, sort, unreadSessionIds],
   )
   const [reorderSessionIds, setReorderSessionIds] = useState<string[]>(() =>
-    sortedSessions.map(session => session.id),
+    sortedSessions.map((session) => session.id),
   )
   const reorderSessionIdsRef = useRef(reorderSessionIds)
   const orderedSessions = useMemo(() => {
-    const byId = new Map(sortedSessions.map(session => [session.id, session]))
-    const ordered = reorderSessionIds.flatMap(id => {
+    const byId = new Map(sortedSessions.map((session) => [session.id, session]))
+    const ordered = reorderSessionIds.flatMap((id) => {
       const session = byId.get(id)
       return session ? [session] : []
     })
-    const knownIds = new Set(ordered.map(session => session.id))
-    return [
-      ...ordered,
-      ...sortedSessions.filter(session => !knownIds.has(session.id)),
-    ]
+    const knownIds = new Set(ordered.map((session) => session.id))
+    return [...ordered, ...sortedSessions.filter((session) => !knownIds.has(session.id))]
   }, [reorderSessionIds, sortedSessions])
   const { baseSessions, canCollapse, canShowMore, extraSessions, hasOverflow } =
-    getSidebarSessionDisplayGroups(orderedSessions, visibleLimit);
+    getSidebarSessionDisplayGroups(orderedSessions, visibleLimit)
   const extraSessionIds = useMemo(
-    () => new Set(extraSessions.map(session => session.id)),
+    () => new Set(extraSessions.map((session) => session.id)),
     [extraSessions],
   )
   const previousGroupKeyRef = useRef(groupKey)
 
   useEffect(() => {
     if (draggedSessionId) return
-    const canonicalOrder = sortedSessions.map(session => session.id)
+    const canonicalOrder = sortedSessions.map((session) => session.id)
     reorderSessionIdsRef.current = canonicalOrder
-    setReorderSessionIds(current =>
+    setReorderSessionIds((current) =>
       sameStringOrder(current, canonicalOrder) ? current : canonicalOrder,
     )
   }, [draggedSessionId, sortedSessions])
@@ -170,19 +162,15 @@ function SidebarSessionGroupComponent({
     if (pagination === 'all') {
       return
     }
-    const activeIndex = orderedSessions.findIndex(
-      session => session.id === activeSessionId,
-    )
+    const activeIndex = orderedSessions.findIndex((session) => session.id === activeSessionId)
     if (groupChanged) {
-      setVisibleLimit(
-        activeIndex < 0 ? GROUP_LIMIT : Math.max(GROUP_LIMIT, activeIndex + 1),
-      )
+      setVisibleLimit(activeIndex < 0 ? GROUP_LIMIT : Math.max(GROUP_LIMIT, activeIndex + 1))
       return
     }
     if (activeIndex >= 0) {
       // 排序或异步数据变化后，继续让当前激活项处于已渲染分页内。
       // 用户单独点击“折叠显示”只改变 visibleLimit，不会重新触发本 effect。
-      setVisibleLimit(current => Math.max(current, activeIndex + 1))
+      setVisibleLimit((current) => Math.max(current, activeIndex + 1))
     }
   }, [activeSessionId, groupKey, orderedSessions, pagination])
 
@@ -192,46 +180,45 @@ function SidebarSessionGroupComponent({
     if (sort !== 'manual') onSortChange?.('manual')
   }
 
-  function moveSessionByKeyboard(
-    sessionId: string,
-    offset: -1 | 1,
-  ): void {
+  function moveSessionByKeyboard(sessionId: string, offset: -1 | 1): void {
     if (!onManualOrderChange) return
-    const order = orderedSessions.map(session => session.id)
+    const order = orderedSessions.map((session) => session.id)
     const currentIndex = order.indexOf(sessionId)
     const nextIndex = currentIndex + offset
-    if (
-      currentIndex < 0 ||
-      nextIndex < 0 ||
-      nextIndex >= order.length
-    ) {
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= order.length) {
       return
     }
     const [moved] = order.splice(currentIndex, 1)
     if (!moved) return
     order.splice(nextIndex, 0, moved)
-    setVisibleLimit(current => Math.max(current, nextIndex + 1))
+    setVisibleLimit((current) => Math.max(current, nextIndex + 1))
     persistManualOrder(order)
   }
 
-  function getSessionContextMenuActions(
-    session: SessionListItem,
-  ): ContextMenuAction[] {
+  function getSessionContextMenuActions(session: SessionListItem): ContextMenuAction[] {
     return [
       {
         kind: 'item',
-        label: session.status === 'running' || session.status === 'waiting' || session.status === 'queued'
-          ? '当前 Turn 结束后可切换'
-          : (session.workflowId ?? session.sessionGroupId) ? '切换或移出工作流' : '加入工作流',
-        disabled: session.status === 'running' || session.status === 'waiting' || session.status === 'queued',
+        label:
+          session.status === 'running' ||
+          session.status === 'waiting' ||
+          session.status === 'queued'
+            ? '当前 Turn 结束后可切换'
+            : (session.workflowId ?? session.sessionGroupId)
+              ? '切换或移出工作流'
+              : '加入工作流',
+        disabled:
+          session.status === 'running' ||
+          session.status === 'waiting' ||
+          session.status === 'queued',
         onSelect: () => {
           void chooseSessionGroupForThread(session.id)
         },
       },
       { kind: 'separator' },
       {
-        kind: "item",
-        label: "重命名",
+        kind: 'item',
+        label: '重命名',
         icon: <Pencil size={APP_ICON_SIZE} />,
         onSelect: () => {
           setRenameSession(session)
@@ -239,106 +226,96 @@ function SidebarSessionGroupComponent({
         },
       },
       {
-        kind: "item",
-        label: "复制会话 ID",
+        kind: 'item',
+        label: '复制会话 ID',
         icon: <Copy size={APP_ICON_SIZE} />,
         onSelect: () => {
-          void desktopClipboard.writeText(session.id);
+          void desktopClipboard.writeText(session.id)
         },
       },
       {
-        kind: "item",
+        kind: 'item',
         label: sessionReadStatusActionLabel(session),
-        icon: session.unreadAt
-          ? <Eye size={APP_ICON_SIZE} />
-          : <EyeOff size={APP_ICON_SIZE} />,
+        icon: session.unreadAt ? <Eye size={APP_ICON_SIZE} /> : <EyeOff size={APP_ICON_SIZE} />,
         onSelect: () => onToggleSessionUnread(session),
       },
-      { kind: "separator" },
+      { kind: 'separator' },
       session.pinnedAt
         ? {
-            kind: "item" as const,
-            label: "取消置顶",
+            kind: 'item' as const,
+            label: '取消置顶',
             icon: <PinOff size={APP_ICON_SIZE} />,
             onSelect: () => onUnpinSession(session),
           }
         : {
-            kind: "item" as const,
-            label: "置顶",
+            kind: 'item' as const,
+            label: '置顶',
             icon: <Pin size={APP_ICON_SIZE} />,
             onSelect: () => onPinSession(session),
           },
       {
-        kind: "item",
-        label: "归档",
+        kind: 'item',
+        label: '归档',
         icon: <Archive size={APP_ICON_SIZE} />,
         onSelect: () => setConfirmArchiveSessionId(session.id),
       },
-    ];
+    ]
   }
 
   function renderSessionRow(session: SessionListItem): React.ReactNode {
     const regeneratingTitle = titleLoadingIds.has(session.id)
-    const visualState = deriveSidebarSessionVisualState(
-      session,
-      pendingPermissionSessionIds,
-    )
+    const visualState = deriveSidebarSessionVisualState(session, pendingPermissionSessionIds)
     const awaitingApproval = visualState === 'needs-input'
-    const waitingLabel = session.latestTurnStatus === 'waiting-question' ? '需要用户输入' : '等待审批'
+    const waitingLabel =
+      session.latestTurnStatus === 'waiting-question' ? '需要用户输入' : '等待审批'
     const showActions = hoveredSessionId === session.id || focusedSessionId === session.id
     const showIndicators = !showActions && confirmArchiveSessionId !== session.id
     const metaClassName = cx(
-      "sidebar-session-meta",
-      "u-flex",
-      "u-items-center",
-      "u-justify-end",
-      "u-w-auto",
-      awaitingApproval && "sidebar-session-meta--approval",
-      confirmArchiveSessionId === session.id && "confirming-archive",
-    );
+      'sidebar-session-meta',
+      'u-flex',
+      'u-items-center',
+      'u-justify-end',
+      'u-w-auto',
+      awaitingApproval && 'sidebar-session-meta--approval',
+      confirmArchiveSessionId === session.id && 'confirming-archive',
+    )
     const sessionButton = (
       <button
         aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
         className="sidebar-session-button"
         onClick={() => {
-          onSelectSession(session);
+          onSelectSession(session)
         }}
-        onKeyDown={event => {
-          if (
-            !event.altKey ||
-            (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')
-          ) {
+        onKeyDown={(event) => {
+          if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) {
             return
           }
           event.preventDefault()
           event.stopPropagation()
-          moveSessionByKeyboard(
-            session.id,
-            event.key === 'ArrowUp' ? -1 : 1,
-          )
+          moveSessionByKeyboard(session.id, event.key === 'ArrowUp' ? -1 : 1)
         }}
         type="button"
       >
-        <span className={cx('sidebar-session-button-lines', presentation === 'workspace-meta' && 'sidebar-session-button-lines--meta')}>
-        {regeneratingTitle ? (
-          <SkeletonBlock
-            className="sidebar-session-title sidebar-session-title--loading"
-            label="正在更新会话标题"
-          />
-        ) : (
-          <SidebarSessionTitle
-            active={
-              hoveredSessionId === session.id ||
-              focusedSessionId === session.id
-            }
-            reducedMotion={reducedMotion}
-          >
-            {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
-          </SidebarSessionTitle>
-        )}
-        {presentation === 'workspace-meta' ? (
-          <SidebarSessionSubtitle session={session} />
-        ) : null}
+        <span
+          className={cx(
+            'sidebar-session-button-lines',
+            presentation === 'workspace-meta' && 'sidebar-session-button-lines--meta',
+          )}
+        >
+          {regeneratingTitle ? (
+            <SkeletonBlock
+              className="sidebar-session-title sidebar-session-title--loading"
+              label="正在更新会话标题"
+            />
+          ) : (
+            <SidebarSessionTitle
+              active={hoveredSessionId === session.id || focusedSessionId === session.id}
+              reducedMotion={reducedMotion}
+            >
+              {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
+            </SidebarSessionTitle>
+          )}
+          {presentation === 'workspace-meta' ? <SidebarSessionSubtitle session={session} /> : null}
         </span>
       </button>
     )
@@ -352,7 +329,7 @@ function SidebarSessionGroupComponent({
             now={now}
             regeneratingTitle={regeneratingTitle}
             session={session}
-            onRename={title => onRenameSession(session.id, title)}
+            onRename={(title) => onRenameSession(session.id, title)}
           >
             {sessionButton}
           </SidebarSessionHoverCard>
@@ -365,32 +342,33 @@ function SidebarSessionGroupComponent({
         asChild
         className="sidebar-session-row"
         data-sidebar-session-id={session.id}
-        indent={showConversationIcon ? "none" : "session"}
+        indent={showConversationIcon ? 'none' : 'session'}
         layout="grid"
         leading={
           showConversationIcon ? (
             <MessageCircle aria-hidden="true" size={APP_ICON_SIZE} />
           ) : undefined
         }
-        leadingMode={showConversationIcon ? "icon" : "none"}
+        leadingMode={showConversationIcon ? 'icon' : 'none'}
         onMouseEnter={() => setHoveredSessionId(session.id)}
         onMouseLeave={() => {
-          setHoveredSessionId((current) =>
-            current === session.id ? null : current,
-          );
-          setConfirmArchiveSessionId((current) =>
-            current === session.id ? null : current,
-          );
+          setHoveredSessionId((current) => (current === session.id ? null : current))
+          setConfirmArchiveSessionId((current) => (current === session.id ? null : current))
         }}
         onFocusCapture={() => setFocusedSessionId(session.id)}
-        onBlurCapture={event => {
+        onBlurCapture={(event) => {
           if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
-          setFocusedSessionId(current => current === session.id ? null : current)
+          setFocusedSessionId((current) => (current === session.id ? null : current))
         }}
         trailing={
           <div className={metaClassName}>
             {showIndicators && session.hasScheduledRun && (
-              <span className="sidebar-indicator" role="img" aria-label="日程运行过的会话" title="日程运行过的会话">
+              <span
+                className="sidebar-indicator"
+                role="img"
+                aria-label="日程运行过的会话"
+                title="日程运行过的会话"
+              >
                 <Clock3 aria-hidden="true" size={APP_ICON_SIZE} />
               </span>
             )}
@@ -473,7 +451,7 @@ function SidebarSessionGroupComponent({
               persistManualOrder(finalOrder)
             }}
             onReorderDragStart={() => {
-              reorderSessionIdsRef.current = orderedSessions.map(item => item.id)
+              reorderSessionIdsRef.current = orderedSessions.map((item) => item.id)
               setDraggedSessionId(session.id)
             }}
           >
@@ -483,7 +461,7 @@ function SidebarSessionGroupComponent({
           <li>{rowContent}</li>
         )}
       </SidebarRow>
-    );
+    )
     return (
       <SidebarContextMenu
         key={session.id}
@@ -492,17 +470,16 @@ function SidebarSessionGroupComponent({
         width={240}
         trigger={row}
       />
-    );
+    )
   }
 
-  const visibleSessions = pagination === 'all'
-    ? orderedSessions
-    : [...baseSessions, ...extraSessions]
-  const reorderValues = orderedSessions.map(session => session.id)
+  const visibleSessions =
+    pagination === 'all' ? orderedSessions : [...baseSessions, ...extraSessions]
+  const reorderValues = orderedSessions.map((session) => session.id)
   const sessionListClassName =
     'sidebar-session-list tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-px tw:p-0'
   const sessionRows = visibleSessions.map(renderSessionRow)
-  const visibleSessionKey = visibleSessions.map(session => session.id).join('\u0000')
+  const visibleSessionKey = visibleSessions.map((session) => session.id).join('\u0000')
   const heightTransition = useHeightTransition([
     visibleSessionKey,
     hasOverflow,
@@ -521,7 +498,7 @@ function SidebarSessionGroupComponent({
           axis="y"
           className={sessionListClassName}
           values={reorderValues}
-          onReorder={nextOrder => {
+          onReorder={(nextOrder) => {
             if (sameStringOrder(reorderSessionIdsRef.current, nextOrder)) return
             reorderSessionIdsRef.current = nextOrder
             setReorderSessionIds(nextOrder)
@@ -533,41 +510,39 @@ function SidebarSessionGroupComponent({
         <ul className={sessionListClassName}>{sessionRows}</ul>
       )}
       {pagination !== 'all' ? (
-      <>
-      {hasOverflow ? (
-        <div className="sidebar-show-more-actions">
-          <div className={cx('sidebar-row-main', 'u-min-w-0', 'u-flex', 'u-items-center')}>
-            {canShowMore ? (
-              <Button
-                aria-expanded={canCollapse}
-                className="u-w-auto sidebar-show-more-button"
-                color="ghostTertiary"
-                onClick={() =>
-                  setVisibleLimit((current) =>
-                    Math.min(current + GROUP_LIMIT, sessions.length),
-                  )
-                }
-                size="compact"
-                type="button"
-              >
-                <span>展开显示</span>
-              </Button>
-            ) : null}
-            {canCollapse ? (
-              <Button
-                className="u-w-auto sidebar-show-more-button"
-                color="ghostTertiary"
-                onClick={() => setVisibleLimit(GROUP_LIMIT)}
-                size="compact"
-                type="button"
-              >
-                <span>折叠显示</span>
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-      </>
+        <>
+          {hasOverflow ? (
+            <div className="sidebar-show-more-actions">
+              <div className={cx('sidebar-row-main', 'u-min-w-0', 'u-flex', 'u-items-center')}>
+                {canShowMore ? (
+                  <Button
+                    aria-expanded={canCollapse}
+                    className="u-w-auto sidebar-show-more-button"
+                    color="ghostTertiary"
+                    onClick={() =>
+                      setVisibleLimit((current) => Math.min(current + GROUP_LIMIT, sessions.length))
+                    }
+                    size="compact"
+                    type="button"
+                  >
+                    <span>展开显示</span>
+                  </Button>
+                ) : null}
+                {canCollapse ? (
+                  <Button
+                    className="u-w-auto sidebar-show-more-button"
+                    color="ghostTertiary"
+                    onClick={() => setVisibleLimit(GROUP_LIMIT)}
+                    size="compact"
+                    type="button"
+                  >
+                    <span>折叠显示</span>
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </>
       ) : null}
       {renameDialogMounted ? (
         <Suspense fallback={null}>
@@ -586,7 +561,7 @@ function SidebarSessionGroupComponent({
             onAction={() => {
               if (!renameSession || renaming) return
               setRenaming(true)
-              void onRenameSession(renameSession.id, renameValue).then(success => {
+              void onRenameSession(renameSession.id, renameValue).then((success) => {
                 setRenaming(false)
                 if (success) setRenameSession(null)
               })
@@ -599,10 +574,10 @@ function SidebarSessionGroupComponent({
         </Suspense>
       ) : null}
     </div>
-  );
+  )
 }
 
-export const SidebarSessionGroup = memo(SidebarSessionGroupComponent);
+export const SidebarSessionGroup = memo(SidebarSessionGroupComponent)
 
 export function sessionReadStatusActionLabel(
   session: Pick<SessionListItem, 'unreadAt'>,
@@ -615,50 +590,48 @@ function SidebarSessionTitle({
   children,
   reducedMotion,
 }: {
-  active: boolean;
-  children: React.ReactNode;
-  reducedMotion: boolean;
+  active: boolean
+  children: React.ReactNode
+  reducedMotion: boolean
 }): React.ReactNode {
-  const viewportRef = useRef<HTMLSpanElement>(null);
-  const trackRef = useRef<HTMLSpanElement>(null);
-  const [overflowDistance, setOverflowDistance] = useState<number | null>(null);
+  const viewportRef = useRef<HTMLSpanElement>(null)
+  const trackRef = useRef<HTMLSpanElement>(null)
+  const [overflowDistance, setOverflowDistance] = useState<number | null>(null)
 
   useLayoutEffect(() => {
-    const viewport = viewportRef.current;
-    const track = trackRef.current;
-    if (!viewport || !track) return;
+    const viewport = viewportRef.current
+    const track = trackRef.current
+    if (!viewport || !track) return
 
     const updateOverflowDistance = (): void => {
       const distance =
         viewport.clientWidth > 0
           ? Math.max(0, Math.ceil(track.scrollWidth - viewport.clientWidth))
-          : 0;
-      const nextDistance = distance > 0 ? distance : null;
-      setOverflowDistance(current =>
-        current === nextDistance ? current : nextDistance,
-      );
-    };
+          : 0
+      const nextDistance = distance > 0 ? distance : null
+      setOverflowDistance((current) => (current === nextDistance ? current : nextDistance))
+    }
 
-    updateOverflowDistance();
-    if (typeof ResizeObserver === "undefined") return;
+    updateOverflowDistance()
+    if (typeof ResizeObserver === 'undefined') return
 
-    const observer = new ResizeObserver(updateOverflowDistance);
-    observer.observe(viewport);
-    observer.observe(track);
-    return () => observer.disconnect();
-  }, [children]);
+    const observer = new ResizeObserver(updateOverflowDistance)
+    observer.observe(viewport)
+    observer.observe(track)
+    return () => observer.disconnect()
+  }, [children])
 
-  const scrolling = active && overflowDistance !== null && !reducedMotion;
+  const scrolling = active && overflowDistance !== null && !reducedMotion
   const style =
     overflowDistance === null
       ? undefined
       : ({
-          "--sidebar-title-scroll-distance": `${overflowDistance}px`,
-          "--sidebar-title-scroll-duration": `${Math.max(
+          '--sidebar-title-scroll-distance': `${overflowDistance}px`,
+          '--sidebar-title-scroll-duration': `${Math.max(
             TITLE_SCROLL_MIN_SECONDS,
             overflowDistance / TITLE_SCROLL_PIXELS_PER_SECOND,
           ).toFixed(2)}s`,
-        } as React.CSSProperties);
+        } as React.CSSProperties)
 
   return (
     <span
@@ -677,7 +650,7 @@ function SidebarSessionTitle({
         {children}
       </span>
     </span>
-  );
+  )
 }
 
 export function getSidebarSessionDisplayGroups<T>(
@@ -685,41 +658,28 @@ export function getSidebarSessionDisplayGroups<T>(
   visibleLimit: number,
   baseLimit = GROUP_LIMIT,
 ): {
-  baseSessions: T[];
-  canCollapse: boolean;
-  canShowMore: boolean;
-  extraSessions: T[];
-  hasOverflow: boolean;
+  baseSessions: T[]
+  canCollapse: boolean
+  canShowMore: boolean
+  extraSessions: T[]
+  hasOverflow: boolean
 } {
-  const hasOverflow = sessions.length > baseLimit;
-  const clampedVisibleLimit = Math.min(
-    Math.max(baseLimit, visibleLimit),
-    sessions.length,
-  );
+  const hasOverflow = sessions.length > baseLimit
+  const clampedVisibleLimit = Math.min(Math.max(baseLimit, visibleLimit), sessions.length)
   return {
     baseSessions: sessions.slice(0, baseLimit),
     canCollapse: clampedVisibleLimit > baseLimit,
     canShowMore: clampedVisibleLimit < sessions.length,
-    extraSessions: hasOverflow
-      ? sessions.slice(baseLimit, clampedVisibleLimit)
-      : [],
+    extraSessions: hasOverflow ? sessions.slice(baseLimit, clampedVisibleLimit) : [],
     hasOverflow,
-  };
+  }
 }
 
-function SidebarSessionSubtitle({
-  session,
-}: {
-  session: SessionListItem
-}): React.ReactNode {
+function SidebarSessionSubtitle({ session }: { session: SessionListItem }): React.ReactNode {
   return <SidebarSessionWorkspaceMeta session={session} />
 }
 
-function SidebarSessionWorkspaceMeta({
-  session,
-}: {
-  session: SessionListItem
-}): React.ReactNode {
+function SidebarSessionWorkspaceMeta({ session }: { session: SessionListItem }): React.ReactNode {
   if (session.standalone) {
     return (
       <span className="sidebar-session-workspace-meta">
@@ -735,18 +695,14 @@ function SidebarSessionWorkspaceMeta({
           className="sidebar-session-workspace-meta__glyph"
           size={APP_ICON_SIZES.sm}
         />
-        <span className="sidebar-session-workspace-meta__name">
-          {session.workspaceName}
-        </span>
+        <span className="sidebar-session-workspace-meta__name">{session.workspaceName}</span>
       </span>
     )
   }
   return (
     <span className="sidebar-session-workspace-meta">
       <Folder className="sidebar-session-workspace-meta__icon" size={APP_ICON_SIZE} />
-      <span className="sidebar-session-workspace-meta__name">
-        {session.workspaceName}
-      </span>
+      <span className="sidebar-session-workspace-meta__name">{session.workspaceName}</span>
     </span>
   )
 }

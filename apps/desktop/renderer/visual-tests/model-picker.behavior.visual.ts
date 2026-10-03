@@ -72,9 +72,10 @@ test('model picker opens as a provider rail plus model panel above its trigger',
   // exposes /favicon.png, which is a local asset so it is never in the
   // RemoteImage fallback state.
   await expect(page.locator(`${RAIL_BUTTON} ${PROVIDER_LOGO_IMAGE}`)).toHaveCount(1)
-  await expect(
-    page.locator(`${RAIL_BUTTON} ${PROVIDER_LOGO_IMAGE}`).first(),
-  ).toHaveAttribute('src', '/favicon.png')
+  await expect(page.locator(`${RAIL_BUTTON} ${PROVIDER_LOGO_IMAGE}`).first()).toHaveAttribute(
+    'src',
+    '/favicon.png',
+  )
 
   await page.keyboard.press('Escape')
   await expect(panel).toHaveCount(0)
@@ -161,9 +162,7 @@ test('model hub lists the provider directory, filters it, and returns to the mod
   await expect(modelsTitle).toHaveText(initialTitle)
 })
 
-test('model picker keeps a bounded trigger and stays inside a short viewport', async ({
-  page,
-}) => {
+test('model picker keeps a bounded trigger and stays inside a short viewport', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 520 })
   await prepareVisualTheme(page, 'light', { reduceMotion: 'off' })
 
@@ -171,8 +170,7 @@ test('model picker keeps a bounded trigger and stays inside a short viewport', a
   const trigger = page.locator('.composer-model-chip:visible')
   await waitForVisualPage(page, 'light', trigger)
   await closeTransientErrorToast(page)
-  await expect.poll(async () => (await trigger.boundingBox())?.width ?? 0)
-    .toBeLessThan(224)
+  await expect.poll(async () => (await trigger.boundingBox())?.width ?? 0).toBeLessThan(224)
 
   await trigger.click()
   const panel = page.locator(PANEL)

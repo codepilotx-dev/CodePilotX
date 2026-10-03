@@ -7,11 +7,7 @@ export type SpinnerProps = {
   size?: 'small' | 'medium' | 'large'
 }
 
-export function Spinner({
-  className,
-  label,
-  size = 'small',
-}: SpinnerProps): React.ReactNode {
+export function Spinner({ className, label, size = 'small' }: SpinnerProps): React.ReactNode {
   return (
     <span
       aria-hidden={label ? undefined : 'true'}

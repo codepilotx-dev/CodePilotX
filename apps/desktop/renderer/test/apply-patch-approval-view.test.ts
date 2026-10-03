@@ -39,9 +39,11 @@ describe('ApplyPatch 审批展示', () => {
     expect(command.full).toBe('修改 src/a.ts\n新增 src/b.ts')
     expect(command.full).not.toContain('raw patch body')
 
-    expect(buildInlineApprovalCommand({
-      ...request,
-      input: { patch: 'still secret' },
-    }).full).toBe('apply_patch（未提供可展示的文件范围）')
+    expect(
+      buildInlineApprovalCommand({
+        ...request,
+        input: { patch: 'still secret' },
+      }).full,
+    ).toBe('apply_patch（未提供可展示的文件范围）')
   })
 })

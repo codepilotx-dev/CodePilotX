@@ -1,5 +1,5 @@
 export const WINDOWS_TITLE_BAR_HEIGHT = 36
-export const WINDOWS_TITLE_BAR_TRANSPARENT = "#00000000"
+export const WINDOWS_TITLE_BAR_TRANSPARENT = '#00000000'
 
 export function createWindowsTitleBarOverlay(symbolColor: string): {
   color: string

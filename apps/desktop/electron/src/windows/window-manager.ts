@@ -1,48 +1,37 @@
-import { readFileSync } from "node:fs"
-import { join, resolve } from "node:path"
+import { readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import {
   DESKTOP_WINDOW_IPC_CHANNELS,
   type DesktopOpenWindowInput,
   type DesktopPageZoomAction,
   type DesktopPageZoomState,
   type DesktopResizeActivityPhase,
-} from "@codepilotx/shared/desktop-window-ipc"
-import {
-  app,
-  BrowserWindow,
-  nativeImage,
-  screen,
-  shell,
-  type WebContents,
-} from "electron"
-import type { DesktopChromeTheme } from "@codepilotx/shared/desktop-theme"
-import type { DesktopLogger } from "../logging/desktop-logger.js"
-import { rendererConsoleRecord } from "../logging/renderer-console.js"
+} from '@codepilotx/shared/desktop-window-ipc'
+import { app, BrowserWindow, nativeImage, screen, shell, type WebContents } from 'electron'
+import type { DesktopChromeTheme } from '@codepilotx/shared/desktop-theme'
+import type { DesktopLogger } from '../logging/desktop-logger.js'
+import { rendererConsoleRecord } from '../logging/renderer-console.js'
 import {
   isAllowedApplicationUrl,
   isApplicationOriginUrl,
   isSafeExternalUrl,
   normalizeOrigin,
-} from "../security/navigation.js"
+} from '../security/navigation.js'
 import {
   createRendererApplicationUrl,
   renderStartupPage,
   type StartupStatusKind,
-} from "./startup-page.js"
+} from './startup-page.js'
 import {
   MAIN_WINDOW_MIN_HEIGHT,
   MAIN_WINDOW_MIN_WIDTH,
   type DesktopWindowBounds,
   type DesktopWindowStateV1,
   WindowStateStore,
-} from "./window-state.js"
-import { isDevToolsShortcut } from "./devtools-shortcut.js"
-import {
-  nextPageZoomPercent,
-  pageZoomState,
-  resolvePageZoomShortcut,
-} from "./page-zoom.js"
-import { createWindowsTitleBarOverlay } from "./title-bar-overlay.js"
+} from './window-state.js'
+import { isDevToolsShortcut } from './devtools-shortcut.js'
+import { nextPageZoomPercent, pageZoomState, resolvePageZoomShortcut } from './page-zoom.js'
+import { createWindowsTitleBarOverlay } from './title-bar-overlay.js'
 
 const APPLICATION_LOAD_TIMEOUT_MS = 20_000
 /** 取消拖拽后 "resized" 不再触发，用静默间隔补齐一次 resize end。 */
@@ -51,8 +40,8 @@ const RESIZE_SETTLE_MS = 300
 export interface WindowManagerOptions {
   initialWindowState: DesktopWindowStateV1
   startupTheme: {
-    variant: "light" | "dark"
-    theme: Pick<DesktopChromeTheme, "surface" | "ink" | "accent"> & {
+    variant: 'light' | 'dark'
+    theme: Pick<DesktopChromeTheme, 'surface' | 'ink' | 'accent'> & {
       surfaceUnder: string
     }
   }
@@ -76,16 +65,12 @@ export class WindowManager {
     detail: string
     kind: StartupStatusKind
   } = {
-    status: "正在启动…",
-    detail: "",
-    kind: "progress",
+    status: '正在启动…',
+    detail: '',
+    kind: 'progress',
   }
 
-  constructor(
-    logger: DesktopLogger,
-    moduleDirectory: string,
-    options: WindowManagerOptions,
-  ) {
+  constructor(logger: DesktopLogger, moduleDirectory: string, options: WindowManagerOptions) {
     this.#logger = logger
     this.#moduleDirectory = moduleDirectory
     this.#options = options
@@ -139,7 +124,7 @@ export class WindowManager {
 
   requireApplicationWindow(sender: WebContents): BrowserWindow {
     const window = this.windowForSender(sender)
-    if (!window) throw new Error("IPC 调用来源无效")
+    if (!window) throw new Error('IPC 调用来源无效')
     return window
   }
 
@@ -157,11 +142,7 @@ export class WindowManager {
     return mainWindow
   }
 
-  showStartupStatus(
-    status: string,
-    detail = "",
-    kind: StartupStatusKind = "progress",
-  ): void {
+  showStartupStatus(status: string, detail = '', kind: StartupStatusKind = 'progress'): void {
     this.#startupStatus = { status, detail, kind }
     this.#sendStartupStatus()
   }
@@ -182,23 +163,14 @@ export class WindowManager {
         const timer = setTimeout(() => {
           cleanup()
           mainWindow.webContents.stop()
-          this.#logger.error("desktop.page-load-timeout", {
+          this.#logger.error('desktop.page-load-timeout', {
             origin: this.#allowedApplicationOrigin,
             timeoutMs: APPLICATION_LOAD_TIMEOUT_MS,
           })
-          rejectLoad(
-            new Error(
-              `Renderer 页面加载超时（${APPLICATION_LOAD_TIMEOUT_MS / 1_000}s）`,
-            ),
-          )
+          rejectLoad(new Error(`Renderer 页面加载超时（${APPLICATION_LOAD_TIMEOUT_MS / 1_000}s）`))
         }, APPLICATION_LOAD_TIMEOUT_MS)
         const onFinished = () => {
-          if (
-            !isApplicationOriginUrl(
-              mainWindow.webContents.getURL(),
-              applicationOrigin,
-            )
-          ) {
+          if (!isApplicationOriginUrl(mainWindow.webContents.getURL(), applicationOrigin)) {
             return
           }
           cleanup()
@@ -214,39 +186,30 @@ export class WindowManager {
           if (!isMainFrame) return
           if (!isApplicationOriginUrl(validatedURL, applicationOrigin)) return
           cleanup()
-          this.#logger.error("desktop.page-load-failed", {
+          this.#logger.error('desktop.page-load-failed', {
             errorCode,
             errorDescription,
             validatedURL,
           })
-          rejectLoad(
-            new Error(
-              `Renderer 页面加载失败：${errorDescription} (${errorCode})`,
-            ),
-          )
+          rejectLoad(new Error(`Renderer 页面加载失败：${errorDescription} (${errorCode})`))
         }
         const cleanup = () => {
           clearTimeout(timer)
-          mainWindow.webContents.removeListener("did-finish-load", onFinished)
-          mainWindow.webContents.removeListener("did-fail-load", onFailed)
+          mainWindow.webContents.removeListener('did-finish-load', onFinished)
+          mainWindow.webContents.removeListener('did-fail-load', onFailed)
         }
-        mainWindow.webContents.on("did-finish-load", onFinished)
-        mainWindow.webContents.on("did-fail-load", onFailed)
-        void mainWindow
-          .loadURL(applicationUrl)
-          .catch((error) => {
-            cleanup()
-            rejectLoad(error)
-          })
+        mainWindow.webContents.on('did-finish-load', onFinished)
+        mainWindow.webContents.on('did-fail-load', onFailed)
+        void mainWindow.loadURL(applicationUrl).catch((error) => {
+          cleanup()
+          rejectLoad(error)
+        })
       })
       if (navigationGeneration !== this.#navigationGeneration) {
-        throw new Error("Renderer 页面加载已被新的导航替代")
+        throw new Error('Renderer 页面加载已被新的导航替代')
       }
     } catch (error) {
-      if (
-        navigationGeneration === this.#navigationGeneration
-        && !mainWindow.isDestroyed()
-      ) {
+      if (navigationGeneration === this.#navigationGeneration && !mainWindow.isDestroyed()) {
         this.#loadStartupPage(mainWindow)
       }
       throw error
@@ -277,34 +240,35 @@ export class WindowManager {
   }
 
   updateTitleBarOverlayTheme(theme: { ink: string }): void {
-    if (process.platform !== "win32") return
+    if (process.platform !== 'win32') return
     for (const window of this.#applicationWindows.values()) {
       if (window.isDestroyed()) continue
       try {
         window.setTitleBarOverlay(createWindowsTitleBarOverlay(theme.ink))
       } catch (error) {
-        this.#logger.warn("desktop.set-title-bar-overlay-failed", { error })
+        this.#logger.warn('desktop.set-title-bar-overlay-failed', { error })
       }
     }
   }
 
   openWindow(input: DesktopOpenWindowInput): BrowserWindow {
     const applicationOrigin = this.#allowedApplicationOrigin
-    if (!applicationOrigin) throw new Error("Agent 尚未连接")
+    if (!applicationOrigin) throw new Error('Agent 尚未连接')
     const window = this.#createManagedWindow(this.#nextWindowBounds(), false)
     const applicationUrl = createRendererApplicationUrl(
       applicationOrigin,
       this.#options.startupTheme,
     )
-    const targetUrl = input.kind === "thread"
-      ? `${applicationUrl}#/threads/${encodeURIComponent(input.threadId)}`
-      : applicationUrl
-    window.once("ready-to-show", () => {
+    const targetUrl =
+      input.kind === 'thread'
+        ? `${applicationUrl}#/threads/${encodeURIComponent(input.threadId)}`
+        : applicationUrl
+    window.once('ready-to-show', () => {
       this.#focusWindow(window)
     })
     void window.loadURL(targetUrl).catch((error) => {
-      this.#logger.error("desktop.page-load-failed", {
-        reason: "secondary-window",
+      this.#logger.error('desktop.page-load-failed', {
+        reason: 'secondary-window',
         error,
       })
       if (!window.isDestroyed()) window.close()
@@ -315,31 +279,26 @@ export class WindowManager {
   #ensureMainWindow(): BrowserWindow {
     const existingWindow = this.mainWindow
     if (existingWindow && !existingWindow.isDestroyed()) return existingWindow
-    return this.#createManagedWindow(
-      this.#options.initialWindowState.bounds,
-      true,
-    )
+    return this.#createManagedWindow(this.#options.initialWindowState.bounds, true)
   }
 
-  #createManagedWindow(
-    bounds: DesktopWindowBounds,
-    primary: boolean,
-  ): BrowserWindow {
+  #createManagedWindow(bounds: DesktopWindowBounds, primary: boolean): BrowserWindow {
     const window = new BrowserWindow({
       ...bounds,
       minWidth: MAIN_WINDOW_MIN_WIDTH,
       minHeight: MAIN_WINDOW_MIN_HEIGHT,
       show: false,
-      titleBarStyle: "hidden",
-      titleBarOverlay: process.platform === "win32"
-        ? createWindowsTitleBarOverlay(this.#options.startupTheme.theme.ink)
-        : false,
+      titleBarStyle: 'hidden',
+      titleBarOverlay:
+        process.platform === 'win32'
+          ? createWindowsTitleBarOverlay(this.#options.startupTheme.theme.ink)
+          : false,
       backgroundColor: this.#options.startupTheme.theme.surface,
       autoHideMenuBar: true,
-      title: "CodePilotX",
+      title: 'CodePilotX',
       icon: this.#resolveWindowIconPath(),
       webPreferences: {
-        preload: join(this.#moduleDirectory, "preload.cjs"),
+        preload: join(this.#moduleDirectory, 'preload.cjs'),
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
@@ -348,14 +307,11 @@ export class WindowManager {
       },
     })
     window.webContents.setZoomFactor(this.#pageZoomPercent / 100)
-    window.webContents.on(
-      "did-start-navigation",
-      (_event, _url, _isInPlace, isMainFrame) => {
-        if (isMainFrame) {
-          window.webContents.setZoomFactor(this.#pageZoomPercent / 100)
-        }
-      },
-    )
+    window.webContents.on('did-start-navigation', (_event, _url, _isInPlace, isMainFrame) => {
+      if (isMainFrame) {
+        window.webContents.setZoomFactor(this.#pageZoomPercent / 100)
+      }
+    })
     this.#applicationWindows.set(window.id, window)
     if (primary || this.#primaryWindowId === undefined) {
       this.#primaryWindowId = window.id
@@ -363,49 +319,47 @@ export class WindowManager {
     this.#focusedWindowId = window.id
     this.#registerWindowShortcuts(window)
     window.webContents.on(
-      "render-process-gone",
+      'render-process-gone',
       (_event: Electron.Event, details: Electron.RenderProcessGoneDetails) => {
-        this.#logger.error("desktop.render-process-gone", {
+        this.#logger.error('desktop.render-process-gone', {
           reason: details.reason,
           exitCode: details.exitCode,
         })
       },
     )
-    window.on("unresponsive", () => {
-      this.#logger.warn("desktop.renderer-unresponsive")
+    window.on('unresponsive', () => {
+      this.#logger.warn('desktop.renderer-unresponsive')
     })
-    window.webContents.on(
-      "console-message",
-      (details) => {
-        const record = rendererConsoleRecord(
-          details.level,
-          details.message,
-          details.lineNumber,
-          details.sourceId,
-        )
-        if (!record) return
-        const write = record.level === "error"
+    window.webContents.on('console-message', (details) => {
+      const record = rendererConsoleRecord(
+        details.level,
+        details.message,
+        details.lineNumber,
+        details.sourceId,
+      )
+      if (!record) return
+      const write =
+        record.level === 'error'
           ? this.#logger.error.bind(this.#logger)
           : this.#logger.warn.bind(this.#logger)
-        write("desktop.renderer-console", { details: record })
-      },
-    )
-    window.on("focus", () => {
+      write('desktop.renderer-console', { details: record })
+    })
+    window.on('focus', () => {
       this.#focusedWindowId = window.id
     })
-    window.on("maximize", () => {
+    window.on('maximize', () => {
       if (this.#primaryWindowId === window.id) this.#scheduleWindowState(true)
     })
-    window.on("unmaximize", () => {
+    window.on('unmaximize', () => {
       if (this.#primaryWindowId === window.id) this.#scheduleWindowState(false)
     })
     const rememberNormalBounds = () => {
       if (
-        this.#primaryWindowId !== window.id
-        || window.isDestroyed()
-        || window.isMaximized()
-        || window.isMinimized()
-        || window.isFullScreen()
+        this.#primaryWindowId !== window.id ||
+        window.isDestroyed() ||
+        window.isMaximized() ||
+        window.isMinimized() ||
+        window.isFullScreen()
       ) {
         return
       }
@@ -434,7 +388,7 @@ export class WindowManager {
       clearResizeSettleTimer()
       if (window.webContents.isDestroyed()) return
       window.webContents.send(DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged, false)
-      sendResizeActivity("end")
+      sendResizeActivity('end')
     }
     // 取消拖拽时 "resized" 不会再触发；最后一次 resize 之后静默一段时间即视为
     // 结束，保证 start/end 始终配对，渲染端不会卡在降载状态。
@@ -446,50 +400,51 @@ export class WindowManager {
       }, RESIZE_SETTLE_MS)
       resizeSettleTimer.unref()
     }
-    window.on("will-resize", () => {
+    window.on('will-resize', () => {
       if (manualResizeActive || window.webContents.isDestroyed()) return
       manualResizeActive = true
       window.webContents.send(DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged, true)
-      sendResizeActivity("start")
+      sendResizeActivity('start')
       armResizeSettleTimer()
     })
-    window.on("resized", () => {
+    window.on('resized', () => {
       if (!manualResizeActive || window.webContents.isDestroyed()) return
       manualResizeActive = false
       clearResizeSettleTimer()
       window.webContents.send(DESKTOP_WINDOW_IPC_CHANNELS.resizeStateChanged, false)
-      sendResizeActivity("end")
+      sendResizeActivity('end')
     })
     const onWindowResize = (): void => {
       if (manualResizeActive) armResizeSettleTimer()
       rememberNormalBounds()
     }
-    window.on("resize", onWindowResize)
-    window.on("move", rememberNormalBounds)
-    window.on("closed", () => {
+    window.on('resize', onWindowResize)
+    window.on('move', rememberNormalBounds)
+    window.on('closed', () => {
       clearResizeSettleTimer()
       this.#applicationWindows.delete(window.id)
       if (this.#focusedWindowId === window.id) this.#focusedWindowId = undefined
       if (this.#primaryWindowId === window.id) this.#promotePrimaryWindow()
     })
     window.webContents.setWindowOpenHandler(({ url, frameName }) => {
-      if (url === "about:blank" || url === "" || frameName?.startsWith("auxiliary:")) {
+      if (url === 'about:blank' || url === '' || frameName?.startsWith('auxiliary:')) {
         return {
-          action: "allow",
+          action: 'allow',
           overrideBrowserWindowOptions: {
             frame: false,
-            titleBarStyle: "hidden",
-            titleBarOverlay: process.platform === "win32"
-              ? createWindowsTitleBarOverlay(this.#options.startupTheme.theme.ink)
-              : false,
+            titleBarStyle: 'hidden',
+            titleBarOverlay:
+              process.platform === 'win32'
+                ? createWindowsTitleBarOverlay(this.#options.startupTheme.theme.ink)
+                : false,
             backgroundColor: this.#options.startupTheme.theme.surface,
             minWidth: 400,
             minHeight: 300,
             autoHideMenuBar: true,
-            title: "CodePilotX",
+            title: 'CodePilotX',
             icon: this.#resolveWindowIconPath(),
             webPreferences: {
-              preload: join(this.#moduleDirectory, "preload.cjs"),
+              preload: join(this.#moduleDirectory, 'preload.cjs'),
               contextIsolation: true,
               nodeIntegration: false,
               sandbox: true,
@@ -499,29 +454,26 @@ export class WindowManager {
           },
         }
       }
-      if (
-        !isAllowedApplicationUrl(url, this.#allowedApplicationOrigin)
-        && isSafeExternalUrl(url)
-      ) {
+      if (!isAllowedApplicationUrl(url, this.#allowedApplicationOrigin) && isSafeExternalUrl(url)) {
         void shell.openExternal(url)
       }
-      return { action: "deny" }
+      return { action: 'deny' }
     })
-    window.webContents.on("did-create-window", (childWindow) => {
+    window.webContents.on('did-create-window', (childWindow) => {
       childWindow.webContents.setZoomFactor(this.#pageZoomPercent / 100)
       this.#applicationWindows.set(childWindow.id, childWindow)
       this.#registerWindowShortcuts(childWindow)
-      childWindow.on("focus", () => {
+      childWindow.on('focus', () => {
         this.#focusedWindowId = childWindow.id
       })
-      childWindow.on("closed", () => {
+      childWindow.on('closed', () => {
         this.#applicationWindows.delete(childWindow.id)
         if (this.#focusedWindowId === childWindow.id) {
           this.#focusedWindowId = undefined
         }
       })
     })
-    window.webContents.on("will-navigate", (event, url) => {
+    window.webContents.on('will-navigate', (event, url) => {
       if (!isAllowedApplicationUrl(url, this.#allowedApplicationOrigin)) {
         event.preventDefault()
       }
@@ -545,43 +497,39 @@ export class WindowManager {
     )}`
 
     if (!mainWindow.isVisible()) {
-      mainWindow.once("ready-to-show", () => {
+      mainWindow.once('ready-to-show', () => {
         if (!mainWindow.isDestroyed()) mainWindow.show()
       })
     } else {
       mainWindow.show()
     }
 
-    void mainWindow.loadURL(page).then(() => {
-      if (
-        mainWindow.isDestroyed()
-        || navigationGeneration !== this.#navigationGeneration
-      ) {
-        return
-      }
-      this.#startupPageActive = true
-      mainWindow.show()
-      this.#sendStartupStatus()
-    }).catch((error) => {
-      if (navigationGeneration !== this.#navigationGeneration) return
-      this.#logger.error("desktop.startup-page-load-failed", { error })
-      if (!mainWindow.isDestroyed()) mainWindow.show()
-    })
+    void mainWindow
+      .loadURL(page)
+      .then(() => {
+        if (mainWindow.isDestroyed() || navigationGeneration !== this.#navigationGeneration) {
+          return
+        }
+        this.#startupPageActive = true
+        mainWindow.show()
+        this.#sendStartupStatus()
+      })
+      .catch((error) => {
+        if (navigationGeneration !== this.#navigationGeneration) return
+        this.#logger.error('desktop.startup-page-load-failed', { error })
+        if (!mainWindow.isDestroyed()) mainWindow.show()
+      })
   }
 
   #sendStartupStatus(): void {
     const mainWindow = this.mainWindow
-    if (
-      !this.#startupPageActive
-      || !mainWindow
-      || mainWindow.isDestroyed()
-    ) {
+    if (!this.#startupPageActive || !mainWindow || mainWindow.isDestroyed()) {
       return
     }
     const { status, detail, kind } = this.#startupStatus
     const script = `window.updateStartupStatus?.(${JSON.stringify(status)}, ${JSON.stringify(detail)}, ${JSON.stringify(kind)})`
     void mainWindow.webContents.executeJavaScript(script).catch((error) => {
-      this.#logger.warn("desktop.startup-status-update-failed", {
+      this.#logger.warn('desktop.startup-status-update-failed', {
         error,
         status,
       })
@@ -591,30 +539,32 @@ export class WindowManager {
   #resolveStartupLogoDataUrl(): string {
     try {
       const svgPath = this.#resolveWhaleIconSvgPath()
-      const svg = readFileSync(svgPath, "utf-8")
+      const svg = readFileSync(svgPath, 'utf-8')
       const encoded = encodeURIComponent(svg)
       return `data:image/svg+xml;charset=utf-8,${encoded}`
     } catch (error) {
-      this.#logger.warn("desktop.startup-svg-load-failed", {
+      this.#logger.warn('desktop.startup-svg-load-failed', {
         error,
       })
       const icon = nativeImage.createFromPath(this.#resolveWindowIconPath())
       if (icon.isEmpty()) {
-        this.#logger.warn("desktop.startup-ico-fallback-failed")
-        return ""
+        this.#logger.warn('desktop.startup-ico-fallback-failed')
+        return ''
       }
-      return icon.resize({
-        width: 112,
-        height: 112,
-        quality: "best",
-      }).toDataURL()
+      return icon
+        .resize({
+          width: 112,
+          height: 112,
+          quality: 'best',
+        })
+        .toDataURL()
     }
   }
 
   #resolveWhaleIconSvgPath(): string {
     return app.isPackaged
-      ? join(process.resourcesPath, "whale-icon.svg")
-      : resolve(this.#moduleDirectory, "../../build/whale-icon.svg")
+      ? join(process.resourcesPath, 'whale-icon.svg')
+      : resolve(this.#moduleDirectory, '../../build/whale-icon.svg')
   }
 
   #setStartupBackground(mainWindow: BrowserWindow): void {
@@ -651,25 +601,19 @@ export class WindowManager {
   }
 
   #promotePrimaryWindow(): void {
-    const promoted = this.focusedWindow
-      ?? Array.from(this.#applicationWindows.values()).at(-1)
+    const promoted = this.focusedWindow ?? Array.from(this.#applicationWindows.values()).at(-1)
     this.#primaryWindowId = promoted?.id
     if (!promoted || promoted.isDestroyed()) return
     this.#focusedWindowId ??= promoted.id
-    if (
-      !promoted.isMaximized()
-      && !promoted.isMinimized()
-      && !promoted.isFullScreen()
-    ) {
+    if (!promoted.isMaximized() && !promoted.isMinimized() && !promoted.isFullScreen()) {
       this.#normalWindowBounds = promoted.getBounds()
     }
   }
 
   #nextWindowBounds(): DesktopWindowBounds {
     const source = this.focusedWindow
-    const sourceBounds = source && !source.isDestroyed()
-      ? source.getBounds()
-      : this.#normalWindowBounds
+    const sourceBounds =
+      source && !source.isDestroyed() ? source.getBounds() : this.#normalWindowBounds
     const candidate = {
       ...sourceBounds,
       x: sourceBounds.x + 24,
@@ -686,7 +630,7 @@ export class WindowManager {
   }
 
   #registerWindowShortcuts(window: BrowserWindow): void {
-    window.webContents.on("before-input-event", (event, input) => {
+    window.webContents.on('before-input-event', (event, input) => {
       if (isDevToolsShortcut(input)) {
         event.preventDefault()
         window.webContents.toggleDevTools()
@@ -698,17 +642,17 @@ export class WindowManager {
         this.changePageZoom(zoomAction)
       }
     })
-    window.webContents.on("devtools-opened", () => {
-      this.#logger.info("desktop.devtools-opened")
+    window.webContents.on('devtools-opened', () => {
+      this.#logger.info('desktop.devtools-opened')
     })
-    window.webContents.on("devtools-closed", () => {
-      this.#logger.info("desktop.devtools-closed")
+    window.webContents.on('devtools-closed', () => {
+      this.#logger.info('desktop.devtools-closed')
     })
   }
 
   #resolveWindowIconPath(): string {
     return app.isPackaged
-      ? join(process.resourcesPath, "icon.ico")
-      : resolve(this.#moduleDirectory, "../../build/icon.ico")
+      ? join(process.resourcesPath, 'icon.ico')
+      : resolve(this.#moduleDirectory, '../../build/icon.ico')
   }
 }

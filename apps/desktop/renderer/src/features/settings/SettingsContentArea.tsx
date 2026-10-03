@@ -6,10 +6,7 @@ type Props = {
   className?: string
 }
 
-export function SettingsContentArea({
-  children,
-  className = '',
-}: Props): React.ReactNode {
+export function SettingsContentArea({ children, className = '' }: Props): React.ReactNode {
   return (
     <ScrollArea
       className={`settings-content-scroll-area ${className}`.trim()}

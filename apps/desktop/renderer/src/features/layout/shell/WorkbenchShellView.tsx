@@ -42,21 +42,12 @@ export function WorkbenchShellView({
       data-auxiliary-maximized={auxiliaryMaximized}
       data-resize-active={resizeActive}
     >
-      <div className="desktop-menubar tw:shrink-0">
-        {menuBar}
-      </div>
-      <div
-        className="app-body tw:flex tw:min-h-0 tw:flex-1 tw:overflow-hidden"
-        ref={appBodyRef}
-      >
+      <div className="desktop-menubar tw:shrink-0">{menuBar}</div>
+      <div className="app-body tw:flex tw:min-h-0 tw:flex-1 tw:overflow-hidden" ref={appBodyRef}>
         {auxiliaryMaximized ? null : primarySidebar}
         <section className="desktop-main tw:flex tw:min-w-0 tw:flex-1 tw:overflow-hidden">
           <div className="desktop-main-stage tw:min-w-0 tw:flex-1 tw:overflow-hidden">
-            <div
-              className="desktop-workspace"
-              ref={workspaceRef}
-              style={workspaceStyle}
-            >
+            <div className="desktop-workspace" ref={workspaceRef} style={workspaceStyle}>
               {workspaceHeader}
               <div className="desktop-workspace__upper">
                 {auxiliaryMaximized ? null : mainContent}

@@ -58,9 +58,7 @@ function OptionContent({
     <div className="ui-select-item-inner settings-dropdown-item-inner">
       {option.icon}
       <div className="ui-select-item-copy settings-dropdown-item-copy">
-        <span className="ui-select-item-label settings-dropdown-item-label">
-          {option.label}
-        </span>
+        <span className="ui-select-item-label settings-dropdown-item-label">{option.label}</span>
         {option.detail ? (
           <span className="ui-select-item-detail settings-dropdown-item-detail">
             {option.detail}
@@ -68,7 +66,11 @@ function OptionContent({
         ) : null}
       </div>
       {showSelectedIndicator && selected ? (
-        <Check aria-hidden="true" className="ui-select-item-indicator settings-dropdown-item-indicator" size={APP_ICON_SIZES.sm} />
+        <Check
+          aria-hidden="true"
+          className="ui-select-item-indicator settings-dropdown-item-indicator"
+          size={APP_ICON_SIZES.sm}
+        />
       ) : null}
     </div>
   )
@@ -118,7 +120,11 @@ function BasicSelect<T extends string>({
           </RadixSelect.Value>
         </span>
         <RadixSelect.Icon asChild>
-          <ChevronDown size={APP_ICON_SIZES.sm} aria-hidden="true" className="ui-select-icon settings-dropdown-icon" />
+          <ChevronDown
+            size={APP_ICON_SIZES.sm}
+            aria-hidden="true"
+            className="ui-select-icon settings-dropdown-icon"
+          />
         </RadixSelect.Icon>
       </RadixSelect.Trigger>
       <RadixSelect.Portal>
@@ -137,24 +143,26 @@ function BasicSelect<T extends string>({
         >
           <RadixSelect.Viewport className="ui-select-scroll-area settings-dropdown-scroll-area">
             <div className="ui-select-scroll-content settings-dropdown-scroll-content">
-              {options.length ? options.map((option) => (
-                <RadixSelect.Item
-                  className="ui-select-item settings-dropdown-item"
-                  disabled={option.disabled}
-                  key={option.value}
-                  value={option.value === '' ? EMPTY_VALUE : option.value}
-                >
-                  <RadixSelect.ItemText asChild>
-                    <div>
-                      <OptionContent
-                        option={option}
-                        selected={option.value === value}
-                        showSelectedIndicator={showSelectedIndicator}
-                      />
-                    </div>
-                  </RadixSelect.ItemText>
-                </RadixSelect.Item>
-              )) : (
+              {options.length ? (
+                options.map((option) => (
+                  <RadixSelect.Item
+                    className="ui-select-item settings-dropdown-item"
+                    disabled={option.disabled}
+                    key={option.value}
+                    value={option.value === '' ? EMPTY_VALUE : option.value}
+                  >
+                    <RadixSelect.ItemText asChild>
+                      <div>
+                        <OptionContent
+                          option={option}
+                          selected={option.value === value}
+                          showSelectedIndicator={showSelectedIndicator}
+                        />
+                      </div>
+                    </RadixSelect.ItemText>
+                  </RadixSelect.Item>
+                ))
+              ) : (
                 <div className="ui-select-empty settings-dropdown-empty">未找到匹配项</div>
               )}
             </div>
@@ -195,9 +203,10 @@ function SearchableSelect<T extends string>({
   const query = searchValue ?? localSearchValue
   const remoteSearch = searchValue !== undefined || onSearchChange !== undefined
   const normalizedQuery = query.trim().toLocaleLowerCase()
-  const visibleOptions = remoteSearch || !normalizedQuery
-    ? options
-    : options.filter((option) => optionSearchText(option).includes(normalizedQuery))
+  const visibleOptions =
+    remoteSearch || !normalizedQuery
+      ? options
+      : options.filter((option) => optionSearchText(option).includes(normalizedQuery))
 
   function updateSearch(nextValue: string): void {
     if (searchValue === undefined) setLocalSearchValue(nextValue)
@@ -241,7 +250,7 @@ function SearchableSelect<T extends string>({
     }
 
     const enabledIndices = visibleOptions
-      .map((option, index) => option.disabled ? -1 : index)
+      .map((option, index) => (option.disabled ? -1 : index))
       .filter((index) => index >= 0)
 
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -249,18 +258,21 @@ function SearchableSelect<T extends string>({
       if (!enabledIndices.length) return
       const direction = event.key === 'ArrowDown' ? 1 : -1
       const currentPosition = enabledIndices.indexOf(activeIndex)
-      const nextPosition = currentPosition < 0
-        ? (direction > 0 ? 0 : enabledIndices.length - 1)
-        : (currentPosition + direction + enabledIndices.length) % enabledIndices.length
+      const nextPosition =
+        currentPosition < 0
+          ? direction > 0
+            ? 0
+            : enabledIndices.length - 1
+          : (currentPosition + direction + enabledIndices.length) % enabledIndices.length
       setActiveIndex(enabledIndices[nextPosition] ?? -1)
       return
     }
 
     if (event.key === 'Home' || event.key === 'End') {
       event.preventDefault()
-      setActiveIndex(event.key === 'Home'
-        ? (enabledIndices[0] ?? -1)
-        : (enabledIndices.at(-1) ?? -1))
+      setActiveIndex(
+        event.key === 'Home' ? (enabledIndices[0] ?? -1) : (enabledIndices.at(-1) ?? -1),
+      )
       return
     }
 
@@ -271,9 +283,8 @@ function SearchableSelect<T extends string>({
     }
   }
 
-  const activeDescendant = activeIndex >= 0
-    ? `ui-select-option-${instanceId}-${activeIndex}`
-    : undefined
+  const activeDescendant =
+    activeIndex >= 0 ? `ui-select-option-${instanceId}-${activeIndex}` : undefined
 
   return (
     <Popover.Root open={open} onOpenChange={changeOpen}>
@@ -296,7 +307,11 @@ function SearchableSelect<T extends string>({
             {selectedOption?.icon}
             <span>{selectedOption?.label ?? placeholder}</span>
           </span>
-          <ChevronDown size={APP_ICON_SIZES.sm} aria-hidden="true" className="ui-select-icon settings-dropdown-icon" />
+          <ChevronDown
+            size={APP_ICON_SIZES.sm}
+            aria-hidden="true"
+            className="ui-select-icon settings-dropdown-icon"
+          />
         </button>
       </Popover.Trigger>
       <Popover.Portal>
@@ -330,32 +345,40 @@ function SearchableSelect<T extends string>({
               onKeyDown={handleKeyDown}
             />
           </div>
-          <div className="ui-select-scroll-area settings-dropdown-scroll-area" id={listboxId} role="listbox">
+          <div
+            className="ui-select-scroll-area settings-dropdown-scroll-area"
+            id={listboxId}
+            role="listbox"
+          >
             <div className="ui-select-scroll-content settings-dropdown-scroll-content">
               {loading ? (
-                <div className="ui-select-empty settings-dropdown-empty" role="status">正在加载…</div>
-              ) : visibleOptions.length ? visibleOptions.map((option, index) => (
-                <button
-                  aria-selected={option.value === value}
-                  className="ui-select-item settings-dropdown-item"
-                  data-disabled={option.disabled || undefined}
-                  data-highlighted={activeIndex === index || undefined}
-                  disabled={option.disabled}
-                  id={`ui-select-option-${instanceId}-${index}`}
-                  key={option.value}
-                  role="option"
-                  tabIndex={-1}
-                  type="button"
-                  onClick={() => selectOption(option)}
-                  onMouseEnter={() => setActiveIndex(index)}
-                >
-                  <OptionContent
-                    option={option}
-                    selected={option.value === value}
-                    showSelectedIndicator={showSelectedIndicator}
-                  />
-                </button>
-              )) : (
+                <div className="ui-select-empty settings-dropdown-empty" role="status">
+                  正在加载…
+                </div>
+              ) : visibleOptions.length ? (
+                visibleOptions.map((option, index) => (
+                  <button
+                    aria-selected={option.value === value}
+                    className="ui-select-item settings-dropdown-item"
+                    data-disabled={option.disabled || undefined}
+                    data-highlighted={activeIndex === index || undefined}
+                    disabled={option.disabled}
+                    id={`ui-select-option-${instanceId}-${index}`}
+                    key={option.value}
+                    role="option"
+                    tabIndex={-1}
+                    type="button"
+                    onClick={() => selectOption(option)}
+                    onMouseEnter={() => setActiveIndex(index)}
+                  >
+                    <OptionContent
+                      option={option}
+                      selected={option.value === value}
+                      showSelectedIndicator={showSelectedIndicator}
+                    />
+                  </button>
+                ))
+              ) : (
                 <div className="ui-select-empty settings-dropdown-empty">{emptyText}</div>
               )}
             </div>

@@ -1,8 +1,7 @@
 import { expect, type Page } from '@playwright/test'
 
 export const VISUAL_MODES = ['light', 'dark'] as const
-export const V6_VISUAL_BASELINES_ENABLED =
-  process.env.CODEPILOTX_VISUAL_BASELINES_V6 === '1'
+export const V6_VISUAL_BASELINES_ENABLED = process.env.CODEPILOTX_VISUAL_BASELINES_V6 === '1'
 
 export type VisualMode = (typeof VISUAL_MODES)[number]
 
@@ -97,10 +96,10 @@ export async function waitForVisualPage(
     await document.fonts.ready
     await Promise.all(
       [...document.images]
-        .filter(image => !image.complete)
+        .filter((image) => !image.complete)
         .map(
-          image =>
-            new Promise<void>(resolve => {
+          (image) =>
+            new Promise<void>((resolve) => {
               image.addEventListener('load', () => resolve(), { once: true })
               image.addEventListener('error', () => resolve(), { once: true })
             }),
@@ -118,10 +117,7 @@ export async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth)
 }
 
-export async function closeTransientErrorToast(
-  page: Page,
-  waitForMilliseconds = 0,
-): Promise<void> {
+export async function closeTransientErrorToast(page: Page, waitForMilliseconds = 0): Promise<void> {
   const closeButton = page.getByRole('button', { name: '关闭错误提示' })
   const deadline = Date.now() + waitForMilliseconds
   do {

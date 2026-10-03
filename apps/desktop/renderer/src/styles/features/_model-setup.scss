@@ -39,7 +39,8 @@
   min-height: 0;
   overflow: auto;
   place-items: center;
-  padding: calc(var(--cpx-sys-space-1) * 10) var(--cpx-sys-space-8) calc(var(--cpx-sys-space-1) * 14);
+  padding: calc(var(--cpx-sys-space-1) * 10) var(--cpx-sys-space-8)
+    calc(var(--cpx-sys-space-1) * 14);
 }
 
 .model-setup-workspace {

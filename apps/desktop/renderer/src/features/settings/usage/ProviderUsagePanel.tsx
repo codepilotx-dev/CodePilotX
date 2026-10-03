@@ -55,23 +55,26 @@ export function ProviderUsagePanel({
 }: Props): React.ReactNode {
   const [sourceRanges, setSourceRanges] = useState<Record<string, ProviderRange>>({})
   const descriptorById = useMemo(
-    () => new Map(descriptors.map(source => [source.sourceId, source])),
+    () => new Map(descriptors.map((source) => [source.sourceId, source])),
     [descriptors],
   )
   const sourceById = useMemo(
-    () => new Map((data?.sources ?? []).map(source => [source.sourceId, source])),
+    () => new Map((data?.sources ?? []).map((source) => [source.sourceId, source])),
     [data],
   )
   const analyticsDescriptors = useMemo(
-    () => descriptors.filter(source =>
-      source.availability === 'queryable' &&
-      source.capabilities.some(capability =>
-        capability === 'usage' ||
-        capability === 'cost' ||
-        capability === 'balance' ||
-        capability === 'quota',
+    () =>
+      descriptors.filter(
+        (source) =>
+          source.availability === 'queryable' &&
+          source.capabilities.some(
+            (capability) =>
+              capability === 'usage' ||
+              capability === 'cost' ||
+              capability === 'balance' ||
+              capability === 'quota',
+          ),
       ),
-    ),
     [descriptors],
   )
   const visibleAnalytics = useMemo(
@@ -79,9 +82,10 @@ export function ProviderUsagePanel({
     [analyticsDescriptors, selectedProviderId, selectedSourceId],
   )
   const visibleResults = useMemo(
-    () => visibleAnalytics
-      .map(descriptor => sourceById.get(descriptor.sourceId))
-      .filter((source): source is ProviderUsageSource => source !== undefined),
+    () =>
+      visibleAnalytics
+        .map((descriptor) => sourceById.get(descriptor.sourceId))
+        .filter((source): source is ProviderUsageSource => source !== undefined),
     [sourceById, visibleAnalytics],
   )
   const totals = useMemo(() => summarizeSources(visibleResults), [visibleResults])
@@ -91,14 +95,15 @@ export function ProviderUsagePanel({
 
   const handleSourceRangeChange = useCallback(
     (sourceId: string, nextRange: ProviderRange) => {
-      setSourceRanges(current => ({ ...current, [sourceId]: nextRange }))
+      setSourceRanges((current) => ({ ...current, [sourceId]: nextRange }))
       onRefresh([sourceId], true, nextRange)
     },
     [onRefresh],
   )
 
-  const isRefreshingAll = visibleAnalytics.length > 0 &&
-    visibleAnalytics.every(source => refreshingSourceIds.includes(source.sourceId))
+  const isRefreshingAll =
+    visibleAnalytics.length > 0 &&
+    visibleAnalytics.every((source) => refreshingSourceIds.includes(source.sourceId))
 
   return (
     <div
@@ -116,7 +121,12 @@ export function ProviderUsagePanel({
           <Button
             color="secondary"
             loading={isRefreshingAll || (loading && refreshingSourceIds.length === 0)}
-            onClick={() => onRefresh(visibleAnalytics.map(source => source.sourceId), true)}
+            onClick={() =>
+              onRefresh(
+                visibleAnalytics.map((source) => source.sourceId),
+                true,
+              )
+            }
           >
             刷新全部
           </Button>
@@ -129,18 +139,26 @@ export function ProviderUsagePanel({
             当前筛选：
             {activeSource?.displayName ?? selectedProviderId ?? selectedSourceId}
           </span>
-          <Button color="secondary" onClick={onClearFilter}>清除筛选</Button>
+          <Button color="secondary" onClick={onClearFilter}>
+            清除筛选
+          </Button>
         </div>
       ) : null}
 
-      {error ? <div className="usage-inline-error" role="status">{error}</div> : null}
+      {error ? (
+        <div className="usage-inline-error" role="status">
+          {error}
+        </div>
+      ) : null}
       {loading && !data ? <ProviderUsageSkeleton /> : null}
 
       {!loading && descriptors.length === 0 ? (
         <div className="usage-empty-state" role="status">
           <h3>还没有已配置的厂商</h3>
           <p>请先从供应商目录完成连接，这里只展示已配置账户的用量与成本。</p>
-          <Link className="usage-text-link" to="/settings/providers">前往供应商</Link>
+          <Link className="usage-text-link" to="/settings/providers">
+            前往供应商
+          </Link>
         </div>
       ) : null}
 
@@ -148,27 +166,28 @@ export function ProviderUsagePanel({
         <div className="usage-empty-state" role="status">
           <h3>没有匹配的已配置来源</h3>
           <p>当前深链筛选可能已失效，清除后可查看其他账户。</p>
-          <Button color="secondary" onClick={onClearFilter}>清除筛选</Button>
+          <Button color="secondary" onClick={onClearFilter}>
+            清除筛选
+          </Button>
         </div>
       ) : null}
 
-      {visibleAnalytics.length > 0 ? (
-        <UsageSummary totals={totals} />
-      ) : null}
+      {visibleAnalytics.length > 0 ? <UsageSummary totals={totals} /> : null}
 
       <div className="provider-usage-list">
-        {visibleAnalytics.map(descriptor => {
-          const isSourceLoading = loading && (
-            refreshingSourceIds.length === 0 ||
-            refreshingSourceIds.includes(descriptor.sourceId)
-          )
+        {visibleAnalytics.map((descriptor) => {
+          const isSourceLoading =
+            loading &&
+            (refreshingSourceIds.length === 0 || refreshingSourceIds.includes(descriptor.sourceId))
           return (
             <ProviderUsageCard
               descriptor={descriptor}
               key={descriptor.sourceId}
               loading={isSourceLoading}
-              onRangeChange={range => handleSourceRangeChange(descriptor.sourceId, range)}
-              onRefresh={() => onRefresh([descriptor.sourceId], true, sourceRanges[descriptor.sourceId] ?? '7d')}
+              onRangeChange={(range) => handleSourceRangeChange(descriptor.sourceId, range)}
+              onRefresh={() =>
+                onRefresh([descriptor.sourceId], true, sourceRanges[descriptor.sourceId] ?? '7d')
+              }
               providerName={
                 providerNames[String(descriptor.canonicalProviderId)] ??
                 String(descriptor.canonicalProviderId)
@@ -202,7 +221,7 @@ function UsageSummary({
         <dt>有数据的来源</dt>
         <dd>{formatCount(totals.sources)}</dd>
       </div>
-      {totals.costs.map(cost => (
+      {totals.costs.map((cost) => (
         <div key={cost.currency}>
           <dt>{cost.currency} 成本</dt>
           <dd>{formatAmount(cost.currency, cost.amount)}</dd>
@@ -240,11 +259,10 @@ function ProviderUsageCard({
   onRefresh: () => void
 }): React.ReactNode {
   const providerId = String(descriptor.canonicalProviderId)
-  const status = source?.status ?? (descriptor.connection.kind === 'none'
-    ? 'not-connected'
-    : 'unavailable')
+  const status =
+    source?.status ?? (descriptor.connection.kind === 'none' ? 'not-connected' : 'unavailable')
   const hasTimeSeries = descriptor.capabilities.some(
-    capability => capability === 'usage' || capability === 'cost',
+    (capability) => capability === 'usage' || capability === 'cost',
   )
   return (
     <article
@@ -293,7 +311,9 @@ function ProviderUsageCard({
               value={range}
             />
           ) : null}
-          <Button color="secondary" loading={loading} onClick={onRefresh}>刷新</Button>
+          <Button color="secondary" loading={loading} onClick={onRefresh}>
+            刷新
+          </Button>
         </div>
       </header>
 
@@ -310,7 +330,9 @@ function ProviderUsageCard({
       {source?.error ? (
         <div className="usage-source-error" role="status">
           <strong>{source.error.message}</strong>
-          <span>{source.error.retryable ? '可以稍后重试。' : errorCategoryLabel(source.error.category)}</span>
+          <span>
+            {source.error.retryable ? '可以稍后重试。' : errorCategoryLabel(source.error.category)}
+          </span>
           <Link
             className="usage-text-link"
             to={`/settings/providers?provider=${encodeURIComponent(providerId)}`}
@@ -322,7 +344,7 @@ function ProviderUsageCard({
 
       {source?.groups.length ? (
         <div className="provider-usage-groups">
-          {source.groups.map(group => (
+          {source.groups.map((group) => (
             <ProviderUsageGroupCard group={group} key={group.id} />
           ))}
         </div>
@@ -345,11 +367,8 @@ function ProviderUsageGroupCard({
       <h4>{group.label}</h4>
       {group.balances && group.balances.length > 0 ? (
         <div aria-label="账户余额" className="provider-balances" role="group">
-          {group.balances.map(balance => (
-            <div
-              className="provider-balance-card"
-              key={balance.currency}
-            >
+          {group.balances.map((balance) => (
+            <div className="provider-balance-card" key={balance.currency}>
               <div className="provider-balance-header">
                 <span className="provider-balance-label">{balance.currency} 账户余额</span>
                 <span className="provider-balance-total">
@@ -358,7 +377,7 @@ function ProviderUsageGroupCard({
               </div>
               {balance.components && balance.components.length > 0 ? (
                 <div className="provider-balance-components">
-                  {balance.components.map(component => (
+                  {balance.components.map((component) => (
                     <span className="provider-balance-component" key={component.label}>
                       <span className="provider-balance-component-label">{component.label}</span>
                       <span className="provider-balance-component-amount">
@@ -374,15 +393,12 @@ function ProviderUsageGroupCard({
       ) : null}
       {group.quotaWindows && group.quotaWindows.length > 0 ? (
         <div aria-label="额度与重置" className="provider-quotas" role="group">
-          {group.quotaWindows.map(quota => {
+          {group.quotaWindows.map((quota) => {
             const percent = quotaRemainingPercent(quota)
-            const resetText = quota.state === 'unlimited' ? '不重置' : formatResetTime(quota.resetsAt)
+            const resetText =
+              quota.state === 'unlimited' ? '不重置' : formatResetTime(quota.resetsAt)
             return (
-              <div
-                className="provider-quota-card"
-                data-state={quota.state}
-                key={quota.id}
-              >
+              <div className="provider-quota-card" data-state={quota.state} key={quota.id}>
                 <div className="provider-quota-header">
                   <span className="provider-quota-label">{quota.label}</span>
                   <span className="provider-quota-reset" title="重置时间">
@@ -398,9 +414,7 @@ function ProviderUsageGroupCard({
                   </div>
                 </div>
                 <div className="provider-quota-meta">
-                  <span className="provider-quota-value">
-                    {formatQuotaValue(quota)}
-                  </span>
+                  <span className="provider-quota-value">{formatQuotaValue(quota)}</span>
                 </div>
               </div>
             )
@@ -409,11 +423,23 @@ function ProviderUsageGroupCard({
       ) : null}
       {group.totals ? (
         <dl className="provider-totals">
-          <div><dt>输入 Token</dt><dd>{formatCompactCount(group.totals.inputTokens)}</dd></div>
-          <div><dt>输出 Token</dt><dd>{formatCompactCount(group.totals.outputTokens)}</dd></div>
-          <div><dt>缓存 Token</dt><dd>{formatCompactCount(group.totals.cachedTokens)}</dd></div>
-          <div><dt>请求数</dt><dd>{formatCount(group.totals.requests)}</dd></div>
-          {group.totals.costs.map(cost => (
+          <div>
+            <dt>输入 Token</dt>
+            <dd>{formatCompactCount(group.totals.inputTokens)}</dd>
+          </div>
+          <div>
+            <dt>输出 Token</dt>
+            <dd>{formatCompactCount(group.totals.outputTokens)}</dd>
+          </div>
+          <div>
+            <dt>缓存 Token</dt>
+            <dd>{formatCompactCount(group.totals.cachedTokens)}</dd>
+          </div>
+          <div>
+            <dt>请求数</dt>
+            <dd>{formatCount(group.totals.requests)}</dd>
+          </div>
+          {group.totals.costs.map((cost) => (
             <div key={cost.currency}>
               <dt>{cost.currency} 成本</dt>
               <dd>{formatAmount(cost.currency, cost.amount)}</dd>
@@ -421,12 +447,10 @@ function ProviderUsageGroupCard({
           ))}
         </dl>
       ) : null}
-      {group.series && group.series.length > 0 ? (
-        <ProviderSeries points={group.series} />
-      ) : null}
+      {group.series && group.series.length > 0 ? <ProviderSeries points={group.series} /> : null}
       {group.breakdown && group.breakdown.length > 0 ? (
         <ol className="provider-breakdown">
-          {group.breakdown.map(item => (
+          {group.breakdown.map((item) => (
             <li key={`${item.kind}/${item.id}`}>
               <span>
                 <strong>{item.label}</strong>
@@ -437,7 +461,11 @@ function ProviderUsageGroupCard({
           ))}
         </ol>
       ) : null}
-      {!group.totals && !group.series?.length && !group.breakdown?.length && !group.quotaWindows?.length && !group.balances?.length ? (
+      {!group.totals &&
+      !group.series?.length &&
+      !group.breakdown?.length &&
+      !group.quotaWindows?.length &&
+      !group.balances?.length ? (
         <p className="usage-chart-empty">当前时间范围没有返回数据。</p>
       ) : null}
     </section>
@@ -449,28 +477,24 @@ function ProviderSeries({
 }: {
   points: NonNullable<ProviderUsageSource['groups'][number]['series']>
 }): React.ReactNode {
-  const tokenValues = points.map(point =>
-    point.inputTokens + point.outputTokens + point.cachedTokens,
+  const tokenValues = points.map(
+    (point) => point.inputTokens + point.outputTokens + point.cachedTokens,
   )
-  const requestValues = points.map(point => point.requests)
-  const costCurrency = [...new Set(
-    points.flatMap(point => point.costs.map(cost => cost.currency)),
-  )].sort()[0]
+  const requestValues = points.map((point) => point.requests)
+  const costCurrency = [
+    ...new Set(points.flatMap((point) => point.costs.map((cost) => cost.currency))),
+  ].sort()[0]
   const costValues = costCurrency
-    ? points.map(point => {
-        const amount = point.costs.find(cost => cost.currency === costCurrency)?.amount
+    ? points.map((point) => {
+        const amount = point.costs.find((cost) => cost.currency === costCurrency)?.amount
         const value = amount === undefined ? 0 : Number(amount)
         return Number.isFinite(value) && value >= 0 ? value : 0
       })
     : points.map(() => 0)
-  const hasTokens = tokenValues.some(value => value > 0)
-  const hasRequests = requestValues.some(value => value > 0)
+  const hasTokens = tokenValues.some((value) => value > 0)
+  const hasRequests = requestValues.some((value) => value > 0)
   const mode = hasTokens ? 'tokens' : hasRequests ? 'requests' : 'costs'
-  const values = mode === 'tokens'
-    ? tokenValues
-    : mode === 'requests'
-      ? requestValues
-      : costValues
+  const values = mode === 'tokens' ? tokenValues : mode === 'requests' ? requestValues : costValues
   const max = Math.max(1, ...values)
   const width = Math.max(240, points.length * 18)
   return (
@@ -497,11 +521,10 @@ function ProviderSeries({
                 : mode === 'requests'
                   ? `${points[index]?.date} · ${formatCount(value)} 次请求`
                   : `${points[index]?.date} · ${formatAmount(
-                    costCurrency ?? 'USD',
-                    points[index]?.costs.find(cost =>
-                      cost.currency === costCurrency
-                    )?.amount ?? '0',
-                  )}`}
+                      costCurrency ?? 'USD',
+                      points[index]?.costs.find((cost) => cost.currency === costCurrency)?.amount ??
+                        '0',
+                    )}`}
             </title>
           </rect>
         ))}
@@ -510,15 +533,16 @@ function ProviderSeries({
   )
 }
 
-
 function filterDescriptors(
   descriptors: readonly UsageSourceDescriptor[],
   providerId: string | undefined,
   sourceId: string | undefined,
 ): UsageSourceDescriptor[] {
   return descriptors
-    .filter(descriptor => !providerId || descriptor.providerIds.some(id => String(id) === providerId))
-    .filter(descriptor => !sourceId || descriptor.sourceId === sourceId)
+    .filter(
+      (descriptor) => !providerId || descriptor.providerIds.some((id) => String(id) === providerId),
+    )
+    .filter((descriptor) => !sourceId || descriptor.sourceId === sourceId)
     .sort((left, right) => left.displayName.localeCompare(right.displayName, 'zh-CN'))
 }
 
@@ -537,9 +561,7 @@ function summarizeSources(sources: readonly ProviderUsageSource[]): {
     for (const group of source.groups) {
       if (!group.totals) continue
       populated = true
-      tokens += group.totals.inputTokens +
-        group.totals.outputTokens +
-        group.totals.cachedTokens
+      tokens += group.totals.inputTokens + group.totals.outputTokens + group.totals.cachedTokens
       requests += group.totals.requests
       for (const cost of group.totals.costs) {
         const values = costs.get(cost.currency) ?? []
@@ -574,16 +596,14 @@ function formatBreakdownUsage(
     item.outputTokens !== undefined ||
     item.cachedTokens !== undefined
   ) {
-    parts.push(`${formatCompactCount(
-      (item.inputTokens ?? 0) +
-      (item.outputTokens ?? 0) +
-      (item.cachedTokens ?? 0),
-    )} Token`)
+    parts.push(
+      `${formatCompactCount(
+        (item.inputTokens ?? 0) + (item.outputTokens ?? 0) + (item.cachedTokens ?? 0),
+      )} Token`,
+    )
   }
   if (item.costs?.length) {
-    parts.push(item.costs
-      .map(cost => formatAmount(cost.currency, cost.amount))
-      .join(' / '))
+    parts.push(item.costs.map((cost) => formatAmount(cost.currency, cost.amount)).join(' / '))
   }
   return parts.join(' · ') || '暂无明细'
 }
@@ -595,9 +615,7 @@ function scopeLabel(scope: UsageSourceDescriptor['scope']): string {
   return '订阅'
 }
 
-function connectionLabel(
-  connection: UsageSourceDescriptor['connection'],
-): string {
+function connectionLabel(connection: UsageSourceDescriptor['connection']): string {
   if (connection.kind === 'provider-key') return '使用活动推理 Key'
   if (connection.kind === 'billing-key') {
     return `独立管理凭据${connection.maskedValue ? ` · ${connection.maskedValue}` : ''}`

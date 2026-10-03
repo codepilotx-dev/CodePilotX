@@ -6,21 +6,19 @@ import type { DesktopBrowserSitePermission } from '../../../shared/types.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { SettingsSection } from './SettingsSection.js'
-import { SettingsContentArea } from './SettingsContentArea.js';
+import { SettingsContentArea } from './SettingsContentArea.js'
 import { Button } from '../../components/ui/Button.js'
 
 export function BrowserSettings(): React.ReactNode {
   const settings = useDesktopSettings()
   const { browserAllowedSites, setBrowserAllowedSites, draft } = settings
-  const [sitePermissions, setSitePermissions] = useState<
-    DesktopBrowserSitePermission[]
-  >([])
+  const [sitePermissions, setSitePermissions] = useState<DesktopBrowserSitePermission[]>([])
 
   useEffect(() => {
     if (!desktopBrowserClient.available) return
     void desktopBrowserClient
       .getBrowserState()
-      .then(state => {
+      .then((state) => {
         setBrowserAllowedSites(state.allowedSites)
         setSitePermissions(state.sitePermissions)
       })
@@ -40,7 +38,8 @@ export function BrowserSettings(): React.ReactNode {
         <div className="settings-page-header">
           <h2 className="settings-page-title">浏览器</h2>
           <p className="settings-page-desc">
-            在桌面线程中预览本地开发页面和无需登录的 HTTP/HTTPS 页面。需要登录态、扩展、本地文件或已有标签页时，请使用常规浏览器。
+            在桌面线程中预览本地开发页面和无需登录的 HTTP/HTTPS
+            页面。需要登录态、扩展、本地文件或已有标签页时，请使用常规浏览器。
           </p>
         </div>
 
@@ -77,7 +76,7 @@ export function BrowserSettings(): React.ReactNode {
         >
           {sitePermissions.length ? (
             <div className="browser-allowed-sites">
-              {sitePermissions.map(site => (
+              {sitePermissions.map((site) => (
                 <span className="settings-chip" key={site.origin}>
                   {site.origin} · {site.decision === 'allow' ? '允许' : '拒绝'}
                 </span>

@@ -49,9 +49,9 @@ const richDecorationField = StateField.define<RichDecorationSets>({
     }
     return value
   },
-  provide: field => [
-    EditorView.decorations.from(field, value => value.decorations),
-    EditorView.atomicRanges.of(view => view.state.field(field).atomic),
+  provide: (field) => [
+    EditorView.decorations.from(field, (value) => value.decorations),
+    EditorView.atomicRanges.of((view) => view.state.field(field).atomic),
   ],
 })
 const mermaidRoots = new WeakMap<HTMLElement, Root>()
@@ -101,8 +101,8 @@ const markdownRichPlugin = ViewPlugin.fromClass(
     }
 
     update(update: ViewUpdate): void {
-      const hasExternalEffect = update.transactions.some(transaction =>
-        transaction.effects.some(effect => !effect.is(setRichDecorationSets)),
+      const hasExternalEffect = update.transactions.some((transaction) =>
+        transaction.effects.some((effect) => !effect.is(setRichDecorationSets)),
       )
       if (
         update.docChanged ||
@@ -145,7 +145,7 @@ function buildRichDecorations(view: EditorView): RichDecorationSets {
     tree.iterate({
       from: visibleRange.from,
       to: visibleRange.to,
-      enter: reference => {
+      enter: (reference) => {
         const node = reference.node as MarkdownSyntaxNode
         const headingClass = headingClasses.get(node.name)
         if (headingClass) {
@@ -189,54 +189,23 @@ function buildRichDecorations(view: EditorView): RichDecorationSets {
 
         switch (node.name) {
           case 'Emphasis':
-            addMarkDecoration(
-              node,
-              'cm-md-rich-emphasis',
-              decorationRanges,
-              seenDecorations,
-            )
+            addMarkDecoration(node, 'cm-md-rich-emphasis', decorationRanges, seenDecorations)
             break
           case 'StrongEmphasis':
-            addMarkDecoration(
-              node,
-              'cm-md-rich-strong',
-              decorationRanges,
-              seenDecorations,
-            )
+            addMarkDecoration(node, 'cm-md-rich-strong', decorationRanges, seenDecorations)
             break
           case 'Strikethrough':
-            addMarkDecoration(
-              node,
-              'cm-md-rich-strikethrough',
-              decorationRanges,
-              seenDecorations,
-            )
+            addMarkDecoration(node, 'cm-md-rich-strikethrough', decorationRanges, seenDecorations)
             break
           case 'InlineCode':
-            addMarkDecoration(
-              node,
-              'cm-md-rich-inline-code',
-              decorationRanges,
-              seenDecorations,
-            )
+            addMarkDecoration(node, 'cm-md-rich-inline-code', decorationRanges, seenDecorations)
             break
           case 'Link':
           case 'Autolink':
-            addMarkDecoration(
-              node,
-              'cm-md-rich-link',
-              decorationRanges,
-              seenDecorations,
-            )
+            addMarkDecoration(node, 'cm-md-rich-link', decorationRanges, seenDecorations)
             break
           case 'Blockquote':
-            addBlockquoteDecoration(
-              view,
-              node,
-              visibleRange,
-              decorationRanges,
-              seenDecorations,
-            )
+            addBlockquoteDecoration(view, node, visibleRange, decorationRanges, seenDecorations)
             break
           case 'ListItem':
             addVisibleLineDecorations(
@@ -411,9 +380,7 @@ function addTableDecoration(
   if (selectionEntersNode(view, node)) {
     return false
   }
-  const table = parseMarkdownTable(
-    view.state.doc.sliceString(node.from, node.to),
-  )
+  const table = parseMarkdownTable(view.state.doc.sliceString(node.from, node.to))
   if (!table) {
     return false
   }
@@ -445,7 +412,7 @@ type MarkdownTableData = {
 function parseMarkdownTable(source: string): MarkdownTableData | null {
   const lines = source
     .split(/\r?\n/u)
-    .map(line => line.trim())
+    .map((line) => line.trim())
     .filter(Boolean)
   if (lines.length < 2) {
     return null
@@ -455,18 +422,18 @@ function parseMarkdownTable(source: string): MarkdownTableData | null {
   if (
     headers.length === 0 ||
     separators.length !== headers.length ||
-    separators.some(cell => !/^:?-{3,}:?$/u.test(cell.replace(/\s+/gu, '')))
+    separators.some((cell) => !/^:?-{3,}:?$/u.test(cell.replace(/\s+/gu, '')))
   ) {
     return null
   }
-  const alignments = separators.map(cell => {
+  const alignments = separators.map((cell) => {
     const marker = cell.replace(/\s+/gu, '')
     if (marker.startsWith(':') && marker.endsWith(':')) return 'center'
     if (marker.endsWith(':')) return 'right'
     if (marker.startsWith(':')) return 'left'
     return null
   })
-  const rows = lines.slice(2).map(line => {
+  const rows = lines.slice(2).map((line) => {
     const cells = splitMarkdownTableRow(line)
     return headers.map((_, index) => cells[index] ?? '')
   })
@@ -493,8 +460,7 @@ function splitMarkdownTableRow(line: string): string[] {
     if (character === '`') {
       let length = 1
       while (source[index + length] === '`') length += 1
-      codeDelimiterLength =
-        codeDelimiterLength === length ? 0 : codeDelimiterLength || length
+      codeDelimiterLength = codeDelimiterLength === length ? 0 : codeDelimiterLength || length
       cell += '`'.repeat(length)
       index += length - 1
       continue
@@ -539,7 +505,7 @@ class MarkdownTableWidget extends WidgetType {
       headerRow.append(cell)
     })
     const body = table.createTBody()
-    this.table.rows.forEach(row => {
+    this.table.rows.forEach((row) => {
       const tableRow = body.insertRow()
       this.table.headers.forEach((_, index) => {
         const cell = tableRow.insertCell()
@@ -548,7 +514,7 @@ class MarkdownTableWidget extends WidgetType {
       })
     })
     wrapper.append(table)
-    wrapper.addEventListener('pointerdown', event => {
+    wrapper.addEventListener('pointerdown', (event) => {
       event.preventDefault()
       view.dispatch({ selection: { anchor: this.sourceFrom } })
       view.focus()
@@ -577,18 +543,15 @@ function addMermaidDecoration(
   const info = node.getChild('CodeInfo')
   if (
     !info ||
-    view.state.doc
-      .sliceString(info.from, info.to)
-      .trim()
-      .split(/\s+/u, 1)[0]
-      ?.toLowerCase() !== 'mermaid' ||
+    view.state.doc.sliceString(info.from, info.to).trim().split(/\s+/u, 1)[0]?.toLowerCase() !==
+      'mermaid' ||
     selectionEntersNode(view, node)
   ) {
     return false
   }
   const definition = node
     .getChildren('CodeText')
-    .map(child => view.state.doc.sliceString(child.from, child.to))
+    .map((child) => view.state.doc.sliceString(child.from, child.to))
     .join('')
   const from = view.state.doc.lineAt(node.from).from
   const to = view.state.doc.lineAt(node.to).to
@@ -621,13 +584,13 @@ class MermaidBlockWidget extends WidgetType {
     host.className = 'cm-md-rich-mermaid'
     const root = createRoot(host)
     mermaidRoots.set(host, root)
-    root.render(React.createElement(MermaidRenderer, {
-      definition: this.definition,
-    }))
+    root.render(
+      React.createElement(MermaidRenderer, {
+        definition: this.definition,
+      }),
+    )
     const observer =
-      typeof ResizeObserver === 'undefined'
-        ? null
-        : new ResizeObserver(() => view.requestMeasure())
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => view.requestMeasure())
     observer?.observe(host)
     if (observer) {
       mermaidObservers.set(host, observer)
@@ -654,9 +617,7 @@ function addCodeBlockDecoration(
   seenAtomicRanges: Set<string>,
 ): boolean {
   const info = node.getChild('CodeInfo')
-  const rawInfo = info
-    ? view.state.doc.sliceString(info.from, info.to).trim()
-    : ''
+  const rawInfo = info ? view.state.doc.sliceString(info.from, info.to).trim() : ''
   const language = rawInfo.split(/\s+/u, 1)[0] ?? ''
   if (language.toLowerCase() === 'mermaid') {
     return false
@@ -769,9 +730,7 @@ class CodeBlockWidget extends WidgetType {
     )
 
     const observer =
-      typeof ResizeObserver === 'undefined'
-        ? null
-        : new ResizeObserver(() => view.requestMeasure())
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => view.requestMeasure())
     observer?.observe(host)
     if (observer) {
       codeBlockObservers.set(host, observer)
@@ -789,32 +748,23 @@ class CodeBlockWidget extends WidgetType {
   }
 }
 
-function selectionEntersNode(
-  view: EditorView,
-  node: MarkdownSyntaxNode,
-): boolean {
+function selectionEntersNode(view: EditorView, node: MarkdownSyntaxNode): boolean {
   if (!view.hasFocus) {
     return false
   }
-  return view.state.selection.ranges.some(range =>
+  return view.state.selection.ranges.some((range) =>
     range.empty
       ? range.head >= node.from && range.head <= node.to
       : range.from < node.to && range.to > node.from,
   )
 }
 
-function selectionEntersRange(
-  view: EditorView,
-  from: number,
-  to: number,
-): boolean {
+function selectionEntersRange(view: EditorView, from: number, to: number): boolean {
   if (!view.hasFocus) {
     return false
   }
-  return view.state.selection.ranges.some(range =>
-    range.empty
-      ? range.head >= from && range.head <= to
-      : range.from < to && range.to > from,
+  return view.state.selection.ranges.some((range) =>
+    range.empty ? range.head >= from && range.head <= to : range.from < to && range.to > from,
   )
 }
 
@@ -887,11 +837,7 @@ function addBlockquoteDecoration(
   const alertType = alertMatch[1].toLowerCase() as MarkdownAlertType
   const alertClass = `cm-md-rich-alert cm-md-rich-alert--${alertType}`
 
-  for (
-    let lineNumber = startLine.number;
-    lineNumber <= endLine.number;
-    lineNumber += 1
-  ) {
+  for (let lineNumber = startLine.number; lineNumber <= endLine.number; lineNumber += 1) {
     const line = view.state.doc.line(lineNumber)
     if (line.to < visibleRange.from || line.from > visibleRange.to) {
       continue
@@ -946,13 +892,7 @@ function addVisibleLineDecorations(
   if (from > to) return
   let line = view.state.doc.lineAt(from)
   while (line.from <= to) {
-    addLineDecoration(
-      view.state,
-      line.from,
-      className,
-      ranges,
-      seen,
-    )
+    addLineDecoration(view.state, line.from, className, ranges, seen)
     if (line.to >= to || line.number >= view.state.doc.lines) break
     line = view.state.doc.line(line.number + 1)
   }
@@ -1018,8 +958,7 @@ export const markdownRichThemeSpec = {
   '&.cm-markdown-rich .cm-md-rich-link': {
     color: 'var(--cpx-sys-color-accent)',
     textDecoration: 'underline',
-    textDecorationColor:
-      'color-mix(in srgb, var(--cpx-sys-color-accent) 55%, transparent)',
+    textDecorationColor: 'color-mix(in srgb, var(--cpx-sys-color-accent) 55%, transparent)',
     textUnderlineOffset: '0.16em',
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-blockquote': {
@@ -1036,13 +975,11 @@ export const markdownRichThemeSpec = {
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-alert--note': {
     borderLeftColor: 'var(--cpx-sys-color-accent)',
-    background:
-      'color-mix(in srgb, var(--cpx-sys-color-accent) 6%, transparent)',
+    background: 'color-mix(in srgb, var(--cpx-sys-color-accent) 6%, transparent)',
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-alert--tip': {
     borderLeftColor: 'var(--cpx-sys-color-success)',
-    background:
-      'color-mix(in srgb, var(--cpx-sys-color-success) 6%, transparent)',
+    background: 'color-mix(in srgb, var(--cpx-sys-color-success) 6%, transparent)',
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-alert--important': {
     borderLeftColor: '#a855f7',
@@ -1050,13 +987,11 @@ export const markdownRichThemeSpec = {
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-alert--warning': {
     borderLeftColor: 'var(--cpx-sys-color-warning)',
-    background:
-      'color-mix(in srgb, var(--cpx-sys-color-warning) 6%, transparent)',
+    background: 'color-mix(in srgb, var(--cpx-sys-color-warning) 6%, transparent)',
   },
   '&.cm-markdown-rich .cm-line.cm-md-rich-alert--caution': {
     borderLeftColor: 'var(--cpx-sys-color-danger)',
-    background:
-      'color-mix(in srgb, var(--cpx-sys-color-danger) 6%, transparent)',
+    background: 'color-mix(in srgb, var(--cpx-sys-color-danger) 6%, transparent)',
   },
   '&.cm-markdown-rich .cm-md-rich-alert-header': {
     display: 'inline-flex',
@@ -1113,11 +1048,10 @@ export const markdownRichThemeSpec = {
       borderTopLeftRadius: 'var(--cpx-sys-radius-lg)',
       borderTopRightRadius: 'var(--cpx-sys-radius-lg)',
     },
-  '&.cm-markdown-rich .cm-line.cm-md-rich-code-block:not(:has(+ .cm-line.cm-md-rich-code-block))':
-    {
-      borderBottomLeftRadius: 'var(--cpx-sys-radius-lg)',
-      borderBottomRightRadius: 'var(--cpx-sys-radius-lg)',
-    },
+  '&.cm-markdown-rich .cm-line.cm-md-rich-code-block:not(:has(+ .cm-line.cm-md-rich-code-block))': {
+    borderBottomLeftRadius: 'var(--cpx-sys-radius-lg)',
+    borderBottomRightRadius: 'var(--cpx-sys-radius-lg)',
+  },
   '&.cm-markdown-rich .cm-md-rich-code-block-widget': {
     display: 'block',
     boxSizing: 'border-box',

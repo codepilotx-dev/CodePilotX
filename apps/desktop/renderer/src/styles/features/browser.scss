@@ -91,8 +91,7 @@
   border-radius: var(--cpx-sys-radius-md);
   background: transparent;
   color: var(--cpx-sys-color-fg-secondary);
-  padding: var(--cpx-sys-space-1)
-    var(--cpx-sys-space-2);
+  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   font: var(--cpx-sys-type-body);
   transition:
     background var(--cpx-sys-motion-micro) var(--cpx-sys-ease-out),
@@ -109,7 +108,7 @@
   background: var(--cpx-sys-color-selected);
 }
 
-.browser-annotation-toggle[aria-pressed="true"] {
+.browser-annotation-toggle[aria-pressed='true'] {
   background: var(--cpx-sys-color-selected);
   color: var(--cpx-sys-color-fg-primary);
 }

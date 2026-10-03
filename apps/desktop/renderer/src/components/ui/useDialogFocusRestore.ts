@@ -13,14 +13,11 @@ export function useDialogFocusRestore(
   const wasOpen = useRef(false)
 
   if (open && !wasOpen.current) {
-    capturedRestoreFocusElement.current =
-      explicitRestoreFocusElement
-      ?? activeDialogRestoreTarget()
+    capturedRestoreFocusElement.current = explicitRestoreFocusElement ?? activeDialogRestoreTarget()
   }
   wasOpen.current = open
 
-  const restoreFocusElement =
-    explicitRestoreFocusElement ?? capturedRestoreFocusElement.current
+  const restoreFocusElement = explicitRestoreFocusElement ?? capturedRestoreFocusElement.current
   const onCloseAutoFocus = useCallback(
     (event: Event): void => {
       if (!restoreFocusElement?.isConnected) return
@@ -34,10 +31,7 @@ export function useDialogFocusRestore(
 }
 
 function activeDialogRestoreTarget(): HTMLElement | null {
-  if (
-    typeof document === 'undefined'
-    || !(document.activeElement instanceof HTMLElement)
-  ) {
+  if (typeof document === 'undefined' || !(document.activeElement instanceof HTMLElement)) {
     return null
   }
 

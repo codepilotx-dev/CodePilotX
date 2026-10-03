@@ -7,7 +7,9 @@ export type SidebarPane = 'chats' | 'activity' | 'scheduled' | 'settings'
 export function sidebarPaneForRoute(pathname: string, activity: boolean): SidebarPane | null {
   if (pathname.startsWith('/settings/')) return 'settings'
   if (pathname === '/automations') return 'scheduled'
-  if (pathname === '/projects' || pathname.startsWith('/projects/')) return activity ? 'activity' : 'chats'
-  if (pathname === '/new' || pathname.startsWith('/threads/')) return activity ? 'activity' : 'chats'
+  if (pathname === '/projects' || pathname.startsWith('/projects/'))
+    return activity ? 'activity' : 'chats'
+  if (pathname === '/new' || pathname.startsWith('/threads/'))
+    return activity ? 'activity' : 'chats'
   return null
 }

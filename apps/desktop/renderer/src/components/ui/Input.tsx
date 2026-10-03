@@ -16,13 +16,7 @@ const SIZE_CLASSES: Record<InputSize, string> = {
 }
 
 export const Input = forwardRef<HTMLInputElement, Props>(function Input(
-  {
-    className,
-    invalid = false,
-    readOnly = false,
-    size = 'md',
-    ...inputProps
-  },
+  { className, invalid = false, readOnly = false, size = 'md', ...inputProps },
   ref,
 ): React.ReactNode {
   return (

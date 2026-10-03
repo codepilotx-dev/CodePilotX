@@ -11,7 +11,8 @@ type GithubAccountSnapshot = {
   overview: DesktopGithubProfileOverview | null
 }
 
-type GithubClient = Pick<DesktopApi,
+type GithubClient = Pick<
+  DesktopApi,
   | 'getGithubAuthStatus'
   | 'getGithubProfileOverview'
   | 'startGithubLogin'
@@ -55,16 +56,18 @@ export function createGithubAccountCache(client: GithubClient, now = Date.now) {
         }
         if (pending) return pending
         const requestGeneration = generation
-        const request = load().then(result => {
-          if (generation === requestGeneration && successful(result)) {
-            value = result
-            updatedAt = now()
-            commit(result)
-          }
-          return result
-        }).finally(() => {
-          if (pending === request) pending = null
-        })
+        const request = load()
+          .then((result) => {
+            if (generation === requestGeneration && successful(result)) {
+              value = result
+              updatedAt = now()
+              commit(result)
+            }
+            return result
+          })
+          .finally(() => {
+            if (pending === request) pending = null
+          })
         pending = request
         return request
       },
@@ -73,8 +76,8 @@ export function createGithubAccountCache(client: GithubClient, now = Date.now) {
 
   const overview = cachedRead(
     () => client.getGithubProfileOverview(),
-    result => result.ok,
-    result => {
+    (result) => result.ok,
+    (result) => {
       if (result.ok) publish({ overview: result.overview })
     },
   )
@@ -84,11 +87,13 @@ export function createGithubAccountCache(client: GithubClient, now = Date.now) {
   }
   const auth = cachedRead(
     () => client.getGithubAuthStatus(),
-    result => !result.error,
-    result => {
-      if (!result.authenticated || (
-        result.user && snapshot.overview && result.user.id !== snapshot.overview.user.id
-      )) clearOverview()
+    (result) => !result.error,
+    (result) => {
+      if (
+        !result.authenticated ||
+        (result.user && snapshot.overview && result.user.id !== snapshot.overview.user.id)
+      )
+        clearOverview()
       publish({ auth: result })
     },
   )
@@ -108,7 +113,9 @@ export function createGithubAccountCache(client: GithubClient, now = Date.now) {
     getGithubAccountSnapshot: (): GithubAccountSnapshot => snapshot,
     onGithubAccountChange(listener: () => void): () => void {
       listeners.add(listener)
-      return () => { listeners.delete(listener) }
+      return () => {
+        listeners.delete(listener)
+      }
     },
     getGithubAuthStatus: auth.read,
     getGithubProfileOverview: overview.read,

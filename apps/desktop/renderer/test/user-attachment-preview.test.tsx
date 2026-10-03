@@ -10,9 +10,7 @@ import {
   formatAttachmentText,
 } from '../src/features/session/attachments/UserAttachmentPreviewPanel.js'
 
-function attachment(
-  patch: Partial<DesktopComposerAttachment> = {},
-): DesktopComposerAttachment {
+function attachment(patch: Partial<DesktopComposerAttachment> = {}): DesktopComposerAttachment {
   return {
     id: 'attachment-1',
     name: 'notes.md',
@@ -37,50 +35,65 @@ describe('用户附件预览', () => {
     })
     expect(canPreviewDraftAttachment(attachment({ truncated: true }))).toBe(false)
     expect(canPreviewDraftAttachment(attachment({ status: 'error' }))).toBe(false)
-    expect(canPreviewDraftAttachment(attachment({
-      kind: 'binary',
-      mediaType: 'application/octet-stream',
-      textContent: undefined,
-    }))).toBe(false)
+    expect(
+      canPreviewDraftAttachment(
+        attachment({
+          kind: 'binary',
+          mediaType: 'application/octet-stream',
+          textContent: undefined,
+        }),
+      ),
+    ).toBe(false)
   })
 
   test('本地文件与目录使用临时 grant 打开右侧预览', () => {
-    expect(createDraftAttachmentPreviewTab(attachment({
-      storage: 'local-path',
-      pathKind: 'file',
-      localGrantId: 'grant-file',
-      textContent: undefined,
-    }))).toMatchObject({
+    expect(
+      createDraftAttachmentPreviewTab(
+        attachment({
+          storage: 'local-path',
+          pathKind: 'file',
+          localGrantId: 'grant-file',
+          textContent: undefined,
+        }),
+      ),
+    ).toMatchObject({
       attachment: { kind: 'text' },
       source: { storage: 'draft-path', grantId: 'grant-file' },
     })
-    expect(createDraftAttachmentPreviewTab(attachment({
-      storage: 'local-path',
-      pathKind: 'directory',
-      localGrantId: 'grant-directory',
-      kind: 'document',
-      mediaType: 'inode/directory',
-      textContent: undefined,
-    }))).toMatchObject({
+    expect(
+      createDraftAttachmentPreviewTab(
+        attachment({
+          storage: 'local-path',
+          pathKind: 'directory',
+          localGrantId: 'grant-directory',
+          kind: 'document',
+          mediaType: 'inode/directory',
+          textContent: undefined,
+        }),
+      ),
+    ).toMatchObject({
       attachment: { kind: 'directory' },
       source: { storage: 'draft-path', grantId: 'grant-directory' },
     })
   })
 
   test('识别 Markdown、格式化合法 JSON，并让非法 JSON 回退原文', () => {
-    expect(formatAttachmentText('# Title', 'README.md', 'text/plain'))
-      .toMatchObject({ markdown: true, language: 'markdown', text: '# Title' })
-    expect(formatAttachmentText('{"ok":true}', 'data.json', 'application/json'))
-      .toEqual({
-        text: '{\n  "ok": true\n}',
-        language: 'json',
-        markdown: false,
-        jsonInvalid: false,
-      })
-    expect(formatAttachmentText('{bad', 'data.json', 'application/json'))
-      .toMatchObject({ text: '{bad', jsonInvalid: true })
-    expect(formatAttachmentText('name: value', 'config.yaml', 'text/plain').language)
-      .toBe('yaml')
+    expect(formatAttachmentText('# Title', 'README.md', 'text/plain')).toMatchObject({
+      markdown: true,
+      language: 'markdown',
+      text: '# Title',
+    })
+    expect(formatAttachmentText('{"ok":true}', 'data.json', 'application/json')).toEqual({
+      text: '{\n  "ok": true\n}',
+      language: 'json',
+      markdown: false,
+      jsonInvalid: false,
+    })
+    expect(formatAttachmentText('{bad', 'data.json', 'application/json')).toMatchObject({
+      text: '{bad',
+      jsonInvalid: true,
+    })
+    expect(formatAttachmentText('name: value', 'config.yaml', 'text/plain').language).toBe('yaml')
   })
 
   test('图片适应窗口并把缩放限制在 5% 到 800%', () => {

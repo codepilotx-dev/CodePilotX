@@ -37,12 +37,14 @@ describe('startup theme seed', () => {
   })
 
   test('seeds explicit light settings when the system may be dark', () => {
-    const settings = resolveStartupThemeSettings(themedUrl({
-      version: 1,
-      variant: 'light',
-      surface: '#f5f4ef',
-      ink: '#202124',
-    }))
+    const settings = resolveStartupThemeSettings(
+      themedUrl({
+        version: 1,
+        variant: 'light',
+        surface: '#f5f4ef',
+        ink: '#202124',
+      }),
+    )
 
     expect(settings.mode).toBe('light')
     expect(settings.chromeThemes.light).toMatchObject({
@@ -70,28 +72,25 @@ describe('startup theme seed', () => {
 
     for (const url of invalidUrls) {
       expect(parseStartupThemeSeed(url)).toBeNull()
-      expect(resolveStartupThemeSettings(url)).toEqual(
-        DEFAULT_DESKTOP_THEME_SETTINGS,
-      )
+      expect(resolveStartupThemeSettings(url)).toEqual(DEFAULT_DESKTOP_THEME_SETTINGS)
     }
   })
 
   test('updates only the startup seed while preserving route and query state', () => {
-    const updated = new URL(withStartupThemeSeed(
-      'http://127.0.0.1:4210/?existing=kept#/settings/appearance',
-      {
+    const updated = new URL(
+      withStartupThemeSeed('http://127.0.0.1:4210/?existing=kept#/settings/appearance', {
         version: 1,
         variant: 'dark',
         surface: '#181818',
         ink: '#ffffff',
-      },
-    ))
+      }),
+    )
 
     expect(updated.searchParams.get('existing')).toBe('kept')
     expect(updated.hash).toBe('#/settings/appearance')
-    expect(JSON.parse(
-      updated.searchParams.get(STARTUP_THEME_QUERY_PARAM) ?? 'null',
-    )).toMatchObject({ variant: 'dark', surface: '#181818' })
+    expect(JSON.parse(updated.searchParams.get(STARTUP_THEME_QUERY_PARAM) ?? 'null')).toMatchObject(
+      { variant: 'dark', surface: '#181818' },
+    )
   })
 
   test('loads the blocking bootstrap before the static splash styles', async () => {
@@ -106,7 +105,7 @@ describe('startup theme seed', () => {
     expect(html).toContain('--startup-splash-background')
     expect(html).toContain('--cpx-sys-color-surface-canvas')
     expect(bootstrap).toContain(STARTUP_THEME_QUERY_PARAM)
-    expect(bootstrap).toContain("root.dataset.theme = seed.variant")
-    expect(bootstrap).toContain("meta[name=\"theme-color\"]")
+    expect(bootstrap).toContain('root.dataset.theme = seed.variant')
+    expect(bootstrap).toContain('meta[name="theme-color"]')
   })
 })

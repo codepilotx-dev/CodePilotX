@@ -12,7 +12,11 @@ describe('MCP elicitation choice controls', () => {
           properties: {
             enabled: { type: 'boolean', title: '启用', default: true },
             mode: { type: 'string', title: '模式', enum: ['fast', 'safe'] },
-            scopes: { type: 'array', title: '范围', items: { type: 'string', enum: ['read', 'write'] } },
+            scopes: {
+              type: 'array',
+              title: '范围',
+              items: { type: 'string', enum: ['read', 'write'] },
+            },
           },
         }}
         serverName="demo"

@@ -1,11 +1,11 @@
-import { afterEach, describe, expect, test } from "bun:test"
-import { mkdtemp } from "node:fs/promises"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
-import { AgentDatabase, SCHEMA_VERSION } from "../src/storage/database/AgentDatabase"
-import { probeAutomationStorageCapabilities } from "../src/storage/database/storage-capabilities"
-import { filterAdvertisedCapabilities } from "../src/transport/rpc/handlers/system-capabilities"
-import { removeFixturePaths } from "./fixture-cleanup"
+import { afterEach, describe, expect, test } from 'bun:test'
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { AgentDatabase, SCHEMA_VERSION } from '../src/storage/database/AgentDatabase'
+import { probeAutomationStorageCapabilities } from '../src/storage/database/storage-capabilities'
+import { filterAdvertisedCapabilities } from '../src/transport/rpc/handlers/system-capabilities'
+import { removeFixturePaths } from './fixture-cleanup'
 
 const paths: string[] = []
 
@@ -13,12 +13,12 @@ afterEach(async () => {
   await removeFixturePaths(paths.splice(0))
 })
 
-describe("automation schema", () => {
-  test("schema 41 前向迁移到当前版本时保留自动化存储和未知对象", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-automation-schema-"))
+describe('automation schema', () => {
+  test('schema 41 前向迁移到当前版本时保留自动化存储和未知对象', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'codepilotx-automation-schema-'))
     paths.push(root)
-    const historyPath = join(root, "history.sqlite")
-    const profilePath = join(root, "profile.sqlite")
+    const historyPath = join(root, 'history.sqlite')
+    const profilePath = join(root, 'profile.sqlite')
 
     const seeded = new AgentDatabase({ historyPath, profilePath })
     seeded.sqlite.exec(`
@@ -31,22 +31,26 @@ describe("automation schema", () => {
     seeded.close()
 
     const migrated = new AgentDatabase({ historyPath, profilePath })
-    expect(migrated.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION })
+    expect(migrated.sqlite.query('PRAGMA user_version').get()).toEqual({
+      user_version: SCHEMA_VERSION,
+    })
     expect(SCHEMA_VERSION).toBe(50)
     expect(probeAutomationStorageCapabilities(migrated.sqlite)).toEqual({
       automations: true,
       automationRuns: true,
     })
-    expect(filterAdvertisedCapabilities(migrated)).toContain("automation.manage.v1")
-    expect(migrated.sqlite.query("SELECT value FROM future_schema_41_extension WHERE id = 'kept'").get()).toEqual({ value: "unknown" })
+    expect(filterAdvertisedCapabilities(migrated)).toContain('automation.manage.v1')
+    expect(
+      migrated.sqlite.query("SELECT value FROM future_schema_41_extension WHERE id = 'kept'").get(),
+    ).toEqual({ value: 'unknown' })
     migrated.close()
   })
 
-  test("更高未知 schema 缺少自动化表时保持只读能力降级", async () => {
-    const root = await mkdtemp(join(tmpdir(), "codepilotx-automation-future-schema-"))
+  test('更高未知 schema 缺少自动化表时保持只读能力降级', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'codepilotx-automation-future-schema-'))
     paths.push(root)
-    const historyPath = join(root, "history.sqlite")
-    const profilePath = join(root, "profile.sqlite")
+    const historyPath = join(root, 'history.sqlite')
+    const profilePath = join(root, 'profile.sqlite')
 
     const seeded = new AgentDatabase({ historyPath, profilePath })
     seeded.sqlite.exec(`
@@ -59,13 +63,17 @@ describe("automation schema", () => {
     seeded.close()
 
     const reopened = new AgentDatabase({ historyPath, profilePath })
-    expect(reopened.sqlite.query("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION + 1 })
-    expect(reopened.sqlite.query("SELECT value FROM future_automation_owner WHERE id = 'kept'").get()).toEqual({ value: "future" })
+    expect(reopened.sqlite.query('PRAGMA user_version').get()).toEqual({
+      user_version: SCHEMA_VERSION + 1,
+    })
+    expect(
+      reopened.sqlite.query("SELECT value FROM future_automation_owner WHERE id = 'kept'").get(),
+    ).toEqual({ value: 'future' })
     expect(probeAutomationStorageCapabilities(reopened.sqlite)).toEqual({
       automations: false,
       automationRuns: false,
     })
-    expect(filterAdvertisedCapabilities(reopened)).not.toContain("automation.manage.v1")
+    expect(filterAdvertisedCapabilities(reopened)).not.toContain('automation.manage.v1')
     reopened.close()
   })
 })

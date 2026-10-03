@@ -1,7 +1,11 @@
 import type React from 'react'
 import { Folder, GitBranch, Laptop } from 'lucide-react'
 import { SkeletonBlock } from '../../../components/ui/Skeleton.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
+} from '../../../components/ui/iconTokens.js'
 import type { SidebarHoverCardOverlayRenderProps } from './SidebarHoverCard.js'
 import {
   SidebarHoverCardFrame,
@@ -63,8 +67,8 @@ export function SidebarSessionHoverCardOverlay({
               ref={inputRef}
               value={renameValue}
               onBlur={onCancelRename}
-              onChange={event => onRenameValueChange(event.target.value)}
-              onKeyDown={event => {
+              onChange={(event) => onRenameValueChange(event.target.value)}
+              onKeyDown={(event) => {
                 if (event.key === 'Enter') {
                   event.preventDefault()
                   onSaveRename()
@@ -102,38 +106,28 @@ export function SidebarSessionHoverCardOverlay({
               size={APP_ICON_SIZE}
               strokeWidth={APP_ICON_STROKE_WIDTH}
             />
-            <span className="sidebar-session-hover-card-time">
-              {model.relativeTime}
-            </span>
+            <span className="sidebar-session-hover-card-time">{model.relativeTime}</span>
             {model.isRunning ? (
               <>
-                <span aria-hidden="true" className="sidebar-session-hover-card-time-dot">·</span>
-                <span
-                  aria-label="运行中"
-                  className="sidebar-session-running-dot"
-                />
+                <span aria-hidden="true" className="sidebar-session-hover-card-time-dot">
+                  ·
+                </span>
+                <span aria-label="运行中" className="sidebar-session-running-dot" />
               </>
             ) : null}
-            {model.unread ? (
-              <span
-                aria-hidden="true"
-                className="sidebar-unread-dot"
-              />
-            ) : null}
+            {model.unread ? <span aria-hidden="true" className="sidebar-unread-dot" /> : null}
           </span>
         </SidebarHoverCardHeader>
         <div className="sidebar-session-hover-card-meta">
           <SidebarHoverCardRow className="sidebar-session-hover-card-row">
-            <Folder
-              aria-hidden="true"
-              size={APP_ICON_SIZE}
-              strokeWidth={APP_ICON_STROKE_WIDTH}
-            />
+            <Folder aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             <span className="sidebar-session-hover-card-row-content">
               <span>{model.projectLabel}</span>
               {model.gitBranch ? (
                 <>
-                  <span aria-hidden="true" className="sidebar-session-hover-card-stat-separator">·</span>
+                  <span aria-hidden="true" className="sidebar-session-hover-card-stat-separator">
+                    ·
+                  </span>
                   <GitBranch
                     aria-hidden="true"
                     size={APP_ICON_SIZES.sm}

@@ -60,17 +60,38 @@ async function buildHarness(): Promise<string> {
     target: 'browser',
     format: 'iife',
     define: { 'process.env.NODE_ENV': '"development"' },
-    plugins: [{
-      name: 'deepseek-protocol-harness',
-      setup(builder) {
-        builder.onResolve({ filter: /^react(?:\/.*)?$/ }, args => ({ path: Bun.resolveSync(args.path, rendererRoot), namespace: 'file' }))
-        builder.onResolve({ filter: /^react-dom\/client$/ }, args => ({ path: Bun.resolveSync(args.path, rendererRoot), namespace: 'file' }))
-        builder.onResolve({ filter: /^deepseek-protocol-harness$/ }, () => ({ path: 'harness', namespace: 'deepseek-protocol' }))
-        builder.onLoad({ filter: /^harness$/, namespace: 'deepseek-protocol' }, () => ({ contents: harness, loader: 'jsx', resolveDir: rendererRoot }))
-        builder.onResolve({ filter: /(?:desktop-client\/index\.js$|^deepseek-protocol-client$)/ }, () => ({ path: 'client', namespace: 'deepseek-protocol' }))
-        builder.onLoad({ filter: /^client$/, namespace: 'deepseek-protocol' }, () => ({ contents: clientMock, loader: 'js' }))
+    plugins: [
+      {
+        name: 'deepseek-protocol-harness',
+        setup(builder) {
+          builder.onResolve({ filter: /^react(?:\/.*)?$/ }, (args) => ({
+            path: Bun.resolveSync(args.path, rendererRoot),
+            namespace: 'file',
+          }))
+          builder.onResolve({ filter: /^react-dom\/client$/ }, (args) => ({
+            path: Bun.resolveSync(args.path, rendererRoot),
+            namespace: 'file',
+          }))
+          builder.onResolve({ filter: /^deepseek-protocol-harness$/ }, () => ({
+            path: 'harness',
+            namespace: 'deepseek-protocol',
+          }))
+          builder.onLoad({ filter: /^harness$/, namespace: 'deepseek-protocol' }, () => ({
+            contents: harness,
+            loader: 'jsx',
+            resolveDir: rendererRoot,
+          }))
+          builder.onResolve(
+            { filter: /(?:desktop-client\/index\.js$|^deepseek-protocol-client$)/ },
+            () => ({ path: 'client', namespace: 'deepseek-protocol' }),
+          )
+          builder.onLoad({ filter: /^client$/, namespace: 'deepseek-protocol' }, () => ({
+            contents: clientMock,
+            loader: 'js',
+          }))
+        },
       },
-    }],
+    ],
   })
   assert.ok(build.success, build.logs.map(String).join('\n'))
   return build.outputs[0]!.text()
@@ -92,7 +113,10 @@ const browser = await chromium.launch({ channel: 'chrome', headless: true })
 try {
   const page = await browser.newPage()
   const errors: string[] = []
-  page.on('pageerror', error => { errors.push(error.message); console.error(error.message) })
+  page.on('pageerror', (error) => {
+    errors.push(error.message)
+    console.error(error.message)
+  })
   await page.setContent('<div id="root"></div>')
   await page.addScriptTag({ content: script })
 
@@ -115,7 +139,9 @@ try {
 
   // 模型徽标跟随全局协议，且不再提供逐模型协议下拉框。
   await page.getByRole('tab', { name: /模型管理/ }).click()
-  const rows = page.locator('.provider-editor-body .settings-management-dialog-card .settings-management-dialog-row')
+  const rows = page.locator(
+    '.provider-editor-body .settings-management-dialog-card .settings-management-dialog-row',
+  )
   await expect(rows).toHaveCount(2)
   await expect(rows.nth(0)).toContainText('deepseek-v4-flash')
   await expect(rows.nth(0)).toContainText('anthropic-messages')
@@ -125,7 +151,9 @@ try {
 
   await page.getByRole('button', { name: '保存 Provider' }).click()
   await expect(page.locator('#saved')).toHaveText('deepseek')
-  const saved = await page.evaluate(() => (window as never as { __savedProvider: unknown }).__savedProvider)
+  const saved = await page.evaluate(
+    () => (window as never as { __savedProvider: unknown }).__savedProvider,
+  )
   expect(saved).toEqual({
     providerId: 'deepseek',
     definition: {

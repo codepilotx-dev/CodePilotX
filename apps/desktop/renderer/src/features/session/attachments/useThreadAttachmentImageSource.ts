@@ -3,13 +3,9 @@ import { useEffect, useState } from 'react'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 
 export type ThreadAttachmentImageState =
-  | { status: 'loading' }
-  | { status: 'ready'; source: string }
-  | { status: 'error'; message: string }
+  { status: 'loading' } | { status: 'ready'; source: string } | { status: 'error'; message: string }
 
-export function useThreadAttachmentImageSource(
-  attachment: Attachment,
-): ThreadAttachmentImageState {
+export function useThreadAttachmentImageSource(attachment: Attachment): ThreadAttachmentImageState {
   const [state, setState] = useState<ThreadAttachmentImageState>({
     status: 'loading',
   })
@@ -19,12 +15,9 @@ export function useThreadAttachmentImageSource(
     setState({ status: 'loading' })
 
     void desktopClient.readAttachment(attachment.id).then(
-      result => {
+      (result) => {
         if (cancelled) return
-        if (
-          result.attachment.kind !== 'image'
-          || result.encoding !== 'base64'
-        ) {
+        if (result.attachment.kind !== 'image' || result.encoding !== 'base64') {
           setState({ status: 'error', message: '图片附件格式不受支持。' })
           return
         }

@@ -1,25 +1,19 @@
-import type { DesktopLogger } from "../logging/desktop-logger.js"
-import { SidecarInstallationError } from "./command.js"
-import { SidecarTerminationError } from "./failure-diagnostics.js"
+import type { DesktopLogger } from '../logging/desktop-logger.js'
+import { SidecarInstallationError } from './command.js'
+import { SidecarTerminationError } from './failure-diagnostics.js'
 import {
   type AgentConnectionState,
   type ConnectionStatus,
   type SidecarConnection,
-} from "./supervisor.js"
+} from './supervisor.js'
 
 export type DesktopAgentLifecycleState =
-  | "idle"
-  | "spawning"
-  | "probing"
-  | "loading"
-  | "connected"
-  | "disposing"
-  | "failed"
+  'idle' | 'spawning' | 'probing' | 'loading' | 'connected' | 'disposing' | 'failed'
 
 export interface DesktopAgentConnectionStatus {
   readonly lifecycle: DesktopAgentLifecycleState
   readonly connectionState: AgentConnectionState
-  readonly phase: ConnectionStatus["phase"]
+  readonly phase: ConnectionStatus['phase']
   readonly attempt: number
   readonly message?: string
 }
@@ -31,9 +25,7 @@ export interface DesktopAgentConnectionGuard {
 
 export interface SidecarLifecycle {
   onStateChange(listener: (status: ConnectionStatus) => void): void
-  connect(
-    validate: (connection: SidecarConnection) => Promise<void>,
-  ): Promise<SidecarConnection>
+  connect(validate: (connection: SidecarConnection) => Promise<void>): Promise<SidecarConnection>
   watch(connection: SidecarConnection, onLost: () => void): void
   invalidate(): Promise<void>
   stop(): Promise<void>
@@ -54,7 +46,7 @@ export interface DesktopAgentConnectionCoordinatorOptions {
   readonly onBeforeReconnect?: () => void
   readonly onTerminalFailure: (
     error: unknown,
-    kind: "installation" | "relocation" | "termination" | "unexpected",
+    kind: 'installation' | 'relocation' | 'termination' | 'unexpected',
   ) => void
   readonly isRelocating: () => boolean
 }
@@ -66,9 +58,9 @@ export interface DesktopAgentConnectionCoordinatorOptions {
 export class DesktopAgentConnectionCoordinator {
   readonly #options: DesktopAgentConnectionCoordinatorOptions
   #status: DesktopAgentConnectionStatus = {
-    lifecycle: "idle",
-    connectionState: "unknown",
-    phase: "starting",
+    lifecycle: 'idle',
+    connectionState: 'unknown',
+    phase: 'starting',
     attempt: 0,
   }
   #listener: ((status: DesktopAgentConnectionStatus) => void) | undefined
@@ -79,10 +71,10 @@ export class DesktopAgentConnectionCoordinator {
 
   constructor(options: DesktopAgentConnectionCoordinatorOptions) {
     this.#options = options
-    options.supervisor.onStateChange(status => {
+    options.supervisor.onStateChange((status) => {
       if (this.#stopping) return
       this.#publish({
-        lifecycle: status.phase === "authenticating" ? "probing" : "spawning",
+        lifecycle: status.phase === 'authenticating' ? 'probing' : 'spawning',
         connectionState: status.state,
         phase: status.phase,
         attempt: status.attempt,
@@ -95,16 +87,14 @@ export class DesktopAgentConnectionCoordinator {
     return this.#status
   }
 
-  onStateChange(
-    listener: (status: DesktopAgentConnectionStatus) => void,
-  ): void {
+  onStateChange(listener: (status: DesktopAgentConnectionStatus) => void): void {
     this.#listener = listener
     listener(this.#status)
   }
 
   start(): Promise<void> {
     if (this.#runPromise) return this.#runPromise
-    if (this.#stopping) return Promise.reject(new Error("Agent 连接已停止"))
+    if (this.#stopping) return Promise.reject(new Error('Agent 连接已停止'))
     const cycle = ++this.#cycle
     this.#runPromise = this.#runCycle(cycle).finally(() => {
       if (cycle === this.#cycle) this.#runPromise = undefined
@@ -129,41 +119,39 @@ export class DesktopAgentConnectionCoordinator {
       assertCurrent: () => this.#assertCurrent(cycle),
     }
     try {
-      const connection = await this.#options.supervisor.connect(
-        async candidate => {
-          if (!this.#isCurrent(cycle)) return
-          this.#publish({
-            lifecycle: "loading",
-            connectionState: "disconnected",
-            phase: "loading",
-            attempt: this.#status.attempt,
-          })
-          await this.#options.loadConnection(candidate, guard)
-          guard.assertCurrent()
-        },
-      )
+      const connection = await this.#options.supervisor.connect(async (candidate) => {
+        if (!this.#isCurrent(cycle)) return
+        this.#publish({
+          lifecycle: 'loading',
+          connectionState: 'disconnected',
+          phase: 'loading',
+          attempt: this.#status.attempt,
+        })
+        await this.#options.loadConnection(candidate, guard)
+        guard.assertCurrent()
+      })
       guard.assertCurrent()
       connected = connection
       this.#publish({
-        lifecycle: "connected",
-        connectionState: "connected",
-        phase: "loading",
+        lifecycle: 'connected',
+        connectionState: 'connected',
+        phase: 'loading',
         attempt: this.#status.attempt,
       })
       await this.#options.onConnected(connection, guard)
       guard.assertCurrent()
       this.#options.supervisor.watch(connection, () => {
-        if (!this.#isCurrent(cycle) || this.#status.lifecycle !== "connected") {
+        if (!this.#isCurrent(cycle) || this.#status.lifecycle !== 'connected') {
           return
         }
-        this.#options.logger.warn("desktop.connection-lost", {
+        this.#options.logger.warn('desktop.connection-lost', {
           origin: connection.origin,
           generation: connection.generation,
         })
         this.#publish({
-          lifecycle: "disposing",
-          connectionState: "disconnected",
-          phase: "reconnecting",
+          lifecycle: 'disposing',
+          connectionState: 'disconnected',
+          phase: 'reconnecting',
           attempt: 0,
         })
         this.#options.onReconnecting(connection)
@@ -203,47 +191,46 @@ export class DesktopAgentConnectionCoordinator {
     this.#stopping = true
     this.#cycle += 1
     this.#publish({
-      lifecycle: "disposing",
-      connectionState: "disconnected",
-      phase: "reconnecting",
+      lifecycle: 'disposing',
+      connectionState: 'disconnected',
+      phase: 'reconnecting',
       attempt: this.#status.attempt,
     })
     try {
       await this.#options.supervisor.stop()
       this.#publish({
-        lifecycle: "idle",
-        connectionState: "disconnected",
-        phase: "starting",
+        lifecycle: 'idle',
+        connectionState: 'disconnected',
+        phase: 'starting',
         attempt: 0,
       })
     } catch (error) {
       this.#publish({
-        lifecycle: "failed",
-        connectionState: "disconnected",
-        phase: "reconnecting",
+        lifecycle: 'failed',
+        connectionState: 'disconnected',
+        phase: 'reconnecting',
         attempt: this.#status.attempt,
-        message: "无法确认旧 Agent 进程已经退出",
+        message: '无法确认旧 Agent 进程已经退出',
       })
       throw error
     }
   }
 
   #fail(error: unknown): void {
-    const kind = error instanceof SidecarInstallationError
-      ? "installation"
-      : error instanceof SidecarTerminationError
-        ? "termination"
-        : this.#options.isRelocating()
-          ? "relocation"
-          : "unexpected"
+    const kind =
+      error instanceof SidecarInstallationError
+        ? 'installation'
+        : error instanceof SidecarTerminationError
+          ? 'termination'
+          : this.#options.isRelocating()
+            ? 'relocation'
+            : 'unexpected'
     this.#publish({
-      lifecycle: "failed",
-      connectionState: "disconnected",
-      phase: "reconnecting",
+      lifecycle: 'failed',
+      connectionState: 'disconnected',
+      phase: 'reconnecting',
       attempt: this.#status.attempt,
-      message: kind === "termination"
-        ? "无法确认旧 Agent 进程已经退出"
-        : undefined,
+      message: kind === 'termination' ? '无法确认旧 Agent 进程已经退出' : undefined,
     })
     this.#options.onTerminalFailure(error, kind)
   }
@@ -253,7 +240,7 @@ export class DesktopAgentConnectionCoordinator {
   }
 
   #assertCurrent(cycle: number): void {
-    if (!this.#isCurrent(cycle)) throw new Error("忽略过期的 Agent 连接周期")
+    if (!this.#isCurrent(cycle)) throw new Error('忽略过期的 Agent 连接周期')
   }
 
   #publish(status: DesktopAgentConnectionStatus): void {

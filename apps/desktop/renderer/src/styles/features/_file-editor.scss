@@ -53,7 +53,8 @@
   border: 1.5px solid currentcolor;
   border-right-color: transparent;
   border-radius: var(--cpx-sys-radius-full);
-  animation: file-editor-status-spin var(--cpx-sys-motion-loading) var(--cpx-sys-ease-linear) infinite;
+  animation: file-editor-status-spin var(--cpx-sys-motion-loading) var(--cpx-sys-ease-linear)
+    infinite;
 }
 
 .file-editor-status[data-error] {

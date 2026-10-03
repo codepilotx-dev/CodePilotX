@@ -41,11 +41,7 @@ function WorkbenchPanelStateSurface({
   tone = 'default',
 }: StateSurfaceProps): React.ReactNode {
   return (
-    <div
-      className="workbench-panel-state"
-      data-tone={tone}
-      role={role}
-    >
+    <div className="workbench-panel-state" data-tone={tone} role={role}>
       {icon ? (
         <span aria-hidden="true" className="workbench-panel-state__icon">
           {icon}
@@ -53,18 +49,12 @@ function WorkbenchPanelStateSurface({
       ) : null}
       <strong>{title}</strong>
       {description ? <span>{description}</span> : null}
-      {children ? (
-        <div className="workbench-panel-state__actions">{children}</div>
-      ) : null}
+      {children ? <div className="workbench-panel-state__actions">{children}</div> : null}
     </div>
   )
 }
 
-export function WorkbenchPanelLoading({
-  label,
-}: {
-  label: string
-}): React.ReactNode {
+export function WorkbenchPanelLoading({ label }: { label: string }): React.ReactNode {
   return (
     <WorkbenchPanelStateSurface title={label}>
       <Spinner className="workbench-panel-state__spinner" />
@@ -92,12 +82,7 @@ export function WorkbenchPanelUnavailable({
     <WorkbenchPanelStateSurface
       title={title}
       description={description}
-      icon={
-        <AlertTriangle
-          size={APP_ICON_SIZE}
-          strokeWidth={APP_ICON_STROKE_WIDTH}
-        />
-      }
+      icon={<AlertTriangle size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
       tone="warning"
     />
   )
@@ -120,21 +105,13 @@ export function WorkbenchPanelError({
     <WorkbenchPanelStateSurface
       title={title}
       description={code ? `${message}（${code}）` : message}
-      icon={
-        <AlertTriangle
-          size={APP_ICON_SIZE}
-          strokeWidth={APP_ICON_STROKE_WIDTH}
-        />
-      }
+      icon={<AlertTriangle size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
       role="alert"
       tone="warning"
     >
       {retryable && onRetry ? (
         <Button color="secondary" size="compact" onClick={onRetry}>
-          <RotateCcw
-            size={APP_ICON_SIZES.sm}
-            strokeWidth={APP_ICON_STROKE_WIDTH}
-          />
+          <RotateCcw size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
           重试
         </Button>
       ) : null}
@@ -146,9 +123,7 @@ export function WorkbenchPanelTooLarge({
   title,
   description,
 }: Pick<StateSurfaceProps, 'title' | 'description'>): React.ReactNode {
-  return (
-    <WorkbenchPanelStateSurface title={title} description={description} />
-  )
+  return <WorkbenchPanelStateSurface title={title} description={description} />
 }
 
 export function WorkbenchPanelWarning({
@@ -160,12 +135,7 @@ export function WorkbenchPanelWarning({
     <WorkbenchPanelStateSurface
       title={title}
       description={description}
-      icon={
-        <AlertTriangle
-          size={APP_ICON_SIZE}
-          strokeWidth={APP_ICON_STROKE_WIDTH}
-        />
-      }
+      icon={<AlertTriangle size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
       tone="warning"
     >
       {children}
@@ -191,7 +161,7 @@ export function WorkbenchPanelLauncher({
   return (
     <div aria-label="可用面板标签" className="right-panel-tabs-empty-state">
       <div className="right-panel-tabs-empty-state__actions">
-        {actions.map(action => (
+        {actions.map((action) => (
           <button
             className="right-panel-tabs-empty-state__item"
             disabled={action.disabled}
@@ -200,9 +170,7 @@ export function WorkbenchPanelLauncher({
             onClick={action.onSelect}
             type="button"
           >
-            <span className="right-panel-tabs-empty-state__icon">
-              {action.icon}
-            </span>
+            <span className="right-panel-tabs-empty-state__icon">{action.icon}</span>
             <strong>{action.label}</strong>
             {action.shortcut ? <kbd>{action.shortcut}</kbd> : null}
           </button>
@@ -228,9 +196,7 @@ export class WorkbenchTabErrorBoundary extends Component<
 > {
   state: WorkbenchTabErrorBoundaryState = { error: null, retryKey: 0 }
 
-  static getDerivedStateFromError(
-    error: Error,
-  ): Partial<WorkbenchTabErrorBoundaryState> {
+  static getDerivedStateFromError(error: Error): Partial<WorkbenchTabErrorBoundaryState> {
     return { error }
   }
 
@@ -242,16 +208,14 @@ export class WorkbenchTabErrorBoundary extends Component<
 
   render(): React.ReactNode {
     if (!this.state.error) {
-      return (
-        <Fragment key={this.state.retryKey}>{this.props.children}</Fragment>
-      )
+      return <Fragment key={this.state.retryKey}>{this.props.children}</Fragment>
     }
     return (
       <WorkbenchPanelError
         message={this.state.error.message}
         retryable
         onRetry={() =>
-          this.setState(state => ({
+          this.setState((state) => ({
             error: null,
             retryKey: state.retryKey + 1,
           }))

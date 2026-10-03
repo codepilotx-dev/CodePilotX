@@ -1,21 +1,18 @@
-import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../wire/definition"
-import { NonEmptyStringSchema, OpaqueIDSchema, TimestampSchema } from "../wire/primitives"
+import { Schema } from 'effect'
+import { defineMethod, type MethodMap } from '../wire/definition'
+import { NonEmptyStringSchema, OpaqueIDSchema, TimestampSchema } from '../wire/primitives'
 
 export const TaskSuggestionCategoryIdSchema = Schema.Literals([
-  "codex-explore",
-  "codex-create",
-  "codex-review",
-  "codex-fix",
-  "create",
-  "research",
-  "automate",
+  'codex-explore',
+  'codex-create',
+  'codex-review',
+  'codex-fix',
+  'create',
+  'research',
+  'automate',
 ])
 
-export const TaskSuggestionSurfaceSchema = Schema.Literals([
-  "coding",
-  "working",
-])
+export const TaskSuggestionSurfaceSchema = Schema.Literals(['coding', 'working'])
 
 export const TaskSuggestionSchema = Schema.Struct({
   id: NonEmptyStringSchema,
@@ -26,11 +23,11 @@ export const TaskSuggestionSchema = Schema.Struct({
 
 export const TaskSuggestionWorkspaceSchema = Schema.Union([
   Schema.Struct({
-    kind: Schema.Literal("project"),
+    kind: Schema.Literal('project'),
     projectId: OpaqueIDSchema,
   }),
   Schema.Struct({
-    kind: Schema.Literal("projectless"),
+    kind: Schema.Literal('projectless'),
   }),
 ])
 
@@ -39,14 +36,14 @@ export const TaskSuggestionRecentTaskSchema = Schema.Struct({
   title: NonEmptyStringSchema,
   firstPrompt: Schema.NullOr(Schema.String),
   status: Schema.Literals([
-    "idle",
-    "queued",
-    "waiting",
-    "running",
-    "done",
-    "error",
-    "interrupted",
-    "cancelled",
+    'idle',
+    'queued',
+    'waiting',
+    'running',
+    'done',
+    'error',
+    'interrupted',
+    'cancelled',
   ]),
   updatedAt: TimestampSchema,
 })
@@ -56,12 +53,14 @@ export const TaskSuggestionGitContextSchema = Schema.Struct({
   ahead: Schema.Number,
   behind: Schema.Number,
   totalFiles: Schema.Number,
-  files: Schema.Array(Schema.Struct({
-    path: NonEmptyStringSchema,
-    status: Schema.String,
-    stagedStatus: Schema.String,
-    unstagedStatus: Schema.String,
-  })),
+  files: Schema.Array(
+    Schema.Struct({
+      path: NonEmptyStringSchema,
+      status: Schema.String,
+      stagedStatus: Schema.String,
+      unstagedStatus: Schema.String,
+    }),
+  ),
 })
 
 export const TaskSuggestionGenerateParamsSchema = Schema.Struct({
@@ -83,17 +82,17 @@ export const TaskSuggestionGenerateResultSchema = Schema.Struct({
 })
 
 const TaskSuggestionErrors = [
-  "PROJECT_NOT_FOUND",
-  "SUGGESTION_UNAVAILABLE",
-  "INTERNAL_ERROR",
+  'PROJECT_NOT_FOUND',
+  'SUGGESTION_UNAVAILABLE',
+  'INTERNAL_ERROR',
 ] as const
 
 export const SuggestionRpcMethods = {
-  "task-suggestion/generate": defineMethod({
+  'task-suggestion/generate': defineMethod({
     params: TaskSuggestionGenerateParamsSchema,
     result: TaskSuggestionGenerateResultSchema,
     errors: TaskSuggestionErrors,
-    capability: "task-suggestions.v1",
+    capability: 'task-suggestions.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
@@ -101,10 +100,7 @@ export const SuggestionRpcMethods = {
 } as const satisfies MethodMap
 
 export type TaskSuggestion = typeof TaskSuggestionSchema.Type
-export type TaskSuggestionCategoryId =
-  typeof TaskSuggestionCategoryIdSchema.Type
+export type TaskSuggestionCategoryId = typeof TaskSuggestionCategoryIdSchema.Type
 export type TaskSuggestionSurface = typeof TaskSuggestionSurfaceSchema.Type
-export type TaskSuggestionGenerateParams =
-  typeof TaskSuggestionGenerateParamsSchema.Type
-export type TaskSuggestionGenerateResult =
-  typeof TaskSuggestionGenerateResultSchema.Type
+export type TaskSuggestionGenerateParams = typeof TaskSuggestionGenerateParamsSchema.Type
+export type TaskSuggestionGenerateResult = typeof TaskSuggestionGenerateResultSchema.Type

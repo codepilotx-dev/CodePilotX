@@ -13,15 +13,11 @@
     border-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard),
     opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 
-  &:hover:not(:where(:disabled, [data-disabled], [aria-disabled="true"])) {
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-fg-primary) 20%,
-      transparent
-    );
+  &:hover:not(:where(:disabled, [data-disabled], [aria-disabled='true'])) {
+    background: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 20%, transparent);
   }
 
-  &:active:not(:where(:disabled, [data-disabled], [aria-disabled="true"])) {
+  &:active:not(:where(:disabled, [data-disabled], [aria-disabled='true'])) {
     background: var(--cpx-sys-color-selected);
   }
 
@@ -30,12 +26,12 @@
     outline-offset: 2px;
   }
 
-  &[data-state="unchecked"] {
+  &[data-state='unchecked'] {
     background: var(--cpx-comp-switch-bg);
   }
 
-  &[data-state="checked"],
-  &[aria-checked="true"] {
+  &[data-state='checked'],
+  &[aria-checked='true'] {
     background: var(--cpx-sys-color-accent);
     border-color: color-mix(
       in srgb,
@@ -44,17 +40,13 @@
     );
   }
 
-  &[data-state="checked"]:hover:not(:where(:disabled, [data-disabled])),
-  &[aria-checked="true"]:hover:not(:where(:disabled, [data-disabled], [aria-disabled="true"])) {
-    background: color-mix(
-      in srgb,
-      var(--cpx-sys-color-fg-primary) 8%,
-      var(--cpx-sys-color-accent)
-    );
+  &[data-state='checked']:hover:not(:where(:disabled, [data-disabled])),
+  &[aria-checked='true']:hover:not(:where(:disabled, [data-disabled], [aria-disabled='true'])) {
+    background: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 8%, var(--cpx-sys-color-accent));
   }
 
-  &[data-state="checked"]:active:not(:where(:disabled, [data-disabled])),
-  &[aria-checked="true"]:active:not(:where(:disabled, [data-disabled], [aria-disabled="true"])) {
+  &[data-state='checked']:active:not(:where(:disabled, [data-disabled])),
+  &[aria-checked='true']:active:not(:where(:disabled, [data-disabled], [aria-disabled='true'])) {
     background: color-mix(
       in srgb,
       var(--cpx-sys-color-fg-primary) 14%,
@@ -64,7 +56,7 @@
 
   &:disabled,
   &[data-disabled],
-  &[aria-disabled="true"] {
+  &[aria-disabled='true'] {
     border-color: var(--cpx-sys-color-border-subtle);
     background: color-mix(
       in srgb,
@@ -96,8 +88,8 @@
   padding: 0;
   flex-shrink: 0;
 
-  &[data-state="checked"] .toggle-knob,
-  &[aria-checked="true"] .toggle-knob {
+  &[data-state='checked'] .toggle-knob,
+  &[aria-checked='true'] .toggle-knob {
     transform: translateX(12px);
   }
 }
@@ -120,14 +112,14 @@
   background: var(--cpx-comp-switch-thumb-fill);
 }
 
-.toggle-switch[data-state="checked"] .toggle-knob,
-.toggle-knob[data-state="checked"],
-.toggle-switch[aria-checked="true"] .toggle-knob {
+.toggle-switch[data-state='checked'] .toggle-knob,
+.toggle-knob[data-state='checked'],
+.toggle-switch[aria-checked='true'] .toggle-knob {
   border-color: transparent;
   background: var(--cpx-comp-switch-thumb-fill);
 }
 
-.toggle-knob[data-state="unchecked"] {
+.toggle-knob[data-state='unchecked'] {
   border-color: var(--cpx-sys-color-border-default);
   background: var(--cpx-comp-switch-thumb-fill);
 }
@@ -138,13 +130,9 @@
   box-shadow: none;
 }
 
-.chat-input__dropdown-switch:is(
-    :disabled,
-    [data-disabled],
-    [aria-disabled="true"]
-  )
+.chat-input__dropdown-switch:is(:disabled, [data-disabled], [aria-disabled='true'])
   .chat-input__dropdown-switch-thumb,
-.context-menu-switch:is(:disabled, [data-disabled], [aria-disabled="true"])
+.context-menu-switch:is(:disabled, [data-disabled], [aria-disabled='true'])
   .context-menu-switch-thumb {
   border-color: var(--cpx-sys-color-border-subtle);
   background: var(--cpx-comp-surface-raised);
@@ -171,8 +159,7 @@
   transition: transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 }
 
-.chat-input__dropdown-switch[aria-checked="true"]
-  .chat-input__dropdown-switch-thumb {
+.chat-input__dropdown-switch[aria-checked='true'] .chat-input__dropdown-switch-thumb {
   transform: translateX(14px);
 }
 
@@ -196,13 +183,9 @@
   }
 
   .toggle-knob[data-disabled],
-  .chat-input__dropdown-switch:is(
-      :disabled,
-      [data-disabled],
-      [aria-disabled="true"]
-    )
+  .chat-input__dropdown-switch:is(:disabled, [data-disabled], [aria-disabled='true'])
     .chat-input__dropdown-switch-thumb,
-  .context-menu-switch:is(:disabled, [data-disabled], [aria-disabled="true"])
+  .context-menu-switch:is(:disabled, [data-disabled], [aria-disabled='true'])
     .context-menu-switch-thumb {
     border-color: GrayText;
     background: GrayText;

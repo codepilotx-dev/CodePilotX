@@ -6,9 +6,8 @@ import type {
   DesktopClipboardWindow,
 } from '../src/services/desktop-client/clipboard-client.js'
 
-const { createDesktopClipboardClient } = await import(
-  '../src/services/desktop-client/clipboard-client.js'
-)
+const { createDesktopClipboardClient } =
+  await import('../src/services/desktop-client/clipboard-client.js')
 
 afterEach(() => {
   Reflect.deleteProperty(globalThis, 'ClipboardItem')
@@ -131,9 +130,9 @@ describe('desktop clipboard client', () => {
     const client = createDesktopClipboardClient(win)
 
     await expect(client.writeText('x')).rejects.toThrow('electron text failure')
-    await expect(
-      client.writeRichText({ text: 'x', html: '<b>x</b>' }),
-    ).rejects.toThrow('electron rich failure')
+    await expect(client.writeRichText({ text: 'x', html: '<b>x</b>' })).rejects.toThrow(
+      'electron rich failure',
+    )
     expect(browserWrites).toBe(0)
   })
 
@@ -201,7 +200,7 @@ describe('desktop clipboard client', () => {
     const win: DesktopClipboardWindow = {
       navigator: {
         clipboard: {
-          writeText: async text => {
+          writeText: async (text) => {
             written.push(text)
           },
         },
@@ -234,7 +233,7 @@ describe('desktop clipboard client', () => {
           write: async () => {
             throw new Error('rich rejected')
           },
-          writeText: async text => {
+          writeText: async (text) => {
             written.push(text)
           },
         },
@@ -251,7 +250,7 @@ describe('desktop clipboard client', () => {
     const client = createDesktopClipboardClient()
 
     const message = String(
-      await client.copyProviderApiKey('secret-credential').catch(error => error),
+      await client.copyProviderApiKey('secret-credential').catch((error) => error),
     )
 
     expect(message).toContain('安全复制仅在桌面应用中可用。')
@@ -271,9 +270,7 @@ describe('desktop clipboard client', () => {
     const textarea = fake.textareas[0]
     expect(textarea?.value).toBe('legacy text')
     expect(textarea?.style).toEqual({ position: 'fixed', opacity: '0' })
-    expect(textarea?.setAttributeCalls).toEqual([
-      { name: 'readonly', value: '' },
-    ])
+    expect(textarea?.setAttributeCalls).toEqual([{ name: 'readonly', value: '' }])
     expect(textarea?.selectCalls).toBe(1)
     expect(textarea?.removed).toBe(true)
     expect(fake.appended).toEqual([textarea])
@@ -317,8 +314,6 @@ describe('desktop clipboard client', () => {
   test('throws the fixed safe error when no copy mechanism exists', async () => {
     const client = createDesktopClipboardClient()
 
-    await expect(client.writeText('nothing works')).rejects.toThrow(
-      '复制不可用。',
-    )
+    await expect(client.writeText('nothing works')).rejects.toThrow('复制不可用。')
   })
 })

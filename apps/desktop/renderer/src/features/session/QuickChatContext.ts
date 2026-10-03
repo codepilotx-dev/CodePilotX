@@ -11,10 +11,7 @@ import type {
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import type { OpenPlanInDockRequest } from './workflow/WorkflowPlanCard.js'
-import type {
-  MarkdownFileOpenOptions,
-  MarkdownFileReference,
-} from '../markdown/index.js'
+import type { MarkdownFileOpenOptions, MarkdownFileReference } from '../markdown/index.js'
 import type { DesktopComposerProps } from './composer/DesktopComposer.js'
 import type { NewSessionRecentTask } from './newSessionSuggestions.js'
 import type { Attachment, LocalContextReference } from '@codepilotx/shared/thread'
@@ -60,18 +57,11 @@ export type QuickChatContextValue = {
   onOpenRightDock: (tool: 'review') => void
   onOpenPatchReview: (path?: string) => void
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void
-  onOpenFileReference: (
-    reference: MarkdownFileReference,
-    options: MarkdownFileOpenOptions,
-  ) => void
+  onOpenFileReference: (reference: MarkdownFileReference, options: MarkdownFileOpenOptions) => void
   onOpenAttachment: (attachment: Attachment) => void
   onOpenLocalContext: (reference: LocalContextReference) => void
-  canCopyFileReferenceContents: (
-    reference: MarkdownFileReference,
-  ) => boolean
-  onCopyFileReferenceContents: (
-    reference: MarkdownFileReference,
-  ) => void | Promise<void>
+  canCopyFileReferenceContents: (reference: MarkdownFileReference) => boolean
+  onCopyFileReferenceContents: (reference: MarkdownFileReference) => void | Promise<void>
   onSubmitEditedUserMessage: (input: DesktopUserMessageInput) => Promise<void>
   onAppendComposerText: (text: string) => void
   onAppendSideChatText: (text: string) => void
@@ -96,10 +86,7 @@ export type QuickChatContextValue = {
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
-    decisionExtras?: Pick<
-      DesktopPermissionDecision,
-      'grantScope'
-    >,
+    decisionExtras?: Pick<DesktopPermissionDecision, 'grantScope'>,
   ) => void | Promise<void>
   sessionStatus: DesktopSessionStatus
   composerProps: DesktopComposerProps | null

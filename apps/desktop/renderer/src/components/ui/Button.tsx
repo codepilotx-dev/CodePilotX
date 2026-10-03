@@ -74,10 +74,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {...buttonProps}
       ref={ref}
       aria-busy={loading || undefined}
-      className={cx(
-        'ui-button',
-        className,
-      )}
+      className={cx('ui-button', className)}
       data-allow-shrink={allowShrink || undefined}
       data-color={color}
       data-content-layout={contentLayout}

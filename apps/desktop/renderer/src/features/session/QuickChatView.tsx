@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type React from "react";
-import { AnimatePresence, motion, useIsPresent } from "motion/react";
-import { useSearchParams } from "react-router-dom";
-import type { DesktopWorkspace } from "../../../shared/types.js";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type React from 'react'
+import { AnimatePresence, motion, useIsPresent } from 'motion/react'
+import { useSearchParams } from 'react-router-dom'
+import type { DesktopWorkspace } from '../../../shared/types.js'
 import {
   getEffectiveReducedMotion,
   usePrefersReducedMotion,
-} from "../../hooks/usePrefersReducedMotion.js";
-import { useDesktopSettings } from "../settings/useDesktopSettings.js";
+} from '../../hooks/usePrefersReducedMotion.js'
+import { useDesktopSettings } from '../settings/useDesktopSettings.js'
 import {
   createNewSessionSuggestionState,
   removeGeneratedSuggestionStarter,
@@ -15,72 +15,62 @@ import {
   showContextualNewSessionSuggestions,
   showNewSessionSuggestionTemplates,
   syncNewSessionSuggestionState,
-} from "./newSessionSuggestionState.js";
+} from './newSessionSuggestionState.js'
 import type {
   NewSessionSuggestionCategory,
   NewSessionSuggestionTask,
   NewSessionTaskSuggestion,
-} from "./newSessionSuggestions.js";
-import {
-  normalizeNewSessionSurfaceSearch,
-  parseNewSessionSurface,
-} from "./newSessionSurface.js";
-import { DesktopComposer } from "./composer/DesktopComposer.js";
-import { useQuickChatContext } from "./QuickChatContext.js";
-import { useContextualTaskSuggestions } from "./useContextualTaskSuggestions.js";
-import {
-  enterTween,
-  exitTween,
-  motionTransition,
-} from "../motion/motionTransitions.js";
-import { WorkingNewSessionView } from "./WorkingNewSessionView.js";
-import { ChatNewSessionView } from "./ChatNewSessionView.js";
-import { CodingHeadingTransition } from "./CodingHeadingTransition.js";
-import { NewSessionSuggestions } from "./NewSessionSuggestionPanel.js";
-import { ProjectSwitcherPopover } from "./composer/ProjectSwitcherPopover.js";
+} from './newSessionSuggestions.js'
+import { normalizeNewSessionSurfaceSearch, parseNewSessionSurface } from './newSessionSurface.js'
+import { DesktopComposer } from './composer/DesktopComposer.js'
+import { useQuickChatContext } from './QuickChatContext.js'
+import { useContextualTaskSuggestions } from './useContextualTaskSuggestions.js'
+import { enterTween, exitTween, motionTransition } from '../motion/motionTransitions.js'
+import { WorkingNewSessionView } from './WorkingNewSessionView.js'
+import { ChatNewSessionView } from './ChatNewSessionView.js'
+import { CodingHeadingTransition } from './CodingHeadingTransition.js'
+import { NewSessionSuggestions } from './NewSessionSuggestionPanel.js'
+import { ProjectSwitcherPopover } from './composer/ProjectSwitcherPopover.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
 
 export function QuickChatView(): React.ReactNode {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { sidebarProductMode, setSidebarProductMode } = useDesktopSettings();
-  const search = searchParams.toString();
-  const urlSurface = parseNewSessionSurface(search);
-  const surface = urlSurface ?? sidebarProductMode;
-  const reducedMotion = usePrefersReducedMotion();
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { sidebarProductMode, setSidebarProductMode } = useDesktopSettings()
+  const search = searchParams.toString()
+  const urlSurface = parseNewSessionSurface(search)
+  const surface = urlSurface ?? sidebarProductMode
+  const reducedMotion = usePrefersReducedMotion()
 
   // 缺失或无效的 surface 参数回退到已保存模式，并只替换 surface 参数
   useEffect(() => {
-    if (urlSurface === surface) return;
-    setSearchParams(
-      normalizeNewSessionSurfaceSearch(search, surface),
-      { replace: true },
-    );
-  }, [search, setSearchParams, surface, urlSurface]);
+    if (urlSurface === surface) return
+    setSearchParams(normalizeNewSessionSurfaceSearch(search, surface), { replace: true })
+  }, [search, setSearchParams, surface, urlSurface])
 
   // URL 中的有效 surface 优先于已保存设置，并同步侧栏模式
   useEffect(() => {
-    if (urlSurface === null || urlSurface === sidebarProductMode) return;
-    setSidebarProductMode(urlSurface);
-  }, [setSidebarProductMode, sidebarProductMode, urlSurface]);
+    if (urlSurface === null || urlSurface === sidebarProductMode) return
+    setSidebarProductMode(urlSurface)
+  }, [setSidebarProductMode, sidebarProductMode, urlSurface])
 
   return (
     <AnimatePresence initial={false} mode="wait">
       <NewSessionPresence key={surface} kind="surface" reducedMotion={reducedMotion}>
-        {surface === "working" ? (
+        {surface === 'working' ? (
           <WorkingNewSessionView />
-        ) : surface === "chat" ? (
+        ) : surface === 'chat' ? (
           <ChatNewSessionView />
         ) : (
           <CodingQuickChatView />
         )}
       </NewSessionPresence>
     </AnimatePresence>
-  );
+  )
 }
 
 function CodingQuickChatView(): React.ReactNode {
   const { t } = useLocale()
-  const reducedMotion = usePrefersReducedMotion();
+  const reducedMotion = usePrefersReducedMotion()
   const {
     branchName,
     composerProps,
@@ -95,113 +85,102 @@ function CodingQuickChatView(): React.ReactNode {
     onCloneGithub,
     onClearWorkspace,
     onOpenWorkspace,
-  } = useQuickChatContext();
-  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
-  const [observedComposerValue, setObservedComposerValue] = useState(
-    composerDraft?.value ?? "",
-  );
+  } = useQuickChatContext()
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false)
+  const [observedComposerValue, setObservedComposerValue] = useState(composerDraft?.value ?? '')
   const [suggestionState, setSuggestionState] = useState(() =>
-    createNewSessionSuggestionState(composerDraft?.value ?? ""),
-  );
-  const pageRef = useRef<HTMLDivElement | null>(null);
-  const whaleMarkRef = useRef<HTMLButtonElement | null>(null);
-  const whaleMarkAnimationRef = useRef<Animation | null>(null);
-  const programmaticValueRef = useRef<string | null>(null);
+    createNewSessionSuggestionState(composerDraft?.value ?? ''),
+  )
+  const pageRef = useRef<HTMLDivElement | null>(null)
+  const whaleMarkRef = useRef<HTMLButtonElement | null>(null)
+  const whaleMarkAnimationRef = useRef<Animation | null>(null)
+  const programmaticValueRef = useRef<string | null>(null)
   const currentWorkspace = useMemo<DesktopWorkspace | null>(() => {
-    if (!workspaceName || !workspacePath) return null;
+    if (!workspaceName || !workspacePath) return null
     return (
-      recentWorkspaces.find(workspace => workspace.path === workspacePath) ?? {
+      recentWorkspaces.find((workspace) => workspace.path === workspacePath) ?? {
         name: workspaceName,
         path: workspacePath,
         branchName,
       }
-    );
-  }, [branchName, recentWorkspaces, workspaceName, workspacePath]);
+    )
+  }, [branchName, recentWorkspaces, workspaceName, workspacePath])
   const { suggestions, markInteracted } = useContextualTaskSuggestions({
-    active:
-      suggestionState.kind === "root" &&
-      observedComposerValue.trim().length === 0,
+    active: suggestionState.kind === 'root' && observedComposerValue.trim().length === 0,
     workspaceName,
     workspacePath,
     branchName,
     gitStatus,
     recentTasks,
-  });
+  })
 
-  const composerDraftValue = composerDraft?.value;
+  const composerDraftValue = composerDraft?.value
 
   useEffect(() => {
-    if (composerDraftValue === undefined) return;
-    setObservedComposerValue(composerDraftValue);
+    if (composerDraftValue === undefined) return
+    setObservedComposerValue(composerDraftValue)
     if (programmaticValueRef.current === composerDraftValue) {
-      programmaticValueRef.current = null;
-      return;
+      programmaticValueRef.current = null
+      return
     }
-    setSuggestionState(current =>
-      syncNewSessionSuggestionState(current, composerDraftValue),
-    );
-  }, [composerDraftValue]);
+    setSuggestionState((current) => syncNewSessionSuggestionState(current, composerDraftValue))
+  }, [composerDraftValue])
 
   const focusComposer = useCallback(() => {
     if (composerDraft?.focus) {
-      composerDraft.focus();
-      return;
+      composerDraft.focus()
+      return
     }
-    const editor = pageRef.current?.querySelector<HTMLElement>(
-      "textarea, [contenteditable='true']",
-    );
-    editor?.focus();
-  }, [composerDraft]);
+    const editor = pageRef.current?.querySelector<HTMLElement>("textarea, [contenteditable='true']")
+    editor?.focus()
+  }, [composerDraft])
 
   const replaceComposerValue = useCallback(
     (value: string) => {
-      programmaticValueRef.current = value;
-      setObservedComposerValue(value);
+      programmaticValueRef.current = value
+      setObservedComposerValue(value)
       if (composerDraft) {
-        composerDraft.replace(value);
+        composerDraft.replace(value)
       } else if (observedComposerValue.length === 0) {
-        onAppendComposerText(value);
+        onAppendComposerText(value)
       }
-      requestAnimationFrame(focusComposer);
+      requestAnimationFrame(focusComposer)
     },
     [composerDraft, focusComposer, observedComposerValue, onAppendComposerText],
-  );
+  )
 
   const handleSelectCategory = useCallback(
     (category: NewSessionSuggestionCategory) => {
-      markInteracted();
-      setSuggestionState(selectNewSessionSuggestionCategory(category.id));
-      replaceComposerValue(category.starter);
+      markInteracted()
+      setSuggestionState(selectNewSessionSuggestionCategory(category.id))
+      replaceComposerValue(category.starter)
     },
     [markInteracted, replaceComposerValue],
-  );
+  )
 
   const handleSelectSuggestion = useCallback(
     (suggestion: NewSessionTaskSuggestion) => {
-      markInteracted();
-      setSuggestionState({ kind: "hidden", reason: "custom-input" });
-      replaceComposerValue(suggestion.prompt);
+      markInteracted()
+      setSuggestionState({ kind: 'hidden', reason: 'custom-input' })
+      replaceComposerValue(suggestion.prompt)
     },
     [markInteracted, replaceComposerValue],
-  );
+  )
 
   const handleSelectTask = useCallback(
-    (
-      category: NewSessionSuggestionCategory,
-      task: NewSessionSuggestionTask,
-    ) => {
-      markInteracted();
+    (category: NewSessionSuggestionCategory, task: NewSessionSuggestionTask) => {
+      markInteracted()
       if (!composerDraft && observedComposerValue === category.starter) {
         const completion = task.prompt.startsWith(category.starter)
           ? task.prompt.slice(category.starter.length)
-          : task.prompt;
-        programmaticValueRef.current = task.prompt;
-        setObservedComposerValue(task.prompt);
-        onAppendComposerText(completion);
-        requestAnimationFrame(focusComposer);
-        return;
+          : task.prompt
+        programmaticValueRef.current = task.prompt
+        setObservedComposerValue(task.prompt)
+        onAppendComposerText(completion)
+        requestAnimationFrame(focusComposer)
+        return
       }
-      replaceComposerValue(task.prompt);
+      replaceComposerValue(task.prompt)
     },
     [
       composerDraft,
@@ -211,81 +190,73 @@ function CodingQuickChatView(): React.ReactNode {
       onAppendComposerText,
       replaceComposerValue,
     ],
-  );
+  )
 
   const handleShowAll = useCallback(
     (category: NewSessionSuggestionCategory) => {
-      markInteracted();
-      const nextValue = removeGeneratedSuggestionStarter(
-        observedComposerValue,
-        category.starter,
-      );
-      setSuggestionState(showNewSessionSuggestionTemplates());
-      if (nextValue !== observedComposerValue) replaceComposerValue(nextValue);
+      markInteracted()
+      const nextValue = removeGeneratedSuggestionStarter(observedComposerValue, category.starter)
+      setSuggestionState(showNewSessionSuggestionTemplates())
+      if (nextValue !== observedComposerValue) replaceComposerValue(nextValue)
     },
     [markInteracted, observedComposerValue, replaceComposerValue],
-  );
+  )
 
   const handleShowSuggestions = useCallback(() => {
-    markInteracted();
-    setSuggestionState(showContextualNewSessionSuggestions());
-  }, [markInteracted]);
+    markInteracted()
+    setSuggestionState(showContextualNewSessionSuggestions())
+  }, [markInteracted])
 
   const handleComposerInputCapture = useCallback(
     (event: React.FormEvent<HTMLDivElement>) => {
-      const target = event.target;
-      let value: string | null = null;
-      if (
-        target instanceof HTMLTextAreaElement ||
-        target instanceof HTMLInputElement
-      ) {
-        value = target.value;
+      const target = event.target
+      let value: string | null = null
+      if (target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement) {
+        value = target.value
       } else if (target instanceof HTMLElement && target.isContentEditable) {
-        value = target.textContent ?? "";
+        value = target.textContent ?? ''
       }
-      if (value === null) return;
-      markInteracted();
-      programmaticValueRef.current = null;
-      setObservedComposerValue(value);
-      setSuggestionState(current =>
-        syncNewSessionSuggestionState(current, value),
-      );
+      if (value === null) return
+      markInteracted()
+      programmaticValueRef.current = null
+      setObservedComposerValue(value)
+      setSuggestionState((current) => syncNewSessionSuggestionState(current, value))
     },
     [markInteracted],
-  );
+  )
 
   const handleWhaleMarkClick = useCallback(() => {
-    const mark = whaleMarkRef.current;
-    if (!mark || getEffectiveReducedMotion()) return;
-    whaleMarkAnimationRef.current?.cancel();
+    const mark = whaleMarkRef.current
+    if (!mark || getEffectiveReducedMotion()) return
+    whaleMarkAnimationRef.current?.cancel()
     whaleMarkAnimationRef.current = mark.animate(
       [
-        { transform: "scale(1) rotate(0deg)" },
-        { transform: "scale(1.08) rotate(180deg)", offset: 0.5 },
-        { transform: "scale(1) rotate(360deg)" },
+        { transform: 'scale(1) rotate(0deg)' },
+        { transform: 'scale(1.08) rotate(180deg)', offset: 0.5 },
+        { transform: 'scale(1) rotate(360deg)' },
       ],
       {
         duration: 100,
-        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
       },
-    );
-  }, []);
+    )
+  }, [])
 
   useEffect(
     () => () => {
-      whaleMarkAnimationRef.current?.cancel();
+      whaleMarkAnimationRef.current?.cancel()
     },
     [],
-  );
+  )
 
-  const hasGitWorkspace = Boolean(branchName || gitStatus);
-  const headingUsesProject = Boolean(currentWorkspace && workspaceName);
+  const hasGitWorkspace = Boolean(branchName || gitStatus)
+  const headingUsesProject = Boolean(currentWorkspace && workspaceName)
   const headingKey = headingUsesProject
-    ? `${hasGitWorkspace ? "git" : "project"}:${workspacePath}`
-    : "no-project";
+    ? `${hasGitWorkspace ? 'git' : 'project'}:${workspacePath}`
+    : 'no-project'
   const headingContent = headingUsesProject ? (
     <>
-      {t(hasGitWorkspace ? "要在 " : "我们应该在 ")}
+      {t(hasGitWorkspace ? '要在 ' : '我们应该在 ')}
       <ProjectSwitcherPopover
         align="center"
         className="popover-project quick-chat-project-popover"
@@ -307,28 +278,28 @@ function CodingQuickChatView(): React.ReactNode {
         width={200}
         workspace={currentWorkspace}
         onChooseWorkspace={() => {
-          void onChooseWorkspace();
-          setProjectMenuOpen(false);
+          void onChooseWorkspace()
+          setProjectMenuOpen(false)
         }}
         onCloneGithub={() => {
-          onCloneGithub();
-          setProjectMenuOpen(false);
+          onCloneGithub()
+          setProjectMenuOpen(false)
         }}
         onClearWorkspace={() => {
-          onClearWorkspace();
-          setProjectMenuOpen(false);
+          onClearWorkspace()
+          setProjectMenuOpen(false)
         }}
         onOpenChange={setProjectMenuOpen}
-        onOpenWorkspace={workspace => {
-          void onOpenWorkspace(workspace);
-          setProjectMenuOpen(false);
+        onOpenWorkspace={(workspace) => {
+          void onOpenWorkspace(workspace)
+          setProjectMenuOpen(false)
         }}
       />
-      {t(hasGitWorkspace ? " 内开发什么？" : " 中做些什么？")}
+      {t(hasGitWorkspace ? ' 内开发什么？' : ' 中做些什么？')}
     </>
   ) : (
-    t("我们该构建什么？")
-  );
+    t('我们该构建什么？')
+  )
 
   return (
     <div ref={pageRef} className="quick-chat-workspace">
@@ -350,11 +321,11 @@ function CodingQuickChatView(): React.ReactNode {
             </CodingHeadingTransition>
           </div>
           <AnimatePresence initial={false}>
-            {suggestionState.kind === "root" ||
-            suggestionState.kind === "templates" ||
-            suggestionState.kind === "category" ? (
+            {suggestionState.kind === 'root' ||
+            suggestionState.kind === 'templates' ||
+            suggestionState.kind === 'category' ? (
               <NewSessionPresence
-                key={`suggestions-${suggestionState.kind}${suggestionState.kind === "category" ? `-${suggestionState.categoryId}` : ""}`}
+                key={`suggestions-${suggestionState.kind}${suggestionState.kind === 'category' ? `-${suggestionState.categoryId}` : ''}`}
                 kind="panel"
                 reducedMotion={reducedMotion}
               >
@@ -381,7 +352,7 @@ function CodingQuickChatView(): React.ReactNode {
         </section>
       </main>
     </div>
-  );
+  )
 }
 
 function NewSessionPresence({
@@ -389,20 +360,20 @@ function NewSessionPresence({
   kind,
   reducedMotion,
 }: {
-  children: React.ReactNode;
-  kind: "panel" | "surface";
-  reducedMotion: boolean;
+  children: React.ReactNode
+  kind: 'panel' | 'surface'
+  reducedMotion: boolean
 }): React.ReactNode {
-  const isPresent = useIsPresent();
-  const panel = kind === "panel";
-  const offset = panel ? 4 : -4;
+  const isPresent = useIsPresent()
+  const panel = kind === 'panel'
+  const offset = panel ? 4 : -4
 
   return (
     <motion.div
       animate={{ opacity: 1, scale: 1, y: 0 }}
       aria-hidden={!isPresent ? true : undefined}
       className={`new-session-${kind}-presence`}
-      data-presence={isPresent ? "present" : "exiting"}
+      data-presence={isPresent ? 'present' : 'exiting'}
       exit={{
         opacity: 0,
         scale: panel ? 0.985 : 1,
@@ -410,13 +381,11 @@ function NewSessionPresence({
         transition: motionTransition(reducedMotion, exitTween),
       }}
       inert={!isPresent ? true : undefined}
-      initial={reducedMotion
-        ? false
-        : { opacity: 0, scale: panel ? 0.985 : 1, y: 4 }}
-      style={{ pointerEvents: isPresent ? undefined : "none" }}
+      initial={reducedMotion ? false : { opacity: 0, scale: panel ? 0.985 : 1, y: 4 }}
+      style={{ pointerEvents: isPresent ? undefined : 'none' }}
       transition={motionTransition(reducedMotion, enterTween)}
     >
       {children}
     </motion.div>
-  );
+  )
 }

@@ -1,12 +1,6 @@
 import { desktopClient } from '../../services/desktop-client/index.js'
 import type React from 'react'
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopThemeMode,
   DesktopThemeSettings,
@@ -47,17 +41,10 @@ const SETTINGS_THEME_VARIABLES = [
   '--cpx-sys-font-family-sans',
 ]
 
-export function DesktopThemeProvider({
-  children,
-}: {
-  children: React.ReactNode
-}): React.ReactNode {
-  const [startupSettings] = useState(() =>
-    resolveStartupThemeSettings(window.location.href),
-  )
+export function DesktopThemeProvider({ children }: { children: React.ReactNode }): React.ReactNode {
+  const [startupSettings] = useState(() => resolveStartupThemeSettings(window.location.href))
   const [settings, setSettings] = useState<DesktopThemeSettings>(startupSettings)
-  const [draftSettings, setDraftSettings] =
-    useState<DesktopThemeSettings>(startupSettings)
+  const [draftSettings, setDraftSettings] = useState<DesktopThemeSettings>(startupSettings)
   const draftSettingsRef = useRef(draftSettings)
   draftSettingsRef.current = draftSettings
   const committedSettingsRef = useRef(settings)
@@ -65,17 +52,14 @@ export function DesktopThemeProvider({
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const pendingSavesRef = useRef(0)
   const [draftSaving, setDraftSaving] = useState(false)
-  const [systemVariant, setSystemVariant] =
-    useState<DesktopThemeVariant>(getSystemThemeVariant)
-  const [systemReduceMotion, setSystemReduceMotion] = useState(
-    getSystemReduceMotion,
-  )
+  const [systemVariant, setSystemVariant] = useState<DesktopThemeVariant>(getSystemThemeVariant)
+  const [systemReduceMotion, setSystemReduceMotion] = useState(getSystemReduceMotion)
 
   useEffect(() => {
     let mounted = true
     void desktopClient
       .getThemeSettings()
-      .then(next => {
+      .then((next) => {
         if (!mounted) return
         const normalized = normalizeDesktopThemeSettings(next)
         committedSettingsRef.current = normalized
@@ -93,7 +77,7 @@ export function DesktopThemeProvider({
     const bridge = window.codePilotXDesktop
     let cancelled = false
     if (bridge?.getSystemTheme && bridge.onSystemThemeChange) {
-      void bridge.getSystemTheme().then(theme => {
+      void bridge.getSystemTheme().then((theme) => {
         if (!cancelled) setSystemVariant(theme)
       })
       const unsubscribe = bridge.onSystemThemeChange(setSystemVariant)
@@ -122,8 +106,7 @@ export function DesktopThemeProvider({
     return () => query.removeEventListener('change', handleChange)
   }, [])
 
-  const draftResolvedVariant =
-    draftSettings.mode === 'system' ? systemVariant : draftSettings.mode
+  const draftResolvedVariant = draftSettings.mode === 'system' ? systemVariant : draftSettings.mode
   const reducedMotion =
     draftSettings.reduceMotion === 'system'
       ? systemReduceMotion
@@ -136,9 +119,7 @@ export function DesktopThemeProvider({
 
   useEffect(() => {
     if (!window.codePilotXDesktop) return
-    const committedVariant = settings.mode === 'system'
-      ? systemVariant
-      : settings.mode
+    const committedVariant = settings.mode === 'system' ? systemVariant : settings.mode
     const committedTheme = settings.chromeThemes[committedVariant]
     const nextUrl = withStartupThemeSeed(window.location.href, {
       version: 1,
@@ -146,32 +127,17 @@ export function DesktopThemeProvider({
       surface: committedTheme.surface,
       ink: committedTheme.ink,
     })
-    window.history.replaceState(
-      window.history.state,
-      '',
-      relativeApplicationUrl(nextUrl),
-    )
+    window.history.replaceState(window.history.state, '', relativeApplicationUrl(nextUrl))
   }, [settings, systemVariant])
 
   useEffect(() => {
-    applyDesktopTheme(
-      draftSettings,
-      draftResolvedVariant,
-      reducedMotion,
-    )
-  }, [
-    draftResolvedVariant,
-    draftSettings,
-    reducedMotion,
-  ])
+    applyDesktopTheme(draftSettings, draftResolvedVariant, reducedMotion)
+  }, [draftResolvedVariant, draftSettings, reducedMotion])
 
   useEffect(() => {
     // Inject dynamic @font-face rules that bind local font sources and
     // font-variation-settings ('wght') to dedicated application font aliases.
-    const config = getDesktopThemeForSelection(
-      draftSettings,
-      draftResolvedVariant,
-    )
+    const config = getDesktopThemeForSelection(draftSettings, draftResolvedVariant)
     const uiFace = config.theme.fonts.uiFace ?? null
     const codeFace = config.theme.fonts.codeFace ?? null
     applyThemeFontFaceStyles(uiFace, codeFace)
@@ -192,9 +158,7 @@ export function DesktopThemeProvider({
         await operation
         return normalized
       } catch (error) {
-        if (
-          desktopThemeSettingsEqual(draftSettingsRef.current, normalized)
-        ) {
+        if (desktopThemeSettingsEqual(draftSettingsRef.current, normalized)) {
           const rollback = committedSettingsRef.current
           draftSettingsRef.current = rollback
           setDraftSettings(rollback)
@@ -234,14 +198,11 @@ export function DesktopThemeProvider({
     setDraftSettings(normalized)
   }, [])
 
-  const setDraftSettingsValue = useCallback(
-    (nextSettings: DesktopThemeSettings): void => {
-      const normalized = normalizeDesktopThemeSettings(nextSettings)
-      draftSettingsRef.current = normalized
-      setDraftSettings(normalized)
-    },
-    [],
-  )
+  const setDraftSettingsValue = useCallback((nextSettings: DesktopThemeSettings): void => {
+    const normalized = normalizeDesktopThemeSettings(nextSettings)
+    draftSettingsRef.current = normalized
+    setDraftSettings(normalized)
+  }, [])
 
   const saveDraft = useCallback(async (): Promise<DesktopThemeSettings> => {
     return persistSettings(draftSettingsRef.current)
@@ -254,12 +215,8 @@ export function DesktopThemeProvider({
   }, [])
 
   const updateAndAutoSave = useCallback(
-    async (
-      updater: (current: DesktopThemeSettings) => DesktopThemeSettings,
-    ): Promise<void> => {
-      const normalized = normalizeDesktopThemeSettings(
-        updater(draftSettingsRef.current),
-      )
+    async (updater: (current: DesktopThemeSettings) => DesktopThemeSettings): Promise<void> => {
+      const normalized = normalizeDesktopThemeSettings(updater(draftSettingsRef.current))
       draftSettingsRef.current = normalized
       setDraftSettings(normalized)
       await persistSettings(normalized)
@@ -269,18 +226,21 @@ export function DesktopThemeProvider({
 
   const saveDraftRef = useRef(saveDraft)
   saveDraftRef.current = saveDraft
-  const autoSave = useCallback((nextSettings?: DesktopThemeSettings) => {
-    if (nextSettings) {
-      const normalized = normalizeDesktopThemeSettings(nextSettings)
-      draftSettingsRef.current = normalized
-      setDraftSettings(normalized)
-      void persistSettings(normalized).catch(() => undefined)
-      return
-    }
-    setTimeout(() => {
-      void saveDraftRef.current().catch(() => undefined)
-    }, 0)
-  }, [persistSettings])
+  const autoSave = useCallback(
+    (nextSettings?: DesktopThemeSettings) => {
+      if (nextSettings) {
+        const normalized = normalizeDesktopThemeSettings(nextSettings)
+        draftSettingsRef.current = normalized
+        setDraftSettings(normalized)
+        void persistSettings(normalized).catch(() => undefined)
+        return
+      }
+      setTimeout(() => {
+        void saveDraftRef.current().catch(() => undefined)
+      }, 0)
+    },
+    [persistSettings],
+  )
 
   const draft = useMemo<DesktopThemeDraft>(
     () => ({
@@ -336,10 +296,7 @@ export function DesktopThemeProvider({
       settings,
       resolvedVariant: draftResolvedVariant,
       activeTheme,
-      codeThemeId: getCodeThemeSelectionForVariant(
-        draftSettings,
-        draftResolvedVariant,
-      ),
+      codeThemeId: getCodeThemeSelectionForVariant(draftSettings, draftResolvedVariant),
       reducedMotion,
       draft,
       setMode,
@@ -363,11 +320,7 @@ export function DesktopThemeProvider({
     ],
   )
 
-  return (
-    <DesktopThemeContext.Provider value={value}>
-      {children}
-    </DesktopThemeContext.Provider>
-  )
+  return <DesktopThemeContext.Provider value={value}>{children}</DesktopThemeContext.Provider>
 }
 
 function applyDesktopTheme(
@@ -429,9 +382,7 @@ function relativeApplicationUrl(url: string): string {
 }
 
 function getSystemThemeVariant(): DesktopThemeVariant {
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark'
-    : 'light'
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
 function getSystemReduceMotion(): boolean {

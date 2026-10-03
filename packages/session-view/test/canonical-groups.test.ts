@@ -1,8 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type {
-  DurableEventEnvelope,
-  LiveEventEnvelope,
-} from '@codepilotx/agent-protocol'
+import type { DurableEventEnvelope, LiveEventEnvelope } from '@codepilotx/agent-protocol'
 import type { Thread, Turn } from '@codepilotx/shared/thread'
 
 import {
@@ -56,85 +53,95 @@ function basePage(): ThreadHistoryPageLike {
     turns: [
       {
         turn: makeTurn(1, 'completed'),
-        inputs: [{
-          id: 'input-1',
-          threadId: thread.id,
-          turnId: 'turn-1',
-          content: '第一轮',
-          delivery: 'start',
-          mode: 'chat',
-          model,
-          permissionConfig,
-          state: 'completed',
-          attachmentIds: [],
-          createdAt: 1,
-        }],
+        inputs: [
+          {
+            id: 'input-1',
+            threadId: thread.id,
+            turnId: 'turn-1',
+            content: '第一轮',
+            delivery: 'start',
+            mode: 'chat',
+            model,
+            permissionConfig,
+            state: 'completed',
+            attachmentIds: [],
+            createdAt: 1,
+          },
+        ],
         messages: [],
-        agents: [{
-          id: 'agent-1',
-          threadId: thread.id,
-          turnId: 'turn-1',
-          parentAgentId: null,
-          profile: 'main',
-          task: '第一轮',
-          model,
-          sessionId: 'session-1',
-          depth: 0,
-          status: 'completed',
-          error: null,
-          subagentRunId: null,
-          runSequence: 0,
-          createdAt: 1,
-          updatedAt: 2,
-        }],
-        items: [{
-          id: 'item-1-text',
-          messageID: 'message-1',
-          turnId: 'turn-1',
-          agentId: 'agent-1',
-          type: 'text',
-          placement: 'result',
-          text: '第一轮结果',
-          status: 'completed',
-          ordinal: 0,
-          createdAt: 2,
-        }],
+        agents: [
+          {
+            id: 'agent-1',
+            threadId: thread.id,
+            turnId: 'turn-1',
+            parentAgentId: null,
+            profile: 'main',
+            task: '第一轮',
+            model,
+            sessionId: 'session-1',
+            depth: 0,
+            status: 'completed',
+            error: null,
+            subagentRunId: null,
+            runSequence: 0,
+            createdAt: 1,
+            updatedAt: 2,
+          },
+        ],
+        items: [
+          {
+            id: 'item-1-text',
+            messageID: 'message-1',
+            turnId: 'turn-1',
+            agentId: 'agent-1',
+            type: 'text',
+            placement: 'result',
+            text: '第一轮结果',
+            status: 'completed',
+            ordinal: 0,
+            createdAt: 2,
+          },
+        ],
         approvals: [],
         attachments: [],
       },
       {
         turn: makeTurn(2),
-        inputs: [{
-          id: 'input-2',
-          threadId: thread.id,
-          turnId: 'turn-2',
-          content: '第二轮',
-          delivery: 'start',
-          mode: 'chat',
-          model,
-          permissionConfig,
-          state: 'completed',
-          attachmentIds: [],
-          createdAt: 3,
-        }],
+        inputs: [
+          {
+            id: 'input-2',
+            threadId: thread.id,
+            turnId: 'turn-2',
+            content: '第二轮',
+            delivery: 'start',
+            mode: 'chat',
+            model,
+            permissionConfig,
+            state: 'completed',
+            attachmentIds: [],
+            createdAt: 3,
+          },
+        ],
         messages: [],
-        agents: [{
-          id: 'agent-2',
-          threadId: thread.id,
-          turnId: 'turn-2',
-          parentAgentId: null,
-          profile: 'main',
-          task: '第二轮',
-          model,
-          sessionId: 'session-2',
-          depth: 0,
-          status: 'running',
-          error: null,
-          subagentRunId: 'run-2',
-          runSequence: 0,
-          createdAt: 3,
-          updatedAt: 3,
-        }],
+        agents: [
+          {
+            id: 'agent-2',
+            threadId: thread.id,
+            turnId: 'turn-2',
+            parentAgentId: null,
+            profile: 'main',
+            task: '第二轮',
+            model,
+            sessionId: 'session-2',
+            depth: 0,
+            status: 'running',
+            error: null,
+            subagentRunId: 'run-2',
+            runSequence: 0,
+            createdAt: 3,
+            updatedAt: 3,
+          },
+        ],
         items: [],
         approvals: [],
         attachments: [],
@@ -297,10 +304,12 @@ describe('canonical turn group index', () => {
 
     // 重建前必须真的走了增量路径，否则本用例失去意义。排序按 ordinal 优先，
     // 无 ordinal 的条目回落到 createdAt：tool(ordinal 0) < question(32) < stream(40)。
-    expect(state.groups.itemsByTurnId.get('turn-2')?.map(item => item.id))
-      .toEqual(['item-2-tool', 'question-1', 'item-2-stream'])
-    expect(state.groups.approvalsByTurnId.get('turn-2')?.map(a => a.id))
-      .toEqual(['approval-1'])
+    expect(state.groups.itemsByTurnId.get('turn-2')?.map((item) => item.id)).toEqual([
+      'item-2-tool',
+      'question-1',
+      'item-2-stream',
+    ])
+    expect(state.groups.approvalsByTurnId.get('turn-2')?.map((a) => a.id)).toEqual(['approval-1'])
 
     expect(selectRenderTurnEntries(rebuilt)).toEqual(selectRenderTurnEntries(state))
   })
@@ -317,19 +326,22 @@ describe('canonical turn group index', () => {
 
     // agent-2 属于 run-2，因此 subagent 作用域保留 turn-2 的条目；turn-1 因仍
     // 带 agent 条目而保留，但其 items/approvals 被 runId 过滤为空。
-    expect(subagentScope.map(entry => entry.id)).toEqual(['turn-1', 'turn-2'])
-    expect(subagentScope.find(entry => entry.id === 'turn-1')?.items).toEqual([])
-    expect(subagentScope.find(entry => entry.id === 'turn-2')?.items.map(item => item.id))
-      .toEqual(['item-2-tool', 'question-1', 'item-2-stream'])
-    expect(subagentScope.find(entry => entry.id === 'turn-2')?.approvals.map(a => a.id))
-      .toEqual(['approval-1'])
-    expect(mainScope.map(entry => entry.id)).toEqual(['turn-1', 'turn-2'])
+    expect(subagentScope.map((entry) => entry.id)).toEqual(['turn-1', 'turn-2'])
+    expect(subagentScope.find((entry) => entry.id === 'turn-1')?.items).toEqual([])
+    expect(
+      subagentScope.find((entry) => entry.id === 'turn-2')?.items.map((item) => item.id),
+    ).toEqual(['item-2-tool', 'question-1', 'item-2-stream'])
+    expect(
+      subagentScope.find((entry) => entry.id === 'turn-2')?.approvals.map((a) => a.id),
+    ).toEqual(['approval-1'])
+    expect(mainScope.map((entry) => entry.id)).toEqual(['turn-1', 'turn-2'])
 
     // 与改动前一致：runId 过滤只作用于 items/approvals，带 agent 的 turn 仍然
     // 保留（因此不存在的 runId 也会返回空的 turn 骨架）。
     const otherRunScope = selectRenderTurnEntries(state, { type: 'subagent', runId: 'run-missing' })
-    expect(otherRunScope.map(entry => entry.id)).toEqual(['turn-1', 'turn-2'])
-    expect(otherRunScope.every(entry => entry.items.length === 0 && entry.approvals.length === 0))
-      .toBe(true)
+    expect(otherRunScope.map((entry) => entry.id)).toEqual(['turn-1', 'turn-2'])
+    expect(
+      otherRunScope.every((entry) => entry.items.length === 0 && entry.approvals.length === 0),
+    ).toBe(true)
   })
 })

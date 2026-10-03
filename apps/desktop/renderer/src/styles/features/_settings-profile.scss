@@ -162,7 +162,7 @@
     height: 24px;
     padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
     border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: var(--cpx-sys-radius-md);
+    border-radius: var(--cpx-sys-radius-md);
     font: var(--cpx-sys-type-caption);
   }
 }
@@ -294,21 +294,9 @@
 
 .profile-contribution-grid {
   --profile-contribution-level-0: var(--cpx-sys-color-border-subtle);
-  --profile-contribution-level-1: color-mix(
-    in srgb,
-    var(--cpx-sys-color-accent) 22%,
-    transparent
-  );
-  --profile-contribution-level-2: color-mix(
-    in srgb,
-    var(--cpx-sys-color-accent) 42%,
-    transparent
-  );
-  --profile-contribution-level-3: color-mix(
-    in srgb,
-    var(--cpx-sys-color-accent) 68%,
-    transparent
-  );
+  --profile-contribution-level-1: color-mix(in srgb, var(--cpx-sys-color-accent) 22%, transparent);
+  --profile-contribution-level-2: color-mix(in srgb, var(--cpx-sys-color-accent) 42%, transparent);
+  --profile-contribution-level-3: color-mix(in srgb, var(--cpx-sys-color-accent) 68%, transparent);
   --profile-contribution-level-4: var(--cpx-sys-color-accent);
   display: grid;
   width: 100%;

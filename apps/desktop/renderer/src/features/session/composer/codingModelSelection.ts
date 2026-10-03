@@ -15,8 +15,6 @@ export function resolveAvailableCodingModel(
   if (slashIndex <= 0 || slashIndex >= codingModel.length - 1) return undefined
   const providerID = codingModel.slice(0, slashIndex)
   const modelID = codingModel.slice(slashIndex + 1)
-  const provider = providerOptions.find(option => option.providerID === providerID)
-  return provider?.modelPresets.some(preset => preset.id === modelID)
-    ? codingModel
-    : undefined
+  const provider = providerOptions.find((option) => option.providerID === providerID)
+  return provider?.modelPresets.some((preset) => preset.id === modelID) ? codingModel : undefined
 }

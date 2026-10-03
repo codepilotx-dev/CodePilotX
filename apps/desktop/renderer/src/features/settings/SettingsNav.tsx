@@ -1,107 +1,95 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { ScrollArea } from "../../components/ui/ScrollArea.js";
-import { ArrowLeft } from "lucide-react";
-import { SearchInput } from "../../components/ui/SearchInput.js";
-import { APP_ICON_SIZE } from "../../components/ui/iconTokens.js";
-import { SidebarRow } from "../layout/sidebar/SidebarRow.js";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ScrollArea } from '../../components/ui/ScrollArea.js'
+import { ArrowLeft } from 'lucide-react'
+import { SearchInput } from '../../components/ui/SearchInput.js'
+import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { SidebarRow } from '../layout/sidebar/SidebarRow.js'
 import {
   SETTINGS_GROUPS,
   SETTINGS_SEARCH_DOCUMENTS,
   type SettingsSearchDocument,
-} from "./settingsRegistry.js";
+} from './settingsRegistry.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
 
 type Props = {
-  activeTab: string;
-  onBack: () => void;
-  onTabChange: (tabId: string) => void;
-};
+  activeTab: string
+  onBack: () => void
+  onTabChange: (tabId: string) => void
+}
 
 export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
   const { t, locale } = useLocale()
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeResultIndex, setActiveResultIndex] = useState(0);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const normalizedQuery = normalizeSearchText(searchQuery);
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeResultIndex, setActiveResultIndex] = useState(0)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const normalizedQuery = normalizeSearchText(searchQuery)
   const searchResults = useMemo(
     () => searchSettings(normalizedQuery, t, locale),
     [normalizedQuery, t, locale],
-  );
+  )
 
   useEffect(() => {
-    setActiveResultIndex(0);
-  }, [normalizedQuery]);
+    setActiveResultIndex(0)
+  }, [normalizedQuery])
 
   useEffect(() => {
-    if (!normalizedQuery) return;
+    if (!normalizedQuery) return
     document
       .getElementById(`settings-search-result-${activeResultIndex}`)
-      ?.scrollIntoView({ block: "nearest" });
-  }, [activeResultIndex, normalizedQuery]);
+      ?.scrollIntoView({ block: 'nearest' })
+  }, [activeResultIndex, normalizedQuery])
 
   useEffect(() => {
     const focusSearch = (event: KeyboardEvent): void => {
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        event.key.toLocaleLowerCase() === "f"
-      ) {
-        event.preventDefault();
-        searchInputRef.current?.focus();
-        searchInputRef.current?.select();
+      if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === 'f') {
+        event.preventDefault()
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select()
       }
-    };
-    window.addEventListener("keydown", focusSearch);
-    return () => window.removeEventListener("keydown", focusSearch);
-  }, []);
+    }
+    window.addEventListener('keydown', focusSearch)
+    return () => window.removeEventListener('keydown', focusSearch)
+  }, [])
 
   const clearSearch = useCallback((): void => {
-    setSearchQuery("");
-    setActiveResultIndex(0);
-    searchInputRef.current?.focus();
-  }, []);
+    setSearchQuery('')
+    setActiveResultIndex(0)
+    searchInputRef.current?.focus()
+  }, [])
 
   const activateResult = useCallback(
     (result: SettingsSearchDocument): void => {
-      onTabChange(result.tabId);
-      scrollToSettingsTarget(result);
+      onTabChange(result.tabId)
+      scrollToSettingsTarget(result)
     },
     [onTabChange],
-  );
+  )
 
-  const handleSearchKeyDown = (
-    event: React.KeyboardEvent<HTMLInputElement>,
-  ): void => {
-    if (event.key === "Escape") {
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
+    if (event.key === 'Escape') {
       if (searchQuery) {
-        event.preventDefault();
-        clearSearch();
+        event.preventDefault()
+        clearSearch()
       } else {
-        searchInputRef.current?.blur();
+        searchInputRef.current?.blur()
       }
-      return;
+      return
     }
-    if (!normalizedQuery || searchResults.length === 0) return;
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      const direction = event.key === "ArrowDown" ? 1 : -1;
+    if (!normalizedQuery || searchResults.length === 0) return
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      const direction = event.key === 'ArrowDown' ? 1 : -1
       setActiveResultIndex(
-        (index) =>
-          (index + direction + searchResults.length) % searchResults.length,
-      );
-      return;
+        (index) => (index + direction + searchResults.length) % searchResults.length,
+      )
+      return
     }
-    if (event.key === "Enter") {
-      event.preventDefault();
-      const result = searchResults[activeResultIndex];
-      if (result) activateResult(result);
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      const result = searchResults[activeResultIndex]
+      if (result) activateResult(result)
     }
-  };
+  }
 
   return (
     <ScrollArea
@@ -142,8 +130,8 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
       </div>
       <div className="settings-nav-menu tw:flex tw:w-full tw:min-w-0 tw:flex-col">
         {normalizedQuery ? (
-            <SearchResults
-              t={t}
+          <SearchResults
+            t={t}
             activeIndex={activeResultIndex}
             onActivate={activateResult}
             onActiveIndexChange={setActiveResultIndex}
@@ -151,14 +139,9 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
           />
         ) : (
           SETTINGS_GROUPS.map((group) => (
-            <section
-              className="settings-nav-group tw:grid"
-              key={group.title}
-            >
+            <section className="settings-nav-group tw:grid" key={group.title}>
               <div className="settings-nav-group-title-row">
-                <h2 className="settings-nav-group-title">
-                  {t(group.title)}
-                </h2>
+                <h2 className="settings-nav-group-title">{t(group.title)}</h2>
               </div>
               <div className="settings-nav-group-items tw:grid">
                 {group.items.map((item) => (
@@ -170,10 +153,7 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
                     layout="flex"
                     leading={<item.icon className="settings-nav-icon" />}
                   >
-                    <button
-                      onClick={() => onTabChange(item.routeId)}
-                      type="button"
-                    >
+                    <button onClick={() => onTabChange(item.routeId)} type="button">
                       <span>{t(item.label)}</span>
                     </button>
                   </SidebarRow>
@@ -184,16 +164,16 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
         )}
       </div>
     </ScrollArea>
-  );
+  )
 }
 
 type SearchResultsProps = {
   t: (source: string) => string
-  activeIndex: number;
-  onActivate: (result: SettingsSearchDocument) => void;
-  onActiveIndexChange: (index: number) => void;
-  results: readonly SettingsSearchDocument[];
-};
+  activeIndex: number
+  onActivate: (result: SettingsSearchDocument) => void
+  onActiveIndexChange: (index: number) => void
+  results: readonly SettingsSearchDocument[]
+}
 
 function SearchResults({
   t,
@@ -204,16 +184,10 @@ function SearchResults({
 }: SearchResultsProps): React.ReactNode {
   if (results.length === 0) {
     return (
-      <div
-        className="settings-search-results"
-        id="settings-search-results"
-        role="listbox"
-      >
-        <p className="settings-search-empty">
-          {t('未找到匹配的设置')}
-        </p>
+      <div className="settings-search-results" id="settings-search-results" role="listbox">
+        <p className="settings-search-empty">{t('未找到匹配的设置')}</p>
       </div>
-    );
+    )
   }
   return (
     <div
@@ -223,7 +197,7 @@ function SearchResults({
       role="listbox"
     >
       {results.map((result, index) => {
-        const selected = index === activeIndex;
+        const selected = index === activeIndex
         return (
           <button
             aria-selected={selected}
@@ -241,82 +215,70 @@ function SearchResults({
                 {t(result.rowTitle ?? result.pageLabel)}
               </span>
               {result.rowTitle ? (
-                <span className="settings-search-result-page">
-                  {t(result.pageLabel)}
-                </span>
+                <span className="settings-search-result-page">{t(result.pageLabel)}</span>
               ) : null}
             </span>
-            <span className="settings-search-result-description">
-              {t(result.description)}
-            </span>
+            <span className="settings-search-result-description">{t(result.description)}</span>
           </button>
-        );
+        )
       })}
     </div>
-  );
+  )
 }
 
 function normalizeSearchText(value: string): string {
-  return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+  return value.trim().toLocaleLowerCase().replace(/\s+/g, ' ')
 }
 
 function searchSettings(
   query: string,
-  t: (source: string) => string = source => source,
+  t: (source: string) => string = (source) => source,
   locale = 'zh-CN',
 ): readonly SettingsSearchDocument[] {
-  if (!query) return [];
-  const terms = query.split(" ");
+  if (!query) return []
+  const terms = query.split(' ')
   return SETTINGS_SEARCH_DOCUMENTS.map((document) => ({
     document,
     score: Math.max(
       scoreSearchDocument(document, terms),
-      scoreSearchDocument({
-        ...document,
-        groupTitle: t(document.groupTitle),
-        pageLabel: t(document.pageLabel),
-        rowTitle: document.rowTitle ? t(document.rowTitle) : undefined,
-        description: t(document.description),
-      }, terms),
+      scoreSearchDocument(
+        {
+          ...document,
+          groupTitle: t(document.groupTitle),
+          pageLabel: t(document.pageLabel),
+          rowTitle: document.rowTitle ? t(document.rowTitle) : undefined,
+          description: t(document.description),
+        },
+        terms,
+      ),
     ),
   }))
     .filter((result) => result.score > 0)
     .sort(
       (left, right) =>
         right.score - left.score ||
-        left.document.pageLabel.localeCompare(
-          right.document.pageLabel,
-          locale,
-        ),
+        left.document.pageLabel.localeCompare(right.document.pageLabel, locale),
     )
     .slice(0, 40)
-    .map((result) => result.document);
+    .map((result) => result.document)
 }
 
-function scoreSearchDocument(
-  document: SettingsSearchDocument,
-  terms: readonly string[],
-): number {
-  const page = normalizeSearchText(document.pageLabel);
-  const rowTitle = normalizeSearchText(document.rowTitle ?? "");
-  const description = normalizeSearchText(document.description);
-  const group = normalizeSearchText(document.groupTitle);
-  let total = 0;
+function scoreSearchDocument(document: SettingsSearchDocument, terms: readonly string[]): number {
+  const page = normalizeSearchText(document.pageLabel)
+  const rowTitle = normalizeSearchText(document.rowTitle ?? '')
+  const description = normalizeSearchText(document.description)
+  const group = normalizeSearchText(document.groupTitle)
+  let total = 0
   for (const term of terms) {
-    const pageScore = scoreSearchField(page, term, 160, 130, 95);
-    const rowScore = scoreSearchField(rowTitle, term, 130, 100, 75);
-    const descriptionScore = description.includes(term) ? 35 : 0;
-    const groupScore = group.includes(term) ? 20 : 0;
-    const termScore = Math.max(
-      pageScore,
-      rowScore,
-      descriptionScore,
-      groupScore,
-    );
-    if (termScore === 0) return 0;
-    total += termScore;
+    const pageScore = scoreSearchField(page, term, 160, 130, 95)
+    const rowScore = scoreSearchField(rowTitle, term, 130, 100, 75)
+    const descriptionScore = description.includes(term) ? 35 : 0
+    const groupScore = group.includes(term) ? 20 : 0
+    const termScore = Math.max(pageScore, rowScore, descriptionScore, groupScore)
+    if (termScore === 0) return 0
+    total += termScore
   }
-  return total + (document.rowTitle ? 5 : 0);
+  return total + (document.rowTitle ? 5 : 0)
 }
 
 function scoreSearchField(
@@ -326,42 +288,41 @@ function scoreSearchField(
   prefix: number,
   contains: number,
 ): number {
-  if (!field) return 0;
-  if (field === term) return exact;
-  if (field.startsWith(term)) return prefix;
-  return field.includes(term) ? contains : 0;
+  if (!field) return 0
+  if (field === term) return exact
+  if (field.startsWith(term)) return prefix
+  return field.includes(term) ? contains : 0
 }
 
 function scrollToSettingsTarget(result: SettingsSearchDocument): void {
-  let attempts = 0;
+  let attempts = 0
   const locate = (): void => {
-    attempts += 1;
-    const registeredTarget = document.getElementById(result.targetId);
+    attempts += 1
+    const registeredTarget = document.getElementById(result.targetId)
     const candidates = document.querySelectorAll<HTMLElement>(
-      ".settings-row-title, .settings-section-title, .settings-page-title",
-    );
+      '.settings-row-title, .settings-section-title, .settings-page-title',
+    )
     const heading = [...candidates].find(
-      (candidate) =>
-        candidate.textContent?.trim() === (result.rowTitle ?? result.pageLabel),
-    );
+      (candidate) => candidate.textContent?.trim() === (result.rowTitle ?? result.pageLabel),
+    )
     const target =
       registeredTarget ??
-      heading?.closest<HTMLElement>(".settings-row, .settings-section") ??
-      heading;
+      heading?.closest<HTMLElement>('.settings-row, .settings-section') ??
+      heading
     if (!target) {
       if (attempts < 12) {
-        window.setTimeout(locate, 25);
+        window.setTimeout(locate, 25)
       } else if (!result.rowTitle) {
         document
-          .querySelector<HTMLElement>(".settings-content-area")
-          ?.scrollTo({ behavior: "auto", top: 0 });
+          .querySelector<HTMLElement>('.settings-content-area')
+          ?.scrollTo({ behavior: 'auto', top: 0 })
       }
-      return;
+      return
     }
-    target.id = result.targetId;
-    target.tabIndex = -1;
-    target.scrollIntoView({ behavior: "auto", block: "center" });
-    target.focus({ preventScroll: true });
-  };
-  window.setTimeout(locate, 0);
+    target.id = result.targetId
+    target.tabIndex = -1
+    target.scrollIntoView({ behavior: 'auto', block: 'center' })
+    target.focus({ preventScroll: true })
+  }
+  window.setTimeout(locate, 0)
 }

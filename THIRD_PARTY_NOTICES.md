@@ -76,3 +76,7 @@ trademark owners, and CodePilotX is not affiliated with those vendors.
   without changing its proportions. GitHub logos are used under the
   GitHub Logo Policy:
   https://docs.github.com/en/site-policy/other-site-policies/github-logo-policy.
+
+## ZCode browser helpers
+
+Playwright injected runtime loading and keyboard input helpers adapted from ZCode (revision 872ad96), Apache-2.0. Source: https://github.com/ZCode-ai/ZCode . License: third_party/zcode-browser/LICENSE.

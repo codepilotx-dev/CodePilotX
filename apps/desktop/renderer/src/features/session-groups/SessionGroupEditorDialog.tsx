@@ -37,13 +37,18 @@ export function SessionGroupEditorDialog({
   const creating = mode === 'create'
 
   return (
-    <Dialog.Root open={open} onOpenChange={nextOpen => { if (!nextOpen && !saving) onCancel() }}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && !saving) onCancel()
+      }}
+    >
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
           className="ui-dialog-surface ui-dialog-surface--centered permission-modal confirmation-dialog tw:grid tw:w-[min(30rem,100%)] tw:gap-3 tw:p-5"
           onCloseAutoFocus={onCloseAutoFocus}
-          onOpenAutoFocus={event => {
+          onOpenAutoFocus={(event) => {
             event.preventDefault()
             nameInputRef.current?.focus()
             nameInputRef.current?.select()
@@ -51,7 +56,7 @@ export function SessionGroupEditorDialog({
         >
           <form
             className="tw:grid tw:gap-4"
-            onSubmit={event => {
+            onSubmit={(event) => {
               event.preventDefault()
               if (!submitDisabled) onSubmit()
             }}
@@ -77,7 +82,7 @@ export function SessionGroupEditorDialog({
               <input
                 className="u-type-control tw:w-full tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
                 maxLength={120}
-                onChange={event => onNameChange(event.currentTarget.value)}
+                onChange={(event) => onNameChange(event.currentTarget.value)}
                 placeholder="例如：登录流程修复"
                 ref={nameInputRef}
                 value={name}
@@ -88,7 +93,7 @@ export function SessionGroupEditorDialog({
               <textarea
                 className="u-type-control tw:min-h-24 tw:w-full tw:resize-y tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:outline-none tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
                 maxLength={4000}
-                onChange={event => onDescriptionChange(event.currentTarget.value)}
+                onChange={(event) => onDescriptionChange(event.currentTarget.value)}
                 placeholder="说明这个工作流要共同解决的问题（可选）"
                 value={description}
               />
@@ -102,9 +107,16 @@ export function SessionGroupEditorDialog({
 
             <div className="permission-modal-actions confirmation-dialog-actions tw:mt-1 tw:flex tw:items-center tw:justify-between tw:gap-3">
               <Dialog.Close asChild disabled={saving}>
-                <Button className="tw:min-w-19" color="secondary">取消</Button>
+                <Button className="tw:min-w-19" color="secondary">
+                  取消
+                </Button>
               </Dialog.Close>
-              <Button className="tw:min-w-19" color="primary" disabled={submitDisabled} type="submit">
+              <Button
+                className="tw:min-w-19"
+                color="primary"
+                disabled={submitDisabled}
+                type="submit"
+              >
                 {saving ? '保存中…' : creating ? '新建' : '保存'}
               </Button>
             </div>

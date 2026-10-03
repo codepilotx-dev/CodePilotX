@@ -12,9 +12,14 @@ import {
 
 describe('composer skill inline token', () => {
   test('多个 Skill 标签往返保留身份与顺序，正文不携带命令', () => {
-    const skills = [{ name: 'review', path: 'skills/review' }, { name: 'plan', path: 'builtin://plan/SKILL.md' }]
+    const skills = [
+      { name: 'review', path: 'skills/review' },
+      { name: 'plan', path: 'builtin://plan/SKILL.md' },
+    ]
     const document = createComposerDocumentWithSkill('检查当前改动', skills)
-    const restored = composerDocumentFromProseMirrorDocument(composerDocumentToProseMirrorDocument(document))
+    const restored = composerDocumentFromProseMirrorDocument(
+      composerDocumentToProseMirrorDocument(document),
+    )
     expect(restored).toEqual(document)
     expect(skillInvocationsFromComposerDocument(restored)).toEqual(skills)
     expect(restored.text).toBe('检查当前改动')
@@ -31,9 +36,7 @@ describe('composer skill inline token', () => {
     expect(token?.type).toBe(composerSchema.nodes.skill_token)
     expect(token?.isAtom).toBe(true)
     expect(proseMirrorDocument.textContent).toBe('检查当前改动')
-    expect(composerDocumentFromProseMirrorDocument(proseMirrorDocument)).toEqual(
-      document,
-    )
+    expect(composerDocumentFromProseMirrorDocument(proseMirrorDocument)).toEqual(document)
   })
 
   test('从编辑器文档只解析一个 Skill 调用', () => {

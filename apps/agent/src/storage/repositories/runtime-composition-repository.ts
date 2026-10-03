@@ -1,10 +1,10 @@
-import { createHash } from "node:crypto"
-import type { AgentDatabase } from "../database/AgentDatabase"
+import { createHash } from 'node:crypto'
+import type { AgentDatabase } from '../database/AgentDatabase'
 import type {
   RuntimeCompositionSnapshot,
   RuntimeCompositionSnapshotV1,
   RuntimeCompositionSnapshotV2,
-} from "../../runtime-composition/types"
+} from '../../runtime-composition/types'
 
 export type StoredRuntimeCompositionPlan = {
   turnID: string
@@ -19,7 +19,7 @@ export type StoredRuntimeCompositionPlan = {
 const stableStringify = (value: unknown): string => {
   const seen = new WeakSet<object>()
   const walk = (entry: unknown): unknown => {
-    if (entry === null || typeof entry !== "object") return entry
+    if (entry === null || typeof entry !== 'object') return entry
     if (seen.has(entry as object)) return null
     seen.add(entry as object)
     if (Array.isArray(entry)) return entry.map(walk)
@@ -34,7 +34,7 @@ const stableStringify = (value: unknown): string => {
 }
 
 export const hashRuntimeCompositionSnapshot = (snapshot: RuntimeCompositionSnapshot) =>
-  createHash("sha256").update(stableStringify(snapshot), "utf8").digest("hex")
+  createHash('sha256').update(stableStringify(snapshot), 'utf8').digest('hex')
 
 const isV1 = (snapshot: RuntimeCompositionSnapshot): snapshot is RuntimeCompositionSnapshotV1 =>
   snapshot.version === 1
@@ -47,9 +47,11 @@ export class RuntimeCompositionRepository {
 
   hasTable(): boolean {
     return Boolean(
-      this.db.sqlite.query(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'runtime_composition_plans'",
-      ).get(),
+      this.db.sqlite
+        .query(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'runtime_composition_plans'",
+        )
+        .get(),
     )
   }
 
@@ -64,73 +66,82 @@ export class RuntimeCompositionRepository {
     snapshot: RuntimeCompositionSnapshot
   }): { plan: StoredRuntimeCompositionPlan; inserted: boolean } {
     if (!this.hasTable()) {
-      throw new Error("runtime_composition_plans 表不存在，ephemeral composition 必须直接返回")
+      throw new Error('runtime_composition_plans 表不存在，ephemeral composition 必须直接返回')
     }
     if (!isV1(input.snapshot) && !isV2(input.snapshot)) {
-      throw new Error("Runtime composition snapshot version is unsupported")
+      throw new Error('Runtime composition snapshot version is unsupported')
     }
     const snapshotHash = hashRuntimeCompositionSnapshot(input.snapshot)
     const createdAt = Date.now()
-    const inserted = this.db.sqlite.query(`
+    const inserted =
+      this.db.sqlite
+        .query(
+          `
       INSERT INTO runtime_composition_plans (
         turn_id, agent_id, composition_id, snapshot_version, snapshot_json, snapshot_hash, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(turn_id) DO NOTHING
-    `).run(
-      input.turnID,
-      input.agentID,
-      input.compositionID,
-      input.snapshot.version,
-      JSON.stringify(input.snapshot),
-      snapshotHash,
-      createdAt,
-    ).changes > 0
+    `,
+        )
+        .run(
+          input.turnID,
+          input.agentID,
+          input.compositionID,
+          input.snapshot.version,
+          JSON.stringify(input.snapshot),
+          snapshotHash,
+          createdAt,
+        ).changes > 0
     const authoritative = this.get(input.turnID)
-    if (!authoritative) throw new Error("Runtime composition persistence failed")
+    if (!authoritative) throw new Error('Runtime composition persistence failed')
     if (authoritative.compositionID !== input.compositionID) {
-      throw new Error("Runtime composition identity conflict")
+      throw new Error('Runtime composition identity conflict')
     }
     if (inserted && authoritative.snapshotHash !== snapshotHash) {
-      throw new Error("Runtime composition persistence verification failed")
+      throw new Error('Runtime composition persistence verification failed')
     }
     return { plan: authoritative, inserted }
   }
 
   get(turnID: string): StoredRuntimeCompositionPlan | null {
     if (!this.hasTable()) return null
-    const row = this.db.sqlite.query(`
+    const row = this.db.sqlite
+      .query(
+        `
       SELECT turn_id, agent_id, composition_id, snapshot_version, snapshot_json, snapshot_hash, created_at
       FROM runtime_composition_plans
       WHERE turn_id = ?
-    `).get(turnID) as
+    `,
+      )
+      .get(turnID) as
       | {
-        turn_id: string
-        agent_id: string
-        composition_id: string
-        snapshot_version: number
-        snapshot_json: string
-        snapshot_hash: string
-        created_at: number
-      }
+          turn_id: string
+          agent_id: string
+          composition_id: string
+          snapshot_version: number
+          snapshot_json: string
+          snapshot_hash: string
+          created_at: number
+        }
       | undefined
     if (!row) return null
     let snapshot: RuntimeCompositionSnapshot
     try {
       snapshot = JSON.parse(row.snapshot_json) as RuntimeCompositionSnapshot
     } catch {
-      throw new Error("Runtime composition snapshot is invalid")
+      throw new Error('Runtime composition snapshot is invalid')
     }
     if (row.snapshot_version !== snapshot.version || (!isV1(snapshot) && !isV2(snapshot))) {
-      throw new Error("Runtime composition snapshot version is unsupported")
+      throw new Error('Runtime composition snapshot version is unsupported')
     }
     if (snapshot.identity.id !== row.composition_id) {
-      throw new Error("Runtime composition identity verification failed")
+      throw new Error('Runtime composition identity verification failed')
     }
     if (snapshot.identity.hash !== snapshot.hashes.overall) {
-      throw new Error("Runtime composition overall hash verification failed")
+      throw new Error('Runtime composition overall hash verification failed')
     }
     if (hashRuntimeCompositionSnapshot(snapshot) !== row.snapshot_hash) {
-      throw new Error("Runtime composition snapshot hash verification failed")
+      throw new Error('Runtime composition snapshot hash verification failed')
     }
     return {
       turnID: row.turn_id,
@@ -173,10 +184,14 @@ export class RuntimeCompositionRepository {
         referenced: [...merged.values()],
       },
     }
-    this.db.sqlite.query(`
+    this.db.sqlite
+      .query(
+        `
       UPDATE runtime_composition_plans
       SET snapshot_json = ?, snapshot_hash = ?
       WHERE turn_id = ?
-    `).run(JSON.stringify(next), hashRuntimeCompositionSnapshot(next), turnID)
+    `,
+      )
+      .run(JSON.stringify(next), hashRuntimeCompositionSnapshot(next), turnID)
   }
 }

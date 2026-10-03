@@ -87,8 +87,7 @@ export function ProviderConnectionSection({
   onError,
 }: ProviderConnectionSectionProps): React.ReactNode {
   const supportsInferenceKeys =
-    provider.authMethods?.includes('api-key')
-    ?? provider.kind !== 'github-copilot'
+    provider.authMethods?.includes('api-key') ?? provider.kind !== 'github-copilot'
 
   const isCustom = provider.providerKind === 'custom'
   const customConfig = isCustom && provider.config?.kind === 'custom' ? provider.config : null
@@ -111,10 +110,10 @@ export function ProviderConnectionSection({
   }
 
   const oauthCredentials = (group?.connections ?? []).filter(
-    connection => connection.kind === 'oauth' && connection.origin === 'credential',
+    (connection) => connection.kind === 'oauth' && connection.origin === 'credential',
   )
   const envConnections = (group?.connections ?? []).filter(
-    connection => connection.kind === 'env',
+    (connection) => connection.kind === 'env',
   )
 
   async function handleSaveCustomBaseUrl(): Promise<void> {
@@ -152,7 +151,7 @@ export function ProviderConnectionSection({
                 <Input
                   placeholder="https://api.example.com/v1"
                   value={customBaseUrl}
-                  onChange={e => setCustomBaseUrl(e.target.value)}
+                  onChange={(e) => setCustomBaseUrl(e.target.value)}
                 />
               </label>
               <Button
@@ -194,7 +193,7 @@ export function ProviderConnectionSection({
                     onCopy={() => void onCopyKey(key)}
                     onDelete={() => onDeleteKey(key)}
                     onEdit={() => onEditKey(key)}
-                    onMove={offset => void onMoveKey(key, offset)}
+                    onMove={(offset) => void onMoveKey(key, offset)}
                     onSetActive={() => void onSetActiveKey(key)}
                     onTest={() => void onTestKey(key)}
                     onToggleEnabled={() => void onToggleKeyEnabled(key)}
@@ -224,17 +223,26 @@ export function ProviderConnectionSection({
             <OAuthConnection
               connected={oauthCredentials.length > 0}
               description="在浏览器完成授权，连接此供应商。"
-              target={{
-                kind: 'provider',
-                providerId: provider.providerID,
-              } as never}
-              title={provider.providerID === 'openai' ? '使用 ChatGPT 登录' : `${provider.displayName} OAuth`}
+              target={
+                {
+                  kind: 'provider',
+                  providerId: provider.providerID,
+                } as never
+              }
+              title={
+                provider.providerID === 'openai'
+                  ? '使用 ChatGPT 登录'
+                  : `${provider.displayName} OAuth`
+              }
               onChanged={onRefresh}
             />
 
             {oauthCredentials.length > 0 ? (
-              <div className="model-center-key-list" style={{ marginTop: 'var(--cpx-sys-space-3)' }}>
-                {oauthCredentials.map(connection => (
+              <div
+                className="model-center-key-list"
+                style={{ marginTop: 'var(--cpx-sys-space-3)' }}
+              >
+                {oauthCredentials.map((connection) => (
                   <div className="model-center-key-row" key={connection.id}>
                     <div>
                       <strong>{connection.label}</strong>
@@ -248,7 +256,7 @@ export function ProviderConnectionSection({
                             void providerManagementStore
                               .setActiveCredential(provider.providerID, connection.credentialId!)
                               .then(() => onNotice('活动凭据已切换为 OAuth。'))
-                              .catch(err => onError(fullErrorMessage(err)))
+                              .catch((err) => onError(fullErrorMessage(err)))
                           }}
                         >
                           设为当前活动
@@ -261,7 +269,7 @@ export function ProviderConnectionSection({
                             void providerManagementStore
                               .deleteCredential(connection.credentialId!)
                               .then(() => onNotice('OAuth 凭据已删除。'))
-                              .catch(err => onError(fullErrorMessage(err)))
+                              .catch((err) => onError(fullErrorMessage(err)))
                           }}
                         >
                           断开并删除
@@ -286,7 +294,7 @@ export function ProviderConnectionSection({
             </div>
           </header>
           <div className="model-center-detail-card-body">
-            {group!.usageSources.map(source => {
+            {group!.usageSources.map((source) => {
               if (source.connectionMethod.kind === 'billing-key') {
                 return (
                   <BillingCredentialConnection
@@ -296,10 +304,8 @@ export function ProviderConnectionSection({
                       connectionMethod: source.connectionMethod,
                     }}
                     onChanged={onRefresh}
-                    onConnect={input =>
-                      providerManagementStore.connectUsageCredential(input)
-                    }
-                    onDisconnect={sourceId =>
+                    onConnect={(input) => providerManagementStore.connectUsageCredential(input)}
+                    onDisconnect={(sourceId) =>
                       providerManagementStore.disconnectUsageCredential({ sourceId })
                     }
                   />
@@ -338,7 +344,7 @@ export function ProviderConnectionSection({
           </header>
           <div className="model-center-detail-card-body">
             <div className="model-center-account-readonly-list">
-              {envConnections.map(connection => (
+              {envConnections.map((connection) => (
                 <div key={connection.id}>
                   <Cable size={APP_ICON_SIZE} aria-hidden />
                   <span>{connection.label}</span>
@@ -381,10 +387,7 @@ function ApiKeyRowItem({
   onToggleEnabled,
 }: ApiKeyRowItemProps): React.ReactNode {
   return (
-    <article
-      className="model-center-key-row"
-      data-disabled={!keyItem.enabled || undefined}
-    >
+    <article className="model-center-key-row" data-disabled={!keyItem.enabled || undefined}>
       <div className="model-center-key-order">
         <IconButton
           color="ghostSecondary"
@@ -421,10 +424,7 @@ function ApiKeyRowItem({
               已停用
             </span>
           ) : null}
-          <span
-            className="model-center-key-badge"
-            data-tone={healthTone(keyItem.health.status)}
-          >
+          <span className="model-center-key-badge" data-tone={healthTone(keyItem.health.status)}>
             {HEALTH_LABELS[keyItem.health.status]}
           </span>
         </div>
@@ -444,7 +444,7 @@ function ApiKeyRowItem({
         <Dropdown
           align="end"
           className="popover-menu--flex"
-          trigger={(
+          trigger={
             <IconButton
               color="ghostSecondary"
               disabled={busy}
@@ -453,13 +453,10 @@ function ApiKeyRowItem({
             >
               <MoreHorizontal size={APP_ICON_SIZES.sm} aria-hidden />
             </IconButton>
-          )}
+          }
           width={180}
         >
-          <PopoverItem
-            disabled={keyItem.active || !keyItem.enabled}
-            onClick={onSetActive}
-          >
+          <PopoverItem disabled={keyItem.active || !keyItem.enabled} onClick={onSetActive}>
             设为当前活动
           </PopoverItem>
           <PopoverItem onClick={onToggleEnabled}>
@@ -473,9 +470,7 @@ function ApiKeyRowItem({
   )
 }
 
-function healthTone(
-  status: DesktopApiKeyHealthStatus,
-): 'healthy' | 'neutral' | 'warning' {
+function healthTone(status: DesktopApiKeyHealthStatus): 'healthy' | 'neutral' | 'warning' {
   if (status === 'healthy') return 'healthy'
   if (status === 'untested') return 'neutral'
   return 'warning'

@@ -1,14 +1,5 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
-import {
-  SIDEBAR_MAX_WIDTH,
-  SIDEBAR_MIN_WIDTH,
-  useDesktopLayout,
-} from '../useDesktopLayout.js'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH, useDesktopLayout } from '../useDesktopLayout.js'
 import {
   applyWorkbenchTabsAction,
   createDefaultWorkbenchTabsState,
@@ -63,11 +54,19 @@ export {
   rightDockWidthToRatio,
 } from './workbenchLayoutSizing.js'
 
-import { MODERN_SIDEBAR_DEFAULT_WIDTH, MODERN_SIDEBAR_MIN_WIDTH, SIDEBAR_RAIL_WIDTH, type SidebarPane } from '../sidebar/sidebarNavigation.js'
+import {
+  MODERN_SIDEBAR_DEFAULT_WIDTH,
+  MODERN_SIDEBAR_MIN_WIDTH,
+  SIDEBAR_RAIL_WIDTH,
+  type SidebarPane,
+} from '../sidebar/sidebarNavigation.js'
 
 const NON_NATIVE_RESIZE_SETTLE_MS = 500
 
-export function useWorkbenchShellController({ modern = false, activePane }: { modern?: boolean; activePane?: SidebarPane | null } = {}) {
+export function useWorkbenchShellController({
+  modern = false,
+  activePane,
+}: { modern?: boolean; activePane?: SidebarPane | null } = {}) {
   const railWidth = modern ? SIDEBAR_RAIL_WIDTH : 0
   const layout = useDesktopLayout(modern ? MODERN_SIDEBAR_DEFAULT_WIDTH : undefined)
   const {
@@ -76,8 +75,9 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
     setSidebarCollapsed,
     setSidebarWidth: setSidebarWidthLegacy,
   } = layout
-  const [workbenchPanelState, setWorkbenchPanelState] =
-    useState<WorkbenchTabsState>(createDefaultWorkbenchTabsState)
+  const [workbenchPanelState, setWorkbenchPanelState] = useState<WorkbenchTabsState>(
+    createDefaultWorkbenchTabsState,
+  )
   const workspaceRef = useRef<HTMLDivElement>(null)
   const workspaceMeasuredRef = useRef(false)
   const initSnapshotRef = useRef({
@@ -91,14 +91,12 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
     width: 0,
     height: 0,
   })
-  const [rightDockWidthRatio, setRightDockWidthRatio] =
-    useState<number | null>(null)
+  const [rightDockWidthRatio, setRightDockWidthRatio] = useState<number | null>(null)
   const responsiveRightDockWidth = rightDockWidthFromRatio(
     rightDockWidthRatio ?? 0,
     workspaceSize.width,
   )
-  const [bottomPanelHeightRatio, setBottomPanelHeightRatio] =
-    useState<number | null>(null)
+  const [bottomPanelHeightRatio, setBottomPanelHeightRatio] = useState<number | null>(null)
   const responsiveBottomPanelHeight = bottomPanelHeightFromRatio(
     bottomPanelHeightRatio ?? 0,
     workspaceSize.height,
@@ -113,12 +111,13 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
     ),
   )
 
-  const [workbenchLayoutState, setWorkbenchLayoutState] =
-    useState<WorkbenchLayoutState | null>(null)
+  const [workbenchLayoutState, setWorkbenchLayoutState] = useState<WorkbenchLayoutState | null>(
+    null,
+  )
 
   const displayedSidebarWidth = modern
     ? Math.max(MODERN_SIDEBAR_MIN_WIDTH, workbenchLayoutState?.primarySidebarWidth ?? sidebarWidth)
-    : workbenchLayoutState?.primarySidebarWidth ?? sidebarWidth
+    : (workbenchLayoutState?.primarySidebarWidth ?? sidebarWidth)
 
   const sidebarShell = useSidebarShellController({
     desktopCollapsed: sidebarCollapsed,
@@ -132,20 +131,16 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
   const rightDockVisible =
     rightDockWidthRatio !== null &&
     rightDockState.open &&
-    (!rightDockResponsiveState.suppressed ||
-      rightDockResponsiveState.manualOverride)
+    (!rightDockResponsiveState.suppressed || rightDockResponsiveState.manualOverride)
   const rightDockMaxWidth = getRightDockMaxWidth(workspaceSize.width)
   const bottomPanelMaxHeight = getBottomPanelMaxHeight(workspaceSize.height)
 
-  const rightDockFullWidth =
-    rightDockVisible && workbenchPanelState.rightFullWidth
-  const rightDockWidth =
-    workbenchLayoutState?.auxiliaryPanelWidth ?? responsiveRightDockWidth
+  const rightDockFullWidth = rightDockVisible && workbenchPanelState.rightFullWidth
+  const rightDockWidth = workbenchLayoutState?.auxiliaryPanelWidth ?? responsiveRightDockWidth
   const rightPanelCommittedSize = rightDockFullWidth
     ? Math.max(workspaceSize.width, rightDockWidth)
     : rightDockWidth
-  const bottomPanelHeight =
-    workbenchLayoutState?.bottomPanelHeight ?? responsiveBottomPanelHeight
+  const bottomPanelHeight = workbenchLayoutState?.bottomPanelHeight ?? responsiveBottomPanelHeight
 
   const rightPanelLiveResize = useLiveResizeValue(rightPanelCommittedSize)
   const bottomPanelLiveResize = useLiveResizeValue(bottomPanelHeight)
@@ -174,45 +169,31 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
     setSidebarCollapsed(true)
   }, [setSidebarCollapsed])
 
-  const dispatchPanelAction = useCallback(
-    (action: WorkbenchPanelAction): void => {
-      setWorkbenchPanelState(current =>
-        applyWorkbenchTabsAction(current, action),
-      )
-    },
-    [],
-  )
+  const dispatchPanelAction = useCallback((action: WorkbenchPanelAction): void => {
+    setWorkbenchPanelState((current) => applyWorkbenchTabsAction(current, action))
+  }, [])
 
-  const dispatchLayoutAction = useCallback(
-    (action: WorkbenchLayoutAction): void => {
-      setWorkbenchLayoutState(current =>
-        current != null ? applyWorkbenchLayoutAction(current, action) : current,
-      )
-    },
-    [],
-  )
+  const dispatchLayoutAction = useCallback((action: WorkbenchLayoutAction): void => {
+    setWorkbenchLayoutState((current) =>
+      current != null ? applyWorkbenchLayoutAction(current, action) : current,
+    )
+  }, [])
 
-  const updateRightDockManualState = useCallback(
-    (type: 'manualOpen' | 'manualClose'): void => {
-      const windowWidth =
-        typeof window === 'undefined' ? 0 : window.innerWidth
-      setRightDockResponsiveState(current =>
-        reduceRightDockResponsiveState(current, {
-          type,
-          windowWidth,
-        }),
-      )
-    },
-    [],
-  )
+  const updateRightDockManualState = useCallback((type: 'manualOpen' | 'manualClose'): void => {
+    const windowWidth = typeof window === 'undefined' ? 0 : window.innerWidth
+    setRightDockResponsiveState((current) =>
+      reduceRightDockResponsiveState(current, {
+        type,
+        windowWidth,
+      }),
+    )
+  }, [])
 
   const moveRightDockFocusToMain = useCallback((): void => {
     const activeElement = document.activeElement
     if (
       !(activeElement instanceof HTMLElement) ||
-      !activeElement.closest(
-        '[data-app-shell-tab-panel-controller="right"]',
-      )
+      !activeElement.closest('[data-app-shell-tab-panel-controller="right"]')
     )
       return
     activeElement.blur()
@@ -220,11 +201,7 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
   }, [dispatchPanelAction])
 
   const openPanelTab = useCallback(
-    (
-      target: WorkbenchPanelTarget,
-      tab: WorkbenchTabDescriptor,
-      index?: number,
-    ): void => {
+    (target: WorkbenchPanelTarget, tab: WorkbenchTabDescriptor, index?: number): void => {
       if (target === 'right') updateRightDockManualState('manualOpen')
       dispatchPanelAction({ type: 'openTab', target, tab, index })
     },
@@ -272,12 +249,9 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
           updateRightDockManualState('manualOpen')
         }
       }
-      setWorkbenchPanelState(current => {
+      setWorkbenchPanelState((current) => {
         const opening = !current[target].open
-        const next = applyWorkbenchTabsAction(
-          current,
-          { type: 'togglePanel', target },
-        )
+        const next = applyWorkbenchTabsAction(current, { type: 'togglePanel', target })
         if (opening) {
           focusPanelController(target)
         }
@@ -329,9 +303,9 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
       const definition = tab ? BUILTIN_COMPOSITE_VIEWS[tab.kind] : undefined
       const resolvedTarget =
         target ??
-        ((definition?.defaultLocation !== 'floating' && definition?.defaultLocation)
+        ((definition?.defaultLocation !== 'floating' && definition?.defaultLocation
           ? definition.defaultLocation
-          : 'right') as WorkbenchPanelTarget
+          : 'right') as WorkbenchPanelTarget)
       auxiliaryWindowService.close(tabId)
       dispatchPanelAction({ type: 'dockBackTab', target: resolvedTarget, tabId })
     },
@@ -339,17 +313,13 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
   )
 
   useEffect(() => {
-    auxiliaryWindowService.setDockBackHandler(tabId => {
+    auxiliaryWindowService.setDockBackHandler((tabId) => {
       dockBackPanelTab(tabId)
     })
   }, [dockBackPanelTab])
 
   const reorderPanelTab = useCallback(
-    (
-      target: WorkbenchPanelTarget,
-      tabId: WorkbenchTabId,
-      index: number,
-    ): void => {
+    (target: WorkbenchPanelTarget, tabId: WorkbenchTabId, index: number): void => {
       dispatchPanelAction({ type: 'reorderTab', target, tabId, index })
     },
     [dispatchPanelAction],
@@ -388,27 +358,15 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
     dispatchPanelAction({ type: 'toggleRightFullWidth' })
   }, [dispatchPanelAction, updateRightDockManualState])
 
-  const commitRightDockWidthRatio = useCallback(
-    (nextRatio: number): void => {
-      setRightDockWidthRatio(nextRatio)
-      window.localStorage.setItem(
-        RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY,
-        String(nextRatio),
-      )
-    },
-    [],
-  )
+  const commitRightDockWidthRatio = useCallback((nextRatio: number): void => {
+    setRightDockWidthRatio(nextRatio)
+    window.localStorage.setItem(RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY, String(nextRatio))
+  }, [])
 
-  const commitBottomPanelHeightRatio = useCallback(
-    (nextRatio: number): void => {
-      setBottomPanelHeightRatio(nextRatio)
-      window.localStorage.setItem(
-        BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY,
-        String(nextRatio),
-      )
-    },
-    [],
-  )
+  const commitBottomPanelHeightRatio = useCallback((nextRatio: number): void => {
+    setBottomPanelHeightRatio(nextRatio)
+    window.localStorage.setItem(BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY, String(nextRatio))
+  }, [])
 
   const handleSetRightDockWidth = useCallback(
     (nextWidth: number): void => {
@@ -428,27 +386,17 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
       workspaceSize.width,
       workspaceSize.height,
     )
-    commitRightDockWidthRatio(
-      rightDockWidthToRatio(defaultWidth, workspaceSize.width),
-    )
+    commitRightDockWidthRatio(rightDockWidthToRatio(defaultWidth, workspaceSize.width))
     dispatchLayoutAction({
       type: 'commitAuxiliaryPanelSize',
       size: defaultWidth,
       workspaceWidth: workspaceSize.width,
     })
-  }, [
-    commitRightDockWidthRatio,
-    dispatchLayoutAction,
-    workspaceSize.height,
-    workspaceSize.width,
-  ])
+  }, [commitRightDockWidthRatio, dispatchLayoutAction, workspaceSize.height, workspaceSize.width])
 
   const handleSetBottomPanelHeight = useCallback(
     (nextHeight: number): void => {
-      const nextRatio = bottomPanelHeightToRatio(
-        nextHeight,
-        workspaceSize.height,
-      )
+      const nextRatio = bottomPanelHeightToRatio(nextHeight, workspaceSize.height)
       commitBottomPanelHeightRatio(nextRatio)
       dispatchLayoutAction({
         type: 'commitBottomPanelSize',
@@ -564,23 +512,17 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
         (!nextResp.suppressed || nextResp.manualOverride)
 
       setWorkspaceSize(finalSize)
-      setWorkbenchLayoutState(current => {
+      setWorkbenchLayoutState((current) => {
         if (current == null) return current
         let next = current
-        if (
-          finalRightDockWidth !== undefined &&
-          finalRightDockWidth !== next.auxiliaryPanelWidth
-        ) {
+        if (finalRightDockWidth !== undefined && finalRightDockWidth !== next.auxiliaryPanelWidth) {
           next = applyWorkbenchLayoutAction(next, {
             type: 'commitAuxiliaryPanelSize',
             size: finalRightDockWidth,
             workspaceWidth: finalSize.width,
           })
         }
-        if (
-          finalBottomHeight !== undefined &&
-          finalBottomHeight !== next.bottomPanelHeight
-        ) {
+        if (finalBottomHeight !== undefined && finalBottomHeight !== next.bottomPanelHeight) {
           next = applyWorkbenchLayoutAction(next, {
             type: 'commitBottomPanelSize',
             size: finalBottomHeight,
@@ -621,14 +563,11 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
     const initializeWorkspace = (): void => {
       workspaceMeasuredRef.current = true
       const captured = initSnapshotRef.current
-      void import('./workbenchLayoutStorage.js').then(module => {
+      void import('./workbenchLayoutStorage.js').then((module) => {
         if (disposed) return
         const initialSize = latestWorkspaceSizeRef.current
         if (initialSize.width <= 0 || initialSize.height <= 0) return
-        const [rightRatio, bottomRatio] = module.default(
-          initialSize.width,
-          initialSize.height,
-        )
+        const [rightRatio, bottomRatio] = module.default(initialSize.width, initialSize.height)
         rightDockWidthRatioRef.current = rightRatio
         bottomPanelHeightRatioRef.current = bottomRatio
         setRightDockWidthRatio(rightRatio)
@@ -646,8 +585,7 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
           workspaceHeight: initialSize.height,
           sidebarCollapsed: captured.sidebarCollapsed,
           sidebarWidth:
-            captured.sidebarWidth ??
-            Math.min(520, Math.max(240, initialSize.width * 0.2)),
+            captured.sidebarWidth ?? Math.min(520, Math.max(240, initialSize.width * 0.2)),
           rightDockRatio: rightRatio,
           bottomPanelRatio: bottomRatio,
         })
@@ -657,8 +595,7 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
             mainContent: true,
             auxiliaryPanel:
               captured.rightOpen &&
-              (!initialResponsiveState.suppressed ||
-                initialResponsiveState.manualOverride),
+              (!initialResponsiveState.suppressed || initialResponsiveState.manualOverride),
             bottomPanel: captured.bottomOpen,
           },
           primarySidebarWidth: snapshot.primarySidebarWidth,
@@ -666,8 +603,7 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
           bottomPanelHeight: snapshot.bottomPanelHeight,
           auxiliaryMaximized: snapshot.auxiliaryMaximized,
           beforeAuxiliaryMaximized: snapshot.beforeAuxiliaryMaximized,
-          beforeAuxiliaryMaximizedAuxiliaryWidth:
-            snapshot.beforeAuxiliaryMaximizedAuxiliaryWidth,
+          beforeAuxiliaryMaximizedAuxiliaryWidth: snapshot.beforeAuxiliaryMaximizedAuxiliaryWidth,
         }
         if (captured.rightFullWidth && initialState.visibility.auxiliaryPanel) {
           initialState = applyWorkbenchLayoutAction(initialState, {
@@ -727,11 +663,11 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
     let legacyRevision = 0
     const bridge = window.codePilotXDesktop
     const unsubscribeResizeState =
-      bridge?.onWindowResizeActivity?.(activity => {
+      bridge?.onWindowResizeActivity?.((activity) => {
         resizeActivityCoordinator.applyNativeActivity(activity)
         handleResizePhase(activity.phase)
-      })
-      ?? bridge?.onWindowResizeStateChanged?.(resizing => {
+      }) ??
+      bridge?.onWindowResizeStateChanged?.((resizing) => {
         // 旧版 Electron 只有布尔信号：合成带 revision 的活动事件，保持同等行为。
         legacyRevision += 1
         resizeActivityCoordinator.applyNativeActivity(
@@ -741,10 +677,7 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
       })
     const observer = new ResizeObserver(([entry]) => {
       if (entry) {
-        updateWorkspaceSize(
-          entry.contentRect.width,
-          entry.contentRect.height,
-        )
+        updateWorkspaceSize(entry.contentRect.width, entry.contentRect.height)
       }
     })
     observer.observe(workspaceElement)
@@ -778,15 +711,11 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
   useEffect(() => {
     if (workbenchLayoutState == null) return
 
-    setWorkbenchLayoutState(current => {
+    setWorkbenchLayoutState((current) => {
       if (current == null) return current
       let next = current
 
-      if (
-        workbenchPanelState.rightFullWidth &&
-        rightDockVisible &&
-        !next.auxiliaryMaximized
-      ) {
+      if (workbenchPanelState.rightFullWidth && rightDockVisible && !next.auxiliaryMaximized) {
         next = applyWorkbenchLayoutAction(next, {
           type: 'enterAuxiliaryMaximized',
         })
@@ -839,7 +768,7 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
 
   useEffect(() => {
     if (workbenchLayoutState == null) return
-    void import('./workbenchLayoutStorage.js').then(module => {
+    void import('./workbenchLayoutStorage.js').then((module) => {
       module.saveWorkbenchLayoutSnapshot(
         {
           schemaVersion: WORKBENCH_LAYOUT_SCHEMA_VERSION,
@@ -870,8 +799,7 @@ export function useWorkbenchShellController({ modern = false, activePane }: { mo
     setWorkbenchPanelState,
     rightDockState,
     bottomPanelState,
-    bottomPanelVisible:
-      workbenchLayoutState?.visibility.bottomPanel ?? bottomPanelState.open,
+    bottomPanelVisible: workbenchLayoutState?.visibility.bottomPanel ?? bottomPanelState.open,
     workspaceRef,
     workspaceWidth: workspaceSize.width,
     rightDockVisible,

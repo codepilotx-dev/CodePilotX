@@ -1,14 +1,8 @@
 import { expect, test, type Locator } from '@playwright/test'
 
-import {
-  COMPACT_VIEWPORT,
-  prepareVisualTheme,
-  waitForVisualPage,
-} from './visual-test-helpers.js'
+import { COMPACT_VIEWPORT, prepareVisualTheme, waitForVisualPage } from './visual-test-helpers.js'
 
-test('Radix dropdown stays anchored and uses a readable opaque surface', async ({
-  page,
-}) => {
+test('Radix dropdown stays anchored and uses a readable opaque surface', async ({ page }) => {
   await page.setViewportSize(COMPACT_VIEWPORT)
   await prepareVisualTheme(page, 'dark', { reduceMotion: 'off' })
   await page.goto('/?visualCase=rich#/threads/visual-rich')
@@ -30,7 +24,7 @@ test('Radix dropdown stays anchored and uses a readable opaque surface', async (
   const item = content.locator('.popover-item').first()
   const [itemBox, itemStyles, scrollStyles] = await Promise.all([
     item.boundingBox(),
-    item.evaluate(element => {
+    item.evaluate((element) => {
       const computed = getComputedStyle(element)
       return {
         borderRadius: Number.parseFloat(computed.borderRadius),
@@ -40,7 +34,7 @@ test('Radix dropdown stays anchored and uses a readable opaque surface', async (
         paddingInlineStart: Number.parseFloat(computed.paddingInlineStart),
       }
     }),
-    content.locator('.popover-scroll-content').evaluate(element => {
+    content.locator('.popover-scroll-content').evaluate((element) => {
       const computed = getComputedStyle(element)
       return {
         paddingBlockStart: Number.parseFloat(computed.paddingBlockStart),
@@ -58,15 +52,12 @@ test('Radix dropdown stays anchored and uses a readable opaque surface', async (
   expect(itemStyles.paddingInlineStart).toBeCloseTo(8, 0)
   expect(scrollStyles.paddingBlockStart).toBeCloseTo(4, 1)
   expect(scrollStyles.paddingInlineStart).toBeCloseTo(4, 1)
-  const selectedItem = content
-    .locator('.popover-item[data-state="checked"]')
-    .first()
+  const selectedItem = content.locator('.popover-item[data-state="checked"]').first()
   await expect(selectedItem).toBeVisible()
   await expect(
-    selectedItem.evaluate(element => {
+    selectedItem.evaluate((element) => {
       const probe = document.createElement('span')
-      probe.style.background =
-        'var(--state-selected-fill)'
+      probe.style.background = 'var(--state-selected-fill)'
       element.append(probe)
       const expected = getComputedStyle(probe).backgroundColor
       probe.remove()
@@ -76,7 +67,7 @@ test('Radix dropdown stays anchored and uses a readable opaque surface', async (
   await page.keyboard.press('ArrowDown')
   const keyboardFocusedItem = content.locator('.popover-item:focus').first()
   await expect(keyboardFocusedItem).toBeVisible()
-  const keyboardFocusStyle = await keyboardFocusedItem.evaluate(element => {
+  const keyboardFocusStyle = await keyboardFocusedItem.evaluate((element) => {
     const style = getComputedStyle(element)
     return {
       boxShadow: style.boxShadow,
@@ -88,14 +79,10 @@ test('Radix dropdown stays anchored and uses a readable opaque surface', async (
 
   const contentBox = await content.boundingBox()
   expect(contentBox).not.toBeNull()
-  expect(contentBox!.y).toBeGreaterThanOrEqual(
-    triggerBox!.y + triggerBox!.height - 2,
-  )
+  expect(contentBox!.y).toBeGreaterThanOrEqual(triggerBox!.y + triggerBox!.height - 2)
 })
 
-test('Radix popover stays in the viewport and respects reduced motion', async ({
-  page,
-}) => {
+test('Radix popover stays in the viewport and respects reduced motion', async ({ page }) => {
   await page.setViewportSize(COMPACT_VIEWPORT)
   await prepareVisualTheme(page, 'dark', { reduceMotion: 'off' })
   await page.goto('/?visualCase=empty#/settings/appearance')
@@ -112,7 +99,7 @@ test('Radix popover stays in the viewport and respects reduced motion', async ({
   await expectSurfacePadding(colorPopover, 4)
 
   await page.keyboard.press('Escape')
-  await page.locator('html').evaluate(root => {
+  await page.locator('html').evaluate((root) => {
     root.dataset.reduceMotion = 'on'
   })
   await colorTrigger.click()
@@ -120,9 +107,7 @@ test('Radix popover stays in the viewport and respects reduced motion', async ({
   await expect(colorPopover).toHaveCSS('animation-name', 'none')
 })
 
-test('Radix context menu follows the pointer and stays in the viewport', async ({
-  page,
-}) => {
+test('Radix context menu follows the pointer and stays in the viewport', async ({ page }) => {
   await page.setViewportSize(COMPACT_VIEWPORT)
   await prepareVisualTheme(page, 'dark', { reduceMotion: 'off' })
   await page.goto('/?visualCase=rich#/threads/visual-rich')
@@ -131,12 +116,10 @@ test('Radix context menu follows the pointer and stays in the viewport', async (
     exact: true,
   })
   await waitForVisualPage(page, 'dark', selectionTarget)
-  await selectionTarget.evaluate(element => {
+  await selectionTarget.evaluate((element) => {
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
-        return node.textContent?.trim()
-          ? NodeFilter.FILTER_ACCEPT
-          : NodeFilter.FILTER_SKIP
+        return node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP
       },
     })
     const text = walker.nextNode()
@@ -159,7 +142,7 @@ test('Radix context menu follows the pointer and stays in the viewport', async (
   await page.evaluate(() => {
     document.addEventListener(
       'mousedown',
-      event => {
+      (event) => {
         if (event.button === 2) event.preventDefault()
       },
       { capture: true, once: true },
@@ -170,13 +153,9 @@ test('Radix context menu follows the pointer and stays in the viewport', async (
   const content = page.locator('.sidebar-context-menu-content[data-side]')
   await expect(content).toBeVisible()
   await expectReadableFloatingSurface(content)
-  await expect(
-    page.locator('.sidebar-context-menu-content[data-state="open"]'),
-  ).toHaveCount(1)
+  await expect(page.locator('.sidebar-context-menu-content[data-state="open"]')).toHaveCount(1)
   await expect(content.getByText('添加到对话', { exact: true })).toBeVisible()
-  await expect(
-    content.getByText('在侧边聊天中提问', { exact: true }),
-  ).toBeVisible()
+  await expect(content.getByText('在侧边聊天中提问', { exact: true })).toBeVisible()
   await expect(content.getByText('复制', { exact: true })).toBeVisible()
   await expectSurfacePadding(content, 4)
 
@@ -184,7 +163,7 @@ test('Radix context menu follows the pointer and stays in the viewport', async (
   const [contentBox, firstItemBox, firstItemStyles] = await Promise.all([
     content.boundingBox(),
     firstItem.boundingBox(),
-    firstItem.evaluate(element => {
+    firstItem.evaluate((element) => {
       const computed = getComputedStyle(element)
       return {
         borderRadius: Number.parseFloat(computed.borderRadius),
@@ -207,7 +186,7 @@ test('Radix context menu follows the pointer and stays in the viewport', async (
   await firstItem.hover()
   await expect
     .poll(() =>
-      firstItem.evaluate(element => {
+      firstItem.evaluate((element) => {
         const probe = document.createElement('span')
         probe.style.background = 'var(--color-token-list-hover-background)'
         element.append(probe)
@@ -222,8 +201,7 @@ test('Radix context menu follows the pointer and stays in the viewport', async (
 
   const submenuMinWidth = await page.evaluate(() => {
     const probe = document.createElement('div')
-    probe.className =
-      'sidebar-context-menu-content app-context-menu-sub-content'
+    probe.className = 'sidebar-context-menu-content app-context-menu-sub-content'
     probe.style.position = 'fixed'
     probe.style.visibility = 'hidden'
     document.body.append(probe)
@@ -234,9 +212,7 @@ test('Radix context menu follows the pointer and stays in the viewport', async (
   expect(submenuMinWidth).toBeGreaterThanOrEqual(200)
 })
 
-test('global context menu exposes editor commands and skips blank areas', async ({
-  page,
-}) => {
+test('global context menu exposes editor commands and skips blank areas', async ({ page }) => {
   await page.setViewportSize(COMPACT_VIEWPORT)
   await prepareVisualTheme(page, 'dark', { reduceMotion: 'off' })
   await page.goto('/?visualCase=rich#/threads/visual-rich')
@@ -248,30 +224,18 @@ test('global context menu exposes editor commands and skips blank areas', async 
   await page.keyboard.press('Control+A')
   await editor.click({ button: 'right' })
 
-  const content = page.locator(
-    '.sidebar-context-menu-content[data-state="open"]',
-  )
+  const content = page.locator('.sidebar-context-menu-content[data-state="open"]')
   await expect(content).toBeVisible()
-  for (const label of [
-    '撤销',
-    '重做',
-    '剪切',
-    '复制',
-    '粘贴',
-    '删除',
-    '全选',
-  ]) {
+  for (const label of ['撤销', '重做', '剪切', '复制', '粘贴', '删除', '全选']) {
     await expect(content.getByText(label, { exact: true })).toBeVisible()
   }
-  const disabledRedoItem = content
-    .getByText('重做', { exact: true })
-    .locator('..')
+  const disabledRedoItem = content.getByText('重做', { exact: true }).locator('..')
   await expect(disabledRedoItem).toHaveAttribute('data-disabled')
+  await expect(content.getByText('全选', { exact: true }).locator('..')).toHaveAttribute(
+    'data-disabled',
+  )
   await expect(
-    content.getByText('全选', { exact: true }).locator('..'),
-  ).toHaveAttribute('data-disabled')
-  await expect(
-    disabledRedoItem.evaluate(element => {
+    disabledRedoItem.evaluate((element) => {
       const style = getComputedStyle(element)
       const probe = document.createElement('span')
       probe.style.color = 'var(--color-token-disabled-foreground)'
@@ -294,12 +258,8 @@ test('global context menu exposes editor commands and skips blank areas', async 
   await expect(editor).not.toContainText('context menu edit')
 
   await editor.fill('top edit menu')
-  const editMenuTrigger = page
-    .locator('.menubar-trigger')
-    .filter({ hasText: /^编辑$/ })
-  const viewMenuTrigger = page
-    .locator('.menubar-trigger')
-    .filter({ hasText: /^查看$/ })
+  const editMenuTrigger = page.locator('.menubar-trigger').filter({ hasText: /^编辑$/ })
+  const viewMenuTrigger = page.locator('.menubar-trigger').filter({ hasText: /^查看$/ })
   await editMenuTrigger.click()
   const editMenu = page.locator('.menubar-content[data-state="open"]')
   await expect(editMenu).toBeVisible()
@@ -336,9 +296,7 @@ test('global context menu exposes editor commands and skips blank areas', async 
   await expect(editor).not.toContainText('top edit menu')
 
   await page.locator('.app-menubar').click({ button: 'right' })
-  await expect(
-    page.locator('.sidebar-context-menu-content[data-state="open"]'),
-  ).toHaveCount(0)
+  await expect(page.locator('.sidebar-context-menu-content[data-state="open"]')).toHaveCount(0)
   const trigger = (name: string) => page.locator('.menubar-trigger').filter({ hasText: name })
   const menu = page.locator('.menubar-content[data-state="open"]')
   await editor.focus()
@@ -348,7 +306,9 @@ test('global context menu exposes editor commands and skips blank areas', async 
   await expect(editor).toBeFocused()
   await page.keyboard.press('Alt+h')
   await expect(menu.getByText('新特性', { exact: true })).toBeVisible()
-  await expect(menu.getByText('启动性能追踪', { exact: true }).locator('..')).toHaveAttribute('data-disabled')
+  await expect(menu.getByText('启动性能追踪', { exact: true }).locator('..')).toHaveAttribute(
+    'data-disabled',
+  )
   await menu.getByText('新特性', { exact: true }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await page.keyboard.press('Control+,')
@@ -358,7 +318,9 @@ test('global context menu exposes editor commands and skips blank areas', async 
   await expect(trigger('帮助')).toBeFocused()
   await trigger('查看').click()
   for (const label of ['查找', '上一个聊天', '下一个聊天', '切换全屏']) {
-    await expect(menu.getByText(label, { exact: true }).locator('..')).toHaveAttribute('data-disabled')
+    await expect(menu.getByText(label, { exact: true }).locator('..')).toHaveAttribute(
+      'data-disabled',
+    )
   }
   await page.keyboard.press('Escape')
   await expect(menu).toHaveCount(0)
@@ -376,20 +338,16 @@ test('global context menu exposes editor commands and skips blank areas', async 
   await expect(page).toHaveURL(/#\/settings\/plugins\?tab=mcps$/)
 })
 
-
 async function expectReadableFloatingSurface(content: Locator): Promise<void> {
   const [contentBox, styles] = await Promise.all([
     content.boundingBox(),
-    content.evaluate(element => {
+    content.evaluate((element) => {
       const computed = getComputedStyle(element)
-      const alphaToken = computed.backgroundColor.match(
-        /\/\s*([\d.]+%?)/,
-      )?.[1]
+      const alphaToken = computed.backgroundColor.match(/\/\s*([\d.]+%?)/)?.[1]
       const legacyChannels = computed.backgroundColor.match(/[\d.]+%?/g)
-      const parsedAlpha = alphaToken
-        ?? (computed.backgroundColor.startsWith('rgba')
-          ? legacyChannels?.[3]
-          : undefined)
+      const parsedAlpha =
+        alphaToken ??
+        (computed.backgroundColor.startsWith('rgba') ? legacyChannels?.[3] : undefined)
       const backgroundAlpha = parsedAlpha?.endsWith('%')
         ? Number.parseFloat(parsedAlpha) / 100
         : Number.parseFloat(parsedAlpha ?? '1')
@@ -409,12 +367,8 @@ async function expectReadableFloatingSurface(content: Locator): Promise<void> {
   expect(contentBox).not.toBeNull()
   expect(contentBox!.x).toBeGreaterThanOrEqual(0)
   expect(contentBox!.y).toBeGreaterThanOrEqual(0)
-  expect(contentBox!.x + contentBox!.width).toBeLessThanOrEqual(
-    COMPACT_VIEWPORT.width + 1,
-  )
-  expect(contentBox!.y + contentBox!.height).toBeLessThanOrEqual(
-    COMPACT_VIEWPORT.height + 1,
-  )
+  expect(contentBox!.x + contentBox!.width).toBeLessThanOrEqual(COMPACT_VIEWPORT.width + 1)
+  expect(contentBox!.y + contentBox!.height).toBeLessThanOrEqual(COMPACT_VIEWPORT.height + 1)
   expect(styles.position).not.toBe('absolute')
   expect(styles.backdropFilter).toBe('none')
   expect(styles.backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
@@ -425,11 +379,8 @@ async function expectReadableFloatingSurface(content: Locator): Promise<void> {
   expect(styles.animationName).not.toBe('none')
 }
 
-async function expectSurfacePadding(
-  content: Locator,
-  expected: number,
-): Promise<void> {
-  const padding = await content.evaluate(element => {
+async function expectSurfacePadding(content: Locator, expected: number): Promise<void> {
+  const padding = await content.evaluate((element) => {
     const computed = getComputedStyle(element)
     return {
       blockStart: Number.parseFloat(computed.paddingBlockStart),

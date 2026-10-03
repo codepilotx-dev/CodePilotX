@@ -30,7 +30,8 @@ export const FeatureTabs: React.FC = () => {
             Everything your task needs, organized.
           </h2>
           <p className="mt-4 text-base sm:text-lg text-[#55625D]">
-            Switch between core workflows to inspect how CodePilotX handles projects, agents, models, diff reviews, and background automations.
+            Switch between core workflows to inspect how CodePilotX handles projects, agents,
+            models, diff reviews, and background automations.
           </p>
         </div>
 
@@ -84,9 +85,7 @@ export const FeatureTabs: React.FC = () => {
                 {activeTab.title}
               </h3>
 
-              <p className="mt-4 text-base text-[#55625D] leading-relaxed">
-                {activeTab.summary}
-              </p>
+              <p className="mt-4 text-base text-[#55625D] leading-relaxed">{activeTab.summary}</p>
 
               <ul className="mt-6 space-y-3">
                 {activeTab.points.map((point) => (

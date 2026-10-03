@@ -5,9 +5,7 @@ type Dependencies = {
   rpc: Pick<ReturnType<typeof createAgentRpcClient>, 'call'>
 }
 
-export function createAgentProjectTrust({
-  rpc,
-}: Dependencies) {
+export function createAgentProjectTrust({ rpc }: Dependencies) {
   const trustedPaths = new Set<string>()
 
   return {

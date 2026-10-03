@@ -1,11 +1,9 @@
-import { AgentError } from "../domain"
-import type { AgentDatabase } from "../storage/database/AgentDatabase"
-import type { EnvironmentDeltaStore } from "../local-environment/EnvironmentDeltaStore"
-import type { TaskExecutionBindingService } from "./TaskExecutionBindingService"
+import { AgentError } from '../domain'
+import type { AgentDatabase } from '../storage/database/AgentDatabase'
+import type { EnvironmentDeltaStore } from '../local-environment/EnvironmentDeltaStore'
+import type { TaskExecutionBindingService } from './TaskExecutionBindingService'
 
-export type ProjectThreadExecution =
-  | { kind: "local" }
-  | { kind: "worktree"; worktreeId: string }
+export type ProjectThreadExecution = { kind: 'local' } | { kind: 'worktree'; worktreeId: string }
 
 /**
  * Prepares the host-owned execution identity used by project thread creation.
@@ -21,12 +19,12 @@ export class ThreadExecutionPreparationService {
   ) {}
 
   async prepare(projectId: string, execution: ProjectThreadExecution) {
-    if (execution.kind === "local") {
+    if (execution.kind === 'local') {
       const bindingId = this.bindings.allocateBindingId()
       const bind = (threadId: string) => {
         const descriptor = this.db.threadWorkspace(threadId)
-        if (!descriptor || descriptor.kind !== "project") {
-          throw new AgentError("CONFLICT", "项目任务工作区不可用", 409)
+        if (!descriptor || descriptor.kind !== 'project') {
+          throw new AgentError('CONFLICT', '项目任务工作区不可用', 409)
         }
         this.bindings.bindLocal({
           threadId,
@@ -76,18 +74,19 @@ export class ThreadExecutionPreparationService {
       abort: releaseCopiedEnvironment,
       reconcile: async (threadId: string) => {
         const existing = this.bindings.read(threadId)
-        const matches = execution.kind === "local"
-          ? existing?.kind === "local" && existing.projectId === projectId
-          : existing?.kind === "worktree"
-            && existing.projectId === projectId
-            && existing.worktreeId === execution.worktreeId
+        const matches =
+          execution.kind === 'local'
+            ? existing?.kind === 'local' && existing.projectId === projectId
+            : existing?.kind === 'worktree' &&
+              existing.projectId === projectId &&
+              existing.worktreeId === execution.worktreeId
         if (matches) {
           if (existing?.bindingId !== bindingId) await releaseCopiedEnvironment()
           return existing
         }
         if (existing) {
           await releaseCopiedEnvironment()
-          throw new AgentError("OPERATION_ID_CONFLICT", "operationId 已绑定其他执行位置", 409)
+          throw new AgentError('OPERATION_ID_CONFLICT', 'operationId 已绑定其他执行位置', 409)
         }
         try {
           bind(threadId)

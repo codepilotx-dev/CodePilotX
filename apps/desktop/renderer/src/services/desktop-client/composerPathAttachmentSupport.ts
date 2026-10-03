@@ -4,29 +4,21 @@ import type {
 } from '@codepilotx/shared/desktop-attachment-ipc'
 import type { DesktopComposerAttachment } from '../../../shared/types.js'
 
-const SNAPSHOT_IMAGE_MEDIA_TYPES = new Set([
-  'image/png',
-  'image/jpeg',
-  'image/gif',
-  'image/webp',
-])
+const SNAPSHOT_IMAGE_MEDIA_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
 export async function composerAttachmentsFromPathGrants(
   grants: readonly DesktopComposerPathGrant[],
   bridge: Pick<DesktopAttachmentIpcBridge, 'readComposerPathGrant'>,
 ): Promise<DesktopComposerAttachment[]> {
-  return Promise.all(grants.map(grant => composerAttachmentFromPathGrant(grant, bridge)))
+  return Promise.all(grants.map((grant) => composerAttachmentFromPathGrant(grant, bridge)))
 }
 
 async function composerAttachmentFromPathGrant(
   grant: DesktopComposerPathGrant,
   bridge: Pick<DesktopAttachmentIpcBridge, 'readComposerPathGrant'>,
 ): Promise<DesktopComposerAttachment> {
-  if (
-    grant.pathKind === 'file'
-    && SNAPSHOT_IMAGE_MEDIA_TYPES.has(grant.mediaType)
-  ) {
+  if (grant.pathKind === 'file' && SNAPSHOT_IMAGE_MEDIA_TYPES.has(grant.mediaType)) {
     if (grant.sizeBytes > MAX_IMAGE_BYTES) {
       return {
         id: crypto.randomUUID(),

@@ -8,9 +8,7 @@ import type { DesktopReviewComment } from '../../../../shared/types.js'
  *   in all descendant files.
  * - Resolved comments are excluded.
  */
-export function buildCommentCountsByPath(
-  comments: DesktopReviewComment[],
-): Record<string, number> {
+export function buildCommentCountsByPath(comments: DesktopReviewComment[]): Record<string, number> {
   const counts: Record<string, number> = {}
 
   // File-level counts from open comments

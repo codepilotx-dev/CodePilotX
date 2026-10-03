@@ -12,7 +12,11 @@ import {
   Square,
   X,
 } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
+} from '../../components/ui/iconTokens.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import {
   buildPopoverSizingStyle,
@@ -84,10 +88,7 @@ type Props = {
   onFileMenuAction: (action: FileMenuAction) => void
   onViewMenuAction: (action: ViewMenuAction) => void
   onWindowMenuAction: (action: WindowMenuAction) => void
-  onHelpMenuAction: (
-    action: HelpMenuAction,
-    restoreFocusElement?: HTMLElement | null,
-  ) => void
+  onHelpMenuAction: (action: HelpMenuAction, restoreFocusElement?: HTMLElement | null) => void
 }
 
 export type WindowControlsProps = {
@@ -104,17 +105,12 @@ type MenuItemProps = {
   onSelect: () => void
 }
 
-function MenuItem({
-  children,
-  disabled,
-  shortcut,
-  onSelect,
-}: MenuItemProps): React.ReactNode {
+function MenuItem({ children, disabled, shortcut, onSelect }: MenuItemProps): React.ReactNode {
   return (
     <Menubar.Item
       className="menubar-item"
       disabled={disabled}
-      onSelect={event => {
+      onSelect={(event) => {
         if (disabled) {
           event.preventDefault()
           return
@@ -179,11 +175,11 @@ function AppMenu({
       <Menubar.Trigger
         data-theme-component="dropdown-trigger"
         className="menubar-trigger"
-        onPointerDown={event => {
+        onPointerDown={(event) => {
           if (
-            event.currentTarget.dataset.state === 'open'
-            && event.button === 0
-            && event.ctrlKey === false
+            event.currentTarget.dataset.state === 'open' &&
+            event.button === 0 &&
+            event.ctrlKey === false
           ) {
             event.preventDefault()
             onRequestClose()
@@ -230,10 +226,8 @@ export function MenuBar({
   onWindowMenuAction,
   onHelpMenuAction,
 }: Props): React.ReactNode {
-  const {
-    activeCapabilities: editMenuCapabilities,
-    perform: performEditCommand,
-  } = useEditCommands()
+  const { activeCapabilities: editMenuCapabilities, perform: performEditCommand } =
+    useEditCommands()
   const helpMenuTriggerRef = useRef<HTMLButtonElement>(null)
   const menuTriggerRefs = useRef<Partial<Record<AppMenuValue, HTMLButtonElement | null>>>({})
   const menuBarFocusedRef = useRef(false)
@@ -378,40 +372,60 @@ export function MenuBar({
             <AppMenu
               label="文件"
               onRequestClose={closeMenu}
-              triggerRef={ref => { menuTriggerRefs.current.file = ref }}
+              triggerRef={(ref) => {
+                menuTriggerRefs.current.file = ref
+              }}
               value="file"
               width={240}
             >
-              <MenuItem disabled={!isFileActionEnabled('close')} shortcut="Ctrl+W" onSelect={() => onFileMenuAction('close')}>
+              <MenuItem
+                disabled={!isFileActionEnabled('close')}
+                shortcut="Ctrl+W"
+                onSelect={() => onFileMenuAction('close')}
+              >
                 关闭
               </MenuItem>
-              <MenuItem disabled={!isFileActionEnabled('newWindow')}
+              <MenuItem
+                disabled={!isFileActionEnabled('newWindow')}
                 shortcut="Ctrl+Shift+N"
                 onSelect={() => onFileMenuAction('newWindow')}
               >
                 新建窗口
               </MenuItem>
-              <MenuItem disabled={!isFileActionEnabled('newChat')} shortcut="Ctrl+N" onSelect={() => onFileMenuAction('newChat')}>
+              <MenuItem
+                disabled={!isFileActionEnabled('newChat')}
+                shortcut="Ctrl+N"
+                onSelect={() => onFileMenuAction('newChat')}
+              >
                 新建聊天
               </MenuItem>
-              <MenuItem disabled={!isFileActionEnabled('quickChat')}
+              <MenuItem
+                disabled={!isFileActionEnabled('quickChat')}
                 shortcut="Alt+Ctrl+N"
                 onSelect={() => onFileMenuAction('quickChat')}
               >
                 快速聊天
               </MenuItem>
-              <MenuItem disabled={!isFileActionEnabled('openFolder')} shortcut="Ctrl+O" onSelect={() => onFileMenuAction('openFolder')}>
+              <MenuItem
+                disabled={!isFileActionEnabled('openFolder')}
+                shortcut="Ctrl+O"
+                onSelect={() => onFileMenuAction('openFolder')}
+              >
                 打开文件夹...
               </MenuItem>
               <MenuSeparator />
-              <MenuItem disabled={!isFileActionEnabled('openSettings')}
+              <MenuItem
+                disabled={!isFileActionEnabled('openSettings')}
                 shortcut="Ctrl+逗号"
                 onSelect={() => onFileMenuAction('openSettings')}
               >
                 设置...
               </MenuItem>
               <MenuSeparator />
-              <MenuItem disabled={!isFileActionEnabled('exit')} onSelect={() => onFileMenuAction('exit')}>
+              <MenuItem
+                disabled={!isFileActionEnabled('exit')}
+                onSelect={() => onFileMenuAction('exit')}
+              >
                 退出应用
               </MenuItem>
             </AppMenu>
@@ -419,7 +433,9 @@ export function MenuBar({
             <AppMenu
               label="编辑"
               onRequestClose={closeMenu}
-              triggerRef={ref => { menuTriggerRefs.current.edit = ref }}
+              triggerRef={(ref) => {
+                menuTriggerRefs.current.edit = ref
+              }}
               value="edit"
               width={240}
             >
@@ -479,88 +495,114 @@ export function MenuBar({
             <AppMenu
               label="查看"
               onRequestClose={closeMenu}
-              triggerRef={ref => { menuTriggerRefs.current.view = ref }}
+              triggerRef={(ref) => {
+                menuTriggerRefs.current.view = ref
+              }}
               value="view"
               width={260}
             >
-              <MenuItem disabled={!isViewActionEnabled('toggleSidebar')}
+              <MenuItem
+                disabled={!isViewActionEnabled('toggleSidebar')}
                 shortcut="Ctrl+B"
                 onSelect={() => onViewMenuAction('toggleSidebar')}
               >
                 切换侧边栏
               </MenuItem>
-              <MenuItem disabled={!isViewActionEnabled('toggleSidePanel')}
+              <MenuItem
+                disabled={!isViewActionEnabled('toggleSidePanel')}
                 shortcut="Ctrl+J"
                 onSelect={() => onViewMenuAction('toggleSidePanel')}
               >
                 切换右侧面板
               </MenuItem>
-              <MenuItem disabled={!isViewActionEnabled('toggleBottomPanel')}
+              <MenuItem
+                disabled={!isViewActionEnabled('toggleBottomPanel')}
                 onSelect={() => onViewMenuAction('toggleBottomPanel')}
               >
                 切换底部面板
               </MenuItem>
-              <MenuItem disabled={!isViewActionEnabled('toggleFileTree')}
+              <MenuItem
+                disabled={!isViewActionEnabled('toggleFileTree')}
                 shortcut="Ctrl+Shift+E"
                 onSelect={() => onViewMenuAction('toggleFileTree')}
               >
                 切换文件树
               </MenuItem>
-              <MenuItem disabled={!isViewActionEnabled('openBrowserTab')}
+              <MenuItem
+                disabled={!isViewActionEnabled('openBrowserTab')}
                 shortcut="Ctrl+T"
                 onSelect={() => onViewMenuAction('openBrowserTab')}
               >
                 打开浏览器标签
               </MenuItem>
-              <MenuItem disabled={!isViewActionEnabled('reloadBrowserPage')}
+              <MenuItem
+                disabled={!isViewActionEnabled('reloadBrowserPage')}
                 shortcut="Ctrl+R"
                 onSelect={() => onViewMenuAction('reloadBrowserPage')}
               >
                 重新加载浏览器
               </MenuItem>
-              <MenuItem disabled={!isViewActionEnabled('find')} shortcut="Ctrl+F" onSelect={() => onViewMenuAction('find')}>
+              <MenuItem
+                disabled={!isViewActionEnabled('find')}
+                shortcut="Ctrl+F"
+                onSelect={() => onViewMenuAction('find')}
+              >
                 查找
               </MenuItem>
               <MenuSeparator />
-              <MenuItem disabled={!isViewActionEnabled('previousChat')}
+              <MenuItem
+                disabled={!isViewActionEnabled('previousChat')}
                 shortcut="Ctrl+Shift+["
                 onSelect={() => onViewMenuAction('previousChat')}
               >
                 上一个聊天
               </MenuItem>
-              <MenuItem disabled={!isViewActionEnabled('nextChat')}
+              <MenuItem
+                disabled={!isViewActionEnabled('nextChat')}
                 shortcut="Ctrl+Shift+]"
                 onSelect={() => onViewMenuAction('nextChat')}
               >
                 下一个聊天
               </MenuItem>
-              <MenuItem disabled={!isViewActionEnabled('back')}
+              <MenuItem
+                disabled={!isViewActionEnabled('back')}
                 shortcut="Ctrl+["
                 onSelect={() => onViewMenuAction('back')}
               >
                 后退
               </MenuItem>
-              <MenuItem disabled={!isViewActionEnabled('forward')}
+              <MenuItem
+                disabled={!isViewActionEnabled('forward')}
                 shortcut="Ctrl+]"
                 onSelect={() => onViewMenuAction('forward')}
               >
                 前进
               </MenuItem>
               <MenuSeparator />
-              <MenuItem disabled={!isViewActionEnabled('zoomIn')}
+              <MenuItem
+                disabled={!isViewActionEnabled('zoomIn')}
                 shortcut="Ctrl+Shift+="
                 onSelect={() => onViewMenuAction('zoomIn')}
               >
                 放大
               </MenuItem>
-              <MenuItem disabled={!isViewActionEnabled('zoomOut')} shortcut="Ctrl+-" onSelect={() => onViewMenuAction('zoomOut')}>
+              <MenuItem
+                disabled={!isViewActionEnabled('zoomOut')}
+                shortcut="Ctrl+-"
+                onSelect={() => onViewMenuAction('zoomOut')}
+              >
                 缩小
               </MenuItem>
-              <MenuItem disabled={!isViewActionEnabled('actualSize')} shortcut="Ctrl+0" onSelect={() => onViewMenuAction('actualSize')}>
+              <MenuItem
+                disabled={!isViewActionEnabled('actualSize')}
+                shortcut="Ctrl+0"
+                onSelect={() => onViewMenuAction('actualSize')}
+              >
                 实际大小
               </MenuItem>
               <MenuSeparator />
-              <MenuItem disabled={!isViewActionEnabled('toggleFullScreen')}
+              <MenuItem
+                disabled={!isViewActionEnabled('toggleFullScreen')}
                 shortcut="F11"
                 onSelect={() => onViewMenuAction('toggleFullScreen')}
               >
@@ -572,20 +614,30 @@ export function MenuBar({
               contentClassName="menubar-content-window"
               label="窗口"
               onRequestClose={closeMenu}
-              triggerRef={ref => { menuTriggerRefs.current.window = ref }}
+              triggerRef={(ref) => {
+                menuTriggerRefs.current.window = ref
+              }}
               value="window"
               width={240}
             >
-              <MenuItem disabled={!isWindowActionEnabled('minimize')}
+              <MenuItem
+                disabled={!isWindowActionEnabled('minimize')}
                 shortcut="Ctrl+M"
                 onSelect={() => onWindowMenuAction('minimize')}
               >
                 最小化
               </MenuItem>
-              <MenuItem disabled={!isWindowActionEnabled('zoom')} onSelect={() => onWindowMenuAction('zoom')}>
+              <MenuItem
+                disabled={!isWindowActionEnabled('zoom')}
+                onSelect={() => onWindowMenuAction('zoom')}
+              >
                 缩放
               </MenuItem>
-              <MenuItem disabled={!isWindowActionEnabled('close')} shortcut="Ctrl+W" onSelect={() => onWindowMenuAction('close')}>
+              <MenuItem
+                disabled={!isWindowActionEnabled('close')}
+                shortcut="Ctrl+W"
+                onSelect={() => onWindowMenuAction('close')}
+              >
                 关闭
               </MenuItem>
             </AppMenu>
@@ -594,56 +646,86 @@ export function MenuBar({
               contentClassName="menubar-content-help"
               label="帮助"
               onRequestClose={closeMenu}
-              triggerRef={ref => {
+              triggerRef={(ref) => {
                 helpMenuTriggerRef.current = ref
                 menuTriggerRefs.current.help = ref
               }}
               value="help"
               width={260}
             >
-              <MenuItem disabled={!isHelpActionEnabled('codepilotxDocumentation')} onSelect={() => onHelpMenuAction('codepilotxDocumentation')}>
+              <MenuItem
+                disabled={!isHelpActionEnabled('codepilotxDocumentation')}
+                onSelect={() => onHelpMenuAction('codepilotxDocumentation')}
+              >
                 CodePilotX 文档
               </MenuItem>
-              <MenuItem disabled={!isHelpActionEnabled('whatsNew')}
-                onSelect={() =>
-                  onHelpMenuAction('whatsNew', helpMenuTriggerRef.current)
-                }
+              <MenuItem
+                disabled={!isHelpActionEnabled('whatsNew')}
+                onSelect={() => onHelpMenuAction('whatsNew', helpMenuTriggerRef.current)}
               >
                 新特性
               </MenuItem>
-              <MenuItem disabled={!isHelpActionEnabled('automations')} onSelect={() => onHelpMenuAction('automations')}>
+              <MenuItem
+                disabled={!isHelpActionEnabled('automations')}
+                onSelect={() => onHelpMenuAction('automations')}
+              >
                 自动化
               </MenuItem>
-              <MenuItem disabled={!isHelpActionEnabled('localEnvironments')} onSelect={() => onHelpMenuAction('localEnvironments')}>
+              <MenuItem
+                disabled={!isHelpActionEnabled('localEnvironments')}
+                onSelect={() => onHelpMenuAction('localEnvironments')}
+              >
                 本地环境
               </MenuItem>
-              <MenuItem disabled={!isHelpActionEnabled('worktrees')} onSelect={() => onHelpMenuAction('worktrees')}>
+              <MenuItem
+                disabled={!isHelpActionEnabled('worktrees')}
+                onSelect={() => onHelpMenuAction('worktrees')}
+              >
                 工作树
               </MenuItem>
-              <MenuItem disabled={!isHelpActionEnabled('skills')} onSelect={() => onHelpMenuAction('skills')}>
+              <MenuItem
+                disabled={!isHelpActionEnabled('skills')}
+                onSelect={() => onHelpMenuAction('skills')}
+              >
                 技能
               </MenuItem>
-              <MenuItem disabled={!isHelpActionEnabled('modelContextProtocol')} onSelect={() => onHelpMenuAction('modelContextProtocol')}>
+              <MenuItem
+                disabled={!isHelpActionEnabled('modelContextProtocol')}
+                onSelect={() => onHelpMenuAction('modelContextProtocol')}
+              >
                 模型上下文协议
               </MenuItem>
-              <MenuItem disabled={!isHelpActionEnabled('troubleshooting')} onSelect={() => onHelpMenuAction('troubleshooting')}>
+              <MenuItem
+                disabled={!isHelpActionEnabled('troubleshooting')}
+                onSelect={() => onHelpMenuAction('troubleshooting')}
+              >
                 故障排查
               </MenuItem>
               <MenuSeparator />
-              <MenuItem disabled={!isHelpActionEnabled('sendFeedback')} onSelect={() => onHelpMenuAction('sendFeedback')}>
+              <MenuItem
+                disabled={!isHelpActionEnabled('sendFeedback')}
+                onSelect={() => onHelpMenuAction('sendFeedback')}
+              >
                 发送反馈
               </MenuItem>
-              <MenuItem disabled={!isHelpActionEnabled('startPerformanceTrace')} onSelect={() => onHelpMenuAction('startPerformanceTrace')}>
+              <MenuItem
+                disabled={!isHelpActionEnabled('startPerformanceTrace')}
+                onSelect={() => onHelpMenuAction('startPerformanceTrace')}
+              >
                 启动性能追踪
               </MenuItem>
               <MenuSeparator />
-              <MenuItem disabled={!isHelpActionEnabled('keyboardShortcuts')}
+              <MenuItem
+                disabled={!isHelpActionEnabled('keyboardShortcuts')}
                 shortcut="Ctrl+Shift+/"
                 onSelect={() => onHelpMenuAction('keyboardShortcuts')}
               >
                 键盘快捷键
               </MenuItem>
-              <MenuItem disabled={!isHelpActionEnabled('aboutCodex')} onSelect={() => onHelpMenuAction('aboutCodex')}>
+              <MenuItem
+                disabled={!isHelpActionEnabled('aboutCodex')}
+                onSelect={() => onHelpMenuAction('aboutCodex')}
+              >
                 关于 CodePilotX
               </MenuItem>
             </AppMenu>

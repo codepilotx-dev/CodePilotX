@@ -1,16 +1,9 @@
-import type { AgentDatabase } from "../storage/database/AgentDatabase"
+import type { AgentDatabase } from '../storage/database/AgentDatabase'
 
 export type AgentInputItem = Record<string, any>
 
 export type ContextFragmentKind =
-  | "mode"
-  | "permission"
-  | "settings"
-  | "project"
-  | "skill"
-  | "memory"
-  | "subagent"
-  | "plan"
+  'mode' | 'permission' | 'settings' | 'project' | 'skill' | 'memory' | 'subagent' | 'plan'
 
 export type ContextFragment = {
   id: string
@@ -42,10 +35,10 @@ export type PromptSessionState = {
 
 export type EstablishBaselineInput = Pick<
   PromptSessionState,
-  "threadID" | "promptVersion" | "baseHash" | "contextHash" | "cacheKey"
+  'threadID' | 'promptVersion' | 'baseHash' | 'contextHash' | 'cacheKey'
 > & { fragments?: ContextFragment[] }
 
-export type ContextUsageSource = "measured" | "estimated" | "compaction-estimate"
+export type ContextUsageSource = 'measured' | 'estimated' | 'compaction-estimate'
 
 export type ContextUsageSample = {
   id: string
@@ -81,7 +74,7 @@ export const DEFAULT_CONTEXT_WINDOW_TOKENS = 128_000
 
 const canonicalize = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map((item) => canonicalize(item))
-  if (value && typeof value === "object") {
+  if (value && typeof value === 'object') {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>)
         .filter(([, item]) => item !== undefined)
@@ -94,22 +87,17 @@ const canonicalize = (value: unknown): unknown => {
 
 const stableStringify = (value: unknown) => JSON.stringify(canonicalize(value))
 const fingerprint = (value: unknown) =>
-  new Bun.CryptoHasher("sha256").update(stableStringify(value)).digest("hex")
+  new Bun.CryptoHasher('sha256').update(stableStringify(value)).digest('hex')
 
-export const estimateContextTokens = (input: {
-  items: AgentInputItem[]
-  promptText?: string
-}) => {
+export const estimateContextTokens = (input: { items: AgentInputItem[]; promptText?: string }) => {
   const bytes = new TextEncoder().encode(
-    stableStringify({ items: input.items, promptText: input.promptText ?? "" }),
+    stableStringify({ items: input.items, promptText: input.promptText ?? '' }),
   ).byteLength
   return Math.max(1, Math.ceil(bytes / 4) + input.items.length * 4)
 }
 
-export const contextFingerprint = (input: {
-  items: AgentInputItem[]
-  promptText?: string
-}) => fingerprint({ items: input.items, promptText: input.promptText ?? "" })
+export const contextFingerprint = (input: { items: AgentInputItem[]; promptText?: string }) =>
+  fingerprint({ items: input.items, promptText: input.promptText ?? '' })
 
 const thresholds = (contextWindowTokens: number) => ({
   triggerTokens: Math.ceil(contextWindowTokens * CONTEXT_COMPACTION_TRIGGER_RATIO),
@@ -118,7 +106,7 @@ const thresholds = (contextWindowTokens: number) => ({
 
 const validateContextWindow = (value: number) => {
   if (!Number.isInteger(value) || value <= 0) {
-    throw new Error("contextWindowTokens 必须是正整数")
+    throw new Error('contextWindowTokens 必须是正整数')
   }
 }
 
@@ -153,12 +141,8 @@ export class ContextManager {
     return this.db.transaction(() => {
       const state = this.state(threadID)
       if (!state) throw new Error(`Thread ${threadID} 尚未建立 prompt baseline`)
-      const known = new Set(
-        state.fragments.map((fragment) => `${fragment.id}:${fragment.hash}`),
-      )
-      const added = fragments.filter(
-        (fragment) => !known.has(`${fragment.id}:${fragment.hash}`),
-      )
+      const known = new Set(state.fragments.map((fragment) => `${fragment.id}:${fragment.hash}`))
+      const added = fragments.filter((fragment) => !known.has(`${fragment.id}:${fragment.hash}`))
       if (!added.length && contextHash === state.contextHash) return state
       // Dynamic prompt diffs do not clear an already scheduled compaction.
       this.db.repositories.context.updateFragments({
@@ -172,10 +156,7 @@ export class ContextManager {
   }
 
   usageSamples(threadID: string, limit = 100) {
-    return this.db.repositories.context.usageSamples(
-      threadID,
-      Math.max(1, Math.min(1_000, limit)),
-    )
+    return this.db.repositories.context.usageSamples(threadID, Math.max(1, Math.min(1_000, limit)))
   }
 
   shouldAutoCompact(threadID: string) {
@@ -185,10 +166,11 @@ export class ContextManager {
 
   recordCompactionFailure(threadID: string) {
     return this.db.transaction(() =>
-      this.db.repositories.context.recordAutoCompactFailure(threadID, Date.now()))
+      this.db.repositories.context.recordAutoCompactFailure(threadID, Date.now()),
+    )
   }
 
-  private insertUsageSample(input: Omit<ContextUsageSample, "id" | "createdAt">) {
+  private insertUsageSample(input: Omit<ContextUsageSample, 'id' | 'createdAt'>) {
     return this.db.repositories.context.insertUsageSample({
       ...input,
       id: crypto.randomUUID(),
@@ -201,8 +183,8 @@ export class ContextManager {
     options: { preservePending?: boolean; clearAutoCompactCircuit?: boolean } = {},
   ) {
     const { triggerTokens } = thresholds(sample.contextWindowTokens)
-    const pending = options.preservePending !== false
-      && Boolean(this.state(sample.threadID)?.needsCompaction)
+    const pending =
+      options.preservePending !== false && Boolean(this.state(sample.threadID)?.needsCompaction)
     const needsCompaction = pending || sample.inputTokens >= triggerTokens
     const changes = this.db.repositories.context.updateBudgetState({
       threadID: sample.threadID,
@@ -247,11 +229,13 @@ export class ContextManager {
     outputTokens?: number
   }) {
     if (!Number.isInteger(input.inputTokens) || input.inputTokens < 0) {
-      throw new Error("inputTokens 必须是非负整数")
+      throw new Error('inputTokens 必须是非负整数')
     }
-    if (input.outputTokens !== undefined
-      && (!Number.isInteger(input.outputTokens) || input.outputTokens < 0)) {
-      throw new Error("outputTokens 必须是非负整数")
+    if (
+      input.outputTokens !== undefined &&
+      (!Number.isInteger(input.outputTokens) || input.outputTokens < 0)
+    ) {
+      throw new Error('outputTokens 必须是非负整数')
     }
     validateContextWindow(input.contextWindowTokens)
     return this.db.transaction(() => {
@@ -263,7 +247,7 @@ export class ContextManager {
         contextWindowTokens: input.contextWindowTokens,
         inputTokens: input.inputTokens,
         outputTokens: input.outputTokens ?? 0,
-        source: "measured",
+        source: 'measured',
       })
       this.updateBudgetState(sample)
       return sample
@@ -278,12 +262,12 @@ export class ContextManager {
     promptText?: string
     contextWindowTokens?: number
   }): ContextBudgetSnapshot {
-    const contextWindowTokens = input.contextWindowTokens
-      ?? this.state(input.threadID)?.contextWindowTokens
-      ?? DEFAULT_CONTEXT_WINDOW_TOKENS
-    const effectiveWindow = contextWindowTokens > 0
-      ? contextWindowTokens
-      : DEFAULT_CONTEXT_WINDOW_TOKENS
+    const contextWindowTokens =
+      input.contextWindowTokens ??
+      this.state(input.threadID)?.contextWindowTokens ??
+      DEFAULT_CONTEXT_WINDOW_TOKENS
+    const effectiveWindow =
+      contextWindowTokens > 0 ? contextWindowTokens : DEFAULT_CONTEXT_WINDOW_TOKENS
     validateContextWindow(effectiveWindow)
     return this.db.transaction(() => {
       const sample = this.insertUsageSample({
@@ -294,7 +278,7 @@ export class ContextManager {
         contextWindowTokens: effectiveWindow,
         inputTokens: estimateContextTokens(input),
         outputTokens: 0,
-        source: "compaction-estimate",
+        source: 'compaction-estimate',
       })
       const { triggerTokens } = thresholds(effectiveWindow)
       const needsCompaction = this.updateBudgetState(sample, {
@@ -313,12 +297,12 @@ export class ContextManager {
     promptText?: string
     contextWindowTokens?: number
   }): ContextBudgetSnapshot {
-    const contextWindowTokens = input.contextWindowTokens
-      ?? this.state(input.threadID)?.contextWindowTokens
-      ?? DEFAULT_CONTEXT_WINDOW_TOKENS
-    const effectiveWindow = contextWindowTokens > 0
-      ? contextWindowTokens
-      : DEFAULT_CONTEXT_WINDOW_TOKENS
+    const contextWindowTokens =
+      input.contextWindowTokens ??
+      this.state(input.threadID)?.contextWindowTokens ??
+      DEFAULT_CONTEXT_WINDOW_TOKENS
+    const effectiveWindow =
+      contextWindowTokens > 0 ? contextWindowTokens : DEFAULT_CONTEXT_WINDOW_TOKENS
     validateContextWindow(effectiveWindow)
     const currentFingerprint = contextFingerprint(input)
     return this.db.transaction(() => {
@@ -336,7 +320,7 @@ export class ContextManager {
             contextWindowTokens: effectiveWindow,
             inputTokens: estimateContextTokens(input),
             outputTokens: 0,
-            source: "estimated",
+            source: 'estimated',
           })
       const needsCompaction = this.updateBudgetState(sample)
       return this.budgetSnapshot(sample, needsCompaction)

@@ -264,15 +264,15 @@
     left: var(--cpx-sys-space-4);
     height: 0.5px;
     background: var(--cpx-sys-color-border-subtle);
-    content: "";
+    content: '';
     pointer-events: none;
   }
 
-  &[data-dimmed="true"] {
+  &[data-dimmed='true'] {
     opacity: 0.6;
   }
 
-  &[data-current="true"] {
+  &[data-current='true'] {
     background: var(--cpx-sys-color-selected);
   }
 
@@ -398,12 +398,12 @@ button.settings-management-row-main {
   overflow: hidden;
   color: var(--cpx-sys-color-fg-primary);
 
-  &[data-dialog-size="detail"] {
+  &[data-dialog-size='detail'] {
     width: min(36rem, calc(100vw - var(--cpx-sys-space-8)));
     max-height: min(42rem, calc(100vh - var(--cpx-sys-space-8)));
   }
 
-  &[data-dialog-size="credential"] {
+  &[data-dialog-size='credential'] {
     width: min(32rem, calc(100vw - var(--cpx-sys-space-8)));
     max-height: min(45rem, calc(100vh - var(--cpx-sys-space-8)));
   }
@@ -482,7 +482,7 @@ button.settings-management-row-main {
     left: var(--cpx-sys-space-4);
     height: 0.5px;
     background: var(--cpx-sys-color-border-subtle);
-    content: "";
+    content: '';
   }
 }
 
@@ -521,7 +521,7 @@ button.settings-management-row-main {
   padding: var(--cpx-sys-space-3) 0;
   background: transparent;
 
-  &[data-size="compact"] {
+  &[data-size='compact'] {
     padding-block: var(--cpx-sys-space-2);
   }
 
@@ -576,7 +576,7 @@ button.settings-management-row-main {
     left: 0;
     height: 0.5px;
     background: var(--cpx-sys-color-border-default);
-    content: "";
+    content: '';
     pointer-events: none;
   }
 }
@@ -629,8 +629,8 @@ button.settings-management-row-main {
     justify-content: flex-start;
     padding: 0 var(--cpx-sys-space-4) var(--cpx-sys-space-3)
       calc(
-        var(--cpx-sys-space-4) + var(--cpx-sys-space-8) +
-        var(--cpx-sys-space-1) + var(--cpx-sys-space-3)
+        var(--cpx-sys-space-4) + var(--cpx-sys-space-8) + var(--cpx-sys-space-1) +
+          var(--cpx-sys-space-3)
       );
   }
 }
@@ -640,7 +640,7 @@ button.settings-management-row-main {
   border-top: 1px solid var(--cpx-sys-color-border-default);
 }
 
-:root[data-reduce-motion="on"] {
+:root[data-reduce-motion='on'] {
   .settings-radio-card,
   .settings-switch-thumb,
   .appearance-mode-card,

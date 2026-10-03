@@ -1,53 +1,143 @@
 $static-utilities: (
-  'block': (display: block),
-  'inline-block': (display: inline-block),
-  'flex': (display: flex),
-  'inline-flex': (display: inline-flex),
-  'grid': (display: grid),
-  'hidden': (display: none),
-  'flex-row': (flex-direction: row),
-  'flex-row-reverse': (flex-direction: row-reverse),
-  'flex-col': (flex-direction: column),
-  'flex-col-reverse': (flex-direction: column-reverse),
-  'flex-wrap': (flex-wrap: wrap),
-  'flex-nowrap': (flex-wrap: nowrap),
-  'flex-wrap-reverse': (flex-wrap: wrap-reverse),
-  'grow': (flex-grow: 1),
-  'grow-0': (flex-grow: 0),
-  'shrink': (flex-shrink: 1),
-  'shrink-0': (flex-shrink: 0),
-  'items-start': (align-items: flex-start),
-  'items-center': (align-items: center),
-  'items-end': (align-items: flex-end),
-  'items-stretch': (align-items: stretch),
-  'items-baseline': (align-items: baseline),
-  'justify-start': (justify-content: flex-start),
-  'justify-center': (justify-content: center),
-  'justify-end': (justify-content: flex-end),
-  'justify-between': (justify-content: space-between),
-  'justify-around': (justify-content: space-around),
-  'justify-evenly': (justify-content: space-evenly),
-  'self-auto': (align-self: auto),
-  'self-start': (align-self: flex-start),
-  'self-center': (align-self: center),
-  'self-end': (align-self: flex-end),
-  'self-stretch': (align-self: stretch),
-  'flex-1': (flex: 1 1 0%),
-  'w-full': (width: 100%),
-  'h-full': (height: 100%),
-  'w-auto': (width: auto),
-  'h-auto': (height: auto),
-  'max-w-full': (max-width: 100%),
-  'min-w-0': (min-width: 0),
-  'min-h-0': (min-height: 0),
-  'overflow-hidden': (overflow: hidden),
-  'overflow-auto': (overflow: auto),
-  'overflow-x-auto': (overflow-x: auto),
-  'overflow-y-auto': (overflow-y: auto),
+  'block': (
+    display: block,
+  ),
+  'inline-block': (
+    display: inline-block,
+  ),
+  'flex': (
+    display: flex,
+  ),
+  'inline-flex': (
+    display: inline-flex,
+  ),
+  'grid': (
+    display: grid,
+  ),
+  'hidden': (
+    display: none,
+  ),
+  'flex-row': (
+    flex-direction: row,
+  ),
+  'flex-row-reverse': (
+    flex-direction: row-reverse,
+  ),
+  'flex-col': (
+    flex-direction: column,
+  ),
+  'flex-col-reverse': (
+    flex-direction: column-reverse,
+  ),
+  'flex-wrap': (
+    flex-wrap: wrap,
+  ),
+  'flex-nowrap': (
+    flex-wrap: nowrap,
+  ),
+  'flex-wrap-reverse': (
+    flex-wrap: wrap-reverse,
+  ),
+  'grow': (
+    flex-grow: 1,
+  ),
+  'grow-0': (
+    flex-grow: 0,
+  ),
+  'shrink': (
+    flex-shrink: 1,
+  ),
+  'shrink-0': (
+    flex-shrink: 0,
+  ),
+  'items-start': (
+    align-items: flex-start,
+  ),
+  'items-center': (
+    align-items: center,
+  ),
+  'items-end': (
+    align-items: flex-end,
+  ),
+  'items-stretch': (
+    align-items: stretch,
+  ),
+  'items-baseline': (
+    align-items: baseline,
+  ),
+  'justify-start': (
+    justify-content: flex-start,
+  ),
+  'justify-center': (
+    justify-content: center,
+  ),
+  'justify-end': (
+    justify-content: flex-end,
+  ),
+  'justify-between': (
+    justify-content: space-between,
+  ),
+  'justify-around': (
+    justify-content: space-around,
+  ),
+  'justify-evenly': (
+    justify-content: space-evenly,
+  ),
+  'self-auto': (
+    align-self: auto,
+  ),
+  'self-start': (
+    align-self: flex-start,
+  ),
+  'self-center': (
+    align-self: center,
+  ),
+  'self-end': (
+    align-self: flex-end,
+  ),
+  'self-stretch': (
+    align-self: stretch,
+  ),
+  'flex-1': (
+    flex: 1 1 0%,
+  ),
+  'w-full': (
+    width: 100%,
+  ),
+  'h-full': (
+    height: 100%,
+  ),
+  'w-auto': (
+    width: auto,
+  ),
+  'h-auto': (
+    height: auto,
+  ),
+  'max-w-full': (
+    max-width: 100%,
+  ),
+  'min-w-0': (
+    min-width: 0,
+  ),
+  'min-h-0': (
+    min-height: 0,
+  ),
+  'overflow-hidden': (
+    overflow: hidden,
+  ),
+  'overflow-auto': (
+    overflow: auto,
+  ),
+  'overflow-x-auto': (
+    overflow-x: auto,
+  ),
+  'overflow-y-auto': (
+    overflow-y: auto,
+  ),
   // Sys type roles are CSS font shorthand; consume via font: var(...).
   'type-display': (
-    font: var(--cpx-sys-type-display),
-  ),
+      font: var(--cpx-sys-type-display),
+    ),
   'type-body': (
     font: var(--cpx-sys-type-body),
   ),
@@ -97,42 +187,114 @@ $static-utilities: (
   'type-title-xl': (
     font: var(--cpx-sys-type-heading-xl),
   ),
-  'font-sans': (font-family: var(--cpx-sys-font-family-sans)),
-  'font-mono': (font-family: var(--cpx-sys-font-family-mono)),
-  'font-body': (font-weight: var(--cpx-sys-font-weight-body)),
-  'font-label': (font-weight: var(--cpx-sys-font-weight-medium)),
-  'font-heading': (font-weight: var(--cpx-sys-font-weight-bold)),
-  'font-emphasis': (font-weight: var(--cpx-sys-font-weight-bold)),
-  'text-left': (text-align: left),
-  'text-center': (text-align: center),
-  'text-right': (text-align: right),
-  'nowrap': (white-space: nowrap),
-  'text-primary': (color: var(--cpx-sys-color-fg-primary)),
-  'text-secondary': (color: var(--cpx-sys-color-fg-secondary)),
-  'text-meta': (color: var(--cpx-sys-color-fg-tertiary)),
-  'text-disabled': (color: var(--cpx-sys-color-fg-disabled)),
-  'text-danger': (color: var(--cpx-sys-color-danger)),
-  'text-success': (color: var(--cpx-sys-color-success)),
-  'text-accent': (color: var(--cpx-sys-color-accent)),
-  'bg-canvas': (background: var(--cpx-sys-color-surface-canvas)),
-  'bg-chrome': (background: var(--cpx-sys-color-surface-recessed)),
-  'bg-panel': (background: var(--cpx-sys-color-surface-panel)),
-  'bg-raised': (background: var(--cpx-sys-color-surface-raised)),
-  'bg-code': (background: var(--cpx-sys-color-surface-editor)),
-  'bg-user': (background: var(--cpx-sys-color-surface-recessed)),
-  'bg-composer': (background: var(--cpx-sys-color-surface-control)),
-  'border-subtle': (border: 1px solid var(--cpx-sys-color-border-subtle)),
-  'border-control': (border: 1px solid var(--cpx-sys-color-border-default)),
-  'border-strong': (border: 1px solid var(--cpx-sys-color-border-strong)),
-  'radius-1': (border-radius: var(--cpx-sys-radius-xs)),
-  'radius-2': (border-radius: var(--cpx-sys-radius-sm)),
-  'radius-3': (border-radius: var(--cpx-sys-radius-md)),
-  'radius-4': (border-radius: var(--cpx-sys-radius-lg)),
-  'radius-5': (border-radius: var(--cpx-sys-radius-xl)),
-  'radius-6': (border-radius: var(--cpx-sys-radius-2xl)),
-  'radius-full': (border-radius: var(--cpx-sys-radius-full)),
-  'shadow-soft': (box-shadow: var(--cpx-sys-shadow-resting)),
-  'shadow-raised': (box-shadow: var(--cpx-sys-shadow-raised)),
+  'font-sans': (
+    font-family: var(--cpx-sys-font-family-sans),
+  ),
+  'font-mono': (
+    font-family: var(--cpx-sys-font-family-mono),
+  ),
+  'font-body': (
+    font-weight: var(--cpx-sys-font-weight-body),
+  ),
+  'font-label': (
+    font-weight: var(--cpx-sys-font-weight-medium),
+  ),
+  'font-heading': (
+    font-weight: var(--cpx-sys-font-weight-bold),
+  ),
+  'font-emphasis': (
+    font-weight: var(--cpx-sys-font-weight-bold),
+  ),
+  'text-left': (
+    text-align: left,
+  ),
+  'text-center': (
+    text-align: center,
+  ),
+  'text-right': (
+    text-align: right,
+  ),
+  'nowrap': (
+    white-space: nowrap,
+  ),
+  'text-primary': (
+    color: var(--cpx-sys-color-fg-primary),
+  ),
+  'text-secondary': (
+    color: var(--cpx-sys-color-fg-secondary),
+  ),
+  'text-meta': (
+    color: var(--cpx-sys-color-fg-tertiary),
+  ),
+  'text-disabled': (
+    color: var(--cpx-sys-color-fg-disabled),
+  ),
+  'text-danger': (
+    color: var(--cpx-sys-color-danger),
+  ),
+  'text-success': (
+    color: var(--cpx-sys-color-success),
+  ),
+  'text-accent': (
+    color: var(--cpx-sys-color-accent),
+  ),
+  'bg-canvas': (
+    background: var(--cpx-sys-color-surface-canvas),
+  ),
+  'bg-chrome': (
+    background: var(--cpx-sys-color-surface-recessed),
+  ),
+  'bg-panel': (
+    background: var(--cpx-sys-color-surface-panel),
+  ),
+  'bg-raised': (
+    background: var(--cpx-sys-color-surface-raised),
+  ),
+  'bg-code': (
+    background: var(--cpx-sys-color-surface-editor),
+  ),
+  'bg-user': (
+    background: var(--cpx-sys-color-surface-recessed),
+  ),
+  'bg-composer': (
+    background: var(--cpx-sys-color-surface-control),
+  ),
+  'border-subtle': (
+    border: 1px solid var(--cpx-sys-color-border-subtle),
+  ),
+  'border-control': (
+    border: 1px solid var(--cpx-sys-color-border-default),
+  ),
+  'border-strong': (
+    border: 1px solid var(--cpx-sys-color-border-strong),
+  ),
+  'radius-1': (
+    border-radius: var(--cpx-sys-radius-xs),
+  ),
+  'radius-2': (
+    border-radius: var(--cpx-sys-radius-sm),
+  ),
+  'radius-3': (
+    border-radius: var(--cpx-sys-radius-md),
+  ),
+  'radius-4': (
+    border-radius: var(--cpx-sys-radius-lg),
+  ),
+  'radius-5': (
+    border-radius: var(--cpx-sys-radius-xl),
+  ),
+  'radius-6': (
+    border-radius: var(--cpx-sys-radius-2xl),
+  ),
+  'radius-full': (
+    border-radius: var(--cpx-sys-radius-full),
+  ),
+  'shadow-soft': (
+    box-shadow: var(--cpx-sys-shadow-resting),
+  ),
+  'shadow-raised': (
+    box-shadow: var(--cpx-sys-shadow-raised),
+  ),
   'truncate': (
     overflow: hidden,
     text-overflow: ellipsis,
@@ -162,13 +324,13 @@ $spaces: (
   8: var(--cpx-sys-space-8),
 );
 $spacing-axes: (
-  'gap': (gap,),
-  'p': (padding,),
-  'px': (padding-inline,),
-  'py': (padding-block,),
-  'm': (margin,),
-  'mx': (margin-inline,),
-  'my': (margin-block,),
+  'gap': (gap),
+  'p': (padding),
+  'px': (padding-inline),
+  'py': (padding-block),
+  'm': (margin),
+  'mx': (margin-inline),
+  'my': (margin-block),
 );
 $spacing-sides: (
   'pt': padding-top,

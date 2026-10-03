@@ -34,10 +34,7 @@ import {
   createComposerDocumentWithSkill,
   skillInvocationsFromComposerDocument,
 } from './composerSkillToken.js'
-import {
-  skillToComposerCommand,
-  type ComposerSkillCommand,
-} from './composerSlashCommands.js'
+import { skillToComposerCommand, type ComposerSkillCommand } from './composerSlashCommands.js'
 import { getDesktopComposerBranchName } from './composerWorkspacePresentation.js'
 
 type ControllerOptions = {
@@ -65,19 +62,13 @@ type ControllerOptions = {
     draftKey: ComposerDraftKey,
     attachments: DesktopComposerAttachment[],
   ) => void
-  onRemoveAttachmentForDraft?: (
-    draftKey: ComposerDraftKey,
-    attachmentId: string,
-  ) => void
+  onRemoveAttachmentForDraft?: (draftKey: ComposerDraftKey, attachmentId: string) => void
   onDraftAccepted?: (
     draftKey: ComposerDraftKey,
     snapshot: ComposerDraftContentSnapshot,
   ) => boolean | void
   onPermissionChange: (value: DesktopPermissionMode) => void
-  onProviderModelChange: (
-    providerID: ModelProviderID,
-    modelPresetID: string,
-  ) => void
+  onProviderModelChange: (providerID: ModelProviderID, modelPresetID: string) => void
   createSessionForWorkspace: (
     target?: DesktopWorkspace | null,
     initialSessionName?: string,
@@ -171,8 +162,7 @@ export function useDesktopComposerController({
   const [goalModeEnabled, setGoalModeEnabled] = useState(false)
   const [isComposing, setIsComposing] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [lastSubmitOutcome, setLastSubmitOutcome] =
-    useState<ComposerSubmitOutcome | null>(null)
+  const [lastSubmitOutcome, setLastSubmitOutcome] = useState<ComposerSubmitOutcome | null>(null)
   const [fileAttachmentsAvailable, setFileAttachmentsAvailable] = useState(false)
   const [, setDraftStoreVersion] = useState(0)
   const composingRef = useRef(false)
@@ -183,17 +173,21 @@ export function useDesktopComposerController({
   const activeDraftKeyRef = useRef<ComposerDraftKey>(draftKey)
   const [skillCommands, setSkillCommands] = useState<ComposerSkillCommand[]>([])
   const [runtimeSkillsLoaded, setRuntimeSkillsLoaded] = useState(false)
-  const [selectedSkillTokens, setSelectedSkillTokens] = useState<ComposerSkillCommand[]>(
-    () => restoreSkillTokens(draftSkills(initialDraftRef.current), []),
+  const [selectedSkillTokens, setSelectedSkillTokens] = useState<ComposerSkillCommand[]>(() =>
+    restoreSkillTokens(draftSkills(initialDraftRef.current), []),
   )
-  const [contextTokens, setContextTokens] = useState<ComposerDocumentToken[]>(
-    () => contextTokensFromDocument(initialDraftRef.current.document.tokens),
+  const [contextTokens, setContextTokens] = useState<ComposerDocumentToken[]>(() =>
+    contextTokensFromDocument(initialDraftRef.current.document.tokens),
   )
 
   const activeSkillToken = selectedSkillTokens[0] ?? null
   const selectedSkillToken = activeSkillToken
   const activeSkills = useMemo(
-    () => selectedSkillTokens.map(command => ({ name: command.skill.name, path: command.skill.path })),
+    () =>
+      selectedSkillTokens.map((command) => ({
+        name: command.skill.name,
+        path: command.skill.path,
+      })),
     [selectedSkillTokens],
   )
   const composerDocument = useMemo(() => {
@@ -223,7 +217,7 @@ export function useDesktopComposerController({
     routedSessionId,
   })
   const attachmentIds = useMemo(
-    () => new Set(attachments.map(attachment => attachment.id)),
+    () => new Set(attachments.map((attachment) => attachment.id)),
     [attachments],
   )
   const branchName = getDesktopComposerBranchName(workspace)
@@ -235,15 +229,10 @@ export function useDesktopComposerController({
       }),
     [enableAutoReviewPermissionMode, enableFullAccessPermissionMode],
   )
-  const permissionModeVisible = permissionOptions.some(
-    option => option.value === permissionMode,
-  )
-  const effectivePermissionMode = permissionModeVisible
-    ? permissionMode
-    : 'default'
+  const permissionModeVisible = permissionOptions.some((option) => option.value === permissionMode)
+  const effectivePermissionMode = permissionModeVisible ? permissionMode : 'default'
   const hasConversationMessages =
-    hasConversationMessagesOverride ??
-    messages.some(message => message.role !== 'system')
+    hasConversationMessagesOverride ?? messages.some((message) => message.role !== 'system')
 
   useEffect(() => {
     if (permissionModeVisible) return
@@ -252,11 +241,14 @@ export function useDesktopComposerController({
 
   useEffect(() => {
     let cancelled = false
-    void desktopClient.isComposerFileAttachmentAvailable().then(available => {
-      if (!cancelled) setFileAttachmentsAvailable(available)
-    }, () => {
-      if (!cancelled) setFileAttachmentsAvailable(false)
-    })
+    void desktopClient.isComposerFileAttachmentAvailable().then(
+      (available) => {
+        if (!cancelled) setFileAttachmentsAvailable(available)
+      },
+      () => {
+        if (!cancelled) setFileAttachmentsAvailable(false)
+      },
+    )
     return () => {
       cancelled = true
     }
@@ -266,19 +258,13 @@ export function useDesktopComposerController({
   useEffect(
     () =>
       composerDraftStore.subscribe(() => {
-        setDraftStoreVersion(value => value + 1)
+        setDraftStoreVersion((value) => value + 1)
         const currentDraft = composerDraftStore.get(draftKey)
         draftClientIdRef.current = currentDraft.clientId
-        setSelectedSkillTokens(
-          restoreSkillTokens(
-            draftSkills(currentDraft),
-            skillCommands,
-          ),
+        setSelectedSkillTokens(restoreSkillTokens(draftSkills(currentDraft), skillCommands))
+        setContextTokens((current) =>
+          sameContextTokens(current, contextTokensFromDocument(currentDraft.document.tokens)),
         )
-        setContextTokens(current => sameContextTokens(
-          current,
-          contextTokensFromDocument(currentDraft.document.tokens),
-        ))
       }),
     [draftKey, skillCommands],
   )
@@ -288,29 +274,21 @@ export function useDesktopComposerController({
     activeDraftKeyRef.current = draftKey
     const nextDraft = composerDraftStore.get(draftKey)
     setGoalModeEnabled(false)
-    setSelectedSkillTokens(
-      restoreSkillTokens(draftSkills(nextDraft), skillCommands),
-    )
+    setSelectedSkillTokens(restoreSkillTokens(draftSkills(nextDraft), skillCommands))
     setContextTokens(contextTokensFromDocument(nextDraft.document.tokens))
     setLastSubmitOutcome(null)
     draftClientIdRef.current = nextDraft.clientId
   }, [draftKey, skillCommands])
 
   useEffect(() => {
-    composerDraftStore.update(draftKey, current => ({
+    composerDraftStore.update(draftKey, (current) => ({
       ...current,
       clientId: draftClientIdRef.current,
       document: composerDocument,
       attachments,
       collaborationMode: planModeActive ? 'plan' : 'default',
     }))
-  }, [
-    activeSkills,
-    attachments,
-    composerDocument,
-    draftKey,
-    planModeActive,
-  ])
+  }, [activeSkills, attachments, composerDocument, draftKey, planModeActive])
 
   useEffect(() => {
     if (subagentMode) {
@@ -323,16 +301,13 @@ export function useDesktopComposerController({
     setRuntimeSkillsLoaded(false)
     const load = (forceReload = false) =>
       loadCachedRuntimeSkills(workspace?.path, forceReload)
-        .then(skills => skills.map(skillToComposerCommand))
-        .then(commands => {
+        .then((skills) => skills.map(skillToComposerCommand))
+        .then((commands) => {
           if (!cancelled) {
             setSkillCommands(commands)
             setRuntimeSkillsLoaded(true)
             setSelectedSkillTokens(
-              restoreSkillTokens(
-                draftSkills(composerDraftStore.get(draftKey)),
-                commands,
-              ),
+              restoreSkillTokens(draftSkills(composerDraftStore.get(draftKey)), commands),
             )
           }
         })
@@ -353,12 +328,7 @@ export function useDesktopComposerController({
   }, [draftKey, subagentMode, workspace?.path])
 
   function handleSubmit(delivery: ComposerDeliveryIntent = 'default'): void {
-    if (
-      submittingRef.current ||
-      composingRef.current ||
-      !modelConfigured ||
-      !canSubmit
-    ) {
+    if (submittingRef.current || composingRef.current || !modelConfigured || !canSubmit) {
       return
     }
     submittingRef.current = true
@@ -371,9 +341,7 @@ export function useDesktopComposerController({
     })
   }
 
-  async function performSubmit(
-    delivery: ComposerDeliveryIntent,
-  ): Promise<void> {
+  async function performSubmit(delivery: ComposerDeliveryIntent): Promise<void> {
     const sourceDraftKey = draftKey
     const snapshot: ComposerDraftContentSnapshot = {
       text: input,
@@ -463,18 +431,17 @@ export function useDesktopComposerController({
                   workspace,
                   initialSessionName,
                   projectlessPrompt,
-                  surface === 'working' || surface === 'chat' || surface === 'coding' ? surface : undefined,
+                  surface === 'working' || surface === 'chat' || surface === 'coding'
+                    ? surface
+                    : undefined,
                 ),
             })
         : undefined,
       // Keep navigation before submission so the routed page owns all
       // streaming state from the first response event onward.
-      navigateToSession: nextSessionId => {
+      navigateToSession: (nextSessionId) => {
         const targetDraftKey: ComposerDraftKey = `session:${nextSessionId}`
-        const handoff = composerDraftStore.handoff(
-          sourceDraftKey,
-          targetDraftKey,
-        )
+        const handoff = composerDraftStore.handoff(sourceDraftKey, targetDraftKey)
         if (handoff && activeDraftKeyRef.current === sourceDraftKey) {
           draftClientIdRef.current = handoff.replacement.clientId
         }
@@ -509,11 +476,9 @@ export function useDesktopComposerController({
     const clearContent = onDraftAccepted
       ? onDraftAccepted(acceptedDraftKey, snapshot) !== false
       : true
-    const nextDraft = composerDraftStore.completeSubmission(
-      acceptedDraftKey,
-      draft.clientId,
-      { clearContent },
-    )
+    const nextDraft = composerDraftStore.completeSubmission(acceptedDraftKey, draft.clientId, {
+      clearContent,
+    })
     composerDraftStore.clearSubmitOutcome(acceptedDraftKey)
     if (activeDraftKeyRef.current === acceptedDraftKey) {
       if (clearContent) {
@@ -538,17 +503,12 @@ export function useDesktopComposerController({
   async function handleAddFiles(files: FileList): Promise<void> {
     if (files.length === 0) return
     const targetDraftKey = draftKey
-    const generation = nextAttachmentGeneration(
-      attachmentGenerationRef.current,
-      targetDraftKey,
-    )
-    const { selectDroppedComposerAttachments } = await import(
-      './composerAttachmentSelection.js'
-    )
+    const generation = nextAttachmentGeneration(attachmentGenerationRef.current, targetDraftKey)
+    const { selectDroppedComposerAttachments } = await import('./composerAttachmentSelection.js')
     const selected = await selectDroppedComposerAttachments(
       files,
-      file => desktopClient.getComposerFilePath(file),
-      paths => desktopClient.grantComposerFilePaths(paths),
+      (file) => desktopClient.getComposerFilePath(file),
+      (paths) => desktopClient.grantComposerFilePaths(paths),
     )
     await appendAttachments(targetDraftKey, selected, generation)
   }
@@ -556,10 +516,7 @@ export function useDesktopComposerController({
   async function handleAddFilePaths(paths: string[]): Promise<void> {
     if (paths.length === 0) return
     const targetDraftKey = draftKey
-    const generation = nextAttachmentGeneration(
-      attachmentGenerationRef.current,
-      targetDraftKey,
-    )
+    const generation = nextAttachmentGeneration(attachmentGenerationRef.current, targetDraftKey)
     const selected = await desktopClient.grantComposerFilePaths(paths)
     await appendAttachments(targetDraftKey, selected, generation)
   }
@@ -570,9 +527,7 @@ export function useDesktopComposerController({
     generation: number,
   ): Promise<void> {
     if (nextAttachments.length === 0) return
-    const { mergeComposerAttachments } = await import(
-      './composerAttachmentSelection.js'
-    )
+    const { mergeComposerAttachments } = await import('./composerAttachmentSelection.js')
     if (attachmentGenerationRef.current.get(targetDraftKey) !== generation) return
     const { accepted, error } = mergeComposerAttachments(attachments, nextAttachments)
     if (error) {
@@ -590,7 +545,7 @@ export function useDesktopComposerController({
     }
     onAttachmentsChange([
       ...attachments,
-      ...accepted.filter(attachment => !attachmentIds.has(attachment.id)),
+      ...accepted.filter((attachment) => !attachmentIds.has(attachment.id)),
     ])
   }
 
@@ -599,9 +554,7 @@ export function useDesktopComposerController({
       onRemoveAttachmentForDraft(draftKey, attachmentId)
       return
     }
-    onAttachmentsChange(
-      attachments.filter(attachment => attachment.id !== attachmentId),
-    )
+    onAttachmentsChange(attachments.filter((attachment) => attachment.id !== attachmentId))
   }
 
   async function handleCompact(): Promise<void> {
@@ -636,7 +589,11 @@ export function useDesktopComposerController({
       setContextTokens(contextTokensFromDocument(document.tokens))
       const skills = skillInvocationsFromComposerDocument(document)
       const currentSkills = draftSkills(composerDraftStore.get(draftKey))
-      if (skills.length === currentSkills.length && skills.every((skill, index) => sameSkillInvocation(skill, currentSkills[index]))) return
+      if (
+        skills.length === currentSkills.length &&
+        skills.every((skill, index) => sameSkillInvocation(skill, currentSkills[index]))
+      )
+        return
       composerDraftStore.setSkills(draftKey, skills)
       setSelectedSkillTokens(restoreSkillTokens(skills, skillCommands))
       if (!skills.length && workingPlugin) onWorkingPluginChange?.(null)
@@ -646,7 +603,10 @@ export function useDesktopComposerController({
       setSelectedSkillTokens([])
     },
     handleSkillSelect: (skill: ComposerSkillCommand) => {
-      const nextDraft = composerDraftStore.addSkill(draftKey, { name: skill.skill.name, path: skill.skill.path })
+      const nextDraft = composerDraftStore.addSkill(draftKey, {
+        name: skill.skill.name,
+        path: skill.skill.path,
+      })
       setSelectedSkillTokens(restoreSkillTokens(draftSkills(nextDraft), skillCommands))
     },
     handleSubmit,
@@ -661,8 +621,7 @@ export function useDesktopComposerController({
     hasConversationMessages,
     isComposing,
     isSubmitting,
-    lastSubmitOutcome:
-      composerDraftStore.getSubmitOutcome(draftKey) ?? lastSubmitOutcome,
+    lastSubmitOutcome: composerDraftStore.getSubmitOutcome(draftKey) ?? lastSubmitOutcome,
     permissionOptions,
     selectedSkillToken,
     activeSkillToken,
@@ -677,23 +636,28 @@ export function useDesktopComposerController({
 function contextTokensFromDocument(
   tokens: readonly ComposerDocumentToken[],
 ): ComposerDocumentToken[] {
-  return tokens.filter(token => token.kind === 'thread' || token.kind === 'browser')
+  return tokens.filter((token) => token.kind === 'thread' || token.kind === 'browser')
 }
 
 function sameContextTokens(
   current: ComposerDocumentToken[],
   next: ComposerDocumentToken[],
 ): ComposerDocumentToken[] {
-  return current.length === next.length && current.every((token, index) => {
-    const candidate = next[index]
-    return candidate
-      && token.id === candidate.id
-      && token.kind === candidate.kind
-      && token.label === candidate.label
-      && token.value === candidate.value
-      && token.from === candidate.from
-      && token.to === candidate.to
-  }) ? current : next
+  return current.length === next.length &&
+    current.every((token, index) => {
+      const candidate = next[index]
+      return (
+        candidate &&
+        token.id === candidate.id &&
+        token.kind === candidate.kind &&
+        token.label === candidate.label &&
+        token.value === candidate.value &&
+        token.from === candidate.from &&
+        token.to === candidate.to
+      )
+    })
+    ? current
+    : next
 }
 
 const runtimeSkillCache = new Map<string, DesktopInstalledSkill[]>()
@@ -710,7 +674,7 @@ export function loadCachedRuntimeSkills(
       forceReload: force,
     })
     return result.state === 'ready' && result.data
-      ? result.data.filter(skill => skill.enabled)
+      ? result.data.filter((skill) => skill.enabled)
       : []
   },
 ): Promise<DesktopInstalledSkill[]> {
@@ -721,13 +685,13 @@ export function loadCachedRuntimeSkills(
   const pending = runtimeSkillRequests.get(key)
   if (pending) return pending
   const request = loader(workspacePath, forceReload)
-    .then(skills => {
-      const enabled = skills.filter(skill => skill.enabled)
+    .then((skills) => {
+      const enabled = skills.filter((skill) => skill.enabled)
       runtimeSkillCache.set(key, enabled)
       runtimeSkillRequests.delete(key)
       return enabled
     })
-    .catch(error => {
+    .catch((error) => {
       runtimeSkillRequests.delete(key)
       throw error
     })
@@ -741,7 +705,7 @@ function getUnsupportedAttachmentReason(
 ): string | null {
   if (attachments.length === 0 || !metadata?.modalities?.input) return null
   const supportedInputs = new Set(metadata.modalities.input)
-  const unsupported = attachments.find(attachment => {
+  const unsupported = attachments.find((attachment) => {
     if (attachment.status === 'error') return false
     if (attachment.storage === 'local-path') return false
     return !supportedInputs.has(attachment.kind)
@@ -751,9 +715,7 @@ function getUnsupportedAttachmentReason(
   return `${modelLabel} 不支持 ${attachmentKindLabel(unsupported.kind)} 附件`
 }
 
-function attachmentKindLabel(
-  kind: DesktopComposerAttachment['kind'],
-): string {
+function attachmentKindLabel(kind: DesktopComposerAttachment['kind']): string {
   switch (kind) {
     case 'image':
       return '图片'
@@ -779,11 +741,19 @@ function errorMessageOf(error: unknown): string {
 }
 
 function draftSkills(draft: ComposerDraft): ComposerSkillInvocation[] {
-  return draft.skills ?? (draft.skillInvocation ? [draft.skillInvocation] : skillInvocationsFromComposerDocument(draft.document))
+  return (
+    draft.skills ??
+    (draft.skillInvocation
+      ? [draft.skillInvocation]
+      : skillInvocationsFromComposerDocument(draft.document))
+  )
 }
 
-function restoreSkillTokens(skills: ComposerSkillInvocation[], commands: ComposerSkillCommand[]): ComposerSkillCommand[] {
-  return skills.map(skill => restoreSkillToken(skill, commands)!)
+function restoreSkillTokens(
+  skills: ComposerSkillInvocation[],
+  commands: ComposerSkillCommand[],
+): ComposerSkillCommand[] {
+  return skills.map((skill) => restoreSkillToken(skill, commands)!)
 }
 
 function restoreSkillToken(
@@ -791,7 +761,9 @@ function restoreSkillToken(
   commands: ComposerSkillCommand[],
 ): ComposerSkillCommand | null {
   if (!invocation) return null
-  const command = commands.find(item => item.skill.name === invocation.name && item.skill.path === invocation.path)
+  const command = commands.find(
+    (item) => item.skill.name === invocation.name && item.skill.path === invocation.path,
+  )
   return {
     id: `skill:${invocation.name}`,
     trigger: invocation.name,

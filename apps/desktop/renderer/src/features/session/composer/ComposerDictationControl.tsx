@@ -2,10 +2,7 @@ import type React from 'react'
 import { Activity, Mic, Square } from 'lucide-react'
 import { useEffect } from 'react'
 import { IconButton } from '../../../components/ui/IconButton.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import type { ComposerEditorHandle } from './ComposerEditor.js'
 import type { ComposerDraftKey } from './composerTypes.js'
 import { useComposerDictation } from './useComposerDictation.js'
@@ -26,7 +23,7 @@ export function ComposerDictationControl({
   const dictation = useComposerDictation({
     enabled,
     draftKey,
-    onTranscript: text => editorRef.current?.insertText(text),
+    onTranscript: (text) => editorRef.current?.insertText(text),
   })
   useEffect(() => {
     registerToggle(dictation.toggle)
@@ -53,8 +50,14 @@ export function ComposerDictationControl({
         color={dictation.phase === 'recording' ? 'danger' : 'ghostSecondary'}
         disabled={!dictation.available}
         onClick={dictation.toggle}
-        size='composer'
-        title={dictation.phase === 'recording' ? '停止语音输入 Ctrl+Shift+D' : dictation.status?.state === 'ready' ? '语音输入 Ctrl+Shift+D' : dictation.status?.error?.message ?? '语音模型正在准备中'}
+        size="composer"
+        title={
+          dictation.phase === 'recording'
+            ? '停止语音输入 Ctrl+Shift+D'
+            : dictation.status?.state === 'ready'
+              ? '语音输入 Ctrl+Shift+D'
+              : (dictation.status?.error?.message ?? '语音模型正在准备中')
+        }
       >
         {dictation.phase === 'recording' ? (
           <Square size={APP_ICON_SIZE} fill="currentColor" />

@@ -29,10 +29,7 @@ const panelHandlers = {
 describe('WorkingSuggestionsPanel structure', () => {
   test('第一层渲染平面列表，不再使用卡片网格', () => {
     const html = renderToStaticMarkup(
-      <WorkingSuggestionsPanel
-        state={{ kind: 'root' }}
-        {...panelHandlers}
-      />,
+      <WorkingSuggestionsPanel state={{ kind: 'root' }} {...panelHandlers} />,
     )
     expect(html).not.toContain('new-session-suggestion-card')
     expect(html).not.toContain('new-session-suggestion-grid')
@@ -43,16 +40,9 @@ describe('WorkingSuggestionsPanel structure', () => {
 
   test('模板层三个分类具有正确的可访问名称', () => {
     const html = renderToStaticMarkup(
-      <WorkingSuggestionsPanel
-        state={{ kind: 'templates' }}
-        {...panelHandlers}
-      />,
+      <WorkingSuggestionsPanel state={{ kind: 'templates' }} {...panelHandlers} />,
     )
-    for (const label of [
-      '创建文件或搭建网站',
-      '调研并规划后续步骤',
-      '自动处理日常和重复性工作',
-    ]) {
+    for (const label of ['创建文件或搭建网站', '调研并规划后续步骤', '自动处理日常和重复性工作']) {
       expect(html).toContain(`<span>${label}</span>`)
     }
   })
@@ -98,12 +88,7 @@ describe('WorkingSuggestionsPanel structure', () => {
     expect(html).toContain('的建议任务')
     expect(html).toContain('返回')
     expect(html).toContain('创建文件或搭建网站')
-    for (const label of [
-      '创建新文档',
-      '创建新电子表格',
-      '创建新演示文稿',
-      '创建新网站',
-    ]) {
+    for (const label of ['创建新文档', '创建新电子表格', '创建新演示文稿', '创建新网站']) {
       expect(html).toContain(`<span>${label}</span>`)
     }
   })
@@ -137,9 +122,7 @@ describe('Working contextual suggestion state', () => {
 
   test('分类返回模板页时清除系统 starter 并保留用户补写', () => {
     const category = selectWorkingSuggestionCategory('create', '创建')
-    expect(
-      returnToWorkingSuggestionTemplates(category, '创建一个项目说明'),
-    ).toEqual({
+    expect(returnToWorkingSuggestionTemplates(category, '创建一个项目说明')).toEqual({
       state: { kind: 'templates' },
       composerValue: '一个项目说明',
     })

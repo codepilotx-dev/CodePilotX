@@ -30,6 +30,8 @@
     "debug:mcp:config:oauth": "bun apps/agent/scripts/mcp-debug-server.ts --print-config=oauth",
     "test:unit": "bun test --max-concurrency 1",
     "security:audit": "bun scripts/security/security-audit.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "bun run --cwd packages/material-icon-theme typecheck && bun run --cwd packages/model-schema typecheck && bun run --cwd packages/shared typecheck && bun run --cwd packages/agent-protocol typecheck && bun run --cwd packages/session-view typecheck && bun run --cwd apps/auth-broker typecheck && bun run --cwd apps/agent typecheck && bun run --cwd apps/desktop/renderer typecheck && bun run --cwd apps/desktop/electron typecheck && bun run --cwd apps/website typecheck",
     "build:renderer": "bun run --cwd apps/desktop/renderer build",
     "build:website": "bun run --cwd apps/website build",
@@ -49,6 +51,7 @@
     "version:prepare": "bun scripts/version-policy.ts version:prepare"
   },
   "devDependencies": {
+    "prettier": "3.9.9",
     "typescript": "5.9.3"
   },
   "overrides": {

@@ -34,24 +34,17 @@ export async function isSelectableRecentNewThreadModel(
 ): Promise<boolean> {
   if (!model.providerID || !model.id) return false
   const providers = await desktopClient.listModelProviders()
-  const provider = providers.find(
-    item => String(item.providerID) === model.providerID,
-  )
-  if (
-    !provider
-    || provider.apiKeyConfigured !== true
-    || !isExecutableDesktopProvider(provider)
-  ) return false
+  const provider = providers.find((item) => String(item.providerID) === model.providerID)
+  if (!provider || provider.apiKeyConfigured !== true || !isExecutableDesktopProvider(provider))
+    return false
   const page = await desktopClient.fetchProviderModels({
     providerID: model.providerID as ModelProviderID,
     query: model.id,
     limit: 100,
   })
   if (!page.models.includes(model.id)) return false
-  if (
-    model.variant
-    && !(page.modelMetadata?.[model.id]?.variants ?? []).includes(model.variant)
-  ) return false
+  if (model.variant && !(page.modelMetadata?.[model.id]?.variants ?? []).includes(model.variant))
+    return false
   return true
 }
 
@@ -91,9 +84,7 @@ let writeGeneration = 0
  * 被更新选择取代的中间写入直接跳过；若已开始的写入失败但已被取代，
  * 其失败静默，只有最后一次选择的失败会 reject 给调用方。
  */
-export function persistRecentNewThreadModel(
-  model: RecentNewThreadModel,
-): Promise<void> {
+export function persistRecentNewThreadModel(model: RecentNewThreadModel): Promise<void> {
   if (!model.providerID || !model.id) return Promise.resolve()
   const generation = ++writeGeneration
   const operation = writeTail
@@ -108,7 +99,10 @@ export function persistRecentNewThreadModel(
         throw error
       }
     })
-  writeTail = operation.then(() => undefined, () => undefined)
+  writeTail = operation.then(
+    () => undefined,
+    () => undefined,
+  )
   return operation
 }
 

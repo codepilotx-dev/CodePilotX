@@ -36,22 +36,29 @@ export function SessionGroupSwitcherPopover({
   useEffect(() => {
     if (!open || disabled) return
     let active = true
-    void desktopClient.listSessionGroups().then(items => {
-      if (active) setGroups(items)
-    }).catch(() => {
-      if (active) setGroups([])
-    })
-    return () => { active = false }
+    void desktopClient
+      .listSessionGroups()
+      .then((items) => {
+        if (active) setGroups(items)
+      })
+      .catch(() => {
+        if (active) setGroups([])
+      })
+    return () => {
+      active = false
+    }
   }, [disabled, open])
 
   const options = useMemo(() => {
     const keyword = search.trim().toLocaleLowerCase()
     const filtered = keyword
-      ? groups.filter(group => `${group.name} ${group.description}`.toLocaleLowerCase().includes(keyword))
+      ? groups.filter((group) =>
+          `${group.name} ${group.description}`.toLocaleLowerCase().includes(keyword),
+        )
       : groups
     return [
       { value: '__none__', group: null },
-      ...filtered.map(group => ({ value: group.id, group })),
+      ...filtered.map((group) => ({ value: group.id, group })),
     ]
   }, [groups, search])
 
@@ -60,23 +67,34 @@ export function SessionGroupSwitcherPopover({
       className="popover-session-group"
       contentLabel="选择工作流"
       emptyLabel="没有匹配的工作流"
-      footer={onCreate ? (
-        <SearchablePopoverAction
-          icon={<Plus size={APP_ICON_SIZE} />}
-          withArrow
-          onClick={() => { onCreate(); onOpenChange(false) }}
-        >
-          新建工作流
-        </SearchablePopoverAction>
-      ) : undefined}
+      footer={
+        onCreate ? (
+          <SearchablePopoverAction
+            icon={<Plus size={APP_ICON_SIZE} />}
+            withArrow
+            onClick={() => {
+              onCreate()
+              onOpenChange(false)
+            }}
+          >
+            新建工作流
+          </SearchablePopoverAction>
+        ) : undefined
+      }
       listLabel="工作流"
       open={open && !disabled}
       options={options}
       renderOption={(option, selected) => (
         <>
-          <span className="popover-item-leading"><span className="popover-item-icon">
-            {option.group ? <MessagesSquare size={APP_ICON_SIZE} /> : <Unlink size={APP_ICON_SIZE} />}
-          </span></span>
+          <span className="popover-item-leading">
+            <span className="popover-item-icon">
+              {option.group ? (
+                <MessagesSquare size={APP_ICON_SIZE} />
+              ) : (
+                <Unlink size={APP_ICON_SIZE} />
+              )}
+            </span>
+          </span>
           {option.group ? (
             <span className="popover-item-label popover-item-label--rich">
               <span className="popover-item-title">{option.group.name}</span>
@@ -87,7 +105,9 @@ export function SessionGroupSwitcherPopover({
           ) : (
             <span className="popover-item-label">不使用工作流</span>
           )}
-          <span className="popover-item-trailing">{selected ? <Check size={APP_ICON_SIZES.sm} /> : null}</span>
+          <span className="popover-item-trailing">
+            {selected ? <Check size={APP_ICON_SIZES.sm} /> : null}
+          </span>
         </>
       )}
       search={search}
@@ -99,7 +119,7 @@ export function SessionGroupSwitcherPopover({
       width={280}
       onOpenChange={onOpenChange}
       onSearchChange={setSearch}
-      onSelect={async option => {
+      onSelect={async (option) => {
         await onChange(option.group)
         onOpenChange(false)
       }}

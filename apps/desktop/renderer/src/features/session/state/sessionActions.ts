@@ -1,7 +1,7 @@
 import { sessionModelSelections } from './sessionModelSelectionStore.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { toUserErrorMessage, type ErrorContext } from '../../../utils/errors.js'
-﻿import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
+import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { ThreadCreationSurface } from '@codepilotx/shared/thread'
 import type {
   DesktopModelSelection,
@@ -30,7 +30,10 @@ import {
 } from './sessionViewState.js'
 import { sortSessionsByRecency } from './sessionSorting.js'
 import { canonicalThreadCache } from './canonicalThreadCache.js'
-import { readPreferredSessionGroupId, writePreferredSessionGroupId } from '../../session-groups/sessionGroupPreference.js'
+import {
+  readPreferredSessionGroupId,
+  writePreferredSessionGroupId,
+} from '../../session-groups/sessionGroupPreference.js'
 
 export type SessionSettingsSnapshot = {
   permissionMode: DesktopPermissionMode
@@ -74,13 +77,9 @@ export type ArchiveSessionsResult = CloseSessionResult & {
   succeededSessionIds: string[]
 }
 
-export function activateSession(
-  context: SessionActionContext,
-  nextSessionId: string | null,
-): void {
+export function activateSession(context: SessionActionContext, nextSessionId: string | null): void {
   const unreadAt = nextSessionId
-    ? context.sessionsRef.current.find(session => session.id === nextSessionId)
-      ?.unreadAt
+    ? context.sessionsRef.current.find((session) => session.id === nextSessionId)?.unreadAt
     : null
   if (nextSessionId && unreadAt) {
     markSessionReadThrough(context, nextSessionId, unreadAt)
@@ -90,7 +89,7 @@ export function activateSession(
   }
   context.activeSessionIdRef.current = nextSessionId
   context.setSessionId(nextSessionId)
-  void desktopClient.setActiveSession(nextSessionId).catch(error => {
+  void desktopClient.setActiveSession(nextSessionId).catch((error) => {
     context.onErrorRef.current(errorMessageOf(error))
   })
 }
@@ -100,21 +99,22 @@ export function markSessionReadThrough(
   sessionId: string,
   readThroughAt: string,
 ): void {
-  const shouldClearLocalUnread = context.sessionsRef.current.some(session =>
-    session.id === sessionId &&
-    session.unreadAt != null &&
-    Date.parse(session.unreadAt) <= Date.parse(readThroughAt),
+  const shouldClearLocalUnread = context.sessionsRef.current.some(
+    (session) =>
+      session.id === sessionId &&
+      session.unreadAt != null &&
+      Date.parse(session.unreadAt) <= Date.parse(readThroughAt),
   )
   if (shouldClearLocalUnread) {
-    context.sessionsRef.current = context.sessionsRef.current.map(session =>
+    context.sessionsRef.current = context.sessionsRef.current.map((session) =>
       session.id === sessionId &&
       session.unreadAt &&
       Date.parse(session.unreadAt) <= Date.parse(readThroughAt)
         ? { ...session, unreadAt: null }
         : session,
     )
-    context.setSessions(current =>
-      current.map(session =>
+    context.setSessions((current) =>
+      current.map((session) =>
         session.id === sessionId &&
         session.unreadAt &&
         Date.parse(session.unreadAt) <= Date.parse(readThroughAt)
@@ -123,7 +123,7 @@ export function markSessionReadThrough(
       ),
     )
   }
-  void desktopClient.markSessionRead(sessionId, readThroughAt).catch(error => {
+  void desktopClient.markSessionRead(sessionId, readThroughAt).catch((error) => {
     context.onErrorRef.current(errorMessageOf(error))
   })
 }
@@ -141,7 +141,8 @@ export async function createSessionForWorkspaceAction(
     let workflowId: string | undefined
     if (preferredSessionGroupId) {
       const groups = await desktopClient.listSessionGroups().catch(() => [])
-      if (groups.some(group => group.id === preferredSessionGroupId)) workflowId = preferredSessionGroupId
+      if (groups.some((group) => group.id === preferredSessionGroupId))
+        workflowId = preferredSessionGroupId
     }
     if (preferredSessionGroupId && !workflowId) writePreferredSessionGroupId(null)
     const session = await desktopClient.createSession({
@@ -160,17 +161,14 @@ export async function createSessionForWorkspaceAction(
       thinkingMode: settings.thinkingMode,
       systemPrompt: normalizeOptionalText(settings.systemPrompt),
       appendSystemPrompt: normalizeOptionalText(settings.appendSystemPrompt),
-      additionalDirectories: parseAdditionalDirectories(
-        settings.additionalDirectories,
-      ),
+      additionalDirectories: parseAdditionalDirectories(settings.additionalDirectories),
       installCodePilotXDependencies: settings.installCodePilotXDependencies,
       enableMemory: settings.enableMemory,
       rustSearchAndDiffKernels: settings.rustSearchAndDiffKernels,
     })
     const workspace = session.workspace
     const nextView = {
-      ...(context.sessionViewsRef.current[session.sessionId] ??
-        createEmptySessionView()),
+      ...(context.sessionViewsRef.current[session.sessionId] ?? createEmptySessionView()),
       eventModelVersion: 1 as const,
     }
     context.sessionWorkspacesRef.current = {
@@ -182,32 +180,29 @@ export async function createSessionForWorkspaceAction(
     context.setSessionStatus('idle')
     applySessionView(nextView, context.viewSetters)
     const now = new Date()
-    context.setSessions(current =>
+    context.setSessions((current) =>
       sortSessionsByRecency([
         {
-        id: session.sessionId,
-        sessionName: initialSessionName ?? normalizeOptionalText(settings.sessionName) ?? null,
-        aiTitle: null,
-        workspaceName: workspace.name,
-        workspacePath: workspace.path,
-        standalone: session.standalone,
-        permissionMode: settings.permissionMode,
-        planModeActive: settings.planModeActive,
-        localRouterMode: settings.localRouterMode,
-        model: normalizeOptionalText(settings.model) ?? null,
-        thinkingMode: settings.thinkingMode,
-        hasSystemPrompt: Boolean(normalizeOptionalText(settings.systemPrompt)),
-        hasAppendSystemPrompt: Boolean(
-          normalizeOptionalText(settings.appendSystemPrompt),
-        ),
-        additionalDirectoryCount: parseAdditionalDirectories(
-          settings.additionalDirectories,
-        ).length,
-        status: 'idle',
-        lastMessageAt: now.toISOString(),
-        createdAt: now.toISOString(),
-      },
-      ...current,
+          id: session.sessionId,
+          sessionName: initialSessionName ?? normalizeOptionalText(settings.sessionName) ?? null,
+          aiTitle: null,
+          workspaceName: workspace.name,
+          workspacePath: workspace.path,
+          standalone: session.standalone,
+          permissionMode: settings.permissionMode,
+          planModeActive: settings.planModeActive,
+          localRouterMode: settings.localRouterMode,
+          model: normalizeOptionalText(settings.model) ?? null,
+          thinkingMode: settings.thinkingMode,
+          hasSystemPrompt: Boolean(normalizeOptionalText(settings.systemPrompt)),
+          hasAppendSystemPrompt: Boolean(normalizeOptionalText(settings.appendSystemPrompt)),
+          additionalDirectoryCount: parseAdditionalDirectories(settings.additionalDirectories)
+            .length,
+          status: 'idle',
+          lastMessageAt: now.toISOString(),
+          createdAt: now.toISOString(),
+        },
+        ...current,
       ]),
     )
     return session.sessionId
@@ -232,10 +227,7 @@ export async function submitSessionMessageAction(
   },
 ): Promise<'sent' | 'queued' | 'steered' | null> {
   if (!canSubmit || !sessionId) return null
-  const delivery = resolveSessionMessageDelivery(
-    options?.sessionStatus,
-    options?.delivery,
-  )
+  const delivery = resolveSessionMessageDelivery(options?.sessionStatus, options?.delivery)
   const modelSelection: DesktopModelSelection = {
     variant: settings.variant,
     providerID: settings.providerID,
@@ -262,12 +254,7 @@ export async function submitSessionMessageAction(
         modelSelection,
       )
     }
-    await desktopClient.sendUserMessage(
-      sessionId,
-      input,
-      modelSelection,
-      options?.inputId,
-    )
+    await desktopClient.sendUserMessage(sessionId, input, modelSelection, options?.inputId)
     return 'sent'
   } catch (error) {
     onErrorRef.current(errorMessageOf(error, 'thread-send'))
@@ -281,9 +268,7 @@ export function resolveSessionMessageDelivery(
   intent: 'default' | 'follow-up' | undefined,
 ): 'start' | 'steer' | 'follow-up' {
   if (intent === 'follow-up') return 'follow-up'
-  return sessionStatus === 'running' || sessionStatus === 'waiting'
-    ? 'steer'
-    : 'start'
+  return sessionStatus === 'running' || sessionStatus === 'waiting' ? 'steer' : 'start'
 }
 
 export async function interruptSessionAction(
@@ -306,10 +291,7 @@ export async function decidePermissionAction(
   behavior: 'allow' | 'deny',
   alwaysAllow = false,
   updatedInput?: Record<string, unknown>,
-  decisionExtras?: Pick<
-    DesktopPermissionDecision,
-    'grantScope'
-  >,
+  decisionExtras?: Pick<DesktopPermissionDecision, 'grantScope'>,
 ): Promise<void> {
   if (!sessionId) return
   try {
@@ -342,15 +324,11 @@ export async function closeSessionAction(
   sessionModelSelections.delete(targetSessionId)
   canonicalThreadCache.invalidate(targetSessionId)
 
-  const remaining = sessions.filter(session => session.id !== targetSessionId)
-  const {
-    [targetSessionId]: _removedSessionView,
-    ...remainingSessionViews
-  } = context.sessionViewsRef.current
-  const {
-    [targetSessionId]: _removedWorkspace,
-    ...remainingSessionWorkspaces
-  } = context.sessionWorkspacesRef.current
+  const remaining = sessions.filter((session) => session.id !== targetSessionId)
+  const { [targetSessionId]: _removedSessionView, ...remainingSessionViews } =
+    context.sessionViewsRef.current
+  const { [targetSessionId]: _removedWorkspace, ...remainingSessionWorkspaces } =
+    context.sessionWorkspacesRef.current
   context.sessionViewsRef.current = remainingSessionViews
   context.sessionWorkspacesRef.current = remainingSessionWorkspaces
   context.setSessions(remaining)
@@ -389,10 +367,7 @@ export async function updateSessionMetadataAction(
 ): Promise<CloseSessionResult | null> {
   let updatedSession: SessionListItem | null = null
   try {
-    const snapshot = await desktopClient.updateSessionMetadata(
-      targetSessionId,
-      patch,
-    )
+    const snapshot = await desktopClient.updateSessionMetadata(targetSessionId, patch)
     updatedSession = snapshot.item
   } catch (error) {
     context.onErrorRef.current(errorMessageOf(error))
@@ -400,9 +375,7 @@ export async function updateSessionMetadataAction(
   }
 
   const updatedSessions = sortSessionsByRecency(
-    sessions.map(session =>
-      session.id === targetSessionId ? updatedSession! : session,
-    ),
+    sessions.map((session) => (session.id === targetSessionId ? updatedSession! : session)),
   )
   context.setSessions(updatedSessions)
   if (updatedSession.archivedAt) {
@@ -410,13 +383,12 @@ export async function updateSessionMetadataAction(
   }
 
   const archivedActiveSession =
-    targetSessionId === context.activeSessionIdRef.current &&
-    updatedSession.archivedAt
+    targetSessionId === context.activeSessionIdRef.current && updatedSession.archivedAt
   if (!archivedActiveSession) {
     return { nextActiveSession: null, nextWorkspace: null }
   }
 
-  const next = updatedSessions.find(session => !session.archivedAt) ?? null
+  const next = updatedSessions.find((session) => !session.archivedAt) ?? null
   activateSession(context, next?.id ?? null)
   context.setSessionStatus(next?.status ?? 'idle')
   if (next) {
@@ -447,14 +419,9 @@ export async function renameSessionAction(
   const normalizedTitle = title.trim()
   if (!normalizedTitle) return null
   try {
-    const snapshot = await desktopClient.renameSession(
-      targetSessionId,
-      normalizedTitle,
-    )
-    context.setSessions(current =>
-      current.map(session =>
-        session.id === targetSessionId ? snapshot.item : session,
-      ),
+    const snapshot = await desktopClient.renameSession(targetSessionId, normalizedTitle)
+    context.setSessions((current) =>
+      current.map((session) => (session.id === targetSessionId ? snapshot.item : session)),
     )
     return snapshot.item
   } catch (error) {
@@ -471,9 +438,7 @@ export async function archiveSessionsAction(
   const uniqueIds = [...new Set(targetSessionIds)]
   const archivedAt = new Date().toISOString()
   const results = await Promise.allSettled(
-    uniqueIds.map(sessionId =>
-      desktopClient.updateSessionMetadata(sessionId, { archivedAt }),
-    ),
+    uniqueIds.map((sessionId) => desktopClient.updateSessionMetadata(sessionId, { archivedAt })),
   )
   const updatedById = new Map<string, SessionListItem>()
   const failedSessionIds: string[] = []
@@ -489,10 +454,8 @@ export async function archiveSessionsAction(
   for (const sessionId of succeededSessionIds) {
     canonicalThreadCache.invalidate(sessionId)
   }
-  context.setSessions(current =>
-    sortSessionsByRecency(
-      current.map(session => updatedById.get(session.id) ?? session),
-    ),
+  context.setSessions((current) =>
+    sortSessionsByRecency(current.map((session) => updatedById.get(session.id) ?? session)),
   )
   const activeArchived = updatedById.has(context.activeSessionIdRef.current ?? '')
   if (!activeArchived) {
@@ -504,9 +467,7 @@ export async function archiveSessionsAction(
     }
   }
   const next =
-    sessions.find(
-      session => !updatedById.has(session.id) && !session.archivedAt,
-    ) ?? null
+    sessions.find((session) => !updatedById.has(session.id) && !session.archivedAt) ?? null
   activateSession(context, next?.id ?? null)
   context.setSessionStatus(next?.status ?? 'idle')
   if (!next) {
@@ -542,16 +503,11 @@ export async function setSessionPermissionModeAction(
   mode: DesktopPermissionMode,
 ): Promise<SessionListItem | null> {
   try {
-    const snapshot = await desktopClient.setSessionPermissionMode(
-      targetSessionId,
-      mode,
-    )
+    const snapshot = await desktopClient.setSessionPermissionMode(targetSessionId, mode)
     const updatedItem = snapshot.item
     context.setSessions(
       sortSessionsByRecency(
-        sessions.map(session =>
-          session.id === targetSessionId ? updatedItem : session,
-        ),
+        sessions.map((session) => (session.id === targetSessionId ? updatedItem : session)),
       ),
     )
     if (targetSessionId === context.activeSessionIdRef.current) {
@@ -571,16 +527,11 @@ export async function setSessionLocalRouterModeAction(
   mode: LocalRouterMode,
 ): Promise<SessionListItem | null> {
   try {
-    const snapshot = await desktopClient.setSessionLocalRouterMode(
-      targetSessionId,
-      mode,
-    )
+    const snapshot = await desktopClient.setSessionLocalRouterMode(targetSessionId, mode)
     const updatedItem = snapshot.item
     context.setSessions(
       sortSessionsByRecency(
-        sessions.map(session =>
-          session.id === targetSessionId ? updatedItem : session,
-        ),
+        sessions.map((session) => (session.id === targetSessionId ? updatedItem : session)),
       ),
     )
     if (targetSessionId === context.activeSessionIdRef.current) {
@@ -600,16 +551,11 @@ export async function setSessionPlanModeActiveAction(
   active: boolean,
 ): Promise<SessionListItem | null> {
   try {
-    const snapshot = await desktopClient.setSessionPlanModeActive(
-      targetSessionId,
-      active,
-    )
+    const snapshot = await desktopClient.setSessionPlanModeActive(targetSessionId, active)
     const updatedItem = snapshot.item
     context.setSessions(
       sortSessionsByRecency(
-        sessions.map(session =>
-          session.id === targetSessionId ? updatedItem : session,
-        ),
+        sessions.map((session) => (session.id === targetSessionId ? updatedItem : session)),
       ),
     )
     if (targetSessionId === context.activeSessionIdRef.current) {

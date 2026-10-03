@@ -1,17 +1,11 @@
-import {
-  WebContentsView,
-  type BrowserWindow,
-} from "electron"
+import { WebContentsView, type BrowserWindow } from 'electron'
 import type {
   DesktopBrowserBounds,
   DesktopBrowserSnapshot,
-} from "@codepilotx/shared/desktop-browser-ipc"
-import type { DesktopLogger } from "../logging/desktop-logger.js"
-import {
-  isAllowedDesktopBrowserNavigation,
-  normalizeDesktopBrowserUrl,
-} from "./browser-url.js"
-import { scaleDesktopBrowserBounds } from "./browser-bounds.js"
+} from '@codepilotx/shared/desktop-browser-ipc'
+import type { DesktopLogger } from '../logging/desktop-logger.js'
+import { isAllowedDesktopBrowserNavigation, normalizeDesktopBrowserUrl } from './browser-url.js'
+import { scaleDesktopBrowserBounds } from './browser-bounds.js'
 
 type BrowserEntry = {
   tabId: string
@@ -44,10 +38,7 @@ export class DesktopBrowserController {
   getState(owner: BrowserWindow, tabId: string): DesktopBrowserSnapshot {
     const entries = this.#ownerEntries(owner, false)
     const entry = entries?.get(tabId)
-    if (
-      entry
-      && (entry.parent.isDestroyed() || entry.view.webContents.isDestroyed())
-    ) {
+    if (entry && (entry.parent.isDestroyed() || entry.view.webContents.isDestroyed())) {
       entries?.delete(tabId)
       return emptyBrowserSnapshot(tabId)
     }
@@ -66,7 +57,11 @@ export class DesktopBrowserController {
     return this.#snapshot(entry)
   }
 
-  async navigate(owner: BrowserWindow, tabId: string, url: string): Promise<DesktopBrowserSnapshot> {
+  async navigate(
+    owner: BrowserWindow,
+    tabId: string,
+    url: string,
+  ): Promise<DesktopBrowserSnapshot> {
     const entry = this.#ensureEntry(owner, tabId)
     entry.open = true
     await this.#navigate(entry, url)
@@ -180,15 +175,12 @@ export class DesktopBrowserController {
   #ensureEntry(owner: BrowserWindow, tabId: string): BrowserEntry {
     const entries = this.#ownerEntries(owner, true)
     const existing = entries.get(tabId)
-    if (
-      existing
-      && !existing.parent.isDestroyed()
-      && !existing.view.webContents.isDestroyed()
-    ) return existing
+    if (existing && !existing.parent.isDestroyed() && !existing.view.webContents.isDestroyed())
+      return existing
 
     if (existing) entries.delete(tabId)
     if (owner.isDestroyed()) {
-      throw new Error("桌面窗口尚未就绪")
+      throw new Error('桌面窗口尚未就绪')
     }
     const view = new WebContentsView({
       webPreferences: {
@@ -196,7 +188,7 @@ export class DesktopBrowserController {
         nodeIntegration: false,
         sandbox: true,
         webSecurity: true,
-        partition: "persist:codepilotx-browser",
+        partition: 'persist:codepilotx-browser',
         devTools: false,
       },
     })
@@ -207,8 +199,8 @@ export class DesktopBrowserController {
       open: true,
       requestedVisible: true,
       bounds: { ...EMPTY_BOUNDS },
-      url: "",
-      title: "",
+      url: '',
+      title: '',
       loading: false,
       error: null,
     }
@@ -231,59 +223,56 @@ export class DesktopBrowserController {
       if (isAllowedDesktopBrowserNavigation(url)) {
         void this.#navigate(entry, url)
       }
-      return { action: "deny" }
+      return { action: 'deny' }
     })
-    contents.on("will-navigate", (event, url) => {
+    contents.on('will-navigate', (event, url) => {
       if (isAllowedDesktopBrowserNavigation(url)) return
       event.preventDefault()
       entry.loading = false
-      entry.error = "已阻止不受支持的页面跳转"
+      entry.error = '已阻止不受支持的页面跳转'
       this.#publish(entry)
     })
   }
 
   #bindEvents(entry: BrowserEntry): void {
     const contents = entry.view.webContents
-    contents.on("did-start-loading", () => {
+    contents.on('did-start-loading', () => {
       entry.loading = true
       entry.error = null
       this.#publish(entry)
     })
-    contents.on("did-stop-loading", () => {
+    contents.on('did-stop-loading', () => {
       entry.loading = false
       this.#syncNavigationState(entry)
       this.#publish(entry)
     })
-    contents.on("did-navigate", (_event, url) => {
-      entry.url = url === "about:blank" ? "" : url
+    contents.on('did-navigate', (_event, url) => {
+      entry.url = url === 'about:blank' ? '' : url
       entry.error = null
       this.#syncNavigationState(entry)
       this.#publish(entry)
     })
-    contents.on("did-navigate-in-page", (_event, url, isMainFrame) => {
+    contents.on('did-navigate-in-page', (_event, url, isMainFrame) => {
       if (!isMainFrame) return
-      entry.url = url === "about:blank" ? "" : url
+      entry.url = url === 'about:blank' ? '' : url
       this.#syncNavigationState(entry)
       this.#publish(entry)
     })
-    contents.on("page-title-updated", (_event, title) => {
+    contents.on('page-title-updated', (_event, title) => {
       entry.title = title.slice(0, 500)
       this.#publish(entry)
     })
-    contents.on(
-      "did-fail-load",
-      (_event, errorCode, _description, _url, isMainFrame) => {
-        if (!isMainFrame || errorCode === -3) return
-        entry.loading = false
-        entry.error = browserLoadError(errorCode)
-        this.#options.logger.warn("desktop.browser-load-failed", { errorCode })
-        this.#publish(entry)
-      },
-    )
-    contents.on("render-process-gone", (_event, details) => {
+    contents.on('did-fail-load', (_event, errorCode, _description, _url, isMainFrame) => {
+      if (!isMainFrame || errorCode === -3) return
       entry.loading = false
-      entry.error = "浏览器页面进程已退出，请重新加载"
-      this.#options.logger.warn("desktop.browser-render-process-gone", {
+      entry.error = browserLoadError(errorCode)
+      this.#options.logger.warn('desktop.browser-load-failed', { errorCode })
+      this.#publish(entry)
+    })
+    contents.on('render-process-gone', (_event, details) => {
+      entry.loading = false
+      entry.error = '浏览器页面进程已退出，请重新加载'
+      this.#options.logger.warn('desktop.browser-render-process-gone', {
         reason: details.reason,
         exitCode: details.exitCode,
       })
@@ -301,12 +290,13 @@ export class DesktopBrowserController {
     } catch (error) {
       if (entry.view.webContents.isDestroyed()) return
       entry.loading = false
-      entry.error = error instanceof Error && error.message.includes("ERR_ABORTED")
-        ? null
-        : "无法加载该页面，请检查网址或网络连接"
+      entry.error =
+        error instanceof Error && error.message.includes('ERR_ABORTED')
+          ? null
+          : '无法加载该页面，请检查网址或网络连接'
       if (entry.error) {
-        this.#options.logger.warn("desktop.browser-navigation-failed", {
-          code: "BROWSER_NAVIGATION_FAILED",
+        this.#options.logger.warn('desktop.browser-navigation-failed', {
+          code: 'BROWSER_NAVIGATION_FAILED',
         })
       }
       this.#publish(entry)
@@ -316,7 +306,7 @@ export class DesktopBrowserController {
   #requireEntry(owner: BrowserWindow, tabId: string): BrowserEntry {
     const entry = this.#ownerEntries(owner, false)?.get(tabId)
     if (!entry || entry.view.webContents.isDestroyed()) {
-      throw new Error("浏览器标签页尚未打开")
+      throw new Error('浏览器标签页尚未打开')
     }
     return entry
   }
@@ -328,7 +318,7 @@ export class DesktopBrowserController {
 
   #syncNavigationState(entry: BrowserEntry): void {
     const url = entry.view.webContents.getURL()
-    entry.url = url === "about:blank" ? "" : url
+    entry.url = url === 'about:blank' ? '' : url
     entry.title = entry.view.webContents.getTitle().slice(0, 500)
   }
 
@@ -362,7 +352,7 @@ export class DesktopBrowserController {
     if (existing || !create) return existing
     const entries = new Map<string, BrowserEntry>()
     this.#entries.set(ownerId, entries)
-    owner.webContents.once("destroyed", () => {
+    owner.webContents.once('destroyed', () => {
       for (const entry of entries.values()) this.#disposeEntry(entry)
       this.#entries.delete(ownerId)
     })
@@ -385,8 +375,8 @@ export function emptyBrowserSnapshot(tabId: string): DesktopBrowserSnapshot {
   return {
     tabId,
     open: false,
-    url: "",
-    title: "",
+    url: '',
+    title: '',
     loading: false,
     canGoBack: false,
     canGoForward: false,
@@ -399,8 +389,7 @@ export function emptyBrowserSnapshot(tabId: string): DesktopBrowserSnapshot {
 function normalizeBounds(bounds: DesktopBrowserBounds): DesktopBrowserBounds {
   const coordinate = (value: number): number =>
     Math.max(-32_768, Math.min(32_768, Math.round(value)))
-  const dimension = (value: number): number =>
-    Math.max(0, Math.min(32_768, Math.round(value)))
+  const dimension = (value: number): number => Math.max(0, Math.min(32_768, Math.round(value)))
   return {
     x: coordinate(bounds.x),
     y: coordinate(bounds.y),
@@ -410,9 +399,9 @@ function normalizeBounds(bounds: DesktopBrowserBounds): DesktopBrowserBounds {
 }
 
 function browserLoadError(errorCode: number): string {
-  if (errorCode === -105) return "找不到该网站的地址"
-  if (errorCode === -106) return "无法连接到网络"
-  if (errorCode === -118) return "页面加载超时"
-  if (errorCode === -202) return "网站证书无效"
-  return "无法加载该页面，请检查网址或网络连接"
+  if (errorCode === -105) return '找不到该网站的地址'
+  if (errorCode === -106) return '无法连接到网络'
+  if (errorCode === -118) return '页面加载超时'
+  if (errorCode === -202) return '网站证书无效'
+  return '无法加载该页面，请检查网址或网络连接'
 }

@@ -17,9 +17,7 @@ export const Navbar: React.FC = () => {
   return (
     <header
       className={`hero-navbar fixed top-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? 'hero-navbar--scrolled'
-          : ''
+        scrolled ? 'hero-navbar--scrolled' : ''
       }`}
     >
       <div className="relative z-10 grid h-16 w-full grid-cols-[1fr_auto_1fr] items-center px-5 sm:px-10">
@@ -37,9 +35,7 @@ export const Navbar: React.FC = () => {
             />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-lg font-semibold tracking-[-0.03em] text-white">
-              CodePilotX
-            </span>
+            <span className="text-lg font-semibold tracking-[-0.03em] text-white">CodePilotX</span>
             <span className="rounded-full bg-white/10 px-2 py-0.5 font-mono text-[9px] font-medium tracking-wide text-white/60">
               BETA
             </span>
@@ -61,7 +57,14 @@ export const Navbar: React.FC = () => {
 
         {/* Right CTA */}
         <div className="hidden items-center gap-4 justify-self-end md:flex">
-          <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-white/65 transition-colors hover:text-white">GitHub</a>
+          <a
+            href={GITHUB_REPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-medium text-white/65 transition-colors hover:text-white"
+          >
+            GitHub
+          </a>
           <a
             href={GITHUB_REPO_URL}
             target="_blank"

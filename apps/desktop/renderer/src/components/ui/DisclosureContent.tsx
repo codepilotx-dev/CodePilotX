@@ -25,9 +25,7 @@ export function DisclosureContent({
 }: DisclosureContentProps): React.ReactNode {
   const reducedMotion = usePrefersReducedMotion()
   const expandedRef = React.useRef(expanded)
-  const [retained, setRetained] = React.useState(
-    () => mountPolicy === 'always' || expanded,
-  )
+  const [retained, setRetained] = React.useState(() => mountPolicy === 'always' || expanded)
 
   expandedRef.current = expanded
 
@@ -84,10 +82,10 @@ function completeExit(
   setRetained: React.Dispatch<React.SetStateAction<boolean>>,
 ): void {
   if (
-    event.currentTarget !== event.target
-    || event.propertyName !== 'grid-template-rows'
-    || expandedRef.current
-    || mountPolicy !== 'until-exit'
+    event.currentTarget !== event.target ||
+    event.propertyName !== 'grid-template-rows' ||
+    expandedRef.current ||
+    mountPolicy !== 'until-exit'
   ) {
     return
   }

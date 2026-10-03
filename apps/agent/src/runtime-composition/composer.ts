@@ -1,16 +1,20 @@
-import { createHash } from "node:crypto"
-import { resolve } from "node:path"
-import type { Model } from "@earendil-works/pi-ai"
-import { Model as ModelSchema } from "@codepilotx/model-schema"
-import { AgentError, type PermissionConfig, type TaskMode } from "../domain"
-import { resolveEffectivePermissionConfig } from "../permission/EffectivePermissionConfig"
-import { createToolExposurePlan, PI_LIFECYCLE_TOOLS, type ToolExposureInput } from "../tool/ToolExposurePlan"
-import type { ToolExecutionContext } from "../tool/ToolExecutor"
-import type { ToolCatalog } from "../tool/ToolRegistry"
-import type { WorkspaceService } from "../workspace/WorkspaceService"
-import type { PromptBundle } from "../prompt/types"
-import type { SkillService } from "../prompt/SkillService"
-import type { ThinkingLevel } from "../orchestration/harness/agent-types"
+import { createHash } from 'node:crypto'
+import { resolve } from 'node:path'
+import type { Model } from '@earendil-works/pi-ai'
+import { Model as ModelSchema } from '@codepilotx/model-schema'
+import { AgentError, type PermissionConfig, type TaskMode } from '../domain'
+import { resolveEffectivePermissionConfig } from '../permission/EffectivePermissionConfig'
+import {
+  createToolExposurePlan,
+  PI_LIFECYCLE_TOOLS,
+  type ToolExposureInput,
+} from '../tool/ToolExposurePlan'
+import type { ToolExecutionContext } from '../tool/ToolExecutor'
+import type { ToolCatalog } from '../tool/ToolRegistry'
+import type { WorkspaceService } from '../workspace/WorkspaceService'
+import type { PromptBundle } from '../prompt/types'
+import type { SkillService } from '../prompt/SkillService'
+import type { ThinkingLevel } from '../orchestration/harness/agent-types'
 import type {
   CompositionHashes,
   ContextBaseline,
@@ -26,12 +30,12 @@ import type {
   SerializableToolExposurePlan,
   SkillSnapshot,
   SkillSnapshotV2,
-} from "./types"
+} from './types'
 
 const stableStringify = (value: unknown): string => {
   const seen = new WeakSet<object>()
   const walk = (entry: unknown): unknown => {
-    if (entry === null || typeof entry !== "object") return entry
+    if (entry === null || typeof entry !== 'object') return entry
     if (seen.has(entry as object)) return null
     seen.add(entry as object)
     if (Array.isArray(entry)) return entry.map(walk)
@@ -45,8 +49,7 @@ const stableStringify = (value: unknown): string => {
   return JSON.stringify(walk(value))
 }
 
-const sha256 = (value: string) =>
-  createHash("sha256").update(value, "utf8").digest("hex")
+const sha256 = (value: string) => createHash('sha256').update(value, 'utf8').digest('hex')
 
 const hashJson = (value: unknown) => sha256(stableStringify(value))
 
@@ -102,20 +105,25 @@ const workspaceHashFor = (workspace: RuntimeWorkspaceScope) =>
   })
 
 const v1SkillsHashFor = (skills: SkillSnapshot) =>
-  hashJson(skills.skills.map((skill) => ({
-    name: skill.name,
-    hash: skill.hash,
-    path: skill.path,
-  })))
+  hashJson(
+    skills.skills.map((skill) => ({
+      name: skill.name,
+      hash: skill.hash,
+      path: skill.path,
+    })),
+  )
 
-const v2SkillsHashFor = (referenced: SkillSnapshotV2["referenced"]) =>
+const v2SkillsHashFor = (referenced: SkillSnapshotV2['referenced']) =>
   hashJson(referenced.map((item) => ({ name: item.name, hash: item.hash })))
 
 const mcpHashFor = (binding: McpGenerationBinding) =>
   hashJson({
     workspaceKey: binding.workspaceKey,
     bindingHash: binding.bindingHash,
-    serverInstructions: binding.serverInstructions.map((s) => ({ serverName: s.serverName, content: s.content })),
+    serverInstructions: binding.serverInstructions.map((s) => ({
+      serverName: s.serverName,
+      content: s.content,
+    })),
   })
 
 const toolsHashFor = (plan: SerializableToolExposurePlan) =>
@@ -134,9 +142,7 @@ const promptHashFor = (bundle: PromptBundle) =>
     cacheKey: bundle.cacheKey,
   })
 
-const permissionHashFor = (config: PermissionConfig) =>
-  hashJson(config)
-
+const permissionHashFor = (config: PermissionConfig) => hashJson(config)
 
 const frozenMcpInstructions = (
   binding: McpGenerationBinding,
@@ -161,7 +167,10 @@ export const createMcpGenerationBinding = (
     definitions: readonly MpcToolIdentity[]
   },
 ): McpGenerationBinding => {
-  const serverInstructions = input.serverInstructions.map(({ serverName, content }) => ({ serverName, content }))
+  const serverInstructions = input.serverInstructions.map(({ serverName, content }) => ({
+    serverName,
+    content,
+  }))
   const toolNames = [...input.definitions]
     .map((definition) => ({
       name: definition.sdkName,
@@ -178,17 +187,33 @@ export const createMcpGenerationBinding = (
 
 export type RebindRuntimeCompositionInput = Pick<
   RuntimeCompositionInput,
-  "model" | "modelRef" | "workspace" | "workspaceScope" | "skillService" | "mcpBinding" |
-  "toolContext" | "toolCatalog" | "defaultCwd"
+  | 'model'
+  | 'modelRef'
+  | 'workspace'
+  | 'workspaceScope'
+  | 'skillService'
+  | 'mcpBinding'
+  | 'toolContext'
+  | 'toolCatalog'
+  | 'defaultCwd'
 > & {
   /** Persist a newly referenced Skill (V2 only). Called after a successful read. */
   recordReferenced?(name: string, hash: string): void | Promise<void>
 }
 
 const createBindings = (
-  input: Pick<RuntimeCompositionInput, "toolContext" | "model" | "modelRef" | "workspace" | "defaultCwd" | "toolCatalog" | "skillService">,
+  input: Pick<
+    RuntimeCompositionInput,
+    | 'toolContext'
+    | 'model'
+    | 'modelRef'
+    | 'workspace'
+    | 'defaultCwd'
+    | 'toolCatalog'
+    | 'skillService'
+  >,
   snapshot: RuntimeCompositionSnapshot,
-  recordReferenced?: RebindRuntimeCompositionInput["recordReferenced"],
+  recordReferenced?: RebindRuntimeCompositionInput['recordReferenced'],
 ): RuntimeCompositionBindings => {
   let released = false
   const catalog = new Map<string, { name: string; hash: string }>(
@@ -197,9 +222,7 @@ const createBindings = (
       : snapshot.skills.skills.map((skill) => [skill.name, skill]),
   )
   const referenced = new Set(
-    snapshot.version === 2
-      ? snapshot.skills.referenced.map((item) => item.name)
-      : [],
+    snapshot.version === 2 ? snapshot.skills.referenced.map((item) => item.name) : [],
   )
   return Object.freeze({
     toolContext: input.toolContext,
@@ -209,12 +232,14 @@ const createBindings = (
     ...(input.defaultCwd ? { defaultCwd: input.defaultCwd } : {}),
     toolCatalog: input.toolCatalog,
     skills: Object.freeze({
-      list: () => snapshot.version === 2 ? snapshot.skills.catalog : snapshot.skills.skills,
+      list: () => (snapshot.version === 2 ? snapshot.skills.catalog : snapshot.skills.skills),
       documentRead: async (path: string, hash: string) => {
-        const skill = await input.skillService.documentSkill(resolve(input.workspace.rootPath, path))
+        const skill = await input.skillService.documentSkill(
+          resolve(input.workspace.rootPath, path),
+        )
         if (!skill) return undefined
         if (catalog.get(skill.name)?.hash !== hash) {
-          throw new AgentError("SKILL_SNAPSHOT_STALE", "Skill snapshot is stale", 409)
+          throw new AgentError('SKILL_SNAPSHOT_STALE', 'Skill snapshot is stale', 409)
         }
         input.skillService.recordRead(skill.name, hash)
         if (snapshot.version === 2 && !referenced.has(skill.name)) {
@@ -226,11 +251,11 @@ const createBindings = (
       read: async (name: string) => {
         const frozen = catalog.get(name)
         if (!frozen) {
-          throw new AgentError("SKILL_SNAPSHOT_STALE", `Skill ${name} 不在冻结快照中`, 409)
+          throw new AgentError('SKILL_SNAPSHOT_STALE', `Skill ${name} 不在冻结快照中`, 409)
         }
         const current = input.skillService.list().find((skill) => skill.name === name)
         if (!current || current.hash !== frozen.hash) {
-          throw new AgentError("SKILL_SNAPSHOT_STALE", "Skill snapshot is stale", 409)
+          throw new AgentError('SKILL_SNAPSHOT_STALE', 'Skill snapshot is stale', 409)
         }
         const loaded = await input.skillService.read(name)
         if (snapshot.version === 2 && !referenced.has(name)) {
@@ -253,30 +278,34 @@ const createBindings = (
  * same identity hash. Caller persists the snapshot before any provider
  * sampling round. Only credentials-free, serializable metadata is stored.
  */
-export function composeRuntimeComposition(input: RuntimeCompositionInput): ComposeRuntimeCompositionResult {
+export function composeRuntimeComposition(
+  input: RuntimeCompositionInput,
+): ComposeRuntimeCompositionResult {
   const effectivePermissionConfig = resolveEffectivePermissionConfig(
     input.taskMode,
     input.effectivePermissionConfig,
   )
   const exposureInput: ToolExposureInput = {
     taskMode: input.taskMode,
-    sandboxMode: input.taskMode === "plan" ? "read-only" : effectivePermissionConfig.sandboxMode,
+    sandboxMode: input.taskMode === 'plan' ? 'read-only' : effectivePermissionConfig.sandboxMode,
     approvalPolicy: effectivePermissionConfig.approvalPolicy,
     profile: input.profile,
     hasSkillService: true,
     hasProjectSources: false,
     defaultModeRequestUserInput: false,
-    delegationEnabled: input.profile === "main" && input.taskMode !== "plan",
+    delegationEnabled: input.profile === 'main' && input.taskMode !== 'plan',
     ...(input.allowedTools ? { allowedTools: input.allowedTools } : {}),
   }
-  const exposurePlan: SerializableToolExposurePlan = input.exposurePlan ?? (() => {
-    const derived = createToolExposurePlan(input.toolCatalog, exposureInput)
-    return {
-      eager: [...derived.eager],
-      deferred: [...derived.deferred],
-      exposed: [...derived.exposed],
-    }
-  })()
+  const exposurePlan: SerializableToolExposurePlan =
+    input.exposurePlan ??
+    (() => {
+      const derived = createToolExposurePlan(input.toolCatalog, exposureInput)
+      return {
+        eager: [...derived.eager],
+        deferred: [...derived.deferred],
+        exposed: [...derived.exposed],
+      }
+    })()
 
   const promptBundle: PromptBundle = structuredClone(input.promptBundle)
 
@@ -332,7 +361,7 @@ export function composeRuntimeComposition(input: RuntimeCompositionInput): Compo
       toolsHash,
       promptHash,
       contextHash,
-    ].join("\0"),
+    ].join('\0'),
   )
 
   const hashes: CompositionHashes = {
@@ -361,8 +390,8 @@ export function composeRuntimeComposition(input: RuntimeCompositionInput): Compo
   }
 
   const capabilities: readonly RuntimeCapability[] = [
-    { id: "harness.turn-composition.v1", version: 1 },
-    { id: "agent.runtime-composition.v2", version: 2 },
+    { id: 'harness.turn-composition.v1', version: 1 },
+    { id: 'agent.runtime-composition.v2', version: 2 },
   ]
 
   const snapshot: RuntimeCompositionSnapshotV2 = {
@@ -411,7 +440,7 @@ const skillReferencesValid = (
   }
   return v1SkillsHashFor(current) === snapshot.hashes.skillsHash
     ? null
-    : "Frozen Skills catalog 已变化"
+    : 'Frozen Skills catalog 已变化'
 }
 
 /** Rebind live handlers from a persisted snapshot without recomposing prompt, policy or exposure. */
@@ -421,24 +450,33 @@ export function rebindRuntimeComposition(
 ): RuntimeCompositionBindings {
   const currentModel = snapshotModel(input.model, input.modelRef)
   if (
-    currentModel.providerID !== snapshot.model.providerID
-    || currentModel.id !== snapshot.model.id
-    || currentModel.variant !== snapshot.model.variant
-    || currentModel.contextWindow !== snapshot.model.contextWindow
-    || stableStringify(currentModel.capabilities) !== stableStringify(snapshot.model.capabilities)
-  ) throw new AgentError("RUNTIME_COMPOSITION_UNAVAILABLE", "Frozen model is unavailable", 409)
+    currentModel.providerID !== snapshot.model.providerID ||
+    currentModel.id !== snapshot.model.id ||
+    currentModel.variant !== snapshot.model.variant ||
+    currentModel.contextWindow !== snapshot.model.contextWindow ||
+    stableStringify(currentModel.capabilities) !== stableStringify(snapshot.model.capabilities)
+  )
+    throw new AgentError('RUNTIME_COMPOSITION_UNAVAILABLE', 'Frozen model is unavailable', 409)
   if (workspaceHashFor(input.workspaceScope) !== snapshot.hashes.workspaceHash) {
-    throw new AgentError("RUNTIME_COMPOSITION_UNAVAILABLE", "Frozen workspace is unavailable", 409)
+    throw new AgentError('RUNTIME_COMPOSITION_UNAVAILABLE', 'Frozen workspace is unavailable', 409)
   }
   const skillReason = skillReferencesValid(snapshot, input.skillService)
   if (skillReason) {
-    throw new AgentError("RUNTIME_COMPOSITION_UNAVAILABLE", skillReason, 409)
+    throw new AgentError('RUNTIME_COMPOSITION_UNAVAILABLE', skillReason, 409)
   }
   if (input.mcpBinding.bindingHash !== snapshot.mcp.bindingHash) {
-    throw new AgentError("RUNTIME_COMPOSITION_UNAVAILABLE", "Frozen MCP binding is unavailable", 409)
+    throw new AgentError(
+      'RUNTIME_COMPOSITION_UNAVAILABLE',
+      'Frozen MCP binding is unavailable',
+      409,
+    )
   }
   if (promptHashFor(snapshot.prompt) !== snapshot.hashes.promptHash) {
-    throw new AgentError("RUNTIME_COMPOSITION_UNAVAILABLE", "Frozen prompt failed verification", 409)
+    throw new AgentError(
+      'RUNTIME_COMPOSITION_UNAVAILABLE',
+      'Frozen prompt failed verification',
+      409,
+    )
   }
   // 动态生命周期工具由运行时按 turn 快照绑定，不来自普通 toolCatalog；恢复时
   // 必须与真正普通工具的 fail-closed 校验区分开，否则 Plan 恢复会误判不可用。
@@ -446,8 +484,14 @@ export function rebindRuntimeComposition(
   const lifecycle = new Set<string>(PI_LIFECYCLE_TOOLS)
   for (const name of new Set([...snapshot.tools.exposed, ...snapshot.tools.deferred])) {
     if (lifecycle.has(name)) continue
-    try { input.toolCatalog.get(name) } catch {
-      throw new AgentError("RUNTIME_COMPOSITION_UNAVAILABLE", "Frozen tool catalog is unavailable", 409)
+    try {
+      input.toolCatalog.get(name)
+    } catch {
+      throw new AgentError(
+        'RUNTIME_COMPOSITION_UNAVAILABLE',
+        'Frozen tool catalog is unavailable',
+        409,
+      )
     }
   }
   return createBindings(input, snapshot, input.recordReferenced)

@@ -16,9 +16,6 @@ export function resolveThinkingOptions(
   return deepSeekThinkingControls ? DEEPSEEK_THINKING_OPTIONS : thinkingOptions
 }
 
-export function resolveThinkingLabel(
-  options: ThinkingOption[],
-  thinkingMode: string,
-): string {
-  return options.find(option => option.value === thinkingMode)?.label ?? '默认'
+export function resolveThinkingLabel(options: ThinkingOption[], thinkingMode: string): string {
+  return options.find((option) => option.value === thinkingMode)?.label ?? '默认'
 }

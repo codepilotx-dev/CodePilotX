@@ -6,9 +6,7 @@ import type {
 export type DesktopClipboard = {
   writeText(text: string): Promise<void>
   writeRichText(input: { text: string; html: string }): Promise<void>
-  copyProviderApiKey(
-    credentialId: string,
-  ): Promise<DesktopSensitiveClipboardResult>
+  copyProviderApiKey(credentialId: string): Promise<DesktopSensitiveClipboardResult>
 }
 
 export type DesktopClipboardRichItem = {
@@ -36,26 +34,20 @@ export type DesktopClipboardWindow = {
   navigator?: {
     clipboard?: {
       writeText?: (text: string) => Promise<void>
-      write?: (
-        items: ReadonlyArray<DesktopClipboardRichItem>,
-      ) => Promise<void>
+      write?: (items: ReadonlyArray<DesktopClipboardRichItem>) => Promise<void>
     }
   }
   document?: ClipboardDocument
 }
 
 type ClipboardItemConstructor = {
-  new (
-    items: Record<string, string | Blob>,
-  ): DesktopClipboardRichItem
+  new (items: Record<string, string | Blob>): DesktopClipboardRichItem
 }
 
 const CLIPBOARD_WRITE_UNAVAILABLE_ERROR = '复制不可用。'
 const API_KEY_DESKTOP_ONLY_ERROR = '安全复制仅在桌面应用中可用。'
 
-export function createDesktopClipboardClient(
-  win?: DesktopClipboardWindow,
-): DesktopClipboard {
+export function createDesktopClipboardClient(win?: DesktopClipboardWindow): DesktopClipboard {
   return {
     writeText: async (text: string) => {
       const bridge = win?.codePilotXDesktop
@@ -99,10 +91,7 @@ async function writeTextBrowserFallback(
   }
 }
 
-function writeLegacyTextarea(
-  doc: ClipboardDocument | undefined,
-  text: string,
-): boolean {
+function writeLegacyTextarea(doc: ClipboardDocument | undefined, text: string): boolean {
   if (!doc) return false
   const textarea = doc.createElement('textarea')
   try {

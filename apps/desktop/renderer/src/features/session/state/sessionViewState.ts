@@ -1,10 +1,7 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { Message, SessionViewState, ToolLogEntry } from '../../../uiTypes.js'
 import type { DesktopPermissionRequest } from '../../../../shared/types.js'
-import type {
-  DesktopSessionEvent,
-  DesktopWorkflowEvent,
-} from '../../../../shared/types.js'
+import type { DesktopSessionEvent, DesktopWorkflowEvent } from '../../../../shared/types.js'
 
 export type SessionViewStateSetters = {
   setEvents: Dispatch<SetStateAction<DesktopSessionEvent[]>>
@@ -12,9 +9,7 @@ export type SessionViewStateSetters = {
   setMessages: Dispatch<SetStateAction<Message[]>>
   setToolLog: Dispatch<SetStateAction<ToolLogEntry[]>>
   setPendingPermissions: Dispatch<SetStateAction<DesktopPermissionRequest[]>>
-  setContextUsage: Dispatch<
-    SetStateAction<SessionViewState['contextUsage']>
-  >
+  setContextUsage: Dispatch<SetStateAction<SessionViewState['contextUsage']>>
 }
 
 export type SessionViewRefs = {
@@ -44,10 +39,7 @@ export function createEmptySessionView(): SessionViewState {
   }
 }
 
-export function applySessionView(
-  view: SessionViewState,
-  setters: SessionViewStateSetters,
-): void {
+export function applySessionView(view: SessionViewState, setters: SessionViewStateSetters): void {
   setters.setEvents(view.events)
   setters.setWorkflowEvents(view.workflowEvents)
   setters.setMessages(view.messages)
@@ -87,7 +79,7 @@ export function addToolLogEntry(
   targetSessionId: string,
   entry: Omit<ToolLogEntry, 'id' | 'createdAt' | 'expanded'>,
 ): void {
-  updateView(targetSessionId, view => ({
+  updateView(targetSessionId, (view) => ({
     ...view,
     toolLog: [
       {
@@ -108,9 +100,9 @@ export function toggleToolLogEntry(
 ): void {
   const activeId = refs.activeSessionIdRef.current
   if (!activeId) return
-  updateView(activeId, view => ({
+  updateView(activeId, (view) => ({
     ...view,
-    toolLog: view.toolLog.map(entry =>
+    toolLog: view.toolLog.map((entry) =>
       entry.id === entryId ? { ...entry, expanded: !entry.expanded } : entry,
     ),
   }))

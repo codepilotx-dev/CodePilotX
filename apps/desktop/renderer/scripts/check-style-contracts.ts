@@ -180,7 +180,8 @@ const scriptFiles = allFiles.filter((file) => scriptExtensions.has(extname(file)
 const errors: string[] = []
 
 function requireReason(reason: string, descriptor: string): void {
-  if (reason.trim().length < 16) errors.push(`feature color exception needs a concrete reason: ${descriptor}`)
+  if (reason.trim().length < 16)
+    errors.push(`feature color exception needs a concrete reason: ${descriptor}`)
 }
 
 async function isDirectory(path: string): Promise<boolean> {
@@ -209,7 +210,8 @@ const componentExceptions = new Map<string, { reason: string; used: boolean }>()
 for (const exception of manifest.featureColorContract.componentTokenExceptions) {
   const key = `${exception.file} -> ${exception.token}`
   requireReason(exception.reason, key)
-  if (componentExceptions.has(key)) errors.push(`duplicate feature component-token exception: ${key}`)
+  if (componentExceptions.has(key))
+    errors.push(`duplicate feature component-token exception: ${key}`)
   componentExceptions.set(key, { reason: exception.reason, used: false })
 }
 const literalExceptions = new Map<string, { reason: string; used: boolean }>()
@@ -223,12 +225,14 @@ const mixExceptions = new Map<string, { reason: string; used: boolean }>()
 for (const exception of manifest.featureColorContract.colorMixExceptions) {
   const key = `${exception.file} -> ${exception.localProperty}`
   requireReason(exception.reason, key)
-  if (!exception.localProperty.startsWith('--')) errors.push(`color-mix exception must name a local custom property: ${key}`)
+  if (!exception.localProperty.startsWith('--'))
+    errors.push(`color-mix exception must name a local custom property: ${key}`)
   if (mixExceptions.has(key)) errors.push(`duplicate feature color-mix exception: ${key}`)
   mixExceptions.set(key, { reason: exception.reason, used: false })
 }
 
-const colorComponentToken = /--cpx-comp-[\w-]*(?:bg|fg|fill|color|border|edge|scrim|shadow)(?:-[\w-]+)?\b/g
+const colorComponentToken =
+  /--cpx-comp-[\w-]*(?:bg|fg|fill|color|border|edge|scrim|shadow)(?:-[\w-]+)?\b/g
 const literalColor = /(?<![\w-])#[\da-fA-F]{3,8}\b|\b(?:rgb|hsl)a?\([^;{}]+?\)/g
 for (const file of featureColorFiles) {
   const source = await readFile(file, 'utf8')
@@ -237,24 +241,37 @@ for (const file of featureColorFiles) {
     const key = `${path} -> ${match[0]}`
     const exception = componentExceptions.get(key)
     if (exception) exception.used = true
-    else errors.push(`feature styles must use system semantic colors, not ${match[0]}: ${path}:${lineNumberAt(source, match.index)}`)
+    else
+      errors.push(
+        `feature styles must use system semantic colors, not ${match[0]}: ${path}:${lineNumberAt(source, match.index)}`,
+      )
   }
   for (const match of source.matchAll(literalColor)) {
     const value = match[0].toLowerCase()
     const key = `${path} -> ${value}`
     const exception = literalExceptions.get(key)
     if (exception) exception.used = true
-    else errors.push(`feature styles must not use literal color ${match[0]}: ${path}:${lineNumberAt(source, match.index)}`)
+    else
+      errors.push(
+        `feature styles must not use literal color ${match[0]}: ${path}:${lineNumberAt(source, match.index)}`,
+      )
   }
   for (const call of collectFunctionCalls(source, 'color-mix')) {
-    const systemTokens = [...call.value.matchAll(/--cpx-sys-color-[\w-]+/g)].map(match => match[0])
-    const localTokens = [...call.value.matchAll(/--(?!cpx-(?:sys|comp)-)[\w-]+/g)].map(match => match[0])
+    const systemTokens = [...call.value.matchAll(/--cpx-sys-color-[\w-]+/g)].map(
+      (match) => match[0],
+    )
+    const localTokens = [...call.value.matchAll(/--(?!cpx-(?:sys|comp)-)[\w-]+/g)].map(
+      (match) => match[0],
+    )
     if (new Set(systemTokens).size < 2 && localTokens.length === 0) continue
     const matchingException = localTokens
-      .map(token => mixExceptions.get(`${path} -> ${token}`))
+      .map((token) => mixExceptions.get(`${path} -> ${token}`))
       .find(Boolean)
     if (matchingException) matchingException.used = true
-    else errors.push(`feature color-mix must not combine multiple semantic/local colors: ${path}:${lineNumberAt(source, call.offset)}`)
+    else
+      errors.push(
+        `feature color-mix must not combine multiple semantic/local colors: ${path}:${lineNumberAt(source, call.offset)}`,
+      )
   }
 }
 for (const [key, exception] of componentExceptions) {
@@ -290,7 +307,11 @@ const featureTokenCategoryPairs: ReadonlyArray<
 ]
 
 function normalizeFeatureTokenFile(file: string): string {
-  return file.trim().replaceAll('\\', '/').replace(/^\.\/+/, '').replace(/^\/+/, '')
+  return file
+    .trim()
+    .replaceAll('\\', '/')
+    .replace(/^\.\/+/, '')
+    .replace(/^\/+/, '')
 }
 
 function featureTokenKey(
@@ -323,7 +344,8 @@ for (const [category, exceptions] of featureTokenCategoryPairs) {
     const key = featureTokenKey(category, file, property, value, localProperty)
     requireFeatureTokenReason(exception.reason, key)
     if (file.length === 0) errors.push(`feature token exception file must not be empty: ${key}`)
-    if (property.length === 0) errors.push(`feature token exception property must not be empty: ${key}`)
+    if (property.length === 0)
+      errors.push(`feature token exception property must not be empty: ${key}`)
     if (value !== undefined && value.length === 0) {
       errors.push(`feature token exception value must not be empty: ${key}`)
     }
@@ -410,7 +432,9 @@ for (const file of featureTokenScriptFiles) {
   const path = workspacePath(file)
   const usesInteractiveRow = /\binteractive-row(?:--[\w-]+)?\b/.test(source)
   if (usesInteractiveRow && !interactiveRowAllowedFiles.has(path)) {
-    errors.push(`interactive-row is not allowed outside the reviewed menu/nav/summary files: ${path}`)
+    errors.push(
+      `interactive-row is not allowed outside the reviewed menu/nav/summary files: ${path}`,
+    )
   }
   if (/<Button\b[^>]*\baria-(?:pressed|selected)\s*=/s.test(source)) {
     errors.push(`Button must not represent persistent pressed/selected state: ${path}`)
@@ -421,7 +445,7 @@ for (const file of featureTokenScriptFiles) {
 }
 for (const file of interactiveRowAllowedFiles) {
   const absoluteFile = resolve(workspaceRoot, file)
-  const source = await isFile(absoluteFile) ? await readFile(absoluteFile, 'utf8') : undefined
+  const source = (await isFile(absoluteFile)) ? await readFile(absoluteFile, 'utf8') : undefined
   if (source === undefined || !/\binteractive-row(?:--[\w-]+)?\b/.test(source)) {
     errors.push(`stale interactive-row allowed file: ${file}`)
   }
@@ -595,10 +619,7 @@ function nearestRuleBlock(source: string, offset: number): RuleBlock | null {
   let nearest: RuleBlock | null = null
   for (const block of collectRuleBlocks(source)) {
     if (offset < block.bodyStart || offset >= block.bodyEnd) continue
-    if (
-      nearest === null ||
-      block.bodyEnd - block.bodyStart < nearest.bodyEnd - nearest.bodyStart
-    ) {
+    if (nearest === null || block.bodyEnd - block.bodyStart < nearest.bodyEnd - nearest.bodyStart) {
       nearest = block
     }
   }
@@ -652,7 +673,8 @@ function ruleBlockEstablishesStackingContext(
     if (nearest === null || nearest.bodyStart !== block.bodyStart) continue
     const value = declaration.value.trim()
     if (declaration.property === 'isolation' && /^isolate$/i.test(value)) return true
-    if (declaration.property === 'position' && /^(?:relative|absolute|fixed|sticky)$/i.test(value)) return true
+    if (declaration.property === 'position' && /^(?:relative|absolute|fixed|sticky)$/i.test(value))
+      return true
     if (
       (declaration.property === 'transform' ||
         declaration.property === 'filter' ||
@@ -741,8 +763,7 @@ const motionProperties = new Set([
 const motionBareTime = /(?<![\w-])-?\d*\.?\d+(ms|s)\b/g
 const motionTimingFunction = /(?<![\w-])(?:cubic-bezier|steps)\(/
 const motionEasingKeyword = /(?<![\w-])(?:ease-in-out|ease-in|ease-out|ease|linear)(?![\w-])/
-const motionVarReference =
-  /var\(\s*--cpx-sys-(?:motion|ease)-[\w-]+\s*(?:,\s*[^()]*)?\)/g
+const motionVarReference = /var\(\s*--cpx-sys-(?:motion|ease)-[\w-]+\s*(?:,\s*[^()]*)?\)/g
 const shadowResetKeyword = /^(?:none|inherit|initial|unset|revert)$/i
 const systemShadowVarReference =
   /^var\(\s*--cpx-sys-(?:shadow-[\w-]+|focus-ring(?:-[\w-]+)?)\s*(?:,\s*[^()]*)?\)$/i
@@ -777,7 +798,8 @@ const spacingProperties = new Set([
   'column-gap',
 ])
 const systemSpacingVarReference = /^--cpx-sys-(?:space|layout)-[\w-]+$/
-const spacingBareLength = /(?<![\w-])(-?(?:\d+(?:\.\d+)?|\.\d+))(px|rem|em|%|vw|vh|vmin|vmax|ch|ex)\b/g
+const spacingBareLength =
+  /(?<![\w-])(-?(?:\d+(?:\.\d+)?|\.\d+))(px|rem|em|%|vw|vh|vmin|vmax|ch|ex)\b/g
 const localCustomPropertyName = /^--[\w-]+$/
 
 function analyzeSpacingValue(value: string): {
@@ -790,10 +812,12 @@ function analyzeSpacingValue(value: string): {
     const name = call.value.match(/^\s*var\s*\(\s*(--[\w-]+)/)?.[1]
     if (name === undefined) continue
     if (!systemSpacingVarReference.test(name)) localVarReferences.push(name)
-    for (let index = call.offset; index < call.offset + call.value.length; index += 1) masked[index] = ' '
+    for (let index = call.offset; index < call.offset + call.value.length; index += 1)
+      masked[index] = ' '
   }
   for (const call of collectFunctionCalls(value, 'env')) {
-    for (let index = call.offset; index < call.offset + call.value.length; index += 1) masked[index] = ' '
+    for (let index = call.offset; index < call.offset + call.value.length; index += 1)
+      masked[index] = ' '
   }
   let hasBareLength = false
   for (const match of masked.join('').matchAll(spacingBareLength)) {
@@ -859,7 +883,12 @@ for (const [file, declarations] of featureTokenStyleDeclarations) {
       const hasBareLineHeight =
         declaration.property === 'line-height' && bareUnitlessLineHeight.test(declaration.value)
       if (!hasBareLength && !hasBareLineHeight) continue
-      const used = markFeatureTokenUsed('literalTypography', path, declaration.property, declaration.value)
+      const used = markFeatureTokenUsed(
+        'literalTypography',
+        path,
+        declaration.property,
+        declaration.value,
+      )
       if (!used) {
         errors.push(
           `feature styles must not use literal typography ${declaration.value}: ${path}:${lineNumberAt(source, declaration.offset)}`,
@@ -867,7 +896,12 @@ for (const [file, declarations] of featureTokenStyleDeclarations) {
       }
     }
     if (radiusProperties.has(declaration.property) && radiusBareLength.test(declaration.value)) {
-      const used = markFeatureTokenUsed('literalRadius', path, declaration.property, declaration.value)
+      const used = markFeatureTokenUsed(
+        'literalRadius',
+        path,
+        declaration.property,
+        declaration.value,
+      )
       if (!used) {
         errors.push(
           `feature styles must not use literal radius ${declaration.value}: ${path}:${lineNumberAt(source, declaration.offset)}`,
@@ -886,7 +920,12 @@ for (const [file, declarations] of featureTokenStyleDeclarations) {
       if (!hasLiteralMotion) hasLiteralMotion = motionTimingFunction.test(maskedMotion)
       if (!hasLiteralMotion) hasLiteralMotion = motionEasingKeyword.test(maskedMotion)
       if (hasLiteralMotion) {
-        const used = markFeatureTokenUsed('literalMotion', path, declaration.property, declaration.value)
+        const used = markFeatureTokenUsed(
+          'literalMotion',
+          path,
+          declaration.property,
+          declaration.value,
+        )
         if (!used) {
           errors.push(
             `feature styles must not use literal motion ${declaration.value}: ${path}:${lineNumberAt(source, declaration.offset)}`,
@@ -894,10 +933,7 @@ for (const [file, declarations] of featureTokenStyleDeclarations) {
         }
       }
     }
-    if (
-      declaration.property === 'box-shadow' ||
-      declaration.property === 'text-shadow'
-    ) {
+    if (declaration.property === 'box-shadow' || declaration.property === 'text-shadow') {
       if (shadowResetKeyword.test(declaration.value.trim())) continue
       const layers = splitTopLevelList(declaration.value, ',')
       const usesGovernedShadow = layers.every((layer) => {
@@ -907,7 +943,12 @@ for (const [file, declarations] of featureTokenStyleDeclarations) {
         return localName !== undefined && fileLocalCustomProperties.has(localName)
       })
       if (usesGovernedShadow) continue
-      const used = markFeatureTokenUsed('literalShadow', path, declaration.property, declaration.value)
+      const used = markFeatureTokenUsed(
+        'literalShadow',
+        path,
+        declaration.property,
+        declaration.value,
+      )
       if (!used) {
         errors.push(
           `feature styles must not use literal shadow ${declaration.value}: ${path}:${lineNumberAt(source, declaration.offset)}`,
@@ -926,7 +967,12 @@ for (const [file, declarations] of featureTokenStyleDeclarations) {
         return !systemShadowVarReference.test(argument)
       })
       if (!hasLiteralDropShadow) continue
-      const used = markFeatureTokenUsed('literalShadow', path, declaration.property, declaration.value)
+      const used = markFeatureTokenUsed(
+        'literalShadow',
+        path,
+        declaration.property,
+        declaration.value,
+      )
       if (!used) {
         errors.push(
           `feature styles must not use literal shadow ${declaration.value}: ${path}:${lineNumberAt(source, declaration.offset)}`,
@@ -936,7 +982,8 @@ for (const [file, declarations] of featureTokenStyleDeclarations) {
     if (declaration.property === 'z-index') {
       const value = declaration.value.trim()
       if (systemZIndexVarReference.test(value) || zIndexKeyword.test(value)) continue
-      const isBareIntegerInRange = /^-?\d+$/.test(value) && Number(value) >= -1 && Number(value) <= 5
+      const isBareIntegerInRange =
+        /^-?\d+$/.test(value) && Number(value) >= -1 && Number(value) <= 5
       let hasStackingContext = false
       if (isBareIntegerInRange) {
         const block = nearestRuleBlock(source, declaration.offset)
@@ -947,7 +994,12 @@ for (const [file, declarations] of featureTokenStyleDeclarations) {
           ruleBlockEstablishesStackingContext(source, declarations, block)
       }
       if (hasStackingContext) continue
-      const used = markFeatureTokenUsed('literalZIndex', path, declaration.property, declaration.value)
+      const used = markFeatureTokenUsed(
+        'literalZIndex',
+        path,
+        declaration.property,
+        declaration.value,
+      )
       if (!used) {
         errors.push(
           `feature styles must not use literal z-index ${declaration.value}: ${path}:${lineNumberAt(source, declaration.offset)}`,
@@ -970,7 +1022,12 @@ for (const [file, declarations] of featureTokenStyleDeclarations) {
         (name) => !scope.has(name) && !fileLocalCustomProperties.has(name),
       )
       if (!analysis.hasBareLength && !hasUnscopedLocalVar) continue
-      const used = markFeatureTokenUsed('literalSpacing', path, declaration.property, declaration.value)
+      const used = markFeatureTokenUsed(
+        'literalSpacing',
+        path,
+        declaration.property,
+        declaration.value,
+      )
       if (!used) {
         errors.push(
           `feature styles must not use literal spacing ${declaration.value}: ${path}:${lineNumberAt(source, declaration.offset)}`,
@@ -989,7 +1046,10 @@ function lineNumberAt(source: string, offset: number): number {
   return source.slice(0, offset).split('\n').length
 }
 
-function collectFunctionCalls(source: string, name: string): Array<{ value: string; offset: number }> {
+function collectFunctionCalls(
+  source: string,
+  name: string,
+): Array<{ value: string; offset: number }> {
   const calls: Array<{ value: string; offset: number }> = []
   const startPattern = new RegExp(`${escapeRegExp(name)}\\(`, 'g')
   for (const start of source.matchAll(startPattern)) {
@@ -1158,7 +1218,9 @@ for (const file of featureTokenScriptFiles) {
       const used = markFeatureTokenUsed('inlineStyle', path, property, value)
       if (!used) {
         const line = sourceFile.getLineAndCharacterOfPosition(member.getStart(sourceFile)).line + 1
-        errors.push(`feature TSX must not use literal inline style ${property}: ${value}: ${path}:${line}`)
+        errors.push(
+          `feature TSX must not use literal inline style ${property}: ${value}: ${path}:${line}`,
+        )
       }
     }
   }
@@ -1229,11 +1291,14 @@ for (const file of featureTokenScriptFiles) {
 
 const entrypoint = resolve(workspaceRoot, manifest.styleEntrypoint)
 if (!(await isFile(entrypoint)) || !styleExtensions.has(extname(entrypoint))) {
-  errors.push(`styleEntrypoint must point to one existing CSS/SCSS file: ${manifest.styleEntrypoint}`)
+  errors.push(
+    `styleEntrypoint must point to one existing CSS/SCSS file: ${manifest.styleEntrypoint}`,
+  )
 }
 
 const entrypointSource = await readFile(entrypoint, 'utf8')
-const declaredLayerOrder = entrypointSource.match(/@layer\s+([^;]+);/)?.[1]
+const declaredLayerOrder = entrypointSource
+  .match(/@layer\s+([^;]+);/)?.[1]
   .split(',')
   .map((layer) => layer.trim())
 if (
@@ -1241,9 +1306,7 @@ if (
   declaredLayerOrder.length !== manifest.cascadeLayerOrder.length ||
   declaredLayerOrder.some((layer, index) => layer !== manifest.cascadeLayerOrder[index])
 ) {
-  errors.push(
-    `cascade layer order must be: ${manifest.cascadeLayerOrder.join(', ')}`,
-  )
+  errors.push(`cascade layer order must be: ${manifest.cascadeLayerOrder.join(', ')}`)
 }
 
 const loadedLayers = new Set(
@@ -1261,7 +1324,9 @@ const observedEntrypointImporters = new Set<string>()
 
 for (const scriptFile of scriptFiles) {
   const source = await readFile(scriptFile, 'utf8')
-  for (const match of source.matchAll(/import\s+(?:[^'";]+?\s+from\s+)?['"]([^'"]+\.(?:css|scss))['"]/g)) {
+  for (const match of source.matchAll(
+    /import\s+(?:[^'";]+?\s+from\s+)?['"]([^'"]+\.(?:css|scss))['"]/g,
+  )) {
     const target = await resolveStyleReference(scriptFile, match[1])
     if (!target) {
       errors.push(`${workspacePath(scriptFile)} imports a missing style file: ${match[1]}`)
@@ -1317,10 +1382,7 @@ for (const [lazyEntrypoint, expectedLayer] of lazyStyleEntrypoints) {
 }
 for (const directStyleTarget of directStyleTargets) {
   const targetPath = workspacePath(directStyleTarget)
-  if (
-    targetPath !== 'src/styles/tailwind.css' &&
-    !lazyStyleEntrypoints.has(directStyleTarget)
-  ) {
+  if (targetPath !== 'src/styles/tailwind.css' && !lazyStyleEntrypoints.has(directStyleTarget)) {
     errors.push(`direct style target must be a declared lazy entrypoint: ${targetPath}`)
   }
 }
@@ -1340,9 +1402,13 @@ for (const styleFile of styleFiles) {
 
 const utilityPath = resolve(workspaceRoot, manifest.utilityContract.source)
 if (!(await isFile(utilityPath))) {
-  errors.push(`utilityContract.source must point to an existing SCSS file: ${manifest.utilityContract.source}`)
+  errors.push(
+    `utilityContract.source must point to an existing SCSS file: ${manifest.utilityContract.source}`,
+  )
 } else if (!entryGraph.has(utilityPath)) {
-  errors.push(`utility source is outside the single-entry graph: ${manifest.utilityContract.source}`)
+  errors.push(
+    `utility source is outside the single-entry graph: ${manifest.utilityContract.source}`,
+  )
 } else {
   const { prefix, maxSelectors, maxBytes, maxGzipBytes } = manifest.utilityContract
   if (!/^[a-z][a-z0-9]*-$/.test(prefix)) {
@@ -1387,10 +1453,7 @@ if (!(await isFile(utilityPath))) {
     errors.push('utilities must not contain data-theme selectors')
   }
 
-  const utilityReferencePattern = new RegExp(
-    `\\b${escapedPrefix}[a-z0-9]+(?:-[a-z0-9]+)*\\b`,
-    'g',
-  )
+  const utilityReferencePattern = new RegExp(`\\b${escapedPrefix}[a-z0-9]+(?:-[a-z0-9]+)*\\b`, 'g')
   const utilityDefinitionPattern = new RegExp(
     `\\.(${escapedPrefix}[a-z0-9]+(?:-[a-z0-9]+)*)\\b`,
     'g',
@@ -1398,9 +1461,7 @@ if (!(await isFile(utilityPath))) {
   for (const styleFile of styleFiles) {
     if (styleFile === utilityPath) continue
     const source = await readFile(styleFile, 'utf8')
-    const definitions = [...source.matchAll(utilityDefinitionPattern)].map(
-      (match) => match[1],
-    )
+    const definitions = [...source.matchAll(utilityDefinitionPattern)].map((match) => match[1])
     if (definitions.length > 0) {
       errors.push(
         `utility classes may only be defined by ${manifest.utilityContract.source}: ${workspacePath(styleFile)} defines ${[...new Set(definitions)].join(', ')}`,
@@ -1451,7 +1512,10 @@ for (const definition of customPropertyDefinitions) {
   }
 }
 for (const reference of customPropertyReferences) {
-  if (!customPropertyDefinitions.has(reference) && !allowedCustomPropertyReferences.has(reference)) {
+  if (
+    !customPropertyDefinitions.has(reference) &&
+    !allowedCustomPropertyReferences.has(reference)
+  ) {
     errors.push(`undefined custom property reference: ${reference}`)
   }
 }
@@ -1479,7 +1543,9 @@ for (const file of importantFiles) {
   const expected = manifest.importantDeclarationAllowlist[file] ?? 0
   const observed = observedImportantDeclarations[file] ?? 0
   if (expected !== observed) {
-    errors.push(`!important declaration count changed in ${file}: expected ${expected}, observed ${observed}`)
+    errors.push(
+      `!important declaration count changed in ${file}: expected ${expected}, observed ${observed}`,
+    )
   }
 }
 
@@ -1491,7 +1557,9 @@ for (const file of dataThemeFiles) {
   const expected = manifest.dataThemeSelectorAllowlist[file] ?? 0
   const observed = observedDataThemeSelectors[file] ?? 0
   if (expected !== observed) {
-    errors.push(`data-theme selector count changed in ${file}: expected ${expected}, observed ${observed}`)
+    errors.push(
+      `data-theme selector count changed in ${file}: expected ${expected}, observed ${observed}`,
+    )
   }
 }
 
@@ -1589,29 +1657,28 @@ if (skeletonSource.includes('background-attachment')) {
   errors.push('skeleton shimmer must not use background-attachment: fixed repaint sweeps')
 }
 if (/background-position/.test(skeletonSource)) {
-  errors.push('skeleton shimmer must not animate background-position; use a transform translateX sweep')
+  errors.push(
+    'skeleton shimmer must not animate background-position; use a transform translateX sweep',
+  )
 }
 
-for (const [name, selector] of [
-  ['composerStatus', '.composer-status-bar-fill'],
-] as const) {
+for (const [name, selector] of [['composerStatus', '.composer-status-bar-fill']] as const) {
   const source = await readAnimationContractFile(name)
   const block = selectorBlock(source, selector)
   if (!block) {
-    errors.push(`animation contract selector missing in ${animationContractFiles[name]}: ${selector}`)
+    errors.push(
+      `animation contract selector missing in ${animationContractFiles[name]}: ${selector}`,
+    )
     continue
   }
   const properties = transitionProperties(block)
-  if (properties.length === 0 || properties.some(property => property !== 'transform')) {
+  if (properties.length === 0 || properties.some((property) => property !== 'transform')) {
     errors.push(`${selector} must transition only transform (compositor)`)
   }
 }
 
 const layoutSidebarSource = await readAnimationContractFile('layoutSidebar')
-const sidebarExtraBlock = selectorBlock(
-  layoutSidebarSource,
-  '.sidebar-session-list-extra',
-)
+const sidebarExtraBlock = selectorBlock(layoutSidebarSource, '.sidebar-session-list-extra')
 if (!sidebarExtraBlock) {
   errors.push(
     `animation contract selector missing in ${animationContractFiles.layoutSidebar}: .sidebar-session-list-extra`,
@@ -1620,9 +1687,7 @@ if (!sidebarExtraBlock) {
   errors.push('.sidebar-session-list-extra must not carry persistent will-change')
 }
 
-const canonicalConversationSource = await readAnimationContractFile(
-  'canonicalConversation',
-)
+const canonicalConversationSource = await readAnimationContractFile('canonicalConversation')
 const activityContentBlock = nestedSelectorBlock(
   canonicalConversationSource,
   '.canonical-turn-activity',
@@ -1633,9 +1698,7 @@ if (!activityContentBlock) {
     `animation contract selector missing in ${animationContractFiles.canonicalConversation}: .canonical-turn-activity__content`,
   )
 } else if (/will-change\s*:/.test(activityContentBlock)) {
-  errors.push(
-    '.canonical-turn-activity__content must not carry persistent will-change',
-  )
+  errors.push('.canonical-turn-activity__content must not carry persistent will-change')
 }
 
 for (const [name, message] of [

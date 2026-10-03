@@ -1,12 +1,31 @@
 import { useEffect } from 'react'
-import type { FileMenuAction, HelpMenuAction, ViewMenuAction, WindowMenuAction } from '../MenuBar.js'
+import type {
+  FileMenuAction,
+  HelpMenuAction,
+  ViewMenuAction,
+  WindowMenuAction,
+} from '../MenuBar.js'
 import type { CodePilotXDesktopClient } from '../../../services/desktop-client/types.js'
 
 type Action = () => void | Promise<unknown>
 type Options = {
-  client: Pick<CodePilotXDesktopClient, 'closeWindow' | 'newWindow' | 'exitApp' | 'minimizeWindow' | 'toggleWindowMaximized'>
-  bridge: Partial<Pick<NonNullable<Window['codePilotXDesktop']>,
-    'close' | 'openWindow' | 'minimize' | 'toggleMaximize' | 'changePageZoom' | 'quitDuringStartup'>> | undefined
+  client: Pick<
+    CodePilotXDesktopClient,
+    'closeWindow' | 'newWindow' | 'exitApp' | 'minimizeWindow' | 'toggleWindowMaximized'
+  >
+  bridge:
+    | Partial<
+        Pick<
+          NonNullable<Window['codePilotXDesktop']>,
+          | 'close'
+          | 'openWindow'
+          | 'minimize'
+          | 'toggleMaximize'
+          | 'changePageZoom'
+          | 'quitDuringStartup'
+        >
+      >
+    | undefined
   browserAvailable: boolean
   browserOpen: boolean
   canNavigateBack: boolean
@@ -44,7 +63,8 @@ export function createAppMenuActions(options: Options) {
     toggleSidePanel: () => options.togglePanel('right'),
     toggleFileTree: options.openFiles,
     openBrowserTab: options.browserAvailable ? options.openBrowser : undefined,
-    reloadBrowserPage: options.browserAvailable && options.browserOpen ? options.reloadBrowser : undefined,
+    reloadBrowserPage:
+      options.browserAvailable && options.browserOpen ? options.reloadBrowser : undefined,
     back: options.canNavigateBack ? options.navigateBack : undefined,
     forward: options.canNavigateForward ? options.navigateForward : undefined,
     zoomIn: bridge?.changePageZoom ? () => bridge.changePageZoom?.('in') : undefined,
@@ -97,8 +117,15 @@ export function createAppMenuActions(options: Options) {
       else run(help[action])
     },
     handleShortcut: (event: KeyboardEvent): void => {
-      if (!event.ctrlKey || event.metaKey || event.repeat || event.defaultPrevented
-        || event.isComposing || event.keyCode === 229) return
+      if (
+        !event.ctrlKey ||
+        event.metaKey ||
+        event.repeat ||
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.keyCode === 229
+      )
+        return
       const key = event.key.toLowerCase()
       let action: Action | undefined
       if (event.altKey) {
@@ -109,15 +136,33 @@ export function createAppMenuActions(options: Options) {
         else if (event.code === 'Slash') action = help.keyboardShortcuts
       } else {
         switch (key) {
-          case 'n': action = file.newChat; break
-          case 'o': action = file.openFolder; break
-          case 'w': action = file.close; break
-          case ',': action = file.openSettings; break
-          case 'm': action = windowActions.minimize; break
-          case 'r': action = view.reloadBrowserPage; break
-          case 'b': action = view.toggleSidebar; break
-          case 'j': action = view.toggleSidePanel; break
-          case 't': action = view.openBrowserTab; break
+          case 'n':
+            action = file.newChat
+            break
+          case 'o':
+            action = file.openFolder
+            break
+          case 'w':
+            action = file.close
+            break
+          case ',':
+            action = file.openSettings
+            break
+          case 'm':
+            action = windowActions.minimize
+            break
+          case 'r':
+            action = view.reloadBrowserPage
+            break
+          case 'b':
+            action = view.toggleSidebar
+            break
+          case 'j':
+            action = view.toggleSidePanel
+            break
+          case 't':
+            action = view.openBrowserTab
+            break
         }
         if (event.code === 'BracketLeft') action = view.back
         else if (event.code === 'BracketRight') action = view.forward
@@ -135,7 +180,11 @@ export function useAppMenuActions(options: Options) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (document.querySelector('[role="dialog"], [role="alertdialog"], dialog[open]')) return
-      if (event.target instanceof Element && event.target.closest('[data-terminal-keyboard-capture]')) return
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[data-terminal-keyboard-capture]')
+      )
+        return
       actions.handleShortcut(event)
     }
     window.addEventListener('keydown', onKeyDown)

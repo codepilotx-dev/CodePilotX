@@ -1,8 +1,8 @@
-import { describe, expect, test } from "bun:test"
-import { PET_ANIMATIONS } from "../src/features/pet/petAnimationModel"
+import { describe, expect, test } from 'bun:test'
+import { PET_ANIMATIONS } from '../src/features/pet/petAnimationModel'
 
-describe("pet animation atlas contract", () => {
-  test("maps all nine semantic rows and exact frame counts", () => {
+describe('pet animation atlas contract', () => {
+  test('maps all nine semantic rows and exact frame counts', () => {
     expect(
       Object.fromEntries(
         Object.entries(PET_ANIMATIONS).map(([name, animation]) => [
@@ -12,8 +12,8 @@ describe("pet animation atlas contract", () => {
       ),
     ).toEqual({
       idle: [0, 6],
-      "running-right": [1, 8],
-      "running-left": [2, 8],
+      'running-right': [1, 8],
+      'running-left': [2, 8],
       waving: [3, 4],
       jumping: [4, 5],
       failed: [5, 8],
@@ -23,12 +23,10 @@ describe("pet animation atlas contract", () => {
     })
   })
 
-  test("slows idle timing while non-idle animations repeat three times", () => {
-    expect(PET_ANIMATIONS.idle.durations).toEqual([
-      1680, 660, 660, 840, 840, 1920,
-    ])
+  test('slows idle timing while non-idle animations repeat three times', () => {
+    expect(PET_ANIMATIONS.idle.durations).toEqual([1680, 660, 660, 840, 840, 1920])
     for (const [name, animation] of Object.entries(PET_ANIMATIONS)) {
-      if (name === "idle") expect(animation.repeat).toBeNull()
+      if (name === 'idle') expect(animation.repeat).toBeNull()
       else expect(animation.repeat).toBe(3)
     }
   })

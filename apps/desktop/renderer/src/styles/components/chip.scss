@@ -128,7 +128,7 @@
   transition: transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
 }
 
-.menubar-trigger[data-state="open"] {
+.menubar-trigger[data-state='open'] {
   background: var(--cpx-sys-color-selected);
   color: var(--cpx-sys-color-fg-primary);
 }

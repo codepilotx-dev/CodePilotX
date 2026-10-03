@@ -15,13 +15,19 @@ function renderSessionRows(
     <DesktopSettingsProvider access="read-only">
       <SidebarHoverCardProvider>
         <SidebarSessionGroup
-          activeSessionId={null} groupKey="status" now={0}
+          activeSessionId={null}
+          groupKey="status"
+          now={0}
           sessions={sessions}
           pendingPermissionSessionIds={pendingPermissionSessionIds}
-          titleLoadingIds={new Set()} sessionFallbackTitles={{}}
-          onArchiveSessions={async () => true} onPinSession={() => {}}
-          onSelectSession={() => {}} onToggleSessionUnread={() => {}}
-          onRenameSession={async () => true} onUnpinSession={() => {}}
+          titleLoadingIds={new Set()}
+          sessionFallbackTitles={{}}
+          onArchiveSessions={async () => true}
+          onPinSession={() => {}}
+          onSelectSession={() => {}}
+          onToggleSessionUnread={() => {}}
+          onRenameSession={async () => true}
+          onUnpinSession={() => {}}
         />
       </SidebarHoverCardProvider>
     </DesktopSettingsProvider>,
@@ -31,10 +37,15 @@ function renderSessionRows(
 test('sidebar approval replaces the spinner until the session resumes running', () => {
   const project = mockWorkspace('C:\\sidebar-status')
   const base = mockSessionSnapshot('status', project, { workspacePath: project.path }).item
-  const render = (status: SessionListItem['status'], pending = false, latestTurnStatus: SessionListItem['latestTurnStatus'] = null) => renderSessionRows(
-    [{ ...base, status, latestTurnStatus, planModeActive: true, unreadAt: null }],
-    new Set(pending ? [base.id] : []),
-  )
+  const render = (
+    status: SessionListItem['status'],
+    pending = false,
+    latestTurnStatus: SessionListItem['latestTurnStatus'] = null,
+  ) =>
+    renderSessionRows(
+      [{ ...base, status, latestTurnStatus, planModeActive: true, unreadAt: null }],
+      new Set(pending ? [base.id] : []),
+    )
   for (const approval of [render('waiting'), render('running', true)]) {
     expect(approval).toContain('sidebar-session-approval')
     expect(approval).not.toContain('sidebar-session-spinner')
@@ -82,11 +93,15 @@ test('sidebar renders only occupied status icon slots in their existing order', 
   for (const hasScheduledRun of [false, true]) {
     for (const isFork of [false, true]) {
       for (const state of ['idle', 'unread', 'running'] as const) {
-        const markup = renderSessionRows([{
-          ...base, hasScheduledRun, isFork,
-          status: state === 'running' ? 'running' : 'done',
-          unreadAt: state === 'unread' ? 1 : null,
-        }])
+        const markup = renderSessionRows([
+          {
+            ...base,
+            hasScheduledRun,
+            isFork,
+            status: state === 'running' ? 'running' : 'done',
+            unreadAt: state === 'unread' ? 1 : null,
+          },
+        ])
         const labels = [
           ...(hasScheduledRun ? ['日程运行过的会话'] : []),
           ...(isFork ? ['分叉会话'] : []),
@@ -94,8 +109,8 @@ test('sidebar renders only occupied status icon slots in their existing order', 
         ]
         expect(markup.match(/class="sidebar-indicator"/g)?.length ?? 0).toBe(labels.length)
         expect(markup).not.toContain('<span class="sidebar-indicator"></span>')
-        const positions = labels.map(label => markup.indexOf(`aria-label="${label}"`))
-        expect(positions.every(position => position >= 0)).toBe(true)
+        const positions = labels.map((label) => markup.indexOf(`aria-label="${label}"`))
+        expect(positions.every((position) => position >= 0)).toBe(true)
         expect(positions).toEqual([...positions].sort((a, b) => a - b))
       }
     }

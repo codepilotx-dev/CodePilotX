@@ -3,14 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import type { CalendarOccurrence } from '@codepilotx/shared/calendar'
 import * as Popover from '@radix-ui/react-popover'
-import {
-  Calendar,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  MessageSquare,
-  Play,
-} from 'lucide-react'
+import { Calendar, ChevronDown, ChevronLeft, ChevronRight, MessageSquare, Play } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import {
   addCalendarMonths,
@@ -44,12 +37,7 @@ const MONTH_LABELS = [
   '12月',
 ] as const
 
-export type CalendarStatusKind =
-  | 'info'
-  | 'warning'
-  | 'accent'
-  | 'success'
-  | 'danger'
+export type CalendarStatusKind = 'info' | 'warning' | 'accent' | 'success' | 'danger'
 
 type Props = {
   occurrences: readonly CalendarOccurrence[]
@@ -80,11 +68,8 @@ export function AutomationCalendar({
   onOpenThread,
 }: Props): React.ReactNode {
   const today = useMemo(() => new Date(), [])
-  const initialDate =
-    parseDateValue(selectedDate ?? defaultSelectedDate) ?? today
-  const [internalSelectedDate, setInternalSelectedDate] = useState(
-    formatDateValue(initialDate),
-  )
+  const initialDate = parseDateValue(selectedDate ?? defaultSelectedDate) ?? today
+  const [internalSelectedDate, setInternalSelectedDate] = useState(formatDateValue(initialDate))
   const activeDateValue = selectedDate ?? internalSelectedDate
 
   const [visibleMonth, setVisibleMonth] = useState(
@@ -109,7 +94,7 @@ export function AutomationCalendar({
     const targetYear = visibleMonth.getFullYear()
     const targetMonth = visibleMonth.getMonth()
     return occurrences
-      .filter(item => {
+      .filter((item) => {
         const d = new Date(item.scheduledFor)
         return d.getFullYear() === targetYear && d.getMonth() === targetMonth
       })
@@ -117,15 +102,9 @@ export function AutomationCalendar({
       .sort((a, b) => a.scheduledFor - b.scheduledFor || a.title.localeCompare(b.title, 'zh-CN'))
   }, [occurrences, visibleMonth])
 
-  const occurrencesByDate = useMemo(
-    () => calendarOccurrencesByDate(occurrences),
-    [occurrences],
-  )
+  const occurrencesByDate = useMemo(() => calendarOccurrencesByDate(occurrences), [occurrences])
 
-  const monthCells = useMemo(
-    () => calendarDates(visibleMonth, today),
-    [visibleMonth, today],
-  )
+  const monthCells = useMemo(() => calendarDates(visibleMonth, today), [visibleMonth, today])
 
   // Notify visible 42-day range
   useEffect(() => {
@@ -164,12 +143,9 @@ export function AutomationCalendar({
       parsed.getFullYear() !== visibleMonth.getFullYear() ||
       parsed.getMonth() !== visibleMonth.getMonth()
     ) {
-      setVisibleMonth(
-        new Date(parsed.getFullYear(), parsed.getMonth(), 1, 12),
-      )
+      setVisibleMonth(new Date(parsed.getFullYear(), parsed.getMonth(), 1, 12))
     }
   }, [selectedDate, visibleMonth])
-
 
   function selectDate(date: Date): void {
     const value = formatDateValue(date)
@@ -241,14 +217,10 @@ export function AutomationCalendar({
         next.getFullYear() !== visibleMonth.getFullYear() ||
         next.getMonth() !== visibleMonth.getMonth()
       ) {
-        setVisibleMonth(
-          new Date(next.getFullYear(), next.getMonth(), 1, 12),
-        )
+        setVisibleMonth(new Date(next.getFullYear(), next.getMonth(), 1, 12))
       }
       const nextValue = formatDateValue(next)
-      const target = document.querySelector<HTMLElement>(
-        `[data-calendar-date="${nextValue}"]`,
-      )
+      const target = document.querySelector<HTMLElement>(`[data-calendar-date="${nextValue}"]`)
       target?.focus()
     }
   }
@@ -286,9 +258,7 @@ export function AutomationCalendar({
                 className="automation-calendar__month-trigger"
                 aria-label={`选择年月，当前为 ${monthLabel(visibleMonth)}`}
               >
-                <h2 className="automation-calendar__period">
-                  {monthLabel(visibleMonth)}
-                </h2>
+                <h2 className="automation-calendar__period">{monthLabel(visibleMonth)}</h2>
                 <ChevronDown
                   size={APP_ICON_SIZES.sm}
                   aria-hidden="true"
@@ -309,19 +279,17 @@ export function AutomationCalendar({
                     color="ghost"
                     title="上一年"
                     aria-label="上一年"
-                    onClick={() => setPickerYear(y => y - 1)}
+                    onClick={() => setPickerYear((y) => y - 1)}
                   >
                     <ChevronLeft size={APP_ICON_SIZES.sm} />
                   </IconButton>
-                  <span className="automation-calendar__year-label">
-                    {pickerYear}年
-                  </span>
+                  <span className="automation-calendar__year-label">{pickerYear}年</span>
                   <IconButton
                     size="iconSm"
                     color="ghost"
                     title="下一年"
                     aria-label="下一年"
-                    onClick={() => setPickerYear(y => y + 1)}
+                    onClick={() => setPickerYear((y) => y + 1)}
                   >
                     <ChevronRight size={APP_ICON_SIZES.sm} />
                   </IconButton>
@@ -329,8 +297,7 @@ export function AutomationCalendar({
                 <div className="automation-calendar__month-grid">
                   {MONTH_LABELS.map((name, index) => {
                     const isCurrent =
-                      visibleMonth.getFullYear() === pickerYear &&
-                      visibleMonth.getMonth() === index
+                      visibleMonth.getFullYear() === pickerYear && visibleMonth.getMonth() === index
                     return (
                       <button
                         key={name}
@@ -384,11 +351,9 @@ export function AutomationCalendar({
                 </div>
                 <div className="automation-calendar__tasks-popover-list" role="list">
                   {currentMonthOccurrences.length === 0 ? (
-                    <div className="automation-calendar__tasks-popover-empty">
-                      当月暂无任务
-                    </div>
+                    <div className="automation-calendar__tasks-popover-empty">当月暂无任务</div>
                   ) : (
-                    currentMonthOccurrences.map(occ => {
+                    currentMonthOccurrences.map((occ) => {
                       const occDate = new Date(occ.scheduledFor)
                       const dateText = `${occDate.getMonth() + 1}月${occDate.getDate()}日`
                       const timeText = timeLabel(occ.scheduledFor)
@@ -464,12 +429,8 @@ export function AutomationCalendar({
       {/* Compact Month Calendar Grid */}
       <div className="automation-calendar__month-view">
         <div className="automation-calendar__weekdays" role="row">
-          {WEEKDAYS.map(name => (
-            <span
-              key={name}
-              className="automation-calendar__weekday"
-              role="columnheader"
-            >
+          {WEEKDAYS.map((name) => (
+            <span key={name} className="automation-calendar__weekday" role="columnheader">
               {name}
             </span>
           ))}
@@ -480,7 +441,7 @@ export function AutomationCalendar({
           aria-label="任务日历"
           onKeyDown={handleGridKeyDown}
         >
-          {monthCells.map(cell => {
+          {monthCells.map((cell) => {
             const cellOccurrences = occurrencesByDate.get(cell.value) ?? []
             const visibleDots = cellOccurrences.slice(0, 4)
             const overflow = cellOccurrences.length - 4
@@ -512,9 +473,7 @@ export function AutomationCalendar({
                     />
                   ))}
                   {overflow > 0 ? (
-                    <span className="automation-calendar__dot-overflow">
-                      +{overflow}
-                    </span>
+                    <span className="automation-calendar__dot-overflow">+{overflow}</span>
                   ) : null}
                 </div>
               </button>
@@ -545,19 +504,17 @@ export function AutomationCalendar({
                 size={APP_ICON_SIZES.lg}
                 aria-hidden="true"
               />
-              <p className="automation-calendar__agenda-empty-text">
-                当日暂无任务
-              </p>
+              <p className="automation-calendar__agenda-empty-text">当日暂无任务</p>
             </div>
           ) : (
-            sortedOccurrences.map(occurrence => (
+            sortedOccurrences.map((occurrence) => (
               <div
                 key={occurrence.id}
                 className="automation-calendar__agenda-item"
                 role="button"
                 tabIndex={0}
                 onClick={() => onOccurrenceSelect(occurrence)}
-                onKeyDown={e => {
+                onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
                     onOccurrenceSelect(occurrence)
@@ -574,9 +531,7 @@ export function AutomationCalendar({
                   />
                 </div>
                 <div className="automation-calendar__agenda-main">
-                  <span className="automation-calendar__agenda-item-title">
-                    {occurrence.title}
-                  </span>
+                  <span className="automation-calendar__agenda-item-title">{occurrence.title}</span>
                   <span className="automation-calendar__agenda-item-meta">
                     {sourceLabel(occurrence)} · {statusLabel(occurrence.status)}
                   </span>
@@ -588,7 +543,7 @@ export function AutomationCalendar({
                       color="ghost"
                       title="立即运行"
                       aria-label="立即运行"
-                      onClick={e => {
+                      onClick={(e) => {
                         e.stopPropagation()
                         onRunOccurrence(occurrence)
                       }}
@@ -602,7 +557,7 @@ export function AutomationCalendar({
                       color="ghost"
                       title="查看会话"
                       aria-label="查看会话"
-                      onClick={e => {
+                      onClick={(e) => {
                         e.stopPropagation()
                         onOpenThread(occurrence.threadId!)
                       }}
@@ -629,12 +584,7 @@ function isSameDate(a: Date, b: Date): boolean {
 }
 
 function addDays(date: Date, amount: number): Date {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate() + amount,
-    12,
-  )
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount, 12)
 }
 
 function monthLabel(date: Date): string {
@@ -667,15 +617,10 @@ export function sourceLabel(occurrence: CalendarOccurrence): string {
   return occurrence.definitionKind === 'recurring' ? '重复计划' : '计划任务'
 }
 
-export function occurrenceStatusKind(
-  occurrence: CalendarOccurrence,
-): CalendarStatusKind {
+export function occurrenceStatusKind(occurrence: CalendarOccurrence): CalendarStatusKind {
   if (occurrence.source.kind === 'automation') {
     if (occurrence.status === 'completed') return 'success'
-    if (
-      occurrence.status === 'failed' ||
-      occurrence.status === 'interrupted'
-    ) {
+    if (occurrence.status === 'failed' || occurrence.status === 'interrupted') {
       return 'danger'
     }
     if (

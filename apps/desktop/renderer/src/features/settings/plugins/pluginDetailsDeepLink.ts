@@ -30,19 +30,17 @@ export function resolvePluginDetailsDeepLink(
 
   const from = safeInternalRoute(params.get('from'))
   if (pluginId) {
-    const item = pluginItems.find(candidate => candidate.id === pluginId)
+    const item = pluginItems.find((candidate) => candidate.id === pluginId)
     return item ? { kind: 'plugin', item, from } : null
   }
 
-  const skill = skills.find(candidate =>
-    candidate.path === skillPath && isBuiltinSkill(candidate),
+  const skill = skills.find(
+    (candidate) => candidate.path === skillPath && isBuiltinSkill(candidate),
   )
   return skill ? { kind: 'skill', skill, from } : null
 }
 
-export function clearPluginDetailsDeepLink(
-  params: URLSearchParams,
-): URLSearchParams {
+export function clearPluginDetailsDeepLink(params: URLSearchParams): URLSearchParams {
   const next = new URLSearchParams(params)
   next.delete('plugin')
   next.delete('skill')

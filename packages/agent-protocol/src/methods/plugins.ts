@@ -1,30 +1,21 @@
-import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../wire/definition"
+import { Schema } from 'effect'
+import { defineMethod, type MethodMap } from '../wire/definition'
 import {
   NonEmptyStringSchema,
   OperationParamsSchema,
   SequenceSchema,
   TimestampSchema,
-} from "../wire/primitives"
+} from '../wire/primitives'
 
-export const PluginSourceSchema = Schema.Literals([
-  "bundled",
-  "workspace",
-  "personal",
-  "installed",
-])
+export const PluginSourceSchema = Schema.Literals(['bundled', 'workspace', 'personal', 'installed'])
 
 export const PluginInstallationPolicySchema = Schema.Literals([
-  "NOT_AVAILABLE",
-  "AVAILABLE",
-  "INSTALLED_BY_DEFAULT",
+  'NOT_AVAILABLE',
+  'AVAILABLE',
+  'INSTALLED_BY_DEFAULT',
 ])
 
-export const PluginStatusSchema = Schema.Literals([
-  "ready",
-  "unavailable",
-  "invalid",
-])
+export const PluginStatusSchema = Schema.Literals(['ready', 'unavailable', 'invalid'])
 
 export const PluginSummarySchema = Schema.Struct({
   id: NonEmptyStringSchema,
@@ -90,38 +81,38 @@ export const PluginSetEnabledResultSchema = Schema.Struct({
 })
 
 const PluginErrors = [
-  "PLUGIN_NOT_FOUND",
-  "PLUGIN_NOT_INSTALLED",
-  "PLUGIN_INVALID",
-  "CONFLICT",
-  "PATH_DENIED",
-  "INTERNAL_ERROR",
+  'PLUGIN_NOT_FOUND',
+  'PLUGIN_NOT_INSTALLED',
+  'PLUGIN_INVALID',
+  'CONFLICT',
+  'PATH_DENIED',
+  'INTERNAL_ERROR',
 ] as const
 
 export const PluginRpcMethods = {
-  "plugin/list": defineMethod({
+  'plugin/list': defineMethod({
     params: PluginListParamsSchema,
     result: PluginListResultSchema,
     errors: PluginErrors,
-    capability: "plugins.manage.v1",
+    capability: 'plugins.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "plugin/getDetails": defineMethod({
+  'plugin/getDetails': defineMethod({
     params: PluginGetDetailsParamsSchema,
     result: PluginGetDetailsResultSchema,
     errors: PluginErrors,
-    capability: "plugins.details.v1",
+    capability: 'plugins.details.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "plugin/setEnabled": defineMethod({
+  'plugin/setEnabled': defineMethod({
     params: PluginSetEnabledParamsSchema,
     result: PluginSetEnabledResultSchema,
     errors: PluginErrors,
-    capability: "plugins.manage.v1",
+    capability: 'plugins.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,

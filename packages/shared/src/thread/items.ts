@@ -1,5 +1,5 @@
-import { Model } from "@codepilotx/model-schema"
-import { Option, Schema } from "effect"
+import { Model } from '@codepilotx/model-schema'
+import { Option, Schema } from 'effect'
 import {
   RESULT_CARD_ENVELOPE_KIND,
   RESULT_CARD_ENVELOPE_VERSION,
@@ -8,7 +8,7 @@ import {
   RESULT_CARD_MAX_SECTIONS,
   RESULT_CARD_TEXT_MAX_LENGTH,
   RESULT_CARD_TITLE_MAX_LENGTH,
-} from "../thread-result-card"
+} from '../thread-result-card'
 import {
   AdditionalPermissionsSchema,
   PermissionConfigSchema,
@@ -16,24 +16,27 @@ import {
   RiskCategorySchema,
   ShellInputSchema,
   ShellReviewSchema,
-} from "./permission"
-import { TaskModeSchema } from "./settings"
+} from './permission'
+import { TaskModeSchema } from './settings'
 import {
   AgentExecutionSchema,
   SubagentProfileSchema,
   SubagentQueueReasonSchema,
   SubagentResultSchema,
   SubagentStatusSchema,
-} from "./subagent"
-import { TurnSchema } from "./schema"
+} from './subagent'
+import { TurnSchema } from './schema'
 
-export const InputDeliverySchema = Schema.Literals(["start", "steer", "follow-up"])
+export const InputDeliverySchema = Schema.Literals(['start', 'steer', 'follow-up'])
 export type InputDelivery = typeof InputDeliverySchema.Type
 
-export const InputOriginSchema = Schema.Literals(["user", "goal-continuation"])
+export const InputOriginSchema = Schema.Literals(['user', 'goal-continuation'])
 export type InputOrigin = typeof InputOriginSchema.Type
 
-export const SkillSelectionSchema = Schema.Struct({ name: Schema.String.check(Schema.isMinLength(1)), path: Schema.String.check(Schema.isMinLength(1)) })
+export const SkillSelectionSchema = Schema.Struct({
+  name: Schema.String.check(Schema.isMinLength(1)),
+  path: Schema.String.check(Schema.isMinLength(1)),
+})
 export type SkillSelection = typeof SkillSelectionSchema.Type
 
 export const InputSchema = Schema.Struct({
@@ -49,7 +52,7 @@ export const InputSchema = Schema.Struct({
   permissionConfig: PermissionConfigSchema,
   attachmentIds: Schema.optional(Schema.Array(Schema.String)),
   contextReferenceIds: Schema.optional(Schema.Array(Schema.String)),
-  state: Schema.Literals(["queued", "merged", "active", "completed", "cancelled"]),
+  state: Schema.Literals(['queued', 'merged', 'active', 'completed', 'cancelled']),
   createdAt: Schema.Number,
 })
 export type Input = typeof InputSchema.Type
@@ -58,38 +61,38 @@ export const MessageSchema = Schema.Struct({
   id: Schema.String,
   threadId: Schema.String,
   turnId: Schema.NullOr(Schema.String),
-  role: Schema.Literals(["user", "assistant", "system"]),
+  role: Schema.Literals(['user', 'assistant', 'system']),
   createdAt: Schema.Number,
 })
 export type Message = typeof MessageSchema.Type
 
 export const ToolStateSchema = Schema.Literals([
-  "pending",
-  "waiting-permission",
-  "running",
-  "completed",
-  "error",
-  "interrupted",
+  'pending',
+  'waiting-permission',
+  'running',
+  'completed',
+  'error',
+  'interrupted',
 ])
 export type ToolState = typeof ToolStateSchema.Type
 
 /** Rich tool-result block projected from any provider protocol. */
 export const ToolResultBlockSchema = Schema.Union([
   Schema.Struct({
-    type: Schema.Literal("text"),
+    type: Schema.Literal('text'),
     text: Schema.String,
   }),
   Schema.Struct({
-    type: Schema.Literal("citation"),
+    type: Schema.Literal('citation'),
     title: Schema.optional(Schema.String),
     url: Schema.String,
   }),
   Schema.Struct({
-    type: Schema.Literal("json"),
+    type: Schema.Literal('json'),
     value: Schema.Json,
   }),
   Schema.Struct({
-    type: Schema.Literal("artifact"),
+    type: Schema.Literal('artifact'),
     artifactId: Schema.String,
     name: Schema.String,
     mimeType: Schema.String,
@@ -106,7 +109,7 @@ export type ToolResultBlock = typeof ToolResultBlockSchema.Type
  * `decodeResultCardEnvelope` from `@codepilotx/shared/thread-result-card`; this
  * schema is the strict shape those normalized envelopes must satisfy.
  */
-export const ResultCardToneSchema = Schema.Literals(["neutral", "success", "warning", "danger"])
+export const ResultCardToneSchema = Schema.Literals(['neutral', 'success', 'warning', 'danger'])
 /** Non-blank text: the normalizing decoder trims, this schema rejects blanks. */
 const resultCardText = (maxLength: number) =>
   Schema.String.check(Schema.isPattern(/\S/)).check(Schema.isMaxLength(maxLength))
@@ -122,7 +125,7 @@ export const ResultCardSectionSchema = Schema.Struct({
     .check(Schema.isMaxLength(RESULT_CARD_MAX_ITEMS)),
 })
 export const ResultCardReferenceSchema = Schema.Struct({
-  kind: Schema.Literals(["file", "url", "thread", "subagent"]),
+  kind: Schema.Literals(['file', 'url', 'thread', 'subagent']),
   value: resultCardText(RESULT_CARD_TEXT_MAX_LENGTH),
   label: Schema.optional(resultCardText(RESULT_CARD_TITLE_MAX_LENGTH)),
 })
@@ -133,8 +136,12 @@ export const ResultCardEnvelopeSchema = Schema.Struct({
     title: resultCardText(RESULT_CARD_TITLE_MAX_LENGTH),
     summary: resultCardText(RESULT_CARD_TEXT_MAX_LENGTH),
     tone: ResultCardToneSchema,
-    sections: Schema.Array(ResultCardSectionSchema).check(Schema.isMaxLength(RESULT_CARD_MAX_SECTIONS)),
-    references: Schema.Array(ResultCardReferenceSchema).check(Schema.isMaxLength(RESULT_CARD_MAX_REFERENCES)),
+    sections: Schema.Array(ResultCardSectionSchema).check(
+      Schema.isMaxLength(RESULT_CARD_MAX_SECTIONS),
+    ),
+    references: Schema.Array(ResultCardReferenceSchema).check(
+      Schema.isMaxLength(RESULT_CARD_MAX_REFERENCES),
+    ),
   }),
 })
 
@@ -173,7 +180,9 @@ export const InteractionQuestionSchema = Schema.Struct({
   id: QuestionTextSchema,
   header: QuestionTextSchema.check(Schema.isMaxLength(12)),
   prompt: QuestionTextSchema,
-  choices: Schema.Array(InteractionQuestionChoiceSchema).check(Schema.isMinLength(2)).check(Schema.isMaxLength(3)),
+  choices: Schema.Array(InteractionQuestionChoiceSchema)
+    .check(Schema.isMinLength(2))
+    .check(Schema.isMaxLength(3)),
   allowFreeform: Schema.Literal(true),
   required: Schema.Literal(true),
   minAnswers: Schema.optional(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))),
@@ -203,10 +212,10 @@ export const TextItemSchema = Schema.Struct({
   messageID: Schema.String,
   turnId: Schema.String,
   agentId: Schema.String,
-  type: Schema.Literal("text"),
-  placement: Schema.Literals(["process", "result"]),
+  type: Schema.Literal('text'),
+  placement: Schema.Literals(['process', 'result']),
   text: Schema.String,
-  status: Schema.Literals(["streaming", "completed", "interrupted"]),
+  status: Schema.Literals(['streaming', 'completed', 'interrupted']),
   usage: Schema.optional(ModelUsageSchema),
   /** Safe completion metadata reported by the provider for this response. */
   completion: Schema.optional(ToolCompletionMetadataSchema),
@@ -220,9 +229,9 @@ export const ReasoningItemSchema = Schema.Struct({
   messageID: Schema.String,
   turnId: Schema.String,
   agentId: Schema.String,
-  type: Schema.Literal("reasoning"),
+  type: Schema.Literal('reasoning'),
   text: Schema.String,
-  status: Schema.Literals(["streaming", "completed", "interrupted"]),
+  status: Schema.Literals(['streaming', 'completed', 'interrupted']),
   ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })
@@ -231,7 +240,7 @@ export type ReasoningItem = typeof ReasoningItemSchema.Type
 export const ActivityCommandSchema = Schema.Struct({
   command: Schema.String,
   output: Schema.String,
-  status: Schema.optional(Schema.Literals(["success", "running", "error", "interrupted"])),
+  status: Schema.optional(Schema.Literals(['success', 'running', 'error', 'interrupted'])),
   truncated: Schema.optional(Schema.Boolean),
 })
 export type ActivityCommand = typeof ActivityCommandSchema.Type
@@ -241,12 +250,12 @@ export const ActivityItemSchema = Schema.Struct({
   messageID: Schema.String,
   turnId: Schema.String,
   agentId: Schema.String,
-  type: Schema.Literal("activity"),
-  activity: Schema.Literals(["context-compression", "file-edit", "build", "notice"]),
+  type: Schema.Literal('activity'),
+  activity: Schema.Literals(['context-compression', 'file-edit', 'build', 'notice']),
   title: Schema.String,
   detail: Schema.optional(Schema.String),
   commands: Schema.optional(Schema.Array(ActivityCommandSchema)),
-  status: Schema.Literals(["running", "completed", "error", "interrupted"]),
+  status: Schema.Literals(['running', 'completed', 'error', 'interrupted']),
   ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })
@@ -260,7 +269,7 @@ export type ToolActivityTarget = typeof ToolActivityTargetSchema.Type
 
 export const ToolActivityFileChangeSchema = Schema.Struct({
   path: Schema.String,
-  operation: Schema.Literals(["write", "create", "update", "delete"]),
+  operation: Schema.Literals(['write', 'create', 'update', 'delete']),
   additions: Schema.optional(Schema.Number),
   deletions: Schema.optional(Schema.Number),
 })
@@ -269,46 +278,46 @@ export type ToolActivityFileChange = typeof ToolActivityFileChangeSchema.Type
 /** Presentation-neutral semantic activity projected for tool timelines. */
 export const ToolActivityDescriptorSchema = Schema.Union([
   Schema.Struct({
-    type: Schema.Literal("read"),
-    subject: Schema.Literals(["file", "skill"]),
+    type: Schema.Literal('read'),
+    subject: Schema.Literals(['file', 'skill']),
     target: Schema.optional(ToolActivityTargetSchema),
   }),
   Schema.Struct({
-    type: Schema.Literal("search"),
+    type: Schema.Literal('search'),
     query: Schema.optional(Schema.String),
     path: Schema.optional(ToolActivityTargetSchema),
     filesOnly: Schema.optional(Schema.Boolean),
   }),
   Schema.Struct({
-    type: Schema.Literal("list_files"),
+    type: Schema.Literal('list_files'),
     path: Schema.optional(ToolActivityTargetSchema),
   }),
   Schema.Struct({
-    type: Schema.Literal("file_change"),
+    type: Schema.Literal('file_change'),
     changes: Schema.Array(ToolActivityFileChangeSchema),
   }),
   Schema.Struct({
-    type: Schema.Literal("command"),
+    type: Schema.Literal('command'),
     kind: Schema.Literals([
-      "generic",
-      "format",
-      "test",
-      "lint",
-      "noop",
-      "current_time",
-      "skill_script",
+      'generic',
+      'format',
+      'test',
+      'lint',
+      'noop',
+      'current_time',
+      'skill_script',
     ]),
     skillName: Schema.optional(Schema.String),
     scriptName: Schema.optional(Schema.String),
   }),
-  Schema.Struct({ type: Schema.Literal("web_search") }),
+  Schema.Struct({ type: Schema.Literal('web_search') }),
   Schema.Struct({
-    type: Schema.Literal("integration"),
+    type: Schema.Literal('integration'),
     source: Schema.optional(Schema.String),
   }),
   Schema.Struct({
-    type: Schema.Literal("tool"),
-    mode: Schema.Literals(["search", "load", "call"]),
+    type: Schema.Literal('tool'),
+    mode: Schema.Literals(['search', 'load', 'call']),
     name: Schema.optional(Schema.String),
   }),
 ])
@@ -319,7 +328,7 @@ export const ToolItemSchema = Schema.Struct({
   messageID: Schema.String,
   turnId: Schema.String,
   agentId: Schema.String,
-  type: Schema.Literal("tool"),
+  type: Schema.Literal('tool'),
   callID: Schema.String,
   tool: Schema.String,
   title: Schema.String,
@@ -357,8 +366,9 @@ export const StructuredPlanChangeSchema = Schema.Struct({
 })
 export type StructuredPlanChange = typeof StructuredPlanChangeSchema.Type
 
-const structuredPlanList = Schema.Array(structuredPlanText(STRUCTURED_PLAN_MAX_TEXT_LENGTH))
-  .check(Schema.isMaxLength(STRUCTURED_PLAN_MAX_LIST_ITEMS))
+const structuredPlanList = Schema.Array(structuredPlanText(STRUCTURED_PLAN_MAX_TEXT_LENGTH)).check(
+  Schema.isMaxLength(STRUCTURED_PLAN_MAX_LIST_ITEMS),
+)
 
 /**
  * 固定领域 schema：模型只能提交内容，不能提交组件名、样式或任意 Renderer props。
@@ -377,7 +387,7 @@ export const StructuredPlanSchema = Schema.Struct({
 export type StructuredPlan = typeof StructuredPlanSchema.Type
 
 const decodeStructuredPlanOption = Schema.decodeUnknownOption(StructuredPlanSchema, {
-  onExcessProperty: "error",
+  onExcessProperty: 'error',
 })
 
 /** 校验存储或 RPC 中未知来源的结构化计划；非法对象返回 null，调用方回退到 Markdown。 */
@@ -386,22 +396,22 @@ export const decodeStructuredPlan = (value: unknown): StructuredPlan | null =>
 
 /** 结构化计划到 Markdown 的确定性投影，作为审批、复制和历史客户端的兼容表示。 */
 export const formatStructuredPlanMarkdown = (plan: StructuredPlan): string => {
-  const lines = [`# ${plan.title.trim()}`, "", plan.summary.trim(), "", "## 实现变更"]
+  const lines = [`# ${plan.title.trim()}`, '', plan.summary.trim(), '', '## 实现变更']
   for (const change of plan.changes) {
     lines.push(`### ${change.area.trim()}`)
     for (const item of change.items) lines.push(`- ${item.trim()}`)
   }
   const sections: ReadonlyArray<readonly [string, readonly string[]]> = [
-    ["接口变化", plan.interfaceChanges],
-    ["测试", plan.tests],
-    ["假设", plan.assumptions],
+    ['接口变化', plan.interfaceChanges],
+    ['测试', plan.tests],
+    ['假设', plan.assumptions],
   ]
   for (const [heading, items] of sections) {
     if (items.length === 0) continue
-    lines.push("", `## ${heading}`)
+    lines.push('', `## ${heading}`)
     for (const item of items) lines.push(`- ${item.trim()}`)
   }
-  return lines.join("\n")
+  return lines.join('\n')
 }
 
 export const PlanItemSchema = Schema.Struct({
@@ -409,12 +419,12 @@ export const PlanItemSchema = Schema.Struct({
   messageID: Schema.String,
   turnId: Schema.String,
   agentId: Schema.String,
-  type: Schema.Literal("plan"),
+  type: Schema.Literal('plan'),
   title: Schema.String,
   markdown: Schema.String,
   /** 新计划的结构化真源；历史纯 Markdown 计划缺少该字段时继续正常解码。 */
   structured: Schema.optional(StructuredPlanSchema),
-  status: Schema.Literals(["streaming", "completed", "interrupted"]),
+  status: Schema.Literals(['streaming', 'completed', 'interrupted']),
   ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })
@@ -422,7 +432,7 @@ export type PlanItem = typeof PlanItemSchema.Type
 
 export const ExecutionPlanStepSchema = Schema.Struct({
   step: Schema.String,
-  status: Schema.Literals(["pending", "in_progress", "completed"]),
+  status: Schema.Literals(['pending', 'in_progress', 'completed']),
 })
 export type ExecutionPlanStep = typeof ExecutionPlanStepSchema.Type
 
@@ -431,10 +441,10 @@ export const ExecutionPlanItemSchema = Schema.Struct({
   messageID: Schema.String,
   turnId: Schema.String,
   agentId: Schema.String,
-  type: Schema.Literal("execution-plan"),
+  type: Schema.Literal('execution-plan'),
   explanation: Schema.optional(Schema.String),
   steps: Schema.Array(ExecutionPlanStepSchema),
-  status: Schema.Literals(["streaming", "completed", "interrupted"]),
+  status: Schema.Literals(['streaming', 'completed', 'interrupted']),
   ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
 })
@@ -445,10 +455,10 @@ export const QuestionItemSchema = Schema.Struct({
   messageID: Schema.String,
   turnId: Schema.String,
   agentId: Schema.String,
-  type: Schema.Literal("question"),
+  type: Schema.Literal('question'),
   prompt: Schema.String,
   choices: Schema.Array(QuestionChoiceSchema),
-  status: Schema.Literals(["pending", "answered", "ignored", "cancelled"]),
+  status: Schema.Literals(['pending', 'answered', 'ignored', 'cancelled']),
   answer: Schema.NullOr(Schema.String),
   questions: Schema.optional(Schema.Array(InteractionQuestionSchema)),
   answers: Schema.optional(Schema.Array(InteractionQuestionAnswerSchema)),
@@ -466,12 +476,12 @@ export const PatchItemSchema = Schema.Struct({
   messageID: Schema.String,
   turnId: Schema.String,
   agentId: Schema.String,
-  type: Schema.Literal("patch"),
+  type: Schema.Literal('patch'),
   files: Schema.Array(EditedFileSchema),
   totalAdditions: Schema.Number,
   totalDeletions: Schema.Number,
   reversible: Schema.optional(Schema.Boolean),
-  applyState: Schema.optional(Schema.Literals(["applied", "undone"])),
+  applyState: Schema.optional(Schema.Literals(['applied', 'undone'])),
   actionVersion: Schema.optional(Schema.Number),
   ordinal: Schema.optional(Schema.Number),
   createdAt: Schema.Number,
@@ -483,7 +493,7 @@ export const SubagentItemSchema = Schema.Struct({
   messageID: Schema.String,
   turnId: Schema.String,
   agentId: Schema.String,
-  type: Schema.Literal("subagent"),
+  type: Schema.Literal('subagent'),
   subagentTaskId: Schema.String,
   runId: Schema.String,
   childThreadId: Schema.String,
@@ -513,7 +523,7 @@ export type Item = typeof ItemSchema.Type
 
 export const ToolAffectedPathSchema = Schema.Struct({
   path: Schema.String,
-  operation: Schema.Literals(["create", "update"]),
+  operation: Schema.Literals(['create', 'update']),
 })
 export type ToolAffectedPath = typeof ToolAffectedPathSchema.Type
 
@@ -539,24 +549,26 @@ export const ApprovalRequestSchema = Schema.Struct({
   reviewSummary: Schema.optional(ToolReviewSummarySchema),
   requestedPermissions: AdditionalPermissionsSchema,
   review: Schema.NullOr(ShellReviewSchema),
-  risk: Schema.Literals(["low", "medium", "high", "critical"]),
+  risk: Schema.Literals(['low', 'medium', 'high', 'critical']),
   reason: Schema.String,
-  status: Schema.Literals(["pending", "allowed", "denied", "cancelled"]),
+  status: Schema.Literals(['pending', 'allowed', 'denied', 'cancelled']),
   createdAt: Schema.Number,
   // Optional dynamic permission-grant metadata for request_permissions; the
   // plain approval structure above stays untouched for ordinary approvals.
-  permissionGrant: Schema.optional(Schema.Struct({
-    requestedScope: PermissionGrantScopeSchema,
-    allowedScopes: Schema.Array(PermissionGrantScopeSchema)
-      .check(Schema.isMinLength(1))
-      .check(Schema.isMaxLength(3)),
-  })),
+  permissionGrant: Schema.optional(
+    Schema.Struct({
+      requestedScope: PermissionGrantScopeSchema,
+      allowedScopes: Schema.Array(PermissionGrantScopeSchema)
+        .check(Schema.isMinLength(1))
+        .check(Schema.isMaxLength(3)),
+    }),
+  ),
 })
 export type ApprovalRequest = typeof ApprovalRequestSchema.Type
 
 export const AttachmentSchema = Schema.Struct({
   id: Schema.String,
-  kind: Schema.Literals(["text", "image"]),
+  kind: Schema.Literals(['text', 'image']),
   name: Schema.String,
   mediaType: Schema.String,
   sizeBytes: Schema.Number,
@@ -569,8 +581,8 @@ export const LocalContextReferenceSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   path: Schema.String,
-  kind: Schema.Literals(["file", "directory"]),
-  status: Schema.Literals(["available", "missing"]),
+  kind: Schema.Literals(['file', 'directory']),
+  status: Schema.Literals(['available', 'missing']),
   createdAt: Schema.Number,
 })
 export type LocalContextReference = typeof LocalContextReferenceSchema.Type

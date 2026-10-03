@@ -18,11 +18,14 @@ type TimelineDisclosureStoreEntry = {
 }
 
 const storesByStorage = new WeakMap<Storage, Map<string, TimelineDisclosureStoreEntry>>()
-const entriesByStore = new WeakMap<KeyedDisclosureStore, {
-  storage: Storage
-  threadId: string
-  entry: TimelineDisclosureStoreEntry
-}>()
+const entriesByStore = new WeakMap<
+  KeyedDisclosureStore,
+  {
+    storage: Storage
+    threadId: string
+    entry: TimelineDisclosureStoreEntry
+  }
+>()
 
 export function getTimelineDisclosureStore(threadId: string): KeyedDisclosureStore {
   const storage = window.localStorage
@@ -122,10 +125,9 @@ function parseSnapshot(value: unknown): TimelineDisclosureSnapshotV1 | null {
   if (!isRecord(value) || value.schemaVersion !== 1) return null
   if (
     !Array.isArray(value.expandedIds) ||
-    value.expandedIds.some(
-      (entry) => typeof entry !== 'string' || entry.length === 0,
-    )
-  ) return null
+    value.expandedIds.some((entry) => typeof entry !== 'string' || entry.length === 0)
+  )
+    return null
 
   const expandedIds = [...new Set(value.expandedIds)]
   return {

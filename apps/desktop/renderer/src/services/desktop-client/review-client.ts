@@ -15,16 +15,14 @@ export type ReviewAgentGitStatus = {
   }>
 }
 
-export function desktopGitStatus(
-  status: ReviewAgentGitStatus,
-): DesktopGitStatus {
+export function desktopGitStatus(status: ReviewAgentGitStatus): DesktopGitStatus {
   return {
     branchName: status.branchName,
     upstream: status.upstream,
     ahead: status.ahead,
     behind: status.behind,
     clean: status.clean,
-    files: status.files.map(file => ({
+    files: status.files.map((file) => ({
       path: file.path,
       ...(file.previousPath ? { originalPath: file.previousPath } : {}),
       status: `${file.stagedStatus}${file.unstagedStatus}`,

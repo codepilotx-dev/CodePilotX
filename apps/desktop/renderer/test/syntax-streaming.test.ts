@@ -15,12 +15,7 @@ const RESULT: SyntaxHighlightResult = {
 describe('streaming syntax presentation', () => {
   test('keeps old tokens while they remain a prefix of streamed code', () => {
     expect(
-      presentHighlightedCode(
-        RESULT,
-        'const answer = 42',
-        'typescript',
-        'github-dark',
-      ),
+      presentHighlightedCode(RESULT, 'const answer = 42', 'typescript', 'github-dark'),
     ).toEqual({
       highlighted: RESULT,
       plainText: '2',
@@ -28,14 +23,7 @@ describe('streaming syntax presentation', () => {
   })
 
   test('drops stale tokens after non-prefix edits', () => {
-    expect(
-      presentHighlightedCode(
-        RESULT,
-        'let answer = 4',
-        'typescript',
-        'github-dark',
-      ),
-    ).toEqual({
+    expect(presentHighlightedCode(RESULT, 'let answer = 4', 'typescript', 'github-dark')).toEqual({
       highlighted: null,
       plainText: 'let answer = 4',
     })
@@ -43,16 +31,8 @@ describe('streaming syntax presentation', () => {
 
   test('does not reuse tokens across language or theme changes', () => {
     expect(
-      presentHighlightedCode(
-        RESULT,
-        RESULT.code,
-        'javascript',
-        'github-dark',
-      ).highlighted,
+      presentHighlightedCode(RESULT, RESULT.code, 'javascript', 'github-dark').highlighted,
     ).toBeNull()
-    expect(
-      presentHighlightedCode(RESULT, RESULT.code, 'typescript', 'nord')
-        .highlighted,
-    ).toBeNull()
+    expect(presentHighlightedCode(RESULT, RESULT.code, 'typescript', 'nord').highlighted).toBeNull()
   })
 })

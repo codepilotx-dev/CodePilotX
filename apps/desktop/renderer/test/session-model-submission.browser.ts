@@ -69,24 +69,64 @@ createRoot(document.getElementById('root')).render(<Harness />);
 `
 async function buildHarness() {
   const build = await Bun.build({
-    entrypoints: ['submission-harness'], target: 'browser', format: 'esm', tsconfig: resolve(rendererRoot, 'tsconfig.app.json'),
+    entrypoints: ['submission-harness'],
+    target: 'browser',
+    format: 'esm',
+    tsconfig: resolve(rendererRoot, 'tsconfig.app.json'),
     define: { 'process.env.NODE_ENV': '"development"' },
-    plugins: [{ name: 'submission-harness', setup(builder) {
-      builder.onResolve({ filter: /^@codepilotx/ }, args => args.path.startsWith('@codepilotx/core/') ? { path: resolve(rendererRoot, 'src/shims/core', args.path.slice('@codepilotx/core/'.length).replace(/[.]js$/, '.ts')), namespace: 'file' } : undefined)
-      builder.onResolve({ filter: /^react(?:\/.*)?$/ }, args => ({ path: Bun.resolveSync(args.path, rendererRoot), namespace: 'file' }))
-      builder.onResolve({ filter: /^react-dom\/client$/ }, args => ({ path: Bun.resolveSync(args.path, rendererRoot), namespace: 'file' }))
-      builder.onResolve({ filter: /^submission-harness$/ }, () => ({ path: 'harness', namespace: 'submission' }))
-      builder.onLoad({ filter: /^harness$/, namespace: 'submission' }, () => ({ contents: harness, loader: 'jsx', resolveDir: rendererRoot }))
-      builder.onResolve({ filter: /desktop-client\/index\.js$/ }, () => ({ path: 'client', namespace: 'submission' }))
-      builder.onLoad({ filter: /^client$/, namespace: 'submission' }, () => ({ contents: clientMock, loader: 'js' }))
-    } }],
+    plugins: [
+      {
+        name: 'submission-harness',
+        setup(builder) {
+          builder.onResolve({ filter: /^@codepilotx/ }, (args) =>
+            args.path.startsWith('@codepilotx/core/')
+              ? {
+                  path: resolve(
+                    rendererRoot,
+                    'src/shims/core',
+                    args.path.slice('@codepilotx/core/'.length).replace(/[.]js$/, '.ts'),
+                  ),
+                  namespace: 'file',
+                }
+              : undefined,
+          )
+          builder.onResolve({ filter: /^react(?:\/.*)?$/ }, (args) => ({
+            path: Bun.resolveSync(args.path, rendererRoot),
+            namespace: 'file',
+          }))
+          builder.onResolve({ filter: /^react-dom\/client$/ }, (args) => ({
+            path: Bun.resolveSync(args.path, rendererRoot),
+            namespace: 'file',
+          }))
+          builder.onResolve({ filter: /^submission-harness$/ }, () => ({
+            path: 'harness',
+            namespace: 'submission',
+          }))
+          builder.onLoad({ filter: /^harness$/, namespace: 'submission' }, () => ({
+            contents: harness,
+            loader: 'jsx',
+            resolveDir: rendererRoot,
+          }))
+          builder.onResolve({ filter: /desktop-client\/index\.js$/ }, () => ({
+            path: 'client',
+            namespace: 'submission',
+          }))
+          builder.onLoad({ filter: /^client$/, namespace: 'submission' }, () => ({
+            contents: clientMock,
+            loader: 'js',
+          }))
+        },
+      },
+    ],
   })
   assert.ok(build.success, build.logs.map(String).join('\n'))
   return build.outputs[0]!.text()
 }
 if (process.versions.bun) {
   const child = Bun.spawn(['node', '--experimental-strip-types', fileURLToPath(import.meta.url)], {
-    stdin: new Blob([await buildHarness()]), stdout: 'inherit', stderr: 'inherit',
+    stdin: new Blob([await buildHarness()]),
+    stdout: 'inherit',
+    stderr: 'inherit',
   })
   process.exit(await child.exited)
 }
@@ -96,26 +136,38 @@ const browser = await chromium.launch({ channel: 'chrome', headless: true })
 try {
   const page = await browser.newPage()
   const errors: string[] = []
-  page.on('pageerror', error => errors.push(error.message))
-  await page.route('http://session-test.local/**', route => route.fulfill({ contentType: 'text/html', body: '<div id="root"></div>' }))
+  page.on('pageerror', (error) => errors.push(error.message))
+  await page.route('http://session-test.local/**', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<div id="root"></div>' }),
+  )
   await page.goto('http://session-test.local/')
   await page.addScriptTag({ content: script, type: 'module' })
   await expect(page.locator('#ready')).toHaveText('true')
   await page.getByRole('button', { name: 'A', exact: true }).click()
   await expect(page.locator('#selection')).toContainText('history-a')
-  await page.evaluate(`api.setModelSelection({providerID:'provider-a',model:'draft-a',thinkingMode:'enabled',variant:'high'}); deferB()`)
+  await page.evaluate(
+    `api.setModelSelection({providerID:'provider-a',model:'draft-a',thinkingMode:'enabled',variant:'high'}); deferB()`,
+  )
   await page.getByRole('button', { name: 'B', exact: true }).click()
   await expect(page.locator('#loading')).toHaveText('true')
   await expect(page.locator('#selection')).toHaveText('null')
   // The active B history is unresolved, but an explicit target A must still send A.
   await page.evaluate(`api.submitToSession('a', {text:'normal'})`)
-  await page.evaluate(`api.submitToSession('a', {text:'queue'}, {delivery:'follow-up',inputId:'queued-input'})`)
+  await page.evaluate(
+    `api.submitToSession('a', {text:'queue'}, {delivery:'follow-up',inputId:'queued-input'})`,
+  )
   await page.evaluate(`api.submitToSession('a', {text:'edited'}, {inputId:'edited-input'})`)
   let records = await page.evaluate('records')
   assert.equal(records.length, 3)
   for (const record of records) {
     assert.equal(record.id, 'a')
-    assert.deepEqual(record.model, { providerID: 'provider-a', model: 'draft-a', variant: 'high', providerBaseURL: undefined, localRouterMode: undefined })
+    assert.deepEqual(record.model, {
+      providerID: 'provider-a',
+      model: 'draft-a',
+      variant: 'high',
+      providerBaseURL: undefined,
+      localRouterMode: undefined,
+    })
   }
   assert.equal(records[1].delivery, 'follow-up')
   assert.equal(records[1].inputId, 'queued-input')
@@ -126,9 +178,17 @@ try {
   await expect(page.locator('#selection')).toContainText('history-b')
   await page.evaluate('pendingB')
   records = await page.evaluate('records')
-  assert.deepEqual(records[3].model, { providerID: 'provider-b', model: 'history-b', variant: 'adaptive', providerBaseURL: undefined, localRouterMode: undefined })
+  assert.deepEqual(records[3].model, {
+    providerID: 'provider-b',
+    model: 'history-b',
+    variant: 'adaptive',
+    providerBaseURL: undefined,
+    localRouterMode: undefined,
+  })
   // Capture at submission time, even when a menu mutation happens in the same tick.
-  await page.evaluate(`window.captured = api.submitToSession('a', {text:'captured'}); store.set('a',{providerID:'new-provider',model:'new-a',thinkingMode:'default'}); captured`)
+  await page.evaluate(
+    `window.captured = api.submitToSession('a', {text:'captured'}); store.set('a',{providerID:'new-provider',model:'new-a',thinkingMode:'default'}); captured`,
+  )
   assert.equal((await page.evaluate('records'))[4].model.model, 'draft-a')
   await page.getByRole('button', { name: 'A', exact: true }).click()
   await expect(page.locator('#selection')).toContainText('new-a')
@@ -146,15 +206,22 @@ try {
   // Creation binds the captured home draft even if the user changes it and navigates away.
   await page.evaluate(`api.activateSessionById(null)`)
   await expect(page.locator('#session')).toHaveText('home')
-  await page.evaluate(`store.set(null,{providerID:'home-provider',model:'home-draft',thinkingMode:'enabled',variant:'home-variant'}); window.creation = api.createSessionForWorkspace({projectId:'project',name:'Test',path:'/test'}); void 0`)
+  await page.evaluate(
+    `store.set(null,{providerID:'home-provider',model:'home-draft',thinkingMode:'enabled',variant:'home-variant'}); window.creation = api.createSessionForWorkspace({projectId:'project',name:'Test',path:'/test'}); void 0`,
+  )
   await page.waitForFunction('typeof releaseCreate === "function"')
-  await page.evaluate(`store.set(null,{providerID:'other-home',model:'later-home',thinkingMode:'adaptive',variant:'adaptive'}); api.activateSessionById('b')`)
+  await page.evaluate(
+    `store.set(null,{providerID:'other-home',model:'later-home',thinkingMode:'adaptive',variant:'adaptive'}); api.activateSessionById('b')`,
+  )
   await expect(page.locator('#session')).toHaveText('b')
   await page.evaluate('releaseCreate()')
   assert.equal(await page.evaluate('creation'), 'created')
   await expect(page.locator('#session')).toHaveText('created')
   assert.deepEqual(await page.evaluate('store.getSnapshot("created").selection'), {
-    providerID: 'home-provider', model: 'home-draft', thinkingMode: 'enabled', variant: 'home-variant',
+    providerID: 'home-provider',
+    model: 'home-draft',
+    thinkingMode: 'enabled',
+    variant: 'home-variant',
   })
   assert.equal(await page.evaluate('store.getSnapshot(null).selection.model'), 'later-home')
   assert.equal(await page.evaluate('createdOptions.model'), 'home-draft')
@@ -162,10 +229,16 @@ try {
   const createdSend = (await page.evaluate('records')).at(-1)
   assert.equal(createdSend.id, 'created')
   assert.deepEqual(createdSend.model, {
-    providerID: 'home-provider', model: 'home-draft', variant: 'home-variant', providerBaseURL: undefined, localRouterMode: undefined,
+    providerID: 'home-provider',
+    model: 'home-draft',
+    variant: 'home-variant',
+    providerBaseURL: undefined,
+    localRouterMode: undefined,
   })
   assert.deepEqual(errors, [])
-  console.log('Target-session normal, queue, edit, delayed history, error/retry captured model+variant and home draft creation binding passed.')
+  console.log(
+    'Target-session normal, queue, edit, delayed history, error/retry captured model+variant and home draft creation binding passed.',
+  )
 } finally {
   await browser.close()
 }

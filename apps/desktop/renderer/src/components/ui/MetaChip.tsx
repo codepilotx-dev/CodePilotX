@@ -10,24 +10,22 @@ type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   title: string
 }
 
-export const MetaChip = forwardRef<HTMLButtonElement, Props>(
-  function MetaChip(
-    { icon, label, active, title, type = 'button', ...buttonProps },
-    ref,
-  ): React.ReactNode {
-    return (
-      <button
-        {...buttonProps}
-        ref={ref}
-        aria-expanded={active}
-        className="meta-chip"
-        title={title}
-        type={type}
-      >
-        {icon}
-        <span>{label}</span>
-        <ChevronDown size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-      </button>
-    )
-  },
-)
+export const MetaChip = forwardRef<HTMLButtonElement, Props>(function MetaChip(
+  { icon, label, active, title, type = 'button', ...buttonProps },
+  ref,
+): React.ReactNode {
+  return (
+    <button
+      {...buttonProps}
+      ref={ref}
+      aria-expanded={active}
+      className="meta-chip"
+      title={title}
+      type={type}
+    >
+      {icon}
+      <span>{label}</span>
+      <ChevronDown size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    </button>
+  )
+})

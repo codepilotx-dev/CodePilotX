@@ -71,14 +71,14 @@ const workingStaticFallbacks = (
   ]
 }
 
-const inferWorkingCategoryId = (
-  value: string,
-): WorkingContextualSuggestionCategoryId => {
+const inferWorkingCategoryId = (value: string): WorkingContextualSuggestionCategoryId => {
   const normalized = value.toLocaleLowerCase()
   if (/\b(?:automat|recurring|repeat|routine)\w*\b|自动|重复|例行/u.test(normalized)) {
     return 'automate'
   }
-  if (/\b(?:research|plan|review|investigate|explore)\w*\b|调研|规划|审查|分析|排查/u.test(normalized)) {
+  if (
+    /\b(?:research|plan|review|investigate|explore)\w*\b|调研|规划|审查|分析|排查/u.test(normalized)
+  ) {
     return 'research'
   }
   return 'create'
@@ -99,7 +99,7 @@ export function buildWorkingContextualTaskSuggestions(input: {
     .slice(0, 5)
 
   const unfinished = recentTasks.find(
-    task => task.status === 'error' || task.status === 'interrupted',
+    (task) => task.status === 'error' || task.status === 'interrupted',
   )
   if (unfinished) {
     const title = shortTitle(unfinished.title)
@@ -145,9 +145,7 @@ export function buildWorkingContextualTaskSuggestions(input: {
     const title = shortTitle(task.title)
     candidates.push({
       id: `working-recent-completed:${task.id}`,
-      categoryId: inferWorkingCategoryId(
-        `${task.title} ${task.firstPrompt ?? ''}`,
-      ),
+      categoryId: inferWorkingCategoryId(`${task.title} ${task.firstPrompt ?? ''}`),
       label: `继续推进：${title}`,
       prompt: `基于最近完成的工作“${task.title}”，核对已有成果并完成最有价值的下一步。`,
     })
@@ -156,7 +154,7 @@ export function buildWorkingContextualTaskSuggestions(input: {
   candidates.push(...workingStaticFallbacks(input.workspaceName))
   const seen = new Set<string>()
   return candidates
-    .flatMap(candidate => {
+    .flatMap((candidate) => {
       const key = normalizedPrompt(candidate.prompt)
       if (!key || seen.has(key)) return []
       seen.add(key)
@@ -256,28 +254,18 @@ export const WORKING_SUGGESTION_CATEGORIES = [
 export function findWorkingSuggestionCategory(
   categoryId: WorkingSuggestionCategoryId,
 ): WorkingSuggestionCategory {
-  return WORKING_SUGGESTION_CATEGORIES.find(
-    category => category.id === categoryId,
-  )!
+  return WORKING_SUGGESTION_CATEGORIES.find((category) => category.id === categoryId)!
 }
 
-export function createWorkingSuggestionState(
-  composerValue: string,
-): WorkingSuggestionState {
+export function createWorkingSuggestionState(composerValue: string): WorkingSuggestionState {
   return composerValue.trim().length > 0
     ? { kind: 'hidden', reason: 'custom-input' }
     : { kind: 'root' }
 }
 
 /** 根分类在空草稿时默认可见；输入或选中最终任务后隐藏。 */
-export function shouldShowWorkingSuggestions(
-  state: WorkingSuggestionState,
-): boolean {
-  return (
-    state.kind === 'root' ||
-    state.kind === 'templates' ||
-    state.kind === 'category'
-  )
+export function shouldShowWorkingSuggestions(state: WorkingSuggestionState): boolean {
+  return state.kind === 'root' || state.kind === 'templates' || state.kind === 'category'
 }
 
 export function syncWorkingSuggestionState(
@@ -287,10 +275,7 @@ export function syncWorkingSuggestionState(
   if (composerValue.trim().length === 0) {
     return state.kind === 'templates' ? state : { kind: 'root' }
   }
-  if (
-    state.kind === 'category' &&
-    composerValue === state.generatedStarter
-  ) {
+  if (state.kind === 'category' && composerValue === state.generatedStarter) {
     return state
   }
   if (state.kind === 'hidden' && state.reason === 'prompt-filled') return state
@@ -339,9 +324,11 @@ export function returnToWorkingSuggestionTemplates(
 }
 
 /** 上下文建议只预填草稿，不负责提交。 */
-export function selectWorkingContextualSuggestion(
-  suggestion: WorkingContextualSuggestion,
-): { state: WorkingSuggestionState; prompt: string; plugin: WorkingPlugin | null } {
+export function selectWorkingContextualSuggestion(suggestion: WorkingContextualSuggestion): {
+  state: WorkingSuggestionState
+  prompt: string
+  plugin: WorkingPlugin | null
+} {
   return {
     state: { kind: 'hidden', reason: 'prompt-filled' },
     prompt: suggestion.prompt,
@@ -359,7 +346,7 @@ export function selectWorkingSuggestionTask(
 ): { state: WorkingSuggestionState; prompt: string; plugin: WorkingPlugin | null } | null {
   if (state.kind !== 'category') return null
   const category = findWorkingSuggestionCategory(state.categoryId)
-  const task = category.tasks.find(item => item.id === taskId)
+  const task = category.tasks.find((item) => item.id === taskId)
   if (!task) return null
   return {
     state: { kind: 'hidden', reason: 'prompt-filled' },

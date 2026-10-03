@@ -55,17 +55,17 @@ export function evaluateBudgets(
   samples: readonly PerformanceSample[],
   budgets: readonly PerformanceBudget[],
 ): BudgetResult[] {
-  return budgets.map(budget => {
+  return budgets.map((budget) => {
     const values = samples
-      .filter(sample => sample.scenario === budget.scenario)
-      .flatMap(sample => {
+      .filter((sample) => sample.scenario === budget.scenario)
+      .flatMap((sample) => {
         const value = sample.metrics[budget.metric]
         return Number.isFinite(value) ? [value] : []
       })
     const actual = values.length > 0 ? percentile(values, 0.95) : null
     const exactRangePassed =
       budget.min === undefined ||
-      values.every(value => value >= budget.min! && value <= budget.max)
+      values.every((value) => value >= budget.min! && value <= budget.max)
     return {
       ...budget,
       actual,
@@ -82,9 +82,9 @@ export function electronQuorumFailed(
   samples: readonly PerformanceSample[],
   budgets: readonly PerformanceBudget[],
 ): boolean {
-  return budgets.some(budget => {
-    const relevant = samples.filter(sample => sample.scenario === budget.scenario)
-    const failed = relevant.filter(sample => {
+  return budgets.some((budget) => {
+    const relevant = samples.filter((sample) => sample.scenario === budget.scenario)
+    const failed = relevant.filter((sample) => {
       const actual = sample.metrics[budget.metric]
       return (
         !Number.isFinite(actual) ||
@@ -100,13 +100,13 @@ export function confirmationFailed(
   samples: readonly PerformanceSample[],
   budgets: readonly PerformanceBudget[],
 ): boolean {
-  const batches = [...new Set(samples.map(sample => sample.batch))].sort()
+  const batches = [...new Set(samples.map((sample) => sample.batch))].sort()
   if (batches.length < 2) return false
-  return batches.slice(-2).every(batch =>
+  return batches.slice(-2).every((batch) =>
     evaluateBudgets(
-      samples.filter(sample => sample.batch === batch),
+      samples.filter((sample) => sample.batch === batch),
       budgets,
-    ).some(result => !result.passed),
+    ).some((result) => !result.passed),
   )
 }
 

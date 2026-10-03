@@ -1,22 +1,18 @@
-import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../wire/definition"
-import {
-  EmptyParamsSchema,
-  NonNegativeIntSchema,
-  OperationParamsSchema,
-} from "../wire/primitives"
+import { Schema } from 'effect'
+import { defineMethod, type MethodMap } from '../wire/definition'
+import { EmptyParamsSchema, NonNegativeIntSchema, OperationParamsSchema } from '../wire/primitives'
 
-export const ToolingIDSchema = Schema.Literals(["nodejs", "python", "git-bash", "ripgrep"])
-export const ToolingPreferenceSchema = Schema.Literals(["managed", "system"])
-export const ToolingSourceSchema = Schema.Literals(["managed", "system"])
+export const ToolingIDSchema = Schema.Literals(['nodejs', 'python', 'git-bash', 'ripgrep'])
+export const ToolingPreferenceSchema = Schema.Literals(['managed', 'system'])
+export const ToolingSourceSchema = Schema.Literals(['managed', 'system'])
 export const ToolingPhaseSchema = Schema.Literals([
-  "idle",
-  "detecting",
-  "downloading",
-  "installing",
-  "ready",
-  "error",
-  "cleanup-pending",
+  'idle',
+  'detecting',
+  'downloading',
+  'installing',
+  'ready',
+  'error',
+  'cleanup-pending',
 ])
 
 export const ToolingStatusSchema = Schema.Struct({
@@ -34,14 +30,18 @@ export const ToolingStatusSchema = Schema.Struct({
     version: Schema.NullOr(Schema.String),
     path: Schema.NullOr(Schema.String),
   }),
-  progress: Schema.optional(Schema.Struct({
-    receivedBytes: NonNegativeIntSchema,
-    totalBytes: Schema.optional(NonNegativeIntSchema),
-  })),
-  error: Schema.optional(Schema.Struct({
-    code: Schema.String,
-    message: Schema.String,
-  })),
+  progress: Schema.optional(
+    Schema.Struct({
+      receivedBytes: NonNegativeIntSchema,
+      totalBytes: Schema.optional(NonNegativeIntSchema),
+    }),
+  ),
+  error: Schema.optional(
+    Schema.Struct({
+      code: Schema.String,
+      message: Schema.String,
+    }),
+  ),
 })
 
 export const ToolingListResultSchema = Schema.Struct({
@@ -62,48 +62,48 @@ export const ToolingInstallParamsSchema = Schema.Struct({
 })
 
 const ToolingErrors = [
-  "TOOLING_UNAVAILABLE",
-  "TOOLING_INSTALL_FAILED",
-  "TOOLING_DOWNLOAD_FAILED",
-  "TOOLING_INTEGRITY_FAILED",
-  "TOOLING_ABORTED",
-  "PERMISSION_DENIED",
-  "CONFLICT",
-  "RATE_LIMITED",
-  "INTERNAL_ERROR",
+  'TOOLING_UNAVAILABLE',
+  'TOOLING_INSTALL_FAILED',
+  'TOOLING_DOWNLOAD_FAILED',
+  'TOOLING_INTEGRITY_FAILED',
+  'TOOLING_ABORTED',
+  'PERMISSION_DENIED',
+  'CONFLICT',
+  'RATE_LIMITED',
+  'INTERNAL_ERROR',
 ] as const
 
 export const ToolingRpcMethods = {
-  "tooling/list": defineMethod({
+  'tooling/list': defineMethod({
     params: EmptyParamsSchema,
     result: ToolingListResultSchema,
     errors: ToolingErrors,
-    capability: "tooling.management.v1",
+    capability: 'tooling.management.v1',
     mutation: false,
     exactResult: true,
   }),
-  "tooling/refresh": defineMethod({
+  'tooling/refresh': defineMethod({
     params: EmptyParamsSchema,
     result: ToolingListResultSchema,
     errors: ToolingErrors,
-    capability: "tooling.management.v1",
+    capability: 'tooling.management.v1',
     mutation: false,
     exactResult: true,
   }),
-  "tooling/setPreference": defineMethod({
+  'tooling/setPreference': defineMethod({
     params: ToolingSetPreferenceParamsSchema,
     result: ToolingStatusResultSchema,
     errors: ToolingErrors,
-    capability: "tooling.management.v1",
+    capability: 'tooling.management.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "tooling/install": defineMethod({
+  'tooling/install': defineMethod({
     params: ToolingInstallParamsSchema,
     result: ToolingStatusResultSchema,
     errors: ToolingErrors,
-    capability: "tooling.management.v1",
+    capability: 'tooling.management.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,

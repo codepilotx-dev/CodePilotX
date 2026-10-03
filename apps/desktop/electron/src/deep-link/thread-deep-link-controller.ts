@@ -1,5 +1,5 @@
-import { parseThreadDeepLink } from "@codepilotx/shared/thread-reference"
-import type { DesktopLogger } from "../logging/desktop-logger.js"
+import { parseThreadDeepLink } from '@codepilotx/shared/thread-reference'
+import type { DesktopLogger } from '../logging/desktop-logger.js'
 
 export type ThreadDeepLinkPayload = {
   threadId: string
@@ -23,13 +23,8 @@ export interface ThreadDeepLinkController {
 export function createThreadDeepLinkController(
   dependencies: ThreadDeepLinkControllerDependencies,
 ): ThreadDeepLinkController {
-  const {
-    getInitialArgv,
-    subscribeRendererReady,
-    isRendererReady,
-    focusMainWindow,
-    notify,
-  } = dependencies
+  const { getInitialArgv, subscribeRendererReady, isRendererReady, focusMainWindow, notify } =
+    dependencies
 
   let pendingThreadId: string | null = null
   let disposed = false
@@ -58,7 +53,7 @@ export function createThreadDeepLinkController(
       pendingThreadId = null
       return { threadId }
     },
-    pushRuntimeActivation: argv => {
+    pushRuntimeActivation: (argv) => {
       const threadId = findFirstThreadDeepLink(argv)
       if (threadId === null) return false
       focusMainWindow()
@@ -84,7 +79,7 @@ export function createThreadDeepLinkController(
 
 function findFirstThreadDeepLink(argv: readonly string[]): string | null {
   for (const value of argv) {
-    if (typeof value !== "string") continue
+    if (typeof value !== 'string') continue
     const threadId = parseThreadDeepLink(value)
     if (threadId !== null) return threadId
   }

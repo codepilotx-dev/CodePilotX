@@ -40,9 +40,7 @@ describe('conversation title actions', () => {
     }
 
     expect(shouldCloseConversationRenameDialog(completed)).toBe(true)
-    expect(
-      shouldCloseConversationRenameDialog({ ...completed, succeeded: false }),
-    ).toBe(false)
+    expect(shouldCloseConversationRenameDialog({ ...completed, succeeded: false })).toBe(false)
     expect(
       shouldCloseConversationRenameDialog({
         ...completed,
@@ -111,34 +109,44 @@ describe('conversation title actions', () => {
     const { toUserErrorMessage } = await import('../src/utils/errors.js')
 
     // 1. MODEL_UNAVAILABLE 未配置模型
-    expect(toUserErrorMessage({
-      errorCode: 'MODEL_UNAVAILABLE',
-      message: '未配置可用的会话标题生成模型',
-    })).toBe('未配置可用的会话标题生成模型')
+    expect(
+      toUserErrorMessage({
+        errorCode: 'MODEL_UNAVAILABLE',
+        message: '未配置可用的会话标题生成模型',
+      }),
+    ).toBe('未配置可用的会话标题生成模型')
 
     // 2. INTERNAL_ERROR 超时
-    expect(toUserErrorMessage({
-      errorCode: 'INTERNAL_ERROR',
-      message: '生成会话标题超时，请重试',
-    })).toBe('生成会话标题超时，请重试')
+    expect(
+      toUserErrorMessage({
+        errorCode: 'INTERNAL_ERROR',
+        message: '生成会话标题超时，请重试',
+      }),
+    ).toBe('生成会话标题超时，请重试')
 
     // 3. INTERNAL_ERROR Provider 失败
-    expect(toUserErrorMessage({
-      errorCode: 'INTERNAL_ERROR',
-      message: '生成会话标题失败，模型服务暂不可用',
-    })).toBe('生成会话标题失败，模型服务暂不可用')
+    expect(
+      toUserErrorMessage({
+        errorCode: 'INTERNAL_ERROR',
+        message: '生成会话标题失败，模型服务暂不可用',
+      }),
+    ).toBe('生成会话标题失败，模型服务暂不可用')
 
     // 4. INTERNAL_ERROR 无效输出
-    expect(toUserErrorMessage({
-      errorCode: 'INTERNAL_ERROR',
-      message: '生成会话标题失败，模型未返回有效标题',
-    })).toBe('生成会话标题失败，模型未返回有效标题')
+    expect(
+      toUserErrorMessage({
+        errorCode: 'INTERNAL_ERROR',
+        message: '生成会话标题失败，模型未返回有效标题',
+      }),
+    ).toBe('生成会话标题失败，模型未返回有效标题')
 
     // 5. 其它非会话标题的 INTERNAL_ERROR 仍被安全映射为通用内部错误
-    expect(toUserErrorMessage({
-      errorCode: 'INTERNAL_ERROR',
-      message: 'Internal server error: raw stack trace',
-    })).toBe('Agent 发生内部错误，请重试。')
+    expect(
+      toUserErrorMessage({
+        errorCode: 'INTERNAL_ERROR',
+        message: 'Internal server error: raw stack trace',
+      }),
+    ).toBe('Agent 发生内部错误，请重试。')
   })
 
   test('failed title regeneration dispatches desktop:error and clears busy state in finally', async () => {

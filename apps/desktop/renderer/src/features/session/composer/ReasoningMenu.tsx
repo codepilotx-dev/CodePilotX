@@ -57,11 +57,11 @@ export function ReasoningMenu({
           side={side}
           sideOffset={sideOffset}
           className="composer-reasoning-menu-content"
-          onClick={event => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
         >
           <div className="composer-reasoning-menu-title">推理思考</div>
           <div className="composer-reasoning-menu-list" role="menu">
-            {thinkingOptions.map(option => {
+            {thinkingOptions.map((option) => {
               const isSelected = option.value === effectiveCurrentMode
               return (
                 <button
@@ -69,7 +69,7 @@ export function ReasoningMenu({
                   type="button"
                   role="menuitemradio"
                   aria-checked={isSelected}
-                  onClick={event => {
+                  onClick={(event) => {
                     event.stopPropagation()
                     onThinkingChange(option.value)
                     handleOpenChange(false)
@@ -78,9 +78,7 @@ export function ReasoningMenu({
                   onPointerLeave={() => onThinkingPreviewChange?.(null)}
                   className={`composer-reasoning-menu-item${isSelected ? ' is-selected' : ''}`}
                 >
-                  <span className="composer-reasoning-menu-item-label">
-                    {option.label}
-                  </span>
+                  <span className="composer-reasoning-menu-item-label">{option.label}</span>
                   {isSelected ? (
                     <Check
                       size={APP_ICON_SIZES.sm}

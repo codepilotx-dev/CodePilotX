@@ -1,4 +1,4 @@
 export type RpcRouterContext = {
   connectionId?: string
-  transportAuthority?: "desktop-host" | "renderer"
+  transportAuthority?: 'desktop-host' | 'renderer'
 }

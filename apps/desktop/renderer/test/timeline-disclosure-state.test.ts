@@ -6,10 +6,7 @@ import {
   setTimelineDisclosureExpanded,
 } from '../src/features/session/timeline/timelineDisclosureState.js'
 
-const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
-  globalThis,
-  'window',
-)
+const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window')
 
 class MemoryStorage implements Storage {
   readonly entries = new Map<string, string>()
@@ -98,9 +95,7 @@ describe('timeline disclosure state', () => {
       'file-mutation:tool-1:0',
       'turn-process:turn-1',
     ])
-    expect([...loadTimelineDisclosureState('thread-2')]).toEqual([
-      'turn-activity:turn-2',
-    ])
+    expect([...loadTimelineDisclosureState('thread-2')]).toEqual(['turn-activity:turn-2'])
   })
 
   test('removes collapsed disclosures and refreshes recency on expansion', () => {
@@ -108,39 +103,20 @@ describe('timeline disclosure state', () => {
     setTimelineDisclosureExpanded('thread-1', 'second', true)
     setTimelineDisclosureExpanded('thread-1', 'first', true)
 
-    expect([...loadTimelineDisclosureState('thread-1')]).toEqual([
-      'second',
-      'first',
-    ])
+    expect([...loadTimelineDisclosureState('thread-1')]).toEqual(['second', 'first'])
 
-    const nextState = setTimelineDisclosureExpanded(
-      'thread-1',
-      'second',
-      false,
-    )
+    const nextState = setTimelineDisclosureExpanded('thread-1', 'second', false)
     expect([...nextState]).toEqual(['first'])
     expect([...loadTimelineDisclosureState('thread-1')]).toEqual(['first'])
   })
 
   test('keeps only the 1000 most recently expanded disclosures', () => {
-    const expandedIds = Array.from(
-      { length: 1_001 },
-      (_, index) => `tool:${index}`,
-    )
-    storage.setItem(
-      storageKey('thread-1'),
-      JSON.stringify({ schemaVersion: 1, expandedIds }),
-    )
+    const expandedIds = Array.from({ length: 1_001 }, (_, index) => `tool:${index}`)
+    storage.setItem(storageKey('thread-1'), JSON.stringify({ schemaVersion: 1, expandedIds }))
 
-    expect([...loadTimelineDisclosureState('thread-1')]).toEqual(
-      expandedIds.slice(1),
-    )
+    expect([...loadTimelineDisclosureState('thread-1')]).toEqual(expandedIds.slice(1))
 
-    const nextState = setTimelineDisclosureExpanded(
-      'thread-1',
-      'tool:new',
-      true,
-    )
+    const nextState = setTimelineDisclosureExpanded('thread-1', 'tool:new', true)
     expect(nextState.size).toBe(1_000)
     expect(nextState.has('tool:1')).toBe(false)
     expect([...nextState].at(-1)).toBe('tool:new')
@@ -152,16 +128,10 @@ describe('timeline disclosure state', () => {
     storage.setItem(key, '{bad json')
     expect(loadTimelineDisclosureState('thread-1')).toEqual(new Set())
 
-    storage.setItem(
-      key,
-      JSON.stringify({ schemaVersion: 2, expandedIds: ['turn:1'] }),
-    )
+    storage.setItem(key, JSON.stringify({ schemaVersion: 2, expandedIds: ['turn:1'] }))
     expect(loadTimelineDisclosureState('thread-1')).toEqual(new Set())
 
-    storage.setItem(
-      key,
-      JSON.stringify({ schemaVersion: 1, expandedIds: ['turn:1', 42] }),
-    )
+    storage.setItem(key, JSON.stringify({ schemaVersion: 1, expandedIds: ['turn:1', 42] }))
     expect(loadTimelineDisclosureState('thread-1')).toEqual(new Set())
   })
 
@@ -177,9 +147,9 @@ describe('timeline disclosure state', () => {
     } as Storage)
 
     expect(loadTimelineDisclosureState('thread-1')).toEqual(new Set())
-    expect(
-      setTimelineDisclosureExpanded('thread-1', 'turn-activity:turn-1', true),
-    ).toEqual(new Set(['turn-activity:turn-1']))
+    expect(setTimelineDisclosureExpanded('thread-1', 'turn-activity:turn-1', true)).toEqual(
+      new Set(['turn-activity:turn-1']),
+    )
   })
 })
 
@@ -195,5 +165,5 @@ function installStorage(localStorage: Storage): void {
 }
 
 function nextTask(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, 0))
+  return new Promise((resolve) => setTimeout(resolve, 0))
 }

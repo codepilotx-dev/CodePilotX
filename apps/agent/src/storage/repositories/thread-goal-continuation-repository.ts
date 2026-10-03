@@ -1,5 +1,5 @@
-import type { PermissionConfig, TaskMode } from "../../domain"
-import type { RepositoryDatabase } from "./RepositoryDatabase"
+import type { PermissionConfig, TaskMode } from '../../domain'
+import type { RepositoryDatabase } from './RepositoryDatabase'
 
 export const THREAD_GOAL_CONTINUATION_SCHEMA = [
   `CREATE TABLE thread_goal_continuations (
@@ -13,7 +13,7 @@ export const THREAD_GOAL_CONTINUATION_SCHEMA = [
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
   )`,
-  "CREATE INDEX thread_goal_continuations_thread ON thread_goal_continuations(thread_id, created_at)",
+  'CREATE INDEX thread_goal_continuations_thread ON thread_goal_continuations(thread_id, created_at)',
 ] as const
 
 export type GoalContinuationSettings = {
@@ -23,14 +23,27 @@ export type GoalContinuationSettings = {
 }
 
 export class ThreadGoalContinuationRepository {
-  constructor(private readonly db: Pick<RepositoryDatabase, "sqlite">) {}
+  constructor(private readonly db: Pick<RepositoryDatabase, 'sqlite'>) {}
 
   available(): boolean {
-    return Boolean(this.db.sqlite.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'thread_goal_continuations'").get())
+    return Boolean(
+      this.db.sqlite
+        .query(
+          "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'thread_goal_continuations'",
+        )
+        .get(),
+    )
   }
 
   hasSourceTurn(sourceTurnId: string): boolean {
-    return this.available() && Boolean(this.db.sqlite.query("SELECT 1 FROM thread_goal_continuations WHERE source_turn_id = ?").get(sourceTurnId))
+    return (
+      this.available() &&
+      Boolean(
+        this.db.sqlite
+          .query('SELECT 1 FROM thread_goal_continuations WHERE source_turn_id = ?')
+          .get(sourceTurnId),
+      )
+    )
   }
 
   record(input: {
@@ -42,13 +55,23 @@ export class ThreadGoalContinuationRepository {
     triggerReason: string
     timestamp: number
   }): void {
-    this.db.sqlite.query(`INSERT INTO thread_goal_continuations (
+    this.db.sqlite
+      .query(
+        `INSERT INTO thread_goal_continuations (
       source_turn_id, thread_id, goal_id, continuation_turn_id, continuation_input_id,
       trigger_reason, status, created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, 'created', ?, ?)
-    ON CONFLICT(source_turn_id) DO NOTHING`).run(
-      input.sourceTurnId, input.threadId, input.goalId, input.continuationTurnId,
-      input.continuationInputId, input.triggerReason, input.timestamp, input.timestamp,
-    )
+    ON CONFLICT(source_turn_id) DO NOTHING`,
+      )
+      .run(
+        input.sourceTurnId,
+        input.threadId,
+        input.goalId,
+        input.continuationTurnId,
+        input.continuationInputId,
+        input.triggerReason,
+        input.timestamp,
+        input.timestamp,
+      )
   }
 }

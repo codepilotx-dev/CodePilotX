@@ -7,16 +7,18 @@ const project: Project = {
   id: 'project-git',
   name: 'fixture',
   primaryFolderId: 'folder-primary',
-  folders: [{
-    id: 'folder-primary',
-    name: 'fixture',
-    path: workspacePath,
-    role: 'primary',
-    availability: 'available',
-    order: 0,
-    createdAt: 1,
-    updatedAt: 1,
-  }],
+  folders: [
+    {
+      id: 'folder-primary',
+      name: 'fixture',
+      path: workspacePath,
+      role: 'primary',
+      availability: 'available',
+      order: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    },
+  ],
   removedAt: null,
   lastOpenedAt: 1,
   createdAt: 1,
@@ -104,10 +106,7 @@ describe('desktop git workflow client', () => {
         if (body.method === 'review/status') {
           return rpc(body.id, { status })
         }
-        if (
-          body.method === 'git/branch/create'
-          || body.method === 'git/branch/checkout'
-        ) {
+        if (body.method === 'git/branch/create' || body.method === 'git/branch/checkout') {
           return rpc(body.id, { project, status })
         }
         throw new Error(`Unexpected RPC method: ${body.method}`)
@@ -137,7 +136,7 @@ describe('desktop git workflow client', () => {
       ok: true,
       workspace: { path: workspacePath, branchName: status.branchName },
     })
-    expect(requests.slice(0, 4).map(item => item.method)).toEqual([
+    expect(requests.slice(0, 4).map((item) => item.method)).toEqual([
       'github/repository/clone',
       'project/trust/read',
       'project/trust/update',
@@ -152,16 +151,15 @@ describe('desktop git workflow client', () => {
       ok: true,
       workspace: { branchName: status.branchName },
     })
-    const checkedOut = await client.checkoutWorkspaceBranch(
-      workspacePath,
-      'feature/desktop-rpc',
-    )
+    const checkedOut = await client.checkoutWorkspaceBranch(workspacePath, 'feature/desktop-rpc')
     expect(checkedOut.branchName).toBe(status.branchName)
 
-    expect(requests.filter(item =>
-      item.method === 'github/repository/clone'
-      || item.method.startsWith('git/branch/')
-    )).toEqual([
+    expect(
+      requests.filter(
+        (item) =>
+          item.method === 'github/repository/clone' || item.method.startsWith('git/branch/'),
+      ),
+    ).toEqual([
       {
         method: 'github/repository/clone',
         params: {
@@ -200,11 +198,7 @@ describe('desktop git workflow client', () => {
           return rpc(body.id, {
             protocol: 'thread-rpc-v4',
             serverInfo: { name: 'test-agent', version: '1.0.0' },
-            capabilities: [
-              'rpc.typed.v1',
-              'github.oauth.v1',
-              'config.manage.v1',
-            ],
+            capabilities: ['rpc.typed.v1', 'github.oauth.v1', 'config.manage.v1'],
             limits: {
               maxFrameBytes: 1024,
               maxSubscriptions: 8,

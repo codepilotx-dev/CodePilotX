@@ -9,10 +9,7 @@ import {
   type PerformanceSample,
 } from './metrics.js'
 
-const sample = (
-  batch: number,
-  value: number,
-): PerformanceSample => ({
+const sample = (batch: number, value: number): PerformanceSample => ({
   batch,
   environment: {},
   metrics: { readyMs: value },
@@ -46,16 +43,10 @@ describe('performance metrics', () => {
   test('uses a two-of-three quorum for Electron samples', () => {
     const budget = [{ scenario: 'cold-switch', metric: 'readyMs', max: 800 }]
     expect(
-      electronQuorumFailed(
-        [sample(1, 900), sample(1, 700), sample(1, 850)],
-        budget,
-      ),
+      electronQuorumFailed([sample(1, 900), sample(1, 700), sample(1, 850)], budget),
     ).toBeTrue()
     expect(
-      electronQuorumFailed(
-        [sample(1, 900), sample(1, 700), sample(1, 750)],
-        budget,
-      ),
+      electronQuorumFailed([sample(1, 900), sample(1, 700), sample(1, 750)], budget),
     ).toBeFalse()
   })
 

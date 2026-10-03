@@ -12,13 +12,13 @@ export type BuiltinSkillPresentation = {
  * Presentation metadata belongs to the renderer instead of SKILL.md so an
  * application-provided skill can remain a portable, text-only resource.
  */
-export const BUILTIN_SKILL_PRESENTATIONS: Readonly<
-  Record<string, BuiltinSkillPresentation>
-> = {}
+export const BUILTIN_SKILL_PRESENTATIONS: Readonly<Record<string, BuiltinSkillPresentation>> = {}
 
-export function isBuiltinSkill(skill: Pick<DesktopInstalledSkill, 'path' | 'source' | 'scope'>): boolean {
-  return skill.path.startsWith('builtin://') || (
-    skill.source === 'system' && skill.scope === 'system'
+export function isBuiltinSkill(
+  skill: Pick<DesktopInstalledSkill, 'path' | 'source' | 'scope'>,
+): boolean {
+  return (
+    skill.path.startsWith('builtin://') || (skill.source === 'system' && skill.scope === 'system')
   )
 }
 
@@ -60,10 +60,9 @@ export function BuiltinSkillIcon({
     <img
       alt=""
       aria-hidden="true"
-      className={[
-        'tw:shrink-0 tw:object-contain tw:object-center',
-        className ?? '',
-      ].filter(Boolean).join(' ')}
+      className={['tw:shrink-0 tw:object-contain tw:object-center', className ?? '']
+        .filter(Boolean)
+        .join(' ')}
       height={size}
       onError={() => setFailed(true)}
       src={presentation.icon}
@@ -72,9 +71,7 @@ export function BuiltinSkillIcon({
   )
 }
 
-export function skillScopeLabel(
-  scope: DesktopInstalledSkill['scope'],
-): string {
+export function skillScopeLabel(scope: DesktopInstalledSkill['scope']): string {
   switch (scope) {
     case 'repo':
       return '团队'

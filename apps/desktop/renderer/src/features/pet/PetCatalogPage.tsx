@@ -16,14 +16,9 @@ export function PetCatalogPage(): React.ReactNode {
   const navigate = useNavigate()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
-  const {
-    busy,
-    pets,
-    refreshPets,
-    selectPet,
-    setEnabled,
-    settings,
-  } = usePetSettingsController({ onError: setErrorMessage })
+  const { busy, pets, refreshPets, selectPet, setEnabled, settings } = usePetSettingsController({
+    onError: setErrorMessage,
+  })
 
   const installAndSelect = async (installed: PetDescriptor): Promise<void> => {
     await refreshPets()
@@ -32,10 +27,7 @@ export function PetCatalogPage(): React.ReactNode {
 
   return (
     <>
-      <GlobalErrorModal
-        message={errorMessage}
-        onDismiss={() => setErrorMessage(null)}
-      />
+      <GlobalErrorModal message={errorMessage} onDismiss={() => setErrorMessage(null)} />
       <GlobalErrorModal
         message={noticeMessage}
         onDismiss={() => setNoticeMessage(null)}
@@ -64,7 +56,7 @@ export function PetCatalogPage(): React.ReactNode {
           onError={setErrorMessage}
           onInstalled={installAndSelect}
           onNotice={setNoticeMessage}
-          onSelect={id => void selectPet(id)}
+          onSelect={(id) => void selectPet(id)}
           overlayEnabled={settings.enabled}
           selectedPetId={settings.selectedPetId}
         />

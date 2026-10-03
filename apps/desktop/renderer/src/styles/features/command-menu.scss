@@ -162,11 +162,7 @@
   padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-md);
-  background: color-mix(
-    in srgb,
-    var(--cpx-sys-color-surface-control) 72%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--cpx-sys-color-surface-control) 72%, transparent);
   color: var(--cpx-sys-color-fg-tertiary);
   font: var(--cpx-sys-type-caption);
 }

@@ -1,25 +1,20 @@
-import {
-  desktopClient,
-  loadDesktopTerminalClient,
-} from '../../services/desktop-client/index.js'
-import React, { useCallback, useEffect, useState } from 'react';
-import { OpenTargetIcon } from '../../components/ui/openTargetIcon.js';
-import {
-  OPEN_TARGET_STORED_SENTINELS,
-} from '../../services/desktop-client/openTargetSelection.js'
-import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js';
-import { SettingsRow } from './SettingsRow.js';
-import { SettingsSection } from './SettingsSection.js';
-import { SettingsDropdown } from './SettingsDropdown.js';
-import { SegmentedControl } from '../../components/ui/SegmentedControl.js';
-import { useDesktopSettings } from './useDesktopSettings.js';
-import { SettingsContentArea } from './SettingsContentArea.js';
+import { desktopClient, loadDesktopTerminalClient } from '../../services/desktop-client/index.js'
+import React, { useCallback, useEffect, useState } from 'react'
+import { OpenTargetIcon } from '../../components/ui/openTargetIcon.js'
+import { OPEN_TARGET_STORED_SENTINELS } from '../../services/desktop-client/openTargetSelection.js'
+import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
+import { SettingsRow } from './SettingsRow.js'
+import { SettingsSection } from './SettingsSection.js'
+import { SettingsDropdown } from './SettingsDropdown.js'
+import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
+import { useDesktopSettings } from './useDesktopSettings.js'
+import { SettingsContentArea } from './SettingsContentArea.js'
 import { permissionConfigForMode, permissionModeForConfig } from './settingsStorage.js'
 import type {
   DesktopOpenTarget,
   DesktopReviewDelivery,
   DesktopReviewView,
-} from '../../../shared/types.js';
+} from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
 import type { DesktopTerminalProfile } from '@codepilotx/shared/desktop-terminal-ipc'
 import { useLocale } from '../i18n/LocaleProvider.js'
@@ -30,53 +25,45 @@ const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
     label: 'File Explorer',
     kind: 'file-explorer',
   },
-];
+]
 
 const LANGUAGE_OPTIONS = [
   { value: 'system', label: '跟随系统' },
   { value: 'zh-CN', label: '中文（中国）' },
   { value: 'en-US', label: 'English (US)' },
-];
+]
 
 const SPEED_OPTIONS = [
   { value: 'fast', label: '快' },
   { value: 'standard', label: '标准' },
   { value: 'thorough', label: '深入' },
-];
+]
 
 const REVIEW_OPTIONS: Array<{ value: DesktopReviewView; label: string }> = [
   { value: 'inline', label: '行内视图' },
   { value: 'split', label: '分离视图' },
-];
+]
 const REVIEW_DELIVERY_OPTIONS: Array<{
-  value: DesktopReviewDelivery;
-  label: string;
+  value: DesktopReviewDelivery
+  label: string
 }> = [
   { value: 'inline', label: '当前任务' },
   { value: 'detached', label: '独立任务' },
-];
+]
 
 function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
   return (
-    <OpenTargetIcon
-      className='settings-open-target-icon'
-      kind={target.kind}
-      targetId={target.id}
-    />
-  );
+    <OpenTargetIcon className="settings-open-target-icon" kind={target.kind} targetId={target.id} />
+  )
 }
 
 type GeneralSettingsProps = {
   onNotice?: (message: string) => void
 }
 
-export function GeneralSettings({
-  onNotice,
-}: GeneralSettingsProps = {}) {
+export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
   const { t } = useLocale()
-  const {
-    draft,
-  } = useDesktopSettings();
+  const { draft } = useDesktopSettings()
   const {
     permissionConfig,
     enableAutoReviewPermissionMode,
@@ -91,27 +78,27 @@ export function GeneralSettings({
     enableFusionRouter,
     defaultModeRequestUserInput,
     notifications,
-  } = draft.values;
+  } = draft.values
   const permissionMode = permissionModeForConfig(permissionConfig)
 
-  const [openTargets, setOpenTargets] =
-    useState<DesktopOpenTarget[]>(FALLBACK_OPEN_TARGETS);
-  const [openTargetsLoaded, setOpenTargetsLoaded] = useState(false);
-  const [terminalProfiles, setTerminalProfiles] = useState<
-    readonly DesktopTerminalProfile[]
-  >([])
+  const [openTargets, setOpenTargets] = useState<DesktopOpenTarget[]>(FALLBACK_OPEN_TARGETS)
+  const [openTargetsLoaded, setOpenTargetsLoaded] = useState(false)
+  const [terminalProfiles, setTerminalProfiles] = useState<readonly DesktopTerminalProfile[]>([])
   const [terminalProfilesLoaded, setTerminalProfilesLoaded] = useState(false)
   const language = draft.values.language
-  const setLanguage = useCallback((value: string) => {
-    if (value !== 'system' && value !== 'zh-CN' && value !== 'en-US') return
-    draft.setValue('language', value)
-    draft.autoSave()
-  }, [draft])
-  const [longPromptShortcut, setLongPromptShortcut] = useState(false);
-  const [speed, setSpeed] = useState('standard');
-  const [suggestPrompts, setSuggestPrompts] = useState(true);
-  const [popupShortcut] = useState<string | null>(null);
-  const [popupNoProjectChat, setPopupNoProjectChat] = useState(false);
+  const setLanguage = useCallback(
+    (value: string) => {
+      if (value !== 'system' && value !== 'zh-CN' && value !== 'en-US') return
+      draft.setValue('language', value)
+      draft.autoSave()
+    },
+    [draft],
+  )
+  const [longPromptShortcut, setLongPromptShortcut] = useState(false)
+  const [speed, setSpeed] = useState('standard')
+  const [suggestPrompts, setSuggestPrompts] = useState(true)
+  const [popupShortcut] = useState<string | null>(null)
+  const [popupNoProjectChat, setPopupNoProjectChat] = useState(false)
   const setCompletionNotification = useCallback(
     (value: 'always' | 'unfocused' | 'never') => {
       draft.setValue('notifications', {
@@ -217,46 +204,46 @@ export function GeneralSettings({
   )
 
   const handleAutoApprove = (checked: boolean) => {
-    draft.setValue('enableAutoReviewPermissionMode', checked);
+    draft.setValue('enableAutoReviewPermissionMode', checked)
     if (!checked && permissionMode === 'auto-review') {
       draft.setValue('permissionConfig', permissionConfigForMode('default'))
     }
-    draft.autoSave();
-  };
+    draft.autoSave()
+  }
   const handleFullAccess = (checked: boolean) => {
-    draft.setValue('enableFullAccessPermissionMode', checked);
+    draft.setValue('enableFullAccessPermissionMode', checked)
     if (!checked && permissionMode === 'full-access') {
       draft.setValue('permissionConfig', permissionConfigForMode('default'))
     }
-    draft.autoSave();
-  };
+    draft.autoSave()
+  }
 
   useEffect(() => {
-    let mounted = true;
+    let mounted = true
     void desktopClient
       .listOpenTargets()
       .then((targets) => {
-        if (!mounted) return;
-        const nextTargets = targets.length ? targets : FALLBACK_OPEN_TARGETS;
-        setOpenTargets(nextTargets);
-        setOpenTargetsLoaded(true);
+        if (!mounted) return
+        const nextTargets = targets.length ? targets : FALLBACK_OPEN_TARGETS
+        setOpenTargets(nextTargets)
+        setOpenTargetsLoaded(true)
       })
       .catch(() => {
         if (mounted) {
-          setOpenTargets(FALLBACK_OPEN_TARGETS);
-          setOpenTargetsLoaded(true);
+          setOpenTargets(FALLBACK_OPEN_TARGETS)
+          setOpenTargetsLoaded(true)
         }
-      });
+      })
     return () => {
-      mounted = false;
-    };
-  }, [defaultOpenTargetId, setDefaultOpenTargetId]);
+      mounted = false
+    }
+  }, [defaultOpenTargetId, setDefaultOpenTargetId])
 
   useEffect(() => {
     let mounted = true
     void loadDesktopTerminalClient()
-      .then(client => client.listTerminalProfiles())
-      .then(profiles => {
+      .then((client) => client.listTerminalProfiles())
+      .then((profiles) => {
         if (!mounted) return
         setTerminalProfiles(profiles)
         setTerminalProfilesLoaded(true)
@@ -274,9 +261,7 @@ export function GeneralSettings({
   const displayedOpenTargets =
     !openTargetsLoaded &&
     !openTargets.some((target) => target.id === defaultOpenTargetId) &&
-    !(OPEN_TARGET_STORED_SENTINELS as readonly string[]).includes(
-      defaultOpenTargetId,
-    )
+    !(OPEN_TARGET_STORED_SENTINELS as readonly string[]).includes(defaultOpenTargetId)
       ? [
           ...openTargets,
           {
@@ -285,52 +270,46 @@ export function GeneralSettings({
             kind: 'editor' as const,
           },
         ]
-      : openTargets;
+      : openTargets
 
   const openTargetOptions = displayedOpenTargets.map((target) => ({
     value: target.id,
     label: target.label,
     icon: renderOpenTargetIcon(target),
-  }));
+  }))
   const terminalProfileOptions = [
     { value: 'auto', label: '自动检测' },
-    ...terminalProfiles.map(profile => ({
+    ...terminalProfiles.map((profile) => ({
       value: profile.id,
       label: profile.isDefault ? `${profile.label}（默认）` : profile.label,
       disabled: !profile.available,
     })),
-    ...(terminalProfileId &&
-    !terminalProfiles.some(profile => profile.id === terminalProfileId)
-      ? [{
-          value: terminalProfileId,
-          label: terminalProfilesLoaded ? '已保存的 Shell（当前不可用）' : '正在加载…',
-          disabled: true,
-        }]
+    ...(terminalProfileId && !terminalProfiles.some((profile) => profile.id === terminalProfileId)
+      ? [
+          {
+            value: terminalProfileId,
+            label: terminalProfilesLoaded ? '已保存的 Shell（当前不可用）' : '正在加载…',
+            disabled: true,
+          },
+        ]
       : []),
   ]
   return (
     <SettingsContentArea className="">
-      <div className='settings-content-inner'>
+      <div className="settings-content-inner">
         <div className="settings-page-header">
-          <h2 className='settings-page-title'>常规</h2>
+          <h2 className="settings-page-title">常规</h2>
         </div>
 
-        <SettingsSection title='权限'>
+        <SettingsSection title="权限">
           <SettingsRow
-            title='默认权限'
-            description='默认情况下，CodePilotX 可以自动读取工作区内容；写入文件、运行命令、联网和 MCP 请求需要你授权。'
+            title="默认权限"
+            description="默认情况下，CodePilotX 可以自动读取工作区内容；写入文件、运行命令、联网和 MCP 请求需要你授权。"
             autoSave
-            control={
-              <ToggleSwitch
-                checked
-                disabled
-                onChange={() => {}}
-                ariaLabel='默认权限'
-              />
-            }
+            control={<ToggleSwitch checked disabled onChange={() => {}} ariaLabel="默认权限" />}
           />
           <SettingsRow
-            title='自动审核'
+            title="自动审核"
             autoSave
             description={
               <>
@@ -342,12 +321,12 @@ export function GeneralSettings({
               <ToggleSwitch
                 checked={enableAutoReviewPermissionMode ?? false}
                 onChange={handleAutoApprove}
-                ariaLabel='自动审核'
+                ariaLabel="自动审核"
               />
             }
           />
           <SettingsRow
-            title='完全访问权限'
+            title="完全访问权限"
             autoSave
             description={
               <>
@@ -359,36 +338,36 @@ export function GeneralSettings({
               <ToggleSwitch
                 checked={enableFullAccessPermissionMode ?? false}
                 onChange={handleFullAccess}
-                ariaLabel='完全访问权限'
+                ariaLabel="完全访问权限"
               />
             }
           />
         </SettingsSection>
 
-        <SettingsSection title='常规'>
+        <SettingsSection title="常规">
           <SettingsRow
-            title='默认打开目标'
-            description='默认打开文件和文件夹的位置'
+            title="默认打开目标"
+            description="默认打开文件和文件夹的位置"
             control={
               <SettingsDropdown
                 width={220}
                 value={defaultOpenTargetId}
                 options={openTargetOptions}
                 onChange={setDefaultOpenTargetId}
-                ariaLabel='默认打开目标'
+                ariaLabel="默认打开目标"
               />
             }
           />
           <SettingsRow
-            title='集成终端 Shell'
-            description='选择要在集成终端中打开的 Shell。'
+            title="集成终端 Shell"
+            description="选择要在集成终端中打开的 Shell。"
             control={
               <SettingsDropdown
                 width={220}
                 value={terminalProfileId ?? 'auto'}
                 options={terminalProfileOptions}
                 onChange={setTerminalProfileId}
-                ariaLabel='集成终端 Shell'
+                ariaLabel="集成终端 Shell"
               />
             }
           />
@@ -399,7 +378,7 @@ export function GeneralSettings({
               <SettingsDropdown
                 width={240}
                 value={language}
-                options={LANGUAGE_OPTIONS.map(option => ({ ...option, label: t(option.label) }))}
+                options={LANGUAGE_OPTIONS.map((option) => ({ ...option, label: t(option.label) }))}
                 onChange={setLanguage}
                 ariaLabel={t('语言')}
                 searchable
@@ -408,44 +387,44 @@ export function GeneralSettings({
             }
           />
           <SettingsRow
-            title='需按 ^ + 回车键发送长文本提示'
-            description='启用后，长文本提示需按 ^ + 回车键发送。'
+            title="需按 ^ + 回车键发送长文本提示"
+            description="启用后，长文本提示需按 ^ + 回车键发送。"
             control={
               <ToggleSwitch
                 checked={longPromptShortcut}
                 onChange={setLongPromptShortcut}
-                ariaLabel='需按快捷键发送长文本提示'
+                ariaLabel="需按快捷键发送长文本提示"
               />
             }
           />
           <SettingsRow
-            title='速度'
-            description='选择用于聊天、子智能体和压缩的推理层级'
+            title="速度"
+            description="选择用于聊天、子智能体和压缩的推理层级"
             control={
               <SettingsDropdown
                 width={260}
                 value={speed}
                 options={SPEED_OPTIONS}
                 onChange={setSpeed}
-                ariaLabel='速度'
+                ariaLabel="速度"
               />
             }
           />
           <SettingsRow
-            title='允许普通模式提问'
-            description='开启后，主 Agent 可在普通模式中通过结构化问题卡向你提问。计划模式始终允许。'
+            title="允许普通模式提问"
+            description="开启后，主 Agent 可在普通模式中通过结构化问题卡向你提问。计划模式始终允许。"
             autoSave
             control={
               <ToggleSwitch
                 checked={defaultModeRequestUserInput}
                 onChange={setDefaultModeRequestUserInput}
-                ariaLabel='允许普通模式提问'
+                ariaLabel="允许普通模式提问"
               />
             }
           />
           <SettingsRow
-            title='代码审查'
-            description='审阅侧栏中 diff 的展示方式：行内视图（叠加显示）或分离视图（左右对照）'
+            title="代码审查"
+            description="审阅侧栏中 diff 的展示方式：行内视图（叠加显示）或分离视图（左右对照）"
             autoSave
             control={
               <SegmentedControl
@@ -456,8 +435,8 @@ export function GeneralSettings({
             }
           />
           <SettingsRow
-            title='AI 审查结果'
-            description='在当前任务继续审查，或为每次 AI Review 创建独立任务'
+            title="AI 审查结果"
+            description="在当前任务继续审查，或为每次 AI Review 创建独立任务"
             autoSave
             control={
               <SegmentedControl
@@ -468,30 +447,30 @@ export function GeneralSettings({
             }
           />
           <SettingsRow
-            title='建议提示'
-            description='搜索项目文件和已连接应用，建议下一步操作'
+            title="建议提示"
+            description="搜索项目文件和已连接应用，建议下一步操作"
             control={
               <ToggleSwitch
                 checked={suggestPrompts}
                 onChange={setSuggestPrompts}
-                ariaLabel='建议提示'
+                ariaLabel="建议提示"
               />
             }
           />
           <SettingsRow
-            title='从其他 AI 应用导入工作内容'
-            description='导入您的设置、项目和最近聊天记录'
+            title="从其他 AI 应用导入工作内容"
+            description="导入您的设置、项目和最近聊天记录"
             control={
-              <Button color="primary" type='button'>
+              <Button color="primary" type="button">
                 导入
               </Button>
             }
           />
           <SettingsRow
-            title='打开源许可证'
-            description='捆绑依赖项的第三方声明'
+            title="打开源许可证"
+            description="捆绑依赖项的第三方声明"
             control={
-              <Button color="secondary" type='button'>
+              <Button color="secondary" type="button">
                 查看
               </Button>
             }
@@ -499,59 +478,57 @@ export function GeneralSettings({
         </SettingsSection>
 
         <SettingsSection
-          title='实现性'
-          description='这些底层能力通过 Rust sidecar 提供。Rust sidecar 已作为默认 agent 运行时。'
+          title="实现性"
+          description="这些底层能力通过 Rust sidecar 提供。Rust sidecar 已作为默认 agent 运行时。"
         >
           <SettingsRow
-            title='Rust Glob / Grep / Diff 内核'
-            description='启用后，Rust sidecar 将执行文件遍历、内容搜索和 diff 计算，不再回退到 TS 路径。'
+            title="Rust Glob / Grep / Diff 内核"
+            description="启用后，Rust sidecar 将执行文件遍历、内容搜索和 diff 计算，不再回退到 TS 路径。"
             autoSave
             control={
               <ToggleSwitch
                 checked={rustSearchAndDiffKernels}
-                onChange={checked => {
+                onChange={(checked) => {
                   setRustSearchAndDiffKernels(checked)
                 }}
-                ariaLabel='Rust Glob Grep Diff 内核'
+                ariaLabel="Rust Glob Grep Diff 内核"
               />
             }
           />
         </SettingsSection>
 
-
-
-        <SettingsSection title='弹出窗口'>
+        <SettingsSection title="弹出窗口">
           <SettingsRow
-            title='弹出窗口快捷键'
-            description='为弹出窗口设置全局快捷键。留空则保持关闭。'
+            title="弹出窗口快捷键"
+            description="为弹出窗口设置全局快捷键。留空则保持关闭。"
             control={
               <>
-                <span className='settings-row-status'>
+                <span className="settings-row-status">
                   {popupShortcut ? popupShortcut : '禁用'}
                 </span>
-                <Button color="secondary" type='button'>
+                <Button color="secondary" type="button">
                   设置
                 </Button>
               </>
             }
           />
           <SettingsRow
-            title='默认使用无项目聊天'
-            description='无需项目即可开始新聊天'
+            title="默认使用无项目聊天"
+            description="无需项目即可开始新聊天"
             control={
               <ToggleSwitch
                 checked={popupNoProjectChat}
                 onChange={setPopupNoProjectChat}
-                ariaLabel='默认使用无项目聊天'
+                ariaLabel="默认使用无项目聊天"
               />
             }
           />
         </SettingsSection>
 
-        <SettingsSection title='通知'>
+        <SettingsSection title="通知">
           <SettingsRow
-            title='轮次完成通知'
-            description='设置 CodePilotX 完成任务时是否显示系统通知'
+            title="轮次完成通知"
+            description="设置 CodePilotX 完成任务时是否显示系统通知"
             control={
               <SettingsDropdown
                 width={260}
@@ -562,60 +539,60 @@ export function GeneralSettings({
                   { value: 'never', label: '从不' },
                 ]}
                 onChange={setCompletionNotification}
-                ariaLabel='轮次完成通知'
+                ariaLabel="轮次完成通知"
               />
             }
           />
           <SettingsRow
-            title='启用权限通知'
-            description='在需要额外权限时显示系统通知'
+            title="启用权限通知"
+            description="在需要额外权限时显示系统通知"
             control={
               <ToggleSwitch
                 checked={notifications.permissions}
                 onChange={setPermissionNotifications}
-                ariaLabel='启用权限通知'
+                ariaLabel="启用权限通知"
               />
             }
           />
           <SettingsRow
-            title='启用问题通知'
-            description='需要输入才能继续时显示系统通知'
+            title="启用问题通知"
+            description="需要输入才能继续时显示系统通知"
             control={
               <ToggleSwitch
                 checked={notifications.questions}
                 onChange={setQuestionNotifications}
-                ariaLabel='启用问题通知'
+                ariaLabel="启用问题通知"
               />
             }
           />
           <SettingsRow
-            title='启用任务错误通知'
-            description='任务执行失败时显示系统通知'
+            title="启用任务错误通知"
+            description="任务执行失败时显示系统通知"
             control={
               <ToggleSwitch
                 checked={notifications.errors}
                 onChange={setErrorNotifications}
-                ariaLabel='启用任务错误通知'
+                ariaLabel="启用任务错误通知"
               />
             }
           />
         </SettingsSection>
 
-        <SettingsSection title='对话框底部栏'>
+        <SettingsSection title="对话框底部栏">
           <SettingsRow
-            title='显示上下文窗口使用量'
-            description='在对话框底部栏显示上下文窗口使用量'
+            title="显示上下文窗口使用量"
+            description="在对话框底部栏显示上下文窗口使用量"
             autoSave
             control={
               <ToggleSwitch
                 checked={showContextUsage}
                 onChange={setShowContextUsage}
-                ariaLabel='显示上下文窗口使用量'
+                ariaLabel="显示上下文窗口使用量"
               />
             }
           />
         </SettingsSection>
       </div>
     </SettingsContentArea>
-  );
+  )
 }

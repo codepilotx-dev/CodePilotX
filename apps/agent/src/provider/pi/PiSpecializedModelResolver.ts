@@ -1,24 +1,27 @@
-import type { Api, Model as PiModel } from "@earendil-works/pi-ai"
-import { Model, Provider } from "@codepilotx/model-schema"
-import type { ConfigObject, ConfigService } from "../../config/ConfigService"
-import type { AgentDatabase } from "../../storage/database/AgentDatabase"
-import type { PiModelService } from "./PiModelService"
+import type { Api, Model as PiModel } from '@earendil-works/pi-ai'
+import { Model, Provider } from '@codepilotx/model-schema'
+import type { ConfigObject, ConfigService } from '../../config/ConfigService'
+import type { AgentDatabase } from '../../storage/database/AgentDatabase'
+import type { PiModelService } from './PiModelService'
 
-export type SpecializedModelPurpose = "generation" | "organization" | "coding" | "security"
-export type SpecializedPiModelService = Pick<PiModelService, "getPiModel">
+export type SpecializedModelPurpose = 'generation' | 'organization' | 'coding' | 'security'
+export type SpecializedPiModelService = Pick<PiModelService, 'getPiModel'>
 
 const object = (value: unknown): Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value)
-    ? value as Record<string, unknown>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
     : {}
 
 const modelRef = (value: unknown, fallbackProvider: unknown): Model.Ref | null => {
-  if (typeof value !== "string" || !value.trim()) return null
+  if (typeof value !== 'string' || !value.trim()) return null
   const configured = value.trim()
-  const separator = configured.indexOf("/")
-  const providerID = separator > 0
-    ? configured.slice(0, separator).trim()
-    : typeof fallbackProvider === "string" ? fallbackProvider.trim() : ""
+  const separator = configured.indexOf('/')
+  const providerID =
+    separator > 0
+      ? configured.slice(0, separator).trim()
+      : typeof fallbackProvider === 'string'
+        ? fallbackProvider.trim()
+        : ''
   const id = separator > 0 ? configured.slice(separator + 1).trim() : configured
   if (!providerID || !id) return null
   return Model.Ref.make({
@@ -37,10 +40,10 @@ const specializedRef = (
 
 const recentNewThreadRef = (config: ConfigObject): Model.Ref | null => {
   const recent = object(object(config.desktop).recent_new_thread_model)
-  const providerID = typeof recent.providerID === "string" ? recent.providerID.trim() : ""
-  const id = typeof recent.id === "string" ? recent.id.trim() : ""
+  const providerID = typeof recent.providerID === 'string' ? recent.providerID.trim() : ''
+  const id = typeof recent.id === 'string' ? recent.id.trim() : ''
   if (!providerID || !id) return null
-  const variant = typeof recent.variant === "string" ? recent.variant.trim() : ""
+  const variant = typeof recent.variant === 'string' ? recent.variant.trim() : ''
   return Model.Ref.make({
     providerID: Provider.ID.make(providerID),
     id: Model.ID.make(id),
@@ -61,7 +64,8 @@ export async function resolveSpecializedPiModel(input: {
   let effectiveConfig = globalConfig
   if (input.projectId && input.configService) {
     const project = input.db.getProject(input.projectId)
-    if (project) effectiveConfig = (await input.configService.read({ cwd: project.rootPath })).config
+    if (project)
+      effectiveConfig = (await input.configService.read({ cwd: project.rootPath })).config
   }
 
   const refs = [
@@ -73,7 +77,7 @@ export async function resolveSpecializedPiModel(input: {
   ].filter((ref): ref is Model.Ref => ref !== null)
   const seen = new Set<string>()
   for (const ref of refs) {
-    const key = `${ref.providerID}/${ref.id}/${ref.variant ?? ""}`
+    const key = `${ref.providerID}/${ref.id}/${ref.variant ?? ''}`
     if (seen.has(key)) continue
     seen.add(key)
     try {

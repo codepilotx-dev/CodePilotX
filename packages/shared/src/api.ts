@@ -1,6 +1,6 @@
-import { Model, Provider } from "@codepilotx/model-schema"
-import { Schema } from "effect"
-import { CatalogProviderSchema } from "./model"
+import { Model, Provider } from '@codepilotx/model-schema'
+import { Schema } from 'effect'
+import { CatalogProviderSchema } from './model'
 
 export const ProviderTestRequestSchema = Schema.Struct({
   providerID: Provider.ID,

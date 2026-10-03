@@ -1,5 +1,5 @@
-import { Schema } from "effect"
-import { StructuredPlanSchema } from "./items"
+import { Schema } from 'effect'
+import { StructuredPlanSchema } from './items'
 
 export const PlanApprovalSchema = Schema.Struct({
   id: Schema.String,
@@ -7,7 +7,7 @@ export const PlanApprovalSchema = Schema.Struct({
   turnId: Schema.String,
   planItemId: Schema.String,
   version: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
-  status: Schema.Literals(["pending", "implemented", "feedback", "closed", "superseded"]),
+  status: Schema.Literals(['pending', 'implemented', 'feedback', 'closed', 'superseded']),
   title: Schema.String,
   markdown: Schema.String,
   /** 与计划项共享同一结构化对象；历史审批缺少该字段时继续正常解码。 */

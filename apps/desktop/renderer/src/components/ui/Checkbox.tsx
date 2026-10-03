@@ -35,9 +35,11 @@ export function Checkbox({
       onCheckedChange={onCheckedChange}
     >
       <CheckboxPrimitive.Indicator className="ui-checkbox-indicator">
-        {checked === 'indeterminate'
-          ? <Minus size={APP_ICON_SIZES.sm} aria-hidden="true" />
-          : <Check size={APP_ICON_SIZES.sm} aria-hidden="true" />}
+        {checked === 'indeterminate' ? (
+          <Minus size={APP_ICON_SIZES.sm} aria-hidden="true" />
+        ) : (
+          <Check size={APP_ICON_SIZES.sm} aria-hidden="true" />
+        )}
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   )
@@ -47,5 +49,7 @@ export function Checkbox({
       {control}
       <span className="ui-checkbox-label">{children}</span>
     </label>
-  ) : React.cloneElement(control, { className: cx('ui-checkbox-control', className) })
+  ) : (
+    React.cloneElement(control, { className: cx('ui-checkbox-control', className) })
+  )
 }

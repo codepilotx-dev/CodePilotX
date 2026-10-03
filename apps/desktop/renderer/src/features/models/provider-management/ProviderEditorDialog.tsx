@@ -34,10 +34,7 @@ import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRest
 import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { SettingsDropdown } from '../../settings/SettingsDropdown.js'
-import {
-  PROVIDER_PRESETS,
-  type ProviderPreset,
-} from './providerEditorPresets.js'
+import { PROVIDER_PRESETS, type ProviderPreset } from './providerEditorPresets.js'
 import {
   DEEPSEEK_PROTOCOL_OPTIONS,
   DEFAULT_DEEPSEEK_PROTOCOL,
@@ -136,7 +133,7 @@ export function ProviderEditorDialog({
   onSaved,
 }: ProviderEditorDialogProps): React.ReactNode {
   const retainedProvider = useLastNonNull(currentProvider)
-  const provider = open ? currentProvider : retainedProvider ?? undefined
+  const provider = open ? currentProvider : (retainedProvider ?? undefined)
   const titleId = useId()
   const editing = provider?.providerKind === 'custom'
   // 内置 DeepSeek 走同一编辑入口，但只允许切换全局 API 协议。
@@ -166,11 +163,10 @@ export function ProviderEditorDialog({
   useEffect(() => {
     if (!open) return
     setActiveTab('basic')
-    const customConfig = provider?.config?.kind === 'custom'
-      ? provider.config
-      : undefined
-    const nextModels = customConfig?.models.map(model => editableModel(model))
-      ?? provider?.defaultModels.map(modelId => {
+    const customConfig = provider?.config?.kind === 'custom' ? provider.config : undefined
+    const nextModels =
+      customConfig?.models.map((model) => editableModel(model)) ??
+      provider?.defaultModels.map((modelId) => {
         const metadata = provider.modelMetadata?.[modelId]
         return {
           editorKey: createEditorKey(),
@@ -190,13 +186,15 @@ export function ProviderEditorDialog({
           thinkingLevelMap: '',
           compat: '',
         } satisfies EditableModel
-      }) ?? []
+      }) ??
+      []
     setId(provider?.providerID ?? '')
     setName(provider?.displayName ?? '')
     setBaseUrl(provider?.baseURL ?? '')
-    setAuth(customConfig?.auth ?? (
-      provider?.authMethods?.includes('api-key') === false ? 'none' : 'api-key'
-    ))
+    setAuth(
+      customConfig?.auth ??
+        (provider?.authMethods?.includes('api-key') === false ? 'none' : 'api-key'),
+    )
     setEnabled(customConfig?.enabled ?? provider?.enabled ?? true)
     setAllowInsecureHttp(customConfig?.allowInsecureHttp ?? false)
     setEnv(customConfig?.env.join(', ') ?? provider?.envVars?.join(', ') ?? '')
@@ -214,7 +212,7 @@ export function ProviderEditorDialog({
     setBaseUrl(preset.defaultValues.baseUrl)
     setAuth(preset.defaultValues.auth)
     setModels(
-      preset.defaultValues.models.map(item => ({
+      preset.defaultValues.models.map((item) => ({
         ...emptyModel(),
         id: item.id,
         name: item.name,
@@ -232,7 +230,7 @@ export function ProviderEditorDialog({
     const headerEntries = parseHeaders(headers)
     if (headerEntries instanceof Error) return headerEntries
     const normalizedModels: DesktopProviderModelDefinition[] = []
-    for (const model of models.filter(item => item.id.trim())) {
+    for (const model of models.filter((item) => item.id.trim())) {
       const modelHeaders = parseHeaders(model.headers)
       if (modelHeaders instanceof Error) {
         return new Error(`模型 ${model.id || '(未命名)'}：${modelHeaders.message}`)
@@ -268,7 +266,9 @@ export function ProviderEditorDialog({
       return new Error('Provider ID、名称和 Base URL 不能为空。')
     }
     if (!editing && BUILTIN_PROVIDER_IDS.has(trimmedId.toLowerCase())) {
-      return new Error(`Provider ID "${trimmedId}" 与系统内置 Provider 重名，请添加前缀（如 custom-${trimmedId}）。`)
+      return new Error(
+        `Provider ID "${trimmedId}" 与系统内置 Provider 重名，请添加前缀（如 custom-${trimmedId}）。`,
+      )
     }
     if (!editing && !/^[A-Za-z0-9_.-]+$/.test(trimmedId)) {
       return new Error('Provider ID 只能包含英文字母、数字、下划线、短横线与点。')
@@ -282,23 +282,26 @@ export function ProviderEditorDialog({
     if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
       return new Error('Base URL 必须以 http:// 或 https:// 开头。')
     }
-    if (
-      parsedUrl.protocol === 'http:' &&
-      !isLoopbackUrl(trimmedBaseUrl) &&
-      !allowInsecureHttp
-    ) {
-      return new Error('检测到非本地明文 HTTP 端点，请在“高级与网络”中开启“允许非 loopback 明文 HTTP”，或使用 HTTPS。')
+    if (parsedUrl.protocol === 'http:' && !isLoopbackUrl(trimmedBaseUrl) && !allowInsecureHttp) {
+      return new Error(
+        '检测到非本地明文 HTTP 端点，请在“高级与网络”中开启“允许非 loopback 明文 HTTP”，或使用 HTTPS。',
+      )
     }
-    const envList = env.split(',').map(item => item.trim()).filter(Boolean)
+    const envList = env
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
     if (auth === 'api-key') {
       for (const entry of envList) {
         if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(entry)) {
-          return new Error(`环境变量名 "${entry}" 格式无效。此处应填写环境变量名称（如 GEMINI_API_KEY），而非 API Key 密钥本身。`)
+          return new Error(
+            `环境变量名 "${entry}" 格式无效。此处应填写环境变量名称（如 GEMINI_API_KEY），而非 API Key 密钥本身。`,
+          )
         }
       }
     }
     if (normalizedModels.length === 0) return new Error('至少添加一个有效模型。')
-    const modelIds = normalizedModels.map(item => item.id)
+    const modelIds = normalizedModels.map((item) => item.id)
     if (new Set(modelIds).size !== modelIds.length) {
       return new Error('模型列表中存在重复的模型 ID。')
     }
@@ -339,11 +342,12 @@ export function ProviderEditorDialog({
       return
     }
     if (
-      definition.allowInsecureHttp
-      && /^http:\/\//i.test(definition.baseUrl)
-      && !isLoopbackUrl(definition.baseUrl)
-      && !window.confirm('此 Endpoint 使用局域网或远程明文 HTTP，凭据可能被窃听。仍要保存吗？')
-    ) return
+      definition.allowInsecureHttp &&
+      /^http:\/\//i.test(definition.baseUrl) &&
+      !isLoopbackUrl(definition.baseUrl) &&
+      !window.confirm('此 Endpoint 使用局域网或远程明文 HTTP，凭据可能被窃听。仍要保存吗？')
+    )
+      return
     setBusy(true)
     setError(null)
     try {
@@ -370,7 +374,7 @@ export function ProviderEditorDialog({
       setError(definition.message)
       return
     }
-    const api = models.find(model => model.api !== 'anthropic-messages')?.api
+    const api = models.find((model) => model.api !== 'anthropic-messages')?.api
     if (!api || api === 'anthropic-messages') {
       setError('Anthropic Messages Endpoint 不支持自动发现。')
       return
@@ -380,7 +384,7 @@ export function ProviderEditorDialog({
     try {
       const result = await desktopClient.discoverProviderModels(provider.providerID, api)
       setCandidates(result)
-      setSelectedCandidates(new Set(result.map(model => String(model.id))))
+      setSelectedCandidates(new Set(result.map((model) => String(model.id))))
     } catch (discoverError) {
       setError(discoverError instanceof Error ? discoverError.message : String(discoverError))
     } finally {
@@ -389,11 +393,13 @@ export function ProviderEditorDialog({
   }
 
   function importSelected(): void {
-    const existing = new Set(models.map(model => model.id))
+    const existing = new Set(models.map((model) => model.id))
     const imported = candidates
-      .filter(model => selectedCandidates.has(String(model.id)) && !existing.has(String(model.id)))
-      .map(model => editableModel(model))
-    setModels(current => [...current, ...imported])
+      .filter(
+        (model) => selectedCandidates.has(String(model.id)) && !existing.has(String(model.id)),
+      )
+      .map((model) => editableModel(model))
+    setModels((current) => [...current, ...imported])
     setCandidates([])
     setSelectedCandidates(new Set())
   }
@@ -404,9 +410,7 @@ export function ProviderEditorDialog({
   const tabOptions: readonly { value: DialogTab; label: React.ReactNode }[] = [
     { value: 'basic', label: '基本配置' },
     { value: 'models', label: `模型管理 (${models.length})` },
-    ...(managed
-      ? []
-      : [{ value: 'advanced' as const, label: '高级与网络' }]),
+    ...(managed ? [] : [{ value: 'advanced' as const, label: '高级与网络' }]),
   ]
 
   return (
@@ -421,11 +425,7 @@ export function ProviderEditorDialog({
           <header className="settings-management-dialog-header provider-editor-header">
             <div className="settings-management-dialog-heading provider-editor-heading">
               <div className="provider-editor-icon">
-                <Server
-                  aria-hidden
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
+                <Server aria-hidden size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               </div>
               <div>
                 <Dialog.Title id={titleId}>
@@ -468,14 +468,16 @@ export function ProviderEditorDialog({
                       <span>API 协议</span>
                       <SegmentedControl<DeepSeekProtocol>
                         ariaLabel="DeepSeek API 协议"
-                        options={DEEPSEEK_PROTOCOL_OPTIONS.map(option => ({
+                        options={DEEPSEEK_PROTOCOL_OPTIONS.map((option) => ({
                           value: option.value,
                           label: option.label,
                         }))}
                         value={protocol}
                         onChange={setProtocol}
                       />
-                      <p>切换后所有 DeepSeek 模型从下一次请求开始使用新协议，正在进行的请求不会中断。</p>
+                      <p>
+                        切换后所有 DeepSeek 模型从下一次请求开始使用新协议，正在进行的请求不会中断。
+                      </p>
                     </div>
                     <label className="settings-management-dialog-row provider-editor-field provider-editor-field--mono">
                       <span>Endpoint</span>
@@ -496,7 +498,7 @@ export function ProviderEditorDialog({
                       />
                     </div>
                     <div className="provider-editor-presets-list">
-                      {PROVIDER_PRESETS.map(preset => (
+                      {PROVIDER_PRESETS.map((preset) => (
                         <button
                           className="provider-editor-preset-chip"
                           key={preset.id}
@@ -512,58 +514,58 @@ export function ProviderEditorDialog({
                 ) : null}
 
                 {!managed ? (
-                <div className="settings-management-dialog-card provider-editor-basic-card">
-                  <label className="settings-management-dialog-row provider-editor-field provider-editor-field--mono">
-                    <span>
-                      Provider ID
-                      {editing ? <small>（不可修改）</small> : null}
-                    </span>
-                    <Input
-                      placeholder="如：custom-ollama"
-                      readOnly={editing}
-                      value={id}
-                      onChange={event => setId(event.target.value)}
-                    />
-                  </label>
-                  <label className="settings-management-dialog-row provider-editor-field">
-                    <span>显示名称</span>
-                    <Input
-                      placeholder="如：Ollama 本地服务"
-                      value={name}
-                      onChange={event => setName(event.target.value)}
-                    />
-                  </label>
-                  <label className="settings-management-dialog-row provider-editor-field provider-editor-field--mono">
-                    <span>Base URL</span>
-                    <Input
-                      placeholder="https://example.com/v1"
-                      value={baseUrl}
-                      onChange={event => setBaseUrl(event.target.value)}
-                    />
-                    <p>端点 URL，例如本地服务 http://localhost:11434/v1 或官方 API 路径。</p>
-                  </label>
-                  <label className="settings-management-dialog-row provider-editor-field">
-                    <span>认证方式</span>
-                    <SettingsDropdown
-                      ariaLabel="认证方式"
-                      options={[
-                        { value: 'api-key', label: 'API Key（需要凭据）' },
-                        { value: 'none', label: '无需认证（本地/公开服务）' },
-                      ]}
-                      value={auth}
-                      width="100%"
-                      onChange={value => setAuth(value as 'api-key' | 'none')}
-                    />
-                  </label>
-                  <label className="settings-management-dialog-row provider-editor-field provider-editor-field--mono">
-                    <span>凭据环境变量（逗号分隔）</span>
-                    <Input
-                      placeholder="如：OLLAMA_API_KEY, CUSTOM_API_KEY"
-                      value={env}
-                      onChange={event => setEnv(event.target.value)}
-                    />
-                  </label>
-                </div>
+                  <div className="settings-management-dialog-card provider-editor-basic-card">
+                    <label className="settings-management-dialog-row provider-editor-field provider-editor-field--mono">
+                      <span>
+                        Provider ID
+                        {editing ? <small>（不可修改）</small> : null}
+                      </span>
+                      <Input
+                        placeholder="如：custom-ollama"
+                        readOnly={editing}
+                        value={id}
+                        onChange={(event) => setId(event.target.value)}
+                      />
+                    </label>
+                    <label className="settings-management-dialog-row provider-editor-field">
+                      <span>显示名称</span>
+                      <Input
+                        placeholder="如：Ollama 本地服务"
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                      />
+                    </label>
+                    <label className="settings-management-dialog-row provider-editor-field provider-editor-field--mono">
+                      <span>Base URL</span>
+                      <Input
+                        placeholder="https://example.com/v1"
+                        value={baseUrl}
+                        onChange={(event) => setBaseUrl(event.target.value)}
+                      />
+                      <p>端点 URL，例如本地服务 http://localhost:11434/v1 或官方 API 路径。</p>
+                    </label>
+                    <label className="settings-management-dialog-row provider-editor-field">
+                      <span>认证方式</span>
+                      <SettingsDropdown
+                        ariaLabel="认证方式"
+                        options={[
+                          { value: 'api-key', label: 'API Key（需要凭据）' },
+                          { value: 'none', label: '无需认证（本地/公开服务）' },
+                        ]}
+                        value={auth}
+                        width="100%"
+                        onChange={(value) => setAuth(value as 'api-key' | 'none')}
+                      />
+                    </label>
+                    <label className="settings-management-dialog-row provider-editor-field provider-editor-field--mono">
+                      <span>凭据环境变量（逗号分隔）</span>
+                      <Input
+                        placeholder="如：OLLAMA_API_KEY, CUSTOM_API_KEY"
+                        value={env}
+                        onChange={(event) => setEnv(event.target.value)}
+                      />
+                    </label>
+                  </div>
                 ) : null}
               </div>
             ) : null}
@@ -576,27 +578,22 @@ export function ProviderEditorDialog({
                     <span>{models.length}</span>
                   </div>
                   {!managed ? (
-                  <div className="provider-editor-models-actions">
-                    {editing ? (
+                    <div className="provider-editor-models-actions">
+                      {editing ? (
+                        <Button color="secondary" disabled={busy} onClick={() => void discover()}>
+                          <RefreshCw aria-hidden size={APP_ICON_SIZE} />从 /models 导入
+                        </Button>
+                      ) : null}
                       <Button
                         color="secondary"
-                        disabled={busy}
-                        onClick={() => void discover()}
+                        onClick={() => {
+                          setModels((current) => [...current, emptyModel()])
+                        }}
                       >
-                        <RefreshCw aria-hidden size={APP_ICON_SIZE} />
-                        从 /models 导入
+                        <Plus aria-hidden size={APP_ICON_SIZE} />
+                        新增模型
                       </Button>
-                    ) : null}
-                    <Button
-                      color="secondary"
-                      onClick={() => {
-                        setModels(current => [...current, emptyModel()])
-                      }}
-                    >
-                      <Plus aria-hidden size={APP_ICON_SIZE} />
-                      新增模型
-                    </Button>
-                  </div>
+                    </div>
                   ) : null}
                 </header>
 
@@ -613,20 +610,19 @@ export function ProviderEditorDialog({
                       </Button>
                     </header>
                     <div className="provider-editor-candidates-list">
-                      {candidates.map(candidate => (
-                        <label
-                          className="provider-editor-candidate-row"
-                          key={String(candidate.id)}
-                        >
+                      {candidates.map((candidate) => (
+                        <label className="provider-editor-candidate-row" key={String(candidate.id)}>
                           <input
                             checked={selectedCandidates.has(String(candidate.id))}
                             type="checkbox"
-                            onChange={event => setSelectedCandidates(current => {
-                              const next = new Set(current)
-                              if (event.target.checked) next.add(String(candidate.id))
-                              else next.delete(String(candidate.id))
-                              return next
-                            })}
+                            onChange={(event) =>
+                              setSelectedCandidates((current) => {
+                                const next = new Set(current)
+                                if (event.target.checked) next.add(String(candidate.id))
+                                else next.delete(String(candidate.id))
+                                return next
+                              })
+                            }
                           />
                           <span>{String(candidate.id)}</span>
                           <span className="provider-editor-model-card-badge">{candidate.api}</span>
@@ -638,33 +634,36 @@ export function ProviderEditorDialog({
 
                 {managed ? (
                   <div className="settings-management-dialog-card">
-                    {models.map(model => (
-                      <div
-                        className="settings-management-dialog-row"
-                        key={model.editorKey}
-                      >
+                    {models.map((model) => (
+                      <div className="settings-management-dialog-row" key={model.editorKey}>
                         <span>{model.id}</span>
                         <span className="provider-editor-model-card-badge">{protocol}</span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                <div className="provider-editor-models-list">
-                  {models.map((model, index) => (
-                    <ProviderModelCard
-                      canRemove={models.length > 1}
-                      defaultExpanded={index === 0}
-                      key={model.editorKey}
-                      model={model}
-                      onChange={next => setModels(current => current.map(item => (
-                        item.editorKey === model.editorKey ? next : item
-                      )))}
-                      onRemove={() => setModels(current => current.filter(
-                        item => item.editorKey !== model.editorKey,
-                      ))}
-                    />
-                  ))}
-                </div>
+                  <div className="provider-editor-models-list">
+                    {models.map((model, index) => (
+                      <ProviderModelCard
+                        canRemove={models.length > 1}
+                        defaultExpanded={index === 0}
+                        key={model.editorKey}
+                        model={model}
+                        onChange={(next) =>
+                          setModels((current) =>
+                            current.map((item) =>
+                              item.editorKey === model.editorKey ? next : item,
+                            ),
+                          )
+                        }
+                        onRemove={() =>
+                          setModels((current) =>
+                            current.filter((item) => item.editorKey !== model.editorKey),
+                          )
+                        }
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
             ) : null}
@@ -701,7 +700,10 @@ export function ProviderEditorDialog({
                     <AlertTriangle size={APP_ICON_SIZE} aria-hidden />
                     <div>
                       <strong>检测到非本地明文 HTTP 端点</strong>
-                      <p>当前 Base URL 使用明文 HTTP 且不是本机回环地址，建议开启“允许非 loopback 明文 HTTP”或使用 HTTPS。</p>
+                      <p>
+                        当前 Base URL 使用明文 HTTP 且不是本机回环地址，建议开启“允许非 loopback
+                        明文 HTTP”或使用 HTTPS。
+                      </p>
                     </div>
                   </div>
                 ) : null}
@@ -716,7 +718,7 @@ export function ProviderEditorDialog({
                     placeholder="X-Custom-Header: value&#10;Custom-Client: CodePilotX"
                     rows={4}
                     value={headers}
-                    onChange={event => setHeaders(event.target.value)}
+                    onChange={(event) => setHeaders(event.target.value)}
                   />
                   <p>仅填写非敏感请求头。Authorization / API Key 等凭据请勿直接写入此处。</p>
                 </label>
@@ -771,10 +773,14 @@ const ProviderModelCard = memo(function ProviderModelCard({
           aria-expanded={expanded}
           className="provider-editor-model-card-summary"
           type="button"
-          onClick={() => setExpanded(current => !current)}
+          onClick={() => setExpanded((current) => !current)}
         >
           <span className="provider-editor-model-card-chevron">
-            {expanded ? <ChevronDown aria-hidden size={APP_ICON_SIZES.sm} /> : <ChevronRight aria-hidden size={APP_ICON_SIZES.sm} />}
+            {expanded ? (
+              <ChevronDown aria-hidden size={APP_ICON_SIZES.sm} />
+            ) : (
+              <ChevronRight aria-hidden size={APP_ICON_SIZES.sm} />
+            )}
           </span>
           <code>{model.id || '(未命名模型)'}</code>
           {model.name && model.name !== model.id ? (
@@ -796,7 +802,7 @@ const ProviderModelCard = memo(function ProviderModelCard({
           <ToggleSwitch
             ariaLabel="启用模型"
             checked={model.enabled}
-            onChange={enabled => onChange({ ...model, enabled })}
+            onChange={(enabled) => onChange({ ...model, enabled })}
           />
           {canRemove ? (
             <IconButton color="danger" size="toolbar" title="移除模型" onClick={onRemove}>
@@ -837,7 +843,7 @@ function ModelEditor({
           <Input
             placeholder="如：llama3.2 或 gpt-4o"
             value={model.id}
-            onChange={event => onChange({ ...model, id: event.target.value })}
+            onChange={(event) => onChange({ ...model, id: event.target.value })}
           />
         </label>
         <label className="provider-editor-field">
@@ -845,7 +851,7 @@ function ModelEditor({
           <Input
             placeholder="默认使用模型 ID"
             value={model.name}
-            onChange={event => onChange({ ...model, name: event.target.value })}
+            onChange={(event) => onChange({ ...model, name: event.target.value })}
           />
         </label>
       </div>
@@ -858,7 +864,7 @@ function ModelEditor({
             options={[...API_OPTIONS]}
             value={model.api}
             width="100%"
-            onChange={value => onChange({ ...model, api: value as Api })}
+            onChange={(value) => onChange({ ...model, api: value as Api })}
           />
         </label>
         <label className="provider-editor-field">
@@ -869,7 +875,7 @@ function ModelEditor({
           <Input
             type="number"
             value={String(model.contextWindow)}
-            onChange={event => number('contextWindow', event.target.value)}
+            onChange={(event) => number('contextWindow', event.target.value)}
           />
         </label>
       </div>
@@ -883,7 +889,7 @@ function ModelEditor({
           <Input
             type="number"
             value={String(model.maxTokens)}
-            onChange={event => number('maxTokens', event.target.value)}
+            onChange={(event) => number('maxTokens', event.target.value)}
           />
         </label>
       </div>
@@ -894,7 +900,7 @@ function ModelEditor({
           <ToggleSwitch
             ariaLabel="启用模型"
             checked={model.enabled}
-            onChange={enabled => onChange({ ...model, enabled })}
+            onChange={(enabled) => onChange({ ...model, enabled })}
           />
         </div>
         <div className="provider-editor-model-toggle-pill">
@@ -902,7 +908,7 @@ function ModelEditor({
           <ToggleSwitch
             ariaLabel="推理模型"
             checked={model.reasoning}
-            onChange={reasoning => onChange({ ...model, reasoning })}
+            onChange={(reasoning) => onChange({ ...model, reasoning })}
           />
         </div>
         <div className="provider-editor-model-toggle-pill">
@@ -910,7 +916,7 @@ function ModelEditor({
           <ToggleSwitch
             ariaLabel="图片输入"
             checked={model.imageInput}
-            onChange={imageInput => onChange({ ...model, imageInput })}
+            onChange={(imageInput) => onChange({ ...model, imageInput })}
           />
         </div>
       </div>
@@ -923,7 +929,7 @@ function ModelEditor({
           aria-controls={advancedId}
           aria-expanded={advanced}
           className="provider-editor-model-advanced-summary"
-          onClick={() => setAdvanced(current => !current)}
+          onClick={() => setAdvanced((current) => !current)}
           type="button"
         >
           <ChevronRight size={APP_ICON_SIZES.sm} aria-hidden="true" />
@@ -941,7 +947,7 @@ function ModelEditor({
               <Input
                 type="number"
                 value={String(model.inputCost)}
-                onChange={event => number('inputCost', event.target.value)}
+                onChange={(event) => number('inputCost', event.target.value)}
               />
             </label>
             <label className="provider-editor-field">
@@ -949,7 +955,7 @@ function ModelEditor({
               <Input
                 type="number"
                 value={String(model.outputCost)}
-                onChange={event => number('outputCost', event.target.value)}
+                onChange={(event) => number('outputCost', event.target.value)}
               />
             </label>
           </div>
@@ -960,7 +966,7 @@ function ModelEditor({
               <Input
                 type="number"
                 value={String(model.cacheReadCost)}
-                onChange={event => number('cacheReadCost', event.target.value)}
+                onChange={(event) => number('cacheReadCost', event.target.value)}
               />
             </label>
             <label className="provider-editor-field">
@@ -968,7 +974,7 @@ function ModelEditor({
               <Input
                 type="number"
                 value={String(model.cacheWriteCost)}
-                onChange={event => number('cacheWriteCost', event.target.value)}
+                onChange={(event) => number('cacheWriteCost', event.target.value)}
               />
             </label>
           </div>
@@ -983,7 +989,7 @@ function ModelEditor({
               placeholder="X-Model-Specific: value"
               rows={3}
               value={model.headers}
-              onChange={event => onChange({ ...model, headers: event.target.value })}
+              onChange={(event) => onChange({ ...model, headers: event.target.value })}
             />
           </label>
 
@@ -994,7 +1000,7 @@ function ModelEditor({
               placeholder='{"high": "high"}'
               rows={3}
               value={model.thinkingLevelMap}
-              onChange={event => onChange({ ...model, thinkingLevelMap: event.target.value })}
+              onChange={(event) => onChange({ ...model, thinkingLevelMap: event.target.value })}
             />
           </label>
 
@@ -1005,7 +1011,7 @@ function ModelEditor({
               placeholder="{}"
               rows={3}
               value={model.compat}
-              onChange={event => onChange({ ...model, compat: event.target.value })}
+              onChange={(event) => onChange({ ...model, compat: event.target.value })}
             />
           </label>
         </DisclosureContent>
@@ -1051,9 +1057,7 @@ function editableModel(model: DesktopProviderModelDefinition): EditableModel {
     cacheReadCost: model.cost?.cacheRead ?? 0,
     cacheWriteCost: model.cost?.cacheWrite ?? 0,
     headers: headersToText(model.headers ?? {}),
-    thinkingLevelMap: model.thinkingLevelMap
-      ? JSON.stringify(model.thinkingLevelMap, null, 2)
-      : '',
+    thinkingLevelMap: model.thinkingLevelMap ? JSON.stringify(model.thinkingLevelMap, null, 2) : '',
     compat: model.compat ? JSON.stringify(model.compat, null, 2) : '',
   }
 }
@@ -1081,13 +1085,12 @@ function parseHeaders(value: string): Record<string, string> | Error {
 }
 
 function headersToText(headers: Readonly<Record<string, string>>): string {
-  return Object.entries(headers).map(([name, value]) => `${name}: ${value}`).join('\n')
+  return Object.entries(headers)
+    .map(([name, value]) => `${name}: ${value}`)
+    .join('\n')
 }
 
-function parseJsonObject(
-  value: string,
-  label: string,
-): Record<string, unknown> | null | Error {
+function parseJsonObject(value: string, label: string): Record<string, unknown> | null | Error {
   if (!value.trim()) return null
   try {
     const parsed: unknown = JSON.parse(value)
@@ -1103,10 +1106,12 @@ function parseJsonObject(
 function isLoopbackUrl(value: string): boolean {
   try {
     const hostname = new URL(value).hostname.toLowerCase()
-    return hostname === 'localhost'
-      || hostname === '127.0.0.1'
-      || hostname === '::1'
-      || hostname === '[::1]'
+    return (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '::1' ||
+      hostname === '[::1]'
+    )
   } catch {
     return false
   }

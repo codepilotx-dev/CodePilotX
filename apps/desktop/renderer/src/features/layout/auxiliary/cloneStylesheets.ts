@@ -48,22 +48,19 @@ export function syncStylesheets(targetDoc: Document): () => void {
     return element.cloneNode(true) as Element
   }
 
-  const existingStyles = Array.from(
-    sourceDoc.querySelectorAll('link[rel="stylesheet"], style'),
-  )
+  const existingStyles = Array.from(sourceDoc.querySelectorAll('link[rel="stylesheet"], style'))
   for (const style of existingStyles) {
     head.appendChild(cloneStyleElement(style))
   }
 
   // 4. 监听主窗口 head 变动（如 Vite 动态注入、HMR、动态模块样式）并实时复制到子窗口
-  const headObserver = new MutationObserver(mutations => {
+  const headObserver = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       for (const added of Array.from(mutation.addedNodes)) {
         if (
           added instanceof HTMLElement &&
           (added.tagName === 'STYLE' ||
-            (added.tagName === 'LINK' &&
-              (added as HTMLLinkElement).rel === 'stylesheet'))
+            (added.tagName === 'LINK' && (added as HTMLLinkElement).rel === 'stylesheet'))
         ) {
           head.appendChild(cloneStyleElement(added))
         }

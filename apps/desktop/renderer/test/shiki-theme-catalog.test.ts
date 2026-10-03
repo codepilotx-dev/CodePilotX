@@ -11,33 +11,26 @@ describe('Codex Shiki theme catalog', () => {
   test('matches the 29 selector families and 45 registered variants', () => {
     expect(CODEX_HIGHLIGHT_THEME_FAMILIES).toHaveLength(29)
     expect(CODEX_HIGHLIGHT_THEMES).toHaveLength(45)
-    expect(new Set(CODEX_HIGHLIGHT_THEMES.map(theme => theme.slug)).size).toBe(
-      45,
-    )
+    expect(new Set(CODEX_HIGHLIGHT_THEMES.map((theme) => theme.slug)).size).toBe(45)
     expect(
       new Set(
-        CODEX_HIGHLIGHT_THEME_FAMILIES.flatMap(family =>
+        CODEX_HIGHLIGHT_THEME_FAMILIES.flatMap((family) =>
           [family.themes.light, family.themes.dark].filter(Boolean),
         ),
       ).size,
     ).toBe(45)
-    expect(CODEX_HIGHLIGHT_THEMES.map(theme => theme.slug)).toContain(
-      'codex-light',
+    expect(CODEX_HIGHLIGHT_THEMES.map((theme) => theme.slug)).toContain('codex-light')
+    expect(CODEX_HIGHLIGHT_THEMES.map((theme) => theme.slug)).toContain('codex-dark')
+    expect(CODEX_HIGHLIGHT_THEME_FAMILIES.find((family) => family.id === 'github')?.themes).toEqual(
+      {
+        light: 'github-light-default',
+        dark: 'github-dark-default',
+      },
     )
-    expect(CODEX_HIGHLIGHT_THEMES.map(theme => theme.slug)).toContain(
-      'codex-dark',
-    )
-    expect(
-      CODEX_HIGHLIGHT_THEME_FAMILIES.find(family => family.id === 'github')
-        ?.themes,
-    ).toEqual({
-      light: 'github-light-default',
-      dark: 'github-dark-default',
+    expect(CODEX_HIGHLIGHT_THEME_FAMILIES.find((family) => family.id === 'proof')?.themes).toEqual({
+      light: 'proof-light',
+      dark: null,
     })
-    expect(
-      CODEX_HIGHLIGHT_THEME_FAMILIES.find(family => family.id === 'proof')
-        ?.themes,
-    ).toEqual({ light: 'proof-light', dark: null })
   })
 
   test('loads and highlights with every registered selector theme', async () => {
@@ -54,7 +47,7 @@ describe('Codex Shiki theme catalog', () => {
         lang: 'typescript',
         theme: metadata.slug,
       })
-      expect(result.tokens.flat().some(token => Boolean(token.color))).toBeTrue()
+      expect(result.tokens.flat().some((token) => Boolean(token.color))).toBeTrue()
     }
   })
 })

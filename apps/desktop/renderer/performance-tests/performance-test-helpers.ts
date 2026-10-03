@@ -4,12 +4,7 @@ import { resolve } from 'node:path'
 import type { PerformanceSample } from '../../../../scripts/performance/metrics.js'
 
 const repositoryRoot = resolve(import.meta.dirname, '../../../..')
-const outputDirectory = resolve(
-  repositoryRoot,
-  'performance-results',
-  'raw',
-  'renderer',
-)
+const outputDirectory = resolve(repositoryRoot, 'performance-results', 'raw', 'renderer')
 
 export type InteractionMetrics = {
   durationMs: number
@@ -26,10 +21,7 @@ export async function recordRendererSample(
   sample: number,
   metrics: Record<string, number>,
 ): Promise<void> {
-  const batch = Math.max(
-    1,
-    Number.parseInt(process.env.CODEPILOTX_PERF_BATCH ?? '1', 10) || 1,
-  )
+  const batch = Math.max(1, Number.parseInt(process.env.CODEPILOTX_PERF_BATCH ?? '1', 10) || 1)
   const value: PerformanceSample = {
     batch,
     environment: {
@@ -79,7 +71,7 @@ export async function startInteractionProbe(page: Page): Promise<void> {
     }
     probe.animationFrame = requestAnimationFrame(frame)
     if (PerformanceObserver.supportedEntryTypes.includes('longtask')) {
-      probe.observer = new PerformanceObserver(entries => {
+      probe.observer = new PerformanceObserver((entries) => {
         for (const entry of entries.getEntries()) {
           probe.longTasks.push(entry.duration)
         }
@@ -90,12 +82,10 @@ export async function startInteractionProbe(page: Page): Promise<void> {
   })
 }
 
-export async function stopInteractionProbe(
-  page: Page,
-): Promise<InteractionMetrics> {
+export async function stopInteractionProbe(page: Page): Promise<InteractionMetrics> {
   await page.evaluate(
     () =>
-      new Promise<void>(resolve => {
+      new Promise<void>((resolve) => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
       }),
   )
@@ -116,10 +106,7 @@ export async function stopInteractionProbe(
     const sorted = [...probe.frameGaps].sort((left, right) => left - right)
     const p95Index = Math.max(0, Math.ceil(sorted.length * 0.95) - 1)
     const sortedLongTasks = [...probe.longTasks].sort((left, right) => left - right)
-    const longTaskP95Index = Math.max(
-      0,
-      Math.ceil(sortedLongTasks.length * 0.95) - 1,
-    )
+    const longTaskP95Index = Math.max(0, Math.ceil(sortedLongTasks.length * 0.95) - 1)
     delete target.__codePilotXPerformanceProbe
     return {
       durationMs: performance.now() - probe.startedAt,
@@ -139,19 +126,15 @@ export async function waitForFixture(
   options: { nestedScroll?: boolean } = {},
 ) {
   const search = new URLSearchParams({
-    performanceCase: options.nestedScroll
-      ? 'nested-scroll-edge-fade'
-      : 'desktop-ux',
+    performanceCase: options.nestedScroll ? 'nested-scroll-edge-fade' : 'desktop-ux',
     performanceSessions: String(sessions),
     performanceTurns: String(turns),
   })
-  await page.goto(
-    `/?${search.toString()}#/threads/performance-session-001`,
-  )
+  await page.goto(`/?${search.toString()}#/threads/performance-session-001`)
   await waitForPerformanceThread(page, 1, turns)
   await page.evaluate(async () => {
     await document.fonts.ready
-    await new Promise<void>(resolve => {
+    await new Promise<void>((resolve) => {
       const finish = (): void => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
       }
@@ -171,42 +154,34 @@ export async function measurePerformanceThreadSwitch(
   turnCount: number,
   viaSidebar = true,
 ): Promise<{
-  contentVisibleMs: number;
-  readyMs: number;
-  staleVisibleMs: number;
+  contentVisibleMs: number
+  readyMs: number
+  staleVisibleMs: number
 }> {
   return page.evaluate(
     async ({ nextIndex, previousIndex, turns, useSidebar }) => {
       const threadId = (index: number): string =>
         `performance-session-${String(index).padStart(3, '0')}`
-      const threadTitle = (index: number): string =>
-        `性能会话 ${String(index).padStart(3, '0')}`
+      const threadTitle = (index: number): string => `性能会话 ${String(index).padStart(3, '0')}`
       const visibleThread = (index: number): boolean => {
         const node = document.querySelector<HTMLElement>(
           `[data-canonical-thread-id="${threadId(index)}"]`,
         )
         return Boolean(
-          node
-          && node.offsetParent !== null
-          && getComputedStyle(node).visibility !== 'hidden',
+          node && node.offsetParent !== null && getComputedStyle(node).visibility !== 'hidden',
         )
       }
       const readyThread = (index: number, expectedTurns: number): boolean =>
-        document
-          .querySelector<HTMLElement>(
-            `[data-canonical-thread-id="${threadId(index)}"]`,
-          )
+        document.querySelector<HTMLElement>(`[data-canonical-thread-id="${threadId(index)}"]`)
           ?.dataset.canonicalTurnCount === String(expectedTurns)
       const startedAt = performance.now()
       let contentVisibleMs: number | null = null
       let staleVisibleMs: number | null = null
       if (useSidebar) {
         const targetButton = [
-          ...document.querySelectorAll<HTMLButtonElement>(
-            '.sidebar-session-button',
-          ),
+          ...document.querySelectorAll<HTMLButtonElement>('.sidebar-session-button'),
         ].find(
-          button =>
+          (button) =>
             button.querySelector('.sidebar-session-title')?.textContent?.trim() ===
             threadTitle(nextIndex),
         )
@@ -220,29 +195,20 @@ export async function measurePerformanceThreadSwitch(
 
       while (performance.now() - startedAt < 30_000) {
         const elapsed = performance.now() - startedAt
-        if (
-          staleVisibleMs === null &&
-          !visibleThread(previousIndex)
-        ) {
+        if (staleVisibleMs === null && !visibleThread(previousIndex)) {
           staleVisibleMs = elapsed
         }
-        if (
-          contentVisibleMs === null &&
-          visibleThread(nextIndex)
-        ) {
+        if (contentVisibleMs === null && visibleThread(nextIndex)) {
           contentVisibleMs = elapsed
         }
-        if (
-          contentVisibleMs !== null &&
-          readyThread(nextIndex, turns)
-        ) {
+        if (contentVisibleMs !== null && readyThread(nextIndex, turns)) {
           return {
             contentVisibleMs,
             readyMs: elapsed,
             staleVisibleMs: staleVisibleMs ?? elapsed,
           }
         }
-        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
       }
       throw new Error(`Performance thread ${nextIndex} did not become ready`)
     },
@@ -260,16 +226,11 @@ export async function waitForPerformanceThread(
   sessionIndex: number,
   turnCount: number,
 ): Promise<void> {
-  const sessionId =
-    `performance-session-${String(sessionIndex).padStart(3, '0')}`
-  await page
-    .locator(`[data-canonical-thread-id="${sessionId}"]`)
-    .waitFor({ state: 'visible' })
+  const sessionId = `performance-session-${String(sessionIndex).padStart(3, '0')}`
+  await page.locator(`[data-canonical-thread-id="${sessionId}"]`).waitFor({ state: 'visible' })
   await page.locator('.composer-editor-content').waitFor()
   await page
-    .locator(
-      `[data-canonical-thread-id="${sessionId}"][data-canonical-turn-count="${turnCount}"]`,
-    )
+    .locator(`[data-canonical-thread-id="${sessionId}"][data-canonical-turn-count="${turnCount}"]`)
     .waitFor({ state: 'visible' })
 }
 
@@ -281,9 +242,6 @@ export function nearestRankP95(values: readonly number[]): number {
 
 function roundMetrics(metrics: Record<string, number>): Record<string, number> {
   return Object.fromEntries(
-    Object.entries(metrics).map(([key, value]) => [
-      key,
-      Number(value.toFixed(3)),
-    ]),
+    Object.entries(metrics).map(([key, value]) => [key, Number(value.toFixed(3))]),
   )
 }

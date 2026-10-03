@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Schema } from 'effect'
 
 const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const VersionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
@@ -35,20 +35,20 @@ export const SessionGroupMembershipSchema = Schema.Struct({
 export type SessionGroupMembership = typeof SessionGroupMembershipSchema.Type
 
 export const SessionGroupStepStatusSchema = Schema.Literals([
-  "waiting_permission",
-  "waiting_question",
-  "completed",
-  "failed",
-  "interrupted",
-  "cancelled",
+  'waiting_permission',
+  'waiting_question',
+  'completed',
+  'failed',
+  'interrupted',
+  'cancelled',
 ])
 export type SessionGroupStepStatus = typeof SessionGroupStepStatusSchema.Type
 
 export const SessionGroupCheckpointSchema = Schema.Struct({
   ordinal: NonNegativeIntSchema,
-  kind: Schema.Literals(["goal", "tool", "decision", "result"]),
+  kind: Schema.Literals(['goal', 'tool', 'decision', 'result']),
   summary: Schema.String,
-  status: Schema.Literals(["pending", "completed", "failed"]),
+  status: Schema.Literals(['pending', 'completed', 'failed']),
 })
 export type SessionGroupCheckpoint = typeof SessionGroupCheckpointSchema.Type
 
@@ -56,16 +56,16 @@ export const SessionGroupChangedFileSchema = Schema.Struct({
   workspaceLabel: NonEmptyStringSchema,
   path: NonEmptyStringSchema,
   oldPath: Schema.NullOr(NonEmptyStringSchema),
-  operation: Schema.Literals(["create", "update", "delete", "rename"]),
+  operation: Schema.Literals(['create', 'update', 'delete', 'rename']),
   additions: NonNegativeIntSchema,
   deletions: NonNegativeIntSchema,
-  evidence: Schema.Literals(["turn_patch", "git_snapshot"]),
+  evidence: Schema.Literals(['turn_patch', 'git_snapshot']),
 })
 export type SessionGroupChangedFile = typeof SessionGroupChangedFileSchema.Type
 
 export const SessionGroupValidationSchema = Schema.Struct({
   name: NonEmptyStringSchema,
-  status: Schema.Literals(["passed", "failed", "skipped"]),
+  status: Schema.Literals(['passed', 'failed', 'skipped']),
   summary: Schema.String,
 })
 export type SessionGroupValidation = typeof SessionGroupValidationSchema.Type
@@ -100,18 +100,22 @@ export const SessionGroupStepSchema = Schema.Struct({
 export type SessionGroupStep = typeof SessionGroupStepSchema.Type
 
 export const SessionGroupContextSectionSchema = Schema.Literals([
-  "objective",
-  "code_map",
-  "decision",
-  "finding",
-  "progress",
-  "validation",
-  "risk",
-  "fix",
+  'objective',
+  'code_map',
+  'decision',
+  'finding',
+  'progress',
+  'validation',
+  'risk',
+  'fix',
 ])
 export type SessionGroupContextSection = typeof SessionGroupContextSectionSchema.Type
 
-export const SessionGroupContextEntryStatusSchema = Schema.Literals(["active", "superseded", "retired"])
+export const SessionGroupContextEntryStatusSchema = Schema.Literals([
+  'active',
+  'superseded',
+  'retired',
+])
 export type SessionGroupContextEntryStatus = typeof SessionGroupContextEntryStatusSchema.Type
 
 export const SessionGroupContextEntrySchema = Schema.Struct({
@@ -149,7 +153,7 @@ export type SessionGroupContextState = typeof SessionGroupContextStateSchema.Typ
 
 export const SessionGroupContextChangeSchema = Schema.Union([
   Schema.Struct({
-    op: Schema.Literal("add"),
+    op: Schema.Literal('add'),
     section: SessionGroupContextSectionSchema,
     title: Schema.String.check(
       Schema.isMinLength(1),
@@ -161,7 +165,7 @@ export const SessionGroupContextChangeSchema = Schema.Union([
     ),
   }),
   Schema.Struct({
-    op: Schema.Literal("replace"),
+    op: Schema.Literal('replace'),
     entryId: NonEmptyStringSchema,
     expectedEntryVersion: VersionSchema,
     title: Schema.String.check(
@@ -174,7 +178,7 @@ export const SessionGroupContextChangeSchema = Schema.Union([
     ),
   }),
   Schema.Struct({
-    op: Schema.Literal("retire"),
+    op: Schema.Literal('retire'),
     entryId: NonEmptyStringSchema,
     expectedEntryVersion: VersionSchema,
     reason: Schema.String,

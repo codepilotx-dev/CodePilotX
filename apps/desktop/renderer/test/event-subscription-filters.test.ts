@@ -11,16 +11,8 @@ describe('desktop live event subscription filters', () => {
       'plan/delta',
       'tool/outputDelta',
     ],
-    provider: [
-      'catalog/updated',
-      'provider/credential/updated',
-      'usage/source/updated',
-    ],
-    modelHealth: [
-      'model/health/updated',
-      'catalog/updated',
-      'provider/credential/updated',
-    ],
+    provider: ['catalog/updated', 'provider/credential/updated', 'usage/source/updated'],
+    modelHealth: ['model/health/updated', 'catalog/updated', 'provider/credential/updated'],
     skills: ['skill/updated'],
     plugins: ['plugins/updated'],
     minimaxCli: ['minimaxCli/updated'],
@@ -38,11 +30,9 @@ describe('desktop live event subscription filters', () => {
 
   for (const [scope, eventTypes] of Object.entries(expected)) {
     test(`${scope} uses its exact live event set`, () => {
-      expect(
-        AGENT_LIVE_EVENT_FILTERS[
-          scope as keyof typeof AGENT_LIVE_EVENT_FILTERS
-        ],
-      ).toEqual(eventTypes)
+      expect(AGENT_LIVE_EVENT_FILTERS[scope as keyof typeof AGENT_LIVE_EVENT_FILTERS]).toEqual(
+        eventTypes,
+      )
     })
   }
 

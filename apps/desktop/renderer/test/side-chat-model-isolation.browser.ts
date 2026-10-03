@@ -55,23 +55,52 @@ createRoot(document.getElementById('root')).render(<Harness/>);
 `
 async function buildHarness() {
   const build = await Bun.build({
-    entrypoints: ['side-isolation-harness'], target: 'browser', format: 'esm', tsconfig: resolve(rendererRoot, 'tsconfig.app.json'),
+    entrypoints: ['side-isolation-harness'],
+    target: 'browser',
+    format: 'esm',
+    tsconfig: resolve(rendererRoot, 'tsconfig.app.json'),
     define: { 'process.env.NODE_ENV': '"development"' },
-    plugins: [{ name: 'side-isolation-harness', setup(builder) {
-      builder.onResolve({ filter: /^react(?:\/.*)?$/ }, args => ({ path: Bun.resolveSync(args.path, rendererRoot), namespace: 'file' }))
-      builder.onResolve({ filter: /^react-dom\/client$/ }, args => ({ path: Bun.resolveSync(args.path, rendererRoot), namespace: 'file' }))
-      builder.onResolve({ filter: /^side-isolation-harness$/ }, () => ({ path: 'harness', namespace: 'side-isolation' }))
-      builder.onLoad({ filter: /^harness$/, namespace: 'side-isolation' }, () => ({ contents: harness, loader: 'jsx', resolveDir: rendererRoot }))
-      builder.onResolve({ filter: /desktop-client\/index\.js$/ }, () => ({ path: 'client', namespace: 'side-isolation' }))
-      builder.onLoad({ filter: /^client$/, namespace: 'side-isolation' }, () => ({ contents: clientMock, loader: 'js' }))
-    } }],
+    plugins: [
+      {
+        name: 'side-isolation-harness',
+        setup(builder) {
+          builder.onResolve({ filter: /^react(?:\/.*)?$/ }, (args) => ({
+            path: Bun.resolveSync(args.path, rendererRoot),
+            namespace: 'file',
+          }))
+          builder.onResolve({ filter: /^react-dom\/client$/ }, (args) => ({
+            path: Bun.resolveSync(args.path, rendererRoot),
+            namespace: 'file',
+          }))
+          builder.onResolve({ filter: /^side-isolation-harness$/ }, () => ({
+            path: 'harness',
+            namespace: 'side-isolation',
+          }))
+          builder.onLoad({ filter: /^harness$/, namespace: 'side-isolation' }, () => ({
+            contents: harness,
+            loader: 'jsx',
+            resolveDir: rendererRoot,
+          }))
+          builder.onResolve({ filter: /desktop-client\/index\.js$/ }, () => ({
+            path: 'client',
+            namespace: 'side-isolation',
+          }))
+          builder.onLoad({ filter: /^client$/, namespace: 'side-isolation' }, () => ({
+            contents: clientMock,
+            loader: 'js',
+          }))
+        },
+      },
+    ],
   })
   assert.ok(build.success, build.logs.map(String).join('\n'))
   return build.outputs[0]!.text()
 }
 if (process.versions.bun) {
   const child = Bun.spawn(['node', '--experimental-strip-types', fileURLToPath(import.meta.url)], {
-    stdin: new Blob([await buildHarness()]), stdout: 'inherit', stderr: 'inherit',
+    stdin: new Blob([await buildHarness()]),
+    stdout: 'inherit',
+    stderr: 'inherit',
   })
   process.exit(await child.exited)
 }
@@ -81,8 +110,10 @@ const browser = await chromium.launch({ channel: 'chrome', headless: true })
 try {
   const page = await browser.newPage()
   const errors: string[] = []
-  page.on('pageerror', error => errors.push(error.message))
-  await page.route('http://127.0.0.1/**', route => route.fulfill({ contentType: 'text/html', body: '<div id="root"></div>' }))
+  page.on('pageerror', (error) => errors.push(error.message))
+  await page.route('http://127.0.0.1/**', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<div id="root"></div>' }),
+  )
   await page.goto('http://127.0.0.1/')
   await page.addScriptTag({ content: script, type: 'module' })
   await expect(page.locator('#ready')).toHaveText('true')
@@ -90,12 +121,18 @@ try {
   assert.deepEqual(await page.evaluate('records'), [{ method: 'getSession', id: 'a' }])
   await expect(page.locator('#tab')).toHaveText('')
   await page.evaluate('releaseHistory()')
-  await expect.poll(() => page.evaluate('records.filter(record=>record.method === "createSideChat").length')).toBe(1)
+  await expect
+    .poll(() => page.evaluate('records.filter(record=>record.method === "createSideChat").length'))
+    .toBe(1)
   await expect(page.locator('#selection')).toContainText('history-a')
-  await page.evaluate(`store.set('b',{providerID:'provider-b',model:'draft-b',thinkingMode:'adaptive',variant:'adaptive'});setSource('b')`)
+  await page.evaluate(
+    `store.set('b',{providerID:'provider-b',model:'draft-b',thinkingMode:'adaptive',variant:'adaptive'});setSource('b')`,
+  )
   await expect(page.locator('#source')).toHaveText('b')
   // A changes too while the side-chat creation RPC is pending; the fork keeps its captured selection.
-  await page.evaluate(`store.set('a',{providerID:'provider-a',model:'later-a',thinkingMode:'default'});releaseCreate();creation`)
+  await page.evaluate(
+    `store.set('a',{providerID:'provider-a',model:'later-a',thinkingMode:'default'});releaseCreate();creation`,
+  )
   await expect(page.locator('#tab')).toHaveText('side-a')
   const settings = await page.evaluate('api.getSideChatSettings("side-chat:side-a")')
   assert.equal(settings.providerID, 'provider-a')
@@ -105,13 +142,21 @@ try {
   assert.equal(settings.permissionMode, 'default')
   assert.equal(settings.providerBaseURL, undefined)
   await page.evaluate(`api.sideChatSubmitToSession('side-a','hello')`)
-  assert.deepEqual(await page.evaluate('records.find(record=>record.method === "createSideChat").input'), { sourceThreadId: 'a' })
+  assert.deepEqual(
+    await page.evaluate('records.find(record=>record.method === "createSideChat").input'),
+    { sourceThreadId: 'a' },
+  )
   assert.deepEqual(await page.evaluate('records.find(record=>record.method === "send").model'), {
-    providerID: 'provider-a', model: 'history-a', variant: 'high', providerBaseURL: 'https://provider-a.example',
+    providerID: 'provider-a',
+    model: 'history-a',
+    variant: 'high',
+    providerBaseURL: 'https://provider-a.example',
   })
   assert.equal(await page.evaluate('window.lastError'), undefined)
   assert.deepEqual(errors, [])
-  console.log('Side-chat creation waits for source history and freezes its model/variant across source and model changes; passed.')
+  console.log(
+    'Side-chat creation waits for source history and freezes its model/variant across source and model changes; passed.',
+  )
 } finally {
   await browser.close()
 }

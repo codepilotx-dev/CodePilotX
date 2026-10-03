@@ -1,28 +1,28 @@
-import * as React from "react";
-import { DisclosureContent } from "./DisclosureContent";
+import * as React from 'react'
+import { DisclosureContent } from './DisclosureContent'
 
 export type DisclosureControllerProps = {
-  defaultExpanded?: boolean;
-  children: React.ReactNode;
+  defaultExpanded?: boolean
+  children: React.ReactNode
   renderTrigger: (state: {
-    expanded: boolean;
-    contentId: string;
-    toggle: () => void;
-  }) => React.ReactNode;
-  contentClassName?: string;
-  mountPolicy?: "always" | "until-exit";
-};
+    expanded: boolean
+    contentId: string
+    toggle: () => void
+  }) => React.ReactNode
+  contentClassName?: string
+  mountPolicy?: 'always' | 'until-exit'
+}
 
 export const DisclosureController = React.memo(function DisclosureController({
   defaultExpanded = false,
   children,
   renderTrigger,
   contentClassName,
-  mountPolicy = "always",
+  mountPolicy = 'always',
 }: DisclosureControllerProps): React.ReactNode {
-  const [expanded, setExpanded] = React.useState(defaultExpanded);
-  const contentId = React.useId();
-  const toggle = React.useCallback(() => setExpanded((current) => !current), []);
+  const [expanded, setExpanded] = React.useState(defaultExpanded)
+  const contentId = React.useId()
+  const toggle = React.useCallback(() => setExpanded((current) => !current), [])
 
   return (
     <>
@@ -36,5 +36,5 @@ export const DisclosureController = React.memo(function DisclosureController({
         {children}
       </DisclosureContent>
     </>
-  );
-});
+  )
+})

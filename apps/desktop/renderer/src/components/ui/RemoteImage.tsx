@@ -4,10 +4,7 @@ import { SkeletonBlock } from './Skeleton.js'
 
 type RemoteImageState = 'loading' | 'ready' | 'error'
 
-export type RemoteImageProps = Omit<
-  React.ImgHTMLAttributes<HTMLImageElement>,
-  'src'
-> & {
+export type RemoteImageProps = Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src'> & {
   src: string
   className?: string
   imageClassName?: string
@@ -35,18 +32,10 @@ export function RemoteImage({
   }, [src])
 
   return (
-    <span
-      className={cx('ui-remote-image', className)}
-      data-state={state}
-    >
-      {state === 'loading' ? (
-        <SkeletonBlock className="ui-remote-image-skeleton" />
-      ) : null}
+    <span className={cx('ui-remote-image', className)} data-state={state}>
+      {state === 'loading' ? <SkeletonBlock className="ui-remote-image-skeleton" /> : null}
       {state === 'error' ? (
-        <span
-          aria-hidden={alt === '' ? 'true' : undefined}
-          className="ui-remote-image-fallback"
-        >
+        <span aria-hidden={alt === '' ? 'true' : undefined} className="ui-remote-image-fallback">
           {fallback}
         </span>
       ) : (
@@ -54,11 +43,11 @@ export function RemoteImage({
           {...imageProps}
           alt={alt}
           className={cx('ui-remote-image-content', imageClassName)}
-          onError={event => {
+          onError={(event) => {
             setState('error')
             onError?.(event)
           }}
-          onLoad={event => {
+          onLoad={(event) => {
             setState('ready')
             onLoad?.(event)
           }}

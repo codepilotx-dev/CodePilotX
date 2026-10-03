@@ -1,4 +1,3 @@
-
 export type {
   ApprovalCheckpointPayload,
   CredentialErrorCategory,
@@ -8,6 +7,6 @@ export type {
   StoredApprovalCheckpoint,
   StoredCredentialHealth,
   StoredEncryptedCredential,
-} from "./repository-core"
+} from './repository-core'
 
-export { ReviewRepositoryDatabase as RepositoryDatabase } from "./review-repository"
+export { ReviewRepositoryDatabase as RepositoryDatabase } from './review-repository'

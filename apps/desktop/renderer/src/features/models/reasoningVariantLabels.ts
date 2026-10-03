@@ -37,8 +37,8 @@ export function buildVariantOptions(
   return [
     { value: 'default', label: defaultLabel },
     ...(variants ?? [])
-      .filter(variantID => variantID !== 'default')
-      .map(variantID => ({
+      .filter((variantID) => variantID !== 'default')
+      .map((variantID) => ({
         value: variantID,
         label: resolveVariantLabel(variantID),
       })),

@@ -2,7 +2,8 @@ export const GITHUB_REPO_URL = 'https://github.com/codepilotx-dev/CodePilotX'
 export const GITHUB_RELEASES_URL = 'https://github.com/codepilotx-dev/CodePilotX/releases'
 export const GITHUB_LICENSE_URL = 'https://github.com/codepilotx-dev/CodePilotX/blob/main/LICENSE'
 export const GITHUB_README_URL = 'https://github.com/codepilotx-dev/CodePilotX#readme'
-export const GITHUB_SECURITY_URL = 'https://github.com/codepilotx-dev/CodePilotX/blob/main/SECURITY.md'
+export const GITHUB_SECURITY_URL =
+  'https://github.com/codepilotx-dev/CodePilotX/blob/main/SECURITY.md'
 
 export interface NavLink {
   label: string
@@ -23,12 +24,7 @@ export const HERO_CONTENT = {
     'CodePilotX gives developers one focused desktop workspace for agent tasks, model choice, tool approvals, and code review — all grounded in local projects.',
   primaryCta: 'View on GitHub',
   secondaryCta: 'Explore the product',
-  metaBadges: [
-    'Windows x64 Native',
-    'Local SQLite WAL',
-    'Open-Source (MIT)',
-    'Zero Telemetry',
-  ],
+  metaBadges: ['Windows x64 Native', 'Local SQLite WAL', 'Open-Source (MIT)', 'Zero Telemetry'],
 }
 
 export const PRODUCT_OVERVIEW = {

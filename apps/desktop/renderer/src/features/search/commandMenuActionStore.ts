@@ -45,13 +45,13 @@ export function createCommandMenuActionStore(): CommandMenuActionStore {
   return {
     getSnapshot: () => snapshot,
     getServerSnapshot: () => snapshot,
-    subscribe: listener => {
+    subscribe: (listener) => {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
     register: (action, suppliedToken) => {
       const token = suppliedToken ?? Symbol(action.id)
-      const conflicting = [...entries.values()].find(entry => entry.id === action.id)
+      const conflicting = [...entries.values()].find((entry) => entry.id === action.id)
       if (conflicting && conflicting.token !== token && import.meta.env.DEV) {
         console.warn(`Duplicate command menu action: ${action.id}`)
       }
@@ -78,12 +78,12 @@ export function filterCommandMenuActions(
 ): CommandMenuActionSnapshot[] {
   const keyword = query.trim().toLocaleLowerCase()
   if (!keyword) return [...actions]
-  return actions.filter(action => [
-    action.label,
-    action.description ?? '',
-    action.disabledReason ?? '',
-    ...action.keywords,
-  ].join(' ').toLocaleLowerCase().includes(keyword))
+  return actions.filter((action) =>
+    [action.label, action.description ?? '', action.disabledReason ?? '', ...action.keywords]
+      .join(' ')
+      .toLocaleLowerCase()
+      .includes(keyword),
+  )
 }
 
 export function registerCommandMenuActions(
@@ -91,10 +91,12 @@ export function registerCommandMenuActions(
   actions: readonly CommandMenuActionRegistration[],
 ): () => void {
   let active = true
-  const unregister = actions.map(action => store.register({
-    ...action,
-    execute: () => active ? action.execute() : undefined,
-  }))
+  const unregister = actions.map((action) =>
+    store.register({
+      ...action,
+      execute: () => (active ? action.execute() : undefined),
+    }),
+  )
   return () => {
     active = false
     for (const dispose of unregister) dispose()

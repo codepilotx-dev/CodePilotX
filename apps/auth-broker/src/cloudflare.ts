@@ -8,9 +8,7 @@ export interface DurableObjectStorage {
   put<T>(key: string, value: T): Promise<void>
   deleteAll(): Promise<void>
   setAlarm(scheduledTime: number): Promise<void>
-  transaction<T>(
-    closure: (transaction: DurableObjectTransaction) => Promise<T>,
-  ): Promise<T>
+  transaction<T>(closure: (transaction: DurableObjectTransaction) => Promise<T>): Promise<T>
 }
 
 export interface DurableObjectState {
@@ -37,7 +35,4 @@ export interface Env {
   OAUTH_RATE_LIMITER: RateLimitBinding
 }
 
-export type FetchLike = (
-  input: RequestInfo | URL,
-  init?: RequestInit,
-) => Promise<Response>
+export type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>

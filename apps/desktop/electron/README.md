@@ -21,7 +21,7 @@
 自行管理 sidecar 时，Agent 必须在 stdout 输出单行 UTF-8 JSON：
 
 ```json
-{"type":"ready","host":"127.0.0.1","port":43120}
+{ "type": "ready", "host": "127.0.0.1", "port": 43120 }
 ```
 
 主进程随后轮询 Agent 的 `/api/ready` 并配置认证 Cookie。开发态加载当前 worktree 的 Vite origin，打包态继续加载 Agent 提供的静态页面。

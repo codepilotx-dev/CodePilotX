@@ -152,8 +152,8 @@
     text-underline-offset: 4px;
 
     &:hover,
-    &[data-state="open"],
-    &[aria-expanded="true"] {
+    &[data-state='open'],
+    &[aria-expanded='true'] {
       background: transparent;
       color: var(--cpx-sys-color-fg-secondary);
       text-decoration-color: currentColor;
@@ -198,10 +198,7 @@
   justify-content: center;
 
   .chat-home-region {
-    --chat-home-region-padding-block: min(
-      10vh,
-      calc(var(--cpx-sys-space-1) * 20)
-    );
+    --chat-home-region-padding-block: min(10vh, calc(var(--cpx-sys-space-1) * 20));
 
     flex: 0 1 auto;
     justify-content: center;
@@ -247,24 +244,15 @@
   }
 
   &.is-blue {
-    --new-session-suggestion-tone: var(
-      --cpx-sys-color-charts-blue,
-      var(--cpx-sys-color-accent)
-    );
+    --new-session-suggestion-tone: var(--cpx-sys-color-charts-blue, var(--cpx-sys-color-accent));
   }
 
   &.is-purple {
-    --new-session-suggestion-tone: var(
-      --cpx-sys-color-charts-purple,
-      var(--cpx-sys-color-accent)
-    );
+    --new-session-suggestion-tone: var(--cpx-sys-color-charts-purple, var(--cpx-sys-color-accent));
   }
 
   &.is-green {
-    --new-session-suggestion-tone: var(
-      --cpx-sys-color-charts-green,
-      var(--cpx-sys-color-success)
-    );
+    --new-session-suggestion-tone: var(--cpx-sys-color-charts-green, var(--cpx-sys-color-success));
   }
 
   &.is-orange {
@@ -331,24 +319,15 @@
   }
 
   &.is-blue {
-    --new-session-suggestion-tone: var(
-      --cpx-sys-color-charts-blue,
-      var(--cpx-sys-color-accent)
-    );
+    --new-session-suggestion-tone: var(--cpx-sys-color-charts-blue, var(--cpx-sys-color-accent));
   }
 
   &.is-purple {
-    --new-session-suggestion-tone: var(
-      --cpx-sys-color-charts-purple,
-      var(--cpx-sys-color-accent)
-    );
+    --new-session-suggestion-tone: var(--cpx-sys-color-charts-purple, var(--cpx-sys-color-accent));
   }
 
   &.is-green {
-    --new-session-suggestion-tone: var(
-      --cpx-sys-color-charts-green,
-      var(--cpx-sys-color-success)
-    );
+    --new-session-suggestion-tone: var(--cpx-sys-color-charts-green, var(--cpx-sys-color-success));
   }
 
   &.is-orange {
@@ -441,7 +420,6 @@
   color: var(--cpx-sys-color-fg-secondary);
 }
 
-
 @media (max-height: 720px) {
   .quick-chat-view {
     padding-top: var(--cpx-sys-space-4);
@@ -460,7 +438,7 @@
   }
 }
 
-:root[data-reduce-motion="on"] {
+:root[data-reduce-motion='on'] {
   .quick-chat-hero,
   .new-session-suggestion-card,
   .new-session-suggestions.is-follow-up,
@@ -496,9 +474,7 @@
 /* --- Conversation page --- */
 .conversation-page {
   --session-content-inline-gutter: var(--cpx-sys-layout-page-padding-inline, 32px);
-  --session-content-w: calc(
-    100% - (var(--session-content-inline-gutter) * 2)
-  );
+  --session-content-w: calc(100% - (var(--session-content-inline-gutter) * 2));
 
   display: flex;
   flex-direction: column;
@@ -538,10 +514,7 @@
 }
 
 .conversation-page.approval-active .quick-chat-content {
-  --approval-active-composer-inset: min(
-    54vh,
-    calc(var(--cpx-sys-space-1) * 130)
-  );
+  --approval-active-composer-inset: min(54vh, calc(var(--cpx-sys-space-1) * 130));
 
   padding-bottom: var(--approval-active-composer-inset);
 }
@@ -590,7 +563,7 @@
   }
 }
 
-.chat-session-title__text[role="button"] {
+.chat-session-title__text[role='button'] {
   cursor: pointer;
   border-radius: var(--cpx-sys-radius-sm);
 
@@ -751,7 +724,7 @@
     white-space: nowrap;
 
     &:hover:not(:disabled),
-    &[aria-expanded="true"] {
+    &[aria-expanded='true'] {
       border-color: transparent;
       background: transparent;
       color: var(--cpx-sys-color-fg-primary);
@@ -801,7 +774,8 @@
     color: var(--cpx-sys-color-accent-fg);
 
     svg {
-      animation: composer-change-summary-spin var(--cpx-sys-motion-loading) var(--cpx-sys-ease-linear) infinite;
+      animation: composer-change-summary-spin var(--cpx-sys-motion-loading)
+        var(--cpx-sys-ease-linear) infinite;
     }
   }
 
@@ -910,7 +884,8 @@
       height: 6px;
       border-radius: var(--cpx-sys-radius-full);
       background: currentcolor;
-      animation: composer-change-summary-dot-bounce var(--cpx-sys-motion-loading) var(--cpx-sys-ease-standard) infinite;
+      animation: composer-change-summary-dot-bounce var(--cpx-sys-motion-loading)
+        var(--cpx-sys-ease-standard) infinite;
     }
 
     span:nth-child(2) {
@@ -937,7 +912,7 @@
     translate: -50% 0;
   }
 
-  &__plan-preview[data-presence="present"] .execution-plan-card {
+  &__plan-preview[data-presence='present'] .execution-plan-card {
     pointer-events: auto;
   }
 
@@ -965,7 +940,7 @@
     translate: -50% 0;
   }
 
-  &__files-preview[data-presence="present"] &__files-card {
+  &__files-preview[data-presence='present'] &__files-card {
     pointer-events: auto;
   }
 
@@ -977,7 +952,7 @@
     overflow-y: auto;
     scrollbar-gutter: stable;
 
-    > [role="listitem"] {
+    > [role='listitem'] {
       width: 100%;
       min-width: 0;
     }
@@ -1068,31 +1043,24 @@
   }
 }
 
-.composer-change-summary__return[data-running="true"]
-  .composer-change-summary__down-arrow {
+.composer-change-summary__return[data-running='true'] .composer-change-summary__down-arrow {
   opacity: 0;
   transform: scale(0.75);
 }
 
-.composer-change-summary__return[data-running="true"]:is(
-    :hover,
-    :focus-visible
-  )
+.composer-change-summary__return[data-running='true']:is(:hover, :focus-visible)
   .composer-change-summary__thinking-dots {
   opacity: 0;
   transform: scale(0.75);
 }
 
-.composer-change-summary__return[data-running="true"]:is(
-    :hover,
-    :focus-visible
-  )
+.composer-change-summary__return[data-running='true']:is(:hover, :focus-visible)
   .composer-change-summary__down-arrow {
   opacity: 1;
   transform: scale(1);
 }
 
-:root[data-reduce-motion="on"] {
+:root[data-reduce-motion='on'] {
   .composer-change-summary__plan-icon--running svg,
   .composer-change-summary__thinking-dots span {
     animation: none;
@@ -1110,7 +1078,7 @@
   }
 }
 
-:root[data-reduce-motion="on"] {
+:root[data-reduce-motion='on'] {
   .composer-change-summary__plan-icon--running svg,
   .composer-change-summary__thinking-dots span {
     animation: none;

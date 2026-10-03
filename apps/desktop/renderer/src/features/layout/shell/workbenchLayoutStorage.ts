@@ -28,8 +28,7 @@ export { WORKBENCH_LAYOUT_STORAGE_KEY, WORKBENCH_LAYOUT_SCHEMA_VERSION }
 
 export type { WorkbenchLayoutSnapshot, WorkbenchLayoutState, WorkbenchPartVisibility }
 
-const LEGACY_RIGHT_DOCK_WIDTH_STORAGE_KEY =
-  'codepilotx.desktop.rightDockWidth'
+const LEGACY_RIGHT_DOCK_WIDTH_STORAGE_KEY = 'codepilotx.desktop.rightDockWidth'
 const LEGACY_SIDEBAR_WIDTH_STORAGE_KEY = 'layout.sidebarWidth'
 const LEGACY_SIDEBAR_COLLAPSED_STORAGE_KEY = 'layout.sidebarCollapsed'
 
@@ -68,10 +67,7 @@ export function saveWorkbenchLayoutSnapshot(
   const storage = resolveStorage(target.storage)
   if (storage == null) return
   try {
-    storage.setItem(
-      WORKBENCH_LAYOUT_STORAGE_KEY,
-      JSON.stringify(snapshot),
-    )
+    storage.setItem(WORKBENCH_LAYOUT_STORAGE_KEY, JSON.stringify(snapshot))
   } catch {
     /* localStorage full or disabled; the in-memory state remains authoritative. */
   }
@@ -80,10 +76,7 @@ export function saveWorkbenchLayoutSnapshot(
 export function createDefaultWorkbenchLayoutSnapshot(
   input: ReadWorkbenchLayoutInput,
 ): WorkbenchLayoutSnapshot {
-  const base = createDefaultWorkbenchLayoutState(
-    input.workspaceWidth,
-    input.workspaceHeight,
-  )
+  const base = createDefaultWorkbenchLayoutState(input.workspaceWidth, input.workspaceHeight)
   const auxiliaryWidth = clampAuxiliaryPanelWidth(
     rightDockWidthFromRatio(input.rightDockRatio, input.workspaceWidth),
     input.workspaceWidth,
@@ -124,22 +117,10 @@ export default function resolveStoredWorkbenchRatios(
   workspaceHeight: number,
 ): [number, number] {
   const storage = resolveStorage(null)
-  const rawRightRatio = safeGetItem(
-    storage,
-    RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY,
-  )
-  const rawLegacyRightWidth = safeGetItem(
-    storage,
-    LEGACY_RIGHT_DOCK_WIDTH_STORAGE_KEY,
-  )
-  const rawBottomRatio = safeGetItem(
-    storage,
-    BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY,
-  )
-  const sidebarCollapsed = safeGetItem(
-    storage,
-    LEGACY_SIDEBAR_COLLAPSED_STORAGE_KEY,
-  ) === 'true'
+  const rawRightRatio = safeGetItem(storage, RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY)
+  const rawLegacyRightWidth = safeGetItem(storage, LEGACY_RIGHT_DOCK_WIDTH_STORAGE_KEY)
+  const rawBottomRatio = safeGetItem(storage, BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY)
+  const sidebarCollapsed = safeGetItem(storage, LEGACY_SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true'
   const sidebarWidthRaw = safeGetItem(storage, LEGACY_SIDEBAR_WIDTH_STORAGE_KEY)
   const sidebarWidth = parseFiniteNumber(sidebarWidthRaw)
   const snapshot = readWorkbenchLayoutSnapshot({
@@ -147,15 +128,16 @@ export default function resolveStoredWorkbenchRatios(
     workspaceHeight,
     sidebarCollapsed,
     sidebarWidth: sidebarWidth ?? clampPrimarySidebarWidth(DEFAULT_PRIMARY_SIDEBAR_WIDTH),
-    rightDockRatio: parseUnitInterval(rawRightRatio)
-      ?? rightDockWidthToRatio(
-        parseFiniteNumber(rawLegacyRightWidth)
-          ?? getResponsiveRightDockDefaultWidth(workspaceWidth, workspaceHeight),
+    rightDockRatio:
+      parseUnitInterval(rawRightRatio) ??
+      rightDockWidthToRatio(
+        parseFiniteNumber(rawLegacyRightWidth) ??
+          getResponsiveRightDockDefaultWidth(workspaceWidth, workspaceHeight),
         workspaceWidth,
       ),
     bottomPanelRatio:
-      parseUnitInterval(rawBottomRatio)
-      ?? bottomPanelHeightToRatio(BOTTOM_PANEL_DEFAULT_HEIGHT, workspaceHeight),
+      parseUnitInterval(rawBottomRatio) ??
+      bottomPanelHeightToRatio(BOTTOM_PANEL_DEFAULT_HEIGHT, workspaceHeight),
   })
 
   return [
@@ -195,28 +177,15 @@ export function resolveInitialBottomPanelHeightRatio(
   const storedRatio = parseUnitInterval(storedRatioValue)
   if (storedRatio != null) return storedRatio
 
-  return bottomPanelHeightToRatio(
-    BOTTOM_PANEL_DEFAULT_HEIGHT,
-    workspaceHeight,
-  )
+  return bottomPanelHeightToRatio(BOTTOM_PANEL_DEFAULT_HEIGHT, workspaceHeight)
 }
 
-function legacyRightDockWidthFromRatio(
-  ratio: number,
-  workspaceWidth: number,
-): number {
-  const maximum = Math.max(
-    RIGHT_DOCK_MIN_WIDTH,
-    workspaceWidth - RIGHT_DOCK_MAIN_MIN_WIDTH,
-  )
-  return Math.round(
-    RIGHT_DOCK_MIN_WIDTH + ratio * (maximum - RIGHT_DOCK_MIN_WIDTH),
-  )
+function legacyRightDockWidthFromRatio(ratio: number, workspaceWidth: number): number {
+  const maximum = Math.max(RIGHT_DOCK_MIN_WIDTH, workspaceWidth - RIGHT_DOCK_MAIN_MIN_WIDTH)
+  return Math.round(RIGHT_DOCK_MIN_WIDTH + ratio * (maximum - RIGHT_DOCK_MIN_WIDTH))
 }
 
-function resolveStorage(
-  explicit: SaveWorkbenchLayoutTarget['storage'],
-): Storage | null {
+function resolveStorage(explicit: SaveWorkbenchLayoutTarget['storage']): Storage | null {
   if (explicit != null) return explicit
   if (typeof window === 'undefined') return null
   try {
@@ -235,9 +204,7 @@ function safeGetItem(storage: Storage | null, key: string): string | null {
   }
 }
 
-function tryParseStoredSnapshot(
-  raw: string,
-): WorkbenchLayoutSnapshot | null {
+function tryParseStoredSnapshot(raw: string): WorkbenchLayoutSnapshot | null {
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
@@ -251,21 +218,16 @@ function tryParseStoredSnapshot(
   const primarySidebarWidth = parseFiniteNumber(parsed.primarySidebarWidth)
   const auxiliaryPanelWidth = parseFiniteNumber(parsed.auxiliaryPanelWidth)
   const bottomPanelHeight = parseFiniteNumber(parsed.bottomPanelHeight)
-  if (
-    primarySidebarWidth == null ||
-    auxiliaryPanelWidth == null ||
-    bottomPanelHeight == null
-  ) {
+  if (primarySidebarWidth == null || auxiliaryPanelWidth == null || bottomPanelHeight == null) {
     return null
   }
   const auxiliaryMaximized = parsed.auxiliaryMaximized === true
   const beforeAuxiliaryMaximized = auxiliaryMaximized
     ? (parseVisibility(parsed.beforeAuxiliaryMaximized) ?? createDefaultVisibility())
     : null
-  const beforeAuxiliaryMaximizedAuxiliaryWidth =
-    auxiliaryMaximized
-      ? parseFiniteNumber(parsed.beforeAuxiliaryMaximizedAuxiliaryWidth)
-      : null
+  const beforeAuxiliaryMaximizedAuxiliaryWidth = auxiliaryMaximized
+    ? parseFiniteNumber(parsed.beforeAuxiliaryMaximizedAuxiliaryWidth)
+    : null
   return {
     schemaVersion: WORKBENCH_LAYOUT_SCHEMA_VERSION,
     visibility,
@@ -293,28 +255,21 @@ function normalizeSnapshot(
   if (!snapshot.auxiliaryMaximized && !visibility.mainContent) {
     visibility.mainContent = true
   }
-  const primarySidebarWidth = clampPrimarySidebarWidth(
-    snapshot.primarySidebarWidth,
-  )
+  const primarySidebarWidth = clampPrimarySidebarWidth(snapshot.primarySidebarWidth)
   const auxiliaryPanelWidth = clampAuxiliaryPanelWidth(
     snapshot.auxiliaryPanelWidth,
     safeWorkspaceWidth,
   )
-  const bottomPanelHeight = clampBottomPanelHeight(
-    snapshot.bottomPanelHeight,
-    safeWorkspaceHeight,
-  )
+  const bottomPanelHeight = clampBottomPanelHeight(snapshot.bottomPanelHeight, safeWorkspaceHeight)
   const beforeAuxiliaryMaximized = snapshot.auxiliaryMaximized
     ? { ...(snapshot.beforeAuxiliaryMaximized ?? visibility) }
     : null
-  const beforeAuxiliaryMaximizedAuxiliaryWidth =
-    snapshot.auxiliaryMaximized
-      ? clampAuxiliaryPanelWidth(
-          snapshot.beforeAuxiliaryMaximizedAuxiliaryWidth
-            ?? snapshot.auxiliaryPanelWidth,
-          safeWorkspaceWidth,
-        )
-      : null
+  const beforeAuxiliaryMaximizedAuxiliaryWidth = snapshot.auxiliaryMaximized
+    ? clampAuxiliaryPanelWidth(
+        snapshot.beforeAuxiliaryMaximizedAuxiliaryWidth ?? snapshot.auxiliaryPanelWidth,
+        safeWorkspaceWidth,
+      )
+    : null
   return {
     schemaVersion: WORKBENCH_LAYOUT_SCHEMA_VERSION,
     visibility,

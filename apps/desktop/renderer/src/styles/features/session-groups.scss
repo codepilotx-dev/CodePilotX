@@ -341,7 +341,9 @@
   border-radius: var(--cpx-sys-radius-lg);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   background: var(--cpx-sys-color-surface-recessed);
-  transition: background-color var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard), border-color var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard);
+  transition:
+    background-color var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard),
+    border-color var(--cpx-sys-motion-enter) var(--cpx-sys-ease-standard);
 
   &:hover {
     background: var(--cpx-sys-color-surface-canvas);
@@ -404,7 +406,7 @@
   align-items: center;
 
   &::after {
-    content: "";
+    content: '';
     position: absolute;
     top: 28px;
     bottom: 0;

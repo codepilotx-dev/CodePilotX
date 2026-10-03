@@ -56,7 +56,7 @@ export function GithubRepositoryModal({
   useEffect(() => {
     if (!login || login.state !== 'awaiting_auth') return
     const timer = window.setInterval(() => {
-      void desktopClient.pollGithubLogin().then(status => {
+      void desktopClient.pollGithubLogin().then((status) => {
         setLogin(status)
         if (status.auth) {
           setAuth(status.auth)
@@ -72,7 +72,7 @@ export function GithubRepositoryModal({
   const filteredRepositories = useMemo(() => {
     const keyword = search.trim().toLowerCase()
     if (!keyword) return repositories
-    return repositories.filter(repo =>
+    return repositories.filter((repo) =>
       [repo.fullName, repo.description ?? '', repo.defaultBranch]
         .join(' ')
         .toLowerCase()
@@ -155,203 +155,163 @@ export function GithubRepositoryModal({
   return (
     <Dialog.Root
       open={open}
-      onOpenChange={nextOpen => {
+      onOpenChange={(nextOpen) => {
         if (!nextOpen) onClose()
       }}
     >
       <Dialog.Portal>
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
-            aria-describedby="github-repository-description"
-            className="ui-dialog-surface ui-dialog-surface--centered permission-modal github-repository-modal"
-            onCloseAutoFocus={onCloseAutoFocus}
-          >
-            <header
-              className={cx(
-                'u-flex',
-                'u-items-center',
-                'u-justify-between',
-                'u-gap-3',
-              )}
-            >
-              <Dialog.Title asChild>
-                <h2>从 GitHub 克隆项目</h2>
-              </Dialog.Title>
-              {auth?.authenticated ? (
-                <span>{auth.user?.login}</span>
-              ) : (
-                <span>GitHub</span>
-              )}
-            </header>
-            <Dialog.Description id="github-repository-description">
-              登录 GitHub 后选择你有权限访问的仓库，软件会让你选择本地克隆目录。
-            </Dialog.Description>
+          aria-describedby="github-repository-description"
+          className="ui-dialog-surface ui-dialog-surface--centered permission-modal github-repository-modal"
+          onCloseAutoFocus={onCloseAutoFocus}
+        >
+          <header className={cx('u-flex', 'u-items-center', 'u-justify-between', 'u-gap-3')}>
+            <Dialog.Title asChild>
+              <h2>从 GitHub 克隆项目</h2>
+            </Dialog.Title>
+            {auth?.authenticated ? <span>{auth.user?.login}</span> : <span>GitHub</span>}
+          </header>
+          <Dialog.Description id="github-repository-description">
+            登录 GitHub 后选择你有权限访问的仓库，软件会让你选择本地克隆目录。
+          </Dialog.Description>
 
-            {!auth?.authenticated ? (
-              <div className="github-login-panel">
-                <GitFork size={APP_ICON_SIZE} />
-                <div>
-                  <h3>登录 GitHub</h3>
-                  <p>
-                    {login?.error
-                      ? login.error
-                      : login?.mode === 'device' &&
-                          login.state === 'awaiting_auth' &&
-                          login.userCode
-                        ? `请在打开的 GitHub 页面输入验证码 ${login.userCode}`
-                        : '在系统浏览器中授权后，可列出并克隆私有仓库。'}
-                  </p>
-                  {login?.mode === 'device' &&
-                  login.state === 'awaiting_auth' &&
-                  login.userCode ? (
-                    <div className="github-device-code-card compact">
-                      <div>
-                        <div className="github-device-code-label">
-                          GitHub 设备验证码
-                        </div>
-                        <div className="github-device-code-value">
-                          {login.userCode}
-                        </div>
-                        <p>
-                          在 GitHub 设备登录页面输入这个验证码，不是 OAuth Client ID。
-                        </p>
-                      </div>
-                      <div className="github-device-code-actions">
-                        <Button color="secondary"
-                          onClick={() => void copyGithubCode()}
-                          type="button"
-                        >
-                          复制验证码
-                        </Button>
-                        <Button color="secondary"
-                          onClick={() => void openGithubDevicePage()}
-                          type="button"
-                        >
-                          打开验证页面
-                        </Button>
-                      </div>
+          {!auth?.authenticated ? (
+            <div className="github-login-panel">
+              <GitFork size={APP_ICON_SIZE} />
+              <div>
+                <h3>登录 GitHub</h3>
+                <p>
+                  {login?.error
+                    ? login.error
+                    : login?.mode === 'device' && login.state === 'awaiting_auth' && login.userCode
+                      ? `请在打开的 GitHub 页面输入验证码 ${login.userCode}`
+                      : '在系统浏览器中授权后，可列出并克隆私有仓库。'}
+                </p>
+                {login?.mode === 'device' && login.state === 'awaiting_auth' && login.userCode ? (
+                  <div className="github-device-code-card compact">
+                    <div>
+                      <div className="github-device-code-label">GitHub 设备验证码</div>
+                      <div className="github-device-code-value">{login.userCode}</div>
+                      <p>在 GitHub 设备登录页面输入这个验证码，不是 OAuth Client ID。</p>
                     </div>
-                  ) : null}
-                </div>
-                <div className="settings-inline-actions">
-                  <Button color="primary"
+                    <div className="github-device-code-actions">
+                      <Button color="secondary" onClick={() => void copyGithubCode()} type="button">
+                        复制验证码
+                      </Button>
+                      <Button
+                        color="secondary"
+                        onClick={() => void openGithubDevicePage()}
+                        type="button"
+                      >
+                        打开验证页面
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              <div className="settings-inline-actions">
+                <Button
+                  color="primary"
+                  disabled={loading}
+                  onClick={() => void startLogin('browser')}
+                  type="button"
+                >
+                  登录 GitHub
+                </Button>
+                {login?.state === 'failed' ? (
+                  <Button
+                    color="secondary"
                     disabled={loading}
-                    onClick={() => void startLogin('browser')}
+                    onClick={() => void startLogin('device')}
                     type="button"
                   >
-                    登录 GitHub
+                    使用设备验证码
                   </Button>
-                  {login?.state === 'failed' ? (
-                    <Button color="secondary"
-                      disabled={loading}
-                      onClick={() => void startLogin('device')}
-                      type="button"
-                    >
-                      使用设备验证码
-                    </Button>
-                  ) : null}
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <>
+              <SearchInput
+                aria-label="搜索仓库"
+                className="github-repository-search"
+                onChange={setSearch}
+                placeholder="搜索仓库"
+                value={search}
+                variant="standard"
+              />
+              <div className="github-repository-list-scroll-area">
+                <div className={cx('github-repository-list-scroll-content', 'u-min-w-0', 'u-grid')}>
+                  {loading ? (
+                    <div className={cx('github-repository-empty', 'u-p-5', 'u-text-center')}>
+                      正在加载仓库...
+                    </div>
+                  ) : filteredRepositories.length === 0 ? (
+                    <div className={cx('github-repository-empty', 'u-p-5', 'u-text-center')}>
+                      没有匹配仓库
+                    </div>
+                  ) : (
+                    filteredRepositories.map((repository) => (
+                      <div className="github-repository-row" key={repository.id}>
+                        <div className="github-repository-main">
+                          <div
+                            className={cx(
+                              'github-repository-title',
+                              'u-min-w-0',
+                              'u-flex',
+                              'u-items-center',
+                              'u-gap-2',
+                            )}
+                          >
+                            {repository.private ? (
+                              <Lock size={APP_ICON_SIZE} />
+                            ) : (
+                              <Unlock size={APP_ICON_SIZE} />
+                            )}
+                            <strong>{repository.fullName}</strong>
+                            {repository.fork ? <span>Fork</span> : null}
+                          </div>
+                          <p>{repository.description ?? '无描述'}</p>
+                          <small>
+                            {repository.defaultBranch}
+                            {repository.pushedAt ? ` · ${formatDate(repository.pushedAt)}` : ''}
+                          </small>
+                        </div>
+                        <Button
+                          color="primary"
+                          disabled={Boolean(cloningRepo)}
+                          onClick={() => void cloneRepository(repository)}
+                          type="button"
+                        >
+                          {cloningRepo === repository.fullName ? '克隆中...' : '克隆'}
+                        </Button>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
-            ) : (
-              <>
-                <SearchInput
-                  aria-label="搜索仓库"
-                  className="github-repository-search"
-                  onChange={setSearch}
-                  placeholder="搜索仓库"
-                  value={search}
-                  variant="standard"
-                />
-                <div className="github-repository-list-scroll-area">
-                  <div
-                    className={cx(
-                      'github-repository-list-scroll-content',
-                      'u-min-w-0',
-                      'u-grid',
-                    )}
-                  >
-                    {loading ? (
-                      <div
-                        className={cx(
-                          'github-repository-empty',
-                          'u-p-5',
-                          'u-text-center',
-                        )}
-                      >
-                        正在加载仓库...
-                      </div>
-                    ) : filteredRepositories.length === 0 ? (
-                      <div
-                        className={cx(
-                          'github-repository-empty',
-                          'u-p-5',
-                          'u-text-center',
-                        )}
-                      >
-                        没有匹配仓库
-                      </div>
-                    ) : (
-                      filteredRepositories.map(repository => (
-                        <div className="github-repository-row" key={repository.id}>
-                          <div className="github-repository-main">
-                            <div
-                              className={cx(
-                                'github-repository-title',
-                                'u-min-w-0',
-                                'u-flex',
-                                'u-items-center',
-                                'u-gap-2',
-                              )}
-                            >
-                              {repository.private ? (
-                                <Lock size={APP_ICON_SIZE} />
-                              ) : (
-                                <Unlock size={APP_ICON_SIZE} />
-                              )}
-                              <strong>{repository.fullName}</strong>
-                              {repository.fork ? <span>Fork</span> : null}
-                            </div>
-                            <p>{repository.description ?? '无描述'}</p>
-                            <small>
-                              {repository.defaultBranch}
-                              {repository.pushedAt
-                                ? ` · ${formatDate(repository.pushedAt)}`
-                                : ''}
-                            </small>
-                          </div>
-                          <Button color="primary"
-                            disabled={Boolean(cloningRepo)}
-                            onClick={() => void cloneRepository(repository)}
-                            type="button"
-                          >
-                            {cloningRepo === repository.fullName ? '克隆中...' : '克隆'}
-                          </Button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
+            </>
+          )}
 
-            <div
-              className={cx(
-                'permission-modal-actions',
-                'u-flex',
-                'u-items-center',
-                'u-justify-between',
-                'u-gap-3',
-              )}
-            >
-              <Dialog.Close asChild>
-                <Button color="secondary">关闭</Button>
-              </Dialog.Close>
-              {auth?.authenticated ? (
-                <Button color="secondary" onClick={() => void loadRepositories()} type="button">
-                  刷新
-                </Button>
-              ) : null}
-            </div>
+          <div
+            className={cx(
+              'permission-modal-actions',
+              'u-flex',
+              'u-items-center',
+              'u-justify-between',
+              'u-gap-3',
+            )}
+          >
+            <Dialog.Close asChild>
+              <Button color="secondary">关闭</Button>
+            </Dialog.Close>
+            {auth?.authenticated ? (
+              <Button color="secondary" onClick={() => void loadRepositories()} type="button">
+                刷新
+              </Button>
+            ) : null}
+          </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

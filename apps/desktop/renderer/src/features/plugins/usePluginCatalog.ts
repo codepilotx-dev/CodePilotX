@@ -19,31 +19,43 @@ export function usePluginCatalog(workspacePath?: string | null): PluginCatalogSt
     let cancelled = false
     setPlugins(undefined)
     setError(null)
-    desktopClient.listPlugins(workspacePath, reloadKey > 0).then(result => {
-      if (!cancelled) setPlugins([...result.plugins])
-    }).catch(cause => {
-      if (cancelled) return
-      setPlugins([])
-      setError(cause instanceof Error ? cause.message : '插件状态读取失败。')
-    })
-    return () => { cancelled = true }
+    desktopClient
+      .listPlugins(workspacePath, reloadKey > 0)
+      .then((result) => {
+        if (!cancelled) setPlugins([...result.plugins])
+      })
+      .catch((cause) => {
+        if (cancelled) return
+        setPlugins([])
+        setError(cause instanceof Error ? cause.message : '插件状态读取失败。')
+      })
+    return () => {
+      cancelled = true
+    }
   }, [reloadKey, workspacePath])
 
-  useEffect(() => desktopClient.onPluginsUpdated(() => {
-    setReloadKey(current => current + 1)
-  }), [])
+  useEffect(
+    () =>
+      desktopClient.onPluginsUpdated(() => {
+        setReloadKey((current) => current + 1)
+      }),
+    [],
+  )
 
-  const setEnabled = useCallback(async (pluginId: string, enabled: boolean): Promise<PluginSummary> => {
-    const result = await desktopClient.setPluginEnabled(pluginId, enabled)
-    setPlugins(current => current?.map(plugin => plugin.id === result.id ? result : plugin))
-    return result
-  }, [])
+  const setEnabled = useCallback(
+    async (pluginId: string, enabled: boolean): Promise<PluginSummary> => {
+      const result = await desktopClient.setPluginEnabled(pluginId, enabled)
+      setPlugins((current) => current?.map((plugin) => (plugin.id === result.id ? result : plugin)))
+      return result
+    },
+    [],
+  )
 
   return {
     plugins,
     error,
     loading: plugins === undefined && error === null,
-    refresh: () => setReloadKey(current => current + 1),
+    refresh: () => setReloadKey((current) => current + 1),
     setEnabled,
   }
 }

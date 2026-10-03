@@ -1,19 +1,17 @@
-import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../wire/definition"
-import { EmptyParamsSchema, NonEmptyStringSchema, OperationParamsSchema } from "../wire/primitives"
+import { Schema } from 'effect'
+import { defineMethod, type MethodMap } from '../wire/definition'
+import { EmptyParamsSchema, NonEmptyStringSchema, OperationParamsSchema } from '../wire/primitives'
 
-const PetIDSchema = Schema.String.check(
-  Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,63}$/),
-)
+const PetIDSchema = Schema.String.check(Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,63}$/))
 const PetErrors = [
-  "PET_NOT_FOUND",
-  "PET_INVALID",
-  "PET_DOWNLOAD_FAILED",
-  "PET_STORAGE_FAILED",
-  "PATH_DENIED",
-  "CONFLICT",
-  "RATE_LIMITED",
-  "INTERNAL_ERROR",
+  'PET_NOT_FOUND',
+  'PET_INVALID',
+  'PET_DOWNLOAD_FAILED',
+  'PET_STORAGE_FAILED',
+  'PATH_DENIED',
+  'CONFLICT',
+  'RATE_LIMITED',
+  'INTERNAL_ERROR',
 ] as const
 
 export const PetManifestSchema = Schema.Struct({
@@ -35,10 +33,10 @@ export const PetListResultSchema = Schema.Struct({
 })
 
 export const PetLicenseKindSchema = Schema.Literals([
-  "permissive",
-  "attribution",
-  "restricted",
-  "unknown",
+  'permissive',
+  'attribution',
+  'restricted',
+  'unknown',
 ])
 
 export const PetCatalogItemSchema = Schema.Struct({
@@ -59,7 +57,7 @@ export const PetCatalogItemSchema = Schema.Struct({
 export const PetCatalogResultSchema = Schema.Struct({
   pets: Schema.Array(PetCatalogItemSchema),
   fetchedAt: Schema.NullOr(NonEmptyStringSchema),
-  cacheState: Schema.Literals(["fresh", "stale", "unavailable"]),
+  cacheState: Schema.Literals(['fresh', 'stale', 'unavailable']),
 })
 
 export const PetCatalogListParamsSchema = Schema.Struct({
@@ -109,55 +107,55 @@ export const PetRemoveResultSchema = Schema.Struct({
 })
 
 export const PetRpcMethods = {
-  "pet/list": defineMethod({
+  'pet/list': defineMethod({
     params: EmptyParamsSchema,
     result: PetListResultSchema,
     errors: PetErrors,
-    capability: "pets.management.v1",
+    capability: 'pets.management.v1',
     mutation: false,
     exactResult: true,
   }),
-  "pet/catalog/list": defineMethod({
+  'pet/catalog/list': defineMethod({
     params: PetCatalogListParamsSchema,
     result: PetCatalogResultSchema,
     errors: PetErrors,
-    capability: "pets.management.v1",
+    capability: 'pets.management.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "pet/catalog/install": defineMethod({
+  'pet/catalog/install': defineMethod({
     params: PetCatalogInstallParamsSchema,
     result: PetInstallResultSchema,
     errors: PetErrors,
-    capability: "pets.management.v1",
+    capability: 'pets.management.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "pet/install/preview": defineMethod({
+  'pet/install/preview': defineMethod({
     params: PetInstallPreviewParamsSchema,
     result: PetInstallPreviewResultSchema,
     errors: PetErrors,
-    capability: "pets.management.v1",
+    capability: 'pets.management.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "pet/install": defineMethod({
+  'pet/install': defineMethod({
     params: PetInstallParamsSchema,
     result: PetInstallResultSchema,
     errors: PetErrors,
-    capability: "pets.management.v1",
+    capability: 'pets.management.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "pet/remove": defineMethod({
+  'pet/remove': defineMethod({
     params: PetRemoveParamsSchema,
     result: PetRemoveResultSchema,
     errors: PetErrors,
-    capability: "pets.management.v1",
+    capability: 'pets.management.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,

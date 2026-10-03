@@ -2,10 +2,7 @@ import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
 import type { CodePilotXDesktopClient } from '../../services/desktop-client/index.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { AGENT_LIVE_EVENT_FILTERS } from '../../services/desktop-client/eventSubscriptionFilters.js'
-import type {
-  DesktopApiKeySummary,
-  DesktopProviderCredential,
-} from '../../../shared/types.js'
+import type { DesktopApiKeySummary, DesktopProviderCredential } from '../../../shared/types.js'
 import type {
   ProviderManagementSnapshot,
   ProviderUsageQueryParams,
@@ -40,9 +37,7 @@ export type ProviderManagementStore = {
   refreshAllProviderData(): Promise<ProviderManagementSnapshot>
   refreshConnections(): Promise<ProviderManagementSnapshot>
   refreshSources(): Promise<RpcResult<'usage/source/list'>>
-  querySources(
-    params: ProviderUsageQueryParams,
-  ): Promise<ProviderUsageQueryResult>
+  querySources(params: ProviderUsageQueryParams): Promise<ProviderUsageQueryResult>
   connectUsageCredential(
     input: Parameters<ProviderManagementClient['connectUsageCredential']>[0],
   ): ReturnType<ProviderManagementClient['connectUsageCredential']>
@@ -73,7 +68,8 @@ export type ProviderManagementStore = {
   invalidate(): void
 }
 
-const CONFIGURATION_ERROR_MESSAGE = '本地 Agent 的供应商配置暂时无法读取，请确认 Agent 已启动后重试。'
+const CONFIGURATION_ERROR_MESSAGE =
+  '本地 Agent 的供应商配置暂时无法读取，请确认 Agent 已启动后重试。'
 
 const INITIAL_SNAPSHOT: ProviderManagementSnapshot = {
   loaded: false,
@@ -109,9 +105,7 @@ const providerCredentialToApiKey = (
 })
 
 const errorMessage = (error: unknown): string =>
-  error instanceof Error && error.message.trim()
-    ? error.message
-    : '供应商连接状态暂时无法加载。'
+  error instanceof Error && error.message.trim() ? error.message : '供应商连接状态暂时无法加载。'
 
 const fulfilledValue = <T>(result: PromiseSettledResult<T>): T => {
   if (result.status === 'rejected') throw result.reason
@@ -122,35 +116,31 @@ const mergeUsageResults = (
   current: ProviderManagementSnapshot['usageResults'],
   next: ProviderUsageQueryResult['sources'],
 ) => {
-  const merged = new Map(current.map(source => [source.sourceId, source]))
+  const merged = new Map(current.map((source) => [source.sourceId, source]))
   for (const source of next) merged.set(source.sourceId, source)
   return [...merged.values()]
 }
 
 const usageConnectionIdentity = (
   connection: ProviderManagementSnapshot['usageSources'][number]['connection'],
-): string => [
-  connection.kind,
-  connection.credentialId ?? '',
-  connection.maskedValue ?? '',
-].join('\u0000')
+): string =>
+  [connection.kind, connection.credentialId ?? '', connection.maskedValue ?? ''].join('\u0000')
 
 const reconcileUsageResults = (
   current: ProviderManagementSnapshot['usageResults'],
   previousSources: ProviderManagementSnapshot['usageSources'],
   nextSources: ProviderManagementSnapshot['usageSources'],
 ) => {
-  const previousById = new Map(
-    previousSources.map(source => [source.sourceId, source]),
-  )
-  const nextById = new Map(nextSources.map(source => [source.sourceId, source]))
-  return current.filter(result => {
+  const previousById = new Map(previousSources.map((source) => [source.sourceId, source]))
+  const nextById = new Map(nextSources.map((source) => [source.sourceId, source]))
+  return current.filter((result) => {
     const next = nextById.get(result.sourceId)
     if (!next || next.connection.kind === 'none') return false
     const previous = previousById.get(result.sourceId)
-    return previous === undefined
-      || usageConnectionIdentity(previous.connection)
-        === usageConnectionIdentity(next.connection)
+    return (
+      previous === undefined ||
+      usageConnectionIdentity(previous.connection) === usageConnectionIdentity(next.connection)
+    )
   })
 }
 
@@ -166,9 +156,7 @@ export function createProviderManagementStore(
   const activeRefreshingSourceCounts = new Map<string, number>()
   const listeners = new Set<() => void>()
 
-  const update = (
-    change: Partial<ProviderManagementSnapshot>,
-  ): ProviderManagementSnapshot => {
+  const update = (change: Partial<ProviderManagementSnapshot>): ProviderManagementSnapshot => {
     snapshot = { ...snapshot, ...change }
     for (const listener of listeners) listener()
     return snapshot
@@ -182,54 +170,50 @@ export function createProviderManagementStore(
       client.getModelProviderState(),
       client.listProviderCredentials(),
       client.listUsageSources(),
-    ]).then(results => {
-      const errors = results
-        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-        .map(result => errorMessage(result.reason))
-      const configurationFailed = results[0]?.status === 'rejected'
-        || results[1]?.status === 'rejected'
-      const nextUsageSources = results[3]?.status === 'fulfilled'
-        ? [...results[3].value.sources]
-        : snapshot.usageSources
-      const credentials = results[2]?.status === 'fulfilled'
-        ? [...results[2].value]
-        : snapshot.credentials
-      return update({
-        loaded: true,
-        loading: false,
-        error: errors.length > 0 ? [...new Set(errors)].join('；') : null,
-        // 目录或 Provider 状态读取失败时，stale 的 modelConfigured 不再可信。
-        ...(configurationFailed
-          ? { configurationError: CONFIGURATION_ERROR_MESSAGE, currentProviderState: null }
-          : { configurationError: null }),
-        ...(results[0]?.status === 'fulfilled'
-          ? { providers: [...results[0].value] }
-          : {}),
-        ...(results[1]?.status === 'fulfilled'
-          ? { currentProviderState: results[1].value }
-          : {}),
-        ...(results[2]?.status === 'fulfilled'
-          ? {
-              credentials,
-              apiKeys: credentials
-                .filter(credential => credential.kind === 'api-key')
-                .map(providerCredentialToApiKey),
-            }
-          : {}),
-        ...(results[3]?.status === 'fulfilled'
-          ? {
-              usageSources: nextUsageSources,
-              usageResults: reconcileUsageResults(
-                snapshot.usageResults,
-                snapshot.usageSources,
-                nextUsageSources,
-              ),
-            }
-          : {}),
+    ])
+      .then((results) => {
+        const errors = results
+          .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+          .map((result) => errorMessage(result.reason))
+        const configurationFailed =
+          results[0]?.status === 'rejected' || results[1]?.status === 'rejected'
+        const nextUsageSources =
+          results[3]?.status === 'fulfilled' ? [...results[3].value.sources] : snapshot.usageSources
+        const credentials =
+          results[2]?.status === 'fulfilled' ? [...results[2].value] : snapshot.credentials
+        return update({
+          loaded: true,
+          loading: false,
+          error: errors.length > 0 ? [...new Set(errors)].join('；') : null,
+          // 目录或 Provider 状态读取失败时，stale 的 modelConfigured 不再可信。
+          ...(configurationFailed
+            ? { configurationError: CONFIGURATION_ERROR_MESSAGE, currentProviderState: null }
+            : { configurationError: null }),
+          ...(results[0]?.status === 'fulfilled' ? { providers: [...results[0].value] } : {}),
+          ...(results[1]?.status === 'fulfilled' ? { currentProviderState: results[1].value } : {}),
+          ...(results[2]?.status === 'fulfilled'
+            ? {
+                credentials,
+                apiKeys: credentials
+                  .filter((credential) => credential.kind === 'api-key')
+                  .map(providerCredentialToApiKey),
+              }
+            : {}),
+          ...(results[3]?.status === 'fulfilled'
+            ? {
+                usageSources: nextUsageSources,
+                usageResults: reconcileUsageResults(
+                  snapshot.usageResults,
+                  snapshot.usageSources,
+                  nextUsageSources,
+                ),
+              }
+            : {}),
+        })
       })
-    }).finally(() => {
-      if (loadRequest === pending) loadRequest = null
-    })
+      .finally(() => {
+        if (loadRequest === pending) loadRequest = null
+      })
     loadRequest = pending
     return pending
   }
@@ -259,7 +243,7 @@ export function createProviderManagementStore(
         currentProviderState,
         credentials,
         apiKeys: credentials
-          .filter(credential => credential.kind === 'api-key')
+          .filter((credential) => credential.kind === 'api-key')
           .map(providerCredentialToApiKey),
         usageSources,
         usageResults: reconcileUsageResults(
@@ -305,13 +289,11 @@ export function createProviderManagementStore(
     ])
     const errors = results
       .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-      .map(result => errorMessage(result.reason))
-    const nextUsageSources = results[1]?.status === 'fulfilled'
-      ? [...results[1].value.sources]
-      : snapshot.usageSources
-    const credentials = results[0]?.status === 'fulfilled'
-      ? [...results[0].value]
-      : snapshot.credentials
+      .map((result) => errorMessage(result.reason))
+    const nextUsageSources =
+      results[1]?.status === 'fulfilled' ? [...results[1].value.sources] : snapshot.usageSources
+    const credentials =
+      results[0]?.status === 'fulfilled' ? [...results[0].value] : snapshot.credentials
     const configurationFailed = results[2]?.status === 'rejected'
     return update({
       loaded: true,
@@ -324,7 +306,7 @@ export function createProviderManagementStore(
         ? {
             credentials,
             apiKeys: credentials
-              .filter(credential => credential.kind === 'api-key')
+              .filter((credential) => credential.kind === 'api-key')
               .map(providerCredentialToApiKey),
           }
         : {}),
@@ -338,9 +320,7 @@ export function createProviderManagementStore(
             ),
           }
         : {}),
-      ...(results[2]?.status === 'fulfilled'
-        ? { currentProviderState: results[2].value }
-        : {}),
+      ...(results[2]?.status === 'fulfilled' ? { currentProviderState: results[2].value } : {}),
     })
   }
 
@@ -355,42 +335,37 @@ export function createProviderManagementStore(
     ])
     const errors = results
       .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-      .map(result => errorMessage(result.reason))
-    const configurationFailed = results[0]?.status === 'rejected'
-      || results[2]?.status === 'rejected'
-    const credentials = results[1]?.status === 'fulfilled'
-      ? [...results[1].value]
-      : snapshot.credentials
+      .map((result) => errorMessage(result.reason))
+    const configurationFailed =
+      results[0]?.status === 'rejected' || results[2]?.status === 'rejected'
+    const credentials =
+      results[1]?.status === 'fulfilled' ? [...results[1].value] : snapshot.credentials
     return update({
       refreshingSources: false,
       error: errors.length > 0 ? [...new Set(errors)].join('；') : null,
       ...(configurationFailed
         ? { configurationError: CONFIGURATION_ERROR_MESSAGE, currentProviderState: null }
         : { configurationError: null }),
-      ...(results[0]?.status === 'fulfilled'
-        ? { providers: [...results[0].value] }
-        : {}),
+      ...(results[0]?.status === 'fulfilled' ? { providers: [...results[0].value] } : {}),
       ...(results[1]?.status === 'fulfilled'
         ? {
             credentials,
             apiKeys: credentials
-              .filter(credential => credential.kind === 'api-key')
+              .filter((credential) => credential.kind === 'api-key')
               .map(providerCredentialToApiKey),
           }
         : {}),
-      ...(results[2]?.status === 'fulfilled'
-        ? { currentProviderState: results[2].value }
-        : {}),
+      ...(results[2]?.status === 'fulfilled' ? { currentProviderState: results[2].value } : {}),
     })
   }
 
   const refreshApiKeys = async (): Promise<void> => {
     try {
-      const credentials = [...await client.listProviderCredentials()]
+      const credentials = [...(await client.listProviderCredentials())]
       update({
         credentials,
         apiKeys: credentials
-          .filter(credential => credential.kind === 'api-key')
+          .filter((credential) => credential.kind === 'api-key')
           .map(providerCredentialToApiKey),
       })
     } catch (error) {
@@ -398,44 +373,46 @@ export function createProviderManagementStore(
     }
   }
 
-  const invalidateProviderCredentialResults = (
-    providerId: string | undefined,
-  ) => {
-    const sourceIds = new Set(snapshot.usageSources.filter(source =>
-      source.connectionMethod.kind === 'provider-credential'
-      && (
-        providerId === undefined
-        || source.providerIds.some(id => String(id) === providerId)
-      ),
-    ).map(source => source.sourceId))
+  const invalidateProviderCredentialResults = (providerId: string | undefined) => {
+    const sourceIds = new Set(
+      snapshot.usageSources
+        .filter(
+          (source) =>
+            source.connectionMethod.kind === 'provider-credential' &&
+            (providerId === undefined ||
+              source.providerIds.some((id) => String(id) === providerId)),
+        )
+        .map((source) => source.sourceId),
+    )
     update({
-      usageResults: snapshot.usageResults.filter(
-        result => !sourceIds.has(result.sourceId),
-      ),
+      usageResults: snapshot.usageResults.filter((result) => !sourceIds.has(result.sourceId)),
     })
   }
 
   const ensureEventSubscription = () => {
     if (eventSubscription !== null) return
-    eventSubscription = client.subscribeAgentEventEnvelopes({
-      liveEventTypes: AGENT_LIVE_EVENT_FILTERS.provider,
-    }, async events => {
-      let refreshConfigurationRequested = false
-      let refreshSourcesRequested = false
-      for (const event of events) {
-        if (event.type === 'catalog/updated' || event.type === 'provider/credential/updated') {
-          refreshConfigurationRequested = true
-          continue
+    eventSubscription = client.subscribeAgentEventEnvelopes(
+      {
+        liveEventTypes: AGENT_LIVE_EVENT_FILTERS.provider,
+      },
+      async (events) => {
+        let refreshConfigurationRequested = false
+        let refreshSourcesRequested = false
+        for (const event of events) {
+          if (event.type === 'catalog/updated' || event.type === 'provider/credential/updated') {
+            refreshConfigurationRequested = true
+            continue
+          }
+          if (event.type === 'usage/source/updated') {
+            refreshSourcesRequested = true
+          }
         }
-        if (event.type === 'usage/source/updated') {
-          refreshSourcesRequested = true
-        }
-      }
-      await Promise.all([
-        ...(refreshConfigurationRequested ? [refreshConfiguration()] : []),
-        ...(refreshSourcesRequested ? [refreshSources()] : []),
-      ])
-    })
+        await Promise.all([
+          ...(refreshConfigurationRequested ? [refreshConfiguration()] : []),
+          ...(refreshSourcesRequested ? [refreshSources()] : []),
+        ])
+      },
+    )
   }
 
   const querySources = async (
@@ -447,10 +424,7 @@ export function createProviderManagementStore(
       queryEpoch += 1
     }
     const requestEpoch = queryEpoch
-    pendingQueriesByEpoch.set(
-      requestEpoch,
-      (pendingQueriesByEpoch.get(requestEpoch) ?? 0) + 1,
-    )
+    pendingQueriesByEpoch.set(requestEpoch, (pendingQueriesByEpoch.get(requestEpoch) ?? 0) + 1)
     for (const sourceId of params.sourceIds) {
       activeRefreshingSourceCounts.set(
         sourceId,
@@ -508,9 +482,7 @@ export function createProviderManagementStore(
     },
     ensureLoaded: () => {
       ensureEventSubscription()
-      return snapshot.loaded
-        ? Promise.resolve(snapshot)
-        : loadRequest ?? refresh()
+      return snapshot.loaded ? Promise.resolve(snapshot) : (loadRequest ?? refresh())
     },
     refresh,
     refreshAllProviderData,
@@ -520,21 +492,19 @@ export function createProviderManagementStore(
     async connectUsageCredential(input) {
       const result = await client.connectUsageCredential(input)
       update({
-        usageSources: snapshot.usageSources.map(source =>
+        usageSources: snapshot.usageSources.map((source) =>
           source.sourceId === result.sourceId
             ? { ...source, connection: result.connection }
             : source,
         ),
-        usageResults: snapshot.usageResults.filter(
-          source => source.sourceId !== result.sourceId,
-        ),
+        usageResults: snapshot.usageResults.filter((source) => source.sourceId !== result.sourceId),
       })
       return result
     },
     async disconnectUsageCredential(input) {
       const result = await client.disconnectUsageCredential(input)
       update({
-        usageSources: snapshot.usageSources.map(source =>
+        usageSources: snapshot.usageSources.map((source) =>
           source.sourceId === result.sourceId
             ? {
                 ...source,
@@ -545,9 +515,7 @@ export function createProviderManagementStore(
               }
             : source,
         ),
-        usageResults: snapshot.usageResults.filter(
-          source => source.sourceId !== result.sourceId,
-        ),
+        usageResults: snapshot.usageResults.filter((source) => source.sourceId !== result.sourceId),
       })
       return result
     },
@@ -558,13 +526,9 @@ export function createProviderManagementStore(
       return result
     },
     async updateApiKey(input) {
-      const providerId = snapshot.apiKeys.find(
-        key => key.id === input.credentialId,
-      )?.providerId
+      const providerId = snapshot.apiKeys.find((key) => key.id === input.credentialId)?.providerId
       const result = await client.updateApiKey(input)
-      invalidateProviderCredentialResults(
-        providerId === undefined ? undefined : String(providerId),
-      )
+      invalidateProviderCredentialResults(providerId === undefined ? undefined : String(providerId))
       await refreshConfiguration()
       return result
     },
@@ -580,13 +544,9 @@ export function createProviderManagementStore(
       return result
     },
     async setCredentialEnabled(...input) {
-      const providerId = snapshot.apiKeys.find(
-        key => key.id === input[0],
-      )?.providerId
+      const providerId = snapshot.apiKeys.find((key) => key.id === input[0])?.providerId
       const result = await client.setProviderCredentialEnabled(...input)
-      invalidateProviderCredentialResults(
-        providerId === undefined ? undefined : String(providerId),
-      )
+      invalidateProviderCredentialResults(providerId === undefined ? undefined : String(providerId))
       await refreshConfiguration()
       return result
     },
@@ -596,13 +556,9 @@ export function createProviderManagementStore(
       return result
     },
     async deleteCredential(credentialId) {
-      const providerId = snapshot.apiKeys.find(
-        key => key.id === credentialId,
-      )?.providerId
+      const providerId = snapshot.apiKeys.find((key) => key.id === credentialId)?.providerId
       const result = await client.deleteProviderCredential(credentialId)
-      invalidateProviderCredentialResults(
-        providerId === undefined ? undefined : String(providerId),
-      )
+      invalidateProviderCredentialResults(providerId === undefined ? undefined : String(providerId))
       await refreshConfiguration()
       return result
     },
@@ -612,5 +568,4 @@ export function createProviderManagementStore(
   }
 }
 
-export const providerManagementStore =
-  createProviderManagementStore(desktopClient)
+export const providerManagementStore = createProviderManagementStore(desktopClient)

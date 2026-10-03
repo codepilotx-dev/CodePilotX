@@ -62,7 +62,9 @@ function mondayIndex(date: Date): number {
 function displayDate(value: string, locale: AppLocale): string {
   const date = parseDateValue(value)
   return date
-    ? new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
+    ? new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(
+        date,
+      )
     : value
 }
 
@@ -72,14 +74,19 @@ function monthLabel(date: Date, locale: AppLocale): string {
 
 function dayLabel(date: Date, today: string, selected: string, locale: AppLocale): string {
   const value = formatDateValue(date)
-  const states = [value === today ? (locale === 'en-US' ? 'Today' : '今天') : '', value === selected ? (locale === 'en-US' ? 'Selected' : '已选择') : ''].filter(Boolean)
+  const states = [
+    value === today ? (locale === 'en-US' ? 'Today' : '今天') : '',
+    value === selected ? (locale === 'en-US' ? 'Selected' : '已选择') : '',
+  ].filter(Boolean)
   const label = new Intl.DateTimeFormat(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     weekday: 'long',
   }).format(date)
-  return states.length ? `${label}${locale === 'en-US' ? ', ' : '，'}${states.join(locale === 'en-US' ? ', ' : '，')}` : label
+  return states.length
+    ? `${label}${locale === 'en-US' ? ', ' : '，'}${states.join(locale === 'en-US' ? ', ' : '，')}`
+    : label
 }
 
 export function DatePicker({
@@ -149,14 +156,30 @@ export function DatePicker({
   function handleDayKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, date: Date): void {
     let nextDate: Date | null = null
     switch (event.key) {
-      case 'ArrowLeft': nextDate = addDays(date, -1); break
-      case 'ArrowRight': nextDate = addDays(date, 1); break
-      case 'ArrowUp': nextDate = addDays(date, -7); break
-      case 'ArrowDown': nextDate = addDays(date, 7); break
-      case 'Home': nextDate = addDays(date, -mondayIndex(date)); break
-      case 'End': nextDate = addDays(date, 6 - mondayIndex(date)); break
-      case 'PageUp': nextDate = addCalendarMonths(date, event.shiftKey ? -12 : -1); break
-      case 'PageDown': nextDate = addCalendarMonths(date, event.shiftKey ? 12 : 1); break
+      case 'ArrowLeft':
+        nextDate = addDays(date, -1)
+        break
+      case 'ArrowRight':
+        nextDate = addDays(date, 1)
+        break
+      case 'ArrowUp':
+        nextDate = addDays(date, -7)
+        break
+      case 'ArrowDown':
+        nextDate = addDays(date, 7)
+        break
+      case 'Home':
+        nextDate = addDays(date, -mondayIndex(date))
+        break
+      case 'End':
+        nextDate = addDays(date, 6 - mondayIndex(date))
+        break
+      case 'PageUp':
+        nextDate = addCalendarMonths(date, event.shiftKey ? -12 : -1)
+        break
+      case 'PageDown':
+        nextDate = addCalendarMonths(date, event.shiftKey ? 12 : 1)
+        break
       case 'Enter':
       case ' ':
         event.preventDefault()
@@ -198,11 +221,21 @@ export function DatePicker({
           disabled={disabled}
           type="button"
         >
-          <CalendarDays size={APP_ICON_SIZE} aria-hidden="true" className="ui-date-picker-trigger-icon" />
-          <span className={cx('ui-date-picker-value', !value && 'ui-date-picker-value--placeholder')}>
+          <CalendarDays
+            size={APP_ICON_SIZE}
+            aria-hidden="true"
+            className="ui-date-picker-trigger-icon"
+          />
+          <span
+            className={cx('ui-date-picker-value', !value && 'ui-date-picker-value--placeholder')}
+          >
             {value ? displayDate(value, locale) : t(placeholder)}
           </span>
-          <ChevronDown size={APP_ICON_SIZES.sm} aria-hidden="true" className="ui-date-picker-chevron" />
+          <ChevronDown
+            size={APP_ICON_SIZES.sm}
+            aria-hidden="true"
+            className="ui-date-picker-chevron"
+          />
         </button>
       </Popover.Trigger>
       <Popover.Portal>
@@ -215,18 +248,56 @@ export function DatePicker({
           onEscapeKeyDown={() => requestAnimationFrame(() => triggerRef.current?.focus())}
         >
           <div className="ui-date-picker-header">
-            <button aria-label={t('上个月')} className="ui-date-picker-nav" type="button" onClick={() => navigateMonth(-1)}>
+            <button
+              aria-label={t('上个月')}
+              className="ui-date-picker-nav"
+              type="button"
+              onClick={() => navigateMonth(-1)}
+            >
               <ChevronLeft size={APP_ICON_SIZE} aria-hidden="true" />
             </button>
-            <div aria-live="polite" className="ui-date-picker-month">{monthLabel(visibleMonth, locale)}</div>
-            <button aria-label={t('下个月')} className="ui-date-picker-nav" type="button" onClick={() => navigateMonth(1)}>
+            <div aria-live="polite" className="ui-date-picker-month">
+              {monthLabel(visibleMonth, locale)}
+            </div>
+            <button
+              aria-label={t('下个月')}
+              className="ui-date-picker-nav"
+              type="button"
+              onClick={() => navigateMonth(1)}
+            >
               <ChevronRight size={APP_ICON_SIZES.sm} aria-hidden="true" />
             </button>
           </div>
-          <div ref={calendarRef} aria-label={monthLabel(visibleMonth, locale)} className="ui-date-picker-grid" role="grid">
+          <div
+            ref={calendarRef}
+            aria-label={monthLabel(visibleMonth, locale)}
+            className="ui-date-picker-grid"
+            role="grid"
+          >
             <div className="ui-date-picker-weekdays" role="row">
               {WEEKDAYS.map((weekday) => (
-                <span aria-label={locale === 'en-US' ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][WEEKDAYS.indexOf(weekday)] : `星期${weekday}`} className="ui-date-picker-weekday" key={weekday} role="columnheader">{locale === 'en-US' ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'][WEEKDAYS.indexOf(weekday)] : weekday}</span>
+                <span
+                  aria-label={
+                    locale === 'en-US'
+                      ? [
+                          'Monday',
+                          'Tuesday',
+                          'Wednesday',
+                          'Thursday',
+                          'Friday',
+                          'Saturday',
+                          'Sunday',
+                        ][WEEKDAYS.indexOf(weekday)]
+                      : `星期${weekday}`
+                  }
+                  className="ui-date-picker-weekday"
+                  key={weekday}
+                  role="columnheader"
+                >
+                  {locale === 'en-US'
+                    ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'][WEEKDAYS.indexOf(weekday)]
+                    : weekday}
+                </span>
               ))}
             </div>
             <div className="ui-date-picker-days" role="rowgroup">
@@ -256,7 +327,11 @@ export function DatePicker({
                         onKeyDown={(event) => handleDayKeyDown(event, date)}
                       >
                         <span>{date.getDate()}</span>
-                        {dateValue === todayValue ? <span className="ui-date-picker-state">{locale === 'en-US' ? 'Today' : '今'}</span> : null}
+                        {dateValue === todayValue ? (
+                          <span className="ui-date-picker-state">
+                            {locale === 'en-US' ? 'Today' : '今'}
+                          </span>
+                        ) : null}
                       </button>
                     )
                   })}

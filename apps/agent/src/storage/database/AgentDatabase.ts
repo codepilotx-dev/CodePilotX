@@ -1,35 +1,38 @@
-import { Database } from "bun:sqlite"
-import { mkdirSync } from "node:fs"
-import { dirname } from "node:path"
-import { RepositoryDatabase } from "../repositories/RepositoryDatabase"
-import { PlanApprovalRepository } from "../repositories/plan-approval-repository"
-import { credentialRepositoryDatabase } from "../repositories/credential-repository"
-import { ContextRepository } from "../repositories/context-repository"
-import { executionRepository } from "../repositories/execution-repository"
-import { interactionRepository } from "../repositories/interaction-repository"
-import { projectRepository } from "../repositories/project-repository"
-import { reviewRepository } from "../repositories/review-repository"
-import { subagentRepositoryDatabase } from "../repositories/subagent-repository"
-import { SideChatRepository } from "../repositories/side-chat-repository"
-import { threadRepository } from "../repositories/thread-repository"
-import { AutomationRepository } from "../repositories/automation-repository"
-import { SchedulePlanProposalRepository, ScheduledTaskRepository } from "../repositories/scheduled-task-repository"
-import { TurnPatchRepository } from "../repositories/turn-patch-repository"
-import { ArtifactRepository } from "../repositories/artifact-repository"
-import { workspaceRepository } from "../repositories/workspace-repository"
-import { RuntimeCompositionRepository } from "../repositories/runtime-composition-repository"
-import { SessionGroupRepository } from "../repositories/session-group-repository"
-import { ThreadGoalRepository } from "../repositories/thread-goal-repository"
-import { ThreadGoalLedgerRepository } from "../repositories/thread-goal-ledger-repository"
-import { ThreadGoalContinuationRepository } from "../repositories/thread-goal-continuation-repository"
-import { ThreadWorktreeOperationRepository } from "../repositories/thread-worktree-operation-repository"
-import { configureConnection, shrinkDatabaseMemory } from "./connection"
-import { backfillProjectThreadWorkspaces, initializeSchema } from "./schema-initializer"
-import { HISTORY_APPLICATION_ID } from "./schema"
-import { prepareStorage, type StoragePaths } from "./reset"
+import { Database } from 'bun:sqlite'
+import { mkdirSync } from 'node:fs'
+import { dirname } from 'node:path'
+import { RepositoryDatabase } from '../repositories/RepositoryDatabase'
+import { PlanApprovalRepository } from '../repositories/plan-approval-repository'
+import { credentialRepositoryDatabase } from '../repositories/credential-repository'
+import { ContextRepository } from '../repositories/context-repository'
+import { executionRepository } from '../repositories/execution-repository'
+import { interactionRepository } from '../repositories/interaction-repository'
+import { projectRepository } from '../repositories/project-repository'
+import { reviewRepository } from '../repositories/review-repository'
+import { subagentRepositoryDatabase } from '../repositories/subagent-repository'
+import { SideChatRepository } from '../repositories/side-chat-repository'
+import { threadRepository } from '../repositories/thread-repository'
+import { AutomationRepository } from '../repositories/automation-repository'
+import {
+  SchedulePlanProposalRepository,
+  ScheduledTaskRepository,
+} from '../repositories/scheduled-task-repository'
+import { TurnPatchRepository } from '../repositories/turn-patch-repository'
+import { ArtifactRepository } from '../repositories/artifact-repository'
+import { workspaceRepository } from '../repositories/workspace-repository'
+import { RuntimeCompositionRepository } from '../repositories/runtime-composition-repository'
+import { SessionGroupRepository } from '../repositories/session-group-repository'
+import { ThreadGoalRepository } from '../repositories/thread-goal-repository'
+import { ThreadGoalLedgerRepository } from '../repositories/thread-goal-ledger-repository'
+import { ThreadGoalContinuationRepository } from '../repositories/thread-goal-continuation-repository'
+import { ThreadWorktreeOperationRepository } from '../repositories/thread-worktree-operation-repository'
+import { configureConnection, shrinkDatabaseMemory } from './connection'
+import { backfillProjectThreadWorkspaces, initializeSchema } from './schema-initializer'
+import { HISTORY_APPLICATION_ID } from './schema'
+import { prepareStorage, type StoragePaths } from './reset'
 
-export { DATA_EPOCH, HISTORY_APPLICATION_ID, SCHEMA_VERSION } from "./schema"
-export * from "../repositories/RepositoryDatabase"
+export { DATA_EPOCH, HISTORY_APPLICATION_ID, SCHEMA_VERSION } from './schema'
+export * from '../repositories/RepositoryDatabase'
 
 export type AgentDatabasePaths = {
   historyPath: string
@@ -39,17 +42,18 @@ export type AgentDatabasePaths = {
 
 export class AgentDatabase extends RepositoryDatabase {
   constructor(input: string | AgentDatabasePaths) {
-    const paths: StoragePaths = typeof input === "string"
-      ? {
-          historyPath: input,
-          profilePath: `${input}.profile`,
-          legacyPath: `${input}.legacy`,
-        }
-      : {
-          historyPath: input.historyPath,
-          profilePath: input.profilePath,
-          legacyPath: input.legacyPath ?? `${input.historyPath}.legacy`,
-        }
+    const paths: StoragePaths =
+      typeof input === 'string'
+        ? {
+            historyPath: input,
+            profilePath: `${input}.profile`,
+            legacyPath: `${input}.legacy`,
+          }
+        : {
+            historyPath: input.historyPath,
+            profilePath: input.profilePath,
+            legacyPath: input.legacyPath ?? `${input.historyPath}.legacy`,
+          }
     mkdirSync(dirname(paths.historyPath), { recursive: true })
     mkdirSync(dirname(paths.profilePath), { recursive: true })
     prepareStorage(paths)
@@ -58,8 +62,8 @@ export class AgentDatabase extends RepositoryDatabase {
     configureConnection(sqlite)
     configureConnection(profileSqlite)
     try {
-      initializeSchema(profileSqlite, "profile")
-      initializeSchema(sqlite, "history")
+      initializeSchema(profileSqlite, 'profile')
+      initializeSchema(sqlite, 'history')
       backfillProjectThreadWorkspaces(sqlite, profileSqlite)
     } catch (cause) {
       sqlite.close()

@@ -55,19 +55,12 @@ export function SideChatThreadPanel({
   onOpenPatchReview?: (path?: string) => void
   onOpenPlan?: (request: OpenPlanInDockRequest) => void
   onRecreate: (tab: SideChatTab) => void
-  onStateChange: (
-    threadId: string,
-    count: number,
-    status: DesktopSessionStatus,
-  ) => void
+  onStateChange: (threadId: string, count: number, status: DesktopSessionStatus) => void
   itemContext: (status: DesktopSessionStatus) => ConversationItemContextValue
   onInteractionError: (message: string) => void
   permissionMode: DesktopPermissionMode
   modelSelection?: Pick<DesktopModelSelection, 'providerID' | 'model' | 'variant'>
-  renderComposer: (
-    tab: SideChatTab,
-    context: SideChatComposerRenderContext,
-  ) => React.ReactNode
+  renderComposer: (tab: SideChatTab, context: SideChatComposerRenderContext) => React.ReactNode
 }): React.ReactNode {
   const surfaceRef = React.useRef<HTMLDivElement | null>(null)
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
@@ -83,15 +76,18 @@ export function SideChatThreadPanel({
   )
   const conversation = useCanonicalThreadConversation(tab.threadId, scope)
   const pendingPlanApproval = conversation.state?.pendingPlanApproval
-  const planApproval = usePlanApprovalResponse(pendingPlanApproval, conversation.reload, modelSelection)
+  const planApproval = usePlanApprovalResponse(
+    pendingPlanApproval,
+    conversation.reload,
+    modelSelection,
+  )
   const auxiliary = React.useMemo(
     () => selectCanonicalConversationAuxiliaryState(conversation.state),
     [conversation.state],
   )
   const visibleTurnCount = conversation.turns.length
   const expired = Boolean(
-    conversation.error &&
-      /(?:THREAD_NOT_FOUND|找不到|不存在|not found)/iu.test(conversation.error),
+    conversation.error && /(?:THREAD_NOT_FOUND|找不到|不存在|not found)/iu.test(conversation.error),
   )
   const status = deriveSideChatStatus(conversation.turns.at(-1)?.turn.status)
 
@@ -110,7 +106,9 @@ export function SideChatThreadPanel({
   const composer = renderComposer(tab, {
     hasVisibleMessages: visibleTurnCount > 0,
     status,
-    planModeActive: conversation.state ? conversation.state.thread.settings.taskMode === 'plan' : undefined,
+    planModeActive: conversation.state
+      ? conversation.state.thread.settings.taskMode === 'plan'
+      : undefined,
   })
 
   return (
@@ -136,29 +134,29 @@ export function SideChatThreadPanel({
                     updatedInput,
                     decisionExtras,
                   ) => {
-                    return desktopClient.respondToPermission(
-                      tab.threadId,
-                      request.requestId,
-                      {
+                    return desktopClient
+                      .respondToPermission(tab.threadId, request.requestId, {
                         behavior,
-                        ...(behavior === 'deny'
-                          ? { message: '在桌面端界面中拒绝' }
-                          : {}),
+                        ...(behavior === 'deny' ? { message: '在桌面端界面中拒绝' } : {}),
                         alwaysAllow,
                         ...(updatedInput ? { updatedInput } : {}),
                         ...decisionExtras,
-                      },
-                    ).catch(error => {
-                      onInteractionError(
-                        error instanceof Error ? error.message : String(error),
-                      )
-                      throw error
-                    })
+                      })
+                      .catch((error) => {
+                        onInteractionError(error instanceof Error ? error.message : String(error))
+                        throw error
+                      })
                   }}
                 />
               ) : pendingPlanApproval ? (
-                <PlanApprovalCard approval={pendingPlanApproval} disabledReason={planApproval.disabledReason} onRespond={planApproval.respond} />
-              ) : composer}
+                <PlanApprovalCard
+                  approval={pendingPlanApproval}
+                  disabledReason={planApproval.disabledReason}
+                  onRespond={planApproval.respond}
+                />
+              ) : (
+                composer
+              )}
             </ThreadComposerDock>
           ) : null
         }
@@ -175,7 +173,9 @@ export function SideChatThreadPanel({
             <CirclePlus size={APP_ICON_SIZES.lg} aria-hidden="true" />
             <strong>侧边聊天已过期</strong>
             <span>此临时侧边聊天已不可用；请新建一个侧边聊天以继续。</span>
-            <Button color="primary" onClick={() => onRecreate(tab)}>开始新的侧边聊天</Button>
+            <Button color="primary" onClick={() => onRecreate(tab)}>
+              开始新的侧边聊天
+            </Button>
           </div>
         ) : conversation.loading && visibleTurnCount === 0 ? (
           <div className="right-dock-side-chat__empty" role="status">
@@ -207,7 +207,7 @@ export function SideChatThreadPanel({
               onCanReturnToBottomChange={() => undefined}
               onLoadOlder={conversation.loadOlder}
               onOpenPatchReview={onOpenPatchReview}
-              onOpenPlanInRightDock={request => onOpenPlan?.(request)}
+              onOpenPlanInRightDock={(request) => onOpenPlan?.(request)}
               onOpenSubagent={() => undefined}
               onReload={conversation.reload}
               readThreadPatchDiff={desktopClient.readThreadPatchDiff}

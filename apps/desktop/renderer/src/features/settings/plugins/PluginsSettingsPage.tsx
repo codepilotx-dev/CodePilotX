@@ -1,11 +1,5 @@
 import type React from 'react'
-import {
-  FileCode2,
-  Package,
-  Plus,
-  RefreshCw,
-  Server,
-} from 'lucide-react'
+import { FileCode2, Package, Plus, RefreshCw, Server } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type {
@@ -20,10 +14,7 @@ import { IconButton } from '../../../components/ui/IconButton.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import {
   mergePluginCatalog,
   pluginStatusLabel,
@@ -48,10 +39,7 @@ import {
   resolvePluginDetailsDeepLink,
 } from './pluginDetailsDeepLink.js'
 import { SkillDetailsDialog } from './SkillDetailsDialog.js'
-import {
-  listRuntimeSkills,
-  setRuntimeSkillEnabled,
-} from './skillClientAdapter.js'
+import { listRuntimeSkills, setRuntimeSkillEnabled } from './skillClientAdapter.js'
 
 export type PluginsSettingsPageProps = {
   workspacePath: string | null
@@ -87,52 +75,45 @@ export function PluginsSettingsPage({
     refresh: refreshPlugins,
     setEnabled: setPluginEnabled,
   } = usePluginCatalog(workspacePath)
-  const [optimisticPluginEnabled, setOptimisticPluginEnabled] =
-    useState<Record<string, boolean>>({})
-  const [busyPluginIds, setBusyPluginIds] = useState<Set<string>>(
-    () => new Set(),
+  const [optimisticPluginEnabled, setOptimisticPluginEnabled] = useState<Record<string, boolean>>(
+    {},
   )
+  const [busyPluginIds, setBusyPluginIds] = useState<Set<string>>(() => new Set())
   const [pluginErrors, setPluginErrors] = useState<Record<string, string>>({})
   const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null)
   const [pluginDialogOpen, setPluginDialogOpen] = useState(false)
-  const [pluginDialogTrigger, setPluginDialogTrigger] =
-    useState<HTMLElement | null>(null)
+  const [pluginDialogTrigger, setPluginDialogTrigger] = useState<HTMLElement | null>(null)
 
   const [skills, setSkills] = useState<DesktopInstalledSkill[] | undefined>()
   const [skillsError, setSkillsError] = useState<string | null>(null)
-  const [busySkillPaths, setBusySkillPaths] = useState<Set<string>>(
-    () => new Set(),
-  )
-  const [selectedSkill, setSelectedSkill] =
-    useState<DesktopInstalledSkill | null>(null)
+  const [busySkillPaths, setBusySkillPaths] = useState<Set<string>>(() => new Set())
+  const [selectedSkill, setSelectedSkill] = useState<DesktopInstalledSkill | null>(null)
   const [skillDialogOpen, setSkillDialogOpen] = useState(false)
-  const [skillDialogTrigger, setSkillDialogTrigger] =
-    useState<HTMLElement | null>(null)
+  const [skillDialogTrigger, setSkillDialogTrigger] = useState<HTMLElement | null>(null)
 
   const [servers, setServers] = useState<DesktopMcpServerListItem[] | undefined>()
   const [mcpError, setMcpError] = useState<string | null>(null)
   const [mcpStatus, setMcpStatus] = useState<string | null>(null)
   const [busyMcpKeys, setBusyMcpKeys] = useState<Set<string>>(() => new Set())
-  const [busyMcpAuthKeys, setBusyMcpAuthKeys] =
-    useState<Set<string>>(() => new Set())
-  const [mcpOAuthAttempts, setMcpOAuthAttempts] =
-    useState<Record<string, McpOAuthAttempt>>({})
-  const [selectedServer, setSelectedServer] =
-    useState<DesktopMcpServerListItem | null>(null)
+  const [busyMcpAuthKeys, setBusyMcpAuthKeys] = useState<Set<string>>(() => new Set())
+  const [mcpOAuthAttempts, setMcpOAuthAttempts] = useState<Record<string, McpOAuthAttempt>>({})
+  const [selectedServer, setSelectedServer] = useState<DesktopMcpServerListItem | null>(null)
   const [mcpDialogOpen, setMcpDialogOpen] = useState(false)
-  const [mcpDialogTrigger, setMcpDialogTrigger] =
-    useState<HTMLElement | null>(null)
-  const [serverPendingRemoval, setServerPendingRemoval] =
-    useState<DesktopMcpServerListItem | null>(null)
+  const [mcpDialogTrigger, setMcpDialogTrigger] = useState<HTMLElement | null>(null)
+  const [serverPendingRemoval, setServerPendingRemoval] = useState<DesktopMcpServerListItem | null>(
+    null,
+  )
 
   const pluginItems = useMemo(
     () =>
       mergePluginCatalog(
         [],
-        plugins?.filter(plugin => plugin.installed).map(plugin => ({
-          ...plugin,
-          enabled: optimisticPluginEnabled[plugin.id] ?? plugin.enabled,
-        })),
+        plugins
+          ?.filter((plugin) => plugin.installed)
+          .map((plugin) => ({
+            ...plugin,
+            enabled: optimisticPluginEnabled[plugin.id] ?? plugin.enabled,
+          })),
         pluginLoadError,
       ),
     [plugins, optimisticPluginEnabled, pluginLoadError],
@@ -143,29 +124,39 @@ export function PluginsSettingsPage({
     if (pluginItems.length > 0) {
       options.push({
         value: 'plugins',
-        label: <>插件 <span aria-hidden="true">{pluginItems.length}</span></>,
+        label: (
+          <>
+            插件 <span aria-hidden="true">{pluginItems.length}</span>
+          </>
+        ),
       })
     }
     options.push({
       value: 'mcps',
-      label: <>MCP <span aria-hidden="true">{servers?.length ?? 0}</span></>,
+      label: (
+        <>
+          MCP <span aria-hidden="true">{servers?.length ?? 0}</span>
+        </>
+      ),
     })
     if (skills === undefined || skills.length > 0 || skillsError) {
       options.push({
         value: 'skills',
-        label: <>技能 <span aria-hidden="true">{skills?.length ?? '…'}</span></>,
+        label: (
+          <>
+            技能 <span aria-hidden="true">{skills?.length ?? '…'}</span>
+          </>
+        ),
       })
     }
     return options
   }, [pluginItems.length, servers?.length, skills, skillsError])
 
   const availableTabs = useMemo(
-    () => new Set(tabOptions.map(option => option.value)),
+    () => new Set(tabOptions.map((option) => option.value)),
     [tabOptions],
   )
-  const tab = availableTabs.has(requestedTab)
-    ? requestedTab
-    : (tabOptions[0]?.value ?? 'mcps')
+  const tab = availableTabs.has(requestedTab) ? requestedTab : (tabOptions[0]?.value ?? 'mcps')
   const requestedPluginId = searchParams.get('plugin')
   const requestedSkillPath = searchParams.get('skill')
   const detailDeepLink = useMemo(
@@ -174,18 +165,11 @@ export function PluginsSettingsPage({
   )
 
   function clearDetailsDeepLink(): void {
-    setSearchParams(
-      current => clearPluginDetailsDeepLink(current),
-      { replace: true },
-    )
+    setSearchParams((current) => clearPluginDetailsDeepLink(current), { replace: true })
   }
 
   function closeDeepLinkedDetails(kind: 'plugin' | 'skill'): void {
-    const activeLink = resolvePluginDetailsDeepLink(
-      searchParams,
-      pluginItems,
-      skills ?? [],
-    )
+    const activeLink = resolvePluginDetailsDeepLink(searchParams, pluginItems, skills ?? [])
     if (activeLink?.kind !== kind) return
     if (activeLink.from) {
       navigate(activeLink.from)
@@ -206,11 +190,14 @@ export function PluginsSettingsPage({
 
   useEffect(() => {
     if (tab === requestedTab && searchParams.get('tab') === requestedTab) return
-    setSearchParams(current => {
-      const next = new URLSearchParams(current)
-      next.set('tab', tab)
-      return next
-    }, { replace: true })
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.set('tab', tab)
+        return next
+      },
+      { replace: true },
+    )
   }, [requestedTab, searchParams, setSearchParams, tab])
 
   useEffect(() => {
@@ -225,9 +212,7 @@ export function PluginsSettingsPage({
       clearDetailsDeepLink()
       return
     }
-    const catalogReady = requestedPluginId
-      ? !pluginsLoading
-      : skills !== undefined
+    const catalogReady = requestedPluginId ? !pluginsLoading : skills !== undefined
     if (!catalogReady) return
     if (!detailDeepLink) {
       clearDetailsDeepLink()
@@ -243,14 +228,7 @@ export function PluginsSettingsPage({
     setSelectedSkill(detailDeepLink.skill)
     setSkillDialogTrigger(null)
     setSkillDialogOpen(true)
-  }, [
-    detailDeepLink,
-    pluginsLoading,
-    requestedPluginId,
-    requestedSkillPath,
-    skills,
-    tab,
-  ])
+  }, [detailDeepLink, pluginsLoading, requestedPluginId, requestedSkillPath, skills, tab])
 
   useEffect(() => {
     setMcpOAuthAttempts({})
@@ -261,11 +239,14 @@ export function PluginsSettingsPage({
   }, [workspacePath])
 
   useEffect(() => {
-    return desktopClient.subscribeAgentEventEnvelopes({
-      liveEventTypes: AGENT_LIVE_EVENT_FILTERS.mcp,
-    }, async events => {
-      if (events.some(event => event.type === 'mcp/updated')) await loadServers()
-    })
+    return desktopClient.subscribeAgentEventEnvelopes(
+      {
+        liveEventTypes: AGENT_LIVE_EVENT_FILTERS.mcp,
+      },
+      async (events) => {
+        if (events.some((event) => event.type === 'mcp/updated')) await loadServers()
+      },
+    )
     // Reconcile the currently selected workspace whenever the Agent catalog changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspacePath])
@@ -275,38 +256,41 @@ export function PluginsSettingsPage({
     if (!attempts.length) return
     let cancelled = false
     const timer = window.setInterval(() => {
-      void Promise.all(attempts.map(async ([key, attempt]) => {
-        if (Date.now() >= attempt.expiresAt) {
-          if (!cancelled) {
-            setMcpOAuthAttempts(current => withoutRecordKey(current, key))
-            setMcpError('MCP OAuth 授权已过期，请重试。')
-          }
-          return
-        }
-        try {
-          const status = await desktopClient.getMcpOAuthStatus(attempt.attemptId)
-          if (cancelled || status.state === 'pending') return
-          setMcpOAuthAttempts(current => withoutRecordKey(current, key))
-          if (status.state === 'completed') {
-            onNotice?.('MCP OAuth 登录成功。')
-            await reloadMcpConfiguration()
-            await loadServers()
+      void Promise.all(
+        attempts.map(async ([key, attempt]) => {
+          if (Date.now() >= attempt.expiresAt) {
+            if (!cancelled) {
+              setMcpOAuthAttempts((current) => withoutRecordKey(current, key))
+              setMcpError('MCP OAuth 授权已过期，请重试。')
+            }
             return
           }
-          const message = status.error?.message
-            ?? (status.state === 'expired'
-              ? 'MCP OAuth 授权已过期，请重试。'
-              : 'MCP OAuth 登录失败。')
-          setMcpError(message)
-          onError(message)
-        } catch (error) {
-          if (cancelled) return
-          const message = errorMessageOf(error, 'MCP OAuth 状态读取失败。')
-          setMcpOAuthAttempts(current => withoutRecordKey(current, key))
-          setMcpError(message)
-          onError(message)
-        }
-      }))
+          try {
+            const status = await desktopClient.getMcpOAuthStatus(attempt.attemptId)
+            if (cancelled || status.state === 'pending') return
+            setMcpOAuthAttempts((current) => withoutRecordKey(current, key))
+            if (status.state === 'completed') {
+              onNotice?.('MCP OAuth 登录成功。')
+              await reloadMcpConfiguration()
+              await loadServers()
+              return
+            }
+            const message =
+              status.error?.message ??
+              (status.state === 'expired'
+                ? 'MCP OAuth 授权已过期，请重试。'
+                : 'MCP OAuth 登录失败。')
+            setMcpError(message)
+            onError(message)
+          } catch (error) {
+            if (cancelled) return
+            const message = errorMessageOf(error, 'MCP OAuth 状态读取失败。')
+            setMcpOAuthAttempts((current) => withoutRecordKey(current, key))
+            setMcpError(message)
+            onError(message)
+          }
+        }),
+      )
     }, 1_000)
     return () => {
       cancelled = true
@@ -357,10 +341,10 @@ export function PluginsSettingsPage({
         desktopClient.getMcpRuntimeStatus(workspacePath ?? undefined),
       ])
       const statuses = new Map(
-        runtime.servers.map(status => [`${status.scope}:${status.name}`, status]),
+        runtime.servers.map((status) => [`${status.scope}:${status.name}`, status]),
       )
       setServers(
-        declarations.map(server => ({
+        declarations.map((server) => ({
           ...server,
           runtime: statuses.get(mcpKey(server)),
         })),
@@ -380,21 +364,18 @@ export function PluginsSettingsPage({
   }
 
   function selectTab(nextTab: Tab): void {
-    setSearchParams(current => {
+    setSearchParams((current) => {
       const next = new URLSearchParams(current)
       next.set('tab', nextTab)
       return next
     })
   }
 
-  async function togglePlugin(
-    item: PluginCatalogItem,
-    enabled: boolean,
-  ): Promise<void> {
+  async function togglePlugin(item: PluginCatalogItem, enabled: boolean): Promise<void> {
     if (!item.installed || busyPluginIds.has(item.id)) return
-    setBusyPluginIds(current => new Set(current).add(item.id))
-    setPluginErrors(current => ({ ...current, [item.id]: '' }))
-    setOptimisticPluginEnabled(current => ({
+    setBusyPluginIds((current) => new Set(current).add(item.id))
+    setPluginErrors((current) => ({ ...current, [item.id]: '' }))
+    setOptimisticPluginEnabled((current) => ({
       ...current,
       [item.id]: enabled,
     }))
@@ -403,36 +384,29 @@ export function PluginsSettingsPage({
       onNotice?.(`${item.name} 已${enabled ? '启用' : '禁用'}。`)
     } catch (error) {
       const message = errorMessageOf(error, `${item.name} 状态更新失败。`)
-      setPluginErrors(current => ({ ...current, [item.id]: message }))
+      setPluginErrors((current) => ({ ...current, [item.id]: message }))
       onError(message)
     } finally {
-      setOptimisticPluginEnabled(current => {
+      setOptimisticPluginEnabled((current) => {
         const next = { ...current }
         delete next[item.id]
         return next
       })
-      setBusyPluginIds(current => without(current, item.id))
+      setBusyPluginIds((current) => without(current, item.id))
     }
   }
 
-  async function toggleSkill(
-    skill: DesktopInstalledSkill,
-    enabled: boolean,
-  ): Promise<void> {
+  async function toggleSkill(skill: DesktopInstalledSkill, enabled: boolean): Promise<void> {
     if (busySkillPaths.has(skill.path)) return
     const previous = skills
-    setBusySkillPaths(current => new Set(current).add(skill.path))
-    setSkills(current =>
-      current?.map(item =>
-        item.path === skill.path ? { ...item, enabled } : item,
-      ),
+    setBusySkillPaths((current) => new Set(current).add(skill.path))
+    setSkills((current) =>
+      current?.map((item) => (item.path === skill.path ? { ...item, enabled } : item)),
     )
     try {
       const updated = await setRuntimeSkillEnabled(skill.path, enabled)
-      setSkills(current =>
-        current?.map(item => item.path === updated.path ? updated : item),
-      )
-      setSelectedSkill(current =>
+      setSkills((current) => current?.map((item) => (item.path === updated.path ? updated : item)))
+      setSelectedSkill((current) =>
         current?.path === skill.path ? { ...current, enabled } : current,
       )
       onNotice?.(`${skill.name} 已${enabled ? '启用' : '禁用'}，将在下一轮任务生效。`)
@@ -442,20 +416,17 @@ export function PluginsSettingsPage({
       onError(message)
       if (looksLikeMissingResource(error)) void loadSkills(true)
     } finally {
-      setBusySkillPaths(current => without(current, skill.path))
+      setBusySkillPaths((current) => without(current, skill.path))
     }
   }
 
-  async function toggleServer(
-    server: DesktopMcpServerListItem,
-    enabled: boolean,
-  ): Promise<void> {
+  async function toggleServer(server: DesktopMcpServerListItem, enabled: boolean): Promise<void> {
     const key = mcpKey(server)
     if (!server.editable || busyMcpKeys.has(key)) return
     const previous = servers
-    setBusyMcpKeys(current => new Set(current).add(key))
-    setServers(current =>
-      current?.map(item => mcpKey(item) === key ? { ...item, enabled } : item),
+    setBusyMcpKeys((current) => new Set(current).add(key))
+    setServers((current) =>
+      current?.map((item) => (mcpKey(item) === key ? { ...item, enabled } : item)),
     )
     try {
       setServers(
@@ -473,7 +444,7 @@ export function PluginsSettingsPage({
       onError(message)
       return
     } finally {
-      setBusyMcpKeys(current => without(current, key))
+      setBusyMcpKeys((current) => without(current, key))
     }
     await reloadMcpConfiguration()
     await loadServers()
@@ -481,13 +452,15 @@ export function PluginsSettingsPage({
 
   async function saveServer(options: SaveDesktopMcpServerOptions): Promise<void> {
     const key = `${options.scope}:${options.name}`
-    setBusyMcpKeys(current => new Set(current).add(key))
+    setBusyMcpKeys((current) => new Set(current).add(key))
     setMcpError(null)
     try {
-      setServers(await desktopClient.saveMcpServer({
-        ...options,
-        ...(workspacePath ? { workspacePath } : {}),
-      }))
+      setServers(
+        await desktopClient.saveMcpServer({
+          ...options,
+          ...(workspacePath ? { workspacePath } : {}),
+        }),
+      )
       setMcpDialogOpen(false)
       await reloadMcpConfiguration()
       await loadServers()
@@ -496,22 +469,18 @@ export function PluginsSettingsPage({
       setMcpError(message)
       onError(message)
     } finally {
-      setBusyMcpKeys(current => without(current, key))
+      setBusyMcpKeys((current) => without(current, key))
     }
   }
 
   async function removeServer(server: DesktopMcpServerListItem): Promise<void> {
     if (!server.removable) return
     const key = mcpKey(server)
-    setBusyMcpKeys(current => new Set(current).add(key))
+    setBusyMcpKeys((current) => new Set(current).add(key))
     setMcpError(null)
     try {
       setServers(
-        await desktopClient.removeMcpServer(
-          server.name,
-          server.scope,
-          workspacePath ?? undefined,
-        ),
+        await desktopClient.removeMcpServer(server.name, server.scope, workspacePath ?? undefined),
       )
       setServerPendingRemoval(null)
       await reloadMcpConfiguration()
@@ -521,15 +490,13 @@ export function PluginsSettingsPage({
       setMcpError(message)
       onError(message)
     } finally {
-      setBusyMcpKeys(current => without(current, key))
+      setBusyMcpKeys((current) => without(current, key))
     }
   }
 
   async function reloadMcpConfiguration(): Promise<void> {
     try {
-      const result = await desktopClient.reloadMcpConfiguration(
-        workspacePath ?? undefined,
-      )
+      const result = await desktopClient.reloadMcpConfiguration(workspacePath ?? undefined)
       const message = reloadStatusText(result)
       setMcpStatus(message)
       onNotice?.(message)
@@ -541,7 +508,7 @@ export function PluginsSettingsPage({
   async function startMcpOAuth(server: DesktopMcpServerListItem): Promise<void> {
     const key = mcpKey(server)
     if (busyMcpAuthKeys.has(key) || mcpOAuthAttempts[key]) return
-    setBusyMcpAuthKeys(current => new Set(current).add(key))
+    setBusyMcpAuthKeys((current) => new Set(current).add(key))
     setMcpError(null)
     try {
       const attempt = await desktopClient.startMcpOAuth(
@@ -549,7 +516,7 @@ export function PluginsSettingsPage({
         server.scope,
         workspacePath ?? undefined,
       )
-      setMcpOAuthAttempts(current => ({
+      setMcpOAuthAttempts((current) => ({
         ...current,
         [key]: {
           attemptId: attempt.attemptId,
@@ -563,21 +530,17 @@ export function PluginsSettingsPage({
       setMcpError(message)
       onError(message)
     } finally {
-      setBusyMcpAuthKeys(current => without(current, key))
+      setBusyMcpAuthKeys((current) => without(current, key))
     }
   }
 
   async function logoutMcpOAuth(server: DesktopMcpServerListItem): Promise<void> {
     const key = mcpKey(server)
     if (busyMcpAuthKeys.has(key)) return
-    setBusyMcpAuthKeys(current => new Set(current).add(key))
+    setBusyMcpAuthKeys((current) => new Set(current).add(key))
     setMcpError(null)
     try {
-      await desktopClient.logoutMcpOAuth(
-        server.name,
-        server.scope,
-        workspacePath ?? undefined,
-      )
+      await desktopClient.logoutMcpOAuth(server.name, server.scope, workspacePath ?? undefined)
       onNotice?.(`${server.name} 已退出 OAuth 登录。`)
       await reloadMcpConfiguration()
       await loadServers()
@@ -586,15 +549,15 @@ export function PluginsSettingsPage({
       setMcpError(message)
       onError(message)
     } finally {
-      setBusyMcpAuthKeys(current => without(current, key))
+      setBusyMcpAuthKeys((current) => without(current, key))
     }
   }
 
   const normalizedQuery = query.trim().toLocaleLowerCase()
-  const visiblePlugins = pluginItems.filter(item =>
+  const visiblePlugins = pluginItems.filter((item) =>
     matchesQuery(normalizedQuery, item.name, item.description),
   )
-  const visibleSkills = (skills ?? []).filter(skill =>
+  const visibleSkills = (skills ?? []).filter((skill) =>
     matchesQuery(
       normalizedQuery,
       skill.name,
@@ -603,7 +566,7 @@ export function PluginsSettingsPage({
       skillScopeLabel(skill.scope),
     ),
   )
-  const visibleServers = (servers ?? []).filter(server =>
+  const visibleServers = (servers ?? []).filter((server) =>
     matchesQuery(
       normalizedQuery,
       server.name,
@@ -615,14 +578,9 @@ export function PluginsSettingsPage({
     ),
   )
   const selectedPlugin = selectedPluginId
-    ? pluginItems.find(item => item.id === selectedPluginId) ?? null
+    ? (pluginItems.find((item) => item.id === selectedPluginId) ?? null)
     : null
-  const tabError =
-    tab === 'plugins'
-      ? pluginLoadError
-      : tab === 'skills'
-        ? skillsError
-        : mcpError
+  const tabError = tab === 'plugins' ? pluginLoadError : tab === 'skills' ? skillsError : mcpError
   const loading =
     tab === 'plugins'
       ? pluginsLoading
@@ -634,12 +592,8 @@ export function PluginsSettingsPage({
     <SettingsContentArea className="plugins-settings-page">
       <div className="settings-content-inner plugins-settings-content">
         <header className="settings-page-header">
-          <h2 className="settings-page-title">
-            插件
-          </h2>
-          <p className="settings-page-desc">
-            管理插件、技能和 MCP
-          </p>
+          <h2 className="settings-page-title">插件</h2>
+          <p className="settings-page-desc">管理插件、技能和 MCP</p>
         </header>
 
         <div className="settings-management-toolbar plugins-settings-toolbar">
@@ -649,8 +603,8 @@ export function PluginsSettingsPage({
             options={tabOptions}
             onChange={selectTab}
             semantics="tabs"
-            getTabId={value => `plugins-settings-tab-${value}`}
-            getPanelId={value => `plugins-settings-panel-${value}`}
+            getTabId={(value) => `plugins-settings-tab-${value}`}
+            getPanelId={(value) => `plugins-settings-panel-${value}`}
           />
           <div className="settings-management-toolbar-actions plugins-settings-toolbar-actions">
             <SearchInput
@@ -674,18 +628,15 @@ export function PluginsSettingsPage({
               />
             </IconButton>
             {tab === 'mcps' ? (
-              <Button color="primary"
-                onClick={event => {
+              <Button
+                color="primary"
+                onClick={(event) => {
                   setSelectedServer(null)
                   setMcpDialogTrigger(event.currentTarget)
                   setMcpDialogOpen(true)
                 }}
               >
-                <Plus
-                  aria-hidden="true"
-                  size={APP_ICON_SIZE}
-                  strokeWidth={APP_ICON_STROKE_WIDTH}
-                />
+                <Plus aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 新增
               </Button>
             ) : null}
@@ -698,7 +649,9 @@ export function PluginsSettingsPage({
             role="alert"
           >
             <span>{tabError}</span>
-            <Button color="secondary" onClick={() => void refreshCurrentTab()}>重试</Button>
+            <Button color="secondary" onClick={() => void refreshCurrentTab()}>
+              重试
+            </Button>
           </div>
         ) : null}
         {tab === 'mcps' && mcpStatus ? (
@@ -717,21 +670,21 @@ export function PluginsSettingsPage({
             <LoadingRows />
           ) : tab === 'plugins' ? (
             visiblePlugins.length ? (
-              visiblePlugins.map(item => (
+              visiblePlugins.map((item) => (
                 <ExtensionManagementRow
                   key={item.id}
                   title={item.name}
                   description={pluginErrors[item.id] || item.description}
-                  icon={(
+                  icon={
                     <PluginIcon
                       logoDarkSource={item.logoDarkSource}
                       logoSource={item.logoSource}
                       name={item.iconName}
                     />
-                  )}
+                  }
                   metadata={pluginStatusLabel(item)}
                   dimmed={item.status === 'disabled'}
-                  onActivate={trigger => {
+                  onActivate={(trigger) => {
                     setSelectedPluginId(item.id)
                     setPluginDialogTrigger(trigger)
                     setPluginDialogOpen(true)
@@ -742,10 +695,12 @@ export function PluginsSettingsPage({
                         ariaLabel={item.name}
                         checked={item.status === 'enabled'}
                         disabled={busyPluginIds.has(item.id)}
-                        onChange={enabled => void togglePlugin(item, enabled)}
+                        onChange={(enabled) => void togglePlugin(item, enabled)}
                       />
                     ) : item.category === 'manageable' ? (
-                      <Button color="secondary" onClick={refreshPlugins}>重试</Button>
+                      <Button color="secondary" onClick={refreshPlugins}>
+                        重试
+                      </Button>
                     ) : null
                   }
                 />
@@ -755,7 +710,7 @@ export function PluginsSettingsPage({
             )
           ) : tab === 'skills' ? (
             visibleSkills.length ? (
-              visibleSkills.map(skill => (
+              visibleSkills.map((skill) => (
                 <ExtensionManagementRow
                   key={skill.path}
                   title={skill.name}
@@ -764,15 +719,12 @@ export function PluginsSettingsPage({
                     getBuiltinSkillPresentation(skill) ? (
                       <BuiltinSkillIcon size={14} skill={skill} />
                     ) : (
-                      <FileCode2
-                        size={APP_ICON_SIZE}
-                        strokeWidth={APP_ICON_STROKE_WIDTH}
-                      />
+                      <FileCode2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     )
                   }
                   metadata={skillScopeLabel(skill.scope)}
                   dimmed={!skill.enabled}
-                  onActivate={trigger => {
+                  onActivate={(trigger) => {
                     setSelectedSkill(skill)
                     setSkillDialogTrigger(trigger)
                     setSkillDialogOpen(true)
@@ -782,7 +734,7 @@ export function PluginsSettingsPage({
                       ariaLabel={skill.name}
                       checked={skill.enabled}
                       disabled={busySkillPaths.has(skill.path)}
-                      onChange={enabled => void toggleSkill(skill, enabled)}
+                      onChange={(enabled) => void toggleSkill(skill, enabled)}
                     />
                   }
                 />
@@ -791,35 +743,37 @@ export function PluginsSettingsPage({
               <EmptyState label={query ? '没有匹配的技能。' : '当前范围内没有技能。'} />
             )
           ) : visibleServers.length ? (
-            visibleServers.map(server => (
+            visibleServers.map((server) => (
               <ExtensionManagementRow
                 key={mcpKey(server)}
                 title={server.name}
-                description={server.runtime?.error?.message || server.summary || '未提供命令或 URL。'}
-                icon={
-                  <Server
-                    size={APP_ICON_SIZE}
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
+                description={
+                  server.runtime?.error?.message || server.summary || '未提供命令或 URL。'
                 }
+                icon={<Server size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}
                 metadata={mcpMetadata(server)}
                 dimmed={!server.enabled || !server.effective}
-                onActivate={trigger => {
+                onActivate={(trigger) => {
                   setSelectedServer(server)
                   setMcpDialogTrigger(trigger)
                   setMcpDialogOpen(true)
                 }}
                 actions={
                   <>
-                    {mcpAuthAction(server, mcpOAuthAttempts[mcpKey(server)], busyMcpAuthKeys.has(mcpKey(server)), {
-                      login: () => void startMcpOAuth(server),
-                      logout: () => void logoutMcpOAuth(server),
-                    })}
+                    {mcpAuthAction(
+                      server,
+                      mcpOAuthAttempts[mcpKey(server)],
+                      busyMcpAuthKeys.has(mcpKey(server)),
+                      {
+                        login: () => void startMcpOAuth(server),
+                        logout: () => void logoutMcpOAuth(server),
+                      },
+                    )}
                     <ToggleSwitch
                       ariaLabel={server.name}
                       checked={server.enabled}
                       disabled={!server.editable || busyMcpKeys.has(mcpKey(server))}
-                      onChange={enabled => void toggleServer(server, enabled)}
+                      onChange={(enabled) => void toggleServer(server, enabled)}
                     />
                   </>
                 }
@@ -839,10 +793,7 @@ export function PluginsSettingsPage({
         restoreFocusElement={pluginDialogTrigger}
         onOpenChange={handlePluginDialogOpenChange}
         onPrimaryAction={(item, trigger, checked) => {
-          if (
-            checked !== undefined
-            && (item.status === 'enabled' || item.status === 'disabled')
-          ) {
+          if (checked !== undefined && (item.status === 'enabled' || item.status === 'disabled')) {
             void togglePlugin(item, checked).finally(() => {
               window.requestAnimationFrame(() => {
                 if (trigger.isConnected) trigger.focus()
@@ -857,13 +808,13 @@ export function PluginsSettingsPage({
         open={skillDialogOpen}
         restoreFocusElement={skillDialogTrigger}
         onOpenChange={handleSkillDialogOpenChange}
-        onOpenSkill={skill => {
+        onOpenSkill={(skill) => {
           if (isBuiltinSkill(skill)) return
-          void desktopClient.openPathWithDefaultTarget(skill.path).catch(error => {
+          void desktopClient.openPathWithDefaultTarget(skill.path).catch((error) => {
             onError(errorMessageOf(error, '无法打开技能文件。'))
           })
         }}
-        onUseSkill={skill => {
+        onUseSkill={(skill) => {
           setSkillDialogOpen(false)
           onUseSkill(skill)
         }}
@@ -872,16 +823,12 @@ export function PluginsSettingsPage({
       <McpEditorDialog
         open={mcpDialogOpen}
         server={selectedServer}
-        busy={
-          selectedServer
-            ? busyMcpKeys.has(mcpKey(selectedServer))
-            : busyMcpKeys.size > 0
-        }
+        busy={selectedServer ? busyMcpKeys.has(mcpKey(selectedServer)) : busyMcpKeys.size > 0}
         restoreFocusElement={mcpDialogTrigger}
         onOpenChange={setMcpDialogOpen}
         onSave={saveServer}
         workspaceAvailable={Boolean(workspacePath)}
-        onRemove={server => {
+        onRemove={(server) => {
           setMcpDialogOpen(false)
           setServerPendingRemoval(server)
         }}
@@ -890,7 +837,7 @@ export function PluginsSettingsPage({
             'https://learn.chatgpt.com/docs/extend/mcp?surface=app',
           )
         }}
-        onError={message => {
+        onError={(message) => {
           setMcpError(message)
           onError(message)
         }}
@@ -906,9 +853,7 @@ export function PluginsSettingsPage({
         actionLabel="删除"
         tone="danger"
         actionDisabled={
-          serverPendingRemoval
-            ? busyMcpKeys.has(mcpKey(serverPendingRemoval))
-            : false
+          serverPendingRemoval ? busyMcpKeys.has(mcpKey(serverPendingRemoval)) : false
         }
         onCancel={() => setServerPendingRemoval(null)}
         onAction={() => {
@@ -922,7 +867,7 @@ export function PluginsSettingsPage({
 function LoadingRows(): React.ReactNode {
   return (
     <div aria-label="正在加载" className="settings-management-loading" role="status">
-      {[0, 1, 2, 3].map(index => (
+      {[0, 1, 2, 3].map((index) => (
         <div
           aria-hidden="true"
           className="settings-management-loading-row tw:animate-pulse tw:motion-reduce:animate-none"
@@ -937,11 +882,7 @@ function EmptyState({ label }: { label: string }): React.ReactNode {
   return (
     <div className="settings-management-empty">
       <span className="tw:grid tw:justify-items-center tw:gap-3">
-        <Package
-          aria-hidden="true"
-          size={APP_ICON_SIZE}
-          strokeWidth={APP_ICON_STROKE_WIDTH}
-        />
+        <Package aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         {label}
       </span>
     </div>
@@ -949,7 +890,7 @@ function EmptyState({ label }: { label: string }): React.ReactNode {
 }
 
 function parseTab(value: string | null): Tab {
-  return value && VALID_TABS.has(value as Tab) ? value as Tab : 'plugins'
+  return value && VALID_TABS.has(value as Tab) ? (value as Tab) : 'plugins'
 }
 
 function tabLabel(tab: Tab): string {
@@ -962,20 +903,15 @@ function searchPlaceholder(tab: Tab): string {
   return `搜索${tabLabel(tab)}`
 }
 
-function matchesQuery(
-  query: string,
-  ...values: Array<string | undefined>
-): boolean {
+function matchesQuery(query: string, ...values: Array<string | undefined>): boolean {
   if (!query) return true
-  return values.some(value => value?.toLocaleLowerCase().includes(query))
+  return values.some((value) => value?.toLocaleLowerCase().includes(query))
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
   return Boolean(
-    target.closest(
-      'input, textarea, select, [contenteditable="true"], [role="textbox"]',
-    ),
+    target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]'),
   )
 }
 
@@ -1004,7 +940,9 @@ function mcpMetadata(server: DesktopMcpServerListItem): React.ReactNode {
   if (!server.effective) {
     return (
       <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1.5 tw:max-[640px]:justify-start">
-        <span>{source} · {server.type}</span>
+        <span>
+          {source} · {server.type}
+        </span>
         {server.diagnosticContext ? <DiagnosticContextBadge /> : null}
         <StatusBadge state="shadowed" label="被工作区配置覆盖" />
       </span>
@@ -1014,7 +952,9 @@ function mcpMetadata(server: DesktopMcpServerListItem): React.ReactNode {
   if (!runtime) {
     return (
       <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1.5 tw:max-[640px]:justify-start">
-        <span>{source} · {server.type}</span>
+        <span>
+          {source} · {server.type}
+        </span>
         {server.diagnosticContext ? <DiagnosticContextBadge /> : null}
       </span>
     )
@@ -1027,27 +967,24 @@ function mcpMetadata(server: DesktopMcpServerListItem): React.ReactNode {
     disabled: '已禁用',
     shadowed: '被覆盖',
   }
-  const counts = runtime.state === 'connected'
-    ? `${runtime.toolCount} 工具 · ${runtime.resourceCount} 资源 · ${runtime.promptCount} Prompt`
-    : null
+  const counts =
+    runtime.state === 'connected'
+      ? `${runtime.toolCount} 工具 · ${runtime.resourceCount} 资源 · ${runtime.promptCount} Prompt`
+      : null
   return (
     <span className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-1.5 tw:max-[640px]:justify-start">
-      <span>{source} · {server.type}</span>
+      <span>
+        {source} · {server.type}
+      </span>
       {server.diagnosticContext ? <DiagnosticContextBadge /> : null}
-      {runtime.auth.source !== 'none' ? (
-        <AuthSourceBadge source={runtime.auth.source} />
-      ) : null}
+      {runtime.auth.source !== 'none' ? <AuthSourceBadge source={runtime.auth.source} /> : null}
       <StatusBadge state={runtime.state} label={status[runtime.state]} />
       {counts ? <span>{counts}</span> : null}
     </span>
   )
 }
 
-function AuthSourceBadge({
-  source,
-}: {
-  source: 'environment' | 'oauth'
-}): React.ReactNode {
+function AuthSourceBadge({ source }: { source: 'environment' | 'oauth' }): React.ReactNode {
   return (
     <span className="u-type-caption tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
       {source === 'oauth' ? 'OAuth' : '环境凭据'}
@@ -1063,21 +1000,30 @@ function mcpAuthAction(
 ): React.ReactNode {
   if (!server.effective || !server.enabled || !server.runtime) return null
   if (attempt) {
-    return <Button color="primary" disabled loading title="等待 OAuth 授权">等待授权</Button>
+    return (
+      <Button color="primary" disabled loading title="等待 OAuth 授权">
+        等待授权
+      </Button>
+    )
   }
   if (server.runtime.auth.canLogout) {
-    return <Button color="danger" disabled={busy} loading={busy} onClick={actions.logout}>退出登录</Button>
+    return (
+      <Button color="danger" disabled={busy} loading={busy} onClick={actions.logout}>
+        退出登录
+      </Button>
+    )
   }
   if (server.runtime.auth.canLogin) {
-    return <Button color="primary" disabled={busy} loading={busy} onClick={actions.login}>登录</Button>
+    return (
+      <Button color="primary" disabled={busy} loading={busy} onClick={actions.login}>
+        登录
+      </Button>
+    )
   }
   return null
 }
 
-function withoutRecordKey<T>(
-  values: Record<string, T>,
-  key: string,
-): Record<string, T> {
+function withoutRecordKey<T>(values: Record<string, T>, key: string): Record<string, T> {
   const { [key]: _removed, ...next } = values
   return next
 }
@@ -1097,16 +1043,13 @@ function StatusBadge({
   state: NonNullable<DesktopMcpServerListItem['runtime']>['state']
   label: string
 }): React.ReactNode {
-  const tone = state === 'connected'
-    ? 'tw:bg-app-success/15 tw:text-app-success'
-    : state === 'failed' || state === 'needs_auth'
-      ? 'tw:bg-app-danger/15 tw:text-app-danger'
-      : 'tw:bg-app-panel tw:text-app-text-soft'
-  return (
-    <span className={`u-type-caption tw:inline-flex tw:px-2 tw:py-0.5 ${tone}`}>
-      {label}
-    </span>
-  )
+  const tone =
+    state === 'connected'
+      ? 'tw:bg-app-success/15 tw:text-app-success'
+      : state === 'failed' || state === 'needs_auth'
+        ? 'tw:bg-app-danger/15 tw:text-app-danger'
+        : 'tw:bg-app-panel tw:text-app-text-soft'
+  return <span className={`u-type-caption tw:inline-flex tw:px-2 tw:py-0.5 ${tone}`}>{label}</span>
 }
 
 function looksLikeMissingResource(error: unknown): boolean {

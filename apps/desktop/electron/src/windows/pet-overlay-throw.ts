@@ -1,6 +1,6 @@
-import type { DesktopPetOverlayBounds } from "@codepilotx/shared/desktop-pet-overlay"
-import type { DesktopDisplayWorkArea } from "./window-state.js"
-import { clampPetOverlayBounds } from "./pet-overlay-window-state.js"
+import type { DesktopPetOverlayBounds } from '@codepilotx/shared/desktop-pet-overlay'
+import type { DesktopDisplayWorkArea } from './window-state.js'
+import { clampPetOverlayBounds } from './pet-overlay-window-state.js'
 
 export const PET_DRAG_THRESHOLD_PX = 4
 export const PET_THROW_SAMPLE_WINDOW_MS = 160
@@ -31,17 +31,15 @@ export type PetThrowStep = {
   stopped: boolean
 }
 
-export function estimatePetThrowVelocity(
-  samples: readonly PetThrowSample[],
-): PetThrowVelocity {
+export function estimatePetThrowVelocity(samples: readonly PetThrowSample[]): PetThrowVelocity {
   const valid = samples.filter(isValidSample)
   const last = valid.at(-1)
   if (!last) return stationary()
   const first = valid.find(
-    sample =>
-      sample !== last
-      && sample.timestampMs >= last.timestampMs - PET_THROW_SAMPLE_WINDOW_MS
-      && sample.timestampMs < last.timestampMs,
+    (sample) =>
+      sample !== last &&
+      sample.timestampMs >= last.timestampMs - PET_THROW_SAMPLE_WINDOW_MS &&
+      sample.timestampMs < last.timestampMs,
   )
   if (!first) return stationary()
 
@@ -51,16 +49,15 @@ export function estimatePetThrowVelocity(
   if (Math.hypot(deltaX, deltaY) < PET_DRAG_THRESHOLD_PX) return stationary()
 
   const rawVelocity = {
-    x: deltaX / elapsedMs * 1_000,
-    y: deltaY / elapsedMs * 1_000,
+    x: (deltaX / elapsedMs) * 1_000,
+    y: (deltaY / elapsedMs) * 1_000,
   }
   const rawSpeed = Math.hypot(rawVelocity.x, rawVelocity.y)
   if (rawSpeed < PET_THROW_RELEASE_THRESHOLD_PX_PER_SECOND) {
     return stationary()
   }
   const scale =
-    Math.min(rawSpeed, PET_THROW_RAW_CAP_PX_PER_SECOND) / rawSpeed
-      * PET_THROW_MULTIPLIER
+    (Math.min(rawSpeed, PET_THROW_RAW_CAP_PX_PER_SECOND) / rawSpeed) * PET_THROW_MULTIPLIER
   return {
     x: rawVelocity.x * scale,
     y: rawVelocity.y * scale,
@@ -79,23 +76,20 @@ export function advancePetThrow(
     : 0
   const candidate = {
     ...bounds,
-    x: bounds.x + velocity.x * elapsedMs / 1_000,
-    y: bounds.y + velocity.y * elapsedMs / 1_000,
+    x: bounds.x + (velocity.x * elapsedMs) / 1_000,
+    y: bounds.y + (velocity.y * elapsedMs) / 1_000,
   }
   const clamped = clampPetOverlayBounds(candidate, workArea)
   const damping = PET_THROW_FRICTION_PER_16_MS ** (elapsedMs / 16)
   const hitHorizontalEdge = clamped.x !== Math.round(candidate.x)
   const hitVerticalEdge = clamped.y !== Math.round(candidate.y)
   const nextVelocity = {
-    x: velocity.x * damping
-      * (hitHorizontalEdge ? -PET_THROW_BOUNCE_FACTOR : 1),
-    y: velocity.y * damping
-      * (hitVerticalEdge ? -PET_THROW_BOUNCE_FACTOR : 1),
+    x: velocity.x * damping * (hitHorizontalEdge ? -PET_THROW_BOUNCE_FACTOR : 1),
+    y: velocity.y * damping * (hitVerticalEdge ? -PET_THROW_BOUNCE_FACTOR : 1),
   }
   const stopped =
-    Math.hypot(nextVelocity.x, nextVelocity.y)
-      < PET_THROW_STOP_SPEED_PX_PER_SECOND
-    || totalElapsedMs >= PET_THROW_MAX_DURATION_MS
+    Math.hypot(nextVelocity.x, nextVelocity.y) < PET_THROW_STOP_SPEED_PX_PER_SECOND ||
+    totalElapsedMs >= PET_THROW_MAX_DURATION_MS
   return {
     bounds: clamped,
     velocity: stopped ? stationary() : nextVelocity,
@@ -108,7 +102,7 @@ function stationary(): PetThrowVelocity {
 }
 
 function isValidSample(sample: PetThrowSample): boolean {
-  return Number.isFinite(sample.x)
-    && Number.isFinite(sample.y)
-    && Number.isFinite(sample.timestampMs)
+  return (
+    Number.isFinite(sample.x) && Number.isFinite(sample.y) && Number.isFinite(sample.timestampMs)
+  )
 }

@@ -17,9 +17,7 @@ export function listSystemFonts(): Promise<DesktopSystemFontsResult> {
     return Promise.resolve({ ok: false, error: 'unsupported' })
   }
   if (!cachedResult) {
-    cachedResult = bridge
-      .listSystemFonts()
-      .catch(() => ({ ok: false, error: 'failed' }) as const)
+    cachedResult = bridge.listSystemFonts().catch(() => ({ ok: false, error: 'failed' }) as const)
   }
   return cachedResult
 }
@@ -40,9 +38,7 @@ export type FontMeasureContext = {
 
 export function isMonospaceFamily(
   family: string,
-  createContext: (
-    family: string,
-  ) => FontMeasureContext | null = createFontMeasureContext,
+  createContext: (family: string) => FontMeasureContext | null = createFontMeasureContext,
 ): boolean {
   const context = createContext(family)
   if (!context) return true

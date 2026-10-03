@@ -63,9 +63,7 @@ export function useSideChatController({
 }) {
   const [sideChatInput, setSideChatInput] = useState('')
   const [sideChatFocusVersion, setSideChatFocusVersion] = useState(0)
-  const [sideChatAttachments, setSideChatAttachments] = useState<
-    DesktopComposerAttachment[]
-  >([])
+  const [sideChatAttachments, setSideChatAttachments] = useState<DesktopComposerAttachment[]>([])
   const [sideChatTabsVersion, setSideChatTabsVersion] = useState(0)
   const [sideChatSupported, setSideChatSupported] = useState(false)
   const [closeConfirmationOpen, setCloseConfirmationOpen] = useState(false)
@@ -88,56 +86,72 @@ export function useSideChatController({
   inputRef.current = sideChatInput
   attachmentsRef.current = sideChatAttachments
 
-  useEffect(() => sessionModelSelections.subscribe(() => {
-    setSideChatTabsVersion(version => version + 1)
-  }), [])
+  useEffect(
+    () =>
+      sessionModelSelections.subscribe(() => {
+        setSideChatTabsVersion((version) => version + 1)
+      }),
+    [],
+  )
 
-  const readSideChatSettings = useCallback((tabId: string): SideChatComposerSettings | undefined => {
-    const settings = settingsRef.current.get(tabId)
-    const selection = sessionModelSelections.getSnapshot(tabId.slice('side-chat:'.length)).selection
-    return settings && selection
-      ? { ...settings, ...selection, variant: selection.variant }
-      : settings
-  }, [])
+  const readSideChatSettings = useCallback(
+    (tabId: string): SideChatComposerSettings | undefined => {
+      const settings = settingsRef.current.get(tabId)
+      const selection = sessionModelSelections.getSnapshot(
+        tabId.slice('side-chat:'.length),
+      ).selection
+      return settings && selection
+        ? { ...settings, ...selection, variant: selection.variant }
+        : settings
+    },
+    [],
+  )
 
-  const loadSideChatSettings = useCallback((tabId: string): Promise<SideChatComposerSettings> => {
-    const existing = readSideChatSettings(tabId)
-    if (existing) return Promise.resolve(existing)
-    const loading = modelLoadsRef.current.get(tabId)
-    if (loading) return loading
-    const threadId = tabId.slice('side-chat:'.length)
-    const request = sessionModelSelections.load(threadId).then(selection => {
-      const restored = {
-        ...initialSettingsRef.current,
-        ...selection,
-        variant: selection.variant,
-        providerBaseURL: undefined,
-        selectedModelPreset: '',
-      }
-      if (modelLoadsRef.current.get(tabId) === request) {
-        settingsRef.current.set(tabId, restored)
-      }
-      return restored
-    }).finally(() => {
-      if (modelLoadsRef.current.get(tabId) === request) {
-        modelLoadsRef.current.delete(tabId)
-        setSideChatTabsVersion(version => version + 1)
-      }
-    })
-    modelLoadsRef.current.set(tabId, request)
-    return request
-  }, [readSideChatSettings])
+  const loadSideChatSettings = useCallback(
+    (tabId: string): Promise<SideChatComposerSettings> => {
+      const existing = readSideChatSettings(tabId)
+      if (existing) return Promise.resolve(existing)
+      const loading = modelLoadsRef.current.get(tabId)
+      if (loading) return loading
+      const threadId = tabId.slice('side-chat:'.length)
+      const request = sessionModelSelections
+        .load(threadId)
+        .then((selection) => {
+          const restored = {
+            ...initialSettingsRef.current,
+            ...selection,
+            variant: selection.variant,
+            providerBaseURL: undefined,
+            selectedModelPreset: '',
+          }
+          if (modelLoadsRef.current.get(tabId) === request) {
+            settingsRef.current.set(tabId, restored)
+          }
+          return restored
+        })
+        .finally(() => {
+          if (modelLoadsRef.current.get(tabId) === request) {
+            modelLoadsRef.current.delete(tabId)
+            setSideChatTabsVersion((version) => version + 1)
+          }
+        })
+      modelLoadsRef.current.set(tabId, request)
+      return request
+    },
+    [readSideChatSettings],
+  )
 
   useEffect(() => {
     if (!activeTab || creatingTabIdsRef.current.has(activeTab.id)) return
-    void loadSideChatSettings(activeTab.id).catch(error => {
+    void loadSideChatSettings(activeTab.id).catch((error) => {
       onError(error instanceof Error ? error.message : String(error))
     })
   }, [activeTab?.id, loadSideChatSettings, onError])
 
   useEffect(() => {
-    void desktopClient.getRuntimeCapabilities()
-      .then(capabilities => {
+    void desktopClient
+      .getRuntimeCapabilities()
+      .then((capabilities) => {
         setSideChatSupported(capabilities.includes('thread.side-chat.v1'))
       })
       .catch(() => setSideChatSupported(false))
@@ -153,9 +167,7 @@ export function useSideChatController({
         attachments: attachmentsRef.current,
       })
     }
-    const nextDraft = activeComposerKey
-      ? draftsRef.current.get(activeComposerKey)
-      : undefined
+    const nextDraft = activeComposerKey ? draftsRef.current.get(activeComposerKey) : undefined
     activeComposerKeyRef.current = activeComposerKey
     inputRef.current = nextDraft?.input ?? ''
     attachmentsRef.current = nextDraft?.attachments ?? []
@@ -164,111 +176,111 @@ export function useSideChatController({
   }, [activeComposerKey])
 
   const sideChatTabsForSource = useMemo(
-    () => sourceThreadId
-      ? [...(tabsBySourceRef.current.get(sourceThreadId) ?? [])]
-      : [],
+    () => (sourceThreadId ? [...(tabsBySourceRef.current.get(sourceThreadId) ?? [])] : []),
     [sideChatTabsVersion, sourceThreadId],
   )
 
-  const createSideChat = useCallback(async (
-    referenceText?: string,
-  ): Promise<SideChatTab | null> => {
-    if (!sourceThreadId) {
-      onError('请先打开一个任务，再创建侧边聊天。')
-      return null
-    }
-    if (!sideChatSupported) {
-      onError('当前 Agent 不支持侧边聊天，请更新并重启 CodePilotX。')
-      return null
-    }
-    let creationSettings = { ...initialSettings }
-    try {
-      const selection = await sessionModelSelections.load(sourceThreadId)
-      creationSettings = {
-        ...creationSettings,
-        ...selection,
-        variant: selection.variant,
-        providerBaseURL: undefined,
-        selectedModelPreset: '',
-      }
-      if (!creationSettings.model || !creationSettings.providerID) {
-        throw new Error('请先为当前会话配置模型，再创建侧边聊天。')
-      }
-    } catch (error) {
-      onError(error instanceof Error ? error.message : String(error))
-      return null
-    }
-    const nextIndex = nextIndexBySourceRef.current.get(sourceThreadId) ?? 1
-    nextIndexBySourceRef.current.set(sourceThreadId, nextIndex + 1)
-    const title = nextIndex === 1 ? '侧边聊天' : `侧边聊天 ${nextIndex}`
-    const pendingThreadId = `loading:${crypto.randomUUID()}`
-    const pendingTab: SideChatTab = {
-      id: `side-chat:${pendingThreadId}`,
-      kind: 'side-chat',
-      threadId: pendingThreadId,
-      sourceThreadId,
-      inheritedThroughTurnId: null,
-      title,
-    }
-    creatingTabIdsRef.current.add(pendingTab.id)
-    settingsRef.current.set(pendingTab.id, creationSettings)
-    openRightDockTab(pendingTab)
-    setSideChatTabsVersion(version => version + 1)
-    try {
-      const result = await desktopClient.createSideChat({
-        sourceThreadId,
-        ...(referenceText?.trim()
-          ? { referenceText: referenceText.trim() }
-          : {}),
-      })
-      const descriptor = result.sideChat
-      const tab: SideChatTab = {
-        id: `side-chat:${descriptor.threadId}`,
-        kind: 'side-chat',
-        threadId: descriptor.threadId,
-        sourceThreadId: descriptor.sourceThreadId,
-        inheritedThroughTurnId: descriptor.inheritedThroughTurnId,
-        title,
-      }
-      creatingTabIdsRef.current.delete(pendingTab.id)
-      if (cancelledCreatingTabIdsRef.current.delete(pendingTab.id)) {
-        settingsRef.current.delete(pendingTab.id)
-        await desktopClient.discardSideChat({ threadId: descriptor.threadId })
+  const createSideChat = useCallback(
+    async (referenceText?: string): Promise<SideChatTab | null> => {
+      if (!sourceThreadId) {
+        onError('请先打开一个任务，再创建侧边聊天。')
         return null
       }
-      const pendingSettings = settingsRef.current.get(pendingTab.id)
-      settingsRef.current.delete(pendingTab.id)
-      settingsRef.current.set(tab.id, pendingSettings ?? creationSettings)
-      sessionModelSelections.set(tab.threadId, pendingSettings ?? creationSettings)
-      const current = tabsBySourceRef.current.get(sourceThreadId) ?? []
-      tabsBySourceRef.current.set(sourceThreadId, [...current, tab])
-      draftsRef.current.set(tab.id, { input: '', attachments: [] })
-      setSideChatTabsVersion(version => version + 1)
-      replaceWorkbenchTab(pendingTab.id, tab)
-      setSideChatFocusVersion(version => version + 1)
-      return tab
-    } catch (error) {
-      creatingTabIdsRef.current.delete(pendingTab.id)
-      settingsRef.current.delete(pendingTab.id)
-      removeWorkbenchTab(pendingTab.id)
-      setSideChatTabsVersion(version => version + 1)
-      onError(error instanceof Error ? error.message : String(error))
-      return null
-    }
-  }, [
-    initialSettings,
-    onError,
-    openRightDockTab,
-    removeWorkbenchTab,
-    replaceWorkbenchTab,
-    sideChatSupported,
-    sourceThreadId,
-  ])
+      if (!sideChatSupported) {
+        onError('当前 Agent 不支持侧边聊天，请更新并重启 CodePilotX。')
+        return null
+      }
+      let creationSettings = { ...initialSettings }
+      try {
+        const selection = await sessionModelSelections.load(sourceThreadId)
+        creationSettings = {
+          ...creationSettings,
+          ...selection,
+          variant: selection.variant,
+          providerBaseURL: undefined,
+          selectedModelPreset: '',
+        }
+        if (!creationSettings.model || !creationSettings.providerID) {
+          throw new Error('请先为当前会话配置模型，再创建侧边聊天。')
+        }
+      } catch (error) {
+        onError(error instanceof Error ? error.message : String(error))
+        return null
+      }
+      const nextIndex = nextIndexBySourceRef.current.get(sourceThreadId) ?? 1
+      nextIndexBySourceRef.current.set(sourceThreadId, nextIndex + 1)
+      const title = nextIndex === 1 ? '侧边聊天' : `侧边聊天 ${nextIndex}`
+      const pendingThreadId = `loading:${crypto.randomUUID()}`
+      const pendingTab: SideChatTab = {
+        id: `side-chat:${pendingThreadId}`,
+        kind: 'side-chat',
+        threadId: pendingThreadId,
+        sourceThreadId,
+        inheritedThroughTurnId: null,
+        title,
+      }
+      creatingTabIdsRef.current.add(pendingTab.id)
+      settingsRef.current.set(pendingTab.id, creationSettings)
+      openRightDockTab(pendingTab)
+      setSideChatTabsVersion((version) => version + 1)
+      try {
+        const result = await desktopClient.createSideChat({
+          sourceThreadId,
+          ...(referenceText?.trim() ? { referenceText: referenceText.trim() } : {}),
+        })
+        const descriptor = result.sideChat
+        const tab: SideChatTab = {
+          id: `side-chat:${descriptor.threadId}`,
+          kind: 'side-chat',
+          threadId: descriptor.threadId,
+          sourceThreadId: descriptor.sourceThreadId,
+          inheritedThroughTurnId: descriptor.inheritedThroughTurnId,
+          title,
+        }
+        creatingTabIdsRef.current.delete(pendingTab.id)
+        if (cancelledCreatingTabIdsRef.current.delete(pendingTab.id)) {
+          settingsRef.current.delete(pendingTab.id)
+          await desktopClient.discardSideChat({ threadId: descriptor.threadId })
+          return null
+        }
+        const pendingSettings = settingsRef.current.get(pendingTab.id)
+        settingsRef.current.delete(pendingTab.id)
+        settingsRef.current.set(tab.id, pendingSettings ?? creationSettings)
+        sessionModelSelections.set(tab.threadId, pendingSettings ?? creationSettings)
+        const current = tabsBySourceRef.current.get(sourceThreadId) ?? []
+        tabsBySourceRef.current.set(sourceThreadId, [...current, tab])
+        draftsRef.current.set(tab.id, { input: '', attachments: [] })
+        setSideChatTabsVersion((version) => version + 1)
+        replaceWorkbenchTab(pendingTab.id, tab)
+        setSideChatFocusVersion((version) => version + 1)
+        return tab
+      } catch (error) {
+        creatingTabIdsRef.current.delete(pendingTab.id)
+        settingsRef.current.delete(pendingTab.id)
+        removeWorkbenchTab(pendingTab.id)
+        setSideChatTabsVersion((version) => version + 1)
+        onError(error instanceof Error ? error.message : String(error))
+        return null
+      }
+    },
+    [
+      initialSettings,
+      onError,
+      openRightDockTab,
+      removeWorkbenchTab,
+      replaceWorkbenchTab,
+      sideChatSupported,
+      sourceThreadId,
+    ],
+  )
 
-  const handleAppendSideChatText = useCallback((text: string): void => {
-    if (!text.trim()) return
-    void createSideChat(text)
-  }, [createSideChat])
+  const handleAppendSideChatText = useCallback(
+    (text: string): void => {
+      if (!text.trim()) return
+      void createSideChat(text)
+    },
+    [createSideChat],
+  )
 
   const sideChatSubmitToSession = useCallback(
     async (
@@ -281,7 +293,7 @@ export function useSideChatController({
       },
     ): Promise<'sent' | 'queued'> => {
       const tabId = `side-chat:${sessionId}`
-      const settings = { ...await loadSideChatSettings(tabId) }
+      const settings = { ...(await loadSideChatSettings(tabId)) }
       if (!settings.providerID || !settings.model) throw new Error('请先选择侧边聊天模型')
       const provider = await desktopClient.getModelProviderState(settings.providerID)
       const model = {
@@ -311,49 +323,45 @@ export function useSideChatController({
         )
         return 'sent'
       }
-      await desktopClient.sendUserMessage(
-        sessionId,
-        value,
-        model,
-        options?.inputId,
-      )
+      await desktopClient.sendUserMessage(sessionId, value, model, options?.inputId)
       return 'sent'
     },
     [loadSideChatSettings],
   )
 
-  const discardTabs = useCallback(async (
-    tabs: readonly SideChatTab[],
-  ): Promise<boolean> => {
-    try {
-      for (const tab of tabs) {
-        if (creatingTabIdsRef.current.delete(tab.id)) {
-          cancelledCreatingTabIdsRef.current.add(tab.id)
+  const discardTabs = useCallback(
+    async (tabs: readonly SideChatTab[]): Promise<boolean> => {
+      try {
+        for (const tab of tabs) {
+          if (creatingTabIdsRef.current.delete(tab.id)) {
+            cancelledCreatingTabIdsRef.current.add(tab.id)
+            settingsRef.current.delete(tab.id)
+            removeWorkbenchTab(tab.id)
+            continue
+          }
+          await desktopClient.discardSideChat({ threadId: tab.threadId })
+          draftsRef.current.delete(tab.id)
+          visibleTurnCountsRef.current.delete(tab.threadId)
+          statusesRef.current.delete(tab.threadId)
           settingsRef.current.delete(tab.id)
+          modelLoadsRef.current.delete(tab.id)
+          sessionModelSelections.delete(tab.threadId)
+          const sourceTabs = tabsBySourceRef.current.get(tab.sourceThreadId) ?? []
+          tabsBySourceRef.current.set(
+            tab.sourceThreadId,
+            sourceTabs.filter((candidate) => candidate.id !== tab.id),
+          )
           removeWorkbenchTab(tab.id)
-          continue
         }
-        await desktopClient.discardSideChat({ threadId: tab.threadId })
-        draftsRef.current.delete(tab.id)
-        visibleTurnCountsRef.current.delete(tab.threadId)
-        statusesRef.current.delete(tab.threadId)
-        settingsRef.current.delete(tab.id)
-        modelLoadsRef.current.delete(tab.id)
-        sessionModelSelections.delete(tab.threadId)
-        const sourceTabs = tabsBySourceRef.current.get(tab.sourceThreadId) ?? []
-        tabsBySourceRef.current.set(
-          tab.sourceThreadId,
-          sourceTabs.filter(candidate => candidate.id !== tab.id),
-        )
-        removeWorkbenchTab(tab.id)
+        setSideChatTabsVersion((version) => version + 1)
+        return true
+      } catch (error) {
+        onError(error instanceof Error ? error.message : String(error))
+        return false
       }
-      setSideChatTabsVersion(version => version + 1)
-      return true
-    } catch (error) {
-      onError(error instanceof Error ? error.message : String(error))
-      return false
-    }
-  }, [onError, removeWorkbenchTab])
+    },
+    [onError, removeWorkbenchTab],
+  )
 
   const requestCloseSideChatTabs = useCallback(
     async (tabs: readonly SideChatTab[]): Promise<boolean> => {
@@ -365,10 +373,10 @@ export function useSideChatController({
         // Storage is optional; the dialog remains enabled for this run.
       }
       const hasVisibleMessages = tabs.some(
-        tab => (visibleTurnCountsRef.current.get(tab.threadId) ?? 0) > 0,
+        (tab) => (visibleTurnCountsRef.current.get(tab.threadId) ?? 0) > 0,
       )
       if (skip || !hasVisibleMessages) return discardTabs(tabs)
-      return new Promise<boolean>(resolve => {
+      return new Promise<boolean>((resolve) => {
         pendingCloseRef.current = { tabs: [...tabs], resolve }
         setSkipCloseConfirmation(false)
         setCloseConfirmationOpen(true)
@@ -401,11 +409,7 @@ export function useSideChatController({
   }, [])
 
   const reportSideChatState = useCallback(
-    (
-      threadId: string,
-      count: number,
-      status: DesktopSessionStatus,
-    ): void => {
+    (threadId: string, count: number, status: DesktopSessionStatus): void => {
       visibleTurnCountsRef.current.set(threadId, count)
       statusesRef.current.set(threadId, status)
     },
@@ -427,10 +431,7 @@ export function useSideChatController({
   )
 
   const updateSideChatSettings = useCallback(
-    (
-      tabId: SideChatTab['id'],
-      patch: Partial<SideChatComposerSettings>,
-    ): void => {
+    (tabId: SideChatTab['id'], patch: Partial<SideChatComposerSettings>): void => {
       const current = readSideChatSettings(tabId)
       if (!current) {
         onError('侧边聊天模型尚未加载，请稍后重试。')
@@ -444,7 +445,7 @@ export function useSideChatController({
       if (!creatingTabIdsRef.current.has(tabId)) {
         sessionModelSelections.set(tabId.slice('side-chat:'.length), next)
       }
-      setSideChatTabsVersion(version => version + 1)
+      setSideChatTabsVersion((version) => version + 1)
     },
     [onError, readSideChatSettings],
   )
@@ -459,38 +460,34 @@ export function useSideChatController({
       : sessionModelSelections.getSnapshot(tabId.slice('side-chat:'.length)).error
 
   const reloadSideChatModel = (tabId: SideChatTab['id']): void => {
-    void loadSideChatSettings(tabId).catch(error => {
+    void loadSideChatSettings(tabId).catch((error) => {
       onError(error instanceof Error ? error.message : String(error))
     })
-    setSideChatTabsVersion(version => version + 1)
+    setSideChatTabsVersion((version) => version + 1)
   }
 
   const isCreatingSideChat = useCallback(
-    (tabId: SideChatTab['id']): boolean =>
-      creatingTabIdsRef.current.has(tabId),
+    (tabId: SideChatTab['id']): boolean => creatingTabIdsRef.current.has(tabId),
     [],
   )
 
   const appendSideComposerAttachmentsForDraft = useCallback(
-    (
-      draftKey: ComposerDraftKey,
-      nextAttachments: DesktopComposerAttachment[],
-    ): void => {
+    (draftKey: ComposerDraftKey, nextAttachments: DesktopComposerAttachment[]): void => {
       if (nextAttachments.length === 0) return
       const current =
         activeComposerKeyRef.current === draftKey
           ? attachmentsRef.current
-          : draftsRef.current.get(draftKey)?.attachments ?? []
-      const existingIds = new Set(current.map(attachment => attachment.id))
+          : (draftsRef.current.get(draftKey)?.attachments ?? [])
+      const existingIds = new Set(current.map((attachment) => attachment.id))
       const next = [
         ...current,
-        ...nextAttachments.filter(attachment => !existingIds.has(attachment.id)),
+        ...nextAttachments.filter((attachment) => !existingIds.has(attachment.id)),
       ]
       draftsRef.current.set(draftKey, {
         input:
           activeComposerKeyRef.current === draftKey
             ? inputRef.current
-            : draftsRef.current.get(draftKey)?.input ?? '',
+            : (draftsRef.current.get(draftKey)?.input ?? ''),
         attachments: next,
       })
       if (activeComposerKeyRef.current === draftKey) {
@@ -506,13 +503,13 @@ export function useSideChatController({
       const current =
         activeComposerKeyRef.current === draftKey
           ? attachmentsRef.current
-          : draftsRef.current.get(draftKey)?.attachments ?? []
-      const next = current.filter(attachment => attachment.id !== attachmentId)
+          : (draftsRef.current.get(draftKey)?.attachments ?? [])
+      const next = current.filter((attachment) => attachment.id !== attachmentId)
       draftsRef.current.set(draftKey, {
         input:
           activeComposerKeyRef.current === draftKey
             ? inputRef.current
-            : draftsRef.current.get(draftKey)?.input ?? '',
+            : (draftsRef.current.get(draftKey)?.input ?? ''),
         attachments: next,
       })
       if (activeComposerKeyRef.current === draftKey) {
@@ -524,14 +521,11 @@ export function useSideChatController({
   )
 
   const clearSideComposerDraftIfUnchanged = useCallback(
-    (
-      draftKey: ComposerDraftKey,
-      snapshot: ComposerDraftContentSnapshot,
-    ): boolean => {
+    (draftKey: ComposerDraftKey, snapshot: ComposerDraftContentSnapshot): boolean => {
       const current =
         activeComposerKeyRef.current === draftKey
           ? { input: inputRef.current, attachments: attachmentsRef.current }
-          : draftsRef.current.get(draftKey) ?? { input: '', attachments: [] }
+          : (draftsRef.current.get(draftKey) ?? { input: '', attachments: [] })
       if (
         current.input !== snapshot.text ||
         !sameAttachmentIds(current.attachments, snapshot.attachments)

@@ -1,6 +1,6 @@
 export const DESKTOP_STARTUP_IPC_CHANNELS = {
-  openLogs: "startup:open-logs",
-  quit: "startup:quit",
+  openLogs: 'startup:open-logs',
+  quit: 'startup:quit',
 } as const
 
 export interface DesktopStartupIpcBridge {

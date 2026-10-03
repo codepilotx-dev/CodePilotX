@@ -19,10 +19,7 @@ import {
   type TerminalOutputState,
   type TerminalOutputUpdate,
 } from './terminalOutputState.js'
-import {
-  OPEN_TERMINAL_EVENT,
-  type OpenTerminalEventDetail,
-} from './openTerminalEvent.js'
+import { OPEN_TERMINAL_EVENT, type OpenTerminalEventDetail } from './openTerminalEvent.js'
 import { readTerminalFont, readTerminalTheme } from './terminalTheme.js'
 
 export type TerminalPanelProps = {
@@ -30,9 +27,8 @@ export type TerminalPanelProps = {
   onDisplayPathChange?: (displayPath: string | null) => void
 }
 
-let terminalClientResource:
-  | Promise<Awaited<ReturnType<typeof loadDesktopTerminalClient>>>
-  | null = null
+let terminalClientResource: Promise<Awaited<ReturnType<typeof loadDesktopTerminalClient>>> | null =
+  null
 
 /** ack 合并阈值：xterm 已解析这么多字符就立即上报一次 credit。 */
 const ACK_CHARACTERS_THRESHOLD = 32 * 1024
@@ -43,14 +39,17 @@ const RESIZE_STREAM_THROTTLE_MS = 150
 function loadTerminalClientResource(): Promise<
   Awaited<ReturnType<typeof loadDesktopTerminalClient>>
 > {
-  terminalClientResource ??= loadDesktopTerminalClient().catch(error => {
+  terminalClientResource ??= loadDesktopTerminalClient().catch((error) => {
     terminalClientResource = null
     throw error
   })
   return terminalClientResource
 }
 
-export function TerminalPanel({ threadId, onDisplayPathChange }: TerminalPanelProps): React.ReactNode {
+export function TerminalPanel({
+  threadId,
+  onDisplayPathChange,
+}: TerminalPanelProps): React.ReactNode {
   const terminalClient = use(loadTerminalClientResource())
   const { draft } = useDesktopSettings()
   const profileId = draft.values.terminalProfileId
@@ -104,24 +103,27 @@ export function TerminalPanel({ threadId, onDisplayPathChange }: TerminalPanelPr
     }, ACK_INTERVAL_MS)
   }, [flushAck])
 
-  const applyUpdate = useCallback((update: TerminalOutputUpdate): void => {
-    outputStateRef.current = update.state
-    setStatus(update.state.state)
-    setExitCode(update.state.exitCode)
-    setTruncated(update.state.truncated)
-    const terminal = terminalRef.current
-    if (!terminal) return
-    if (update.reset) terminal.reset()
-    for (const chunk of update.chunks) {
-      terminal.write(chunk.data, () => {
-        const ack = ackRef.current
-        ack.pending += chunk.data.length
-        ack.sequence = Math.max(ack.sequence, chunk.sequence)
-        scheduleAck()
-        if (ack.pending >= ACK_CHARACTERS_THRESHOLD) flushAck()
-      })
-    }
-  }, [flushAck, scheduleAck])
+  const applyUpdate = useCallback(
+    (update: TerminalOutputUpdate): void => {
+      outputStateRef.current = update.state
+      setStatus(update.state.state)
+      setExitCode(update.state.exitCode)
+      setTruncated(update.state.truncated)
+      const terminal = terminalRef.current
+      if (!terminal) return
+      if (update.reset) terminal.reset()
+      for (const chunk of update.chunks) {
+        terminal.write(chunk.data, () => {
+          const ack = ackRef.current
+          ack.pending += chunk.data.length
+          ack.sequence = Math.max(ack.sequence, chunk.sequence)
+          scheduleAck()
+          if (ack.pending >= ACK_CHARACTERS_THRESHOLD) flushAck()
+        })
+      }
+    },
+    [flushAck, scheduleAck],
+  )
 
   useEffect(() => {
     const host = hostRef.current
@@ -162,11 +164,7 @@ export function TerminalPanel({ threadId, onDisplayPathChange }: TerminalPanelPr
 
     const replay = async (): Promise<void> => {
       const current = outputStateRef.current
-      if (
-        replayPendingRef.current ||
-        !current.terminalId ||
-        !current.instanceId
-      ) return
+      if (replayPendingRef.current || !current.terminalId || !current.instanceId) return
       replayPendingRef.current = true
       try {
         const snapshot = await terminalClient.attachTerminal({
@@ -200,7 +198,7 @@ export function TerminalPanel({ threadId, onDisplayPathChange }: TerminalPanelPr
     }
     window.addEventListener(OPEN_TERMINAL_EVENT, onOpenTerminal)
 
-    const unsubscribe = terminalClient.onTerminalEvent(event => {
+    const unsubscribe = terminalClient.onTerminalEvent((event) => {
       if (!snapshotReady) {
         queuedEvents.push(event)
         return
@@ -208,7 +206,7 @@ export function TerminalPanel({ threadId, onDisplayPathChange }: TerminalPanelPr
       consumeEvent(event)
     })
 
-    const inputDisposable = terminal.onData(data => {
+    const inputDisposable = terminal.onData((data) => {
       const snapshot = snapshotRef.current
       if (!snapshot || outputStateRef.current.state !== 'running') return
       terminalClient.writeTerminal({
@@ -235,9 +233,9 @@ export function TerminalPanel({ threadId, onDisplayPathChange }: TerminalPanelPr
         // 争抢；缩放结束后由下面的订阅强制补一次最终尺寸。
         const now = Date.now()
         if (
-          !options.force
-          && resizeActivity.isResizing()
-          && now - lastResizeSentAt < RESIZE_STREAM_THROTTLE_MS
+          !options.force &&
+          resizeActivity.isResizing() &&
+          now - lastResizeSentAt < RESIZE_STREAM_THROTTLE_MS
         ) {
           return
         }
@@ -341,7 +339,7 @@ export function TerminalPanel({ threadId, onDisplayPathChange }: TerminalPanelPr
           reason: 'user-close',
         })
       }
-      setRestartVersion(version => version + 1)
+      setRestartVersion((version) => version + 1)
     } catch (reason) {
       setError(errorMessage(reason))
     }

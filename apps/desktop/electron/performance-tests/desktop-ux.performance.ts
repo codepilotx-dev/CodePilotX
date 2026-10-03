@@ -1,13 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import {
-  mkdir,
-  mkdtemp,
-  readFile,
-  readdir,
-  rm,
-  writeFile,
-} from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import {
@@ -22,20 +15,12 @@ import type { PerformanceSample } from '../../../../scripts/performance/metrics.
 const repositoryRoot = resolve(import.meta.dirname, '../../../..')
 const electronRoot = resolve(repositoryRoot, 'apps/desktop/electron')
 const rendererDist = resolve(repositoryRoot, 'dist/renderer')
-const rawDirectory = resolve(
-  repositoryRoot,
-  'performance-results',
-  'raw',
-  'electron',
-)
+const rawDirectory = resolve(repositoryRoot, 'performance-results', 'raw', 'electron')
 
 test.describe('packaged Electron desktop performance', () => {
-  test('measures startup, long history, switching, input and sidebar drag', async ({
-  }, testInfo) => {
+  test('measures startup, long history, switching, input and sidebar drag', async ({}, testInfo) => {
     const sample = testInfo.repeatEachIndex + 1
-    const root = await mkdtemp(
-      join(tmpdir(), 'codepilotx-electron-performance-'),
-    )
+    const root = await mkdtemp(join(tmpdir(), 'codepilotx-electron-performance-'))
     const userDataDirectory = join(root, 'user-data')
     const dataDirectory = join(root, 'agent-home')
     const logDirectory = join(root, 'logs')
@@ -60,11 +45,7 @@ test.describe('packaged Electron desktop performance', () => {
       }
 
       const coldStartedAt = performance.now()
-      application = await launchDesktop(
-        userDataDirectory,
-        dataDirectory,
-        logDirectory,
-      )
+      application = await launchDesktop(userDataDirectory, dataDirectory, logDirectory)
       await attachFatalEventCapture(application)
       let page = await application.firstWindow()
       await setPerformanceWindowSize(application)
@@ -76,15 +57,11 @@ test.describe('packaged Electron desktop performance', () => {
       })
       await record('new-route-ready', sample, await measureNewRouteReadiness(page))
 
-      fatalEvents.push(...await readFatalEvents(application))
+      fatalEvents.push(...(await readFatalEvents(application)))
       await application.close()
       application = undefined
       const warmStartedAt = performance.now()
-      application = await launchDesktop(
-        userDataDirectory,
-        dataDirectory,
-        logDirectory,
-      )
+      application = await launchDesktop(userDataDirectory, dataDirectory, logDirectory)
       await attachFatalEventCapture(application)
       page = await application.firstWindow()
       await setPerformanceWindowSize(application)
@@ -101,11 +78,7 @@ test.describe('packaged Electron desktop performance', () => {
       await record('timeline-scroll', sample, scrollMetrics)
 
       await record('cold-switch', sample, {
-        readyMs: await measureThreadSwitch(
-          page,
-          metadata.threadIds[sample]!,
-          10,
-        ),
+        readyMs: await measureThreadSwitch(page, metadata.threadIds[sample]!, 10),
       })
 
       await openThread(page, metadata.primaryThreadId, 500)
@@ -121,8 +94,8 @@ test.describe('packaged Electron desktop performance', () => {
         await measureMemoryStability(page, application, metadata.threadIds),
       )
 
-      fatalEvents.push(...await readFatalEvents(application))
-      fatalEvents.push(...await readFatalLogEvents(logDirectory))
+      fatalEvents.push(...(await readFatalEvents(application)))
+      fatalEvents.push(...(await readFatalLogEvents(logDirectory)))
       expect(fatalEvents, 'Electron emitted a fatal renderer event').toEqual([])
     } finally {
       await application?.close().catch(() => undefined)
@@ -136,8 +109,7 @@ async function launchDesktop(
   dataDirectory: string,
   logDirectory: string,
 ): Promise<ElectronApplication> {
-  const packagedExecutable =
-    process.env.CODEPILOTX_PERF_EXECUTABLE?.trim()
+  const packagedExecutable = process.env.CODEPILOTX_PERF_EXECUTABLE?.trim()
   if (packagedExecutable && !existsSync(packagedExecutable)) {
     throw new Error(`Packaged performance executable not found: ${packagedExecutable}`)
   }
@@ -148,11 +120,7 @@ async function launchDesktop(
           args: ['--enable-precise-memory-info', '--js-flags=--expose-gc'],
         }
       : {
-          args: [
-            electronRoot,
-            '--enable-precise-memory-info',
-            '--js-flags=--expose-gc',
-          ],
+          args: [electronRoot, '--enable-precise-memory-info', '--js-flags=--expose-gc'],
         }),
     cwd: repositoryRoot,
     env: {
@@ -168,18 +136,14 @@ async function launchDesktop(
   })
 }
 
-async function attachFatalEventCapture(
-  application: ElectronApplication,
-): Promise<void> {
+async function attachFatalEventCapture(application: ElectronApplication): Promise<void> {
   await application.evaluate(({ app, BrowserWindow }) => {
     const target = globalThis as typeof globalThis & {
       __codePilotXPerformanceFatalEvents?: string[]
     }
     target.__codePilotXPerformanceFatalEvents = []
     app.on('render-process-gone', (_event, _webContents, details) => {
-      target.__codePilotXPerformanceFatalEvents?.push(
-        `render-process-gone:${details.reason}`,
-      )
+      target.__codePilotXPerformanceFatalEvents?.push(`render-process-gone:${details.reason}`)
     })
     const register = (window: Electron.BrowserWindow): void => {
       window.on('unresponsive', () => {
@@ -191,17 +155,13 @@ async function attachFatalEventCapture(
   })
 }
 
-async function setPerformanceWindowSize(
-  application: ElectronApplication,
-): Promise<void> {
+async function setPerformanceWindowSize(application: ElectronApplication): Promise<void> {
   await application.evaluate(({ BrowserWindow }) => {
     BrowserWindow.getAllWindows()[0]?.setSize(1_600, 1_000)
   })
 }
 
-async function readFatalEvents(
-  application: ElectronApplication,
-): Promise<string[]> {
+async function readFatalEvents(application: ElectronApplication): Promise<string[]> {
   return application.evaluate(() => {
     const target = globalThis as typeof globalThis & {
       __codePilotXPerformanceFatalEvents?: string[]
@@ -212,7 +172,7 @@ async function readFatalEvents(
 
 function attachPageFatalEventCapture(page: Page, fatalEvents: string[]): void {
   page.on('crash', () => fatalEvents.push('page-crash'))
-  page.on('pageerror', error => {
+  page.on('pageerror', (error) => {
     fatalEvents.push(`page-error:${error.name}`)
   })
 }
@@ -264,8 +224,7 @@ async function installNewRouteReadinessProbe(page: Page): Promise<void> {
     }
     target.__codePilotXNewRouteReadiness = probe
 
-    const composerSelector =
-      '.composer-editor-content[contenteditable="true"][role="combobox"]'
+    const composerSelector = '.composer-editor-content[contenteditable="true"][role="combobox"]'
     const surfaceReadySelector = [
       '.new-session-suggestions.is-root',
       '.working-suggestions',
@@ -287,9 +246,7 @@ async function installNewRouteReadinessProbe(page: Page): Promise<void> {
           return false
         }
       }
-      const resources = performance.getEntriesByType(
-        'resource',
-      ) as PerformanceResourceTiming[]
+      const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[]
       const resourcePath = (entry: PerformanceResourceTiming): string => {
         try {
           return new URL(entry.name, location.href).pathname.toLowerCase()
@@ -299,21 +256,15 @@ async function installNewRouteReadinessProbe(page: Page): Promise<void> {
       }
       // ES module/dynamic-import initiatorType differs between Chromium
       // versions. Classify same-origin built assets by pathname instead.
-      const scripts = resources.filter(entry =>
-        sameOrigin(entry) && resourcePath(entry).endsWith('.js'),
+      const scripts = resources.filter(
+        (entry) => sameOrigin(entry) && resourcePath(entry).endsWith('.js'),
       )
-      const stylesheets = resources.filter(entry =>
-        sameOrigin(entry) && resourcePath(entry).endsWith('.css'),
+      const stylesheets = resources.filter(
+        (entry) => sameOrigin(entry) && resourcePath(entry).endsWith('.css'),
       )
-      probe.jsDecodedBytes = scripts.reduce(
-        (total, entry) => total + entry.decodedBodySize,
-        0,
-      )
+      probe.jsDecodedBytes = scripts.reduce((total, entry) => total + entry.decodedBodySize, 0)
       probe.jsResourceCount = scripts.length
-      probe.cssDecodedBytes = stylesheets.reduce(
-        (total, entry) => total + entry.decodedBodySize,
-        0,
-      )
+      probe.cssDecodedBytes = stylesheets.reduce((total, entry) => total + entry.decodedBodySize, 0)
     }
     const waitForComplete = (): void => {
       if (completeTimer !== null) return
@@ -346,17 +297,17 @@ async function installNewRouteReadinessProbe(page: Page): Promise<void> {
   })
 }
 
-async function measureNewRouteReadiness(
-  page: Page,
-): Promise<Record<string, number>> {
+async function measureNewRouteReadiness(page: Page): Promise<Record<string, number>> {
   return page.evaluate(() => {
-    const probe = (globalThis as typeof globalThis & {
-      __codePilotXNewRouteReadiness?: NewRouteReadinessProbe
-    }).__codePilotXNewRouteReadiness
+    const probe = (
+      globalThis as typeof globalThis & {
+        __codePilotXNewRouteReadiness?: NewRouteReadinessProbe
+      }
+    ).__codePilotXNewRouteReadiness
     if (!probe) {
       throw new Error('Missing /new readiness probe in renderer navigation.')
     }
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const poll = (): void => {
         if (probe.completeAt !== null) {
           resolve({
@@ -375,9 +326,7 @@ async function measureNewRouteReadiness(
   })
 }
 
-async function waitForThreadCatalog(
-  page: Page,
-): Promise<void> {
+async function waitForThreadCatalog(page: Page): Promise<void> {
   const recentSection = page.locator('[data-sidebar-section-id="recent"]')
   await recentSection.waitFor()
   if ((await recentSection.getAttribute('aria-expanded')) !== 'true') {
@@ -388,22 +337,14 @@ async function waitForThreadCatalog(
   })
 }
 
-async function openThread(
-  page: Page,
-  threadId: string,
-  expectedTurns?: number,
-): Promise<void> {
-  await page.evaluate(id => {
+async function openThread(page: Page, threadId: string, expectedTurns?: number): Promise<void> {
+  await page.evaluate((id) => {
     location.hash = `#/threads/${encodeURIComponent(id)}`
   }, threadId)
-  await page
-    .locator(`[data-canonical-thread-id="${threadId}"]`)
-    .waitFor()
+  await page.locator(`[data-canonical-thread-id="${threadId}"]`).waitFor()
   if (expectedTurns !== undefined) {
     await page.waitForFunction(
-      expected =>
-        document.querySelectorAll('[data-turn-navigation-item-id]').length ===
-        expected,
+      (expected) => document.querySelectorAll('[data-turn-navigation-item-id]').length === expected,
       expectedTurns,
     )
   }
@@ -419,20 +360,15 @@ async function loadAllTurns(page: Page): Promise<void> {
       .toBeGreaterThan(before)
   }
   await expect(loadOlder).toBeHidden()
-  await expect
-    .poll(() => page.locator('[data-turn-navigation-item-id]').count())
-    .toBe(500)
+  await expect.poll(() => page.locator('[data-turn-navigation-item-id]').count()).toBe(500)
 }
 
 async function measureScroll(page: Page): Promise<Record<string, number>> {
-  return page.locator('.workflow-main-scroll-area').evaluate(async element => {
+  return page.locator('.workflow-main-scroll-area').evaluate(async (element) => {
     const scroll = async (): Promise<void> => {
       for (let step = 0; step < 100; step += 1) {
-        element.scrollTop =
-          (step / 99) * Math.max(0, element.scrollHeight - element.clientHeight)
-        await new Promise<void>(resolve =>
-          requestAnimationFrame(() => resolve()),
-        )
+        element.scrollTop = (step / 99) * Math.max(0, element.scrollHeight - element.clientHeight)
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
       }
     }
     await scroll()
@@ -447,7 +383,7 @@ async function measureScroll(page: Page): Promise<Record<string, number>> {
     }
     animationFrame = requestAnimationFrame(frame)
     const observer = PerformanceObserver.supportedEntryTypes.includes('longtask')
-      ? new PerformanceObserver(entries => {
+      ? new PerformanceObserver((entries) => {
           for (const entry of entries.getEntries()) longTasks.push(entry.duration)
         })
       : null
@@ -457,8 +393,7 @@ async function measureScroll(page: Page): Promise<Record<string, number>> {
     observer?.disconnect()
     frameGaps.sort((left, right) => left - right)
     return {
-      frameP95Ms:
-        frameGaps[Math.max(0, Math.ceil(frameGaps.length * 0.95) - 1)] ?? 0,
+      frameP95Ms: frameGaps[Math.max(0, Math.ceil(frameGaps.length * 0.95) - 1)] ?? 0,
       maxLongTaskMs: Math.max(0, ...longTasks),
     }
   })
@@ -473,15 +408,13 @@ async function measureComposerInput(page: Page): Promise<number> {
       const target = window as typeof window & {
         __codePilotXInputPaint?: Promise<number>
       }
-      target.__codePilotXInputPaint = new Promise(resolve => {
+      target.__codePilotXInputPaint = new Promise((resolve) => {
         document.addEventListener(
           'input',
           () => {
             const startedAt = performance.now()
             requestAnimationFrame(() =>
-              requestAnimationFrame(() =>
-                resolve(performance.now() - startedAt),
-              ),
+              requestAnimationFrame(() => resolve(performance.now() - startedAt)),
             )
           },
           { capture: true, once: true },
@@ -504,30 +437,28 @@ async function measureComposerInput(page: Page): Promise<number> {
 
 async function measureSidebarDrop(page: Page): Promise<number> {
   const rows = page.locator('.sidebar-session-row[draggable="true"]')
-  if (await rows.count() === 0) {
+  if ((await rows.count()) === 0) {
     await page.locator('[data-sidebar-section-id="recent"]').click()
   }
   const showMore = page.getByRole('button', { name: '展开显示' })
-  while (await rows.count() < 100 && await showMore.count() > 0) {
+  while ((await rows.count()) < 100 && (await showMore.count()) > 0) {
     await showMore.first().click()
   }
   await expect(rows.first()).toBeVisible()
-  if (await rows.count() !== 100) {
+  if ((await rows.count()) !== 100) {
     throw new Error(`Expected 100 draggable session rows, received ${await rows.count()}`)
   }
-  await rows.nth(1).evaluate(element => {
+  await rows.nth(1).evaluate((element) => {
     const target = window as typeof window & {
       __codePilotXElectronDropReady?: Promise<number>
     }
-    target.__codePilotXElectronDropReady = new Promise(resolve => {
+    target.__codePilotXElectronDropReady = new Promise((resolve) => {
       element.addEventListener(
         'drop',
         () => {
           const droppedAt = performance.now()
           requestAnimationFrame(() =>
-            requestAnimationFrame(() =>
-              resolve(performance.now() - droppedAt),
-            ),
+            requestAnimationFrame(() => resolve(performance.now() - droppedAt)),
           )
         },
         { capture: true, once: true },
@@ -582,17 +513,12 @@ async function measureThreadSwitch(
       location.hash = `#/threads/${encodeURIComponent(id)}`
       while (performance.now() - startedAt < 60_000) {
         if (
-          document.querySelector(
-            `[data-canonical-thread-id="${id}"]`,
-          ) &&
-          document.querySelectorAll('[data-turn-navigation-item-id]').length ===
-            expected
+          document.querySelector(`[data-canonical-thread-id="${id}"]`) &&
+          document.querySelectorAll('[data-turn-navigation-item-id]').length === expected
         ) {
           return performance.now() - startedAt
         }
-        await new Promise<void>(resolve =>
-          requestAnimationFrame(() => resolve()),
-        )
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
       }
       throw new Error(`Electron thread ${id} did not become ready`)
     },
@@ -624,14 +550,16 @@ async function memorySnapshot(
 ): Promise<{ heap: number; rss: number }> {
   const heap = await page.evaluate(async () => {
     ;(globalThis as typeof globalThis & { gc?: () => void }).gc?.()
-    await new Promise<void>(resolve =>
+    await new Promise<void>((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
     )
     return (
-      performance as Performance & {
-        memory?: { usedJSHeapSize: number }
-      }
-    ).memory?.usedJSHeapSize ?? 0
+      (
+        performance as Performance & {
+          memory?: { usedJSHeapSize: number }
+        }
+      ).memory?.usedJSHeapSize ?? 0
+    )
   })
   const rss = await application.evaluate(() => process.memoryUsage().rss)
   return { heap, rss }
@@ -642,10 +570,7 @@ async function record(
   sample: number,
   metrics: Record<string, number>,
 ): Promise<void> {
-  const batch = Math.max(
-    1,
-    Number.parseInt(process.env.CODEPILOTX_PERF_BATCH ?? '1', 10) || 1,
-  )
+  const batch = Math.max(1, Number.parseInt(process.env.CODEPILOTX_PERF_BATCH ?? '1', 10) || 1)
   const value: PerformanceSample = {
     batch,
     environment: {
@@ -654,10 +579,7 @@ async function record(
       platform: process.platform,
     },
     metrics: Object.fromEntries(
-      Object.entries(metrics).map(([key, metric]) => [
-        key,
-        Number(metric.toFixed(3)),
-      ]),
+      Object.entries(metrics).map(([key, metric]) => [key, Number(metric.toFixed(3))]),
     ),
     sample,
     scenario,
@@ -680,12 +602,12 @@ function resolveBunExecutable(): string {
   })
   const commandPaths = output
     .split(/\r?\n/)
-    .map(line => line.trim())
+    .map((line) => line.trim())
     .filter(Boolean)
   const executable = [
-    ...commandPaths.filter(path => path.toLowerCase().endsWith('.exe')),
-    ...commandPaths.map(path => join(dirname(path), 'node_modules/bun/bin/bun.exe')),
-  ].find(path => existsSync(path))
+    ...commandPaths.filter((path) => path.toLowerCase().endsWith('.exe')),
+    ...commandPaths.map((path) => join(dirname(path), 'node_modules/bun/bin/bun.exe')),
+  ].find((path) => existsSync(path))
   if (!executable) throw new Error('Electron performance test did not find bun.exe')
   return executable
 }

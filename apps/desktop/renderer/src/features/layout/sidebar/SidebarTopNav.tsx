@@ -1,8 +1,8 @@
-import type React from "react";
-import { useEffect, useState } from "react";
+import type React from 'react'
+import { useEffect, useState } from 'react'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { ProtocolCapability } from '@codepilotx/agent-protocol'
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Bell,
   Blocks,
@@ -12,25 +12,22 @@ import {
   MessagesSquare,
   Search,
   SquarePen,
-} from "lucide-react";
+} from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
-import type { SidebarProductMode } from "../../../../shared/types.js";
-import type { AppView } from "../../../uiTypes.js";
-import { newSessionPath } from "../../session/newSessionSurface.js";
-import type { NewSessionSurface } from "../../session/newSessionSurface.js";
-import { IconButton } from "../../../components/ui/IconButton.js";
-import { Tooltip } from "../../../components/ui/Tooltip.js";
-import {
-  PopoverRadioGroup,
-  PopoverRadioItem,
-} from "../../../components/ui/PopoverItem.js";
+import type { SidebarProductMode } from '../../../../shared/types.js'
+import type { AppView } from '../../../uiTypes.js'
+import { newSessionPath } from '../../session/newSessionSurface.js'
+import type { NewSessionSurface } from '../../session/newSessionSurface.js'
+import { IconButton } from '../../../components/ui/IconButton.js'
+import { Tooltip } from '../../../components/ui/Tooltip.js'
+import { PopoverRadioGroup, PopoverRadioItem } from '../../../components/ui/PopoverItem.js'
 import * as Popover from '@radix-ui/react-popover'
-import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
-import { cx } from "../../../utils/cx.js";
-import { useDesktopSettings } from "../../settings/useDesktopSettings.js";
+import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
+import { cx } from '../../../utils/cx.js'
+import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 import { useLocale } from '../../i18n/LocaleProvider.js'
-import { SidebarRow } from "./SidebarRow.js";
+import { SidebarRow } from './SidebarRow.js'
 
 type SidebarNavAvailability =
   | { kind: 'always' }
@@ -45,12 +42,12 @@ export type SidebarCapabilityState =
   | { status: 'unavailable'; capabilities: null }
 
 export type SidebarNavItem = {
-  view: AppView;
-  label: string;
-  icon: React.ReactNode;
-  path: string;
-  availability: SidebarNavAvailability;
-};
+  view: AppView
+  label: string
+  icon: React.ReactNode
+  path: string
+  availability: SidebarNavAvailability
+}
 
 export const UNKNOWN_SIDEBAR_CAPABILITY_STATE: SidebarCapabilityState = {
   status: 'unknown',
@@ -61,22 +58,27 @@ export function useSidebarCapabilities(): SidebarCapabilityState {
   const [state, setState] = useState<SidebarCapabilityState>(UNKNOWN_SIDEBAR_CAPABILITY_STATE)
   useEffect(() => {
     let active = true
-    void desktopClient.getRuntimeCapabilities().then(capabilities => {
-      if (active) setState({ status: 'ready', capabilities: new Set(capabilities) })
-    }).catch(() => {
-      if (active) setState({ status: 'unavailable', capabilities: null })
-    })
-    return () => { active = false }
+    void desktopClient
+      .getRuntimeCapabilities()
+      .then((capabilities) => {
+        if (active) setState({ status: 'ready', capabilities: new Set(capabilities) })
+      })
+      .catch(() => {
+        if (active) setState({ status: 'unavailable', capabilities: null })
+      })
+    return () => {
+      active = false
+    }
   }, [])
   return state
 }
 
 export const TOP_NAV_ITEMS: SidebarNavItem[] = [
   {
-    view: "new",
-    label: "新建任务",
+    view: 'new',
+    label: '新建任务',
     icon: <SquarePen size={APP_ICON_SIZE} />,
-    path: "/new",
+    path: '/new',
     availability: { kind: 'always' },
   },
   {
@@ -90,23 +92,23 @@ export const TOP_NAV_ITEMS: SidebarNavItem[] = [
     },
   },
   {
-    view: "automations",
-    label: "已安排",
+    view: 'automations',
+    label: '已安排',
     icon: <Clock3 size={APP_ICON_SIZE} />,
-    path: "/automations",
+    path: '/automations',
     availability: { kind: 'always' },
   },
   {
-    view: "plugins",
-    label: "插件",
+    view: 'plugins',
+    label: '插件',
     icon: <Blocks size={APP_ICON_SIZE} />,
-    path: "/plugins",
+    path: '/plugins',
     availability: {
       kind: 'any-capability',
       capabilities: ['skills.manage.v1', 'mcp.manage.v1'],
     },
   },
-];
+]
 
 export const PROJECTS_NAV_ITEM: SidebarNavItem = {
   view: 'projects',
@@ -128,22 +130,20 @@ export function getSidebarTopNavItems({
   const newItem = surface
     ? { ...TOP_NAV_ITEMS[0]!, path: newSessionPath(surface) }
     : TOP_NAV_ITEMS[0]!
-  const items = showProjects ? [
-    newItem,
-    TOP_NAV_ITEMS[1]!,
-    PROJECTS_NAV_ITEM,
-    ...TOP_NAV_ITEMS.slice(2),
-  ] : [newItem, ...TOP_NAV_ITEMS.slice(1)]
+  const items = showProjects
+    ? [newItem, TOP_NAV_ITEMS[1]!, PROJECTS_NAV_ITEM, ...TOP_NAV_ITEMS.slice(2)]
+    : [newItem, ...TOP_NAV_ITEMS.slice(1)]
 
   // capability 未就绪或不可用时，仅暴露 always 入口，避免点入未接线的能力。
   if (capabilityState.status !== 'ready') {
-    return items.filter(item => item.availability.kind === 'always')
+    return items.filter((item) => item.availability.kind === 'always')
   }
-  return items.filter(item =>
-    item.availability.kind === 'always'
-    || item.availability.capabilities.some(capability =>
-      capabilityState.capabilities.has(capability),
-    ),
+  return items.filter(
+    (item) =>
+      item.availability.kind === 'always' ||
+      item.availability.capabilities.some((capability) =>
+        capabilityState.capabilities.has(capability),
+      ),
   )
 }
 
@@ -151,12 +151,13 @@ export function getSidebarTopNavItems({
  * 将最终导航数组拆成固定入口（新建对话）与可滚动入口；
  * 扁平组织模式下的“项目”仍属于可滚动分组。
  */
-export function splitSidebarTopNavItems(
-  items: readonly SidebarNavItem[],
-): { fixedItems: SidebarNavItem[]; scrollableItems: SidebarNavItem[] } {
+export function splitSidebarTopNavItems(items: readonly SidebarNavItem[]): {
+  fixedItems: SidebarNavItem[]
+  scrollableItems: SidebarNavItem[]
+} {
   return {
-    fixedItems: items.filter(item => item.view === 'new'),
-    scrollableItems: items.filter(item => item.view !== 'new'),
+    fixedItems: items.filter((item) => item.view === 'new'),
+    scrollableItems: items.filter((item) => item.view !== 'new'),
   }
 }
 
@@ -164,19 +165,19 @@ function SidebarNavItems({
   items,
   isActiveView,
 }: {
-  items: readonly SidebarNavItem[];
-  isActiveView: (view: AppView) => boolean;
+  items: readonly SidebarNavItem[]
+  isActiveView: (view: AppView) => boolean
 }): React.ReactNode {
   const { t } = useLocale()
   return (
     <>
       {items.map((item) => {
-        const active = isActiveView(item.view);
+        const active = isActiveView(item.view)
         return (
           <SidebarRow
             active={active}
             asChild
-            className={cx("sidebar-nav-link", active ? "active" : undefined)}
+            className={cx('sidebar-nav-link', active ? 'active' : undefined)}
             key={item.view}
             labelClassName={cx('sidebar-item-label', 'u-min-w-0')}
             layout="flex"
@@ -186,17 +187,17 @@ function SidebarNavItems({
               {t(item.label)}
             </Link>
           </SidebarRow>
-        );
+        )
       })}
     </>
-  );
+  )
 }
 
 type Props = {
-  capabilityState?: SidebarCapabilityState;
-  isActiveView: (view: AppView) => boolean;
-  showProjects: boolean;
-};
+  capabilityState?: SidebarCapabilityState
+  isActiveView: (view: AppView) => boolean
+  showProjects: boolean
+}
 
 export const SIDEBAR_PRODUCT_MODE_ORDER: readonly SidebarProductMode[] = [
   'coding',
@@ -243,9 +244,7 @@ export function SidebarHeader({
     setSidebarActivityCoachmarkDismissed,
   } = useDesktopSettings()
   const activeMode = SIDEBAR_PRODUCT_MODE_META[sidebarProductMode]
-  const timelineToggleLabel = t(sidebarTimelineEnabled
-    ? "关闭活动视图"
-    : "查看活动")
+  const timelineToggleLabel = t(sidebarTimelineEnabled ? '关闭活动视图' : '查看活动')
   const timelineToggleTitle = `${timelineToggleLabel} (Ctrl+Alt+U)`
 
   const handleModeChange = (value: SidebarProductMode): void => {
@@ -277,100 +276,96 @@ export function SidebarHeader({
       >
         <PopoverRadioGroup
           value={sidebarProductMode}
-          onValueChange={value =>
-            handleModeChange(value as SidebarProductMode)
-          }
+          onValueChange={(value) => handleModeChange(value as SidebarProductMode)}
         >
-          {SIDEBAR_PRODUCT_MODE_ORDER.map(value => {
+          {SIDEBAR_PRODUCT_MODE_ORDER.map((value) => {
             const option = SIDEBAR_PRODUCT_MODE_META[value]
             return (
-              <PopoverRadioItem
-                description={t(option.description)}
-                key={value}
-                value={value}
-              >
+              <PopoverRadioItem description={t(option.description)} key={value} value={value}>
                 {option.label}
               </PopoverRadioItem>
             )
           })}
         </PopoverRadioGroup>
       </PopoverMenu>
-      {showActions ? <div className="sidebar-header-actions">
-        <IconButton
-          aria-haspopup="dialog"
-          className="sidebar-search-button"
-          color="ghost"
-          size="icon"
-          onClick={onOpenCommandMenu}
-          title={t('搜索任务')}
-        >
-          <Search size={APP_ICON_SIZE} />
-        </IconButton>
-        <Popover.Root
-          open={!sidebarActivityCoachmarkDismissed && !sidebarTimelineEnabled}
-          onOpenChange={open => {
-            if (!open) setSidebarActivityCoachmarkDismissed(true)
-          }}
-        >
-          <Popover.Anchor asChild>
-            <div className="tw:inline-flex">
-              <Tooltip content={timelineToggleTitle} side="bottom">
-                <IconButton
-                  aria-label={timelineToggleLabel}
-                  aria-keyshortcuts="Control+Alt+U"
-                  aria-pressed={sidebarTimelineEnabled}
-                  active={sidebarTimelineEnabled}
-                  className="sidebar-timeline-toggle-button"
-                  color="ghost"
-                  size="icon"
-                  onClick={() => {
-                    if (!sidebarActivityCoachmarkDismissed) {
-                      setSidebarActivityCoachmarkDismissed(true)
-                    }
-                    setSidebarTimelineEnabled(v => !v)
-                  }}
-                  title={timelineToggleTitle}
-                >
-                  <Bell aria-hidden="true" size={APP_ICON_SIZE}>
-                    {hasUnread && (
-                      <circle
-                        cx="18"
-                        cy="4"
-                        r="4.5"
-                        fill="var(--cpx-sys-color-accent)"
-                        stroke="none"
-                      />
-                    )}
-                  </Bell>
-                </IconButton>
-              </Tooltip>
-            </div>
-          </Popover.Anchor>
-          <Popover.Portal>
-            <Popover.Content
-              align="end"
-              side="bottom"
-              sideOffset={8}
-              className="popover-surface sidebar-activity-coachmark tw:z-50 tw:w-64 tw:border tw:border-border tw:p-3.5 tw:outline-none"
-            >
-              <div className="tw:flex tw:flex-col tw:gap-2.5">
-                <p className="u-type-caption tw:text-foreground">
-                  {t('新的活动视图——集中查看进行中、待处理和未读会话。')}
-                </p>
-                <div className="tw:flex tw:justify-end">
-                  <Button
-                    size="compact"
-                    onClick={() => setSidebarActivityCoachmarkDismissed(true)}
+      {showActions ? (
+        <div className="sidebar-header-actions">
+          <IconButton
+            aria-haspopup="dialog"
+            className="sidebar-search-button"
+            color="ghost"
+            size="icon"
+            onClick={onOpenCommandMenu}
+            title={t('搜索任务')}
+          >
+            <Search size={APP_ICON_SIZE} />
+          </IconButton>
+          <Popover.Root
+            open={!sidebarActivityCoachmarkDismissed && !sidebarTimelineEnabled}
+            onOpenChange={(open) => {
+              if (!open) setSidebarActivityCoachmarkDismissed(true)
+            }}
+          >
+            <Popover.Anchor asChild>
+              <div className="tw:inline-flex">
+                <Tooltip content={timelineToggleTitle} side="bottom">
+                  <IconButton
+                    aria-label={timelineToggleLabel}
+                    aria-keyshortcuts="Control+Alt+U"
+                    aria-pressed={sidebarTimelineEnabled}
+                    active={sidebarTimelineEnabled}
+                    className="sidebar-timeline-toggle-button"
+                    color="ghost"
+                    size="icon"
+                    onClick={() => {
+                      if (!sidebarActivityCoachmarkDismissed) {
+                        setSidebarActivityCoachmarkDismissed(true)
+                      }
+                      setSidebarTimelineEnabled((v) => !v)
+                    }}
+                    title={timelineToggleTitle}
                   >
-                    {t('知道了')}
-                  </Button>
-                </div>
+                    <Bell aria-hidden="true" size={APP_ICON_SIZE}>
+                      {hasUnread && (
+                        <circle
+                          cx="18"
+                          cy="4"
+                          r="4.5"
+                          fill="var(--cpx-sys-color-accent)"
+                          stroke="none"
+                        />
+                      )}
+                    </Bell>
+                  </IconButton>
+                </Tooltip>
               </div>
-              <Popover.Arrow className="tw:fill-popover" />
-            </Popover.Content>
-          </Popover.Portal>
-        </Popover.Root>
-      </div> : null}
+            </Popover.Anchor>
+            <Popover.Portal>
+              <Popover.Content
+                align="end"
+                side="bottom"
+                sideOffset={8}
+                className="popover-surface sidebar-activity-coachmark tw:z-50 tw:w-64 tw:border tw:border-border tw:p-3.5 tw:outline-none"
+              >
+                <div className="tw:flex tw:flex-col tw:gap-2.5">
+                  <p className="u-type-caption tw:text-foreground">
+                    {t('新的活动视图——集中查看进行中、待处理和未读会话。')}
+                  </p>
+                  <div className="tw:flex tw:justify-end">
+                    <Button
+                      size="compact"
+                      onClick={() => setSidebarActivityCoachmarkDismissed(true)}
+                    >
+                      {t('知道了')}
+                    </Button>
+                  </div>
+                </div>
+                <Popover.Arrow className="tw:fill-popover" />
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
+        </div>
+      ) : null}
     </header>
   )
 }
@@ -393,7 +388,7 @@ export function SidebarTopNav({
     <nav className="sidebar-top-nav tw:flex tw:flex-col" aria-label={t('主要导航')}>
       <SidebarNavItems items={scrollableItems} isActiveView={isActiveView} />
     </nav>
-  );
+  )
 }
 
 /**
@@ -407,9 +402,9 @@ export function SidebarNewTaskNav({
   isActiveView,
   scrollOverlapping,
 }: {
-  label?: string;
-  isActiveView: (view: AppView) => boolean;
-  scrollOverlapping: boolean;
+  label?: string
+  isActiveView: (view: AppView) => boolean
+  scrollOverlapping: boolean
 }): React.ReactNode {
   const { t } = useLocale()
   const { sidebarProductMode } = useDesktopSettings()
@@ -426,7 +421,10 @@ export function SidebarNewTaskNav({
       className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col"
       data-scroll-overlap={scrollOverlapping ? 'true' : 'false'}
     >
-      <SidebarNavItems items={label ? fixedItems.map(item => ({ ...item, label })) : fixedItems} isActiveView={isActiveView} />
+      <SidebarNavItems
+        items={label ? fixedItems.map((item) => ({ ...item, label })) : fixedItems}
+        isActiveView={isActiveView}
+      />
     </nav>
-  );
+  )
 }

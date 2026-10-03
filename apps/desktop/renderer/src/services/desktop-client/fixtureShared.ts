@@ -1,9 +1,7 @@
 // 从 fixtures.ts 移出的 Browser Mock history projection。Agent 路径仅在
 // Browser Mock 回退真正读取历史时动态加载，Electron 首屏不会解析本模块。
 // 实现直接从 fixtures.ts 移动，不复制平行逻辑。
-import type {
-  DesktopSessionSnapshot,
-} from '../../../shared/types.js'
+import type { DesktopSessionSnapshot } from '../../../shared/types.js'
 import type { RpcResult } from '@codepilotx/agent-protocol'
 
 export function mockThreadHistoryPage(
@@ -27,9 +25,10 @@ export function mockThreadHistoryPage(
   } | null = null
 
   for (const [index, message] of snapshot.view.messages.entries()) {
-    const messageCreatedAt = typeof message.createdAt === 'number'
-      ? message.createdAt
-      : Date.parse(message.createdAt ?? '') || createdAt + index
+    const messageCreatedAt =
+      typeof message.createdAt === 'number'
+        ? message.createdAt
+        : Date.parse(message.createdAt ?? '') || createdAt + index
     if (message.role === 'user') {
       const messageAttachments = mockMessageAttachments(message.metadata, message.id)
       const turnId = `mock-turn:${message.id}`
@@ -50,37 +49,41 @@ export function mockThreadHistoryPage(
           elapsedSeconds: 0,
           error: null,
         },
-        inputs: [{
-          id: message.id,
-          threadId,
-          turnId,
-          content: message.text,
-          delivery: 'start',
-          mode,
-          model,
-          permissionConfig,
-          attachmentIds: messageAttachments.map(attachment => attachment.id),
-          state: 'completed',
-          createdAt: messageCreatedAt,
-        }],
+        inputs: [
+          {
+            id: message.id,
+            threadId,
+            turnId,
+            content: message.text,
+            delivery: 'start',
+            mode,
+            model,
+            permissionConfig,
+            attachmentIds: messageAttachments.map((attachment) => attachment.id),
+            state: 'completed',
+            createdAt: messageCreatedAt,
+          },
+        ],
         messages: [{ id: message.id, threadId, turnId, role: 'user', createdAt: messageCreatedAt }],
-        agents: [{
-          id: agentId,
-          threadId,
-          turnId,
-          parentAgentId: null,
-          profile: 'main',
-          task: message.text,
-          model,
-          sessionId: `mock-session:${turnId}`,
-          depth: 0,
-          status: 'completed',
-          error: null,
-          subagentRunId: null,
-          runSequence: 0,
-          createdAt: messageCreatedAt,
-          updatedAt: messageCreatedAt,
-        }],
+        agents: [
+          {
+            id: agentId,
+            threadId,
+            turnId,
+            parentAgentId: null,
+            profile: 'main',
+            task: message.text,
+            model,
+            sessionId: `mock-session:${turnId}`,
+            depth: 0,
+            status: 'completed',
+            error: null,
+            subagentRunId: null,
+            runSequence: 0,
+            createdAt: messageCreatedAt,
+            updatedAt: messageCreatedAt,
+          },
+        ],
         items: [],
         approvals: [],
         attachments: messageAttachments,
@@ -91,7 +94,13 @@ export function mockThreadHistoryPage(
     if (message.role !== 'assistant' || !current) continue
     const turnId = current.turn.id as string
     const agentId = current.turn.rootAgentId as string
-    current.messages.push({ id: message.id, threadId, turnId, role: 'assistant', createdAt: messageCreatedAt })
+    current.messages.push({
+      id: message.id,
+      threadId,
+      turnId,
+      role: 'assistant',
+      createdAt: messageCreatedAt,
+    })
     current.items.push({
       id: message.id,
       messageID: message.id,
@@ -118,9 +127,10 @@ export function mockThreadHistoryPage(
     if (!current) continue
     const turnId = current.turn.id as string
     const agentId = current.turn.rootAgentId as string
-    const eventCreatedAt = typeof event.createdAt === 'number'
-      ? event.createdAt
-      : Date.parse(event.createdAt ?? '') || createdAt
+    const eventCreatedAt =
+      typeof event.createdAt === 'number'
+        ? event.createdAt
+        : Date.parse(event.createdAt ?? '') || createdAt
 
     if (event.type === 'tool_call') {
       const metadata = (event as any).metadata ?? {}
@@ -169,7 +179,10 @@ export function mockThreadHistoryPage(
     if (event.type === 'file_patch') {
       const metadata = (event as any).metadata
       const files: Array<Record<string, unknown>> = (metadata?.files ?? []).map(
-        (f: { path: string; additions?: number; deletions?: number; patch?: string }, i: number) => ({
+        (
+          f: { path: string; additions?: number; deletions?: number; patch?: string },
+          i: number,
+        ) => ({
           path: f.path,
           additions: f.additions ?? 1,
           deletions: f.deletions ?? 0,
@@ -183,8 +196,14 @@ export function mockThreadHistoryPage(
         agentId,
         type: 'patch',
         files,
-        totalAdditions: files.reduce((sum: number, f: Record<string, unknown>) => sum + (f.additions as number), 0),
-        totalDeletions: files.reduce((sum: number, f: Record<string, unknown>) => sum + (f.deletions as number), 0),
+        totalAdditions: files.reduce(
+          (sum: number, f: Record<string, unknown>) => sum + (f.additions as number),
+          0,
+        ),
+        totalDeletions: files.reduce(
+          (sum: number, f: Record<string, unknown>) => sum + (f.deletions as number),
+          0,
+        ),
         createdAt: eventCreatedAt,
       })
       current.turn.status = 'completed'
@@ -269,22 +288,26 @@ function mockMessageAttachments(
     const kind = candidate.kind === 'image' ? 'image' : candidate.kind === 'text' ? 'text' : null
     const name = typeof candidate.name === 'string' ? candidate.name : null
     if (!kind || !name) return []
-    return [{
-      id: typeof candidate.id === 'string'
-        ? candidate.id
-        : `${messageId}-attachment-${index + 1}`,
-      kind,
-      name,
-      mediaType: typeof candidate.mediaType === 'string'
-        ? candidate.mediaType
-        : kind === 'image' ? 'image/png' : 'text/plain',
-      sizeBytes: typeof candidate.sizeBytes === 'number' ? candidate.sizeBytes : 0,
-      sha256: typeof candidate.sha256 === 'string'
-        ? candidate.sha256
-        : `visual-${messageId}-${index + 1}`,
-      createdAt: typeof candidate.createdAt === 'number'
-        ? candidate.createdAt
-        : Date.now() + index,
-    }]
+    return [
+      {
+        id:
+          typeof candidate.id === 'string' ? candidate.id : `${messageId}-attachment-${index + 1}`,
+        kind,
+        name,
+        mediaType:
+          typeof candidate.mediaType === 'string'
+            ? candidate.mediaType
+            : kind === 'image'
+              ? 'image/png'
+              : 'text/plain',
+        sizeBytes: typeof candidate.sizeBytes === 'number' ? candidate.sizeBytes : 0,
+        sha256:
+          typeof candidate.sha256 === 'string'
+            ? candidate.sha256
+            : `visual-${messageId}-${index + 1}`,
+        createdAt:
+          typeof candidate.createdAt === 'number' ? candidate.createdAt : Date.now() + index,
+      },
+    ]
   })
 }

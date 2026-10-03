@@ -28,7 +28,13 @@ describe('code theme Chrome seed', () => {
     for (const variant of ['light', 'dark'] as const) {
       const defaults = variant === 'light' ? DEFAULT_LIGHT_CHROME_THEME : DEFAULT_DARK_CHROME_THEME
       const seed = await loadChromeThemeSeed(`codex-new-${variant}`, variant)
-      expect(seed).toMatchObject({ accent: defaults.accent, surface: defaults.surface, ink: defaults.ink, contrast: defaults.contrast, semanticColors: defaults.semanticColors })
+      expect(seed).toMatchObject({
+        accent: defaults.accent,
+        surface: defaults.surface,
+        ink: defaults.ink,
+        contrast: defaults.contrast,
+        semanticColors: defaults.semanticColors,
+      })
       const fonts = { ui: 'Inter', code: 'Cascadia Code' }
       expect(mergeChromeThemeSeed({ ...defaults, fonts }, seed).fonts).toEqual(fonts)
     }

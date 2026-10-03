@@ -8,10 +8,7 @@ import {
 } from '../src/features/layout/tabs/conversationUiState.js'
 import { createSkillPreviewTab } from '../src/features/layout/dock/rightDockState.js'
 
-const originalWindowDescriptor = Object.getOwnPropertyDescriptor(
-  globalThis,
-  'window',
-)
+const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window')
 
 afterEach(() => {
   if (originalWindowDescriptor) {
@@ -26,15 +23,17 @@ describe('Handoff UI transfer', () => {
 
   test('copies logical terminal state without old workspace paths or history IDs', () => {
     const source = createDefaultConversationUiState()
-    source.sideChatAttachments = [{
-      id: 'attachment-1',
-      name: 'old.txt',
-      path: 'F:\\managed-worktree\\old.txt',
-      mediaType: 'text/plain',
-      sizeBytes: 3,
-      kind: 'file',
-      status: 'ready',
-    }]
+    source.sideChatAttachments = [
+      {
+        id: 'attachment-1',
+        name: 'old.txt',
+        path: 'F:\\managed-worktree\\old.txt',
+        mediaType: 'text/plain',
+        sizeBytes: 3,
+        kind: 'file',
+        status: 'ready',
+      },
+    ]
     source.review.source = {
       kind: 'last-turn',
       threadId: 'source-thread',
@@ -63,11 +62,13 @@ describe('Handoff UI transfer', () => {
     }
     saveConversationUiState('source-thread', source)
 
-    expect(transferConversationUiStateForHandoff({
-      sourceThreadId: 'source-thread',
-      targetThreadId: 'target-thread',
-      sourceWorkspacePath: 'F:\\managed-worktree',
-    })).toEqual({ transferred: true })
+    expect(
+      transferConversationUiStateForHandoff({
+        sourceThreadId: 'source-thread',
+        targetThreadId: 'target-thread',
+        sourceWorkspacePath: 'F:\\managed-worktree',
+      }),
+    ).toEqual({ transferred: true })
 
     const target = loadConversationUiState('target-thread')
     expect(target?.workbench.tabsById).toEqual({
@@ -139,23 +140,35 @@ describe('Handoff UI transfer', () => {
         right: { activeTabId: null, tabIds: [] },
       },
     })
-    expect(
-      window.localStorage.getItem('conversation.ui-state.thread-1'),
-    ).not.toContain('private-workspace')
-    expect(
-      window.localStorage.getItem('conversation.ui-state.thread-1'),
-    ).not.toContain('release-check')
+    expect(window.localStorage.getItem('conversation.ui-state.thread-1')).not.toContain(
+      'private-workspace',
+    )
+    expect(window.localStorage.getItem('conversation.ui-state.thread-1')).not.toContain(
+      'release-check',
+    )
   })
 })
 
 class MemoryStorage implements Storage {
   readonly #values = new Map<string, string>()
-  get length(): number { return this.#values.size }
-  clear(): void { this.#values.clear() }
-  getItem(key: string): string | null { return this.#values.get(key) ?? null }
-  key(index: number): string | null { return [...this.#values.keys()][index] ?? null }
-  removeItem(key: string): void { this.#values.delete(key) }
-  setItem(key: string, value: string): void { this.#values.set(key, value) }
+  get length(): number {
+    return this.#values.size
+  }
+  clear(): void {
+    this.#values.clear()
+  }
+  getItem(key: string): string | null {
+    return this.#values.get(key) ?? null
+  }
+  key(index: number): string | null {
+    return [...this.#values.keys()][index] ?? null
+  }
+  removeItem(key: string): void {
+    this.#values.delete(key)
+  }
+  setItem(key: string, value: string): void {
+    this.#values.set(key, value)
+  }
 }
 
 function installStorage(localStorage: Storage): void {

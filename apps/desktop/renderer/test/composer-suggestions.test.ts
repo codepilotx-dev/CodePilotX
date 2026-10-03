@@ -21,9 +21,7 @@ import {
   showNewSessionSuggestionTemplates,
   syncNewSessionSuggestionState,
 } from '../src/features/session/newSessionSuggestionState.js'
-import {
-  buildContextualTaskSuggestions,
-} from '../src/features/session/newSessionSuggestions.js'
+import { buildContextualTaskSuggestions } from '../src/features/session/newSessionSuggestions.js'
 import {
   normalizeGeneratedSuggestionsForSurface,
   sanitizeTaskSuggestionContextText,
@@ -45,10 +43,7 @@ describe('composer suggestions', () => {
     let calls = 0
     const loader = async () => {
       calls += 1
-      return [
-        installedSkill('review'),
-        { ...installedSkill('disabled'), enabled: false },
-      ]
+      return [installedSkill('review'), { ...installedSkill('disabled'), enabled: false }]
     }
     const workspace = `workspace-${crypto.randomUUID()}`
 
@@ -59,7 +54,7 @@ describe('composer suggestions', () => {
 
     expect(calls).toBe(1)
     expect(second).toEqual(first)
-    expect(first.map(skill => skill.name)).toEqual(['review'])
+    expect(first.map((skill) => skill.name)).toEqual(['review'])
 
     await loadCachedRuntimeSkills(workspace, true, loader)
     expect(calls).toBe(2)
@@ -76,14 +71,8 @@ describe('composer suggestions', () => {
     ]
 
     const merged = mergeSlashCommands(builtins, skills)
-    expect(merged.map(command => command.id)).toEqual([
-      'model',
-      'status',
-      'skill:review',
-    ])
-    expect(filterComposerCommands(merged, '上下文').map(item => item.id)).toEqual([
-      'status',
-    ])
+    expect(merged.map((command) => command.id)).toEqual(['model', 'status', 'skill:review'])
+    expect(filterComposerCommands(merged, '上下文').map((item) => item.id)).toEqual(['status'])
   })
 
   test('keeps temporarily disabled commands and hides commands outside the environment', () => {
@@ -92,9 +81,7 @@ describe('composer suggestions', () => {
       ...builtin('side', '侧边聊天', '打开侧边聊天'),
       availability: { visible: false, enabled: true },
     }
-    expect(mergeSlashCommands([disabled, hidden], []).map(item => item.id)).toEqual([
-      'compact',
-    ])
+    expect(mergeSlashCommands([disabled, hidden], []).map((item) => item.id)).toEqual(['compact'])
   })
 
   test('detects a slash command query at the cursor without replacing the draft', () => {
@@ -159,7 +146,9 @@ describe('composer suggestions', () => {
   test('keeps category suggestions while editing and only removes generated starter text', () => {
     const category = selectNewSessionSuggestionCategory('codex-explore')
     expect(syncNewSessionSuggestionState(category, '继续补充细节')).toEqual(category)
-    expect(removeGeneratedSuggestionStarter('Explore repository tests', 'Explore ')).toBe('repository tests')
+    expect(removeGeneratedSuggestionStarter('Explore repository tests', 'Explore ')).toBe(
+      'repository tests',
+    )
     expect(removeGeneratedSuggestionStarter('用户自己的内容', 'Explore ')).toBe('用户自己的内容')
   })
 
@@ -191,13 +180,13 @@ describe('composer suggestions', () => {
     })
 
     expect(suggestions).toHaveLength(4)
-    expect(suggestions.map(item => item.id)).toEqual([
+    expect(suggestions.map((item) => item.id)).toEqual([
       'recent-unfinished:thread:failed',
       'git:working-tree',
       'git:behind',
       'git:ahead',
     ])
-    expect(new Set(suggestions.map(item => item.prompt)).size).toBe(4)
+    expect(new Set(suggestions.map((item) => item.prompt)).size).toBe(4)
   })
 
   test('fills contextual suggestions with the four stable task categories', () => {
@@ -206,13 +195,8 @@ describe('composer suggestions', () => {
       git: null,
     })
     expect(suggestions).toHaveLength(4)
-    expect(new Set(suggestions.map(item => item.categoryId))).toEqual(
-      new Set([
-        'codex-explore',
-        'codex-create',
-        'codex-review',
-        'codex-fix',
-      ]),
+    expect(new Set(suggestions.map((item) => item.categoryId))).toEqual(
+      new Set(['codex-explore', 'codex-create', 'codex-review', 'codex-fix']),
     )
   })
 
@@ -223,7 +207,7 @@ describe('composer suggestions', () => {
       hasWorkspace: false,
     })
     expect(suggestions).toHaveLength(4)
-    expect(suggestions.every(item => !item.prompt.includes('this codebase'))).toBe(true)
+    expect(suggestions.every((item) => !item.prompt.includes('this codebase'))).toBe(true)
   })
 
   test('builds three Working suggestions from unfinished, Git, and completed work', () => {
@@ -255,7 +239,7 @@ describe('composer suggestions', () => {
     })
 
     expect(suggestions).toHaveLength(3)
-    expect(suggestions.map(item => item.id)).toEqual([
+    expect(suggestions.map((item) => item.id)).toEqual([
       'working-recent-unfinished:thread:failed',
       'working-git:working-tree',
       'working-recent-completed:thread:done',
@@ -271,12 +255,8 @@ describe('composer suggestions', () => {
     })
 
     expect(suggestions).toHaveLength(3)
-    expect(suggestions.map(item => item.categoryId)).toEqual([
-      'create',
-      'research',
-      'automate',
-    ])
-    expect(suggestions.every(item => item.label.includes('演示项目'))).toBeTrue()
+    expect(suggestions.map((item) => item.categoryId)).toEqual(['create', 'research', 'automate'])
+    expect(suggestions.every((item) => item.label.includes('演示项目'))).toBeTrue()
   })
 
   test('accepts only the generated categories and count for each surface', () => {
@@ -285,15 +265,9 @@ describe('composer suggestions', () => {
       generatedSuggestion('research', '规划下一步'),
       generatedSuggestion('automate', '自动生成周报'),
     ]
-    expect(
-      normalizeGeneratedSuggestionsForSurface(working, 'working'),
-    ).toHaveLength(3)
-    expect(
-      normalizeGeneratedSuggestionsForSurface(working.slice(0, 2), 'working'),
-    ).toBeNull()
-    expect(
-      normalizeGeneratedSuggestionsForSurface(working, 'coding'),
-    ).toBeNull()
+    expect(normalizeGeneratedSuggestionsForSurface(working, 'working')).toHaveLength(3)
+    expect(normalizeGeneratedSuggestionsForSurface(working.slice(0, 2), 'working')).toBeNull()
+    expect(normalizeGeneratedSuggestionsForSurface(working, 'coding')).toBeNull()
   })
 
   test('removes absolute Windows paths before building suggestion context', () => {
@@ -308,9 +282,10 @@ describe('composer suggestions', () => {
   test('supports contextual, template, and category navigation states', () => {
     expect(showNewSessionSuggestionTemplates()).toEqual({ kind: 'templates' })
     expect(showContextualNewSessionSuggestions()).toEqual({ kind: 'root' })
-    expect(
-      selectNewSessionSuggestionCategory('codex-review'),
-    ).toEqual({ kind: 'category', categoryId: 'codex-review' })
+    expect(selectNewSessionSuggestionCategory('codex-review')).toEqual({
+      kind: 'category',
+      categoryId: 'codex-review',
+    })
   })
 
   test('rejects late AI suggestions after any request or user interaction change', () => {
@@ -354,39 +329,22 @@ describe('composer suggestions', () => {
     expect(shouldSubmitComposerKey(event, 'enter', '单行')).toBe(true)
     expect(shouldSubmitComposerKey(event, 'multiline-ctrl-enter', '一\n二')).toBe(false)
     expect(
-      shouldSubmitComposerKey(
-        { ...event, ctrlKey: true },
-        'multiline-ctrl-enter',
-        '一\n二',
-      ),
+      shouldSubmitComposerKey({ ...event, ctrlKey: true }, 'multiline-ctrl-enter', '一\n二'),
     ).toBe(true)
     expect(shouldSubmitComposerKey(event, 'ctrl-enter', '单行')).toBe(false)
-    expect(
-      shouldSubmitComposerKey({ ...event, isComposing: true }, 'enter', '输入中'),
-    ).toBe(false)
+    expect(shouldSubmitComposerKey({ ...event, isComposing: true }, 'enter', '输入中')).toBe(false)
     expect(resolveComposerSubmitIntent(event, 'enter', '单行')).toBe('default')
+    expect(resolveComposerSubmitIntent({ ...event, ctrlKey: true }, 'enter', '下一轮')).toBe(
+      'follow-up',
+    )
     expect(
-      resolveComposerSubmitIntent(
-        { ...event, ctrlKey: true },
-        'enter',
-        '下一轮',
-      ),
-    ).toBe('follow-up')
-    expect(
-      resolveComposerSubmitIntent(
-        { ...event, isComposing: true },
-        'enter',
-        '输入中',
-      ),
+      resolveComposerSubmitIntent({ ...event, isComposing: true }, 'enter', '输入中'),
     ).toBeNull()
   })
 })
 
 describe('working suggestions', () => {
-  const categoryState = selectWorkingSuggestionCategory(
-    'create',
-    '创建',
-  )
+  const categoryState = selectWorkingSuggestionCategory('create', '创建')
 
   test('空输入进入第一层，键入内容隐藏建议', () => {
     expect(createWorkingSuggestionState('')).toEqual({ kind: 'root' })
@@ -403,9 +361,7 @@ describe('working suggestions', () => {
       categoryId: 'create',
       generatedStarter: '创建',
     })
-    expect(syncWorkingSuggestionState(categoryState, '创建')).toEqual(
-      categoryState,
-    )
+    expect(syncWorkingSuggestionState(categoryState, '创建')).toEqual(categoryState)
     expect(syncWorkingSuggestionState(categoryState, '创建一个文档')).toEqual({
       kind: 'hidden',
       reason: 'custom-input',
@@ -413,20 +369,23 @@ describe('working suggestions', () => {
   })
 
   test('返回时只移除草稿开头的系统 starter，保留用户补写内容', () => {
-    expect(
-      returnToWorkingSuggestionRoot(categoryState, '创建'),
-    ).toEqual({ state: { kind: 'root' }, composerValue: '' })
-    expect(
-      returnToWorkingSuggestionRoot(categoryState, '创建一个项目说明'),
-    ).toEqual({ state: { kind: 'root' }, composerValue: '一个项目说明' })
-    expect(
-      returnToWorkingSuggestionRoot({ kind: 'root' }, '自定义'),
-    ).toEqual({ state: { kind: 'root' }, composerValue: '自定义' })
+    expect(returnToWorkingSuggestionRoot(categoryState, '创建')).toEqual({
+      state: { kind: 'root' },
+      composerValue: '',
+    })
+    expect(returnToWorkingSuggestionRoot(categoryState, '创建一个项目说明')).toEqual({
+      state: { kind: 'root' },
+      composerValue: '一个项目说明',
+    })
+    expect(returnToWorkingSuggestionRoot({ kind: 'root' }, '自定义')).toEqual({
+      state: { kind: 'root' },
+      composerValue: '自定义',
+    })
   })
 
   test('使用三类 Codex Work 直接任务，不包含第三级插件占位符', () => {
     expect(
-      WORKING_SUGGESTION_CATEGORIES.map(category => ({
+      WORKING_SUGGESTION_CATEGORIES.map((category) => ({
         id: category.id,
         label: category.label,
         starterPrompt: category.starterPrompt,
@@ -452,19 +411,14 @@ describe('working suggestions', () => {
         taskCount: 4,
       },
     ])
-    const prompts = WORKING_SUGGESTION_CATEGORIES.flatMap(category =>
-      category.tasks.map(task => task.prompt),
+    const prompts = WORKING_SUGGESTION_CATEGORIES.flatMap((category) =>
+      category.tasks.map((task) => task.prompt),
     )
-    expect(prompts.some(prompt => /\{(?:artifact|plugin)\}/.test(prompt))).toBeFalse()
+    expect(prompts.some((prompt) => /\{(?:artifact|plugin)\}/.test(prompt))).toBeFalse()
   })
 
   test('每类最终建议映射直接提示词并选择规划任务插件', () => {
-    expect(
-      selectWorkingSuggestionTask(
-        categoryState,
-        'new-chat-page-create-document',
-      ),
-    ).toEqual({
+    expect(selectWorkingSuggestionTask(categoryState, 'new-chat-page-create-document')).toEqual({
       state: { kind: 'hidden', reason: 'prompt-filled' },
       prompt: '创建一个新文档。先问我它应该是什么主题。',
       plugin: null,
@@ -486,10 +440,7 @@ describe('working suggestions', () => {
   test('未知任务或非分类状态返回 null', () => {
     expect(selectWorkingSuggestionTask(categoryState, 'missing')).toBeNull()
     expect(
-      selectWorkingSuggestionTask(
-        { kind: 'root' },
-        'new-chat-page-create-document',
-      ),
+      selectWorkingSuggestionTask({ kind: 'root' }, 'new-chat-page-create-document'),
     ).toBeNull()
   })
 
@@ -503,12 +454,8 @@ describe('working suggestions', () => {
 
   test('最终任务填充后隐藏建议，清空草稿时恢复', () => {
     const promptFilled = { kind: 'hidden', reason: 'prompt-filled' } as const
-    expect(
-      shouldShowWorkingSuggestions(promptFilled),
-    ).toBeFalse()
-    expect(syncWorkingSuggestionState(promptFilled, '自动监控重要变更')).toEqual(
-      promptFilled,
-    )
+    expect(shouldShowWorkingSuggestions(promptFilled)).toBeFalse()
+    expect(syncWorkingSuggestionState(promptFilled, '自动监控重要变更')).toEqual(promptFilled)
     expect(syncWorkingSuggestionState(promptFilled, '')).toEqual({ kind: 'root' })
   })
 })
@@ -525,10 +472,7 @@ function installedSkill(name: string) {
   }
 }
 
-function generatedSuggestion(
-  categoryId: 'create' | 'research' | 'automate',
-  label: string,
-) {
+function generatedSuggestion(categoryId: 'create' | 'research' | 'automate', label: string) {
   return {
     id: `generated:${categoryId}`,
     categoryId,

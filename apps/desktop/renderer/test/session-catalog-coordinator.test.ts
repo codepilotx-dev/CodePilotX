@@ -5,7 +5,7 @@ import { SessionCatalogCoordinator } from '../src/services/desktop-client/Sessio
 describe('SessionCatalogCoordinator', () => {
   test('deduplicates list-level thread refreshes and waits for the catalog commit', async () => {
     let releaseRefresh = () => {}
-    const refreshGate = new Promise<void>(resolve => {
+    const refreshGate = new Promise<void>((resolve) => {
       releaseRefresh = resolve
     })
     const refreshed: string[][] = []
@@ -19,23 +19,25 @@ describe('SessionCatalogCoordinator', () => {
       onConfigUpdated: () => {},
       onWorkspaceFileChanged: () => {},
       onWorkspaceGitChanged: () => {},
-      onLifecycleUpdated: update => {
+      onLifecycleUpdated: (update) => {
         lifecycleUpdates.push(update.status)
       },
-      refreshThreads: async threadIds => {
+      refreshThreads: async (threadIds) => {
         refreshed.push([...threadIds])
         await refreshGate
       },
     })
 
     let committed = false
-    const delivery = coordinator.deliverBatch([
-      threadEvent('thread/created', 'event-1'),
-      threadEvent('thread/updated', 'event-2'),
-      providerCredentialEvent(),
-    ]).then(() => {
-      committed = true
-    })
+    const delivery = coordinator
+      .deliverBatch([
+        threadEvent('thread/created', 'event-1'),
+        threadEvent('thread/updated', 'event-2'),
+        providerCredentialEvent(),
+      ])
+      .then(() => {
+        committed = true
+      })
 
     await Promise.resolve()
     expect(refreshed).toEqual([['thread-1']])
@@ -57,23 +59,36 @@ describe('SessionCatalogCoordinator', () => {
       onWorkspaceFileChanged: () => {},
       onWorkspaceGitChanged: () => {},
       onLifecycleUpdated: () => {},
-      refreshThreads: async threadIds => { refreshed.push([...threadIds]) },
+      refreshThreads: async (threadIds) => {
+        refreshed.push([...threadIds])
+      },
     })
     const base = {
-      streamId: 'global', version: 1 as const, occurredAt: 2,
-      durability: 'durable' as const, sequence: 2,
+      streamId: 'global',
+      version: 1 as const,
+      occurredAt: 2,
+      durability: 'durable' as const,
+      sequence: 2,
     }
     const scheduled: EventEnvelope = {
-      ...base, eventId: 'scheduled-1', type: 'scheduled-task/changed',
+      ...base,
+      eventId: 'scheduled-1',
+      type: 'scheduled-task/changed',
       payload: { scheduledTaskId: 'task-1', revision: 1, status: 'running', changedAt: 2 },
     }
     const automation: EventEnvelope = {
-      ...base, eventId: 'automation-1', type: 'automation/runChanged',
+      ...base,
+      eventId: 'automation-1',
+      type: 'automation/runChanged',
       payload: { automationId: 'automation-1', runId: 'run-1', status: 'running', changedAt: 2 },
     }
     await coordinator.deliverBatch([scheduled])
     await coordinator.deliverBatch([automation])
-    await coordinator.deliverBatch([scheduled, automation, threadEvent('thread/updated', 'event-2')])
+    await coordinator.deliverBatch([
+      scheduled,
+      automation,
+      threadEvent('thread/updated', 'event-2'),
+    ])
     expect(refreshed).toEqual([[], [], ['thread-1']])
   })
 
@@ -85,10 +100,10 @@ describe('SessionCatalogCoordinator', () => {
       onConfigUpdated: () => {},
       onWorkspaceFileChanged: () => {},
       onWorkspaceGitChanged: () => {},
-      onLifecycleUpdated: update => {
+      onLifecycleUpdated: (update) => {
         calls.push(`lifecycle:${update.status}:${update.sequence}`)
       },
-      refreshThreads: async threadIds => {
+      refreshThreads: async (threadIds) => {
         calls.push(`refresh:${threadIds.join(',')}`)
       },
     })
@@ -99,10 +114,7 @@ describe('SessionCatalogCoordinator', () => {
       lifecycleEvent('turn/statusChanged', 'waiting-user-input', 4),
     ])
 
-    expect(calls).toEqual([
-      'lifecycle:completed:5',
-      'refresh:thread-1',
-    ])
+    expect(calls).toEqual(['lifecycle:completed:5', 'refresh:thread-1'])
   })
 })
 
@@ -152,16 +164,14 @@ function lifecycleEvent(
     ...base,
     type,
     version: 2,
-    payload: type === 'turn/started'
-      ? { turn, input: { id: 'input-1', threadId: 'thread-1', content: [], createdAt: 1 } }
-      : { turn },
+    payload:
+      type === 'turn/started'
+        ? { turn, input: { id: 'input-1', threadId: 'thread-1', content: [], createdAt: 1 } }
+        : { turn },
   } as EventEnvelope
 }
 
-function threadEvent(
-  type: 'thread/created' | 'thread/updated',
-  eventId: string,
-): EventEnvelope {
+function threadEvent(type: 'thread/created' | 'thread/updated', eventId: string): EventEnvelope {
   const thread = {
     id: 'thread-1',
     title: 'Thread',

@@ -1,12 +1,18 @@
-import { AgentError } from "../../domain"
-import type { ThreadService } from "../ThreadService"
-import type { ConversationHistoryForkRepository } from "../fork/ConversationHistoryForkRepository"
-import type { ThreadForkWorkspaceService } from "../fork/ThreadForkWorkspaceService"
-import type { SideChatRepository, StoredSideChat } from "../../storage/repositories/side-chat-repository"
-import type { TaskExecutionBindingService } from "../../worktree/TaskExecutionBindingService"
+import { AgentError } from '../../domain'
+import type { ThreadService } from '../ThreadService'
+import type { ConversationHistoryForkRepository } from '../fork/ConversationHistoryForkRepository'
+import type { ThreadForkWorkspaceService } from '../fork/ThreadForkWorkspaceService'
+import type {
+  SideChatRepository,
+  StoredSideChat,
+} from '../../storage/repositories/side-chat-repository'
+import type { TaskExecutionBindingService } from '../../worktree/TaskExecutionBindingService'
 
 export class SideChatService {
-  private readonly inFlight = new Map<string, { requestKey: string; promise: Promise<ReturnType<SideChatService["descriptor"]>> }>()
+  private readonly inFlight = new Map<
+    string,
+    { requestKey: string; promise: Promise<ReturnType<SideChatService['descriptor']>> }
+  >()
 
   constructor(
     private readonly repository: SideChatRepository,
@@ -17,31 +23,32 @@ export class SideChatService {
     private readonly prepareThreadCleanup?: (threadID: string) => () => Promise<void>,
   ) {}
 
-  create(input: {
-    sourceThreadID: string
-    referenceText?: string
-    operationID: string
-  }) {
-    const requestKey = JSON.stringify({ sourceThreadID: input.sourceThreadID, referenceText: input.referenceText ?? null })
+  create(input: { sourceThreadID: string; referenceText?: string; operationID: string }) {
+    const requestKey = JSON.stringify({
+      sourceThreadID: input.sourceThreadID,
+      referenceText: input.referenceText ?? null,
+    })
     const existing = this.repository.findByOperation(input.operationID)
     if (existing) {
       if (
-        existing.sourceThreadID !== input.sourceThreadID
-        || existing.referenceText !== (input.referenceText ?? null)
+        existing.sourceThreadID !== input.sourceThreadID ||
+        existing.referenceText !== (input.referenceText ?? null)
       ) {
-        throw new AgentError("OPERATION_ID_CONFLICT", "operationId 已用于其他侧边聊天", 409)
+        throw new AgentError('OPERATION_ID_CONFLICT', 'operationId 已用于其他侧边聊天', 409)
       }
       return Promise.resolve(this.descriptor(existing))
     }
 
     const inFlight = this.inFlight.get(input.operationID)
     if (inFlight) {
-      if (inFlight.requestKey !== requestKey) throw new AgentError("OPERATION_ID_CONFLICT", "operationId 已用于其他侧边聊天", 409)
+      if (inFlight.requestKey !== requestKey)
+        throw new AgentError('OPERATION_ID_CONFLICT', 'operationId 已用于其他侧边聊天', 409)
       return inFlight.promise
     }
     const owned = this.createOwned(input)
     const tracked = owned.finally(() => {
-      if (this.inFlight.get(input.operationID)?.promise === tracked) this.inFlight.delete(input.operationID)
+      if (this.inFlight.get(input.operationID)?.promise === tracked)
+        this.inFlight.delete(input.operationID)
     })
     this.inFlight.set(input.operationID, { requestKey, promise: tracked })
     return tracked
@@ -53,15 +60,19 @@ export class SideChatService {
     operationID: string
   }) {
     const source = await this.workspaces.source(input.sourceThreadID)
-    const fork = await this.history.forkLatestForSideChat(input.sourceThreadID, {
-      operationID: input.operationID,
-      ...(input.referenceText === undefined ? {} : { referenceText: input.referenceText }),
-      targetWorkspace: this.workspaces.targetWorkspace(
-        source,
-        source.cwd,
-        this.repository.threadGitBranch(input.sourceThreadID),
-      ),
-    }, this.repository)
+    const fork = await this.history.forkLatestForSideChat(
+      input.sourceThreadID,
+      {
+        operationID: input.operationID,
+        ...(input.referenceText === undefined ? {} : { referenceText: input.referenceText }),
+        targetWorkspace: this.workspaces.targetWorkspace(
+          source,
+          source.cwd,
+          this.repository.threadGitBranch(input.sourceThreadID),
+        ),
+      },
+      this.repository,
+    )
     let bindingID: string | null = null
     try {
       bindingID = await this.workspaces.bindSame(source, fork.threadID)
@@ -85,10 +96,14 @@ export class SideChatService {
       try {
         await this.threads.stop(threadID, active.id)
       } catch (cause) {
-        if (!(cause instanceof AgentError) || !["NO_ACTIVE_TURN", "TURN_ID_MISMATCH"].includes(cause.code)) throw cause
+        if (
+          !(cause instanceof AgentError) ||
+          !['NO_ACTIVE_TURN', 'TURN_ID_MISMATCH'].includes(cause.code)
+        )
+          throw cause
       }
     }
-    if (this.activeTurn(threadID)) throw new AgentError("CONFLICT", "侧边聊天仍在停止中", 409)
+    if (this.activeTurn(threadID)) throw new AgentError('CONFLICT', '侧边聊天仍在停止中', 409)
     const cleanup = this.prepareThreadCleanup?.(threadID)
     const bindingID = this.executionBindings.read(threadID)?.bindingId ?? null
     if (bindingID) await this.workspaces.removeEnvironment(bindingID)

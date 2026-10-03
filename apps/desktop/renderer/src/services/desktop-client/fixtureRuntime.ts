@@ -9,9 +9,7 @@ import type {
 import type { PermissionConfig } from '@codepilotx/shared/thread'
 import { permissionModeFromPermissionConfig } from '../agentThreadAdapter.js'
 
-export function permissionModeFromDesktopConfig(
-  config: PermissionConfig,
-): DesktopPermissionMode {
+export function permissionModeFromDesktopConfig(config: PermissionConfig): DesktopPermissionMode {
   return permissionModeFromPermissionConfig(config)
 }
 

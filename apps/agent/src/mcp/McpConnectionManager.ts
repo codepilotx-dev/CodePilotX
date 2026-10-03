@@ -4,27 +4,27 @@ import type {
   McpRuntimeServerStatus,
   McpSanitizedError,
   McpServerDeclaration,
-} from "@codepilotx/agent-protocol"
-import { createHash } from "node:crypto"
-import { AgentError } from "../domain"
-import { TurnToolCatalog, type ToolCatalog, type ToolDefinition } from "../tool/ToolRegistry"
+} from '@codepilotx/agent-protocol'
+import { createHash } from 'node:crypto'
+import { AgentError } from '../domain'
+import { TurnToolCatalog, type ToolCatalog, type ToolDefinition } from '../tool/ToolRegistry'
 import {
   McpClientFactory,
   McpConnectionError,
   truncateMcpInstructionsUtf8,
   type McpConnectedClient,
-} from "./McpClientFactory"
-import { McpConfigService } from "./McpConfigService"
-import { McpToolAdapter } from "./McpToolAdapter"
-import type { McpDiagnosticContextProvider } from "./McpDiagnosticContextProvider"
-import type { McpOAuthCoordinator } from "./McpOAuthCoordinator"
+} from './McpClientFactory'
+import { McpConfigService } from './McpConfigService'
+import { McpToolAdapter } from './McpToolAdapter'
+import type { McpDiagnosticContextProvider } from './McpDiagnosticContextProvider'
+import type { McpOAuthCoordinator } from './McpOAuthCoordinator'
 
 type McpReloadResult = typeof McpReloadResultSchema.Type
 
 type ConnectionHandle = {
   server: McpServerDeclaration
   fingerprint: string
-  state: McpRuntimeServerStatus["state"]
+  state: McpRuntimeServerStatus['state']
   error?: McpSanitizedError
   connected?: McpConnectedClient
   validToolCount?: number
@@ -57,7 +57,13 @@ export type McpTurnLease = {
   serverInstructions: readonly McpServerInstruction[]
   catalog: ToolCatalog
   release(): Promise<void>
-  listServers(): Array<{ name: string; scope: string; type: string; required: boolean; loaded: boolean }>
+  listServers(): Array<{
+    name: string
+    scope: string
+    type: string
+    required: boolean
+    loaded: boolean
+  }>
   loadServer(name: string): Promise<void>
 }
 
@@ -77,20 +83,21 @@ const generationInstructions = (
   let remaining = MAX_MCP_GENERATION_INSTRUCTIONS_BYTES
   for (const handle of handles.values()) {
     const content = handle.connected?.instructions
-    const hasUsableCapability = (handle.validToolCount ?? 0) > 0
-      || (handle.connected?.resources.length ?? 0) > 0
-      || (handle.connected?.resourceTemplates.length ?? 0) > 0
+    const hasUsableCapability =
+      (handle.validToolCount ?? 0) > 0 ||
+      (handle.connected?.resources.length ?? 0) > 0 ||
+      (handle.connected?.resourceTemplates.length ?? 0) > 0
     if (!content || !hasUsableCapability || remaining <= 0) continue
     const bounded = truncateMcpInstructionsUtf8(content, remaining)
     if (!bounded) continue
     result.push({ serverName: handle.server.name, content: bounded })
-    remaining = Math.max(0, remaining - Buffer.byteLength(bounded, "utf8"))
+    remaining = Math.max(0, remaining - Buffer.byteLength(bounded, 'utf8'))
   }
   return result
 }
 
 const fingerprint = (server: McpServerDeclaration) =>
-  createHash("sha256").update(JSON.stringify(server)).digest("hex")
+  createHash('sha256').update(JSON.stringify(server)).digest('hex')
 
 const statusFor = (
   handle: ConnectionHandle,
@@ -103,7 +110,8 @@ const statusFor = (
   auth,
   ...(handle.error ? { error: handle.error } : {}),
   toolCount: handle.validToolCount ?? handle.connected?.tools.length ?? 0,
-  resourceCount: (handle.connected?.resources.length ?? 0) + (handle.connected?.resourceTemplates.length ?? 0),
+  resourceCount:
+    (handle.connected?.resources.length ?? 0) + (handle.connected?.resourceTemplates.length ?? 0),
   promptCount: handle.connected?.prompts.length ?? 0,
 })
 
@@ -125,51 +133,52 @@ export class McpConnectionManager {
     await this.ensure(runtime, false)
     const config = await this.configs.list(workspace)
     const current = runtime.current
-    const statuses: McpRuntimeServerStatus[] = await Promise.all(config.servers.map(async (item) => {
-      const auth = await this.oauth?.authSummary(item.server, runtime.key)
-        .catch(() => ({
-          source: "none" as const,
-          canLogin: item.server.transport.type === "http"
-            && item.server.transport.auth !== "none",
+    const statuses: McpRuntimeServerStatus[] = await Promise.all(
+      config.servers.map(async (item) => {
+        const auth = (await this.oauth?.authSummary(item.server, runtime.key).catch(() => ({
+          source: 'none' as const,
+          canLogin: item.server.transport.type === 'http' && item.server.transport.auth !== 'none',
           canLogout: false,
-        }))
-        ?? { source: "none" as const, canLogin: false, canLogout: false }
-      if (!item.effective) {
-        return {
-          name: item.server.name,
-          scope: item.server.scope,
-          type: item.server.transport.type,
-          state: "shadowed",
-          auth,
-          toolCount: 0,
-          resourceCount: 0,
-          promptCount: 0,
+        }))) ?? { source: 'none' as const, canLogin: false, canLogout: false }
+        if (!item.effective) {
+          return {
+            name: item.server.name,
+            scope: item.server.scope,
+            type: item.server.transport.type,
+            state: 'shadowed',
+            auth,
+            toolCount: 0,
+            resourceCount: 0,
+            promptCount: 0,
+          }
         }
-      }
-      if (!item.server.enabled) {
-        return {
-          name: item.server.name,
-          scope: item.server.scope,
-          type: item.server.transport.type,
-          state: "disabled",
-          auth,
-          toolCount: 0,
-          resourceCount: 0,
-          promptCount: 0,
+        if (!item.server.enabled) {
+          return {
+            name: item.server.name,
+            scope: item.server.scope,
+            type: item.server.transport.type,
+            state: 'disabled',
+            auth,
+            toolCount: 0,
+            resourceCount: 0,
+            promptCount: 0,
+          }
         }
-      }
-      const handle = current?.handles.get(item.server.name)
-      return handle ? statusFor(handle, auth) : {
-        name: item.server.name,
-        scope: item.server.scope,
-        type: item.server.transport.type,
-        state: "starting",
-        auth,
-        toolCount: 0,
-        resourceCount: 0,
-        promptCount: 0,
-      }
-    }))
+        const handle = current?.handles.get(item.server.name)
+        return handle
+          ? statusFor(handle, auth)
+          : {
+              name: item.server.name,
+              scope: item.server.scope,
+              type: item.server.transport.type,
+              state: 'starting',
+              auth,
+              toolCount: 0,
+              resourceCount: 0,
+              promptCount: 0,
+            }
+      }),
+    )
     return {
       servers: statuses,
       totalTools: statuses.reduce((total, server) => total + server.toolCount, 0),
@@ -188,13 +197,13 @@ export class McpConnectionManager {
     const runtime = await this.runtime(workspace)
     await this.ensure(runtime, false)
     const generation = runtime.current!
-    const unavailable = generation.requiredServerNames.filter((name) =>
-      generation.handles.get(name)?.state !== "connected"
+    const unavailable = generation.requiredServerNames.filter(
+      (name) => generation.handles.get(name)?.state !== 'connected',
     )
     if (unavailable.length > 0) {
       throw new AgentError(
-        "MCP_REQUIRED_SERVER_UNAVAILABLE",
-        `必要 MCP server 当前不可用：${unavailable.join("、")}`,
+        'MCP_REQUIRED_SERVER_UNAVAILABLE',
+        `必要 MCP server 当前不可用：${unavailable.join('、')}`,
         503,
       )
     }
@@ -213,11 +222,11 @@ export class McpConnectionManager {
           scope: handle.server.scope,
           type: handle.server.transport.type,
           required: handle.server.required === true,
-          loaded: handle.state === "connected",
+          loaded: handle.state === 'connected',
         }))
       },
       loadServer: async (name: string) => {
-        if (generation.handles.get(name)?.state === "connected") return
+        if (generation.handles.get(name)?.state === 'connected') return
         const existing = pendingLoads.get(name)
         if (existing) return existing
         const promise = this.loadServerImpl(runtime, generation, name)
@@ -243,13 +252,17 @@ export class McpConnectionManager {
     name: string,
   ): Promise<void> {
     const handle = generation.handles.get(name)
-    if (!handle || handle.state === "connected") return
+    if (!handle || handle.state === 'connected') return
     if (handle.server.required !== true) {
       try {
         handle.connected = await this.factory.connect(
           handle.server,
-          () => { void this.catalogChanged(runtime, name) },
-          () => { void this.connectionClosed(runtime, name, handle) },
+          () => {
+            void this.catalogChanged(runtime, name)
+          },
+          () => {
+            void this.connectionClosed(runtime, name, handle)
+          },
           {
             workspaceHash: runtime.key,
             onAuthenticationRequired: () => {
@@ -257,7 +270,7 @@ export class McpConnectionManager {
             },
           },
         )
-        handle.state = "connected"
+        handle.state = 'connected'
         generation.definitions = new McpToolAdapter(
           generation.id,
           generation.handles,
@@ -265,16 +278,21 @@ export class McpConnectionManager {
         ).definitions()
         generation.serverInstructions = generationInstructions(generation.handles)
       } catch (cause) {
-        const error = cause instanceof McpConnectionError
-          ? cause
-          : new McpConnectionError({
-              code: "MCP_CONNECTION_FAILED",
-              message: "MCP server 连接失败",
-              retryable: true,
-            })
-        handle.state = error.needsAuth ? "needs_auth" : "failed"
+        const error =
+          cause instanceof McpConnectionError
+            ? cause
+            : new McpConnectionError({
+                code: 'MCP_CONNECTION_FAILED',
+                message: 'MCP server 连接失败',
+                retryable: true,
+              })
+        handle.state = error.needsAuth ? 'needs_auth' : 'failed'
         handle.error = error.safe
-        throw new AgentError("MCP_OPTIONAL_SERVER_FAILED", `MCP server "${name}" 连接失败: ${error.safe.message}`, 200)
+        throw new AgentError(
+          'MCP_OPTIONAL_SERVER_FAILED',
+          `MCP server "${name}" 连接失败: ${error.safe.message}`,
+          200,
+        )
       }
     }
   }
@@ -284,16 +302,18 @@ export class McpConnectionManager {
       .map((runtime) => runtime.current)
       .filter((generation): generation is RuntimeGeneration => Boolean(generation))
     this.runtimes.clear()
-    await Promise.all(generations.map(async (generation) => {
-      generation.retired = true
-      generation.leases = 0
-      await this.disposeRetired(generation)
-    }))
+    await Promise.all(
+      generations.map(async (generation) => {
+        generation.retired = true
+        generation.leases = 0
+        await this.disposeRetired(generation)
+      }),
+    )
   }
 
   private async runtime(workspace?: string) {
     const identity = await this.configs.workspace(workspace)
-    const key = identity?.hash ?? "global"
+    const key = identity?.hash ?? 'global'
     const existing = this.runtimes.get(key)
     if (existing) return existing
     const runtime: WorkspaceRuntime = {
@@ -318,15 +338,18 @@ export class McpConnectionManager {
       }
     }
     if (runtime.reconcile) return runtime.reconcile
-    runtime.reconcile = this.reconcile(runtime, config.generation, config.servers, force)
-      .finally(() => { runtime.reconcile = undefined })
+    runtime.reconcile = this.reconcile(runtime, config.generation, config.servers, force).finally(
+      () => {
+        runtime.reconcile = undefined
+      },
+    )
     return runtime.reconcile
   }
 
   private async reconcile(
     runtime: WorkspaceRuntime,
     configGeneration: number,
-    declarations: Awaited<ReturnType<McpConfigService["list"]>>["servers"],
+    declarations: Awaited<ReturnType<McpConfigService['list']>>['servers'],
     force: boolean,
   ): Promise<McpReloadResult> {
     const previous = runtime.current
@@ -339,56 +362,63 @@ export class McpConnectionManager {
     const unchanged: string[] = []
     const failed: Array<{ name: string; error: McpSanitizedError }> = []
 
-    await Promise.all(desired.map(async (server) => {
-      const prior = previous?.handles.get(server.name)
-      const nextFingerprint = fingerprint(server)
-      if (
-        prior
-        && prior.fingerprint === nextFingerprint
-        && prior.catalogDirty !== true
-        && (!force || prior.state === "connected")
-      ) {
-        prior.owners += 1
-        handles.set(server.name, prior)
-        unchanged.push(server.name)
-        return
-      }
+    await Promise.all(
+      desired.map(async (server) => {
+        const prior = previous?.handles.get(server.name)
+        const nextFingerprint = fingerprint(server)
+        if (
+          prior &&
+          prior.fingerprint === nextFingerprint &&
+          prior.catalogDirty !== true &&
+          (!force || prior.state === 'connected')
+        ) {
+          prior.owners += 1
+          handles.set(server.name, prior)
+          unchanged.push(server.name)
+          return
+        }
 
-      const handle: ConnectionHandle = {
-        server,
-        fingerprint: nextFingerprint,
-        state: "starting",
-        owners: 1,
-      }
-      handles.set(server.name, handle)
-      if (prior) replaced.push(server.name)
-      else added.push(server.name)
-      try {
-        handle.connected = await this.factory.connect(
+        const handle: ConnectionHandle = {
           server,
-          () => { void this.catalogChanged(runtime, server.name) },
-          () => { void this.connectionClosed(runtime, server.name, handle) },
-          {
-            workspaceHash: runtime.key,
-            onAuthenticationRequired: () => {
-              void this.authenticationRequired(runtime, server.name, handle)
+          fingerprint: nextFingerprint,
+          state: 'starting',
+          owners: 1,
+        }
+        handles.set(server.name, handle)
+        if (prior) replaced.push(server.name)
+        else added.push(server.name)
+        try {
+          handle.connected = await this.factory.connect(
+            server,
+            () => {
+              void this.catalogChanged(runtime, server.name)
             },
-          },
-        )
-        handle.state = "connected"
-      } catch (cause) {
-        const error = cause instanceof McpConnectionError
-          ? cause
-          : new McpConnectionError({
-              code: "MCP_CONNECTION_FAILED",
-              message: "MCP server 连接失败",
-              retryable: true,
-            })
-        handle.state = error.needsAuth ? "needs_auth" : "failed"
-        handle.error = error.safe
-        failed.push({ name: server.name, error: error.safe })
-      }
-    }))
+            () => {
+              void this.connectionClosed(runtime, server.name, handle)
+            },
+            {
+              workspaceHash: runtime.key,
+              onAuthenticationRequired: () => {
+                void this.authenticationRequired(runtime, server.name, handle)
+              },
+            },
+          )
+          handle.state = 'connected'
+        } catch (cause) {
+          const error =
+            cause instanceof McpConnectionError
+              ? cause
+              : new McpConnectionError({
+                  code: 'MCP_CONNECTION_FAILED',
+                  message: 'MCP server 连接失败',
+                  retryable: true,
+                })
+          handle.state = error.needsAuth ? 'needs_auth' : 'failed'
+          handle.error = error.safe
+          failed.push({ name: server.name, error: error.safe })
+        }
+      }),
+    )
 
     const removed = previous
       ? [...previous.handles.keys()].filter((name) => !handles.has(name))
@@ -442,10 +472,10 @@ export class McpConnectionManager {
     const current = runtime.current
     if (handle.closing || current?.handles.get(serverName) !== handle) return
     delete handle.connected
-    handle.state = "failed"
+    handle.state = 'failed'
     handle.error = {
-      code: "MCP_CONNECTION_CLOSED",
-      message: "MCP server 连接已中断",
+      code: 'MCP_CONNECTION_CLOSED',
+      message: 'MCP server 连接已中断',
       retryable: true,
     }
     handle.catalogDirty = true
@@ -460,10 +490,10 @@ export class McpConnectionManager {
   ) {
     const current = runtime.current
     if (current?.handles.get(serverName) !== handle) return
-    handle.state = "needs_auth"
+    handle.state = 'needs_auth'
     handle.error = {
-      code: "MCP_AUTH_REQUIRED",
-      message: "MCP server 认证已失效，请重新认证",
+      code: 'MCP_AUTH_REQUIRED',
+      message: 'MCP server 认证已失效，请重新认证',
       retryable: true,
     }
     handle.catalogDirty = true
@@ -481,7 +511,7 @@ export class McpConnectionManager {
         closing.push(handle.connected.close().catch(() => undefined))
       }
     }
-      generation.handles.clear()
+    generation.handles.clear()
     await Promise.all(closing)
   }
 }

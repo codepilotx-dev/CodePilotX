@@ -1,44 +1,44 @@
-import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../wire/definition"
-import { OpaqueIDSchema, SequenceSchema, TimestampSchema } from "../wire/primitives"
+import { Schema } from 'effect'
+import { defineMethod, type MethodMap } from '../wire/definition'
+import { OpaqueIDSchema, SequenceSchema, TimestampSchema } from '../wire/primitives'
 
 export const ThreadForkDestinationSchema = Schema.Union([
-  Schema.Struct({ kind: Schema.Literal("same-worktree") }),
-  Schema.Struct({ kind: Schema.Literal("new-worktree") }),
+  Schema.Struct({ kind: Schema.Literal('same-worktree') }),
+  Schema.Struct({ kind: Schema.Literal('new-worktree') }),
 ])
 
-export const ThreadForkDestinationKindSchema = Schema.Literals(["same-worktree", "new-worktree"])
-export const ThreadForkSnapshotModeSchema = Schema.Literals(["shared", "head", "working-tree"])
+export const ThreadForkDestinationKindSchema = Schema.Literals(['same-worktree', 'new-worktree'])
+export const ThreadForkSnapshotModeSchema = Schema.Literals(['shared', 'head', 'working-tree'])
 
 export const ThreadForkStatusSchema = Schema.Literals([
-  "running",
-  "awaiting-setup-decision",
-  "completed",
-  "failed",
-  "abandoned",
+  'running',
+  'awaiting-setup-decision',
+  'completed',
+  'failed',
+  'abandoned',
 ])
 
 export const ThreadForkStepSchema = Schema.Literals([
-  "preflight",
-  "prepare-worktree",
-  "setup",
-  "fork-history",
-  "bind-target",
-  "complete",
+  'preflight',
+  'prepare-worktree',
+  'setup',
+  'fork-history',
+  'bind-target',
+  'complete',
 ])
 
 export const ThreadForkErrorCodeSchema = Schema.Literals([
-  "FORK_OPERATION_NOT_FOUND",
-  "FORK_OPERATION_CONFLICT",
-  "FORK_POINT_NOT_FOUND",
-  "FORK_POINT_IN_PROGRESS",
-  "FORK_POINT_UNAVAILABLE",
-  "HISTORY_UNSUPPORTED",
-  "NOT_GIT",
-  "WORKTREE_SETUP_REQUIRED",
-  "WORKTREE_OPERATION_CONFLICT",
-  "FORK_ABANDON_UNAVAILABLE",
-  "INTERNAL_ERROR",
+  'FORK_OPERATION_NOT_FOUND',
+  'FORK_OPERATION_CONFLICT',
+  'FORK_POINT_NOT_FOUND',
+  'FORK_POINT_IN_PROGRESS',
+  'FORK_POINT_UNAVAILABLE',
+  'HISTORY_UNSUPPORTED',
+  'NOT_GIT',
+  'WORKTREE_SETUP_REQUIRED',
+  'WORKTREE_OPERATION_CONFLICT',
+  'FORK_ABANDON_UNAVAILABLE',
+  'INTERNAL_ERROR',
 ])
 
 export const ThreadForkOperationSchema = Schema.Struct({
@@ -68,26 +68,26 @@ export const ThreadForkOutputPageSchema = Schema.Struct({
 })
 
 const ThreadForkErrors = [
-  "THREAD_NOT_FOUND",
-  "TURN_NOT_FOUND",
-  "FORK_OPERATION_NOT_FOUND",
-  "FORK_OPERATION_CONFLICT",
-  "FORK_POINT_NOT_FOUND",
-  "FORK_POINT_IN_PROGRESS",
-  "FORK_POINT_UNAVAILABLE",
-  "HISTORY_UNSUPPORTED",
-  "NOT_GIT",
-  "WORKTREE_SETUP_REQUIRED",
-  "WORKTREE_OPERATION_CONFLICT",
-  "FORK_ABANDON_UNAVAILABLE",
-  "CONFLICT",
-  "INTERNAL_ERROR",
+  'THREAD_NOT_FOUND',
+  'TURN_NOT_FOUND',
+  'FORK_OPERATION_NOT_FOUND',
+  'FORK_OPERATION_CONFLICT',
+  'FORK_POINT_NOT_FOUND',
+  'FORK_POINT_IN_PROGRESS',
+  'FORK_POINT_UNAVAILABLE',
+  'HISTORY_UNSUPPORTED',
+  'NOT_GIT',
+  'WORKTREE_SETUP_REQUIRED',
+  'WORKTREE_OPERATION_CONFLICT',
+  'FORK_ABANDON_UNAVAILABLE',
+  'CONFLICT',
+  'INTERNAL_ERROR',
 ] as const
 
 const ThreadForkOperationResultSchema = Schema.Struct({ operation: ThreadForkOperationSchema })
 
 export const ThreadForkRpcMethods = {
-  "thread/fork/start": defineMethod({
+  'thread/fork/start': defineMethod({
     params: Schema.Struct({
       operationId: OpaqueIDSchema,
       sourceThreadId: OpaqueIDSchema,
@@ -97,12 +97,12 @@ export const ThreadForkRpcMethods = {
     }),
     result: ThreadForkOperationResultSchema,
     errors: ThreadForkErrors,
-    capability: "thread.fork.v1",
+    capability: 'thread.fork.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "thread/fork/status": defineMethod({
+  'thread/fork/status': defineMethod({
     params: Schema.Struct({
       operationId: OpaqueIDSchema,
       afterRevision: Schema.optional(SequenceSchema),
@@ -115,12 +115,12 @@ export const ThreadForkRpcMethods = {
       output: ThreadForkOutputPageSchema,
     }),
     errors: ThreadForkErrors,
-    capability: "thread.fork.v1",
+    capability: 'thread.fork.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "thread/fork/pending": defineMethod({
+  'thread/fork/pending': defineMethod({
     params: Schema.Struct({
       sourceThreadId: OpaqueIDSchema,
       lastTurnId: OpaqueIDSchema,
@@ -128,34 +128,34 @@ export const ThreadForkRpcMethods = {
     }),
     result: Schema.Struct({ operation: Schema.NullOr(ThreadForkOperationSchema) }),
     errors: ThreadForkErrors,
-    capability: "thread.fork.v1",
+    capability: 'thread.fork.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "thread/fork/retry-setup": defineMethod({
+  'thread/fork/retry-setup': defineMethod({
     params: Schema.Struct({ operationId: OpaqueIDSchema, revision: SequenceSchema }),
     result: ThreadForkOperationResultSchema,
     errors: ThreadForkErrors,
-    capability: "thread.fork.v1",
+    capability: 'thread.fork.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "thread/fork/continue-without-setup": defineMethod({
+  'thread/fork/continue-without-setup': defineMethod({
     params: Schema.Struct({ operationId: OpaqueIDSchema, revision: SequenceSchema }),
     result: ThreadForkOperationResultSchema,
     errors: ThreadForkErrors,
-    capability: "thread.fork.v1",
+    capability: 'thread.fork.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "thread/fork/abandon": defineMethod({
+  'thread/fork/abandon': defineMethod({
     params: Schema.Struct({ operationId: OpaqueIDSchema, revision: SequenceSchema }),
     result: ThreadForkOperationResultSchema,
     errors: ThreadForkErrors,
-    capability: "thread.fork.v1",
+    capability: 'thread.fork.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,

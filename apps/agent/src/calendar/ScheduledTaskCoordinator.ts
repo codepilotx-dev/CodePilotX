@@ -1,13 +1,13 @@
-import type { ScheduledTask, ScheduledTaskStatus } from "@codepilotx/shared/scheduled-task"
-import { AgentError } from "../domain"
-import type { ScheduledTaskRepository } from "../storage/repositories/scheduled-task-repository"
+import type { ScheduledTask, ScheduledTaskStatus } from '@codepilotx/shared/scheduled-task'
+import { AgentError } from '../domain'
+import type { ScheduledTaskRepository } from '../storage/repositories/scheduled-task-repository'
 import type {
   AutomationExecutionBinding,
   AutomationRunExecutor,
-} from "../automation/AutomationRunCoordinator"
+} from '../automation/AutomationRunCoordinator'
 
-type TerminalStatus = Extract<ScheduledTaskStatus, "completed" | "failed" | "interrupted">
-type RecoverableTurnStatus = "queued" | "running" | "waiting" | TerminalStatus
+type TerminalStatus = Extract<ScheduledTaskStatus, 'completed' | 'failed' | 'interrupted'>
+type RecoverableTurnStatus = 'queued' | 'running' | 'waiting' | TerminalStatus
 
 export type ScheduledTaskCoordinatorOptions = {
   now?: () => number
@@ -27,7 +27,7 @@ export class ScheduledTaskCoordinator {
   }
 
   async startTasks(tasks: ScheduledTask[]) {
-    await Promise.allSettled(tasks.map(task => this.startTask(task)))
+    await Promise.allSettled(tasks.map((task) => this.startTask(task)))
   }
 
   async startTask(task: ScheduledTask) {
@@ -38,18 +38,40 @@ export class ScheduledTaskCoordinator {
       const queued = this.repository.bindExecution(task.id, binding, this.now())
       await this.changed(queued)
       const turnStatus = this.options.getTurnStatus?.(binding.turnId)
-      if (turnStatus === "running") await this.handleTurnRunning(binding.turnId)
-      else if (turnStatus === "completed" || turnStatus === "failed" || turnStatus === "interrupted") {
-        await this.finish(task.id, turnStatus, turnStatus === "completed" ? null : "SCHEDULED_TASK_TURN_TERMINATED")
+      if (turnStatus === 'running') await this.handleTurnRunning(binding.turnId)
+      else if (
+        turnStatus === 'completed' ||
+        turnStatus === 'failed' ||
+        turnStatus === 'interrupted'
+      ) {
+        await this.finish(
+          task.id,
+          turnStatus,
+          turnStatus === 'completed' ? null : 'SCHEDULED_TASK_TURN_TERMINATED',
+        )
       }
     } catch (cause) {
       const current = this.repository.read(task.id, true)
-      if (cause instanceof AgentError && cause.code === "CONFLICT" && current && current.status !== "claimed") return
-      await this.finish(task.id, "failed", cause instanceof AgentError ? cause.code : "INTERNAL_ERROR")
+      if (
+        cause instanceof AgentError &&
+        cause.code === 'CONFLICT' &&
+        current &&
+        current.status !== 'claimed'
+      )
+        return
+      await this.finish(
+        task.id,
+        'failed',
+        cause instanceof AgentError ? cause.code : 'INTERNAL_ERROR',
+      )
     }
   }
 
-  async handleTurnTerminal(turnId: string, status: TerminalStatus, safeErrorCode: string | null = null) {
+  async handleTurnTerminal(
+    turnId: string,
+    status: TerminalStatus,
+    safeErrorCode: string | null = null,
+  ) {
     const task = this.repository.findByTurn(turnId)
     if (!task) return null
     return this.finish(task.id, status, safeErrorCode)
@@ -57,7 +79,7 @@ export class ScheduledTaskCoordinator {
 
   async handleTurnRunning(turnId: string) {
     const task = this.repository.findByTurn(turnId)
-    if (!task || task.status === "running") return task
+    if (!task || task.status === 'running') return task
     const running = this.repository.markRunning(task.id, this.now())
     await this.changed(running)
     return running
@@ -67,14 +89,18 @@ export class ScheduledTaskCoordinator {
     const resumed: ScheduledTask[] = []
     for (const task of this.repository.listActive()) {
       if (!task.turnId || !this.options.getTurnStatus) {
-        await this.finish(task.id, "interrupted", "SCHEDULED_TASK_RECOVERY_INTERRUPTED")
+        await this.finish(task.id, 'interrupted', 'SCHEDULED_TASK_RECOVERY_INTERRUPTED')
         continue
       }
       const status = this.options.getTurnStatus(task.turnId)
-      if (status === "completed" || status === "failed" || status === "interrupted") {
-        await this.finish(task.id, status, status === "completed" ? null : "SCHEDULED_TASK_TURN_TERMINATED")
+      if (status === 'completed' || status === 'failed' || status === 'interrupted') {
+        await this.finish(
+          task.id,
+          status,
+          status === 'completed' ? null : 'SCHEDULED_TASK_TURN_TERMINATED',
+        )
       } else if (status) resumed.push(task)
-      else await this.finish(task.id, "interrupted", "SCHEDULED_TASK_TURN_NOT_FOUND")
+      else await this.finish(task.id, 'interrupted', 'SCHEDULED_TASK_TURN_NOT_FOUND')
     }
     const catchUps = this.repository.claimDue(this.now())
     await this.startTasks(catchUps)

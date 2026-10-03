@@ -1,8 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type {
-  DurableEventEnvelope,
-  LiveEventEnvelope,
-} from '@codepilotx/agent-protocol'
+import type { DurableEventEnvelope, LiveEventEnvelope } from '@codepilotx/agent-protocol'
 import type { Thread, Turn } from '@codepilotx/shared/thread'
 
 import { CanonicalThreadIngestionCoordinator } from '../src/features/session/timeline/CanonicalThreadIngestionCoordinator.js'
@@ -48,15 +45,17 @@ function historyPage() {
   return {
     thread,
     subagents: [],
-    turns: [{
-      turn,
-      inputs: [],
-      messages: [],
-      agents: [],
-      items: [],
-      approvals: [],
-      attachments: [],
-    }],
+    turns: [
+      {
+        turn,
+        inputs: [],
+        messages: [],
+        agents: [],
+        items: [],
+        approvals: [],
+        attachments: [],
+      },
+    ],
     queue: { version: 0, pauseReason: null, turns: [], inputs: [] },
     olderCursor: null,
     hasOlder: false,
@@ -267,9 +266,7 @@ describe('canonical streaming checkpoints', () => {
 
   test('入队达到事件上限时立即提交，积压不会无界增长', async () => {
     const { coordinator, manual, commitCount } = createHarness()
-    const events = Array.from({ length: 512 }, (_, index) =>
-      textDelta('message-1', 'x', index),
-    )
+    const events = Array.from({ length: 512 }, (_, index) => textDelta('message-1', 'x', index))
     await coordinator.deliverBatch(events)
 
     expect(manual.pendingCount()).toBe(0)
@@ -286,7 +283,7 @@ describe('canonical streaming checkpoints', () => {
       threadId: thread.id,
       checkpointScheduler: manual.scheduler,
       tailStore,
-      onCommit: state => {
+      onCommit: (state) => {
         committedTexts.push(
           state.itemsById.get('message-1')?.type === 'text'
             ? state.itemsById.get('message-1')?.text
@@ -341,7 +338,7 @@ describe('canonical streaming checkpoints', () => {
 describe('live item tail store', () => {
   test('按 key 订阅、读取并按帧合并通知', () => {
     const scheduled: Array<() => void> = []
-    const scheduler: TailNotificationScheduler = notify => {
+    const scheduler: TailNotificationScheduler = (notify) => {
       scheduled.push(notify)
       return () => {
         const index = scheduled.indexOf(notify)

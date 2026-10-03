@@ -5,17 +5,28 @@ import { useAutomationController, type AutomationController } from './useAutomat
 
 export const AutomationControllerContext = createContext<AutomationController | null>(null)
 
-export function AutomationControllerProvider({ enabled, children }: { enabled: boolean; children: ReactNode }): ReactNode {
+export function AutomationControllerProvider({
+  enabled,
+  children,
+}: {
+  enabled: boolean
+  children: ReactNode
+}): ReactNode {
   const location = useLocation()
-  const selectedId = location.pathname === '/automations'
-    ? new URLSearchParams(location.search).get('automationId')
-    : null
+  const selectedId =
+    location.pathname === '/automations'
+      ? new URLSearchParams(location.search).get('automationId')
+      : null
   const activated = useEverOpened(enabled)
   const controller = useAutomationController(selectedId, activated)
   useEffect(() => {
     if (location.pathname !== '/automations') controller.cancelDraft()
   }, [location.pathname, controller.cancelDraft])
-  return <AutomationControllerContext.Provider value={controller}>{children}</AutomationControllerContext.Provider>
+  return (
+    <AutomationControllerContext.Provider value={controller}>
+      {children}
+    </AutomationControllerContext.Provider>
+  )
 }
 
 export function useSharedAutomationController(): AutomationController {

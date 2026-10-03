@@ -19,19 +19,14 @@ import { legacyWorkflowRedirectPath } from './features/routing/workflowRoutes.js
 import { legacyModelCenterSettingsTarget } from './features/models/modelCenterState.js'
 
 const PetOverlayPage = lazy(() =>
-  import('./features/pet/PetOverlayPage.js').then(module => ({
+  import('./features/pet/PetOverlayPage.js').then((module) => ({
     default: module.PetOverlayPage,
   })),
 )
 
 function LegacyModelsRedirect(): ReactNode {
   const location = useLocation()
-  return (
-    <Navigate
-      replace
-      to={legacyModelCenterSettingsTarget(location.search)}
-    />
-  )
+  return <Navigate replace to={legacyModelCenterSettingsTarget(location.search)} />
 }
 
 function LegacyWorkflowRedirect(): ReactNode {

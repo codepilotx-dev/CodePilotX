@@ -1,11 +1,31 @@
-import { createHash, randomUUID } from "node:crypto"
-import { watch as watchFileSystem } from "node:fs"
-import { chmod, link, lstat, mkdir, readdir, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises"
-import { basename, dirname, isAbsolute, relative, resolve } from "node:path"
-import { AgentError } from "../domain"
-import type { FileAccessProfile } from "../permission/ExecutionPolicy"
+import { createHash, randomUUID } from 'node:crypto'
+import { watch as watchFileSystem } from 'node:fs'
+import {
+  chmod,
+  link,
+  lstat,
+  mkdir,
+  readdir,
+  readFile,
+  realpath,
+  rename,
+  stat,
+  unlink,
+  writeFile,
+} from 'node:fs/promises'
+import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
+import { AgentError } from '../domain'
+import type { FileAccessProfile } from '../permission/ExecutionPolicy'
 
-const IGNORED_DIRECTORIES = new Set([".git", "node_modules", "dist", "build", ".next", "out", "coverage"])
+const IGNORED_DIRECTORIES = new Set([
+  '.git',
+  'node_modules',
+  'dist',
+  'build',
+  '.next',
+  'out',
+  'coverage',
+])
 const MAX_FILE_BYTES = 1_000_000
 const EDITOR_READ_MAX_BYTES = 20 * 1024 * 1024
 const EDITOR_WRITE_MAX_BYTES = 10 * 1024 * 1024
@@ -14,26 +34,29 @@ const LIST_LIMIT = 2_000
 const SEARCH_MAX_FILES = 10_000
 const SEARCH_MAX_BYTES = 50 * 1024 * 1024
 const SEARCH_TIMEOUT_MS = 10_000
-const WINDOWS_REPLACE_BLOCKED_CODES = new Set(["EPERM", "EACCES", "EBUSY"])
-const decoder = new TextDecoder("utf-8", { fatal: true })
+const WINDOWS_REPLACE_BLOCKED_CODES = new Set(['EPERM', 'EACCES', 'EBUSY'])
+const decoder = new TextDecoder('utf-8', { fatal: true })
 const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf])
 const isWindowsReplaceBlocked = (cause: unknown) =>
-  process.platform === "win32"
-  && typeof cause === "object"
-  && cause !== null
-  && "code" in cause
-  && typeof cause.code === "string"
-  && WINDOWS_REPLACE_BLOCKED_CODES.has(cause.code)
+  process.platform === 'win32' &&
+  typeof cause === 'object' &&
+  cause !== null &&
+  'code' in cause &&
+  typeof cause.code === 'string' &&
+  WINDOWS_REPLACE_BLOCKED_CODES.has(cause.code)
 const decodeUtf8 = (bytes: Uint8Array) => {
-  try { return decoder.decode(bytes) } catch { throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件包含非法 UTF-8 字节", 400) }
+  try {
+    return decoder.decode(bytes)
+  } catch {
+    throw new AgentError('WORKSPACE_FILE_UNREADABLE', '文件包含非法 UTF-8 字节', 400)
+  }
 }
 const hasUtf8Bom = (bytes: Uint8Array) =>
-  bytes.length >= UTF8_BOM.length
-  && UTF8_BOM.every((value, index) => bytes[index] === value)
+  bytes.length >= UTF8_BOM.length && UTF8_BOM.every((value, index) => bytes[index] === value)
 const encodeUtf8 = (content: string, preserveBom: boolean) => {
-  const explicitBom = content.startsWith("\uFEFF")
+  const explicitBom = content.startsWith('\uFEFF')
   const normalizedContent = explicitBom ? content.slice(1) : content
-  const bytes = Buffer.from(normalizedContent, "utf8")
+  const bytes = Buffer.from(normalizedContent, 'utf8')
   return {
     content: normalizedContent,
     bytes: preserveBom || explicitBom ? Buffer.concat([UTF8_BOM, bytes]) : bytes,
@@ -48,7 +71,7 @@ export interface WorkspaceSearchResult {
 
 export type WorkspaceReadOnlyPath = {
   path: string
-  kind: "file" | "directory"
+  kind: 'file' | 'directory'
 }
 
 export interface WorkspaceFileRevision {
@@ -60,16 +83,16 @@ export interface WorkspaceFileRevision {
   utf8Bom?: boolean
 }
 
-export type WorkspaceMutationExpectation = "existing-file" | "new-file"
+export type WorkspaceMutationExpectation = 'existing-file' | 'new-file'
 
 export type WorkspaceMutationPathInspection =
   | {
-      expectation: "new-file"
+      expectation: 'new-file'
       path: string
       canonicalPath: string
     }
   | {
-      expectation: "existing-file"
+      expectation: 'existing-file'
       path: string
       canonicalPath: string
       content: string
@@ -81,24 +104,24 @@ export type WorkspaceMutationPathInspection =
 
 export type EditorMutation =
   | {
-      operation: "create"
+      operation: 'create'
       path: string
       content: string
     }
   | {
-      operation: "update"
+      operation: 'update'
       path: string
       content: string
       expectedRevision: WorkspaceFileRevision
     }
   | {
-      operation: "delete"
+      operation: 'delete'
       path: string
       expectedRevision: WorkspaceFileRevision
     }
 
 export interface EditorMutationResult {
-  operation: EditorMutation["operation"]
+  operation: EditorMutation['operation']
   path: string
   beforeSha256: string | null
   afterSha256: string | null
@@ -106,15 +129,15 @@ export interface EditorMutationResult {
 }
 
 export interface EditorMutationCommitResult {
-  outcome: "committed"
+  outcome: 'committed'
   files: EditorMutationResult[]
 }
 
 type InternalMutationPathInspection =
-  | (Extract<WorkspaceMutationPathInspection, { expectation: "new-file" }> & {
+  | (Extract<WorkspaceMutationPathInspection, { expectation: 'new-file' }> & {
       key: string
     })
-  | (Extract<WorkspaceMutationPathInspection, { expectation: "existing-file" }> & {
+  | (Extract<WorkspaceMutationPathInspection, { expectation: 'existing-file' }> & {
       key: string
       mode: number
     })
@@ -131,24 +154,24 @@ export interface WorkspaceEditorFile {
 export interface WorkspaceFileEntry {
   name: string
   path: string
-  type: "file" | "directory"
+  type: 'file' | 'directory'
   depth: number
 }
 
 export interface WorkspaceRoot {
   folderId?: string
   path: string
-  role: "primary" | "secondary"
+  role: 'primary' | 'secondary'
   writable?: boolean
 }
 
 export type ApplyPatchInput =
-  | { operation: "update"; path: string; before: string; after: string }
-  | { operation: "create"; path: string; content: string }
-  | { operation: "delete"; path: string; expectedSha256: string }
+  | { operation: 'update'; path: string; before: string; after: string }
+  | { operation: 'create'; path: string; content: string }
+  | { operation: 'delete'; path: string; expectedSha256: string }
 
 export interface ApplyPatchResult {
-  operation: ApplyPatchInput["operation"]
+  operation: ApplyPatchInput['operation']
   path: string
   diff: string
   additions: number
@@ -157,20 +180,20 @@ export interface ApplyPatchResult {
   afterSha256: string | null
 }
 
-const lines = (value: string) => value === "" ? [] : value.replace(/\r?\n$/, "").split(/\r?\n/)
+const lines = (value: string) => (value === '' ? [] : value.replace(/\r?\n$/, '').split(/\r?\n/))
 const lineCount = (value: string) => lines(value).length
-const sha256 = (value: string) => createHash("sha256").update(value, "utf8").digest("hex")
-const sha256Bytes = (value: Uint8Array) => createHash("sha256").update(value).digest("hex")
+const sha256 = (value: string) => createHash('sha256').update(value, 'utf8').digest('hex')
+const sha256Bytes = (value: Uint8Array) => createHash('sha256').update(value).digest('hex')
 
-const diffLines = (prefix: "+" | "-", value: string) =>
+const diffLines = (prefix: '+' | '-', value: string) =>
   lines(value).map((line) => `${prefix}${line}`)
 
 const uniqueContextIndex = (current: string, before: string) => {
-  if (!before) throw new AgentError("INVALID_TOOL_INPUT", "before 必须是非空字符串", 400)
+  if (!before) throw new AgentError('INVALID_TOOL_INPUT', 'before 必须是非空字符串', 400)
   const index = current.indexOf(before)
-  if (index < 0) throw new AgentError("PATCH_CONTEXT_NOT_FOUND", "补丁上下文未找到", 409)
+  if (index < 0) throw new AgentError('PATCH_CONTEXT_NOT_FOUND', '补丁上下文未找到', 409)
   if (current.indexOf(before, index + 1) >= 0) {
-    throw new AgentError("PATCH_CONTEXT_AMBIGUOUS", "补丁上下文不唯一", 409)
+    throw new AgentError('PATCH_CONTEXT_AMBIGUOUS', '补丁上下文不唯一', 409)
   }
   return index
 }
@@ -180,17 +203,17 @@ const lineNumberAt = (value: string, index: number) => value.slice(0, index).spl
 const unifiedDiff = (path: string, before: string | null, after: string | null, startLine = 1) => {
   const oldLines = before === null ? 0 : lineCount(before)
   const newLines = after === null ? 0 : lineCount(after)
-  const oldPath = before === null ? "/dev/null" : `a/${path}`
-  const newPath = after === null ? "/dev/null" : `b/${path}`
+  const oldPath = before === null ? '/dev/null' : `a/${path}`
+  const newPath = after === null ? '/dev/null' : `b/${path}`
   const oldStart = before === null ? 0 : startLine
   const newStart = after === null ? 0 : startLine
   return [
     `--- ${oldPath}`,
     `+++ ${newPath}`,
     `@@ -${oldStart},${oldLines} +${newStart},${newLines} @@`,
-    ...diffLines("-", before ?? ""),
-    ...diffLines("+", after ?? ""),
-  ].join("\n")
+    ...diffLines('-', before ?? ''),
+    ...diffLines('+', after ?? ''),
+  ].join('\n')
 }
 
 /**
@@ -225,7 +248,7 @@ export class WorkspaceService {
   private constructor(
     rootPath: string,
     workspaceRoots: readonly WorkspaceRoot[],
-    fileAccess: FileAccessProfile = "workspace-write",
+    fileAccess: FileAccessProfile = 'workspace-write',
     shared: WorkspaceSharedState = {
       editorAliases: new Map(),
       mutationQueues: new Map(),
@@ -235,7 +258,9 @@ export class WorkspaceService {
     this.rootPath = rootPath
     this.workspaceRoots = Object.freeze(workspaceRoots.map((root) => Object.freeze({ ...root })))
     this.roots = Object.freeze(this.workspaceRoots.map((root) => root.path))
-    this.writableRoots = Object.freeze(this.workspaceRoots.filter((root) => root.writable !== false).map((root) => root.path))
+    this.writableRoots = Object.freeze(
+      this.workspaceRoots.filter((root) => root.writable !== false).map((root) => root.path),
+    )
     this.fileAccess = fileAccess
     this.shared = shared
   }
@@ -252,19 +277,20 @@ export class WorkspaceService {
 
   /** True only when this scope may reach paths outside the workspace roots. */
   allowsOutsideWorkspace() {
-    return this.fileAccess === "full-access"
+    return this.fileAccess === 'full-access'
   }
 
   static async open(rootPath: string) {
     return this.openRoots({
       primaryRoot: rootPath,
-      roots: [{ path: rootPath, role: "primary" }],
+      roots: [{ path: rootPath, role: 'primary' }],
     })
   }
 
   static async openRoots(input: { primaryRoot: string; roots: readonly WorkspaceRoot[] }) {
     const primary = await this.canonicalDirectory(input.primaryRoot)
-    const candidates = input.roots.length > 0 ? input.roots : [{ path: primary, role: "primary" as const }]
+    const candidates =
+      input.roots.length > 0 ? input.roots : [{ path: primary, role: 'primary' as const }]
     const roots: WorkspaceRoot[] = []
     const seen = new Set<string>()
     for (const candidate of candidates) {
@@ -275,32 +301,35 @@ export class WorkspaceService {
         if (resolve(candidate.path) === resolve(input.primaryRoot)) throw cause
         continue
       }
-      const key = process.platform === "win32" ? path.toLowerCase() : path
+      const key = process.platform === 'win32' ? path.toLowerCase() : path
       if (seen.has(key)) continue
       seen.add(key)
       roots.push({
         ...(candidate.folderId ? { folderId: candidate.folderId } : {}),
         path,
-        role: path === primary ? "primary" : "secondary",
+        role: path === primary ? 'primary' : 'secondary',
         ...(candidate.writable === false ? { writable: false } : {}),
       })
     }
-    if (!roots.some((root) => root.path === primary)) roots.unshift({ path: primary, role: "primary" })
+    if (!roots.some((root) => root.path === primary))
+      roots.unshift({ path: primary, role: 'primary' })
     roots.sort((left, right) => Number(right.path === primary) - Number(left.path === primary))
     return new WorkspaceService(primary, roots)
   }
 
   private static async canonicalDirectory(path: string) {
     const resolved = await realpath(resolve(path)).catch(() => {
-      throw new AgentError("WORKSPACE_PATH_NOT_FOUND", "工作区路径不存在或不可访问", 404)
+      throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '工作区路径不存在或不可访问', 404)
     })
     const metadata = await stat(resolved)
-    if (!metadata.isDirectory()) throw new AgentError("WORKSPACE_NOT_DIRECTORY", "工作区路径必须是目录", 400)
+    if (!metadata.isDirectory())
+      throw new AgentError('WORKSPACE_NOT_DIRECTORY', '工作区路径必须是目录', 400)
     return resolved
   }
 
-  grantEditorAlias(alias: "@codepilotx/config.json", targetPath: string) {
-    if (!isAbsolute(targetPath)) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名目标无效", 403)
+  grantEditorAlias(alias: '@codepilotx/config.json', targetPath: string) {
+    if (!isAbsolute(targetPath))
+      throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名目标无效', 403)
     this.shared.editorAliases.set(alias, resolve(targetPath))
   }
 
@@ -308,7 +337,10 @@ export class WorkspaceService {
     for (const entry of paths) {
       if (!isAbsolute(entry.path)) continue
       const canonical = resolve(entry.path)
-      this.shared.readOnlyPaths.set(this.mutationKey(canonical), { path: canonical, kind: entry.kind })
+      this.shared.readOnlyPaths.set(this.mutationKey(canonical), {
+        path: canonical,
+        kind: entry.kind,
+      })
     }
   }
 
@@ -323,8 +355,8 @@ export class WorkspaceService {
   }
 
   private aliasTarget(path: string) {
-    if (path.startsWith("@") && !this.shared.editorAliases.has(path)) {
-      throw new AgentError("WORKSPACE_PATH_DENIED", "未知的 host 编辑器别名", 403)
+    if (path.startsWith('@') && !this.shared.editorAliases.has(path)) {
+      throw new AgentError('WORKSPACE_PATH_DENIED', '未知的 host 编辑器别名', 403)
     }
     return this.shared.editorAliases.get(path)
   }
@@ -338,14 +370,14 @@ export class WorkspaceService {
     if (!owner) {
       // Paths outside every root are only reachable through full access or a
       // granted local-context path, and both need an unambiguous absolute path.
-      if (this.allowsOutsideWorkspace()) return canonical.replaceAll("\\", "/")
+      if (this.allowsOutsideWorkspace()) return canonical.replaceAll('\\', '/')
       if (this.readOnlyPathFor(canonical)) return canonical
       const outside = relative(this.rootPath, canonical)
-      return outside === "" ? "." : outside.replaceAll("\\", "/")
+      return outside === '' ? '.' : outside.replaceAll('\\', '/')
     }
     if (owner.path !== this.rootPath) return canonical
     const result = relative(this.rootPath, canonical)
-    return result === "" ? "." : result.replaceAll("\\", "/")
+    return result === '' ? '.' : result.replaceAll('\\', '/')
   }
 
   rootForPath(path: string) {
@@ -354,7 +386,7 @@ export class WorkspaceService {
       .sort((left, right) => right.path.length - left.path.length)
       .find((root) => {
         const child = relative(root.path, candidate)
-        return child === "" || (!child.startsWith("..") && !isAbsolute(child))
+        return child === '' || (!child.startsWith('..') && !isAbsolute(child))
       })
   }
 
@@ -364,21 +396,22 @@ export class WorkspaceService {
 
   private ensureWithinRoot(path: string) {
     if (this.allowsOutsideWorkspace() || this.containsPath(path)) return
-    throw new AgentError("WORKSPACE_PATH_DENIED", "路径不在当前工作区内", 403)
+    throw new AgentError('WORKSPACE_PATH_DENIED', '路径不在当前工作区内', 403)
   }
 
   private readOnlyPathFor(path: string) {
     const candidate = resolve(path)
     return [...this.shared.readOnlyPaths.values()].find((entry) => {
-      if (entry.kind === "file") return this.mutationKey(entry.path) === this.mutationKey(candidate)
+      if (entry.kind === 'file') return this.mutationKey(entry.path) === this.mutationKey(candidate)
       const child = relative(entry.path, candidate)
-      return child === "" || (!child.startsWith("..") && !isAbsolute(child))
+      return child === '' || (!child.startsWith('..') && !isAbsolute(child))
     })
   }
 
   private ensureReadable(path: string) {
-    if (this.allowsOutsideWorkspace() || this.containsPath(path) || this.readOnlyPathFor(path)) return
-    throw new AgentError("WORKSPACE_PATH_DENIED", "路径不在当前工作区或已授权本地上下文内", 403)
+    if (this.allowsOutsideWorkspace() || this.containsPath(path) || this.readOnlyPathFor(path))
+      return
+    throw new AgentError('WORKSPACE_PATH_DENIED', '路径不在当前工作区或已授权本地上下文内', 403)
   }
 
   private ensureWritable(path: string) {
@@ -386,17 +419,21 @@ export class WorkspaceService {
     // An explicitly read-only root stays read-only even under full access.
     if (owner) {
       if (owner.writable !== false) return
-      throw new AgentError("WORKSPACE_FILE_READONLY", "当前工作区目录为只读", 403)
+      throw new AgentError('WORKSPACE_FILE_READONLY', '当前工作区目录为只读', 403)
     }
     if (this.allowsOutsideWorkspace()) return
-    throw new AgentError("WORKSPACE_FILE_READONLY", "当前工作区目录为只读", 403)
+    throw new AgentError('WORKSPACE_FILE_READONLY', '当前工作区目录为只读', 403)
   }
 
   private requestedPath(path: string) {
     const alias = this.aliasTarget(path)
     if (alias) return alias
-    if (typeof path !== "string" || path.trim() === "" || (!isAbsolute(path) && path.split(/[\\/]+/).includes(".."))) {
-      throw new AgentError("WORKSPACE_PATH_DENIED", "路径必须位于当前工作区内", 403)
+    if (
+      typeof path !== 'string' ||
+      path.trim() === '' ||
+      (!isAbsolute(path) && path.split(/[\\/]+/).includes('..'))
+    ) {
+      throw new AgentError('WORKSPACE_PATH_DENIED', '路径必须位于当前工作区内', 403)
     }
     const requested = isAbsolute(path) ? resolve(path) : resolve(this.rootPath, path)
     this.ensureReadable(requested)
@@ -407,32 +444,36 @@ export class WorkspaceService {
     return this.existingPath(path)
   }
 
-  async resolveDirectory(path = ".") {
+  async resolveDirectory(path = '.') {
     return this.directory(path)
   }
 
   private async existingPath(path: string) {
     const requested = this.requestedPath(path)
     const canonical = await realpath(requested).catch(() => {
-      throw new AgentError("WORKSPACE_PATH_NOT_FOUND", "工作区路径不存在或不可访问", 404)
+      throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '工作区路径不存在或不可访问', 404)
     })
     const alias = this.aliasTarget(path)
     if (alias) {
-      if (canonical !== alias) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名不能通过符号链接重定向", 403)
+      if (canonical !== alias)
+        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名不能通过符号链接重定向', 403)
     } else if (!this.containsPath(canonical) && !this.allowsOutsideWorkspace()) {
       const grant = this.readOnlyPathFor(requested)
-      if (!grant) throw new AgentError("WORKSPACE_PATH_DENIED", "路径不在当前工作区或已授权本地上下文内", 403)
+      if (!grant)
+        throw new AgentError('WORKSPACE_PATH_DENIED', '路径不在当前工作区或已授权本地上下文内', 403)
       const currentRoot = await realpath(grant.path).catch(() => {
-        throw new AgentError("WORKSPACE_PATH_NOT_FOUND", "本地上下文路径不存在或不可访问", 404)
+        throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '本地上下文路径不存在或不可访问', 404)
       })
       if (this.mutationKey(currentRoot) !== this.mutationKey(grant.path)) {
-        throw new AgentError("WORKSPACE_PATH_DENIED", "本地上下文根路径已被重定向", 403)
+        throw new AgentError('WORKSPACE_PATH_DENIED', '本地上下文根路径已被重定向', 403)
       }
-      if (grant.kind === "file") {
-        if (this.mutationKey(canonical) !== this.mutationKey(grant.path)) throw new AgentError("WORKSPACE_PATH_DENIED", "文件引用不能访问其他路径", 403)
+      if (grant.kind === 'file') {
+        if (this.mutationKey(canonical) !== this.mutationKey(grant.path))
+          throw new AgentError('WORKSPACE_PATH_DENIED', '文件引用不能访问其他路径', 403)
       } else {
         const child = relative(currentRoot, canonical)
-        if (child !== "" && (child.startsWith("..") || isAbsolute(child))) throw new AgentError("WORKSPACE_PATH_DENIED", "目录引用不能通过链接越界", 403)
+        if (child !== '' && (child.startsWith('..') || isAbsolute(child)))
+          throw new AgentError('WORKSPACE_PATH_DENIED', '目录引用不能通过链接越界', 403)
       }
     }
     return canonical
@@ -441,32 +482,35 @@ export class WorkspaceService {
   private async createPath(path: string) {
     const requested = this.requestedPath(path)
     const alias = this.aliasTarget(path)
-    if (!alias && path.replaceAll("\\", "/").toLowerCase() === ".codepilotx/config.json") {
+    if (!alias && path.replaceAll('\\', '/').toLowerCase() === '.codepilotx/config.json') {
       await mkdir(dirname(requested), { recursive: true })
     }
     const parent = await realpath(dirname(requested)).catch(() => {
-      throw new AgentError("WORKSPACE_PATH_NOT_FOUND", "目标文件的父目录不存在或不可访问", 404)
+      throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '目标文件的父目录不存在或不可访问', 404)
     })
     if (alias) {
-      if (parent !== dirname(alias)) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名父目录无效", 403)
+      if (parent !== dirname(alias))
+        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名父目录无效', 403)
     } else {
       this.ensureWithinRoot(parent)
     }
     const metadata = await stat(parent)
-    if (!metadata.isDirectory()) throw new AgentError("WORKSPACE_NOT_DIRECTORY", "目标文件的父路径不是目录", 400)
+    if (!metadata.isDirectory())
+      throw new AgentError('WORKSPACE_NOT_DIRECTORY', '目标文件的父路径不是目录', 400)
     const canonical = resolve(parent, basename(requested))
     if (alias) {
-      if (canonical !== alias) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名目标无效", 403)
+      if (canonical !== alias)
+        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名目标无效', 403)
     } else {
       this.ensureWithinRoot(canonical)
     }
     try {
       await lstat(canonical)
-      throw new AgentError("WORKSPACE_PATH_EXISTS", "目标文件已存在", 409)
+      throw new AgentError('WORKSPACE_PATH_EXISTS', '目标文件已存在', 409)
     } catch (error) {
       if (error instanceof AgentError) throw error
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-        throw new AgentError("WORKSPACE_PATH_UNREADABLE", "目标文件状态无法确认", 400)
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw new AgentError('WORKSPACE_PATH_UNREADABLE', '目标文件状态无法确认', 400)
       }
     }
     return canonical
@@ -474,36 +518,39 @@ export class WorkspaceService {
 
   private mutationKey(path: string) {
     const normalized = resolve(path)
-    return process.platform === "win32" ? normalized.toLowerCase() : normalized
+    return process.platform === 'win32' ? normalized.toLowerCase() : normalized
   }
 
   private async inspectNewFilePath(path: string) {
     const requested = this.requestedPath(path)
     const alias = this.aliasTarget(path)
     const parent = await realpath(dirname(requested)).catch(() => {
-      throw new AgentError("WORKSPACE_PATH_NOT_FOUND", "目标文件的父目录不存在或不可访问", 404)
+      throw new AgentError('WORKSPACE_PATH_NOT_FOUND', '目标文件的父目录不存在或不可访问', 404)
     })
     if (alias) {
-      if (parent !== dirname(alias)) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名父目录无效", 403)
+      if (parent !== dirname(alias))
+        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名父目录无效', 403)
     } else {
       this.ensureWithinRoot(parent)
     }
     const metadata = await stat(parent)
-    if (!metadata.isDirectory()) throw new AgentError("WORKSPACE_NOT_DIRECTORY", "目标文件的父路径不是目录", 400)
+    if (!metadata.isDirectory())
+      throw new AgentError('WORKSPACE_NOT_DIRECTORY', '目标文件的父路径不是目录', 400)
     const canonical = resolve(parent, basename(requested))
     if (alias) {
-      if (canonical !== alias) throw new AgentError("WORKSPACE_PATH_DENIED", "编辑器别名目标无效", 403)
+      if (canonical !== alias)
+        throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名目标无效', 403)
     } else {
       this.ensureWithinRoot(canonical)
     }
     this.ensureWritable(canonical)
     try {
       await lstat(canonical)
-      throw new AgentError("WORKSPACE_PATH_EXISTS", "目标文件已存在", 409)
+      throw new AgentError('WORKSPACE_PATH_EXISTS', '目标文件已存在', 409)
     } catch (cause) {
       if (cause instanceof AgentError) throw cause
-      if ((cause as NodeJS.ErrnoException).code !== "ENOENT") {
-        throw new AgentError("WORKSPACE_PATH_UNREADABLE", "目标文件状态无法确认", 400)
+      if ((cause as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw new AgentError('WORKSPACE_PATH_UNREADABLE', '目标文件状态无法确认', 400)
       }
     }
     return canonical
@@ -511,23 +558,28 @@ export class WorkspaceService {
 
   private async readMutationFileState(canonical: string) {
     const metadata = await stat(canonical)
-    if (!metadata.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
+    if (!metadata.isFile()) throw new AgentError('WORKSPACE_NOT_FILE', '路径不是文本文件', 400)
     if ((metadata.mode & 0o222) === 0) {
-      throw new AgentError("WORKSPACE_FILE_READONLY", "目标文件为只读文件，拒绝修改", 403)
+      throw new AgentError('WORKSPACE_FILE_READONLY', '目标文件为只读文件，拒绝修改', 403)
     }
     if (metadata.size > EDITOR_WRITE_MAX_BYTES) {
-      throw new AgentError("WORKSPACE_FILE_READONLY", `超过 ${EDITOR_WRITE_MAX_BYTES} 字节的文件为只读`, 409, {
-        sizeBytes: metadata.size,
-        maxBytes: EDITOR_WRITE_MAX_BYTES,
-      })
+      throw new AgentError(
+        'WORKSPACE_FILE_READONLY',
+        `超过 ${EDITOR_WRITE_MAX_BYTES} 字节的文件为只读`,
+        409,
+        {
+          sizeBytes: metadata.size,
+          maxBytes: EDITOR_WRITE_MAX_BYTES,
+        },
+      )
     }
     const bytes = await readFile(canonical).catch(() => {
-      throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件无法读取", 400)
+      throw new AgentError('WORKSPACE_FILE_UNREADABLE', '文件无法读取', 400)
     })
     const current = await stat(canonical)
-    if (!current.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
+    if (!current.isFile()) throw new AgentError('WORKSPACE_NOT_FILE', '路径不是文本文件', 400)
     if (current.size !== bytes.byteLength || current.mtimeMs !== metadata.mtimeMs) {
-      throw new AgentError("WORKSPACE_FILE_STALE", "文件在读取时发生变化，请重新读取", 409)
+      throw new AgentError('WORKSPACE_FILE_STALE', '文件在读取时发生变化，请重新读取', 409)
     }
     const content = decodeUtf8(bytes)
     return {
@@ -548,7 +600,7 @@ export class WorkspaceService {
     path: string,
     expectation: WorkspaceMutationExpectation,
   ): Promise<InternalMutationPathInspection> {
-    if (expectation === "new-file") {
+    if (expectation === 'new-file') {
       const canonicalPath = await this.inspectNewFilePath(path)
       return {
         expectation,
@@ -566,7 +618,7 @@ export class WorkspaceService {
       canonicalPath,
       key: this.mutationKey(canonicalPath),
       content: state.content,
-      sizeBytes: Buffer.byteLength(state.content, "utf8"),
+      sizeBytes: Buffer.byteLength(state.content, 'utf8'),
       revision: state.revision,
       utf8Bom: state.utf8Bom,
       rawSha256: state.rawSha256,
@@ -580,7 +632,7 @@ export class WorkspaceService {
     expectation: WorkspaceMutationExpectation,
   ): Promise<WorkspaceMutationPathInspection> {
     const inspected = await this.inspectMutationPathInternal(path, expectation)
-    if (inspected.expectation === "new-file") {
+    if (inspected.expectation === 'new-file') {
       return {
         expectation: inspected.expectation,
         path: inspected.path,
@@ -601,8 +653,12 @@ export class WorkspaceService {
 
   private async withMutationLocks<T>(keys: readonly string[], execute: () => Promise<T>) {
     const ordered = [...new Set(keys)].sort((left, right) => left.localeCompare(right))
-    const predecessors = ordered.map((key) => this.shared.mutationQueues.get(key) ?? Promise.resolve())
-    const ready = Promise.all(predecessors.map((predecessor) => predecessor.catch(() => undefined))).then(() => undefined)
+    const predecessors = ordered.map(
+      (key) => this.shared.mutationQueues.get(key) ?? Promise.resolve(),
+    )
+    const ready = Promise.all(
+      predecessors.map((predecessor) => predecessor.catch(() => undefined)),
+    ).then(() => undefined)
     let release!: () => void
     const gate = new Promise<void>((resolveGate) => {
       release = resolveGate
@@ -620,20 +676,26 @@ export class WorkspaceService {
     }
   }
 
-  private async replaceAtomically(path: string, content: string, mode?: number, maxBytes = MAX_FILE_BYTES) {
+  private async replaceAtomically(
+    path: string,
+    content: string,
+    mode?: number,
+    maxBytes = MAX_FILE_BYTES,
+  ) {
     this.ensureWritable(path)
-    if (Buffer.byteLength(content, "utf8") > maxBytes) throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `最终文件超过 ${maxBytes} 字节上限`, 413)
-    const bytes = Buffer.from(content, "utf8")
+    if (Buffer.byteLength(content, 'utf8') > maxBytes)
+      throw new AgentError('WORKSPACE_FILE_TOO_LARGE', `最终文件超过 ${maxBytes} 字节上限`, 413)
+    const bytes = Buffer.from(content, 'utf8')
     const temporary = resolve(dirname(path), `.codepilotx-${randomUUID()}.tmp`)
     try {
-      await writeFile(temporary, bytes, { flag: "wx" })
+      await writeFile(temporary, bytes, { flag: 'wx' })
       if (mode !== undefined) await chmod(temporary, mode)
       if (mode === undefined) await rename(temporary, path)
       else await this.replaceExistingFile(path, temporary, bytes)
     } catch (cause) {
       await unlink(temporary).catch(() => undefined)
       if (cause instanceof AgentError) throw cause
-      throw new AgentError("WORKSPACE_WRITE_FAILED", "无法原子写入工作区文件", 500)
+      throw new AgentError('WORKSPACE_WRITE_FAILED', '无法原子写入工作区文件', 500)
     }
   }
 
@@ -646,21 +708,22 @@ export class WorkspaceService {
     }
 
     await unlink(temporary).catch(() => undefined)
-    await writeFile(path, expectedBytes, { flag: "w", flush: true })
+    await writeFile(path, expectedBytes, { flag: 'w', flush: true })
     const persisted = await readFile(path)
     if (sha256Bytes(persisted) !== sha256Bytes(expectedBytes)) {
-      throw new AgentError("WORKSPACE_WRITE_FAILED", "工作区文件写入后校验失败", 500)
+      throw new AgentError('WORKSPACE_WRITE_FAILED', '工作区文件写入后校验失败', 500)
     }
   }
 
   private async directory(path?: string) {
-    const canonical = await this.existingPath(path ?? ".")
+    const canonical = await this.existingPath(path ?? '.')
     const metadata = await stat(canonical)
-    if (!metadata.isDirectory()) throw new AgentError("WORKSPACE_NOT_DIRECTORY", "路径不是目录", 400)
+    if (!metadata.isDirectory())
+      throw new AgentError('WORKSPACE_NOT_DIRECTORY', '路径不是目录', 400)
     return canonical
   }
 
-  async list(path = ".") {
+  async list(path = '.') {
     const directory = await this.directory(path)
     const entries = await readdir(directory, { withFileTypes: true })
     return entries
@@ -669,14 +732,14 @@ export class WorkspaceService {
       .map((entry) => ({
         name: entry.name,
         path: this.displayPath(resolve(directory, entry.name)),
-        type: entry.isDirectory() ? "directory" : entry.isFile() ? "file" : "other",
+        type: entry.isDirectory() ? 'directory' : entry.isFile() ? 'file' : 'other',
       }))
   }
 
-  async listEditorFiles(path = "."): Promise<WorkspaceFileEntry[]> {
-    const directory = await this.directory(path || ".")
+  async listEditorFiles(path = '.'): Promise<WorkspaceFileEntry[]> {
+    const directory = await this.directory(path || '.')
     const directoryPath = this.displayPath(directory)
-    const depth = directoryPath === "." ? 0 : directoryPath.split("/").length
+    const depth = directoryPath === '.' ? 0 : directoryPath.split('/').length
     const entries = await readdir(directory, { withFileTypes: true })
     entries.sort((left, right) => {
       const typeOrder = Number(right.isDirectory()) - Number(left.isDirectory())
@@ -695,7 +758,7 @@ export class WorkspaceService {
       result.push({
         name: entry.name,
         path: this.displayPath(entryPath),
-        type: entry.isDirectory() ? "directory" : "file",
+        type: entry.isDirectory() ? 'directory' : 'file',
         depth,
       })
     }
@@ -705,26 +768,38 @@ export class WorkspaceService {
   async read(path: string, offset = 0, limit = 400) {
     const canonical = await this.existingPath(path)
     const metadata = await stat(canonical)
-    if (!metadata.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
-    if (metadata.size > MAX_FILE_BYTES) throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `文件超过 ${MAX_FILE_BYTES} 字节读取上限`, 413)
+    if (!metadata.isFile()) throw new AgentError('WORKSPACE_NOT_FILE', '路径不是文本文件', 400)
+    if (metadata.size > MAX_FILE_BYTES)
+      throw new AgentError(
+        'WORKSPACE_FILE_TOO_LARGE',
+        `文件超过 ${MAX_FILE_BYTES} 字节读取上限`,
+        413,
+      )
     try {
       const text = decodeUtf8(await readFile(canonical))
       const fileLines = text.split(/\r?\n/)
-      return fileLines.slice(Math.max(0, offset), Math.max(0, offset) + Math.max(1, Math.min(10_000, limit))).join("\n")
+      return fileLines
+        .slice(Math.max(0, offset), Math.max(0, offset) + Math.max(1, Math.min(10_000, limit)))
+        .join('\n')
     } catch {
-      throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件无法按 UTF-8 读取", 400)
+      throw new AgentError('WORKSPACE_FILE_UNREADABLE', '文件无法按 UTF-8 读取', 400)
     }
   }
 
   async readEditorFile(path: string): Promise<WorkspaceEditorFile> {
     const canonical = await this.existingPath(path)
     const metadata = await stat(canonical)
-    if (!metadata.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
+    if (!metadata.isFile()) throw new AgentError('WORKSPACE_NOT_FILE', '路径不是文本文件', 400)
     if (metadata.size > EDITOR_READ_MAX_BYTES) {
-      throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `文件超过 ${EDITOR_READ_MAX_BYTES} 字节编辑器读取上限`, 413, {
-        sizeBytes: metadata.size,
-        maxBytes: EDITOR_READ_MAX_BYTES,
-      })
+      throw new AgentError(
+        'WORKSPACE_FILE_TOO_LARGE',
+        `文件超过 ${EDITOR_READ_MAX_BYTES} 字节编辑器读取上限`,
+        413,
+        {
+          sizeBytes: metadata.size,
+          maxBytes: EDITOR_READ_MAX_BYTES,
+        },
+      )
     }
     let bytes: Buffer
     let content: string
@@ -733,14 +808,14 @@ export class WorkspaceService {
       content = decodeUtf8(bytes)
     } catch (cause) {
       if (cause instanceof AgentError) throw cause
-      throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件无法按 UTF-8 读取", 400)
+      throw new AgentError('WORKSPACE_FILE_UNREADABLE', '文件无法按 UTF-8 读取', 400)
     }
     const current = await stat(canonical)
-    if (!current.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
+    if (!current.isFile()) throw new AgentError('WORKSPACE_NOT_FILE', '路径不是文本文件', 400)
     return {
       path: this.displayPath(canonical),
       content,
-      sizeBytes: Buffer.byteLength(content, "utf8"),
+      sizeBytes: Buffer.byteLength(content, 'utf8'),
       readonly: current.size > EDITOR_WRITE_MAX_BYTES,
       truncated: false,
       revision: {
@@ -755,14 +830,14 @@ export class WorkspaceService {
   async watchEditorFile(path: string, onChange: (path: string) => void) {
     const canonical = await this.existingPath(path)
     const metadata = await stat(canonical)
-    if (!metadata.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
+    if (!metadata.isFile()) throw new AgentError('WORKSPACE_NOT_FILE', '路径不是文本文件', 400)
     const displayPath = this.displayPath(canonical)
     let debounce: ReturnType<typeof setTimeout> | undefined
     const watcher = watchFileSystem(canonical, { persistent: false }, () => {
       if (debounce) clearTimeout(debounce)
       debounce = setTimeout(() => onChange(displayPath), 50)
     })
-    watcher.on("error", () => {
+    watcher.on('error', () => {
       if (debounce) clearTimeout(debounce)
     })
     return {
@@ -777,7 +852,7 @@ export class WorkspaceService {
   async resolveEditorFilePath(path: string) {
     const canonical = await this.existingPath(path)
     const metadata = await stat(canonical)
-    if (!metadata.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
+    if (!metadata.isFile()) throw new AgentError('WORKSPACE_NOT_FILE', '路径不是文本文件', 400)
     return this.displayPath(canonical)
   }
 
@@ -789,44 +864,48 @@ export class WorkspaceService {
   async commitEditorMutations(
     mutations: readonly EditorMutation[],
   ): Promise<EditorMutationCommitResult> {
-    if (mutations.length === 0) throw new AgentError("INVALID_REQUEST", "文件变更不能为空", 400)
+    if (mutations.length === 0) throw new AgentError('INVALID_REQUEST', '文件变更不能为空', 400)
     for (const mutation of mutations) {
-      if (mutation.operation === "update" || mutation.operation === "delete") {
+      if (mutation.operation === 'update' || mutation.operation === 'delete') {
         if (
-          !Number.isFinite(mutation.expectedRevision.mtimeMs)
-          || mutation.expectedRevision.mtimeMs < 0
-          || !/^[a-f\d]{64}$/i.test(mutation.expectedRevision.sha256)
-          || (
-            mutation.expectedRevision.rawSha256 !== undefined
-            && !/^[a-f\d]{64}$/i.test(mutation.expectedRevision.rawSha256)
-          )
-          || (
-            mutation.expectedRevision.utf8Bom !== undefined
-            && typeof mutation.expectedRevision.utf8Bom !== "boolean"
-          )
+          !Number.isFinite(mutation.expectedRevision.mtimeMs) ||
+          mutation.expectedRevision.mtimeMs < 0 ||
+          !/^[a-f\d]{64}$/i.test(mutation.expectedRevision.sha256) ||
+          (mutation.expectedRevision.rawSha256 !== undefined &&
+            !/^[a-f\d]{64}$/i.test(mutation.expectedRevision.rawSha256)) ||
+          (mutation.expectedRevision.utf8Bom !== undefined &&
+            typeof mutation.expectedRevision.utf8Bom !== 'boolean')
         ) {
-          throw new AgentError("INVALID_REQUEST", "expectedRevision 参数无效", 400)
+          throw new AgentError('INVALID_REQUEST', 'expectedRevision 参数无效', 400)
         }
       }
-      if (mutation.operation !== "delete") {
+      if (mutation.operation !== 'delete') {
         const normalized = encodeUtf8(mutation.content, false).content
-        if (Buffer.byteLength(normalized, "utf8") > EDITOR_WRITE_MAX_BYTES) {
-          throw new AgentError("WORKSPACE_FILE_READONLY", `编辑器只允许保存不超过 ${EDITOR_WRITE_MAX_BYTES} 字节的文件`, 413, {
-            sizeBytes: Buffer.byteLength(normalized, "utf8"),
-            maxBytes: EDITOR_WRITE_MAX_BYTES,
-          })
+        if (Buffer.byteLength(normalized, 'utf8') > EDITOR_WRITE_MAX_BYTES) {
+          throw new AgentError(
+            'WORKSPACE_FILE_READONLY',
+            `编辑器只允许保存不超过 ${EDITOR_WRITE_MAX_BYTES} 字节的文件`,
+            413,
+            {
+              sizeBytes: Buffer.byteLength(normalized, 'utf8'),
+              maxBytes: EDITOR_WRITE_MAX_BYTES,
+            },
+          )
         }
       }
     }
 
-    const initialInspections = await Promise.all(mutations.map((mutation) =>
-      this.inspectMutationPathInternal(
-        mutation.path,
-        mutation.operation === "create" ? "new-file" : "existing-file",
-      )))
+    const initialInspections = await Promise.all(
+      mutations.map((mutation) =>
+        this.inspectMutationPathInternal(
+          mutation.path,
+          mutation.operation === 'create' ? 'new-file' : 'existing-file',
+        ),
+      ),
+    )
     const keys = initialInspections.map((inspection) => inspection.key)
     if (new Set(keys).size !== keys.length) {
-      throw new AgentError("INVALID_REQUEST", "同一批次不能多次修改同一个文件", 400)
+      throw new AgentError('INVALID_REQUEST', '同一批次不能多次修改同一个文件', 400)
     }
 
     return this.withMutationLocks(keys, async () => {
@@ -841,7 +920,9 @@ export class WorkspaceService {
       }
 
       const staged: StagedMutation[] = []
-      const results: Array<EditorMutationResult | undefined> = Array.from({ length: mutations.length })
+      const results: Array<EditorMutationResult | undefined> = Array.from({
+        length: mutations.length,
+      })
       const committed = new Set<number>()
       try {
         for (let index = 0; index < mutations.length; index += 1) {
@@ -849,39 +930,40 @@ export class WorkspaceService {
           const initial = initialInspections[index]!
           const inspection = await this.inspectMutationPathInternal(
             mutation.path,
-            mutation.operation === "create" ? "new-file" : "existing-file",
+            mutation.operation === 'create' ? 'new-file' : 'existing-file',
           )
           if (inspection.key !== initial.key) {
-            throw new AgentError("WORKSPACE_FILE_STALE", "文件路径在写入前发生变化，请重新读取", 409)
+            throw new AgentError(
+              'WORKSPACE_FILE_STALE',
+              '文件路径在写入前发生变化，请重新读取',
+              409,
+            )
           }
-          if (mutation.operation === "update" || mutation.operation === "delete") {
-            if (inspection.expectation !== "existing-file") {
-              throw new AgentError("WORKSPACE_FILE_STALE", "文件在写入前发生变化，请重新读取", 409)
+          if (mutation.operation === 'update' || mutation.operation === 'delete') {
+            if (inspection.expectation !== 'existing-file') {
+              throw new AgentError('WORKSPACE_FILE_STALE', '文件在写入前发生变化，请重新读取', 409)
             }
             const expectedSha256 = mutation.expectedRevision.sha256.toLowerCase()
             if (
-              inspection.revision.mtimeMs !== mutation.expectedRevision.mtimeMs
-              || inspection.revision.sha256 !== expectedSha256
-              || (
-                mutation.expectedRevision.rawSha256 !== undefined
-                && inspection.rawSha256 !== mutation.expectedRevision.rawSha256.toLowerCase()
-              )
-              || (
-                mutation.expectedRevision.utf8Bom !== undefined
-                && inspection.utf8Bom !== mutation.expectedRevision.utf8Bom
-              )
+              inspection.revision.mtimeMs !== mutation.expectedRevision.mtimeMs ||
+              inspection.revision.sha256 !== expectedSha256 ||
+              (mutation.expectedRevision.rawSha256 !== undefined &&
+                inspection.rawSha256 !== mutation.expectedRevision.rawSha256.toLowerCase()) ||
+              (mutation.expectedRevision.utf8Bom !== undefined &&
+                inspection.utf8Bom !== mutation.expectedRevision.utf8Bom)
             ) {
-              throw new AgentError("WORKSPACE_FILE_STALE", "文件在写入前发生变化，拒绝覆写", 409, {
+              throw new AgentError('WORKSPACE_FILE_STALE', '文件在写入前发生变化，拒绝覆写', 409, {
                 currentRevision: inspection.revision,
               })
             }
           }
-          const encoded = mutation.operation === "delete"
-            ? null
-            : encodeUtf8(
-                mutation.content,
-                inspection.expectation === "existing-file" && inspection.utf8Bom,
-              )
+          const encoded =
+            mutation.operation === 'delete'
+              ? null
+              : encodeUtf8(
+                  mutation.content,
+                  inspection.expectation === 'existing-file' && inspection.utf8Bom,
+                )
           staged.push({
             index,
             key: inspection.key,
@@ -897,8 +979,8 @@ export class WorkspaceService {
 
         for (const item of staged) {
           if (item.temporaryPath && item.bytes) {
-            await writeFile(item.temporaryPath, item.bytes, { flag: "wx" })
-            if (item.inspection.expectation === "existing-file") {
+            await writeFile(item.temporaryPath, item.bytes, { flag: 'wx' })
+            if (item.inspection.expectation === 'existing-file') {
               await chmod(item.temporaryPath, item.inspection.mode)
             }
           }
@@ -907,20 +989,22 @@ export class WorkspaceService {
         for (const item of staged) {
           const current = await this.inspectMutationPathInternal(
             item.mutation.path,
-            item.mutation.operation === "create" ? "new-file" : "existing-file",
+            item.mutation.operation === 'create' ? 'new-file' : 'existing-file',
           )
           if (current.key !== item.key) {
-            throw new AgentError("WORKSPACE_FILE_STALE", "文件路径在提交前发生变化，请重新读取", 409)
+            throw new AgentError(
+              'WORKSPACE_FILE_STALE',
+              '文件路径在提交前发生变化，请重新读取',
+              409,
+            )
           }
           if (
-            current.expectation === "existing-file"
-            && item.inspection.expectation === "existing-file"
-            && (
-              current.rawSha256 !== item.inspection.rawSha256
-              || current.revision.mtimeMs !== item.inspection.revision.mtimeMs
-            )
+            current.expectation === 'existing-file' &&
+            item.inspection.expectation === 'existing-file' &&
+            (current.rawSha256 !== item.inspection.rawSha256 ||
+              current.revision.mtimeMs !== item.inspection.revision.mtimeMs)
           ) {
-            throw new AgentError("WORKSPACE_FILE_STALE", "文件在提交前发生变化，拒绝覆写", 409, {
+            throw new AgentError('WORKSPACE_FILE_STALE', '文件在提交前发生变化，拒绝覆写', 409, {
               currentRevision: current.revision,
             })
           }
@@ -930,27 +1014,29 @@ export class WorkspaceService {
         for (const item of commitOrder) {
           const current = await this.inspectMutationPathInternal(
             item.mutation.path,
-            item.mutation.operation === "create" ? "new-file" : "existing-file",
+            item.mutation.operation === 'create' ? 'new-file' : 'existing-file',
           )
           if (current.key !== item.key) {
-            throw new AgentError("WORKSPACE_FILE_STALE", "文件路径在提交前发生变化，请重新读取", 409)
+            throw new AgentError(
+              'WORKSPACE_FILE_STALE',
+              '文件路径在提交前发生变化，请重新读取',
+              409,
+            )
           }
           if (
-            current.expectation === "existing-file"
-            && item.inspection.expectation === "existing-file"
-            && (
-              current.rawSha256 !== item.inspection.rawSha256
-              || current.revision.mtimeMs !== item.inspection.revision.mtimeMs
-            )
+            current.expectation === 'existing-file' &&
+            item.inspection.expectation === 'existing-file' &&
+            (current.rawSha256 !== item.inspection.rawSha256 ||
+              current.revision.mtimeMs !== item.inspection.revision.mtimeMs)
           ) {
-            throw new AgentError("WORKSPACE_FILE_STALE", "文件在提交前发生变化，拒绝覆写", 409, {
+            throw new AgentError('WORKSPACE_FILE_STALE', '文件在提交前发生变化，拒绝覆写', 409, {
               currentRevision: current.revision,
             })
           }
-          if (item.mutation.operation === "delete") {
+          if (item.mutation.operation === 'delete') {
             await unlink(item.inspection.canonicalPath)
             committed.add(item.index)
-          } else if (item.mutation.operation === "create") {
+          } else if (item.mutation.operation === 'create') {
             await link(item.temporaryPath!, item.inspection.canonicalPath)
             committed.add(item.index)
             await unlink(item.temporaryPath!)
@@ -963,13 +1049,14 @@ export class WorkspaceService {
             committed.add(item.index)
           }
           item.temporaryPath = null
-          if (item.mutation.operation === "delete") {
+          if (item.mutation.operation === 'delete') {
             results[item.index] = {
-              operation: "delete",
+              operation: 'delete',
               path: item.inspection.path,
-              beforeSha256: item.inspection.expectation === "existing-file"
-                ? item.inspection.revision.sha256
-                : null,
+              beforeSha256:
+                item.inspection.expectation === 'existing-file'
+                  ? item.inspection.revision.sha256
+                  : null,
               afterSha256: null,
               revision: null,
             }
@@ -979,9 +1066,10 @@ export class WorkspaceService {
           results[item.index] = {
             operation: item.mutation.operation,
             path: item.inspection.path,
-            beforeSha256: item.inspection.expectation === "existing-file"
-              ? item.inspection.revision.sha256
-              : null,
+            beforeSha256:
+              item.inspection.expectation === 'existing-file'
+                ? item.inspection.revision.sha256
+                : null,
             afterSha256: sha256(item.content!),
             revision: {
               mtimeMs: saved.mtimeMs,
@@ -992,58 +1080,78 @@ export class WorkspaceService {
           }
         }
       } catch (cause) {
-        await Promise.all(staged.map((item) =>
-          item.temporaryPath ? unlink(item.temporaryPath).catch(() => undefined) : Promise.resolve()))
+        await Promise.all(
+          staged.map((item) =>
+            item.temporaryPath
+              ? unlink(item.temporaryPath).catch(() => undefined)
+              : Promise.resolve(),
+          ),
+        )
         if (committed.size > 0) {
-          throw new AgentError("PATCH_PARTIAL_COMMIT", "补丁仅部分写入，请重新读取相关文件后重试", 500, {
-            committed: staged
-              .filter((item) => committed.has(item.index))
-              .map((item) => item.inspection.path),
-            pending: staged
-              .filter((item) => !committed.has(item.index))
-              .map((item) => item.inspection.path),
-          })
+          throw new AgentError(
+            'PATCH_PARTIAL_COMMIT',
+            '补丁仅部分写入，请重新读取相关文件后重试',
+            500,
+            {
+              committed: staged
+                .filter((item) => committed.has(item.index))
+                .map((item) => item.inspection.path),
+              pending: staged
+                .filter((item) => !committed.has(item.index))
+                .map((item) => item.inspection.path),
+            },
+          )
         }
         if (cause instanceof AgentError) throw cause
-        throw new AgentError("WORKSPACE_WRITE_FAILED", "无法原子写入工作区文件", 500)
+        throw new AgentError('WORKSPACE_WRITE_FAILED', '无法原子写入工作区文件', 500)
       }
       return {
-        outcome: "committed",
+        outcome: 'committed',
         files: results.map((result) => result!),
       }
     })
   }
 
   async saveEditorFile(path: string, content: string, expectedRevision: WorkspaceFileRevision) {
-    if (!Number.isFinite(expectedRevision.mtimeMs) || expectedRevision.mtimeMs < 0 || !/^[a-f\d]{64}$/i.test(expectedRevision.sha256)) {
-      throw new AgentError("INVALID_REQUEST", "expectedRevision 参数无效", 400)
+    if (
+      !Number.isFinite(expectedRevision.mtimeMs) ||
+      expectedRevision.mtimeMs < 0 ||
+      !/^[a-f\d]{64}$/i.test(expectedRevision.sha256)
+    ) {
+      throw new AgentError('INVALID_REQUEST', 'expectedRevision 参数无效', 400)
     }
     try {
-      const committed = await this.commitEditorMutations([{
-        operation: "update",
-        path,
-        content,
-        expectedRevision,
-      }])
+      const committed = await this.commitEditorMutations([
+        {
+          operation: 'update',
+          path,
+          content,
+          expectedRevision,
+        },
+      ])
       return {
-        outcome: "saved" as const,
+        outcome: 'saved' as const,
         revision: committed.files[0]!.revision,
       }
     } catch (cause) {
-      if (cause instanceof AgentError && cause.code === "WORKSPACE_FILE_STALE") {
-        const currentRevision = (
-          cause.details
-          && typeof cause.details === "object"
-          && "currentRevision" in cause.details
-        ) ? (cause.details as { currentRevision: WorkspaceFileRevision }).currentRevision : null
-        if (currentRevision) return { outcome: "conflict" as const, revision: currentRevision }
+      if (cause instanceof AgentError && cause.code === 'WORKSPACE_FILE_STALE') {
+        const currentRevision =
+          cause.details && typeof cause.details === 'object' && 'currentRevision' in cause.details
+            ? (cause.details as { currentRevision: WorkspaceFileRevision }).currentRevision
+            : null
+        if (currentRevision) return { outcome: 'conflict' as const, revision: currentRevision }
       }
       throw cause
     }
   }
 
-  async search(path: string, query: string, signal: AbortSignal, limit = SEARCH_LIMIT): Promise<WorkspaceSearchResult[]> {
-    if (!query.trim()) throw new AgentError("INVALID_TOOL_INPUT", "query 必须是非空字符串", 400)
+  async search(
+    path: string,
+    query: string,
+    signal: AbortSignal,
+    limit = SEARCH_LIMIT,
+  ): Promise<WorkspaceSearchResult[]> {
+    if (!query.trim()) throw new AgentError('INVALID_TOOL_INPUT', 'query 必须是非空字符串', 400)
     const root = await this.directory(path)
     const found: WorkspaceSearchResult[] = []
     const needle = query.toLowerCase()
@@ -1051,10 +1159,24 @@ export class WorkspaceService {
     let visitedFiles = 0
     let readBytes = 0
     const visit = async (directory: string): Promise<void> => {
-      if (signal.aborted || found.length >= limit || visitedFiles >= SEARCH_MAX_FILES || readBytes >= SEARCH_MAX_BYTES || Date.now() >= deadline) return
+      if (
+        signal.aborted ||
+        found.length >= limit ||
+        visitedFiles >= SEARCH_MAX_FILES ||
+        readBytes >= SEARCH_MAX_BYTES ||
+        Date.now() >= deadline
+      )
+        return
       const entries = await readdir(directory, { withFileTypes: true })
       for (const entry of entries) {
-        if (signal.aborted || found.length >= limit || visitedFiles >= SEARCH_MAX_FILES || readBytes >= SEARCH_MAX_BYTES || Date.now() >= deadline) return
+        if (
+          signal.aborted ||
+          found.length >= limit ||
+          visitedFiles >= SEARCH_MAX_FILES ||
+          readBytes >= SEARCH_MAX_BYTES ||
+          Date.now() >= deadline
+        )
+          return
         if (IGNORED_DIRECTORIES.has(entry.name) || entry.isSymbolicLink()) continue
         const candidate = resolve(directory, entry.name)
         if (entry.isDirectory()) {
@@ -1077,7 +1199,11 @@ export class WorkspaceService {
           const index = lines.findIndex((line) => line.toLowerCase().includes(needle))
           if (index >= 0) {
             const preview = lines[index]?.trim()
-            found.push({ path: display, line: index + 1, ...(preview === undefined ? {} : { preview }) })
+            found.push({
+              path: display,
+              line: index + 1,
+              ...(preview === undefined ? {} : { preview }),
+            })
           }
         } catch {
           // Binary and unreadable files are deliberately skipped.
@@ -1085,14 +1211,20 @@ export class WorkspaceService {
       }
     }
     await visit(root)
-    if (signal.aborted) throw new AgentError("RUN_ABORTED", "任务已停止", 499)
-    if (Date.now() >= deadline) throw new AgentError("WORKSPACE_SEARCH_TIMEOUT", "工作区搜索超过 10 秒预算", 408)
+    if (signal.aborted) throw new AgentError('RUN_ABORTED', '任务已停止', 499)
+    if (Date.now() >= deadline)
+      throw new AgentError('WORKSPACE_SEARCH_TIMEOUT', '工作区搜索超过 10 秒预算', 408)
     return found
   }
 
   async applyPatch(input: ApplyPatchInput): Promise<ApplyPatchResult> {
-    if (input.operation === "create") {
-      if (Buffer.byteLength(input.content, "utf8") > MAX_FILE_BYTES) throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `最终文件超过 ${MAX_FILE_BYTES} 字节上限`, 413)
+    if (input.operation === 'create') {
+      if (Buffer.byteLength(input.content, 'utf8') > MAX_FILE_BYTES)
+        throw new AgentError(
+          'WORKSPACE_FILE_TOO_LARGE',
+          `最终文件超过 ${MAX_FILE_BYTES} 字节上限`,
+          413,
+        )
       const canonical = await this.createPath(input.path)
       await this.replaceAtomically(canonical, input.content)
       const path = this.displayPath(canonical)
@@ -1109,20 +1241,31 @@ export class WorkspaceService {
 
     const canonical = await this.existingPath(input.path)
     const metadata = await stat(canonical)
-    if (!metadata.isFile()) throw new AgentError("WORKSPACE_NOT_FILE", "路径不是文本文件", 400)
-    if (metadata.size > MAX_FILE_BYTES) throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `文件超过 ${MAX_FILE_BYTES} 字节读取上限`, 413)
-    const current = await readFile(canonical).then(decodeUtf8).catch(() => {
-      throw new AgentError("WORKSPACE_FILE_UNREADABLE", "文件无法按 UTF-8 读取", 400)
-    })
+    if (!metadata.isFile()) throw new AgentError('WORKSPACE_NOT_FILE', '路径不是文本文件', 400)
+    if (metadata.size > MAX_FILE_BYTES)
+      throw new AgentError(
+        'WORKSPACE_FILE_TOO_LARGE',
+        `文件超过 ${MAX_FILE_BYTES} 字节读取上限`,
+        413,
+      )
+    const current = await readFile(canonical)
+      .then(decodeUtf8)
+      .catch(() => {
+        throw new AgentError('WORKSPACE_FILE_UNREADABLE', '文件无法按 UTF-8 读取', 400)
+      })
     const path = this.displayPath(canonical)
     const beforeSha256 = sha256(current)
 
-    if (input.operation === "delete") {
+    if (input.operation === 'delete') {
       if (!/^[a-f\d]{64}$/i.test(input.expectedSha256)) {
-        throw new AgentError("INVALID_TOOL_INPUT", "expectedSha256 必须是 64 位十六进制 SHA-256", 400)
+        throw new AgentError(
+          'INVALID_TOOL_INPUT',
+          'expectedSha256 必须是 64 位十六进制 SHA-256',
+          400,
+        )
       }
       if (input.expectedSha256.toLowerCase() !== beforeSha256) {
-        throw new AgentError("PATCH_SHA256_MISMATCH", "文件内容已变化，拒绝删除", 409)
+        throw new AgentError('PATCH_SHA256_MISMATCH', '文件内容已变化，拒绝删除', 409)
       }
       this.ensureWritable(canonical)
       await unlink(canonical)
@@ -1139,7 +1282,12 @@ export class WorkspaceService {
 
     const index = uniqueContextIndex(current, input.before)
     const updated = `${current.slice(0, index)}${input.after}${current.slice(index + input.before.length)}`
-    if (Buffer.byteLength(updated, "utf8") > MAX_FILE_BYTES) throw new AgentError("WORKSPACE_FILE_TOO_LARGE", `最终文件超过 ${MAX_FILE_BYTES} 字节上限`, 413)
+    if (Buffer.byteLength(updated, 'utf8') > MAX_FILE_BYTES)
+      throw new AgentError(
+        'WORKSPACE_FILE_TOO_LARGE',
+        `最终文件超过 ${MAX_FILE_BYTES} 字节上限`,
+        413,
+      )
     await this.replaceAtomically(canonical, updated, metadata.mode)
     return {
       operation: input.operation,
@@ -1151,5 +1299,4 @@ export class WorkspaceService {
       afterSha256: sha256(updated),
     }
   }
-
 }

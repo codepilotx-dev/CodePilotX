@@ -34,10 +34,7 @@ export type RefreshWorkspaceOptions = {
 }
 
 type WorkspaceRefreshCoordinator<T> = {
-  load: (
-    target: DesktopWorkspace,
-    options?: { force?: boolean },
-  ) => Promise<T> | null
+  load: (target: DesktopWorkspace, options?: { force?: boolean }) => Promise<T> | null
   markApplied: (target: DesktopWorkspace) => void
   reset: () => void
 }
@@ -96,9 +93,7 @@ export function mergeWorkspaceGitProjection(
     ? [
         ...new Set([
           ...(branchName ? [branchName] : []),
-          ...branchRefs
-            .filter(branch => !branch.remote)
-            .map(branch => branch.name),
+          ...branchRefs.filter((branch) => !branch.remote).map((branch) => branch.name),
         ]),
       ]
     : []
@@ -118,7 +113,7 @@ export function mergeWorkspaceReviewFileStats(
   gitStatus: DesktopGitStatus,
   summaries: readonly (Pick<DesktopReviewAgentSummary, 'files'> | null)[],
 ): DesktopGitStatus {
-  if (summaries.some(summary => summary === null)) return gitStatus
+  if (summaries.some((summary) => summary === null)) return gitStatus
 
   const statsByPath = new Map<string, { additions: number; deletions: number }>()
   for (const summary of summaries) {
@@ -135,7 +130,7 @@ export function mergeWorkspaceReviewFileStats(
 
   return {
     ...gitStatus,
-    files: gitStatus.files.map(file => {
+    files: gitStatus.files.map((file) => {
       const stats = statsByPath.get(normalizeWorkspacePath(file.path))
       return stats ? { ...file, ...stats } : file
     }),
@@ -174,21 +169,16 @@ export async function resolveWorkspaceGitProjection(
     }
   }
 
-  const [branchesResult, unstagedResult, stagedResult] =
-    await Promise.allSettled([
-      loaders.loadBranches(),
-      loaders.loadReviewSummary({ kind: 'unstaged' }),
-      loaders.loadReviewSummary({ kind: 'staged' }),
-    ])
-  const summaries = [unstagedResult, stagedResult].map(result =>
+  const [branchesResult, unstagedResult, stagedResult] = await Promise.allSettled([
+    loaders.loadBranches(),
+    loaders.loadReviewSummary({ kind: 'unstaged' }),
+    loaders.loadReviewSummary({ kind: 'staged' }),
+  ])
+  const summaries = [unstagedResult, stagedResult].map((result) =>
     result.status === 'fulfilled' ? result.value.snapshot : null,
   )
-  const nextGitStatus = mergeWorkspaceReviewFileStats(
-    gitStatusResult.status,
-    summaries,
-  )
-  const branches =
-    branchesResult.status === 'fulfilled' ? branchesResult.value : []
+  const nextGitStatus = mergeWorkspaceReviewFileStats(gitStatusResult.status, summaries)
+  const branches = branchesResult.status === 'fulfilled' ? branchesResult.value : []
   return {
     workspace: mergeWorkspaceGitProjection(context, nextGitStatus, branches),
     gitStatus: nextGitStatus,
@@ -222,17 +212,12 @@ export type UseWorkspaceStateResult = {
   setDiff: (diff: string) => void
 }
 
-export function useWorkspaceState(
-  options: UseWorkspaceStateOptions,
-): UseWorkspaceStateResult {
+export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspaceStateResult {
   const [workspace, setWorkspaceState] = useState<DesktopWorkspace | null>(null)
   const [authStatus, setAuthStatus] = useState<DesktopAuthStatus | null>(null)
-  const [runtimeStatus, setRuntimeStatus] = useState<DesktopRuntimeStatus | null>(
-    null,
-  )
+  const [runtimeStatus, setRuntimeStatus] = useState<DesktopRuntimeStatus | null>(null)
   const [files, setFiles] = useState<DesktopFileEntry[]>([])
-  const [selectedFile, setSelectedFileState] =
-    useState<DesktopFilePreview | null>(null)
+  const [selectedFile, setSelectedFileState] = useState<DesktopFilePreview | null>(null)
   const selectedFileRef = useRef<DesktopFilePreview | null>(null)
   const [diff, setDiff] = useState(NO_WORKSPACE_DIFF)
   const [gitStatus, setGitStatus] = useState<DesktopGitStatus | null>(null)
@@ -244,54 +229,45 @@ export function useWorkspaceState(
   onWorkspaceUnavailableRef.current = options.onWorkspaceUnavailable
   const onRecentWorkspacesChangeRef = useRef(options.onRecentWorkspacesChange)
   onRecentWorkspacesChangeRef.current = options.onRecentWorkspacesChange
-  const refreshCoordinatorRef =
-    useRef<WorkspaceRefreshCoordinator<WorkspaceRefreshResult> | null>(null)
+  const refreshCoordinatorRef = useRef<WorkspaceRefreshCoordinator<WorkspaceRefreshResult> | null>(
+    null,
+  )
   if (!refreshCoordinatorRef.current) {
-    refreshCoordinatorRef.current = createWorkspaceRefreshCoordinator(
-      async target => {
-        // 项目上下文与文件树是工作区的核心状态；Git/Review 失败不能阻止它们更新。
-        const [nextContext, nextFiles] = await Promise.all([
-          desktopClient.getWorkspaceContext(target.path, target.projectId),
-          desktopClient.listWorkspaceFiles(
-            target.path,
-            '.',
-            target.primaryFolderId,
-            target.projectId,
-          ),
-        ])
-        return {
-          context: nextContext,
-          files: nextFiles,
-        }
-      },
-    )
+    refreshCoordinatorRef.current = createWorkspaceRefreshCoordinator(async (target) => {
+      // 项目上下文与文件树是工作区的核心状态；Git/Review 失败不能阻止它们更新。
+      const [nextContext, nextFiles] = await Promise.all([
+        desktopClient.getWorkspaceContext(target.path, target.projectId),
+        desktopClient.listWorkspaceFiles(
+          target.path,
+          '.',
+          target.primaryFolderId,
+          target.projectId,
+        ),
+      ])
+      return {
+        context: nextContext,
+        files: nextFiles,
+      }
+    })
   }
 
   function setActiveSessionId(id: string | null): void {
     activeSessionIdRef.current = id
   }
 
-  const setSelectedFile = useCallback(
-    (preview: DesktopFilePreview | null): void => {
-      selectedFileRef.current = preview
-      setSelectedFileState(preview)
-    },
-    [],
-  )
+  const setSelectedFile = useCallback((preview: DesktopFilePreview | null): void => {
+    selectedFileRef.current = preview
+    setSelectedFileState(preview)
+  }, [])
 
-  const setWorkspace = useCallback(
-    (nextWorkspace: DesktopWorkspace | null): void => {
-      setWorkspaceState(nextWorkspace)
-      appliedWorkspaceIdentityRef.current = nextWorkspace
-        ? workspaceIdentity(nextWorkspace)
-        : null
-      if (!nextWorkspace) {
-        refreshCoordinatorRef.current?.reset()
-        setGitStatus(null)
-      }
-    },
-    [],
-  )
+  const setWorkspace = useCallback((nextWorkspace: DesktopWorkspace | null): void => {
+    setWorkspaceState(nextWorkspace)
+    appliedWorkspaceIdentityRef.current = nextWorkspace ? workspaceIdentity(nextWorkspace) : null
+    if (!nextWorkspace) {
+      refreshCoordinatorRef.current?.reset()
+      setGitStatus(null)
+    }
+  }, [])
 
   const refreshRuntimeStatus = useCallback(async (): Promise<void> => {
     try {
@@ -305,7 +281,7 @@ export function useWorkspaceState(
   useEffect(() => {
     void desktopClient
       .getAuthStatus()
-      .then(status => setAuthStatus(status))
+      .then((status) => setAuthStatus(status))
       .catch((error: unknown) => onErrorRef.current(errorMessageOf(error)))
   }, [])
 
@@ -353,7 +329,7 @@ export function useWorkspaceState(
           return
         }
         setWorkspace(result.context)
-        onRecentWorkspacesChangeRef.current(current =>
+        onRecentWorkspacesChangeRef.current((current) =>
           upsertRecentWorkspace(current, result.context),
         )
         setFiles(result.files)
@@ -401,30 +377,26 @@ export function useWorkspaceState(
     }
   }
 
-  async function refreshWorkspaceGitProjection(
-    target: DesktopWorkspace,
-  ): Promise<void> {
+  async function refreshWorkspaceGitProjection(target: DesktopWorkspace): Promise<void> {
     const identity = workspaceIdentity(target)
-    const { workspace: projected, gitStatus: nextGitStatus } =
-      await resolveWorkspaceGitProjection(target, {
-        loadGitStatus: () =>
-          desktopClient.getWorkspaceGitStatus(target.path, target.projectId),
-        loadBranches: () =>
-          desktopClient.getAgentReviewBranches(target.path, target.projectId),
-        loadReviewSummary: source =>
+    const { workspace: projected, gitStatus: nextGitStatus } = await resolveWorkspaceGitProjection(
+      target,
+      {
+        loadGitStatus: () => desktopClient.getWorkspaceGitStatus(target.path, target.projectId),
+        loadBranches: () => desktopClient.getAgentReviewBranches(target.path, target.projectId),
+        loadReviewSummary: (source) =>
           desktopClient.getAgentReviewSummary({
             ...(target.projectId ? { projectId: target.projectId } : {}),
             workspacePath: target.path,
             source,
             refresh: true,
           }),
-      })
+      },
+    )
     if (appliedWorkspaceIdentityRef.current !== identity) return
     setWorkspaceState(projected)
     setGitStatus(nextGitStatus)
-    onRecentWorkspacesChangeRef.current(current =>
-      upsertRecentWorkspace(current, projected),
-    )
+    onRecentWorkspacesChangeRef.current((current) => upsertRecentWorkspace(current, projected))
   }
 
   const chooseWorkspace = useCallback(async (): Promise<DesktopWorkspace | null> => {
@@ -440,10 +412,7 @@ export function useWorkspaceState(
   const openRecentWorkspace = useCallback(
     async (target: DesktopWorkspace): Promise<DesktopWorkspace | null> => {
       try {
-        const selected = await desktopClient.openWorkspace(
-          target.path,
-          target.projectId,
-        )
+        const selected = await desktopClient.openWorkspace(target.path, target.projectId)
         return selected
       } catch (error) {
         if (isWorkspaceUnavailableError(error)) {

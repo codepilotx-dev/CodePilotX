@@ -1,10 +1,10 @@
 /* Theme-aware settings controls and the Codex appearance editor. */
-.settings-dropdown[data-variant="theme"] {
+.settings-dropdown[data-variant='theme'] {
   width: 180px;
   min-width: 180px;
 }
 
-.settings-dropdown-content[data-variant="theme"] {
+.settings-dropdown-content[data-variant='theme'] {
   width: var(--popover-width, 11rem);
   max-width: var(--popover-max-width, min(360px, calc(100vw - 16px)));
   max-height: min(320px, calc(100vh - 96px));
@@ -59,12 +59,12 @@
     outline-offset: 2px;
   }
 
-  &[data-state="checked"] .appearance-mode-visual {
+  &[data-state='checked'] .appearance-mode-visual {
     border-width: 2px;
     border-color: var(--cpx-sys-color-fg-primary);
   }
 
-  &[data-state="checked"] .appearance-mode-label {
+  &[data-state='checked'] .appearance-mode-label {
     color: var(--cpx-sys-color-fg-primary);
   }
 }
@@ -87,11 +87,11 @@
   }
 }
 
-.appearance-mode-card[data-mode="dark"] .appearance-mode-visual {
+.appearance-mode-card[data-mode='dark'] .appearance-mode-visual {
   background: #5d5d5d;
 }
 
-.appearance-mode-card[data-mode="system"] .appearance-mode-visual {
+.appearance-mode-card[data-mode='system'] .appearance-mode-visual {
   background: linear-gradient(90deg, #9f9f9f 0 50%, #5d5d5d 50% 100%);
 }
 
@@ -151,8 +151,7 @@
   display: block;
   margin: 0 0 var(--cpx-sys-space-4);
   overflow: hidden;
-  border: 1px solid
-    color-mix(in srgb, var(--cpx-sys-color-fg-primary) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cpx-sys-color-fg-primary) 16%, transparent);
   border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-surface-editor);
 }
@@ -249,8 +248,8 @@
   overflow: hidden;
   border-radius: var(--cpx-sys-radius-md);
   background:
-    linear-gradient(to top, #000, transparent),
-    linear-gradient(to right, #fff, transparent), var(--appearance-picker-hue);
+    linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent),
+    var(--appearance-picker-hue);
   cursor: crosshair;
   touch-action: none;
 

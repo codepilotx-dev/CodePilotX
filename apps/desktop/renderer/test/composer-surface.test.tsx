@@ -16,9 +16,7 @@ const WORKSPACE: DesktopWorkspace = {
   branchName: 'feature/working-surface',
 }
 
-function composerCardProps(
-  overrides: Partial<ComposerCardProps> = {},
-): ComposerCardProps {
+function composerCardProps(overrides: Partial<ComposerCardProps> = {}): ComposerCardProps {
   return {
     input: '',
     canSubmit: true,
@@ -67,9 +65,7 @@ describe('composer surface variant', () => {
     const working = renderToStaticMarkup(
       <ComposerCard {...composerCardProps({ surface: 'working' })} />,
     )
-    const chat = renderToStaticMarkup(
-      <ComposerCard {...composerCardProps({ surface: 'chat' })} />,
-    )
+    const chat = renderToStaticMarkup(<ComposerCard {...composerCardProps({ surface: 'chat' })} />)
     expect(coding).toContain('data-surface="coding"')
     expect(working).toContain('data-surface="working"')
     expect(working).toContain('data-placement="new-session"')
@@ -98,16 +94,12 @@ describe('composer surface variant', () => {
       />,
     )
     const compact = renderToStaticMarkup(
-      <ComposerCard
-        {...composerCardProps({ radiusVariant: 'compact' })}
-      />,
+      <ComposerCard {...composerCardProps({ radiusVariant: 'compact' })} />,
     )
 
     expect(defaults).toContain('data-composer-layout="multiline"')
     expect(defaults).toContain('data-composer-radius-variant="default"')
-    expect(defaults).toContain(
-      'data-composer-utility-bar-variant="default"',
-    )
+    expect(defaults).toContain('data-composer-utility-bar-variant="default"')
     expect(home).toContain('data-composer-layout="multiline"')
     expect(home).toContain('data-composer-radius-variant="default"')
     expect(home).toContain('data-composer-utility-bar-variant="home"')
@@ -126,9 +118,7 @@ describe('composer surface variant', () => {
 
   test('Coding 选中 workspace 后显示会话组、分支与项目行为', () => {
     const html = renderToStaticMarkup(
-      <ComposerCard
-        {...composerCardProps({ surface: 'coding', workspace: WORKSPACE })}
-      />,
+      <ComposerCard {...composerCardProps({ surface: 'coding', workspace: WORKSPACE })} />,
     )
     expect(html).toContain('Alpha 工作区')
     expect(html).toContain('工作流')
@@ -138,9 +128,7 @@ describe('composer surface variant', () => {
 
   test('Chat 不渲染项目选择，但保留会话组、输入与提交结构', () => {
     const html = renderToStaticMarkup(
-      <ComposerCard
-        {...composerCardProps({ surface: 'chat', workspace: WORKSPACE })}
-      />,
+      <ComposerCard {...composerCardProps({ surface: 'chat', workspace: WORKSPACE })} />,
     )
     expect(html).toContain('class="composer-bottom composer-utility-bar')
     expect(html).not.toContain('Alpha 工作区')
@@ -150,9 +138,7 @@ describe('composer surface variant', () => {
   })
 
   test('未协商 dictation capability 时不渲染听写入口', () => {
-    const html = renderToStaticMarkup(
-      <ComposerCard {...composerCardProps({ surface: 'chat' })} />,
-    )
+    const html = renderToStaticMarkup(<ComposerCard {...composerCardProps({ surface: 'chat' })} />)
     // The SSR shell never negotiates dictation; the enabled path is covered by
     // the dedicated dictation suite instead of a disabled SSR stub.
     expect(html).not.toContain('composer-mic-button')
@@ -180,9 +166,7 @@ describe('composer surface variant', () => {
       <ComposerCard
         {...composerCardProps({
           modelConfigured: true,
-          modelPresets: [
-            { id: 'claude-sonnet', label: 'Claude Sonnet', value: 'claude-sonnet' },
-          ],
+          modelPresets: [{ id: 'claude-sonnet', label: 'Claude Sonnet', value: 'claude-sonnet' }],
           selectedModelPreset: 'claude-sonnet',
           showThinkingOptions: true,
           thinkingMode: 'adaptive',
@@ -214,16 +198,13 @@ describe('composer surface variant', () => {
     expect(html).not.toContain('composer-thinking-chip')
     expect(html).not.toContain('composer-model-trigger-effort-wrap')
     expect(resolveThinkingLabel(regularOptions, 'default')).toBe('默认')
-    expect(deepSeekOptions.map(option => option.label)).toEqual(['关闭', '高', '超高'])
+    expect(deepSeekOptions.map((option) => option.label)).toEqual(['关闭', '高', '超高'])
     expect(resolveThinkingLabel(deepSeekOptions, 'enabled')).toBe('超高')
   })
 
-
   test('Working 选中 workspace 后显示工作区名称并隐藏 Local 和分支', () => {
     const html = renderToStaticMarkup(
-      <ComposerCard
-        {...composerCardProps({ surface: 'working', workspace: WORKSPACE })}
-      />,
+      <ComposerCard {...composerCardProps({ surface: 'working', workspace: WORKSPACE })} />,
     )
     expect(html).toContain('Alpha 工作区')
     expect(html).not.toContain('本地')
@@ -234,9 +215,7 @@ describe('composer surface variant', () => {
   test('Composer 发送门禁不依赖 Git/Review 状态，非 Git 项目仍可提交', () => {
     expect(resolveComposerCanSubmit(canSubmitInput())).toBe(true)
     expect(
-      resolveComposerCanSubmit(
-        canSubmitInput({ placement: 'new-session', routedSessionId: null }),
-      ),
+      resolveComposerCanSubmit(canSubmitInput({ placement: 'new-session', routedSessionId: null })),
     ).toBe(true)
     expect(
       resolveComposerCanSubmit(
@@ -250,23 +229,13 @@ describe('composer surface variant', () => {
   })
 
   test('模型未配置与空输入仍禁止提交', () => {
+    expect(resolveComposerCanSubmit(canSubmitInput({ hasContent: false }))).toBe(false)
+    expect(resolveComposerCanSubmit(canSubmitInput({ modelConfigured: false }))).toBe(false)
     expect(
-      resolveComposerCanSubmit(canSubmitInput({ hasContent: false })),
+      resolveComposerCanSubmit(canSubmitInput({ placement: 'thread', routedSessionId: null })),
     ).toBe(false)
-    expect(
-      resolveComposerCanSubmit(canSubmitInput({ modelConfigured: false })),
-    ).toBe(false)
-    expect(
-      resolveComposerCanSubmit(
-        canSubmitInput({ placement: 'thread', routedSessionId: null }),
-      ),
-    ).toBe(false)
-    expect(
-      resolveComposerCanSubmit(canSubmitInput({ isSubmitting: true })),
-    ).toBe(false)
-    expect(
-      resolveComposerCanSubmit(canSubmitInput({ hasAttachmentErrors: true })),
-    ).toBe(false)
+    expect(resolveComposerCanSubmit(canSubmitInput({ isSubmitting: true }))).toBe(false)
+    expect(resolveComposerCanSubmit(canSubmitInput({ hasAttachmentErrors: true }))).toBe(false)
   })
 })
 

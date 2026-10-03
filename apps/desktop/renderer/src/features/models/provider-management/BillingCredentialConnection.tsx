@@ -1,7 +1,4 @@
-import type {
-  RpcParams,
-  UsageSourceDescriptor,
-} from '@codepilotx/agent-protocol'
+import type { RpcParams, UsageSourceDescriptor } from '@codepilotx/agent-protocol'
 import type React from 'react'
 import { useState } from 'react'
 import { Button } from '../../../components/ui/Button.js'
@@ -16,18 +13,17 @@ export type BillingUsageSourceDescriptor = UsageSourceDescriptor & {
   connectionMethod: BillingConnectionMethod
 }
 
-type ConnectInput = RpcParams<'usage/credential/connect'> extends infer Input
-  ? Input extends unknown
-    ? Omit<Input, 'operationId'>
+type ConnectInput =
+  RpcParams<'usage/credential/connect'> extends infer Input
+    ? Input extends unknown
+      ? Omit<Input, 'operationId'>
+      : never
     : never
-  : never
 
 export type BillingCredentialConnectionProps = {
   source: BillingUsageSourceDescriptor
   onConnect: (input: ConnectInput) => Promise<unknown>
-  onDisconnect: (
-    sourceId: BillingConnectionMethod['sourceId'],
-  ) => Promise<unknown>
+  onDisconnect: (sourceId: BillingConnectionMethod['sourceId']) => Promise<unknown>
   onChanged: () => void | Promise<void>
 }
 
@@ -50,7 +46,7 @@ export function BillingCredentialConnection({
       const input = {
         sourceId: source.connectionMethod.sourceId,
         ...Object.fromEntries(
-          source.connectionMethod.fields.map(field => [
+          source.connectionMethod.fields.map((field) => [
             field.name,
             values[field.name]?.trim() ?? '',
           ]),
@@ -90,30 +86,29 @@ export function BillingCredentialConnection({
               : '独立管理凭据仅用于余额和账务查询，不会进入推理 Key 池。'}
           </p>
         </div>
-        <span data-tone={connected ? 'success' : 'neutral'}>
-          {connected ? '已连接' : '可连接'}
-        </span>
+        <span data-tone={connected ? 'success' : 'neutral'}>{connected ? '已连接' : '可连接'}</span>
       </header>
       <div className="model-center-account-fields">
-        {source.connectionMethod.fields.map(field => (
+        {source.connectionMethod.fields.map((field) => (
           <label className="model-center-account-field" key={field.name}>
             <span>{field.label}</span>
             <Input
               autoComplete={field.secret ? 'off' : undefined}
-              onChange={event => setValues(current => ({
-                ...current,
-                [field.name]: event.target.value,
-              }))}
-              placeholder={
-                field.secret && connected ? `输入新的${field.label}以替换` : field.label
+              onChange={(event) =>
+                setValues((current) => ({
+                  ...current,
+                  [field.name]: event.target.value,
+                }))
               }
+              placeholder={field.secret && connected ? `输入新的${field.label}以替换` : field.label}
               type={field.secret ? 'password' : 'text'}
               value={values[field.name] ?? ''}
             />
           </label>
         ))}
         <div className="model-center-account-actions">
-          <Button color="primary"
+          <Button
+            color="primary"
             disabled={!fieldsComplete(source, values)}
             loading={busy}
             onClick={() => void connect()}
@@ -127,7 +122,11 @@ export function BillingCredentialConnection({
           ) : null}
         </div>
       </div>
-      {error ? <p className="model-center-account-error" role="status">{error}</p> : null}
+      {error ? (
+        <p className="model-center-account-error" role="status">
+          {error}
+        </p>
+      ) : null}
     </section>
   )
 }
@@ -137,6 +136,6 @@ function fieldsComplete(
   values: Readonly<Record<string, string>>,
 ): boolean {
   return source.connectionMethod.fields.every(
-    field => !field.required || Boolean(values[field.name]?.trim()),
+    (field) => !field.required || Boolean(values[field.name]?.trim()),
   )
 }

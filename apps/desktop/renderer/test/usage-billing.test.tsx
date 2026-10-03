@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import type {
-  RpcResult,
-  UsageSourceDescriptor,
-} from '@codepilotx/agent-protocol'
+import type { RpcResult, UsageSourceDescriptor } from '@codepilotx/agent-protocol'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
 import { UsageBillingSettings } from '../src/features/settings/UsageBillingSettings.js'
@@ -73,47 +70,57 @@ function source({
       kind: 'provider-key',
       disconnectible: false,
     },
-    groups: [{
-      id: `${sourceId}-usage`,
-      label: '组织用量',
-      balances: [{
-        currency: 'USD',
-        total: '999',
-        components: [],
-      }],
-      quotaWindows: [{
-        id: 'monthly-quota',
-        label: '月度额度',
-        unit: 'tokens',
-        remainingPercent: 75,
-        resetsAt: Date.now() + 3600_000 * 5,
-        state: 'normal',
-      }],
-      totals: {
-        inputTokens: 800,
-        outputTokens: 200,
-        cachedTokens: 100,
-        requests: 4,
-        costs,
+    groups: [
+      {
+        id: `${sourceId}-usage`,
+        label: '组织用量',
+        balances: [
+          {
+            currency: 'USD',
+            total: '999',
+            components: [],
+          },
+        ],
+        quotaWindows: [
+          {
+            id: 'monthly-quota',
+            label: '月度额度',
+            unit: 'tokens',
+            remainingPercent: 75,
+            resetsAt: Date.now() + 3600_000 * 5,
+            state: 'normal',
+          },
+        ],
+        totals: {
+          inputTokens: 800,
+          outputTokens: 200,
+          cachedTokens: 100,
+          requests: 4,
+          costs,
+        },
+        series: [
+          {
+            date: '2026-07-26',
+            inputTokens: 800,
+            outputTokens: 200,
+            cachedTokens: 100,
+            requests: 4,
+            costs,
+          },
+        ],
+        breakdown: [
+          {
+            id: 'model-a',
+            label: 'Model A',
+            kind: 'model',
+            inputTokens: 800,
+            outputTokens: 200,
+            cachedTokens: 100,
+            requests: 4,
+          },
+        ],
       },
-      series: [{
-        date: '2026-07-26',
-        inputTokens: 800,
-        outputTokens: 200,
-        cachedTokens: 100,
-        requests: 4,
-        costs,
-      }],
-      breakdown: [{
-        id: 'model-a',
-        label: 'Model A',
-        kind: 'model',
-        inputTokens: 800,
-        outputTokens: 200,
-        cachedTokens: 100,
-        requests: 4,
-      }],
-    }],
+    ],
     ...(error ? { error } : {}),
   }
 }
@@ -149,16 +156,33 @@ describe('usage billing renderer', () => {
         currentStreak: 1,
         longestStreak: 1,
       },
-      daily: [{
-        date: '2026-07-26',
-        totals: {
-          inputTokens: 800,
-          outputTokens: 200,
-          cachedTokens: 100,
-          totalTokens: 1_100,
-          estimatedCostUsd: '0.25',
+      daily: [
+        {
+          date: '2026-07-26',
+          totals: {
+            inputTokens: 800,
+            outputTokens: 200,
+            cachedTokens: 100,
+            totalTokens: 1_100,
+            estimatedCostUsd: '0.25',
+          },
+          models: [
+            {
+              providerId: protocolProviderId('deepseek'),
+              modelId: protocolModelId('deepseek-chat'),
+              displayName: 'DeepSeek Chat',
+              inputTokens: 800,
+              outputTokens: 200,
+              cachedTokens: 100,
+              totalTokens: 1_100,
+              estimatedCostUsd: '0.25',
+              modelResponses: 4,
+            },
+          ],
         },
-        models: [{
+      ],
+      models: [
+        {
           providerId: protocolProviderId('deepseek'),
           modelId: protocolModelId('deepseek-chat'),
           displayName: 'DeepSeek Chat',
@@ -168,25 +192,16 @@ describe('usage billing renderer', () => {
           totalTokens: 1_100,
           estimatedCostUsd: '0.25',
           modelResponses: 4,
-        }],
-      }],
-      models: [{
-        providerId: protocolProviderId('deepseek'),
-        modelId: protocolModelId('deepseek-chat'),
-        displayName: 'DeepSeek Chat',
-        inputTokens: 800,
-        outputTokens: 200,
-        cachedTokens: 100,
-        totalTokens: 1_100,
-        estimatedCostUsd: '0.25',
-        modelResponses: 4,
-        sharePercent: 100,
-      }],
-      heatmap: [{
-        date: '2026-07-26',
-        totalTokens: 1_100,
-        modelResponses: 4,
-      }],
+          sharePercent: 100,
+        },
+      ],
+      heatmap: [
+        {
+          date: '2026-07-26',
+          totalTokens: 1_100,
+          modelResponses: 4,
+        },
+      ],
     }
     const html = renderToStaticMarkup(
       <MemoryRouter>
@@ -303,19 +318,23 @@ describe('usage billing renderer', () => {
                 status: 'available',
                 checkedAt: 1_722_000_000_000,
                 connection: { kind: 'provider-key', disconnectible: false },
-                groups: [{
-                  id: 'account',
-                  label: '账户余额',
-                  balances: [{
-                    currency: 'CNY',
-                    total: '88.5',
-                    components: [
-                      { label: '充值余额', amount: '60' },
-                      { label: '赠送余额', amount: '28.5' },
+                groups: [
+                  {
+                    id: 'account',
+                    label: '账户余额',
+                    balances: [
+                      {
+                        currency: 'CNY',
+                        total: '88.5',
+                        components: [
+                          { label: '充值余额', amount: '60' },
+                          { label: '赠送余额', amount: '28.5' },
+                        ],
+                      },
                     ],
-                  }],
-                  quotaWindows: [],
-                }],
+                    quotaWindows: [],
+                  },
+                ],
               },
             ],
           }}

@@ -43,7 +43,7 @@
   box-shadow: none;
 }
 
-.right-dock[data-workbench-panel-full-width="true"] {
+.right-dock[data-workbench-panel-full-width='true'] {
   border-left-color: transparent;
 }
 
@@ -68,8 +68,7 @@
 
 .right-dock-header {
   --right-dock-header-padding-end: calc(
-    var(--cpx-sys-space-8) + var(--cpx-sys-space-2) +
-      var(--workspace-header-shell-width, 0)
+    var(--cpx-sys-space-8) + var(--cpx-sys-space-2) + var(--workspace-header-shell-width, 0)
   );
 
   height: var(--workbench-tab-strip-height);
@@ -208,13 +207,13 @@
     left: 0;
     width: 1px;
     background: transparent;
-    content: "";
+    content: '';
   }
 
   &:hover::after,
   &:focus-visible::after,
-  &[data-resize-phase="dragging"]::after,
-  &[data-resize-phase="settling"]::after {
+  &[data-resize-phase='dragging']::after,
+  &[data-resize-phase='settling']::after {
     background: var(--cpx-sys-color-border-default);
   }
 
@@ -241,13 +240,13 @@
     left: 0;
     height: 2px;
     background: transparent;
-    content: "";
+    content: '';
   }
 
   &:hover::after,
   &:focus-visible::after,
-  &[data-resize-phase="dragging"]::after,
-  &[data-resize-phase="settling"]::after {
+  &[data-resize-phase='dragging']::after,
+  &[data-resize-phase='settling']::after {
     background: var(--cpx-sys-color-border-default);
   }
 }
@@ -351,7 +350,7 @@
     width: 1px;
     height: 12px;
     background: var(--cpx-sys-color-border-subtle);
-    content: "";
+    content: '';
     pointer-events: none;
     transform: translateY(-50%);
   }
@@ -382,8 +381,7 @@
     justify-content: center;
     border-radius: var(--cpx-sys-radius-md);
     color: var(--cpx-sys-color-fg-tertiary);
-    outline: 1px dashed
-      color-mix(in srgb, var(--cpx-sys-color-fg-tertiary) 35%, transparent);
+    outline: 1px dashed color-mix(in srgb, var(--cpx-sys-color-fg-tertiary) 35%, transparent);
     outline-offset: -1px;
   }
 
@@ -570,7 +568,7 @@
   }
 }
 
-.workbench-panel-state[data-tone="warning"] {
+.workbench-panel-state[data-tone='warning'] {
   .workbench-panel-state__icon {
     color: var(--cpx-sys-color-warning);
   }
@@ -625,16 +623,8 @@
 }
 
 .right-dock-plan-document .md-body .md-code-block {
-  border-color: color-mix(
-    in srgb,
-    var(--cpx-sys-color-fg-primary) 10%,
-    transparent
-  );
-  background: color-mix(
-    in srgb,
-    var(--cpx-sys-color-fg-primary) 5%,
-    transparent
-  );
+  border-color: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 10%, transparent);
+  background: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent);
   color: var(--cpx-sys-color-fg-primary);
 }
 
@@ -643,20 +633,12 @@
 }
 
 .right-dock-plan-document .md-body :not(pre) > code {
-  background: color-mix(
-    in srgb,
-    var(--cpx-sys-color-fg-primary) 5%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent);
 }
 
 .right-dock-plan-document .md-body .md-code-block {
   border-color: var(--cpx-sys-color-border-default);
-  background: color-mix(
-    in srgb,
-    var(--cpx-sys-color-fg-primary) 5%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent);
 }
 
 .right-dock-plan-document .md-body .md-code-header {
@@ -664,7 +646,7 @@
   background: var(--cpx-sys-color-surface-raised);
 }
 
-:root[data-reduce-motion="on"] {
+:root[data-reduce-motion='on'] {
   .right-dock-tab-wrap,
   .right-dock-tab-close,
   .right-dock-tab-move,
@@ -694,9 +676,9 @@
 }
 
 .right-dock-header .icon-button[data-color] {
-  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"])):hover,
-  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"]))[data-state="open"],
-  &:where(:enabled:not([aria-disabled="true"]):not([aria-pressed="true"]))[data-active] {
+  &:where(:enabled:not([aria-disabled='true']):not([aria-pressed='true'])):hover,
+  &:where(:enabled:not([aria-disabled='true']):not([aria-pressed='true']))[data-state='open'],
+  &:where(:enabled:not([aria-disabled='true']):not([aria-pressed='true']))[data-active] {
     background: var(--cpx-sys-color-hover);
     color: var(--cpx-sys-color-fg-primary);
   }

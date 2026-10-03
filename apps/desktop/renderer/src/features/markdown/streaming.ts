@@ -29,9 +29,7 @@ type OpenFence = {
 
 const FENCE_LINE = /^( {0,3})(`{3,}|~{3,})([^\r\n]*)/
 
-export function segmentStreamingMarkdown(
-  text: string,
-): StreamingMarkdownSegment {
+export function segmentStreamingMarkdown(text: string): StreamingMarkdownSegment {
   const source = text ?? ''
   const openFence = findUnclosedFence(source)
   if (openFence) {
@@ -107,7 +105,11 @@ export function completePendingMarkdown(source: string): string {
       continue
     }
     if (character !== '*' && character !== '_') continue
-    if (character === '_' && isWordCharacter(completed[index - 1]) && isWordCharacter(completed[index + 1])) {
+    if (
+      character === '_' &&
+      isWordCharacter(completed[index - 1]) &&
+      isWordCharacter(completed[index + 1])
+    ) {
       continue
     }
     delimiterCounts.set(character, (delimiterCounts.get(character) ?? 0) + 1)
@@ -184,15 +186,10 @@ function endsWithClosedFence(source: string): boolean {
   const closing = /^( {0,3})(`{3,}|~{3,})[ \t]*$/u.exec(finalLine)
   if (!closing) return false
   const markerCharacter = closing[2][0]
-  return lines
-    .slice(0, -1)
-    .some(line => {
-      const opener = FENCE_LINE.exec(line)
-      return (
-        opener?.[2]?.[0] === markerCharacter &&
-        opener[2].length <= closing[2].length
-      )
-    })
+  return lines.slice(0, -1).some((line) => {
+    const opener = FENCE_LINE.exec(line)
+    return opener?.[2]?.[0] === markerCharacter && opener[2].length <= closing[2].length
+  })
 }
 
 function normalizeFenceLanguage(info: string): string {

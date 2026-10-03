@@ -6,9 +6,7 @@ import type {
   DesktopModelProviderSummary,
   ModelProviderID,
 } from '../../../shared/types.js'
-import {
-  getModelDisplayLabel,
-} from '../../modelPresets.js'
+import { getModelDisplayLabel } from '../../modelPresets.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 
 function splitProviderModel(value: string): { providerID: string; id: string } | null {
@@ -19,11 +17,7 @@ function splitProviderModel(value: string): { providerID: string; id: string } |
 
 type ModelOption = { value: string; label: string; detail?: string }
 
-type SpecializedModelKey =
-  | 'generationModel'
-  | 'organizationModel'
-  | 'codingModel'
-  | 'securityModel'
+type SpecializedModelKey = 'generationModel' | 'organizationModel' | 'codingModel' | 'securityModel'
 
 const SPECIALIZED_MODEL_LABELS: Record<SpecializedModelKey, string> = {
   generationModel: '生成模型',
@@ -32,10 +26,7 @@ const SPECIALIZED_MODEL_LABELS: Record<SpecializedModelKey, string> = {
   securityModel: '安全模型（实验）',
 }
 
-function formatModelDetail(
-  modelID: string,
-  metadata?: DesktopModelMetadata,
-): string {
+function formatModelDetail(modelID: string, metadata?: DesktopModelMetadata): string {
   if (!metadata) return ''
   const parts: string[] = []
   if (metadata.contextWindow) {
@@ -70,9 +61,7 @@ export function SpecializedModelSelect({
   const label = SPECIALIZED_MODEL_LABELS[specializedModelKey]
 
   const [providers, setProviders] = useState<DesktopModelProviderSummary[]>([])
-  const [providerModels, setProviderModels] = useState<
-    Record<string, string[]>
-  >({})
+  const [providerModels, setProviderModels] = useState<Record<string, string[]>>({})
   const [providerMetadata, setProviderMetadata] = useState<
     Record<string, Record<string, DesktopModelMetadata> | undefined>
   >({})
@@ -83,7 +72,7 @@ export function SpecializedModelSelect({
     let cancelled = false
     desktopClient
       .listModelProviders()
-      .then(provs => {
+      .then((provs) => {
         if (!cancelled) setProviders(provs)
       })
       .catch(() => {
@@ -97,7 +86,7 @@ export function SpecializedModelSelect({
   // Fetch catalogs for all apiKeyConfigured providers
   useEffect(() => {
     if (providers.length === 0) return
-    const configured = providers.filter(p => p.apiKeyConfigured)
+    const configured = providers.filter((p) => p.apiKeyConfigured)
     if (configured.length === 0) return
 
     let cancelled = false
@@ -105,10 +94,7 @@ export function SpecializedModelSelect({
 
     void (async () => {
       const models: Record<string, string[]> = {}
-      const metadata: Record<
-        string,
-        Record<string, DesktopModelMetadata> | undefined
-      > = {}
+      const metadata: Record<string, Record<string, DesktopModelMetadata> | undefined> = {}
       for (const provider of configured) {
         try {
           const result = await withModelCatalogLoading(() =>
@@ -138,12 +124,8 @@ export function SpecializedModelSelect({
   const parsedValue = useMemo(() => splitProviderModel(value), [value])
 
   const options = useMemo<ModelOption[]>(() => {
-    const inheritedLabel = mainModel
-      ? `使用主模型 (${mainModel})`
-      : '使用主模型'
-    const opts: ModelOption[] = [
-      { value: '', label: inheritedLabel, detail: '继承会话主模型' },
-    ]
+    const inheritedLabel = mainModel ? `使用主模型 (${mainModel})` : '使用主模型'
+    const opts: ModelOption[] = [{ value: '', label: inheritedLabel, detail: '继承会话主模型' }]
 
     // Add options from fetched catalogs
     for (const provider of providers) {
@@ -165,8 +147,8 @@ export function SpecializedModelSelect({
     // Append saved value if it doesn't exist in any catalog
     if (
       value &&
-      !opts.some(o => o.value === value) &&
-      !opts.some(o => o.value === parsedValue?.id)
+      !opts.some((o) => o.value === value) &&
+      !opts.some((o) => o.value === parsedValue?.id)
     ) {
       const savedMeta = parsedValue?.providerID
         ? providerMetadata[parsedValue.providerID]?.[parsedValue.id]
@@ -179,18 +161,11 @@ export function SpecializedModelSelect({
     }
 
     return opts
-  }, [
-    mainModel,
-    providers,
-    providerModels,
-    providerMetadata,
-    value,
-    parsedValue,
-  ])
+  }, [mainModel, providers, providerModels, providerMetadata, value, parsedValue])
 
   const displayValue = useMemo(() => {
     if (!value) return ''
-    return options.some(o => o.value === value) ? value : ''
+    return options.some((o) => o.value === value) ? value : ''
   }, [value, options])
 
   const handleChange = useCallback(

@@ -9,16 +9,12 @@ export async function buildAgentAttachmentUploads(
   input: DesktopUserMessageInput,
   readAttachment: (attachmentId: string) => Promise<AgentAttachmentReadResult>,
 ): Promise<AgentAttachmentUpload[]> {
-  const retainedAttachmentIds = [...new Set(
-    (input.retainedAttachmentIds ?? []).filter(Boolean),
-  )]
+  const retainedAttachmentIds = [...new Set((input.retainedAttachmentIds ?? []).filter(Boolean))]
   const seenDraftAttachmentIds = new Set<string>()
-  const draftAttachments = (input.attachments ?? []).filter(attachment => {
+  const draftAttachments = (input.attachments ?? []).filter((attachment) => {
     if (attachment.storage === 'local-path') return false
-    if (
-      retainedAttachmentIds.includes(attachment.id)
-      || seenDraftAttachmentIds.has(attachment.id)
-    ) return false
+    if (retainedAttachmentIds.includes(attachment.id) || seenDraftAttachmentIds.has(attachment.id))
+      return false
     seenDraftAttachmentIds.add(attachment.id)
     return true
   })
@@ -27,21 +23,21 @@ export async function buildAgentAttachmentUploads(
   )
   const localPathCount = new Set(
     (input.attachments ?? [])
-      .filter(attachment => attachment.storage === 'local-path')
-      .map(attachment => attachment.path.toLocaleLowerCase()),
+      .filter((attachment) => attachment.storage === 'local-path')
+      .map((attachment) => attachment.path.toLocaleLowerCase()),
   ).size
   if (
-    retainedAttachmentIds.length
-      + retainedContextReferenceIds.size
-      + draftAttachments.length
-      + localPathCount
-    > MAX_ATTACHMENTS_PER_MESSAGE
+    retainedAttachmentIds.length +
+      retainedContextReferenceIds.size +
+      draftAttachments.length +
+      localPathCount >
+    MAX_ATTACHMENTS_PER_MESSAGE
   ) {
     throw new Error(`每次最多发送 ${MAX_ATTACHMENTS_PER_MESSAGE} 个附件。`)
   }
 
   const retainedUploads = await Promise.all(
-    retainedAttachmentIds.map(async attachmentId => {
+    retainedAttachmentIds.map(async (attachmentId) => {
       const result = await readAttachment(attachmentId)
       const { attachment, data, encoding } = result
       if (attachment.kind === 'image') {
@@ -65,13 +61,13 @@ export async function buildAgentAttachmentUploads(
       }
     }),
   )
-  const draftUploads = draftAttachments.map<AgentAttachmentUpload>(attachment => {
+  const draftUploads = draftAttachments.map<AgentAttachmentUpload>((attachment) => {
     if (attachment.status !== 'ready') {
       throw new Error(`附件 ${attachment.name} 尚未准备完成。`)
     }
     if (attachment.kind === 'image') {
-      const data = attachment.contentBase64
-        ?? attachment.previewDataUrl?.replace(/^data:[^;]+;base64,/, '')
+      const data =
+        attachment.contentBase64 ?? attachment.previewDataUrl?.replace(/^data:[^;]+;base64,/, '')
       if (!data) throw new Error(`图片附件 ${attachment.name} 缺少内容。`)
       return {
         kind: 'image',

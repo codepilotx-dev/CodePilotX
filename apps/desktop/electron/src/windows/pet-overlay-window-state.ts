@@ -1,13 +1,13 @@
-import { join } from "node:path"
-import type { DesktopPetOverlayBounds } from "@codepilotx/shared/desktop-pet-overlay"
-import type { DesktopDisplayWorkArea } from "./window-state.js"
+import { join } from 'node:path'
+import type { DesktopPetOverlayBounds } from '@codepilotx/shared/desktop-pet-overlay'
+import type { DesktopDisplayWorkArea } from './window-state.js'
 import {
   DebouncedAtomicJsonWriter,
   clamp,
   intersectionArea,
   isRecord,
   type StateLogger as Logger,
-} from "./debounced-atomic-json-writer.js"
+} from './debounced-atomic-json-writer.js'
 
 export const PET_OVERLAY_WIDTH = 356
 export const PET_OVERLAY_HEIGHT = 320
@@ -24,9 +24,9 @@ export class PetOverlayWindowStateStore {
 
   constructor(userDataDirectory: string, logger?: Logger) {
     this.#writer = new DebouncedAtomicJsonWriter<PetOverlayWindowStateV1>(
-      join(userDataDirectory, "pet-overlay-window-state.json"),
+      join(userDataDirectory, 'pet-overlay-window-state.json'),
       WRITE_DELAY_MS,
-      "pet-overlay-state",
+      'pet-overlay-state',
       logger,
     )
   }
@@ -41,7 +41,7 @@ export class PetOverlayWindowStateStore {
   ): Promise<PetOverlayWindowStateV1> {
     return this.#writer.load(
       () => createDefaultPetOverlayWindowState(primaryDisplay),
-      parsed => normalizePetOverlayWindowState(parsed, displays, primaryDisplay),
+      (parsed) => normalizePetOverlayWindowState(parsed, displays, primaryDisplay),
     )
   }
 
@@ -60,12 +60,8 @@ export function createDefaultPetOverlayWindowState(
   return {
     version: 1,
     bounds: {
-      x: Math.round(
-        workArea.x + workArea.width - PET_OVERLAY_WIDTH - PET_OVERLAY_MARGIN,
-      ),
-      y: Math.round(
-        workArea.y + workArea.height - PET_OVERLAY_HEIGHT - PET_OVERLAY_MARGIN,
-      ),
+      x: Math.round(workArea.x + workArea.width - PET_OVERLAY_WIDTH - PET_OVERLAY_MARGIN),
+      y: Math.round(workArea.y + workArea.height - PET_OVERLAY_HEIGHT - PET_OVERLAY_MARGIN),
       width: PET_OVERLAY_WIDTH,
       height: PET_OVERLAY_HEIGHT,
     },
@@ -80,7 +76,7 @@ export function normalizePetOverlayWindowState(
   if (!isState(value)) return createDefaultPetOverlayWindowState(primaryDisplay)
   const available = displays.length ? displays : [primaryDisplay]
   const target = available
-    .map(display => ({ display, overlap: intersectionArea(value.bounds, display) }))
+    .map((display) => ({ display, overlap: intersectionArea(value.bounds, display) }))
     .sort((left, right) => right.overlap - left.overlap)[0]
   if (!target || target.overlap === 0) {
     return createDefaultPetOverlayWindowState(primaryDisplay)
@@ -117,8 +113,7 @@ function isState(value: unknown): value is PetOverlayWindowStateV1 {
     return false
   }
   const bounds = value.bounds
-  return ["x", "y", "width", "height"].every(
-    key => typeof bounds[key] === "number"
-      && Number.isFinite(bounds[key]),
+  return ['x', 'y', 'width', 'height'].every(
+    (key) => typeof bounds[key] === 'number' && Number.isFinite(bounds[key]),
   )
 }

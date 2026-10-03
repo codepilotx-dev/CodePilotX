@@ -56,14 +56,8 @@ export class AuxiliaryWindowService {
 
     const width = Math.max(dimensions.width ?? 960, 480)
     const height = Math.max(dimensions.height ?? 680, 360)
-    const left = Math.max(
-      window.screenX + Math.round((window.outerWidth - width) / 2),
-      0,
-    )
-    const top = Math.max(
-      window.screenY + Math.round((window.outerHeight - height) / 2),
-      0,
-    )
+    const left = Math.max(window.screenX + Math.round((window.outerWidth - width) / 2), 0)
+    const top = Math.max(window.screenY + Math.round((window.outerHeight - height) / 2), 0)
 
     const features = `width=${width},height=${height},left=${left},top=${top}`
     const frameName = `auxiliary:${encodeURIComponent(tabId)}`

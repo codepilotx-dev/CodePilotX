@@ -7,13 +7,7 @@ import {
   waitForVisualPage,
 } from '../visual-tests/visual-test-helpers.js'
 
-const WCAG_TAGS = [
-  'wcag2a',
-  'wcag2aa',
-  'wcag21a',
-  'wcag21aa',
-  'wcag22aa',
-] as const
+const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] as const
 
 const NEW_ROUTE = '/?visualCase=empty#/new'
 const PREWARM_TIMEOUT_MS = 240_000
@@ -27,10 +21,7 @@ const ROUTES = [
   ['plugins', '/?visualCase=empty#/plugins'],
   ['automations', '/?visualCase=empty#/automations'],
   ['pets', '/?visualCase=empty#/pets'],
-  [
-    'settings-appearance',
-    '/?visualCase=empty&visualThemeSeedDelayMs=300#/settings/appearance',
-  ],
+  ['settings-appearance', '/?visualCase=empty&visualThemeSeedDelayMs=300#/settings/appearance'],
   ['settings-general', '/?visualCase=empty#/settings/general'],
   ['settings-plugins', '/?visualCase=empty#/settings/plugins'],
   ['settings-environment', '/?visualCase=empty#/settings/environment/visual-workspace'],
@@ -46,21 +37,22 @@ async function preparePage(page: Page, route: string): Promise<void> {
   if (route.includes('/settings/appearance')) {
     const editors = page.locator('.appearance-theme-editor')
     await expect(editors.first()).toBeVisible()
-    await expect(
-      page.locator('.appearance-theme-editor[aria-busy="true"]'),
-    ).toHaveCount(0)
+    await expect(page.locator('.appearance-theme-editor[aria-busy="true"]')).toHaveCount(0)
     await expect(page.locator('.appearance-theme-seed').first()).toBeVisible()
     await expect
       .poll(() =>
-        page.locator('.appearance-theme-seed').first().evaluate(element => {
-          const style = window.getComputedStyle(element)
-          return style.color !== '' && style.backgroundColor !== ''
-        }),
+        page
+          .locator('.appearance-theme-seed')
+          .first()
+          .evaluate((element) => {
+            const style = window.getComputedStyle(element)
+            return style.color !== '' && style.backgroundColor !== ''
+          }),
       )
       .toBe(true)
     await page.evaluate(
       () =>
-        new Promise<void>(resolve =>
+        new Promise<void>((resolve) =>
           requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
         ),
     )
@@ -83,13 +75,8 @@ test.beforeAll(async ({ browser }, testInfo) => {
   }
 })
 
-async function expectNoWcagViolations(
-  page: Page,
-  testInfo: TestInfo,
-): Promise<void> {
-  const results = await new AxeBuilder({ page })
-    .withTags([...WCAG_TAGS])
-    .analyze()
+async function expectNoWcagViolations(page: Page, testInfo: TestInfo): Promise<void> {
+  const results = await new AxeBuilder({ page }).withTags([...WCAG_TAGS]).analyze()
 
   if (results.incomplete.length > 0) {
     await testInfo.attach('axe-incomplete.json', {
@@ -98,11 +85,11 @@ async function expectNoWcagViolations(
     })
   }
 
-  const violations = results.violations.map(violation => ({
+  const violations = results.violations.map((violation) => ({
     id: violation.id,
     impact: violation.impact,
     help: violation.help,
-    nodes: violation.nodes.map(node => ({
+    nodes: violation.nodes.map((node) => ({
       target: node.target,
       summary: node.failureSummary,
     })),
@@ -117,20 +104,14 @@ for (const [name, route] of ROUTES) {
   })
 }
 
-test('WCAG 2.2 AA: command menu open state', async ({
-  page,
-}, testInfo) => {
+test('WCAG 2.2 AA: command menu open state', async ({ page }, testInfo) => {
   await preparePage(page, NEW_ROUTE)
   await page.keyboard.press('Control+K')
-  await expect(
-    page.getByRole('searchbox', { name: '搜索任务' }),
-  ).toBeFocused()
+  await expect(page.getByRole('searchbox', { name: '搜索任务' })).toBeFocused()
   await expectNoWcagViolations(page, testInfo)
 })
 
-test('WCAG 2.2 AA: dropdown and menubar open states', async ({
-  page,
-}, testInfo) => {
+test('WCAG 2.2 AA: dropdown and menubar open states', async ({ page }, testInfo) => {
   await preparePage(page, '/?visualCase=rich#/threads/visual-rich')
 
   const modeTrigger = page.getByRole('button', {
@@ -152,9 +133,11 @@ test('WCAG 2.2 AA: dropdown and menubar open states', async ({
 
 test('WCAG 2.2 AA: popover open state', async ({ page }, testInfo) => {
   await preparePage(page, '/?visualCase=empty#/settings/appearance')
-  await page.getByRole('button', {
-    name: '浅色强调色颜色选择器',
-  }).click()
+  await page
+    .getByRole('button', {
+      name: '浅色强调色颜色选择器',
+    })
+    .click()
   await expect(page.getByRole('dialog', { name: /浅色强调色/ })).toBeVisible()
   await expectNoWcagViolations(page, testInfo)
 

@@ -38,7 +38,7 @@ describe('review load state', () => {
     const tree = buildReviewFileTree(files)
 
     expect(
-      flattenReviewFileTree(tree, new Set()).map(row => [
+      flattenReviewFileTree(tree, new Set()).map((row) => [
         row.kind,
         row.kind === 'file' ? row.file.path : row.node.dirPath,
         row.depth,
@@ -50,9 +50,10 @@ describe('review load state', () => {
       ['directory', 'src/nested', 1],
       ['file', 'src/nested/b.ts', 2],
     ])
-    expect(
-      flattenReviewFileTree(tree, new Set(['src'])).map(row => row.key),
-    ).toEqual(['file:root.ts', 'directory:src'])
+    expect(flattenReviewFileTree(tree, new Set(['src'])).map((row) => row.key)).toEqual([
+      'file:root.ts',
+      'directory:src',
+    ])
   })
 
   test('审阅统计使用精确千分位而不是截断为 999+', () => {
@@ -144,9 +145,7 @@ describe('review load state', () => {
       ]),
     ).toBe('origin/main')
     expect(
-      pickDefaultReviewBaseBranch([
-        { name: 'main', sha: '1', current: true, remote: false },
-      ]),
+      pickDefaultReviewBaseBranch([{ name: 'main', sha: '1', current: true, remote: false }]),
     ).toBe('main')
     expect(pickDefaultReviewBaseBranch([])).toBeNull()
   })
@@ -183,7 +182,7 @@ describe('review load state', () => {
       onRun?.()
       active += 1
       peak = Math.max(peak, active)
-      await new Promise<void>(resolve => releases.push(resolve))
+      await new Promise<void>((resolve) => releases.push(resolve))
       active -= 1
     }
 
@@ -276,12 +275,8 @@ describe('review diagnostics', () => {
   })
 
   test('文件差异加载文案区分摘要刷新、真实请求与摘要失败', () => {
-    expect(reviewFileLoadMessage({ status: 'idle' }, 'stale')).toBe(
-      '正在刷新变更快照…',
-    )
-    expect(reviewFileLoadMessage({ status: 'loading' }, 'success')).toBe(
-      '正在加载文件差异…',
-    )
+    expect(reviewFileLoadMessage({ status: 'idle' }, 'stale')).toBe('正在刷新变更快照…')
+    expect(reviewFileLoadMessage({ status: 'loading' }, 'success')).toBe('正在加载文件差异…')
     expect(reviewFileLoadMessage({ status: 'idle' }, 'error')).toBe(
       '变更快照加载失败，请使用上方重试。',
     )
@@ -299,9 +294,11 @@ describe('review diagnostics', () => {
       await Bun.sleep(5)
       timer.succeed({ resultType: 'success' })
 
-      const messages = warning.mock.calls.map(call => String(call[0]))
-      expect(messages.some(message => message.includes('review.file-diffs.load.slow'))).toBe(true)
-      expect(messages.some(message => message.includes('review.file-diffs.load.recovered'))).toBe(true)
+      const messages = warning.mock.calls.map((call) => String(call[0]))
+      expect(messages.some((message) => message.includes('review.file-diffs.load.slow'))).toBe(true)
+      expect(messages.some((message) => message.includes('review.file-diffs.load.recovered'))).toBe(
+        true,
+      )
       expect(messages.join('\n')).not.toContain('generation')
       expect(messages.join('\n')).not.toContain('C:\\private')
 
@@ -329,7 +326,7 @@ describe('review batch capability', () => {
           return { snapshot: reviewSummary([]), cacheState: 'fresh' }
         },
       } as never,
-      loadProjectById: async projectId => ({ id: projectId }) as never,
+      loadProjectById: async (projectId) => ({ id: projectId }) as never,
       loadProjectForPath: async () => {
         throw new Error('不应按路径解析项目')
       },
@@ -339,7 +336,7 @@ describe('review batch capability', () => {
       unsupportedReviewOperation: () => {
         throw new Error('unsupported')
       },
-      withAgentOrMock: agentOperation => agentOperation(),
+      withAgentOrMock: (agentOperation) => agentOperation(),
     })
 
     await api.getAgentReviewSummary({
@@ -349,10 +346,13 @@ describe('review batch capability', () => {
     })
 
     expect(calls).toEqual([
-      ['review/summary', {
-        projectId: 'project-explicit',
-        source: { kind: 'unstaged' },
-      }],
+      [
+        'review/summary',
+        {
+          projectId: 'project-explicit',
+          source: { kind: 'unstaged' },
+        },
+      ],
     ])
   })
 
@@ -444,10 +444,7 @@ function reviewSummary(files: ReviewFileSummary[]): ReviewSummarySnapshot {
   }
 }
 
-function createReviewApiForBatchTest(
-  supportsReviewBatch: boolean,
-  calls: string[],
-) {
+function createReviewApiForBatchTest(supportsReviewBatch: boolean, calls: string[]) {
   return createAgentReviewApi({
     rpc: {
       ensureInitialized: async () => ({
@@ -466,7 +463,7 @@ function createReviewApiForBatchTest(
       },
     } as never,
     loadProjectForPath: async () => ({ id: 'project-1' }) as never,
-    loadProjectById: async projectId => ({ id: projectId }) as never,
+    loadProjectById: async (projectId) => ({ id: projectId }) as never,
     preparePullRequestReview: async () => {},
     requireGithubPullRequestCapability: () => {},
     requireReviewCapability: () => {},
@@ -475,6 +472,6 @@ function createReviewApiForBatchTest(
       error.code = 'AGENT_OPERATION_UNSUPPORTED'
       throw error
     },
-    withAgentOrMock: agentOperation => agentOperation(),
+    withAgentOrMock: (agentOperation) => agentOperation(),
   })
 }

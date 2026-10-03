@@ -1,10 +1,11 @@
 import type { ThemeRegistration } from 'shiki'
-import { DEFAULT_CHROME_THEMES, getDesktopAccentPresetColor, type DesktopAccentPreset } from '@codepilotx/shared/desktop-theme'
+import {
+  DEFAULT_CHROME_THEMES,
+  getDesktopAccentPresetColor,
+  type DesktopAccentPreset,
+} from '@codepilotx/shared/desktop-theme'
 
-import type {
-  DesktopChromeTheme,
-  DesktopThemeVariant,
-} from '../../../shared/types.js'
+import type { DesktopChromeTheme, DesktopThemeVariant } from '../../../shared/types.js'
 import {
   isCodexHighlightThemeSlug,
   loadCodexHighlightTheme,
@@ -18,9 +19,7 @@ export type DesktopChromeThemeSeed = Pick<
   DesktopChromeTheme,
   'accent' | 'ink' | 'semanticColors' | 'surface'
 > &
-  Partial<
-    Pick<DesktopChromeTheme, 'contrast' | 'fonts'>
-  >
+  Partial<Pick<DesktopChromeTheme, 'contrast' | 'fonts'>>
 
 const ACCENT_KEYS = [
   'activityBarBadge.background',
@@ -42,11 +41,7 @@ const REMOVED_KEYS = [
   'terminal.ansiRed',
   'terminal.ansiBrightRed',
 ] as const
-const SKILL_KEYS = [
-  'charts.purple',
-  'terminal.ansiMagenta',
-  'terminal.ansiBrightMagenta',
-] as const
+const SKILL_KEYS = ['charts.purple', 'terminal.ansiMagenta', 'terminal.ansiBrightMagenta'] as const
 
 export async function loadChromeThemeSeed(
   slug: string,
@@ -81,9 +76,7 @@ export function deriveChromeThemeSeed(
       'sideBar.foreground',
       'foreground',
     ]) ?? defaults.ink
-  const accent =
-    findAccent(theme, surface, ink) ??
-    defaults.accent
+  const accent = findAccent(theme, surface, ink) ?? defaults.accent
   const semanticColors = {
     diffAdded:
       firstColor(colors, ADDED_KEYS) ??
@@ -156,13 +149,13 @@ function mergeSeedFonts(
         ? seed.uiFace
         : familyChanged('ui')
           ? null
-          : current.uiFace ?? null,
+          : (current.uiFace ?? null),
     codeFace:
       seed.codeFace !== undefined
         ? seed.codeFace
         : familyChanged('code')
           ? null
-          : current.codeFace ?? null,
+          : (current.codeFace ?? null),
   }
 }
 
@@ -189,23 +182,15 @@ function applyChromeOverride(
       },
     }),
     semanticColors: {
-      diffAdded:
-        normalizeHex(override.semanticColors?.diffAdded) ??
-        seed.semanticColors.diffAdded,
+      diffAdded: normalizeHex(override.semanticColors?.diffAdded) ?? seed.semanticColors.diffAdded,
       diffRemoved:
-        normalizeHex(override.semanticColors?.diffRemoved) ??
-        seed.semanticColors.diffRemoved,
-      skill:
-        normalizeHex(override.semanticColors?.skill) ??
-        seed.semanticColors.skill,
+        normalizeHex(override.semanticColors?.diffRemoved) ?? seed.semanticColors.diffRemoved,
+      skill: normalizeHex(override.semanticColors?.skill) ?? seed.semanticColors.skill,
     },
   }
 }
 
-function normalizeFont(
-  value: unknown,
-  fallback: string | null,
-): string | null {
+function normalizeFont(value: unknown, fallback: string | null): string | null {
   if (value === null) return null
   return typeof value === 'string' ? value : fallback
 }
@@ -240,11 +225,7 @@ function findAccent(
       minimumAlpha: 0.45,
       minimumChromaticRange: 24,
     })
-    if (
-      color &&
-      !colorsAreSimilar(color, surface) &&
-      !colorsAreSimilar(color, ink)
-    ) {
+    if (color && !colorsAreSimilar(color, surface) && !colorsAreSimilar(color, ink)) {
       return color
     }
   }
@@ -256,11 +237,7 @@ function findAccent(
       minimumAlpha: 0.45,
       minimumChromaticRange: 24,
     })
-    if (
-      !color ||
-      colorsAreSimilar(color, surface) ||
-      colorsAreSimilar(color, ink)
-    ) {
+    if (!color || colorsAreSimilar(color, surface) || colorsAreSimilar(color, ink)) {
       continue
     }
     const score = colorScore(color, surface, ink)
@@ -287,8 +264,7 @@ function findSemanticColor(
     }
     const hue = colorHue(parseColor(color)!)
     if (hue == null || !hueInRange(hue, hueRange)) continue
-    const score =
-      colorScore(color, surface, ink) - hueDistance(hue, targetHue) * 2
+    const score = colorScore(color, surface, ink) - hueDistance(hue, targetHue) * 2
     if (score > bestScore) {
       result = color
       bestScore = score
@@ -308,7 +284,7 @@ function themeCandidateColors(theme: ThemeRegistration): `#${string}`[] {
   const result = new Set<`#${string}`>()
   const values = [
     ...Object.values(asStringMap(theme.colors)),
-    ...themeEntries(theme).map(entry => entry?.settings?.foreground),
+    ...themeEntries(theme).map((entry) => entry?.settings?.foreground),
   ]
   for (const value of values) {
     const color = normalizeHex(value)
@@ -328,14 +304,11 @@ function normalizeHex(
   const color = parseColor(value)
   if (!color) return
   const { minimumAlpha = 0.98, minimumChromaticRange = 0 } = options
-  if (
-    color.alpha < minimumAlpha ||
-    chromaticRange(color) < minimumChromaticRange
-  ) {
+  if (color.alpha < minimumAlpha || chromaticRange(color) < minimumChromaticRange) {
     return
   }
   return `#${[color.red, color.green, color.blue]
-    .map(channel => channel.toString(16).padStart(2, '0'))
+    .map((channel) => channel.toString(16).padStart(2, '0'))
     .join('')}`
 }
 
@@ -343,10 +316,7 @@ function parseColor(value: string) {
   const color = value.trim()
   if (!/^#[\da-f]{6}(?:[\da-f]{2})?$/i.test(color)) return
   return {
-    alpha:
-      color.length === 9
-        ? Number.parseInt(color.slice(7, 9), 16) / 255
-        : 1,
+    alpha: color.length === 9 ? Number.parseInt(color.slice(7, 9), 16) / 255 : 1,
     red: Number.parseInt(color.slice(1, 3), 16),
     green: Number.parseInt(color.slice(3, 5), 16),
     blue: Number.parseInt(color.slice(5, 7), 16),
@@ -363,24 +333,15 @@ function colorsAreSimilar(left: string, right: string): boolean {
 
 function colorDistance(left: ParsedColor, right: ParsedColor): number {
   return Math.sqrt(
-    (left.red - right.red) ** 2 +
-      (left.green - right.green) ** 2 +
-      (left.blue - right.blue) ** 2,
+    (left.red - right.red) ** 2 + (left.green - right.green) ** 2 + (left.blue - right.blue) ** 2,
   )
 }
 
 function chromaticRange(color: ParsedColor): number {
-  return (
-    Math.max(color.red, color.green, color.blue) -
-    Math.min(color.red, color.green, color.blue)
-  )
+  return Math.max(color.red, color.green, color.blue) - Math.min(color.red, color.green, color.blue)
 }
 
-function colorScore(
-  color: `#${string}`,
-  surface: `#${string}`,
-  ink: `#${string}`,
-): number {
+function colorScore(color: `#${string}`, surface: `#${string}`, ink: `#${string}`): number {
   const candidate = parseColor(color)
   const background = parseColor(surface)
   const foreground = parseColor(ink)
@@ -408,10 +369,7 @@ function colorHue(color: ParsedColor): number | undefined {
   return (hue + 360) % 360
 }
 
-function hueInRange(
-  hue: number,
-  range: { min: number; max: number },
-): boolean {
+function hueInRange(hue: number, range: { min: number; max: number }): boolean {
   return range.min <= range.max
     ? hue >= range.min && hue <= range.max
     : hue >= range.min || hue <= range.max

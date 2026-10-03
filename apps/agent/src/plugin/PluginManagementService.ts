@@ -1,22 +1,23 @@
-import { readFile, readdir, realpath } from "node:fs/promises"
-import { homedir } from "node:os"
-import { dirname, isAbsolute, join, relative, resolve } from "node:path"
+import { readFile, readdir, realpath } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import type {
   PluginDetails,
   PluginInstallationPolicy,
   PluginSource,
   PluginSummary,
-} from "@codepilotx/agent-protocol"
-import { parseSkillDocument } from "../prompt/SkillService"
+} from '@codepilotx/agent-protocol'
+import { parseSkillDocument } from '../prompt/SkillService'
 import {
   PluginSettingsConflictError,
   PluginSettingsRepository,
-} from "../storage/repositories/plugin-settings-repository"
+} from '../storage/repositories/plugin-settings-repository'
 
 const MAX_JSON_BYTES = 1024 * 1024
 const pluginIdPattern = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$/
-const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/
-const decoder = new TextDecoder("utf-8", { fatal: true })
+const semverPattern =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/
+const decoder = new TextDecoder('utf-8', { fatal: true })
 
 type PluginSkillRoot = {
   pluginId: string
@@ -40,12 +41,12 @@ type JsonRecord = Record<string, unknown>
 export class PluginManagementError extends Error {
   constructor(
     readonly code:
-      | "PLUGIN_NOT_FOUND"
-      | "PLUGIN_NOT_INSTALLED"
-      | "PLUGIN_INVALID"
-      | "CONFLICT"
-      | "PATH_DENIED"
-      | "INTERNAL_ERROR",
+      | 'PLUGIN_NOT_FOUND'
+      | 'PLUGIN_NOT_INSTALLED'
+      | 'PLUGIN_INVALID'
+      | 'CONFLICT'
+      | 'PATH_DENIED'
+      | 'INTERNAL_ERROR',
     message: string,
     readonly status: number,
   ) {
@@ -55,16 +56,16 @@ export class PluginManagementError extends Error {
 
 const contained = (root: string, candidate: string) => {
   const path = relative(root, candidate)
-  return path === "" || (!path.startsWith("..") && !isAbsolute(path))
+  return path === '' || (!path.startsWith('..') && !isAbsolute(path))
 }
 
 const record = (value: unknown): JsonRecord | null =>
-  value !== null && typeof value === "object" && !Array.isArray(value)
-    ? value as JsonRecord
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as JsonRecord)
     : null
 
 const stringValue = (value: unknown) =>
-  typeof value === "string" && value.trim() ? value.trim() : null
+  typeof value === 'string' && value.trim() ? value.trim() : null
 
 const stringArray = (value: unknown) =>
   Array.isArray(value)
@@ -81,34 +82,34 @@ const stringOrStringArray = (value: unknown) => {
 
 const readJson = async (path: string): Promise<unknown> => {
   const bytes = await readFile(path)
-  if (bytes.byteLength > MAX_JSON_BYTES) throw new Error("JSON 文件过大")
+  if (bytes.byteLength > MAX_JSON_BYTES) throw new Error('JSON 文件过大')
   return JSON.parse(decoder.decode(bytes)) as unknown
 }
 
 const invalidPlugin = (
   id: string,
   source: PluginSource,
-  unavailableReason = "插件清单无效",
+  unavailableReason = '插件清单无效',
 ): DiscoveredPlugin => ({
   summary: {
     id,
     name: id,
-    version: "0.0.0",
-    description: "",
-    developerName: "未知开发者",
-    category: "Other",
+    version: '0.0.0',
+    description: '',
+    developerName: '未知开发者',
+    category: 'Other',
     source,
-    installationPolicy: "NOT_AVAILABLE",
+    installationPolicy: 'NOT_AVAILABLE',
     installed: false,
     enabled: false,
-    status: "invalid",
+    status: 'invalid',
     capabilities: [],
     skills: [],
     unavailableReason,
   },
   details: {
     pluginId: id,
-    longDescription: "",
+    longDescription: '',
     displayCapabilities: [],
     defaultPrompts: [],
     skills: [],
@@ -120,9 +121,7 @@ const normalizePolicy = (
   value: unknown,
   fallback: PluginInstallationPolicy,
 ): PluginInstallationPolicy =>
-  value === "NOT_AVAILABLE"
-  || value === "AVAILABLE"
-  || value === "INSTALLED_BY_DEFAULT"
+  value === 'NOT_AVAILABLE' || value === 'AVAILABLE' || value === 'INSTALLED_BY_DEFAULT'
     ? value
     : fallback
 
@@ -137,10 +136,12 @@ export class PluginManagementService {
     this.userHome = resolve(roots.userHome ?? homedir())
   }
 
-  async list(input: {
-    workspace?: string | undefined
-    forceReload?: boolean | undefined
-  } = {}) {
+  async list(
+    input: {
+      workspace?: string | undefined
+      forceReload?: boolean | undefined
+    } = {},
+  ) {
     const plugins = await this.discover(input.workspace)
     this.knownPlugins.clear()
     for (const plugin of plugins) this.knownPlugins.set(plugin.summary.id, plugin)
@@ -152,24 +153,20 @@ export class PluginManagementService {
     }
   }
 
-  async setEnabled(input: {
-    pluginId: string
-    enabled: boolean
-    operationId: string
-  }) {
+  async setEnabled(input: { pluginId: string; enabled: boolean; operationId: string }) {
     let plugin = this.knownPlugins.get(input.pluginId)
     if (!plugin) {
       await this.list()
       plugin = this.knownPlugins.get(input.pluginId)
     }
     if (!plugin) {
-      throw new PluginManagementError("PLUGIN_NOT_FOUND", "插件不存在", 404)
+      throw new PluginManagementError('PLUGIN_NOT_FOUND', '插件不存在', 404)
     }
-    if (plugin.summary.status !== "ready") {
-      throw new PluginManagementError("PLUGIN_INVALID", "插件当前不可用", 409)
+    if (plugin.summary.status !== 'ready') {
+      throw new PluginManagementError('PLUGIN_INVALID', '插件当前不可用', 409)
     }
     if (!plugin.summary.installed) {
-      throw new PluginManagementError("PLUGIN_NOT_INSTALLED", "插件尚未安装", 409)
+      throw new PluginManagementError('PLUGIN_NOT_INSTALLED', '插件尚未安装', 409)
     }
     try {
       const result = this.settings.setEnabled(input)
@@ -185,7 +182,7 @@ export class PluginManagementService {
       }
     } catch (cause) {
       if (cause instanceof PluginSettingsConflictError) {
-        throw new PluginManagementError("CONFLICT", cause.message, 409)
+        throw new PluginManagementError('CONFLICT', cause.message, 409)
       }
       throw cause
     }
@@ -195,7 +192,7 @@ export class PluginManagementService {
     const plugins = await this.discover(input.workspace)
     const plugin = plugins.find((candidate) => candidate.summary.id === input.pluginId)
     if (!plugin) {
-      throw new PluginManagementError("PLUGIN_NOT_FOUND", "插件不存在", 404)
+      throw new PluginManagementError('PLUGIN_NOT_FOUND', '插件不存在', 404)
     }
     this.knownPlugins.set(plugin.summary.id, plugin)
     return { details: plugin.details }
@@ -204,27 +201,28 @@ export class PluginManagementService {
   async enabledSkillRoots(): Promise<PluginSkillRoot[]> {
     const plugins = await this.discover()
     return plugins.flatMap((plugin) =>
-      plugin.summary.installed
-      && plugin.summary.enabled
-      && plugin.summary.status === "ready"
-      && plugin.skillRoot
+      plugin.summary.installed &&
+      plugin.summary.enabled &&
+      plugin.summary.status === 'ready' &&
+      plugin.skillRoot
         ? [plugin.skillRoot]
-        : [])
+        : [],
+    )
   }
 
   private async discover(workspace?: string) {
     const bundled = await this.scanBundled()
     const workspacePlugins = workspace
       ? await this.scanMarketplace(
-          resolve(workspace, ".agents", "plugins", "marketplace.json"),
+          resolve(workspace, '.agents', 'plugins', 'marketplace.json'),
           resolve(workspace),
-          "workspace",
+          'workspace',
         )
       : []
     const personal = await this.scanMarketplace(
-      resolve(this.userHome, ".agents", "plugins", "marketplace.json"),
+      resolve(this.userHome, '.agents', 'plugins', 'marketplace.json'),
       this.userHome,
-      "personal",
+      'personal',
     )
     const selected = new Map<string, DiscoveredPlugin>()
     for (const plugin of [...bundled, ...workspacePlugins, ...personal]) {
@@ -243,15 +241,17 @@ export class PluginManagementService {
       if (!pluginIdPattern.test(entry.name)) continue
       const pluginRoot = await realpath(join(root, entry.name)).catch(() => null)
       if (!pluginRoot || !contained(root, pluginRoot)) {
-        plugins.push(invalidPlugin(entry.name, "bundled", "插件目录无效"))
+        plugins.push(invalidPlugin(entry.name, 'bundled', '插件目录无效'))
         continue
       }
-      plugins.push(await this.loadPlugin({
-        expectedId: entry.name,
-        pluginRoot,
-        source: "bundled",
-        policy: undefined,
-      }))
+      plugins.push(
+        await this.loadPlugin({
+          expectedId: entry.name,
+          pluginRoot,
+          source: 'bundled',
+          policy: undefined,
+        }),
+      )
     }
     return plugins
   }
@@ -259,7 +259,7 @@ export class PluginManagementService {
   private async scanMarketplace(
     marketplacePath: string,
     sourceRoot: string,
-    source: "workspace" | "personal",
+    source: 'workspace' | 'personal',
   ): Promise<DiscoveredPlugin[]> {
     let parsed: JsonRecord | null
     try {
@@ -277,24 +277,26 @@ export class PluginManagementService {
       if (!entry || !id || !pluginIdPattern.test(id)) continue
       const sourceDescriptor = record(entry.source)
       const sourcePath = stringValue(sourceDescriptor?.path)
-      if (sourceDescriptor?.source !== "local" || !sourcePath) continue
+      if (sourceDescriptor?.source !== 'local' || !sourcePath) continue
       const candidate = resolve(canonicalSourceRoot, sourcePath)
       if (!contained(canonicalSourceRoot, candidate)) {
-        plugins.push(invalidPlugin(id, source, "插件来源路径无效"))
+        plugins.push(invalidPlugin(id, source, '插件来源路径无效'))
         continue
       }
       const pluginRoot = await realpath(candidate).catch(() => null)
       if (!pluginRoot || !contained(canonicalSourceRoot, pluginRoot)) {
-        plugins.push(invalidPlugin(id, source, "插件来源不可用"))
+        plugins.push(invalidPlugin(id, source, '插件来源不可用'))
         continue
       }
-      const policy = normalizePolicy(record(entry.policy)?.installation, "AVAILABLE")
-      plugins.push(await this.loadPlugin({
-        expectedId: id,
-        pluginRoot,
-        source,
-        policy,
-      }))
+      const policy = normalizePolicy(record(entry.policy)?.installation, 'AVAILABLE')
+      plugins.push(
+        await this.loadPlugin({
+          expectedId: id,
+          pluginRoot,
+          source,
+          policy,
+        }),
+      )
     }
     return plugins
   }
@@ -306,12 +308,10 @@ export class PluginManagementService {
     policy: PluginInstallationPolicy | undefined
   }): Promise<DiscoveredPlugin> {
     try {
-      const manifestPath = await realpath(
-        join(input.pluginRoot, ".codex-plugin", "plugin.json"),
-      )
-      if (!contained(input.pluginRoot, manifestPath)) throw new Error("manifest 路径无效")
+      const manifestPath = await realpath(join(input.pluginRoot, '.codex-plugin', 'plugin.json'))
+      if (!contained(input.pluginRoot, manifestPath)) throw new Error('manifest 路径无效')
       const manifest = record(await readJson(manifestPath))
-      if (!manifest) throw new Error("manifest 无效")
+      if (!manifest) throw new Error('manifest 无效')
       const id = stringValue(manifest.name)
       const version = stringValue(manifest.version)
       const description = stringValue(manifest.description)
@@ -324,49 +324,48 @@ export class PluginManagementService {
       const developerName = stringValue(interfaceMetadata?.developerName) ?? authorName
       const category = stringValue(interfaceMetadata?.category)
       if (
-        !id
-        || id !== input.expectedId
-        || !pluginIdPattern.test(id)
-        || !version
-        || !semverPattern.test(version)
-        || !description
-        || !authorName
-        || !displayName
-        || !shortDescription
-        || !developerName
-        || !category
+        !id ||
+        id !== input.expectedId ||
+        !pluginIdPattern.test(id) ||
+        !version ||
+        !semverPattern.test(version) ||
+        !description ||
+        !authorName ||
+        !displayName ||
+        !shortDescription ||
+        !developerName ||
+        !category
       ) {
-        throw new Error("manifest 字段无效")
+        throw new Error('manifest 字段无效')
       }
 
       let extension: JsonRecord | null = null
       const extensionPath = await realpath(
-        join(input.pluginRoot, ".cpx-plugin", "plugin.json"),
+        join(input.pluginRoot, '.cpx-plugin', 'plugin.json'),
       ).catch(() => null)
       if (extensionPath) {
         if (!contained(input.pluginRoot, extensionPath)) {
-          throw new Error("CodePilotX 扩展清单路径无效")
+          throw new Error('CodePilotX 扩展清单路径无效')
         }
         extension = record(await readJson(extensionPath))
         if (
-          !extension
-          || extension.schemaVersion !== 1
-          || !Array.isArray(extension.capabilities)
-          || !extension.capabilities.every((value) => typeof value === "string" && value.length > 0)
-          || !["NOT_AVAILABLE", "AVAILABLE", "INSTALLED_BY_DEFAULT"].includes(
+          !extension ||
+          extension.schemaVersion !== 1 ||
+          !Array.isArray(extension.capabilities) ||
+          !extension.capabilities.every((value) => typeof value === 'string' && value.length > 0) ||
+          !['NOT_AVAILABLE', 'AVAILABLE', 'INSTALLED_BY_DEFAULT'].includes(
             String(extension.installation),
           )
         ) {
-          throw new Error("CodePilotX 扩展清单无效")
+          throw new Error('CodePilotX 扩展清单无效')
         }
       }
 
-      const policy = input.policy
-        ?? normalizePolicy(extension?.installation, "AVAILABLE")
-      const installed = input.source === "bundled" && policy === "INSTALLED_BY_DEFAULT"
+      const policy = input.policy ?? normalizePolicy(extension?.installation, 'AVAILABLE')
+      const installed = input.source === 'bundled' && policy === 'INSTALLED_BY_DEFAULT'
       const disabled = new Set(this.settings.state().disabledPluginIds)
       const skills = await this.resolveSkills(input.pluginRoot, stringValue(manifest.skills))
-      const status = policy === "NOT_AVAILABLE" ? "unavailable" : "ready"
+      const status = policy === 'NOT_AVAILABLE' ? 'unavailable' : 'ready'
       return {
         summary: {
           id,
@@ -378,13 +377,11 @@ export class PluginManagementService {
           source: input.source,
           installationPolicy: policy,
           installed,
-          enabled: installed && !disabled.has(id) && status === "ready",
+          enabled: installed && !disabled.has(id) && status === 'ready',
           status,
           capabilities: extension ? stringArray(extension.capabilities) : [],
           skills: skills.names,
-          ...(status === "unavailable"
-            ? { unavailableReason: "此插件当前不可用" }
-            : {}),
+          ...(status === 'unavailable' ? { unavailableReason: '此插件当前不可用' } : {}),
         },
         details: {
           pluginId: id,
@@ -403,7 +400,7 @@ export class PluginManagementService {
   }
 
   private async resolveSkills(pluginRoot: string, configuredPath: string | null) {
-    const candidate = resolve(pluginRoot, configuredPath ?? "skills")
+    const candidate = resolve(pluginRoot, configuredPath ?? 'skills')
     if (!contained(pluginRoot, candidate)) return { root: null, names: [] as string[], details: [] }
     const skillsRoot = await realpath(candidate).catch(() => null)
     if (!skillsRoot || !contained(pluginRoot, skillsRoot)) {
@@ -411,11 +408,11 @@ export class PluginManagementService {
     }
     const entries = await readdir(skillsRoot, { withFileTypes: true }).catch(() => [])
     const names: string[] = []
-    const details: Array<PluginDetails["skills"][number]> = []
+    const details: Array<PluginDetails['skills'][number]> = []
     for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
       if (!entry.isDirectory() && !entry.isSymbolicLink()) continue
       if (!pluginIdPattern.test(entry.name)) continue
-      const document = await realpath(join(skillsRoot, entry.name, "SKILL.md")).catch(() => null)
+      const document = await realpath(join(skillsRoot, entry.name, 'SKILL.md')).catch(() => null)
       if (!document || !contained(skillsRoot, document)) continue
       try {
         const bytes = await readFile(document)
@@ -426,7 +423,7 @@ export class PluginManagementService {
         details.push({
           id: entry.name,
           name,
-          description: stringValue(metadata.description) ?? "",
+          description: stringValue(metadata.description) ?? '',
         })
       } catch {
         continue

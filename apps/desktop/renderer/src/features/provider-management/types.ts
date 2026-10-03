@@ -32,11 +32,7 @@ export type ProviderManagementSnapshot = {
 }
 
 export type ProviderConnectionKind =
-  | 'inference-key'
-  | 'oauth'
-  | 'env'
-  | 'billing-key'
-  | 'subscription'
+  'inference-key' | 'oauth' | 'env' | 'billing-key' | 'subscription'
 
 export type ProviderConnection = {
   id: string

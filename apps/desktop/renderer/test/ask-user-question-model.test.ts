@@ -38,11 +38,14 @@ const input = {
 }
 
 test('keeps options without descriptions without inventing explanatory text', () => {
-  const questions = parseAskUserQuestions({ questions: [{ question: '如何继续？',
-    options: [{ label: '继续' }, { label: '调整', description: '' }],
-  }] })
+  const questions = parseAskUserQuestions({
+    questions: [
+      { question: '如何继续？', options: [{ label: '继续' }, { label: '调整', description: '' }] },
+    ],
+  })
   expect(questions?.[0]?.options).toEqual([
-    { label: '继续', description: '' }, { label: '调整', description: '' },
+    { label: '继续', description: '' },
+    { label: '调整', description: '' },
   ])
 })
 
@@ -51,18 +54,44 @@ describe('AskUserQuestion pure model', () => {
     const [single, multi] = parseAskUserQuestions(input)!
     const draft = initialQuestionState(single!)
     expect(shouldShowQuestionSubmit([single!], {}, 0)).toBe(false)
-    expect(shouldShowQuestionSubmit([single!], { editor: { ...draft, answered: true } }, 0)).toBe(false)
-    expect(shouldShowQuestionSubmit([single!], { editor: { ...draft, selected: [], custom: '说明' } }, 0)).toBe(true)
-    expect(shouldShowQuestionSubmit([single!], { editor: { ...draft, selected: [], custom: '  ' } }, 0)).toBe(false)
+    expect(shouldShowQuestionSubmit([single!], { editor: { ...draft, answered: true } }, 0)).toBe(
+      false,
+    )
+    expect(
+      shouldShowQuestionSubmit(
+        [single!],
+        { editor: { ...draft, selected: [], custom: '说明' } },
+        0,
+      ),
+    ).toBe(true)
+    expect(
+      shouldShowQuestionSubmit([single!], { editor: { ...draft, selected: [], custom: '  ' } }, 0),
+    ).toBe(false)
     expect(shouldShowQuestionSubmit([multi!], {}, 0)).toBe(false)
-    expect(shouldShowQuestionSubmit([multi!], { features: { ...draft, touched: true } }, 0)).toBe(true)
-    expect(shouldShowQuestionSubmit([multi!], { features: { ...draft, selected: [], touched: true } }, 0)).toBe(false)
+    expect(shouldShowQuestionSubmit([multi!], { features: { ...draft, touched: true } }, 0)).toBe(
+      true,
+    )
+    expect(
+      shouldShowQuestionSubmit(
+        [multi!],
+        { features: { ...draft, selected: [], touched: true } },
+        0,
+      ),
+    ).toBe(false)
     expect(shouldShowQuestionSubmit([single!, multi!], {}, 1)).toBe(false)
     const confirmed = { editor: { ...draft, answered: true } }
     expect(shouldShowQuestionSubmit([single!, multi!], confirmed, 0)).toBe(false)
     expect(shouldShowQuestionSubmit([single!, multi!], confirmed, 1)).toBe(false)
-    expect(shouldShowQuestionSubmit([single!, multi!], { editor: { ...draft, answered: false } }, 1)).toBe(false)
-    expect(shouldShowQuestionSubmit([single!, multi!], { editor: { ...draft, selected: [], custom: '自定义' } }, 0)).toBe(true)
+    expect(
+      shouldShowQuestionSubmit([single!, multi!], { editor: { ...draft, answered: false } }, 1),
+    ).toBe(false)
+    expect(
+      shouldShowQuestionSubmit(
+        [single!, multi!],
+        { editor: { ...draft, selected: [], custom: '自定义' } },
+        0,
+      ),
+    ).toBe(true)
   })
 
   test('explicit skips complete a question without an answer or default selection', () => {
@@ -72,24 +101,26 @@ describe('AskUserQuestion pure model', () => {
     expect(hasQuestionAnswer(skipped)).toBe(false)
     expect(firstUnansweredQuestionIndex(questions, states)).toBe(-1)
     expect(buildAskUserQuestionUpdatedInput(input, questions, states)).toMatchObject({
-      answers: { editor: '', features: '检查' }, skippedQuestionIds: ['editor'],
+      answers: { editor: '', features: '检查' },
+      skippedQuestionIds: ['editor'],
     })
     expect(firstUnansweredQuestionIndex(questions, { editor: skipped })).toBe(1)
   })
 
   test('keeps identical prompts independent by ID and does not confirm untouched defaults', () => {
-    const questions = parseAskUserQuestions({ questions: [
-      input.questions[0],
-      { ...input.questions[0], id: 'second-editor' },
-    ] })!
+    const questions = parseAskUserQuestions({
+      questions: [input.questions[0], { ...input.questions[0], id: 'second-editor' }],
+    })!
     const states = { editor: { ...initialQuestionState(questions[0]!), answered: true } }
     expect(firstUnansweredQuestionIndex(questions, states)).toBe(1)
     expect(canSubmitFromCurrentQuestion(questions, states, 0)).toBe(false)
     expect(canSubmitFromCurrentQuestion(questions, states, 1)).toBe(true)
-    expect(buildAskUserQuestionAnswers(questions, {
-      ...states,
-      'second-editor': { selected: ['Zed'], custom: '', answered: true },
-    })).toEqual({ editor: 'VS Code', 'second-editor': 'Zed' })
+    expect(
+      buildAskUserQuestionAnswers(questions, {
+        ...states,
+        'second-editor': { selected: ['Zed'], custom: '', answered: true },
+      }),
+    ).toEqual({ editor: 'VS Code', 'second-editor': 'Zed' })
   })
 
   test('parses single and multi questions while normalizing recommended labels', () => {
@@ -116,20 +147,22 @@ describe('AskUserQuestion pure model', () => {
       },
     ])
     expect(parseAskUserQuestions({ questions: [] })).toBeNull()
-    expect(parseAskUserQuestions({
-      questions: [{ question: '无效', options: [{ label: 'A' }] }],
-    })).toBeNull()
+    expect(
+      parseAskUserQuestions({
+        questions: [{ question: '无效', options: [{ label: 'A' }] }],
+      }),
+    ).toBeNull()
   })
 
   test('builds stable answer maps for multiple questions and custom text', () => {
     const questions = parseAskUserQuestions(input)!
     const states: Record<string, QuestionState> = {
-      '选择编辑器': {
+      选择编辑器: {
         selected: ['Zed'],
         custom: '',
         answered: true,
       },
-      '选择功能': {
+      选择功能: {
         selected: ['格式化', '检查'],
         custom: '生成报告',
         answered: true,
@@ -169,17 +202,15 @@ describe('AskUserQuestion pure model', () => {
       questions: [input.questions[0]],
     })!
     const states = {
-      '选择编辑器': {
+      选择编辑器: {
         selected: ['VS Code'],
         custom: '',
         answered: true,
       },
     }
-    expect(buildAskUserQuestionUpdatedInput(
-      { questions: [input.questions[0]] },
-      questions,
-      states,
-    )).toMatchObject({
+    expect(
+      buildAskUserQuestionUpdatedInput({ questions: [input.questions[0]] }, questions, states),
+    ).toMatchObject({
       answer: 'VS Code',
       answers: { editor: 'VS Code' },
     })

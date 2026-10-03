@@ -1,9 +1,7 @@
 import type { SessionListItem } from '../../../uiTypes.js'
 import type { DesktopSidebarSort } from '../../../../shared/types.js'
 
-export function sortSessionsByRecency<T extends SessionListItem>(
-  sessions: readonly T[],
-): T[] {
+export function sortSessionsByRecency<T extends SessionListItem>(sessions: readonly T[]): T[] {
   return [...sessions].sort(compareSessionsByRecency)
 }
 
@@ -23,17 +21,12 @@ export function sortSessionsForSidebar<T extends SessionListItem>(
     return sortSessionsByManualOrder(sessions, options)
   }
   if (options.sort === 'priority') {
-    return [...sessions].sort((left, right) =>
-      compareSessionsByPriority(left, right, options),
-    )
+    return [...sessions].sort((left, right) => compareSessionsByPriority(left, right, options))
   }
   return sortSessionsByRecency(sessions)
 }
 
-export function compareSessionsByRecency<T extends SessionListItem>(
-  left: T,
-  right: T,
-): number {
+export function compareSessionsByRecency<T extends SessionListItem>(left: T, right: T): number {
   return (
     sessionRecencyMs(right) - sessionRecencyMs(left) ||
     timestampMs(right.createdAt) - timestampMs(left.createdAt) ||
@@ -44,10 +37,7 @@ export function compareSessionsByRecency<T extends SessionListItem>(
 function compareSessionsByPriority<T extends SessionListItem>(
   left: T,
   right: T,
-  options: Pick<
-    SidebarSessionSortOptions,
-    'needsInputSessionIds' | 'unreadSessionIds'
-  >,
+  options: Pick<SidebarSessionSortOptions, 'needsInputSessionIds' | 'unreadSessionIds'>,
 ): number {
   return (
     sessionPriorityRank(left, options) - sessionPriorityRank(right, options) ||
@@ -57,20 +47,13 @@ function compareSessionsByPriority<T extends SessionListItem>(
 
 function sortSessionsByManualOrder<T extends SessionListItem>(
   sessions: readonly T[],
-  options: Pick<
-    SidebarSessionSortOptions,
-    'manualOrderByScope' | 'scopeKey'
-  >,
+  options: Pick<SidebarSessionSortOptions, 'manualOrderByScope' | 'scopeKey'>,
 ): T[] {
   const recentSessions = sortSessionsByRecency(sessions)
-  const order = options.scopeKey
-    ? options.manualOrderByScope[options.scopeKey] ?? []
-    : []
+  const order = options.scopeKey ? (options.manualOrderByScope[options.scopeKey] ?? []) : []
   if (order.length === 0) return recentSessions
 
-  const sessionById = new Map(
-    recentSessions.map(session => [session.id, session]),
-  )
+  const sessionById = new Map(recentSessions.map((session) => [session.id, session]))
   const storedSessions: T[] = []
   const storedIds = new Set<string>()
   for (const sessionId of order) {
@@ -80,7 +63,7 @@ function sortSessionsByManualOrder<T extends SessionListItem>(
     storedSessions.push(session)
   }
   let storedIndex = 0
-  return recentSessions.map(session => {
+  return recentSessions.map((session) => {
     if (!storedIds.has(session.id)) return session
     const storedSession = storedSessions[storedIndex]
     storedIndex += 1
@@ -90,15 +73,9 @@ function sortSessionsByManualOrder<T extends SessionListItem>(
 
 function sessionPriorityRank(
   session: SessionListItem,
-  options: Pick<
-    SidebarSessionSortOptions,
-    'needsInputSessionIds' | 'unreadSessionIds'
-  >,
+  options: Pick<SidebarSessionSortOptions, 'needsInputSessionIds' | 'unreadSessionIds'>,
 ): number {
-  if (
-    session.status === 'waiting' ||
-    options.needsInputSessionIds.has(session.id)
-  ) {
+  if (session.status === 'waiting' || options.needsInputSessionIds.has(session.id)) {
     return 0
   }
   if (options.unreadSessionIds.has(session.id)) return 1

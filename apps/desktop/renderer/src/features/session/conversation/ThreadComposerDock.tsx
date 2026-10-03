@@ -9,22 +9,17 @@ type ThreadComposerDockProps = {
 }
 
 /** Shared thread composer shell used by the main conversation and side chats. */
-export const ThreadComposerDock = forwardRef<
-  HTMLDivElement,
-  ThreadComposerDockProps
->(function ThreadComposerDock({ children, style }, ref) {
-  return (
-    <div
-      className="chat-composer workflow-page__composer tw:pointer-events-none tw:flex tw:w-full tw:justify-center"
-      data-component="thread-composer-dock"
-    >
-      <ComposerFrame
-        ref={ref}
-        className="workflow-page__composer-inner"
-        style={style}
+export const ThreadComposerDock = forwardRef<HTMLDivElement, ThreadComposerDockProps>(
+  function ThreadComposerDock({ children, style }, ref) {
+    return (
+      <div
+        className="chat-composer workflow-page__composer tw:pointer-events-none tw:flex tw:w-full tw:justify-center"
+        data-component="thread-composer-dock"
       >
-        {children}
-      </ComposerFrame>
-    </div>
-  )
-})
+        <ComposerFrame ref={ref} className="workflow-page__composer-inner" style={style}>
+          {children}
+        </ComposerFrame>
+      </div>
+    )
+  },
+)

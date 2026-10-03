@@ -1,12 +1,6 @@
 import { useSyncExternalStore } from 'react'
-import type {
-  DesktopFilePreview,
-  DesktopFileRevision,
-} from '../../../shared/types.js'
-import {
-  desktopClient,
-  WORKSPACE_FILE_CHANGED_EVENT,
-} from '../../services/desktop-client/index.js'
+import type { DesktopFilePreview, DesktopFileRevision } from '../../../shared/types.js'
+import { desktopClient, WORKSPACE_FILE_CHANGED_EVENT } from '../../services/desktop-client/index.js'
 import { AgentRpcError } from '../../services/agentRpcClient.js'
 
 const AUTOSAVE_DELAY_MS = 3_000
@@ -18,9 +12,7 @@ export type FileDocumentConflict = {
 }
 
 export type FileDocumentExternalCheckResult =
-  | { status: 'skipped' }
-  | { status: 'available' }
-  | { status: 'unavailable'; error: Error }
+  { status: 'skipped' } | { status: 'available' } | { status: 'unavailable'; error: Error }
 
 export type FileDocumentExternalCheckOptions = {
   onLoadError?: (error: Error) => void
@@ -64,9 +56,10 @@ export function fileDocumentKey(
   path: string,
   scope: FileDocumentScope = {},
 ): string {
-  const prefix = scope.projectId || scope.folderId
-    ? `${scope.projectId ?? ''}\u0000${scope.folderId ?? ''}\u0000`
-    : ''
+  const prefix =
+    scope.projectId || scope.folderId
+      ? `${scope.projectId ?? ''}\u0000${scope.folderId ?? ''}\u0000`
+      : ''
   return `${prefix}${workspacePath.replace(/\\/g, '/').toLowerCase()}\u0000${path
     .replace(/\\/g, '/')
     .toLowerCase()}`
@@ -153,25 +146,20 @@ export function prefetchFileDocument(
   if (existing) return existing
 
   publish({ ...current, status: 'loading', loadError: null })
-  const read = scope.projectId || scope.folderId
-    ? desktopClient.readWorkspaceFile(
-        workspacePath,
-        path,
-        scope.folderId,
-        scope.projectId,
-      )
-    : desktopClient.readWorkspaceFile(workspacePath, path)
+  const read =
+    scope.projectId || scope.folderId
+      ? desktopClient.readWorkspaceFile(workspacePath, path, scope.folderId, scope.projectId)
+      : desktopClient.readWorkspaceFile(workspacePath, path)
   const request = read
-    .then(preview => fromPreview(snapshotFor(workspacePath, path, scope), preview))
+    .then((preview) => fromPreview(snapshotFor(workspacePath, path, scope), preview))
     .then(publish)
-    .catch(error => {
+    .catch((error) => {
       const loadError = toError(error)
       const failed = publish({
         ...snapshotFor(workspacePath, path, scope),
         status: 'error',
         loadError: loadError.message,
-        loadErrorCode:
-          loadError instanceof AgentRpcError ? loadError.errorCode : null,
+        loadErrorCode: loadError instanceof AgentRpcError ? loadError.errorCode : null,
       })
       throw loadError
     })
@@ -223,9 +211,7 @@ export async function saveFileDocument(
   const existing = savePromises.get(key)
   if (existing) return existing
 
-  const request = saveUntilClean(workspacePath, path, scope).finally(() =>
-    savePromises.delete(key),
-  )
+  const request = saveUntilClean(workspacePath, path, scope).finally(() => savePromises.delete(key))
   savePromises.set(key, request)
   return request
 }
@@ -236,12 +222,7 @@ async function saveUntilClean(
   scope: FileDocumentScope,
 ): Promise<boolean> {
   const current = snapshotFor(workspacePath, path, scope)
-  if (
-    current.status !== 'ready' ||
-    current.readonly ||
-    current.conflict ||
-    !current.revision
-  ) {
+  if (current.status !== 'ready' || current.readonly || current.conflict || !current.revision) {
     return !current.dirty
   }
   if (!current.dirty) return true
@@ -301,14 +282,15 @@ export async function checkFileDocumentForExternalChange(
     return { status: 'skipped' }
   }
   try {
-    const disk = scope.projectId || scope.folderId
-      ? await desktopClient.readWorkspaceFile(
-          workspacePath,
-          path,
-          scope.folderId,
-          scope.projectId,
-        )
-      : await desktopClient.readWorkspaceFile(workspacePath, path)
+    const disk =
+      scope.projectId || scope.folderId
+        ? await desktopClient.readWorkspaceFile(
+            workspacePath,
+            path,
+            scope.folderId,
+            scope.projectId,
+          )
+        : await desktopClient.readWorkspaceFile(workspacePath, path)
     const current = snapshotFor(workspacePath, path, scope)
     if (current.status !== 'ready' || current.saving || current.conflict) {
       return { status: 'skipped' }
@@ -347,7 +329,7 @@ export function useFileDocument(
 ): FileDocumentSnapshot {
   const key = fileDocumentKey(workspacePath, path, scope)
   return useSyncExternalStore(
-    listener => {
+    (listener) => {
       const bucket = listeners.get(key) ?? new Set<Listener>()
       bucket.add(listener)
       listeners.set(key, bucket)
@@ -371,24 +353,13 @@ export function startFileDocumentExternalChecks(
   let unavailableNotified = false
   let checkPromise: Promise<void> | null = null
   const check = (): void => {
-    if (
-      !stopped &&
-      !checkPromise &&
-      document.visibilityState !== 'hidden'
-    ) {
-      checkPromise = checkFileDocumentForExternalChange(
-        workspacePath,
-        path,
-        scope,
-      )
-        .then(result => {
+    if (!stopped && !checkPromise && document.visibilityState !== 'hidden') {
+      checkPromise = checkFileDocumentForExternalChange(workspacePath, path, scope)
+        .then((result) => {
           if (stopped) return
           if (result.status === 'available') {
             unavailableNotified = false
-          } else if (
-            result.status === 'unavailable' &&
-            !unavailableNotified
-          ) {
+          } else if (result.status === 'unavailable' && !unavailableNotified) {
             unavailableNotified = true
             options.onLoadError?.(result.error)
           }
@@ -399,42 +370,35 @@ export function startFileDocumentExternalChecks(
     }
   }
   const onChanged = (event: Event): void => {
-    const detail = (event as CustomEvent<{
-      path?: unknown
-      projectId?: unknown
-      folderId?: unknown
-    }>).detail
+    const detail = (
+      event as CustomEvent<{
+        path?: unknown
+        projectId?: unknown
+        folderId?: unknown
+      }>
+    ).detail
     if (
       typeof detail?.path === 'string' &&
       (!scope.projectId || detail.projectId === scope.projectId) &&
       (!scope.folderId || detail.folderId === scope.folderId) &&
-      detail.path.replace(/\\/g, '/').toLowerCase() ===
-        path.replace(/\\/g, '/').toLowerCase()
+      detail.path.replace(/\\/g, '/').toLowerCase() === path.replace(/\\/g, '/').toLowerCase()
     ) {
       check()
     }
   }
-  const watch = scope.projectId || scope.folderId
-    ? desktopClient.watchWorkspaceFile(
-        workspacePath,
-        path,
-        scope.folderId,
-        scope.projectId,
-      )
-    : desktopClient.watchWorkspaceFile(workspacePath, path)
+  const watch =
+    scope.projectId || scope.folderId
+      ? desktopClient.watchWorkspaceFile(workspacePath, path, scope.folderId, scope.projectId)
+      : desktopClient.watchWorkspaceFile(workspacePath, path)
   let watchReady = false
   let released = false
   const releaseWatch = (): void => {
     if (released) return
     released = true
-    const unwatch = scope.projectId || scope.folderId
-      ? desktopClient.unwatchWorkspaceFile(
-          workspacePath,
-          path,
-          scope.folderId,
-          scope.projectId,
-        )
-      : desktopClient.unwatchWorkspaceFile(workspacePath, path)
+    const unwatch =
+      scope.projectId || scope.folderId
+        ? desktopClient.unwatchWorkspaceFile(workspacePath, path, scope.folderId, scope.projectId)
+        : desktopClient.unwatchWorkspaceFile(workspacePath, path)
     void unwatch.catch(() => undefined)
   }
   void watch.then(
@@ -499,9 +463,9 @@ export function resolveFileDocumentConflict(
 }
 
 export async function saveAllFileDocuments(): Promise<boolean> {
-  const dirty = [...documents.values()].filter(document => document.dirty)
+  const dirty = [...documents.values()].filter((document) => document.dirty)
   const results = await Promise.all(
-    dirty.map(document =>
+    dirty.map((document) =>
       saveFileDocument(document.workspacePath, document.path, {
         projectId: document.projectId,
         folderId: document.folderId,
@@ -512,7 +476,7 @@ export async function saveAllFileDocuments(): Promise<boolean> {
 }
 
 export function hasDirtyFileDocuments(): boolean {
-  return [...documents.values()].some(document => document.dirty)
+  return [...documents.values()].some((document) => document.dirty)
 }
 
 export function isFileDocumentDirty(

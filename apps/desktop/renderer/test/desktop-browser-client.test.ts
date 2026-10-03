@@ -27,26 +27,30 @@ describe('desktop browser client', () => {
     const calls: unknown[] = []
     let stateListener: ((state: DesktopBrowserSnapshot) => void) | null = null
     const bridge = {
-      getDesktopBrowserState: async input => (calls.push(input), snapshot()),
-      createOrRestoreDesktopBrowser: async input => (calls.push(input), snapshot()),
-      navigateDesktopBrowser: async input => (calls.push(input), snapshot({ url: input.url })),
+      getDesktopBrowserState: async (input) => (calls.push(input), snapshot()),
+      createOrRestoreDesktopBrowser: async (input) => (calls.push(input), snapshot()),
+      navigateDesktopBrowser: async (input) => (calls.push(input), snapshot({ url: input.url })),
       reloadDesktopBrowser: async () => snapshot(),
       stopDesktopBrowser: async () => snapshot({ loading: false }),
       goBackDesktopBrowser: async () => snapshot(),
       goForwardDesktopBrowser: async () => snapshot(),
-      setDesktopBrowserBounds: async input => (calls.push(input), snapshot()),
-      setDesktopBrowserVisible: async input => (calls.push(input), snapshot()),
-      focusDesktopBrowser: async input => { calls.push(input) },
+      setDesktopBrowserBounds: async (input) => (calls.push(input), snapshot()),
+      setDesktopBrowserVisible: async (input) => (calls.push(input), snapshot()),
+      focusDesktopBrowser: async (input) => {
+        calls.push(input)
+      },
       closeDesktopBrowser: async () => snapshot({ open: false }),
       clearDesktopBrowserAllowedSites: async () => snapshot(),
-      onDesktopBrowserStateChange: listener => {
+      onDesktopBrowserStateChange: (listener) => {
         stateListener = listener
-        return () => { stateListener = null }
+        return () => {
+          stateListener = null
+        }
       },
     } satisfies DesktopBrowserIpcBridge
     const client = createDesktopBrowserClient(bridge)
     const events: string[] = []
-    const unsubscribe = client.onBrowserStateChange(state => events.push(state.url))
+    const unsubscribe = client.onBrowserStateChange((state) => events.push(state.url))
 
     expect(client.available).toBe(true)
     await client.openBrowser()
@@ -68,8 +72,6 @@ describe('desktop browser client', () => {
   test('reports unavailable instead of succeeding with an Electron mock', async () => {
     const client = createDesktopBrowserClient()
     expect(client.available).toBe(false)
-    await expect(client.openBrowser()).rejects.toThrow(
-      '仅在 CodePilotX 桌面应用中可用',
-    )
+    await expect(client.openBrowser()).rejects.toThrow('仅在 CodePilotX 桌面应用中可用')
   })
 })

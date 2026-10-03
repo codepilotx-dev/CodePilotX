@@ -2,7 +2,7 @@ import {
   DESKTOP_CLIPBOARD_SENSITIVE_CLEAR_AFTER_MS,
   type DesktopClipboardRichTextInput,
   type DesktopSensitiveClipboardResult,
-} from "@codepilotx/shared/desktop-clipboard-ipc"
+} from '@codepilotx/shared/desktop-clipboard-ipc'
 
 export interface DesktopClipboardAdapter {
   writeText(text: string): void
@@ -16,10 +16,7 @@ export interface DesktopClipboardTimerHandle {
 }
 
 export interface DesktopClipboardTimer {
-  setTimeout(
-    callback: () => void,
-    delayMs: number,
-  ): DesktopClipboardTimerHandle
+  setTimeout(callback: () => void, delayMs: number): DesktopClipboardTimerHandle
 }
 
 export type DesktopClipboardServiceOptions = {
@@ -52,18 +49,14 @@ export class DesktopClipboardService {
 
   writeSensitiveText(
     secret: string,
-    clearAfterMs: typeof DESKTOP_CLIPBOARD_SENSITIVE_CLEAR_AFTER_MS
-      = DESKTOP_CLIPBOARD_SENSITIVE_CLEAR_AFTER_MS,
+    clearAfterMs: typeof DESKTOP_CLIPBOARD_SENSITIVE_CLEAR_AFTER_MS = DESKTOP_CLIPBOARD_SENSITIVE_CLEAR_AFTER_MS,
   ): DesktopSensitiveClipboardResult {
     this.#invalidatePendingClear()
     this.#generation += 1
     const generation = this.#generation
     this.#adapter.writeText(secret)
     this.#pendingClear = this.#timer.setTimeout(() => {
-      if (
-        this.#generation === generation
-        && this.#adapter.readText() === secret
-      ) {
+      if (this.#generation === generation && this.#adapter.readText() === secret) {
         this.#adapter.clear()
       }
     }, clearAfterMs)
@@ -90,7 +83,7 @@ export function createDesktopClipboardTimer(): DesktopClipboardTimer {
   return {
     setTimeout(callback, delayMs) {
       const handle = setTimeout(callback, delayMs)
-      if (typeof handle.unref === "function") {
+      if (typeof handle.unref === 'function') {
         handle.unref()
       }
       return {

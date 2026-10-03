@@ -1,26 +1,13 @@
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import * as Dialog from '@radix-ui/react-dialog'
 import type { UsageSourceDescriptor } from '@codepilotx/agent-protocol'
-import {
-  ChevronLeft,
-  KeyRound,
-  Link2,
-  ShieldCheck,
-  X,
-} from 'lucide-react'
+import { ChevronLeft, KeyRound, Link2, ShieldCheck, X } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useId, useMemo, useState } from 'react'
-import type {
-  DesktopModelProviderSummary,
-} from '../../../../shared/types.js'
+import type { DesktopModelProviderSummary } from '../../../../shared/types.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
-import {
-  providerManagementStore,
-} from '../../provider-management/index.js'
-import {
-  ApiKeyEditorDialog,
-  type ApiKeyEditorValue,
-} from '../ApiKeyEditorDialog.js'
+import { providerManagementStore } from '../../provider-management/index.js'
+import { ApiKeyEditorDialog, type ApiKeyEditorValue } from '../ApiKeyEditorDialog.js'
 import { BillingCredentialConnection } from './BillingCredentialConnection.js'
 import { OAuthConnection } from './OAuthConnection.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
@@ -59,10 +46,10 @@ export function ProviderConnectionDialog({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const focusRestore = useDialogFocusRestore(open)
   const choices = useMemo(
-    () => provider ? getProviderConnectionChoices(provider, sources) : [],
+    () => (provider ? getProviderConnectionChoices(provider, sources) : []),
     [provider, sources],
   )
-  const selected = choices.find(choice => choice.id === selectedId) ?? null
+  const selected = choices.find((choice) => choice.id === selectedId) ?? null
 
   useEffect(() => {
     if (!open) setSelectedId(null)
@@ -77,7 +64,7 @@ export function ProviderConnectionDialog({
         open={open}
         providers={[provider]}
         restoreFocusElement={focusRestore.restoreFocusElement}
-        onOpenChange={nextOpen => {
+        onOpenChange={(nextOpen) => {
           if (!nextOpen) setSelectedId(null)
           onOpenChange(nextOpen)
         }}
@@ -86,10 +73,8 @@ export function ProviderConnectionDialog({
     )
   }
 
-  const selectedSource = selected?.kind === 'billing'
-    || selected?.kind === 'usage-oauth'
-    ? selected.source
-    : null
+  const selectedSource =
+    selected?.kind === 'billing' || selected?.kind === 'usage-oauth' ? selected.source : null
 
   async function connected(): Promise<void> {
     await providerManagementStore.refreshConnections()
@@ -131,13 +116,17 @@ export function ProviderConnectionDialog({
                 </Dialog.Title>
                 <Dialog.Description id={descriptionId}>
                   {selected?.kind === 'inference-oauth'
-                    ? t(provider.providerID === 'openai'
-                      ? '在浏览器完成登录，连接你的 ChatGPT 账号。'
-                      : '在浏览器完成授权，连接此供应商。')
+                    ? t(
+                        provider.providerID === 'openai'
+                          ? '在浏览器完成登录，连接你的 ChatGPT 账号。'
+                          : '在浏览器完成授权，连接此供应商。',
+                      )
                     : selected?.kind === 'usage-oauth'
-                      ? t(selectedSource?.scope === 'subscription'
-                        ? '授权读取订阅额度，不会改变模型推理账号。'
-                        : '授权读取账户用量。')
+                      ? t(
+                          selectedSource?.scope === 'subscription'
+                            ? '授权读取订阅额度，不会改变模型推理账号。'
+                            : '授权读取账户用量。',
+                        )
                       : selected
                         ? '完成连接后，此供应商即可直接用于模型推理。'
                         : '选择模型推理、管理账务或订阅额度的连接方式。'}
@@ -153,7 +142,7 @@ export function ProviderConnectionDialog({
 
           {!selected ? (
             <div className="settings-management-dialog-card model-center-connection-choices">
-              {choices.map(choice => (
+              {choices.map((choice) => (
                 <button
                   className="settings-management-dialog-row model-center-connection-choice"
                   key={choice.id}
@@ -161,9 +150,11 @@ export function ProviderConnectionDialog({
                   onClick={() => setSelectedId(choice.id)}
                 >
                   <span className="model-center-connection-choice-icon">
-                    {choice.kind === 'inference-key'
-                      ? <KeyRound aria-hidden size={APP_ICON_SIZE} />
-                      : <ShieldCheck aria-hidden size={APP_ICON_SIZE} />}
+                    {choice.kind === 'inference-key' ? (
+                      <KeyRound aria-hidden size={APP_ICON_SIZE} />
+                    ) : (
+                      <ShieldCheck aria-hidden size={APP_ICON_SIZE} />
+                    )}
                   </span>
                   <span className="model-center-connection-choice-text">
                     <strong>{t(choiceLabel(choice, provider))}</strong>
@@ -184,10 +175,12 @@ export function ProviderConnectionDialog({
               connected={false}
               description="在浏览器完成授权，连接此供应商。"
               hideHeader
-              target={{
-                kind: 'provider',
-                providerId: provider.providerID,
-              } as never}
+              target={
+                {
+                  kind: 'provider',
+                  providerId: provider.providerID,
+                } as never
+              }
               title={choiceLabel(selected, provider)}
               onChanged={connected}
             />
@@ -208,22 +201,20 @@ export function ProviderConnectionDialog({
             />
           ) : null}
 
-          {selected?.kind === 'billing'
-            && selectedSource?.connectionMethod.kind === 'billing-key' ? (
-              <BillingCredentialConnection
-                source={{
-                  ...selectedSource,
-                  connectionMethod: selectedSource.connectionMethod,
-                }}
-                onChanged={connected}
-                onConnect={input =>
-                  providerManagementStore.connectUsageCredential(input)
-                }
-                onDisconnect={sourceId =>
-                  providerManagementStore.disconnectUsageCredential({ sourceId })
-                }
-              />
-            ) : null}
+          {selected?.kind === 'billing' &&
+          selectedSource?.connectionMethod.kind === 'billing-key' ? (
+            <BillingCredentialConnection
+              source={{
+                ...selectedSource,
+                connectionMethod: selectedSource.connectionMethod,
+              }}
+              onChanged={connected}
+              onConnect={(input) => providerManagementStore.connectUsageCredential(input)}
+              onDisconnect={(sourceId) =>
+                providerManagementStore.disconnectUsageCredential({ sourceId })
+              }
+            />
+          ) : null}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

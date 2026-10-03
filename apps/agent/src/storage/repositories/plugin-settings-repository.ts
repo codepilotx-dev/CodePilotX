@@ -17,7 +17,7 @@ type SettingsDatabase = {
   setSetting(key: string, value: unknown): void
 }
 
-const SETTINGS_KEY = "plugins.runtime.v1"
+const SETTINGS_KEY = 'plugins.runtime.v1'
 const MAX_OPERATIONS = 100
 const pluginIdPattern = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$/
 
@@ -33,25 +33,25 @@ const normalizeState = (value: PluginRuntimeState | null): PluginRuntimeState =>
   if (!value || value.version !== 1) return defaultState()
   return {
     version: 1,
-    disabledPluginIds: [...new Set(
-      value.disabledPluginIds.filter((pluginId) => pluginIdPattern.test(pluginId)),
-    )].sort(),
-    generation: Number.isSafeInteger(value.generation) && value.generation >= 1
-      ? value.generation
-      : 1,
-    updatedAt: Number.isFinite(value.updatedAt) && value.updatedAt >= 0
-      ? value.updatedAt
-      : 0,
+    disabledPluginIds: [
+      ...new Set(value.disabledPluginIds.filter((pluginId) => pluginIdPattern.test(pluginId))),
+    ].sort(),
+    generation:
+      Number.isSafeInteger(value.generation) && value.generation >= 1 ? value.generation : 1,
+    updatedAt: Number.isFinite(value.updatedAt) && value.updatedAt >= 0 ? value.updatedAt : 0,
     operations: Array.isArray(value.operations)
-      ? value.operations.filter((operation) =>
-          typeof operation.operationId === "string"
-          && pluginIdPattern.test(operation.pluginId)
-          && typeof operation.enabled === "boolean"
-          && Number.isSafeInteger(operation.generation)
-          && operation.generation >= 1
-          && Number.isFinite(operation.updatedAt)
-          && operation.updatedAt >= 0,
-        ).slice(-MAX_OPERATIONS)
+      ? value.operations
+          .filter(
+            (operation) =>
+              typeof operation.operationId === 'string' &&
+              pluginIdPattern.test(operation.pluginId) &&
+              typeof operation.enabled === 'boolean' &&
+              Number.isSafeInteger(operation.generation) &&
+              operation.generation >= 1 &&
+              Number.isFinite(operation.updatedAt) &&
+              operation.updatedAt >= 0,
+          )
+          .slice(-MAX_OPERATIONS)
       : [],
   }
 }
@@ -65,17 +65,14 @@ export class PluginSettingsRepository {
     return normalizeState(this.database.getSetting<PluginRuntimeState>(SETTINGS_KEY))
   }
 
-  setEnabled(input: {
-    pluginId: string
-    enabled: boolean
-    operationId: string
-  }) {
+  setEnabled(input: { pluginId: string; enabled: boolean; operationId: string }) {
     const state = this.state()
-    const existing = state.operations.find((operation) =>
-      operation.operationId === input.operationId)
+    const existing = state.operations.find(
+      (operation) => operation.operationId === input.operationId,
+    )
     if (existing) {
       if (existing.pluginId !== input.pluginId || existing.enabled !== input.enabled) {
-        throw new PluginSettingsConflictError("operationId 已用于其他插件设置请求")
+        throw new PluginSettingsConflictError('operationId 已用于其他插件设置请求')
       }
       return {
         state: {

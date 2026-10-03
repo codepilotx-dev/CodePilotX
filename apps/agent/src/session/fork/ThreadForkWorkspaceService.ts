@@ -1,11 +1,11 @@
-import { isAbsolute, relative, resolve } from "node:path"
-import { AgentError } from "../../domain"
-import type { EnvironmentDeltaStore } from "../../local-environment/EnvironmentDeltaStore"
-import type { ThreadWorkspaceResolver } from "../../workspace/ThreadWorkspaceResolver"
-import type { TaskExecutionBindingService } from "../../worktree/TaskExecutionBindingService"
-import type { WorktreeRepository } from "../../worktree/WorktreeRepository"
+import { isAbsolute, relative, resolve } from 'node:path'
+import { AgentError } from '../../domain'
+import type { EnvironmentDeltaStore } from '../../local-environment/EnvironmentDeltaStore'
+import type { ThreadWorkspaceResolver } from '../../workspace/ThreadWorkspaceResolver'
+import type { TaskExecutionBindingService } from '../../worktree/TaskExecutionBindingService'
+import type { WorktreeRepository } from '../../worktree/WorktreeRepository'
 
-export type ForkSourceWorkspace = Awaited<ReturnType<ThreadWorkspaceResolver["resolve"]>>
+export type ForkSourceWorkspace = Awaited<ReturnType<ThreadWorkspaceResolver['resolve']>>
 
 /** Reuses the same binding/delta rules as Handoff without moving the source task. */
 export class ThreadForkWorkspaceService {
@@ -22,9 +22,10 @@ export class ThreadForkWorkspaceService {
 
   targetWorkspace(source: ForkSourceWorkspace, cwd: string, gitBranch: string) {
     const roots = source.runtimeWorkspaceRoots.map((root) => {
-      if (source.kind !== "project") return root
+      if (source.kind !== 'project') return root
       const sourceRelative = relative(source.workspaceRoot, root.path)
-      return sourceRelative === "" || (!sourceRelative.startsWith("..") && !isAbsolute(sourceRelative))
+      return sourceRelative === '' ||
+        (!sourceRelative.startsWith('..') && !isAbsolute(sourceRelative))
         ? { ...root, path: resolve(cwd, sourceRelative) }
         : root
     })
@@ -34,11 +35,14 @@ export class ThreadForkWorkspaceService {
   async bindSame(source: ForkSourceWorkspace, targetThreadID: string) {
     const existing = this.bindings.read(targetThreadID)
     if (existing) {
-      const expectedWorktreeID = source.executionBinding.kind === "worktree"
-        ? source.executionBinding.worktreeId
-        : null
-      if (existing.kind !== source.executionBinding.kind || existing.worktreeId !== expectedWorktreeID || existing.cwd !== source.cwd) {
-        throw new AgentError("WORKTREE_OPERATION_CONFLICT", "分叉目标执行绑定与源工作区不一致", 409)
+      const expectedWorktreeID =
+        source.executionBinding.kind === 'worktree' ? source.executionBinding.worktreeId : null
+      if (
+        existing.kind !== source.executionBinding.kind ||
+        existing.worktreeId !== expectedWorktreeID ||
+        existing.cwd !== source.cwd
+      ) {
+        throw new AgentError('WORKTREE_OPERATION_CONFLICT', '分叉目标执行绑定与源工作区不一致', 409)
       }
       return existing.bindingId
     }
@@ -49,7 +53,11 @@ export class ThreadForkWorkspaceService {
       source.executionBinding.environmentRevision,
     )
     try {
-      if (source.executionBinding.kind === "worktree" && source.executionBinding.projectId && source.executionBinding.worktreeId) {
+      if (
+        source.executionBinding.kind === 'worktree' &&
+        source.executionBinding.projectId &&
+        source.executionBinding.worktreeId
+      ) {
         this.bindings.bindWorktree({
           threadId: targetThreadID,
           projectId: source.executionBinding.projectId,
@@ -74,18 +82,32 @@ export class ThreadForkWorkspaceService {
   }
 
   async bindNewWorktree(source: ForkSourceWorkspace, targetThreadID: string, worktreeID: string) {
-    if (source.kind !== "project" || !source.projectID) throw new AgentError("NOT_GIT", "当前任务不支持托管 worktree", 409)
+    if (source.kind !== 'project' || !source.projectID)
+      throw new AgentError('NOT_GIT', '当前任务不支持托管 worktree', 409)
     const worktree = this.worktrees.readWorktree(worktreeID)
-    if (!worktree || worktree.projectId !== source.projectID) throw new AgentError("WORKTREE_OPERATION_CONFLICT", "分叉 worktree 不存在", 409)
+    if (!worktree || worktree.projectId !== source.projectID)
+      throw new AgentError('WORKTREE_OPERATION_CONFLICT', '分叉 worktree 不存在', 409)
     const existing = this.bindings.read(targetThreadID)
     if (existing) {
-      if (existing.kind !== "worktree" || existing.worktreeId !== worktreeID || existing.cwd !== worktree.path) {
-        throw new AgentError("WORKTREE_OPERATION_CONFLICT", "分叉目标执行绑定与托管 worktree 不一致", 409)
+      if (
+        existing.kind !== 'worktree' ||
+        existing.worktreeId !== worktreeID ||
+        existing.cwd !== worktree.path
+      ) {
+        throw new AgentError(
+          'WORKTREE_OPERATION_CONFLICT',
+          '分叉目标执行绑定与托管 worktree 不一致',
+          409,
+        )
       }
       return existing.bindingId
     }
     const targetBindingID = this.bindings.allocateBindingId()
-    const environment = await this.environmentDeltas.copy(worktreeID, targetBindingID, worktree.environmentRevision)
+    const environment = await this.environmentDeltas.copy(
+      worktreeID,
+      targetBindingID,
+      worktree.environmentRevision,
+    )
     try {
       this.bindings.bindWorktree({
         threadId: targetThreadID,

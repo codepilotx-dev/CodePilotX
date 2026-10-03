@@ -1,7 +1,7 @@
 export const DESKTOP_CLIPBOARD_IPC_CHANNELS = {
-  writeText: "clipboard:write-text",
-  writeRichText: "clipboard:write-rich-text",
-  copyProviderApiKey: "clipboard:copy-provider-api-key",
+  writeText: 'clipboard:write-text',
+  writeRichText: 'clipboard:write-rich-text',
+  copyProviderApiKey: 'clipboard:copy-provider-api-key',
 } as const
 
 export const DESKTOP_CLIPBOARD_TEXT_MAX_BYTES = 16 * 1024 * 1024
@@ -24,9 +24,7 @@ export type DesktopSensitiveClipboardResult = {
 export interface DesktopClipboardIpcBridge {
   writeClipboardText(input: DesktopClipboardTextInput): Promise<void>
   writeClipboardRichText(input: DesktopClipboardRichTextInput): Promise<void>
-  copyProviderApiKey(
-    credentialId: string,
-  ): Promise<DesktopSensitiveClipboardResult>
+  copyProviderApiKey(credentialId: string): Promise<DesktopSensitiveClipboardResult>
 }
 
 // IPC 边界校验：只返回契约定义的精确字段，不透传额外字段；错误使用
@@ -36,7 +34,7 @@ export function normalizeDesktopClipboardTextInput(
   value: unknown,
 ): DesktopClipboardTextInput | null {
   if (!isRecord(value)) return null
-  if (typeof value.text !== "string") return null
+  if (typeof value.text !== 'string') return null
   if (utf8ByteLength(value.text) > DESKTOP_CLIPBOARD_TEXT_MAX_BYTES) return null
   return { text: value.text }
 }
@@ -45,22 +43,17 @@ export function normalizeDesktopClipboardRichTextInput(
   value: unknown,
 ): DesktopClipboardRichTextInput | null {
   if (!isRecord(value)) return null
-  if (typeof value.text !== "string") return null
-  if (typeof value.html !== "string") return null
-  if (
-    utf8ByteLength(value.text) + utf8ByteLength(value.html)
-    > DESKTOP_CLIPBOARD_TEXT_MAX_BYTES
-  ) {
+  if (typeof value.text !== 'string') return null
+  if (typeof value.html !== 'string') return null
+  if (utf8ByteLength(value.text) + utf8ByteLength(value.html) > DESKTOP_CLIPBOARD_TEXT_MAX_BYTES) {
     return null
   }
   return { text: value.text, html: value.html }
 }
 
-export function requireDesktopClipboardTextInput(
-  value: unknown,
-): DesktopClipboardTextInput {
+export function requireDesktopClipboardTextInput(value: unknown): DesktopClipboardTextInput {
   const input = normalizeDesktopClipboardTextInput(value)
-  if (!input) throw new Error("剪贴板文本输入无效")
+  if (!input) throw new Error('剪贴板文本输入无效')
   return input
 }
 
@@ -68,12 +61,12 @@ export function requireDesktopClipboardRichTextInput(
   value: unknown,
 ): DesktopClipboardRichTextInput {
   const input = normalizeDesktopClipboardRichTextInput(value)
-  if (!input) throw new Error("剪贴板富文本输入无效")
+  if (!input) throw new Error('剪贴板富文本输入无效')
   return input
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function utf8ByteLength(value: string): number {

@@ -1,8 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import {
-  nestedSelectorBlock,
-  transitionProperties,
-} from '../scripts/style-animation-contracts.js'
+import { nestedSelectorBlock, transitionProperties } from '../scripts/style-animation-contracts.js'
 
 describe('style animation contracts', () => {
   test('scopes nested selector lookup to the requested parent block', () => {
@@ -15,20 +12,12 @@ describe('style animation contracts', () => {
       }
     `
 
-    expect(
-      nestedSelectorBlock(
-        source,
-        '.canonical-turn-activity',
-        '&__content',
-      ),
-    ).toContain('overflow: hidden')
-    expect(
-      nestedSelectorBlock(
-        source,
-        '.canonical-turn-activity',
-        '&__content',
-      ),
-    ).not.toContain('will-change')
+    expect(nestedSelectorBlock(source, '.canonical-turn-activity', '&__content')).toContain(
+      'overflow: hidden',
+    )
+    expect(nestedSelectorBlock(source, '.canonical-turn-activity', '&__content')).not.toContain(
+      'will-change',
+    )
   })
 
   test('reports every transition property without splitting easing functions', () => {

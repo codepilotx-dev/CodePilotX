@@ -32,11 +32,13 @@ const provider = {
       env: ['MINIMAX_API_KEY'],
       allowInsecureHttp: false,
       headers: {},
-      models: [{
-        id: 'MiniMax-M3',
-        api: 'anthropic-messages',
-        enabled: true,
-      }],
+      models: [
+        {
+          id: 'MiniMax-M3',
+          api: 'anthropic-messages',
+          enabled: true,
+        },
+      ],
     },
   },
   models: [
@@ -52,11 +54,7 @@ const provider = {
         baseUrl: 'https://api.minimaxi.com/anthropic/v1',
       },
       capabilities: { tools: true, input: ['text'], output: ['text'] },
-      variants: [
-        { id: 'off' },
-        { id: 'medium' },
-        { id: 'high' },
-      ],
+      variants: [{ id: 'off' }, { id: 'medium' }, { id: 'high' }],
       time: { released: 0 },
       cost: [],
       status: 'active',
@@ -98,11 +96,13 @@ describe('desktop provider client', () => {
     expect(isExecutableDesktopProvider(unavailable)).toBe(false)
     expect(desktopProviderExecutionError(unavailable)).toContain('协议或 Endpoint')
     expect(desktopProviderExecutionError({ ...ready, enabled: false })).toContain('已禁用')
-    expect(desktopProviderExecutionError({
-      ...ready,
-      defaultModels: [],
-      modelCount: 0,
-    })).toContain('暂无可用模型')
+    expect(
+      desktopProviderExecutionError({
+        ...ready,
+        defaultModels: [],
+        modelCount: 0,
+      }),
+    ).toContain('暂无可用模型')
     expect(desktopProviderExecutionError(ready)).toBeNull()
   })
 
@@ -112,12 +112,8 @@ describe('desktop provider client', () => {
       (brandID, providerIDs) => {
         for (const providerID of providerIDs) {
           expect(providerLogoBrandID(providerID)).toBe(brandID)
-          expect(modelsDevLogoURL(providerID)).toBe(
-            `https://models.dev/logos/${brandID}.svg`,
-          )
-          expect(builtinLogoURL(providerID)).toBe(
-            `https://models.dev/logos/${brandID}.svg`,
-          )
+          expect(modelsDevLogoURL(providerID)).toBe(`https://models.dev/logos/${brandID}.svg`)
+          expect(builtinLogoURL(providerID)).toBe(`https://models.dev/logos/${brandID}.svg`)
         }
       },
     )
@@ -133,9 +129,7 @@ describe('desktop provider client', () => {
           brandByProviderID.set(providerID, brandID)
         }
       }
-      expect(brandByProviderID.size).toBe(
-        Object.values(PROVIDER_LOGO_BRANDS).flat().length,
-      )
+      expect(brandByProviderID.size).toBe(Object.values(PROVIDER_LOGO_BRANDS).flat().length)
     })
 
     test.each([
@@ -146,26 +140,18 @@ describe('desktop provider client', () => {
       'nvidia',
       'openrouter',
       'xai',
-    ])('独立品牌 %s 保留自身图标', providerID => {
-      expect(modelsDevLogoURL(providerID)).toBe(
-        `https://models.dev/logos/${providerID}.svg`,
-      )
+    ])('独立品牌 %s 保留自身图标', (providerID) => {
+      expect(modelsDevLogoURL(providerID)).toBe(`https://models.dev/logos/${providerID}.svg`)
     })
 
     test.each([
       ['google-vertex', 'google'],
       ['opencode-go', 'opencode'],
     ])('同产品线但独立成图：%s 不折叠到 %s', (providerID, parentBrandID) => {
-      expect(modelsDevLogoURL(providerID)).toBe(
-        `https://models.dev/logos/${providerID}.svg`,
-      )
-      expect(modelsDevLogoURL(parentBrandID)).toBe(
-        `https://models.dev/logos/${parentBrandID}.svg`,
-      )
+      expect(modelsDevLogoURL(providerID)).toBe(`https://models.dev/logos/${providerID}.svg`)
+      expect(modelsDevLogoURL(parentBrandID)).toBe(`https://models.dev/logos/${parentBrandID}.svg`)
       expect(modelsDevLogoURL(providerID)).not.toBe(modelsDevLogoURL(parentBrandID))
-      expect(builtinLogoURL(providerID)).toBe(
-        `https://models.dev/logos/${providerID}.svg`,
-      )
+      expect(builtinLogoURL(providerID)).toBe(`https://models.dev/logos/${providerID}.svg`)
     })
 
     test.each([
@@ -175,13 +161,9 @@ describe('desktop provider client', () => {
       'moonshotai-token-plan',
       'openai-compatible',
       'zai-coding',
-    ])('不按名称或后缀推断品牌，未知 ID %s 使用自身地址', providerID => {
-      expect(modelsDevLogoURL(providerID)).toBe(
-        `https://models.dev/logos/${providerID}.svg`,
-      )
-      expect(builtinLogoURL(providerID)).toBe(
-        `https://models.dev/logos/${providerID}.svg`,
-      )
+    ])('不按名称或后缀推断品牌，未知 ID %s 使用自身地址', (providerID) => {
+      expect(modelsDevLogoURL(providerID)).toBe(`https://models.dev/logos/${providerID}.svg`)
+      expect(builtinLogoURL(providerID)).toBe(`https://models.dev/logos/${providerID}.svg`)
     })
 
     test('对含特殊字符的 providerID 安全进行 encodeURIComponent', () => {
@@ -215,13 +197,15 @@ describe('desktop provider client', () => {
   })
 
   test('仅支持 OAuth 的 provider 未认证时不会被 adapter 视为已配置', () => {
-    expect(catalogProviderToDesktop({
-      provider: {
-        ...provider.provider,
-        auth: { apiKey: false, oauth: true },
-      },
-      models: provider.models,
-    } as never).apiKeyConfigured).toBe(false)
+    expect(
+      catalogProviderToDesktop({
+        provider: {
+          ...provider.provider,
+          auth: { apiKey: false, oauth: true },
+        },
+        models: provider.models,
+      } as never).apiKeyConfigured,
+    ).toBe(false)
   })
 
   test('读取并切换 Provider 凭据仓库时生成幂等操作 ID', async () => {
@@ -231,10 +215,7 @@ describe('desktop provider client', () => {
       const body = JSON.parse(String(init?.body))
       requests.push({ method: body.method, params: body.params })
       if (body.method === 'initialize') {
-        return rpc(body.id, initializedResult([
-          'rpc.typed.v1',
-          'provider.auth.pi.v1',
-        ]))
+        return rpc(body.id, initializedResult(['rpc.typed.v1', 'provider.auth.pi.v1']))
       }
       if (body.method === 'initialized') return new Response(null, { status: 204 })
       if (body.method === 'provider/credential/store/read') {
@@ -271,10 +252,12 @@ describe('desktop provider client', () => {
       store: 'auth-json',
       migratedCredentials: 2,
     })
-    expect(requests.map(request => request.method)).toEqual(expect.arrayContaining([
-      'provider/credential/store/read',
-      'provider/credential/store/update',
-    ]))
+    expect(requests.map((request) => request.method)).toEqual(
+      expect.arrayContaining([
+        'provider/credential/store/read',
+        'provider/credential/store/update',
+      ]),
+    )
   })
 
   test('分页目录启动只加载 provider 摘要和当前 provider 首页', async () => {
@@ -289,10 +272,12 @@ describe('desktop provider client', () => {
       if (body.method === 'initialized') return new Response(null, { status: 204 })
       if (body.method === 'provider/list') {
         return rpc(body.id, {
-          providers: [{
-            ...provider.provider,
-            authConfigured: true,
-          }],
+          providers: [
+            {
+              ...provider.provider,
+              authConfigured: true,
+            },
+          ],
           issues: [],
           defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3', variant: 'medium' },
           reviewerModel: null,
@@ -331,9 +316,14 @@ describe('desktop provider client', () => {
     expect(state.variant).toBe('medium')
     expect(state.modelMetadata?.['MiniMax-M3']?.variants).toEqual(['off', 'medium', 'high'])
     expect(providers).toHaveLength(1)
-    expect(requests.filter(request => request.method === 'provider/list')).toHaveLength(1)
-    expect(requests.filter(request => request.method === 'model/list')).toHaveLength(1)
-    expect(requests.some(request => request.method === 'model/list' && Object.keys(request.params ?? {}).length === 0)).toBe(false)
+    expect(requests.filter((request) => request.method === 'provider/list')).toHaveLength(1)
+    expect(requests.filter((request) => request.method === 'model/list')).toHaveLength(1)
+    expect(
+      requests.some(
+        (request) =>
+          request.method === 'model/list' && Object.keys(request.params ?? {}).length === 0,
+      ),
+    ).toBe(false)
   })
 
   test('完整预加载会遍历 provider 的全部模型分页', async () => {
@@ -359,15 +349,19 @@ describe('desktop provider client', () => {
         const secondPage = body.params.cursor === 'page-2'
         const modelID = secondPage ? 'MiniMax-M2' : 'MiniMax-M3'
         return rpc(body.id, {
-          providers: [{
-            ...provider,
-            models: [{
-              ...provider.models[0],
-              id: modelID,
-              name: modelID,
-              api: { ...provider.models[0]!.api, id: modelID },
-            }],
-          }],
+          providers: [
+            {
+              ...provider,
+              models: [
+                {
+                  ...provider.models[0],
+                  id: modelID,
+                  name: modelID,
+                  api: { ...provider.models[0]!.api, id: modelID },
+                },
+              ],
+            },
+          ],
           defaultModel: null,
           reviewerModel: null,
           catalogVersion: 9,
@@ -419,11 +413,13 @@ describe('desktop provider client', () => {
         id: 'deepseek',
         name: 'DeepSeek',
         env: ['DEEPSEEK_API_KEY'],
-        models: [{
-          id: 'deepseek-chat',
-          api: 'openai-completions',
-          enabled: true,
-        }],
+        models: [
+          {
+            id: 'deepseek-chat',
+            api: 'openai-completions',
+            enabled: true,
+          },
+        ],
       },
     }
     const modelPage = (
@@ -431,19 +427,19 @@ describe('desktop provider client', () => {
       modelID: string,
     ) => ({
       provider: providerInfo,
-      models: [{
-        ...provider.models[0],
-        id: modelID,
-        providerID: providerInfo.id,
-        name: modelID,
-        api: {
-          ...provider.models[0]!.api,
+      models: [
+        {
+          ...provider.models[0],
           id: modelID,
-          name: providerInfo.id === 'openai-codex'
-            ? 'openai-responses'
-            : 'openai-completions',
+          providerID: providerInfo.id,
+          name: modelID,
+          api: {
+            ...provider.models[0]!.api,
+            id: modelID,
+            name: providerInfo.id === 'openai-codex' ? 'openai-responses' : 'openai-completions',
+          },
         },
-      }],
+      ],
     })
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
       if (path !== '/rpc') throw new Error(`Unhandled request: ${path}`)
@@ -466,12 +462,9 @@ describe('desktop provider client', () => {
         })
       }
       if (body.method === 'model/list') {
-        const selectedProvider = body.params.providerId === 'deepseek'
-          ? deepseekProvider
-          : codexProvider
-        const modelID = selectedProvider.id === 'deepseek'
-          ? 'deepseek-chat'
-          : 'gpt-5'
+        const selectedProvider =
+          body.params.providerId === 'deepseek' ? deepseekProvider : codexProvider
+        const modelID = selectedProvider.id === 'deepseek' ? 'deepseek-chat' : 'gpt-5'
         return rpc(body.id, {
           providers: [modelPage(selectedProvider, modelID)],
           defaultModel: { providerID: 'openai-codex', id: 'gpt-5' },
@@ -497,24 +490,26 @@ describe('desktop provider client', () => {
       model: 'gpt-5',
       apiKeyConfigured: true,
     })
-    expect(providers.map(item => ({
-      providerID: item.providerID,
-      apiKeyConfigured: item.apiKeyConfigured,
-      executable: isExecutableDesktopProvider(item),
-    }))).toEqual([
+    expect(
+      providers.map((item) => ({
+        providerID: item.providerID,
+        apiKeyConfigured: item.apiKeyConfigured,
+        executable: isExecutableDesktopProvider(item),
+      })),
+    ).toEqual([
       { providerID: 'openai-codex', apiKeyConfigured: true, executable: true },
       { providerID: 'deepseek', apiKeyConfigured: true, executable: true },
     ])
-    expect(
-      requests.filter(request => request.method === 'model/list'),
-    ).toEqual([{
-      method: 'model/list',
-      params: {
-        providerId: 'openai-codex',
-        enabled: true,
-        limit: 100,
+    expect(requests.filter((request) => request.method === 'model/list')).toEqual([
+      {
+        method: 'model/list',
+        params: {
+          providerId: 'openai-codex',
+          enabled: true,
+          limit: 100,
+        },
       },
-    }])
+    ])
 
     expect(await client.getModelProviderState('deepseek')).toMatchObject({
       selectedProviderID: 'deepseek',
@@ -635,11 +630,12 @@ describe('desktop provider client', () => {
     await client.getModelProviderState()
     await client.listModelProviders()
 
-    expect(requests.filter(request => request.method === 'model/refresh')).toHaveLength(1)
-    expect(requests.filter(request => request.method === 'provider/list')).toHaveLength(2)
-    expect(requests.filter(request => request.method === 'model/list')).toHaveLength(2)
-    expect(requests.filter(request => request.method === 'provider/credential/list'))
-      .toHaveLength(2)
+    expect(requests.filter((request) => request.method === 'model/refresh')).toHaveLength(1)
+    expect(requests.filter((request) => request.method === 'provider/list')).toHaveLength(2)
+    expect(requests.filter((request) => request.method === 'model/list')).toHaveLength(2)
+    expect(
+      requests.filter((request) => request.method === 'provider/credential/list'),
+    ).toHaveLength(2)
   })
 
   test('凭据更新事件会清理 provider 目录缓存并通知工作台刷新', async () => {
@@ -658,10 +654,12 @@ describe('desktop provider client', () => {
       if (body.method === 'provider/list') {
         providerListRequests += 1
         return rpc(body.id, {
-          providers: [{
-            ...provider.provider,
-            authConfigured,
-          }],
+          providers: [
+            {
+              ...provider.provider,
+              authConfigured,
+            },
+          ],
           issues: [],
           defaultModel: null,
           reviewerModel: null,
@@ -705,7 +703,7 @@ describe('desktop provider client', () => {
       expect((await client.listModelProviders())[0]?.apiKeyConfigured).toBe(false)
       unsubscribe = client.onSessionStoreChange(() => {})
       for (let index = 0; index < 20 && !source.onmessage; index += 1) {
-        await new Promise(resolve => setTimeout(resolve, 0))
+        await new Promise((resolve) => setTimeout(resolve, 0))
       }
       authConfigured = true
       source.onmessage?.({
@@ -729,7 +727,7 @@ describe('desktop provider client', () => {
         }),
       } as MessageEvent)
       for (let index = 0; index < 20 && refreshEvents === 0; index += 1) {
-        await new Promise(resolve => setTimeout(resolve, 10))
+        await new Promise((resolve) => setTimeout(resolve, 10))
       }
 
       expect(refreshEvents).toBe(1)
@@ -752,10 +750,12 @@ describe('desktop provider client', () => {
       if (body.method === 'initialized') return new Response(null, { status: 204 })
       if (body.method === 'provider/list') {
         return rpc(body.id, {
-          providers: [{
-            ...provider.provider,
-            authConfigured: true,
-          }],
+          providers: [
+            {
+              ...provider.provider,
+              authConfigured: true,
+            },
+          ],
           issues: [],
           defaultModel: { providerID: provider.provider.id, id: 'MiniMax-M3' },
           reviewerModel: null,
@@ -777,8 +777,7 @@ describe('desktop provider client', () => {
       throw new Error(`Unhandled RPC method: ${body.method}`)
     }
 
-    const state = await createDesktopClient({ fetch: fetcher })
-      .getModelProviderState()
+    const state = await createDesktopClient({ fetch: fetcher }).getModelProviderState()
 
     expect(state).toMatchObject({
       model: 'MiniMax-M3',
@@ -806,29 +805,33 @@ describe('desktop provider client', () => {
         const models = credentials.length > 0 ? provider.models : []
         return rpc(body.id, {
           providers: [{ ...provider, models }],
-          defaultModel: credentials.length > 0
-            ? {
-                providerID: 'minimax-cn-coding-plan',
-                id: 'MiniMax-M3',
-              }
-            : null,
+          defaultModel:
+            credentials.length > 0
+              ? {
+                  providerID: 'minimax-cn-coding-plan',
+                  id: 'MiniMax-M3',
+                }
+              : null,
           reviewerModel: null,
           catalogVersion: 1,
         })
       }
       if (body.method === 'provider/list') {
         return rpc(body.id, {
-          providers: [{
-            ...provider.provider,
-            authConfigured: credentials.length > 0,
-          }],
+          providers: [
+            {
+              ...provider.provider,
+              authConfigured: credentials.length > 0,
+            },
+          ],
           issues: [],
-          defaultModel: credentials.length > 0
-            ? {
-                providerID: 'minimax-cn-coding-plan',
-                id: 'MiniMax-M3',
-              }
-            : null,
+          defaultModel:
+            credentials.length > 0
+              ? {
+                  providerID: 'minimax-cn-coding-plan',
+                  id: 'MiniMax-M3',
+                }
+              : null,
           reviewerModel: null,
           catalogVersion: 1,
         })
@@ -849,12 +852,15 @@ describe('desktop provider client', () => {
       throw new Error(`Unhandled RPC method: ${body.method}`)
     }
 
-    const state = await createDesktopClient({ fetch: fetcher })
-      .deleteProviderApiKey('minimax-cn-coding-plan')
+    const state = await createDesktopClient({ fetch: fetcher }).deleteProviderApiKey(
+      'minimax-cn-coding-plan',
+    )
 
     expect(state.apiKeyConfigured).toBe(false)
     expect(state.apiKeySource).toBeNull()
-    expect(methods.filter(method => method === 'provider/credential/list').length).toBeGreaterThanOrEqual(2)
+    expect(
+      methods.filter((method) => method === 'provider/credential/list').length,
+    ).toBeGreaterThanOrEqual(2)
     expect(methods).toContain('provider/credential/delete')
   })
 
@@ -873,33 +879,34 @@ describe('desktop provider client', () => {
       if (body.method === 'usage/source/list') {
         expect(body.params).toEqual({})
         return rpc(body.id, {
-          sources: [{
-            sourceId: 'deepseek',
-            canonicalProviderId: 'deepseek',
-            providerIds: ['deepseek'],
-            displayName: 'DeepSeek 余额',
-            scope: 'api-key',
-            stability: 'official',
-            availability: 'queryable',
-            capabilities: ['balance'],
-            queryPolicy: 'cached',
-            connection: {
-              kind: 'provider-key',
-              credentialId: 'credential-deepseek',
-              maskedValue: '••••test',
-              disconnectible: false,
+          sources: [
+            {
+              sourceId: 'deepseek',
+              canonicalProviderId: 'deepseek',
+              providerIds: ['deepseek'],
+              displayName: 'DeepSeek 余额',
+              scope: 'api-key',
+              stability: 'official',
+              availability: 'queryable',
+              capabilities: ['balance'],
+              queryPolicy: 'cached',
+              connection: {
+                kind: 'provider-key',
+                credentialId: 'credential-deepseek',
+                maskedValue: '••••test',
+                disconnectible: false,
+              },
+              connectionMethod: { kind: 'provider-credential' },
             },
-            connectionMethod: { kind: 'provider-credential' },
-          }],
+          ],
         })
       }
       throw new Error(`Unhandled RPC method: ${body.method}`)
     }
 
-    const result = await createDesktopClient({ fetch: fetcher })
-      .listUsageSources()
+    const result = await createDesktopClient({ fetch: fetcher }).listUsageSources()
 
-    expect(result.sources.map(source => source.sourceId)).toEqual(['deepseek'])
+    expect(result.sources.map((source) => source.sourceId)).toEqual(['deepseek'])
     expect(methods).toContain('usage/source/list')
     expect(methods).not.toContain('usage/provider/query')
   })
@@ -932,10 +939,9 @@ describe('desktop provider client', () => {
       const body = JSON.parse(String(init?.body))
       methods.push(body.method)
       if (body.method === 'initialize') {
-        expect(body.params.capabilities).toEqual(expect.arrayContaining([
-          'provider.config.pi.v1',
-          'provider.auth.pi.v1',
-        ]))
+        expect(body.params.capabilities).toEqual(
+          expect.arrayContaining(['provider.config.pi.v1', 'provider.auth.pi.v1']),
+        )
         return rpc(body.id, initializedResult())
       }
       if (body.method === 'initialized') return new Response(null, { status: 204 })
@@ -950,9 +956,8 @@ describe('desktop provider client', () => {
       }
       if (body.method.startsWith('auth/session/')) {
         return rpc(body.id, {
-          session: body.method === 'auth/session/cancel'
-            ? { ...session, status: 'cancelled' }
-            : session,
+          session:
+            body.method === 'auth/session/cancel' ? { ...session, status: 'cancelled' } : session,
         })
       }
       throw new Error(`Unhandled RPC method: ${body.method}`)
@@ -970,16 +975,15 @@ describe('desktop provider client', () => {
       headers: {},
       models: [{ id: 'llama-3.1', api: 'openai-completions' }],
     } as never)
-    expect(await client.discoverProviderModels(
-      'local',
-      'openai-completions',
-    )).toEqual([{ id: 'llama-3.1', api: 'openai-completions' }])
+    expect(await client.discoverProviderModels('local', 'openai-completions')).toEqual([
+      { id: 'llama-3.1', api: 'openai-completions' },
+    ])
     const started = await client.startAuthSession({
       kind: 'provider',
       providerId: 'openai',
     } as never)
     expect(started.prompt?.type).toBe('manual_code')
-    expect(started.notices.map(notice => notice.type)).toEqual([
+    expect(started.notices.map((notice) => notice.type)).toEqual([
       'auth_url',
       'device_code',
       'progress',
@@ -987,14 +991,16 @@ describe('desktop provider client', () => {
     await client.respondAuthSession('auth-1', 'prompt-1', 'code')
     await client.getAuthSessionStatus('auth-1')
     expect((await client.cancelAuthSession('auth-1')).status).toBe('cancelled')
-    expect(methods).toEqual(expect.arrayContaining([
-      'provider/create',
-      'provider/model/discover',
-      'auth/session/start',
-      'auth/session/respond',
-      'auth/session/status',
-      'auth/session/cancel',
-    ]))
+    expect(methods).toEqual(
+      expect.arrayContaining([
+        'provider/create',
+        'provider/model/discover',
+        'auth/session/start',
+        'auth/session/respond',
+        'auth/session/status',
+        'auth/session/cancel',
+      ]),
+    )
   })
 
   test('模型健康 RPC 通过 typed RPC 调用并受 capability 门禁', async () => {
@@ -1027,10 +1033,7 @@ describe('desktop provider client', () => {
       requests.push({ method: body.method, params: body.params })
       if (body.method === 'initialize') {
         expect(body.params.capabilities).toContain('model.health.v1')
-        return rpc(body.id, initializedResult([
-          'rpc.typed.v1',
-          'model.health.v1',
-        ]))
+        return rpc(body.id, initializedResult(['rpc.typed.v1', 'model.health.v1']))
       }
       if (body.method === 'initialized') return new Response(null, { status: 204 })
       if (body.method === 'model/health/preview') {
@@ -1084,27 +1087,31 @@ describe('desktop provider client', () => {
     expect(await client.cancelModelHealth('run-1', 'op-1')).toMatchObject({
       run: { status: 'cancelled' },
     })
-    expect(await client.testModelProvider(
-      'minimax-cn-coding-plan',
-      { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' },
-    )).toMatchObject({
+    expect(
+      await client.testModelProvider('minimax-cn-coding-plan', {
+        providerID: 'minimax-cn-coding-plan',
+        id: 'MiniMax-M3',
+      }),
+    ).toMatchObject({
       status: 'reachable',
       latencyMs: 42,
     })
 
-    expect(requests).toEqual(expect.arrayContaining([
-      { method: 'model/health/preview', params: {} },
-      { method: 'model/health/start', params: { operationId: 'op-1' } },
-      { method: 'model/health/read', params: { runId: 'run-1' } },
-      { method: 'model/health/cancel', params: { runId: 'run-1', operationId: 'op-1' } },
-      {
-        method: 'provider/test',
-        params: {
-          providerId: 'minimax-cn-coding-plan',
-          model: { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' },
+    expect(requests).toEqual(
+      expect.arrayContaining([
+        { method: 'model/health/preview', params: {} },
+        { method: 'model/health/start', params: { operationId: 'op-1' } },
+        { method: 'model/health/read', params: { runId: 'run-1' } },
+        { method: 'model/health/cancel', params: { runId: 'run-1', operationId: 'op-1' } },
+        {
+          method: 'provider/test',
+          params: {
+            providerId: 'minimax-cn-coding-plan',
+            model: { providerID: 'minimax-cn-coding-plan', id: 'MiniMax-M3' },
+          },
         },
-      },
-    ]))
+      ]),
+    )
   })
 
   test('declares the side-chat capability before calling its RPC methods', async () => {
@@ -1115,10 +1122,7 @@ describe('desktop provider client', () => {
       requests.push({ method: body.method, params: body.params })
       if (body.method === 'initialize') {
         expect(body.params.capabilities).toContain('thread.side-chat.v1')
-        return rpc(body.id, initializedResult([
-          'rpc.typed.v1',
-          'thread.side-chat.v1',
-        ]))
+        return rpc(body.id, initializedResult(['rpc.typed.v1', 'thread.side-chat.v1']))
       }
       if (body.method === 'initialized') return new Response(null, { status: 204 })
       if (body.method === 'thread/side-chat/create') {
@@ -1141,22 +1145,24 @@ describe('desktop provider client', () => {
     await client.createSideChat({ sourceThreadId: 'thread-1' })
     await client.discardSideChat({ threadId: 'side-chat-1' })
 
-    expect(requests).toEqual(expect.arrayContaining([
-      {
-        method: 'thread/side-chat/create',
-        params: {
-          sourceThreadId: 'thread-1',
-          operationId: expect.any(String),
+    expect(requests).toEqual(
+      expect.arrayContaining([
+        {
+          method: 'thread/side-chat/create',
+          params: {
+            sourceThreadId: 'thread-1',
+            operationId: expect.any(String),
+          },
         },
-      },
-      {
-        method: 'thread/side-chat/discard',
-        params: {
-          threadId: 'side-chat-1',
-          operationId: expect.any(String),
+        {
+          method: 'thread/side-chat/discard',
+          params: {
+            threadId: 'side-chat-1',
+            operationId: expect.any(String),
+          },
         },
-      },
-    ]))
+      ]),
+    )
   })
 })
 

@@ -1,16 +1,12 @@
 /* --- Inline approval card --- */
 .inline-approval-card {
-
   width: 100%;
   max-width: var(--composer-width);
   display: grid;
   gap: 0;
   margin-bottom: var(--cpx-sys-space-3);
   padding: 0;
-  border: var(
-    --inline-approval-card-border,
-    1px solid var(--cpx-sys-color-border-subtle)
-  );
+  border: var(--inline-approval-card-border, 1px solid var(--cpx-sys-color-border-subtle));
   border-radius: var(--cpx-sys-radius-prominent);
   background: var(--inline-approval-card-bg, var(--cpx-sys-color-surface-panel));
   color: var(--cpx-sys-color-fg-primary);
@@ -192,10 +188,7 @@
 
   &.selected {
     border-color: var(--inline-approval-option-selected-border, transparent);
-    background: var(
-      --inline-approval-option-selected-bg,
-      var(--cpx-sys-color-hover)
-    );
+    background: var(--inline-approval-option-selected-bg, var(--cpx-sys-color-hover));
   }
 
   &.muted {
@@ -310,8 +303,7 @@
   gap: var(--cpx-sys-space-1);
   margin: 0;
   padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
-  border: 1px solid
-    color-mix(in srgb, var(--cpx-sys-color-border-subtle) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cpx-sys-color-border-subtle) 70%, transparent);
   border-radius: var(--cpx-sys-radius-lg);
   background: var(--cpx-sys-color-surface-editor);
   color: var(--cpx-sys-color-fg-secondary);
@@ -398,8 +390,8 @@
   transform-origin: bottom center;
 }
 
-.inline-approval-card[data-variant="question"],
-.inline-approval-card[data-variant="plan"] {
+.inline-approval-card[data-variant='question'],
+.inline-approval-card[data-variant='plan'] {
   --inline-approval-header-padding: 0;
   --inline-approval-option-hover-bg: var(--cpx-sys-color-hover);
   --inline-approval-option-selected-bg: var(--cpx-sys-color-selected);
@@ -441,12 +433,12 @@
 
 .workflow-composer-card-question .inline-approval-footer-hint,
 .workflow-composer-card-question .inline-approval-option-hint,
-.workflow-composer-card-question .inline-approval-option-info{
+.workflow-composer-card-question .inline-approval-option-info {
   color: var(--cpx-sys-color-fg-secondary);
 }
 
 .workflow-composer-card-question .ask-user-question-custom-input::placeholder,
-.workflow-composer-card-question .inline-approval-feedback-input::placeholder{
+.workflow-composer-card-question .inline-approval-feedback-input::placeholder {
   color: var(--cpx-sys-color-fg-tertiary);
 }
 
@@ -497,23 +489,19 @@
   overflow-wrap: anywhere;
 }
 
-.request-card[data-variant="question"] .inline-approval-options,
-.request-card[data-variant="plan"] .inline-approval-options {
+.request-card[data-variant='question'] .inline-approval-options,
+.request-card[data-variant='plan'] .inline-approval-options {
   grid-template-columns: minmax(0, 1fr);
   column-gap: var(--cpx-sys-space-3);
   row-gap: var(--cpx-sys-space-1);
   align-items: end;
 }
 
-.request-card
-  .inline-approval-options
-  > .inline-approval-option:not(.custom) {
+.request-card .inline-approval-options > .inline-approval-option:not(.custom) {
   grid-column: 1 / -1;
 }
 
-.request-card
-  .inline-approval-options
-  > .inline-approval-option.custom {
+.request-card .inline-approval-options > .inline-approval-option.custom {
   grid-column: 1;
   margin-top: var(--cpx-sys-space-1);
   grid-template-columns: var(--cpx-sys-space-7) minmax(0, 1fr) auto;
@@ -587,11 +575,11 @@
 }
 
 /* --- Workflow composer card refinements --- */
-.workflow-composer-card-question .inline-approval-option:not(.selected):hover{
+.workflow-composer-card-question .inline-approval-option:not(.selected):hover {
   background: var(--inline-approval-option-hover-bg);
 }
 
-.inline-approval-option-info{
+.inline-approval-option-info {
   background: transparent;
 }
 
@@ -655,7 +643,7 @@
   }
 }
 
-:root[data-reduce-motion="on"] {
+:root[data-reduce-motion='on'] {
   .inline-approval-card,
   .workflow-composer-card {
     animation: none;
@@ -663,11 +651,7 @@
 }
 
 .workflow-composer-card .md-body :not(pre) > code {
-  background: color-mix(
-    in srgb,
-    var(--cpx-sys-color-fg-primary) 5%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent);
   color: var(--cpx-sys-color-fg-primary);
 }
 
@@ -681,7 +665,9 @@
   background: transparent;
   color: var(--cpx-sys-color-fg-secondary);
   font: var(--cpx-sys-type-control);
-  &:hover { background: var(--cpx-sys-color-hover); }
+  &:hover {
+    background: var(--cpx-sys-color-hover);
+  }
 }
 .inline-approval-scope-label {
   color: var(--cpx-sys-color-fg-secondary);

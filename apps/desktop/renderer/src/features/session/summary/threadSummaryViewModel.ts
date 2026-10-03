@@ -1,47 +1,44 @@
-import type { SubagentProjection } from "@codepilotx/shared/thread";
-import type { DesktopSessionEvent } from "../../../../shared/types.js";
-import {
-  planTitleFromSummary,
-  type OpenPlanInDockRequest,
-} from "../workflow/WorkflowPlanCard.js";
+import type { SubagentProjection } from '@codepilotx/shared/thread'
+import type { DesktopSessionEvent } from '../../../../shared/types.js'
+import { planTitleFromSummary, type OpenPlanInDockRequest } from '../workflow/WorkflowPlanCard.js'
 
 export type ThreadSummarySource = {
-  label: string;
-  url: string;
-};
+  label: string
+  url: string
+}
 
-export type ThreadSummaryPlan = OpenPlanInDockRequest;
+export type ThreadSummaryPlan = OpenPlanInDockRequest
 
 export type ThreadSummarySubagent = {
-  id: string;
-  name: string;
-  status: string;
-};
+  id: string
+  name: string
+  status: string
+}
 
 export type ThreadSummaryViewModel = {
   environment: {
-    workspacePath: string;
-    branchName: string | null;
-    changedFileCount: number;
-    commitOrPushEnabled: boolean;
-    commitOrPushDisabledReason: string | null;
-    createPullRequestEnabled: boolean;
-    createPullRequestDisabledReason: string | null;
-  } | null;
+    workspacePath: string
+    branchName: string | null
+    changedFileCount: number
+    commitOrPushEnabled: boolean
+    commitOrPushDisabledReason: string | null
+    createPullRequestEnabled: boolean
+    createPullRequestDisabledReason: string | null
+  } | null
   changes: {
-    fileCount: number;
-    additions: number;
-    deletions: number;
-  } | null;
-  plan: ThreadSummaryPlan | null;
-  sources: ThreadSummarySource[];
-  subagents: ThreadSummarySubagent[];
-};
+    fileCount: number
+    additions: number
+    deletions: number
+  } | null
+  plan: ThreadSummaryPlan | null
+  sources: ThreadSummarySource[]
+  subagents: ThreadSummarySubagent[]
+}
 
 export type ThreadSummarySourcePreview = {
-  items: ThreadSummarySource[];
-  totalCount: number;
-};
+  items: ThreadSummarySource[]
+  totalCount: number
+}
 
 export function deriveThreadSummaryViewModel({
   additions,
@@ -53,17 +50,17 @@ export function deriveThreadSummaryViewModel({
   subagents,
   workspacePath,
 }: {
-  additions: number;
-  branchName: string | null;
-  changedFileCount: number;
-  deletions: number;
-  events: readonly DesktopSessionEvent[];
-  sources: readonly ThreadSummarySource[];
-  subagents: readonly SubagentProjection[];
-  workspacePath: string | null;
+  additions: number
+  branchName: string | null
+  changedFileCount: number
+  deletions: number
+  events: readonly DesktopSessionEvent[]
+  sources: readonly ThreadSummarySource[]
+  subagents: readonly SubagentProjection[]
+  workspacePath: string | null
 }): ThreadSummaryViewModel {
-  const normalizedWorkspacePath = workspacePath?.trim() || null;
-  const normalizedBranchName = branchName?.trim() || null;
+  const normalizedWorkspacePath = workspacePath?.trim() || null
+  const normalizedBranchName = branchName?.trim() || null
 
   return {
     environment: normalizedWorkspacePath
@@ -76,7 +73,7 @@ export function deriveThreadSummaryViewModel({
           createPullRequestEnabled: Boolean(normalizedBranchName),
           createPullRequestDisabledReason: normalizedBranchName
             ? null
-            : "创建拉取请求前需要先创建或检出 Git 分支",
+            : '创建拉取请求前需要先创建或检出 Git 分支',
         }
       : null,
     changes: normalizedWorkspacePath
@@ -91,39 +88,38 @@ export function deriveThreadSummaryViewModel({
     subagents: subagents.map(({ task, currentRun }) => ({
       id: task.id,
       name: task.displayName,
-      status: currentRun?.status ?? "interrupted",
+      status: currentRun?.status ?? 'interrupted',
     })),
-  };
+  }
 }
 
 export function findLatestThreadSummaryPlan(
   events: readonly DesktopSessionEvent[],
 ): ThreadSummaryPlan | null {
   for (let index = events.length - 1; index >= 0; index -= 1) {
-    const event = events[index];
-    if (event?.type !== "proposed_plan") continue;
+    const event = events[index]
+    if (event?.type !== 'proposed_plan') continue
     // 正在流式的计划还没有生成完成，右栏只能展示完成态快照。
-    if (event.metadata?.streaming === true) continue;
-    const content =
-      typeof event.content === "string" ? event.content.trim() : "";
-    if (!content) continue;
+    if (event.metadata?.streaming === true) continue
+    const content = typeof event.content === 'string' ? event.content.trim() : ''
+    if (!content) continue
     return {
       eventId: event.id,
       title: planTitleFromSummary(content),
       content,
       openable: true,
-    };
+    }
   }
-  return null;
+  return null
 }
 
 export function previewThreadSummarySources(
   sources: readonly ThreadSummarySource[],
   limit = 3,
 ): ThreadSummarySourcePreview {
-  const safeLimit = Math.max(0, Math.floor(limit));
+  const safeLimit = Math.max(0, Math.floor(limit))
   return {
     items: sources.slice(0, safeLimit),
     totalCount: sources.length,
-  };
+  }
 }

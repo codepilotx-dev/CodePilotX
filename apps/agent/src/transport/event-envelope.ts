@@ -1,13 +1,13 @@
-import { EventManifest, type EventType } from "@codepilotx/agent-protocol"
-import type { EventEnvelope as StoredEventEnvelope } from "../domain"
-import type { ThreadProjection } from "./ThreadProjection"
+import { EventManifest, type EventType } from '@codepilotx/agent-protocol'
+import type { EventEnvelope as StoredEventEnvelope } from '../domain'
+import type { ThreadProjection } from './ThreadProjection'
 
 export type EventEnvelopeProjection = {
   id: number
   threadId: string | null
   createdAt: number
   notification: {
-    jsonrpc: "2.0"
+    jsonrpc: '2.0'
     method: EventType | string
     params: Record<string, unknown>
   }
@@ -21,8 +21,8 @@ export type BuildEventNextNotificationInput = {
 }
 
 export type EventNextNotification = {
-  jsonrpc: "2.0"
-  method: "event/next"
+  jsonrpc: '2.0'
+  method: 'event/next'
   params: {
     subscriptionId: string
     event:
@@ -35,7 +35,7 @@ export type EventNextNotification = {
           threadId?: string
           turnId?: string
           payload: Record<string, unknown>
-          durability: "durable"
+          durability: 'durable'
           sequence: number
         }
       | {
@@ -47,7 +47,7 @@ export type EventNextNotification = {
           threadId?: string
           turnId?: string
           payload: Record<string, unknown>
-          durability: "live"
+          durability: 'live'
           sequence: null
           afterSequence: number
         }
@@ -70,12 +70,13 @@ export const buildEventNextNotification = (
   if (!(event.method in EventManifest)) return null
   const type = event.method as EventType
   const definition = EventManifest[type]
-  if (definition.durability === "live" && event.afterSequence === undefined) return null
+  if (definition.durability === 'live' && event.afterSequence === undefined) return null
   const payload = projection.notification(event).notification.params
   const base = {
-    eventId: definition.durability === "live"
-      ? `live:${event.createdAt}:${crypto.randomUUID()}`
-      : String(event.id),
+    eventId:
+      definition.durability === 'live'
+        ? `live:${event.createdAt}:${crypto.randomUUID()}`
+        : String(event.id),
     streamId,
     type,
     version: definition.version,
@@ -85,13 +86,19 @@ export const buildEventNextNotification = (
     payload,
   }
   return {
-    jsonrpc: "2.0" as const,
-    method: "event/next" as const,
+    jsonrpc: '2.0' as const,
+    method: 'event/next' as const,
     params: {
       subscriptionId,
-      event: definition.durability === "live"
-        ? { ...base, durability: "live" as const, sequence: null, afterSequence: event.afterSequence! }
-        : { ...base, durability: "durable" as const, sequence: event.id },
+      event:
+        definition.durability === 'live'
+          ? {
+              ...base,
+              durability: 'live' as const,
+              sequence: null,
+              afterSequence: event.afterSequence!,
+            }
+          : { ...base, durability: 'durable' as const, sequence: event.id },
     },
   }
 }

@@ -8,10 +8,7 @@ import {
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
 } from '../../../components/ui/iconTokens.js'
-import {
-  PopoverRadioGroup,
-  PopoverRadioItem,
-} from '../../../components/ui/PopoverItem.js'
+import { PopoverRadioGroup, PopoverRadioItem } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { canViewFloat, getAvailableMoveTargets } from '../dock/compositeViews.js'
 import type {
@@ -48,16 +45,9 @@ export type WorkbenchTabStripProps = {
     tabId: WorkbenchTabId,
     index?: number,
   ) => void
-  onReorderTab: (
-    target: WorkbenchPanelTarget,
-    tabId: WorkbenchTabId,
-    index: number,
-  ) => void
+  onReorderTab: (target: WorkbenchPanelTarget, tabId: WorkbenchTabId, index: number) => void
   onPinTab: (tabId: WorkbenchTabId) => void
-  onPopOutTab?: (
-    source: WorkbenchPanelTarget,
-    tabId: WorkbenchTabId,
-  ) => void
+  onPopOutTab?: (source: WorkbenchPanelTarget, tabId: WorkbenchTabId) => void
 }
 
 export function WorkbenchTabStrip({
@@ -83,7 +73,7 @@ export function WorkbenchTabStrip({
   const launchers = useMemo(
     () =>
       getWorkbenchLauncherDefinitions().filter(
-        definition => definition.kind !== 'side-chat' || sideChatAvailable,
+        (definition) => definition.kind !== 'side-chat' || sideChatAvailable,
       ),
     [sideChatAvailable],
   )
@@ -140,16 +130,11 @@ export function WorkbenchTabStrip({
             if (!tab) return null
             const definition = getWorkbenchTabDefinition(tab)
             const tabIcon = definition.getIcon?.(tab) ?? definition.icon
-            const tabTitle = getWorkbenchTabDisplayTitle(
-              tab,
-              terminalDisplayPath,
-            )
+            const tabTitle = getWorkbenchTabDisplayTitle(tab, terminalDisplayPath)
             const active = state.activeTabId === tab.id
             const canCloseRight = index < state.tabIds.length - 1
             const hasDivider =
-              !active &&
-              canCloseRight &&
-              state.tabIds[index + 1] !== state.activeTabId
+              !active && canCloseRight && state.tabIds[index + 1] !== state.activeTabId
             return (
               <Fragment key={tab.id}>
                 <AppContextMenu
@@ -184,7 +169,7 @@ export function WorkbenchTabStrip({
                     ...(getAvailableMoveTargets(target, tab.kind).length > 0
                       ? [
                           { kind: 'separator' as const },
-                          ...getAvailableMoveTargets(target, tab.kind).map(destTarget => ({
+                          ...getAvailableMoveTargets(target, tab.kind).map((destTarget) => ({
                             kind: 'item' as const,
                             label: `移到${destTarget === 'sidebar' ? '侧边栏' : destTarget === 'bottom' ? '底部面板' : '右侧面板'}`,
                             icon:
@@ -217,11 +202,9 @@ export function WorkbenchTabStrip({
                       className={`right-dock-tab-wrap${active ? ' active' : ''}${hasDivider ? ' has-divider' : ''}`}
                       data-panel-tab={tab.id}
                       draggable
-                      onDragEnd={event =>
-                        event.currentTarget.classList.remove('dragging')
-                      }
-                      onDragOver={event => event.preventDefault()}
-                      onDragStart={event => {
+                      onDragEnd={(event) => event.currentTarget.classList.remove('dragging')}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDragStart={(event) => {
                         event.currentTarget.classList.add('dragging')
                         event.dataTransfer.effectAllowed = 'move'
                         event.dataTransfer.setData(
@@ -229,33 +212,26 @@ export function WorkbenchTabStrip({
                           JSON.stringify({ source: target, tabId: tab.id }),
                         )
                       }}
-                      onDrop={event => {
+                      onDrop={(event) => {
                         event.preventDefault()
                         const payload = readTabDragPayload(event)
                         if (!payload) return
                         if (payload.source === target) {
                           onReorderTab(target, payload.tabId, index)
                         } else {
-                          onMoveTab(
-                            payload.source,
-                            target,
-                            payload.tabId,
-                            index,
-                          )
+                          onMoveTab(payload.source, target, payload.tabId, index)
                         }
                       }}
                     >
                       <button
-                        ref={element => {
+                        ref={(element) => {
                           if (element) tabRefs.current.set(tab.id, element)
                           else tabRefs.current.delete(tab.id)
                         }}
                         aria-controls={`workbench-panel-${target}-${domId(tab.id)}`}
                         aria-selected={active}
                         className={`right-dock-tab${active ? ' active' : ''}${
-                          tab.kind === 'file-preview' && tab.preview
-                            ? ' preview'
-                            : ''
+                          tab.kind === 'file-preview' && tab.preview ? ' preview' : ''
                         }`}
                         id={`workbench-tab-${target}-${domId(tab.id)}`}
                         role="tab"
@@ -268,10 +244,8 @@ export function WorkbenchTabStrip({
                             onPinTab(tab.id)
                           }
                         }}
-                        onKeyDown={event =>
-                          handleTabKeyDown(event, index, tab.id)
-                        }
-                        onMouseDown={event => {
+                        onKeyDown={(event) => handleTabKeyDown(event, index, tab.id)}
+                        onMouseDown={(event) => {
                           if (event.button !== 1) return
                           event.preventDefault()
                           event.stopPropagation()
@@ -279,29 +253,24 @@ export function WorkbenchTabStrip({
                         }}
                       >
                         <span className="right-dock-tab-icon">{tabIcon}</span>
-                        <span className="right-dock-tab-title">
-                          {tabTitle}
-                        </span>
+                        <span className="right-dock-tab-title">{tabTitle}</span>
                       </button>
                       <IconButton
                         className="right-dock-tab-close"
                         color="ghost"
                         size="iconMd"
                         title={`关闭 ${tabTitle}`}
-                        onMouseDown={event => {
+                        onMouseDown={(event) => {
                           event.preventDefault()
                           event.stopPropagation()
                         }}
-                        onPointerDown={event => event.stopPropagation()}
-                        onClick={event => {
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={(event) => {
                           event.stopPropagation()
                           onCloseTab(tab.id)
                         }}
                       >
-                        <X
-                          size={APP_ICON_SIZES.sm}
-                          strokeWidth={APP_ICON_STROKE_WIDTH}
-                        />
+                        <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                       </IconButton>
                     </div>
                   }
@@ -327,10 +296,7 @@ export function WorkbenchTabStrip({
                   size="toolbar"
                   title="添加标签"
                 >
-                  <Plus
-                    size={APP_ICON_SIZE}
-                    strokeWidth={APP_ICON_STROKE_WIDTH}
-                  />
+                  <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 </IconButton>
               }
               onOpenChange={setMenuOpen}
@@ -338,13 +304,11 @@ export function WorkbenchTabStrip({
               <PopoverRadioGroup
                 value={
                   launchers.find(
-                    definition =>
-                      createLauncherTab(definition.kind)?.id ===
-                      state.activeTabId,
+                    (definition) => createLauncherTab(definition.kind)?.id === state.activeTabId,
                   )?.kind ?? ''
                 }
-                onValueChange={kind => {
-                  const definition = launchers.find(item => item.kind === kind)
+                onValueChange={(kind) => {
+                  const definition = launchers.find((item) => item.kind === kind)
                   if (!definition) return
                   if (definition.kind === 'side-chat') {
                     onCreateSideChat()
@@ -361,9 +325,8 @@ export function WorkbenchTabStrip({
                   setMenuOpen(false)
                 }}
               >
-                {launchers.map(definition => {
-                  const presentation =
-                    getWorkbenchLauncherPresentation(definition)
+                {launchers.map((definition) => {
+                  const presentation = getWorkbenchLauncherPresentation(definition)
                   return (
                     <PopoverRadioItem
                       icon={presentation.icon}
@@ -381,8 +344,8 @@ export function WorkbenchTabStrip({
           <span
             aria-hidden="true"
             className="right-dock-tab-empty"
-            onDragOver={event => event.preventDefault()}
-            onDrop={event => {
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
               event.preventDefault()
               const payload = readTabDragPayload(event)
               if (payload && payload.source !== target) {
@@ -400,34 +363,25 @@ export function WorkbenchTabStrip({
           title="关闭底部面板"
           onClick={onClosePanel}
         >
-          <X
-            size={APP_ICON_SIZE}
-            strokeWidth={APP_ICON_STROKE_WIDTH}
-          />
+          <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         </IconButton>
       ) : null}
     </div>
   )
 }
 
-function readTabDragPayload(
-  event: React.DragEvent,
-): {
+function readTabDragPayload(event: React.DragEvent): {
   source: WorkbenchPanelTarget
   tabId: WorkbenchTabId
 } | null {
-  const raw = event.dataTransfer.getData(
-    'application/x-codepilotx-workbench-tab',
-  )
+  const raw = event.dataTransfer.getData('application/x-codepilotx-workbench-tab')
   try {
     const value = JSON.parse(raw) as {
       source?: unknown
       tabId?: unknown
     }
     if (
-      (value.source === 'right' ||
-        value.source === 'bottom' ||
-        value.source === 'sidebar') &&
+      (value.source === 'right' || value.source === 'bottom' || value.source === 'sidebar') &&
       typeof value.tabId === 'string'
     ) {
       return {

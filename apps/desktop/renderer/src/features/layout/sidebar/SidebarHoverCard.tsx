@@ -19,8 +19,7 @@ export type SidebarHoverCardOverlayRenderProps = {
   requestOpenChange: (open: boolean) => void
 }
 
-type AnchorProps = React.HTMLAttributes<HTMLElement>
-  & React.RefAttributes<HTMLElement>
+type AnchorProps = React.HTMLAttributes<HTMLElement> & React.RefAttributes<HTMLElement>
 
 type Props = {
   children: React.ReactElement<AnchorProps>
@@ -28,9 +27,7 @@ type Props = {
   open: boolean
   onAnchorKeyDown?: (event: React.KeyboardEvent<HTMLElement>) => void
   onOpenChange: (open: boolean) => void
-  renderOverlay: (
-    props: SidebarHoverCardOverlayRenderProps,
-  ) => React.ReactNode
+  renderOverlay: (props: SidebarHoverCardOverlayRenderProps) => React.ReactNode
 }
 
 const OPEN_DELAY_MS = 300
@@ -51,9 +48,7 @@ type SidebarHoverCardCoordinator = {
   requestOpenChange: (id: string, open: boolean) => void
 }
 
-const SidebarHoverCardContext = createContext<SidebarHoverCardCoordinator | null>(
-  null,
-)
+const SidebarHoverCardContext = createContext<SidebarHoverCardCoordinator | null>(null)
 
 export function SidebarHoverCardProvider({
   children,
@@ -87,15 +82,22 @@ export function SidebarHoverCard({
   const childRef = children.props.ref
   lockOpenRef.current = lockOpen
   onOpenChangeRef.current = onOpenChange
-  const setAnchorRef = useCallback((node: HTMLElement | null): void => {
-    anchorRef.current = node
-    assignRef(childRef, node)
-  }, [childRef])
+  const setAnchorRef = useCallback(
+    (node: HTMLElement | null): void => {
+      anchorRef.current = node
+      assignRef(childRef, node)
+    },
+    [childRef],
+  )
 
-  useEffect(() => coordinator.register(contentId, {
-    isLocked: () => lockOpenRef.current,
-    setOpen: applyOpenChange,
-  }), [contentId, coordinator])
+  useEffect(
+    () =>
+      coordinator.register(contentId, {
+        isLocked: () => lockOpenRef.current,
+        setOpen: applyOpenChange,
+      }),
+    [contentId, coordinator],
+  )
 
   useEffect(() => {
     if (!open) coordinator.release(contentId)
@@ -107,8 +109,8 @@ export function SidebarHoverCard({
 
   function applyOpenChange(nextOpen: boolean): void {
     if (lockOpenRef.current && !nextOpen) return
-    const restoreFocus = !nextOpen
-      && document.getElementById(contentId)?.contains(document.activeElement)
+    const restoreFocus =
+      !nextOpen && document.getElementById(contentId)?.contains(document.activeElement)
     onOpenChangeRef.current(nextOpen)
     if (restoreFocus) returnFocusToAnchor()
   }
@@ -140,11 +142,11 @@ export function SidebarHoverCard({
     'aria-controls': open ? contentId : undefined,
     'aria-expanded': open,
     'aria-haspopup': 'dialog',
-    onBlur: event => {
+    onBlur: (event) => {
       children.props.onBlur?.(event)
       if (!event.defaultPrevented) closeAfterDelay()
     },
-    onFocus: event => {
+    onFocus: (event) => {
       children.props.onFocus?.(event)
       if (event.defaultPrevented) return
       if (event.currentTarget.dataset.sidebarSuppressHoverOpen === 'true') {
@@ -153,15 +155,15 @@ export function SidebarHoverCard({
       }
       openImmediately()
     },
-    onKeyDown: event => {
+    onKeyDown: (event) => {
       children.props.onKeyDown?.(event)
       if (!event.defaultPrevented) onAnchorKeyDown?.(event)
     },
-    onPointerEnter: event => {
+    onPointerEnter: (event) => {
       children.props.onPointerEnter?.(event)
       if (!event.defaultPrevented) openAfterDelay()
     },
-    onPointerLeave: event => {
+    onPointerLeave: (event) => {
       children.props.onPointerLeave?.(event)
       if (!event.defaultPrevented) closeAfterDelay()
     },
@@ -184,19 +186,14 @@ export function SidebarHoverCard({
   )
 }
 
-export function focusSidebarHoverCardAnchor(
-  anchor: HTMLElement | null,
-): void {
+export function focusSidebarHoverCardAnchor(anchor: HTMLElement | null): void {
   if (!anchor || document.activeElement === anchor) return
   anchor.dataset.sidebarSuppressHoverOpen = 'true'
   anchor.focus()
   delete anchor.dataset.sidebarSuppressHoverOpen
 }
 
-function assignRef(
-  ref: React.Ref<HTMLElement> | undefined,
-  node: HTMLElement | null,
-): void {
+function assignRef(ref: React.Ref<HTMLElement> | undefined, node: HTMLElement | null): void {
   if (typeof ref === 'function') {
     ref(node)
   } else if (ref) {

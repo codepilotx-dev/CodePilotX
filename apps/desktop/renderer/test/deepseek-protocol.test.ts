@@ -15,12 +15,12 @@ import {
 
 describe('DeepSeek global protocol settings', () => {
   test('offers the three protocols with their managed endpoints', () => {
-    expect(DEEPSEEK_PROTOCOL_OPTIONS.map(option => option.value)).toEqual([
+    expect(DEEPSEEK_PROTOCOL_OPTIONS.map((option) => option.value)).toEqual([
       'openai-completions',
       'openai-responses',
       'anthropic-messages',
     ])
-    expect(DEEPSEEK_PROTOCOL_OPTIONS.map(option => option.endpoint)).toEqual([
+    expect(DEEPSEEK_PROTOCOL_OPTIONS.map((option) => option.endpoint)).toEqual([
       'https://api.deepseek.com',
       'https://api.deepseek.com',
       'https://api.deepseek.com/anthropic',
@@ -49,15 +49,16 @@ describe('DeepSeek global protocol settings', () => {
       protocol: 'anthropic-messages',
     })
     // 默认协议不写回配置，旧配置文件保持原样。
-    expect(buildDeepSeekProtocolDefinition(config, 'openai-completions'))
-      .not.toHaveProperty('protocol')
+    expect(buildDeepSeekProtocolDefinition(config, 'openai-completions')).not.toHaveProperty(
+      'protocol',
+    )
   })
 
   test('reads the configured protocol with a Chat Completions fallback', () => {
     expect(deepSeekProtocolOf(builtinConfig())).toBe('openai-completions')
-    expect(
-      deepSeekProtocolOf(builtinConfig({ protocol: 'openai-responses' })),
-    ).toBe('openai-responses')
+    expect(deepSeekProtocolOf(builtinConfig({ protocol: 'openai-responses' }))).toBe(
+      'openai-responses',
+    )
   })
 
   test('limits the builtin edit entry to DeepSeek', () => {
@@ -68,7 +69,11 @@ describe('DeepSeek global protocol settings', () => {
     expect(canEditProviderConfig(deepseek)).toBe(false)
 
     // 其他内置 Provider 仍不可编辑，自定义 Provider 保持可编辑。
-    expect(canEditProviderConfig(provider('openai', 'builtin', builtinConfig({ id: 'openai' as never })))).toBe(false)
+    expect(
+      canEditProviderConfig(
+        provider('openai', 'builtin', builtinConfig({ id: 'openai' as never })),
+      ),
+    ).toBe(false)
     // 自定义 Provider 走原有逐模型协议编辑，不进入全局协议设置。
     expect(deepSeekManagedProvider(provider('deepseek', 'custom', undefined), true)).toBeNull()
     expect(canEditProviderConfig(provider('deepseek', 'custom', undefined))).toBe(true)

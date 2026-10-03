@@ -1,9 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import type {
-  DesktopGitStatus,
-  DesktopGitStatusResult,
-  DesktopWorkspace,
-} from '../shared/types.js'
+import type { DesktopGitStatus, DesktopGitStatusResult, DesktopWorkspace } from '../shared/types.js'
 import type {
   DesktopReviewAgentSummary,
   DesktopReviewAgentSummaryResult,
@@ -113,11 +109,7 @@ describe('workspace refresh coordination', () => {
   })
 
   test('keeps the current branch when branch enumeration is unavailable', () => {
-    const projected = mergeWorkspaceGitProjection(
-      workspace(),
-      gitStatus('dev'),
-      [],
-    )
+    const projected = mergeWorkspaceGitProjection(workspace(), gitStatus('dev'), [])
 
     expect(projected.branchName).toBe('dev')
     expect(projected.branches).toEqual(['dev'])
@@ -153,7 +145,7 @@ describe('workspace refresh coordination', () => {
           calls.branches += 1
           return [{ name: 'dev', remote: false }]
         },
-        loadReviewSummary: async source => {
+        loadReviewSummary: async (source) => {
           calls[source.kind === 'staged' ? 'staged' : 'unstaged'] += 1
           return reviewAgentSummaryResult(source.kind, [])
         },
@@ -183,7 +175,7 @@ describe('workspace refresh coordination', () => {
         calls.branches += 1
         return []
       },
-      loadReviewSummary: async source => {
+      loadReviewSummary: async (source) => {
         calls[source.kind === 'staged' ? 'staged' : 'unstaged'] += 1
         return reviewAgentSummaryResult(source.kind, [])
       },
@@ -211,17 +203,13 @@ describe('workspace refresh coordination', () => {
           { name: 'origin/dev', remote: true },
         ]
       },
-      loadReviewSummary: async source => {
+      loadReviewSummary: async (source) => {
         if (source.kind === 'staged') {
           calls.staged += 1
-          return reviewAgentSummaryResult('staged', [
-            reviewFile('src/main.ts', 3, 1),
-          ])
+          return reviewAgentSummaryResult('staged', [reviewFile('src/main.ts', 3, 1)])
         }
         calls.unstaged += 1
-        return reviewAgentSummaryResult('unstaged', [
-          reviewFile('src/main.ts', 4, 2),
-        ])
+        return reviewAgentSummaryResult('unstaged', [reviewFile('src/main.ts', 4, 2)])
       },
     })
 
@@ -252,15 +240,13 @@ describe('workspace refresh coordination', () => {
         calls.branches += 1
         return []
       },
-      loadReviewSummary: async source => {
+      loadReviewSummary: async (source) => {
         if (source.kind === 'staged') {
           calls.staged += 1
           throw new Error('REPOSITORY_NOT_FOUND')
         }
         calls.unstaged += 1
-        return reviewAgentSummaryResult('unstaged', [
-          reviewFile('src/main.ts', 4, 2),
-        ])
+        return reviewAgentSummaryResult('unstaged', [reviewFile('src/main.ts', 4, 2)])
       },
     })
 
@@ -306,9 +292,7 @@ describe('workspace refresh coordination', () => {
   })
 })
 
-function workspace(
-  overrides: Partial<DesktopWorkspace> = {},
-): DesktopWorkspace {
+function workspace(overrides: Partial<DesktopWorkspace> = {}): DesktopWorkspace {
   return {
     name: 'Workspace',
     path: 'C:\\Code\\Project',

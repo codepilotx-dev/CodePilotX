@@ -82,9 +82,7 @@ function createFakeSplash(): FakeSplash {
       return name in splash.attributes
     },
     querySelector(selector) {
-      return selector === '.full-screen-whale-loader__status'
-        ? splash.status
-        : null
+      return selector === '.full-screen-whale-loader__status' ? splash.status : null
     },
   }
   return splash
@@ -188,9 +186,7 @@ function setup(state: Partial<HandoffState> = {}): {
         return fullState.loaderPresent
           ? {
               getAttribute(name: string) {
-                return name === 'data-loading-label'
-                  ? fullState.loaderLabel
-                  : null
+                return name === 'data-loading-label' ? fullState.loaderLabel : null
               },
             }
           : null
@@ -250,10 +246,7 @@ function setup(state: Partial<HandoffState> = {}): {
 
 const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document')
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
-const originalMutationObserver = Object.getOwnPropertyDescriptor(
-  globalThis,
-  'MutationObserver',
-)
+const originalMutationObserver = Object.getOwnPropertyDescriptor(globalThis, 'MutationObserver')
 
 beforeEach(() => {
   FakeMutationObserver.instances = []
@@ -273,10 +266,7 @@ afterEach(() => {
   }
 })
 
-function installWith(environment: {
-  fakeWindow: FakeWindow
-  fakeDocument: FakeDocument
-}): void {
+function installWith(environment: { fakeWindow: FakeWindow; fakeDocument: FakeDocument }): void {
   Object.defineProperty(globalThis, 'document', {
     value: environment.fakeDocument,
     configurable: true,
@@ -294,51 +284,61 @@ function installWith(environment: {
 describe('resolveSplashDisposition', () => {
   test('deep-link hashes alone are never readiness evidence', () => {
     for (const hash of ['#/setup', '#/models', '#/threads/abc-1', '#/']) {
-      expect(resolveSplashDisposition({
-        hash,
-        composerReady: false,
-        surfaceReady: false,
-        loaderPresent: false,
-        loaderLabel: null,
-      })).toEqual({ kind: 'wait' })
+      expect(
+        resolveSplashDisposition({
+          hash,
+          composerReady: false,
+          surfaceReady: false,
+          loaderPresent: false,
+          loaderLabel: null,
+        }),
+      ).toEqual({ kind: 'wait' })
     }
   })
 
   test('ready marker and real composer finish the splash', () => {
-    expect(resolveSplashDisposition({
-      hash: '#/setup',
-      composerReady: false,
-      surfaceReady: true,
-      loaderPresent: false,
-      loaderLabel: null,
-    })).toEqual({ kind: 'finish' })
-    expect(resolveSplashDisposition({
-      hash: '#/new',
-      composerReady: true,
-      surfaceReady: false,
-      loaderPresent: false,
-      loaderLabel: null,
-    })).toEqual({ kind: 'finish' })
+    expect(
+      resolveSplashDisposition({
+        hash: '#/setup',
+        composerReady: false,
+        surfaceReady: true,
+        loaderPresent: false,
+        loaderLabel: null,
+      }),
+    ).toEqual({ kind: 'finish' })
+    expect(
+      resolveSplashDisposition({
+        hash: '#/new',
+        composerReady: true,
+        surfaceReady: false,
+        loaderPresent: false,
+        loaderLabel: null,
+      }),
+    ).toEqual({ kind: 'finish' })
   })
 
   test('loader marker only mirrors the stage label', () => {
-    expect(resolveSplashDisposition({
-      hash: '#/setup',
-      composerReady: false,
-      surfaceReady: false,
-      loaderPresent: true,
-      loaderLabel: '正在打开模型设置…',
-    })).toEqual({ kind: 'mirror', label: '正在打开模型设置…' })
+    expect(
+      resolveSplashDisposition({
+        hash: '#/setup',
+        composerReady: false,
+        surfaceReady: false,
+        loaderPresent: true,
+        loaderLabel: '正在打开模型设置…',
+      }),
+    ).toEqual({ kind: 'mirror', label: '正在打开模型设置…' })
   })
 
   test('pet overlay uses the transparent-window exception', () => {
-    expect(resolveSplashDisposition({
-      hash: '#/pet-overlay',
-      composerReady: true,
-      surfaceReady: true,
-      loaderPresent: false,
-      loaderLabel: null,
-    })).toEqual({ kind: 'remove-immediately' })
+    expect(
+      resolveSplashDisposition({
+        hash: '#/pet-overlay',
+        composerReady: true,
+        surfaceReady: true,
+        loaderPresent: false,
+        loaderLabel: null,
+      }),
+    ).toEqual({ kind: 'remove-immediately' })
   })
 })
 
@@ -349,9 +349,7 @@ describe('installStartupSplashHandoff', () => {
       installWith(environment)
       installStartupSplashHandoff()
       expect(environment.splash.removed).toBe(false)
-      expect(
-        environment.splash.classes.has('full-screen-whale-loader--exiting'),
-      ).toBe(false)
+      expect(environment.splash.classes.has('full-screen-whale-loader--exiting')).toBe(false)
     }
   })
 
@@ -422,9 +420,7 @@ describe('installStartupSplashHandoff', () => {
     installStartupSplashHandoff()
 
     expect(environment.splash.attributes['aria-busy']).toBeUndefined()
-    expect(
-      environment.splash.classes.has('full-screen-whale-loader--exiting'),
-    ).toBe(true)
+    expect(environment.splash.classes.has('full-screen-whale-loader--exiting')).toBe(true)
     expect(environment.splash.removed).toBe(false)
 
     // 再次触发 ready（观察器已断开，不再生效），重复调用也不重复淡出。
@@ -448,9 +444,7 @@ describe('installStartupSplashHandoff', () => {
     installStartupSplashHandoff()
 
     expect(environment.splash.removed).toBe(true)
-    expect(
-      environment.splash.classes.has('full-screen-whale-loader--exiting'),
-    ).toBe(false)
+    expect(environment.splash.classes.has('full-screen-whale-loader--exiting')).toBe(false)
   })
 
   test('pet overlay removes the splash immediately', () => {
@@ -459,9 +453,7 @@ describe('installStartupSplashHandoff', () => {
     installStartupSplashHandoff()
 
     expect(environment.splash.removed).toBe(true)
-    expect(
-      environment.splash.classes.has('full-screen-whale-loader--exiting'),
-    ).toBe(false)
+    expect(environment.splash.classes.has('full-screen-whale-loader--exiting')).toBe(false)
     expect(environment.fakeWindow.timerCount()).toBe(0)
   })
 
@@ -483,9 +475,7 @@ describe('installStartupSplashHandoff', () => {
     expect(environment.splash.removed).toBe(false)
 
     environment.fakeWindow.fireTimeout(SPLASH_FAILSAFE_MS)
-    expect(
-      environment.splash.classes.has('full-screen-whale-loader--exiting'),
-    ).toBe(true)
+    expect(environment.splash.classes.has('full-screen-whale-loader--exiting')).toBe(true)
     environment.fakeWindow.fireTimeout(240)
     expect(environment.splash.removed).toBe(true)
   })

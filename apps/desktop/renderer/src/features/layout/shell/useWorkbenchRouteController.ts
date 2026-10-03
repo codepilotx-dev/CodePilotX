@@ -79,19 +79,14 @@ export function useWorkbenchRouteController(): WorkbenchRouteController {
   )
   navigationHistoryRef.current = navigationHistory
   const canNavigateBack = navigationHistory.index > 0
-  const canNavigateForward =
-    navigationHistory.index < navigationHistory.entries.length - 1
-  const routedSessionId = useMemo(
-    () => getRoutedSessionId(location.pathname),
-    [location.pathname],
-  )
+  const canNavigateForward = navigationHistory.index < navigationHistory.entries.length - 1
+  const routedSessionId = useMemo(() => getRoutedSessionId(location.pathname), [location.pathname])
   const isQuickChatPage = location.pathname === QUICK_CHAT_PATH
   const isConversationRoute = routedSessionId !== null
   const isSettingsRoute = location.pathname.startsWith('/settings/')
   const fullLocationPath = `${location.pathname}${location.search}${location.hash}`
   const settingsReturnPathRef = useRef(QUICK_CHAT_PATH)
-  const settingsActiveTab =
-    /^\/settings\/([^/]+)/.exec(location.pathname)?.[1] ?? 'general'
+  const settingsActiveTab = /^\/settings\/([^/]+)/.exec(location.pathname)?.[1] ?? 'general'
 
   useEffect(() => {
     if (!isSettingsRoute) {

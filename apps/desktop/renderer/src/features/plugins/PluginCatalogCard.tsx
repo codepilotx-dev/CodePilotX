@@ -3,10 +3,7 @@ import { useRef } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import type { PluginCatalogItem } from './pluginCatalog.js'
 import { pluginPrimaryAction, pluginStatusLabel } from './pluginCatalog.js'
 import { PluginIcon } from './PluginIcon.js'
@@ -16,11 +13,7 @@ type Props = {
   busy?: boolean
   error?: string | null
   onOpenDetails: (item: PluginCatalogItem, trigger: HTMLButtonElement) => void
-  onPrimaryAction: (
-    item: PluginCatalogItem,
-    trigger: HTMLButtonElement,
-    checked?: boolean,
-  ) => void
+  onPrimaryAction: (item: PluginCatalogItem, trigger: HTMLButtonElement, checked?: boolean) => void
 }
 
 export function PluginCatalogCard({
@@ -46,7 +39,7 @@ export function PluginCatalogCard({
           aria-describedby={errorId}
           className="plugin-catalog-card__main"
           data-catalog-item-id={`plugin:${item.id}`}
-          onClick={event => onOpenDetails(item, event.currentTarget)}
+          onClick={(event) => onOpenDetails(item, event.currentTarget)}
           type="button"
         >
           <span aria-hidden="true" className="plugin-catalog-card__icon">
@@ -59,7 +52,9 @@ export function PluginCatalogCard({
           <span className="plugin-catalog-card__copy">
             <strong>{item.name}</strong>
             <span className="plugin-catalog-card__description">{item.description}</span>
-            {item.category === 'manageable' || item.actionKind === 'install' || item.id === 'minimax' ? (
+            {item.category === 'manageable' ||
+            item.actionKind === 'install' ||
+            item.id === 'minimax' ? (
               <span className="plugin-catalog-card__meta">{pluginStatusLabel(item)}</span>
             ) : null}
             {error ? (
@@ -77,7 +72,7 @@ export function PluginCatalogCard({
               ariaLabel={`启用 ${item.name}`}
               checked={action.checked}
               disabled={action.disabled || busy}
-              onChange={checked => {
+              onChange={(checked) => {
                 const trigger = toggleRef.current
                 if (trigger) onPrimaryAction(item, trigger, checked)
               }}
@@ -89,7 +84,7 @@ export function PluginCatalogCard({
               color="secondary"
               disabled={action.disabled}
               loading={busy}
-              onClick={event => onPrimaryAction(item, event.currentTarget)}
+              onClick={(event) => onPrimaryAction(item, event.currentTarget)}
               size="toolbar"
             >
               {action.label}

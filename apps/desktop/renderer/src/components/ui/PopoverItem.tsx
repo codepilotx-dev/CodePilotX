@@ -61,7 +61,9 @@ function buildItemClassName({
     hasRichContent ? 'rich' : '',
     active ? 'active' : '',
     selected ? 'selected' : '',
-  ].filter(Boolean).join(' ')
+  ]
+    .filter(Boolean)
+    .join(' ')
 }
 
 function PopoverItemContent({
@@ -87,27 +89,35 @@ function PopoverItemContent({
         <span className="popover-item-label">{children}</span>
       )}
       <span className="popover-item-trailing">
-        {shortcut ? (
-          <span className="popover-item-shortcut">{shortcut}</span>
-        ) : null}
-        {indicator ?? (withArrow ? (
-          arrowDirection === 'down' ? (
-            <ChevronDown className="popover-item-arrow" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          ) : arrowDirection === 'up' ? (
-            <ChevronUp className="popover-item-arrow" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          ) : (
-            <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          )
-        ) : null)}
+        {shortcut ? <span className="popover-item-shortcut">{shortcut}</span> : null}
+        {indicator ??
+          (withArrow ? (
+            arrowDirection === 'down' ? (
+              <ChevronDown
+                className="popover-item-arrow"
+                size={APP_ICON_SIZES.sm}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            ) : arrowDirection === 'up' ? (
+              <ChevronUp
+                className="popover-item-arrow"
+                size={APP_ICON_SIZES.sm}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            ) : (
+              <ChevronRight
+                className="popover-item-arrow"
+                size={APP_ICON_SIZES.sm}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
+            )
+          ) : null)}
       </span>
     </>
   )
 }
 
-function withOptionalTooltip(
-  item: React.ReactElement,
-  meta: React.ReactNode,
-): React.ReactNode {
+function withOptionalTooltip(item: React.ReactElement, meta: React.ReactNode): React.ReactNode {
   if (!meta) return item
   return (
     <Tooltip
@@ -146,7 +156,7 @@ export function PopoverItem({
       disabled={disabled}
       onPointerEnter={onMouseEnter}
       onPointerLeave={onMouseLeave}
-      onSelect={event => {
+      onSelect={(event) => {
         if (disabled) {
           event.preventDefault()
           return
@@ -161,9 +171,15 @@ export function PopoverItem({
         arrowDirection={arrowDirection}
         description={description}
         icon={icon}
-        indicator={selected && withCheck ? (
-          <Check className="popover-item-check" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-        ) : undefined}
+        indicator={
+          selected && withCheck ? (
+            <Check
+              className="popover-item-check"
+              size={APP_ICON_SIZES.sm}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
+          ) : undefined
+        }
         shortcut={shortcut}
         withArrow={withArrow}
       >
@@ -200,7 +216,7 @@ export function PopoverCheckboxItem({
       onCheckedChange={onCheckedChange}
       onPointerEnter={onMouseEnter}
       onPointerLeave={onMouseLeave}
-      onSelect={event => {
+      onSelect={(event) => {
         if (keepOpen) event.preventDefault()
       }}
     >
@@ -208,11 +224,15 @@ export function PopoverCheckboxItem({
         arrowDirection={arrowDirection}
         description={description}
         icon={icon}
-        indicator={(
+        indicator={
           <DropdownMenu.ItemIndicator asChild>
-            <Check className="popover-item-check" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Check
+              className="popover-item-check"
+              size={APP_ICON_SIZES.sm}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           </DropdownMenu.ItemIndicator>
-        )}
+        }
         shortcut={shortcut}
         withArrow={withArrow}
       >
@@ -262,11 +282,15 @@ export function PopoverRadioItem({
         arrowDirection={arrowDirection}
         description={description}
         icon={icon}
-        indicator={(
+        indicator={
           <DropdownMenu.ItemIndicator asChild>
-            <Check className="popover-item-check" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <Check
+              className="popover-item-check"
+              size={APP_ICON_SIZES.sm}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
           </DropdownMenu.ItemIndicator>
-        )}
+        }
         shortcut={shortcut}
         withArrow={withArrow}
       >

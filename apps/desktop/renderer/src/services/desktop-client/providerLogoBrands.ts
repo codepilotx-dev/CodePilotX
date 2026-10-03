@@ -19,12 +19,7 @@ export const PROVIDER_LOGO_BRANDS: Readonly<Record<string, readonly string[]>> =
   zai: ['zai', 'zai-coding-cn'],
   minimax: ['minimax', 'minimax-cn'],
   moonshotai: ['moonshotai', 'moonshotai-cn', 'kimi-coding'],
-  xiaomi: [
-    'xiaomi',
-    'xiaomi-token-plan-ams',
-    'xiaomi-token-plan-cn',
-    'xiaomi-token-plan-sgp',
-  ],
+  xiaomi: ['xiaomi', 'xiaomi-token-plan-ams', 'xiaomi-token-plan-cn', 'xiaomi-token-plan-sgp'],
   'cloudflare-workers-ai': ['cloudflare-ai-gateway', 'cloudflare-workers-ai'],
   alibaba: ['qwen-token-plan', 'qwen-token-plan-cn', 'qwen-token-plan-individual'],
   azure: ['azure-openai-responses'],
@@ -32,7 +27,7 @@ export const PROVIDER_LOGO_BRANDS: Readonly<Record<string, readonly string[]>> =
 
 const PROVIDER_LOGO_BRAND_BY_PROVIDER_ID = new Map<string, string>(
   Object.entries(PROVIDER_LOGO_BRANDS).flatMap(([brandID, providerIDs]) =>
-    providerIDs.map(providerID => [providerID, brandID] as const),
+    providerIDs.map((providerID) => [providerID, brandID] as const),
   ),
 )
 

@@ -1,8 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test'
-import {
-  buildThreadDeepLink,
-  parseThreadDeepLink,
-} from '@codepilotx/shared/thread-reference'
+import { buildThreadDeepLink, parseThreadDeepLink } from '@codepilotx/shared/thread-reference'
 import { classifyMarkdownTarget } from '../src/features/markdown/safeTargets.js'
 import {
   MARKDOWN_THREAD_NAVIGATION_EVENT,
@@ -123,10 +120,7 @@ describe('markdown thread link navigation', () => {
 
   test('internal thread links never fall through to the external opener', () => {
     const threadId = 'thread-1'
-    handleMarkdownThreadLinkClick(
-      { preventDefault: mock(() => {}) },
-      threadId,
-    )
+    handleMarkdownThreadLinkClick({ preventDefault: mock(() => {}) }, threadId)
     expect(dispatched).toHaveLength(1)
     expect(dispatched[0]?.type).toBe(MARKDOWN_THREAD_NAVIGATION_EVENT)
     expect(classifyMarkdownTarget(buildThreadDeepLink(threadId))).toEqual({

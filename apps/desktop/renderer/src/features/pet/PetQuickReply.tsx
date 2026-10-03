@@ -2,10 +2,7 @@ import React from 'react'
 import { Button } from '../../components/ui/Button.js'
 import { Checkbox } from '../../components/ui/Checkbox.js'
 import { RadioGroup, RadioItem } from '../../components/ui/RadioGroup.js'
-import type {
-  DesktopPermissionDecision,
-  DesktopPermissionRequest,
-} from '../../../shared/types.js'
+import type { DesktopPermissionDecision, DesktopPermissionRequest } from '../../../shared/types.js'
 import {
   CUSTOM_OPTION_ID,
   buildAskUserQuestionUpdatedInput,
@@ -33,12 +30,9 @@ export function PetQuickReply({
   disabled = false,
   onRespond,
 }: PetQuickReplyProps): React.ReactNode {
-  const questions = request.toolName === 'AskUserQuestion'
-    ? parseAskUserQuestions(request.input)
-    : null
-  const [questionStates, setQuestionStates] = React.useState<
-    Record<string, QuestionState>
-  >({})
+  const questions =
+    request.toolName === 'AskUserQuestion' ? parseAskUserQuestions(request.input) : null
+  const [questionStates, setQuestionStates] = React.useState<Record<string, QuestionState>>({})
   const [questionIndex, setQuestionIndex] = React.useState(0)
   const [action, setAction] = React.useState<QuickReplyAction>('allow')
   const [feedback, setFeedback] = React.useState('')
@@ -86,7 +80,7 @@ export function PetQuickReply({
 
     const question = questions[questionIndex] ?? questions[0]
     const canAdvance = hasQuestionAnswer(questionStates[question.question])
-    const canSubmit = questions.every(question =>
+    const canSubmit = questions.every((question) =>
       hasQuestionAnswer(questionStates[question.question]),
     )
     const lastQuestion = questionIndex === questions.length - 1
@@ -98,12 +92,9 @@ export function PetQuickReply({
           key={question.id ?? question.question}
           question={question}
           questionCount={questions.length}
-          state={
-            questionStates[question.question]
-            ?? emptyQuestionState(question)
-          }
-          onChange={state => {
-            setQuestionStates(current => ({
+          state={questionStates[question.question] ?? emptyQuestionState(question)}
+          onChange={(state) => {
+            setQuestionStates((current) => ({
               ...current,
               [question.question]: state,
             }))
@@ -124,7 +115,7 @@ export function PetQuickReply({
               color="secondary"
               disabled={blocked}
               type="button"
-              onClick={() => setQuestionIndex(current => current - 1)}
+              onClick={() => setQuestionIndex((current) => current - 1)}
             >
               上一题
             </Button>
@@ -156,7 +147,7 @@ export function PetQuickReply({
               color="primary"
               disabled={blocked || !canAdvance}
               type="button"
-              onClick={() => setQuestionIndex(current => current + 1)}
+              onClick={() => setQuestionIndex((current) => current + 1)}
             >
               下一题
             </Button>
@@ -177,7 +168,7 @@ export function PetQuickReply({
         disabled={blocked}
         orientation="horizontal"
         value={action}
-        onValueChange={value => {
+        onValueChange={(value) => {
           setAction(value as QuickReplyAction)
           setError(null)
         }}
@@ -191,7 +182,7 @@ export function PetQuickReply({
           disabled={blocked}
           placeholder="可选：说明拒绝原因"
           value={feedback}
-          onChange={event => {
+          onChange={(event) => {
             setFeedback(event.target.value)
             setError(null)
           }}
@@ -241,12 +232,14 @@ function QuestionReply({
       </legend>
       {question.multiSelect ? (
         <>
-          {question.options.map(option => (
+          {question.options.map((option) => (
             <Checkbox
               checked={state.selected.includes(option.label)}
               disabled={disabled}
               key={option.label}
-              onCheckedChange={() => onChange(selectQuestionOption(state, option.label, true, 'toggle'))}
+              onCheckedChange={() =>
+                onChange(selectQuestionOption(state, option.label, true, 'toggle'))
+              }
             >
               <span title={option.description}>{option.label}</span>
             </Checkbox>
@@ -256,9 +249,16 @@ function QuestionReply({
               ariaLabel="使用自定义回答"
               checked={state.selected.includes(CUSTOM_OPTION_ID)}
               disabled={disabled}
-              onCheckedChange={() => onChange(selectQuestionOption(state, CUSTOM_OPTION_ID, true, 'toggle'))}
+              onCheckedChange={() =>
+                onChange(selectQuestionOption(state, CUSTOM_OPTION_ID, true, 'toggle'))
+              }
             />
-            <CustomAnswerInput disabled={disabled} question={question} state={state} onChange={onChange} />
+            <CustomAnswerInput
+              disabled={disabled}
+              question={question}
+              state={state}
+              onChange={onChange}
+            />
           </div>
         </>
       ) : (
@@ -266,14 +266,25 @@ function QuestionReply({
           ariaLabel={question.question}
           disabled={disabled}
           value={state.selected[0] ?? ''}
-          onValueChange={value => onChange(selectQuestionOption(state, value, false, 'toggle'))}
+          onValueChange={(value) => onChange(selectQuestionOption(state, value, false, 'toggle'))}
         >
-          {question.options.map(option => (
-            <RadioItem detail={option.description} key={option.label} label={option.label} value={option.label} variant="card" />
+          {question.options.map((option) => (
+            <RadioItem
+              detail={option.description}
+              key={option.label}
+              label={option.label}
+              value={option.label}
+              variant="card"
+            />
           ))}
           <div className="tw:flex tw:items-start tw:gap-2">
             <RadioItem ariaLabel="使用自定义回答" value={CUSTOM_OPTION_ID} />
-            <CustomAnswerInput disabled={disabled} question={question} state={state} onChange={onChange} />
+            <CustomAnswerInput
+              disabled={disabled}
+              question={question}
+              state={state}
+              onChange={onChange}
+            />
           </div>
         </RadioGroup>
       )}
@@ -288,7 +299,12 @@ function emptyQuestionState(question: AskUserQuestion): QuestionState {
   }
 }
 
-function CustomAnswerInput({ question, state, disabled, onChange }: {
+function CustomAnswerInput({
+  question,
+  state,
+  disabled,
+  onChange,
+}: {
   question: AskUserQuestion
   state: QuestionState
   disabled: boolean
@@ -301,8 +317,10 @@ function CustomAnswerInput({ question, state, disabled, onChange }: {
       disabled={disabled}
       placeholder="其他回答…"
       value={state.custom}
-      onFocus={() => onChange(selectQuestionOption(state, CUSTOM_OPTION_ID, question.multiSelect, 'focus'))}
-      onChange={event => {
+      onFocus={() =>
+        onChange(selectQuestionOption(state, CUSTOM_OPTION_ID, question.multiSelect, 'focus'))
+      }
+      onChange={(event) => {
         const custom = event.target.value
         const next = selectQuestionOption(state, CUSTOM_OPTION_ID, question.multiSelect, 'focus')
         onChange({
@@ -326,11 +344,7 @@ function QuickReplyFrame({
     <div className="tw:flex tw:min-w-72 tw:max-w-96 tw:flex-col tw:gap-3">
       {children}
       {error ? (
-        <p
-          aria-live="polite"
-          className="u-type-caption tw:m-0 tw:text-app-danger"
-          role="alert"
-        >
+        <p aria-live="polite" className="u-type-caption tw:m-0 tw:text-app-danger" role="alert">
           {error}
         </p>
       ) : null}

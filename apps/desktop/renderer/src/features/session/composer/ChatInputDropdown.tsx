@@ -39,15 +39,11 @@ export function computeDropdownMaxHeight({
   safetyMargin,
 }: ComputeDropdownMaxHeightInput): number {
   const available =
-    side === 'bottom'
-      ? windowHeight - anchorTop - safetyMargin
-      : anchorTop - safetyMargin
+    side === 'bottom' ? windowHeight - anchorTop - safetyMargin : anchorTop - safetyMargin
   return Math.max(0, Math.min(available, maxCap))
 }
 
-export function shouldCloseChatInputDropdownForClick(
-  target: HTMLElement,
-): boolean {
+export function shouldCloseChatInputDropdownForClick(target: HTMLElement): boolean {
   const composerTop = target.closest('.composer-top')
   const dropdown = target.closest('.chat-input__dropdown')
   return !composerTop && !dropdown
@@ -168,7 +164,7 @@ function ChatInputDropdownSurface({
       }}
       inert={!isPresent ? true : undefined}
       initial={surfaceMotion.initial}
-      onClick={event => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
       ref={ref}
       style={{
         ...maxHeightStyle,

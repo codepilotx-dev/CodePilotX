@@ -53,8 +53,14 @@ import {
 import { SideChatThreadPanel } from '../../session/conversation/SideChatThreadPanel.js'
 import { UserAttachmentPreviewPanel } from '../../session/attachments/UserAttachmentPreviewPanel.js'
 
-const DesktopBrowserPanel = React.lazy(() => import('../../browser/DesktopBrowserPanel.js').then(module => ({ default: module.DesktopBrowserPanel })))
-const TerminalPanel = React.lazy(() => import('../../terminal/TerminalPanel.js').then(module => ({ default: module.TerminalPanel })))
+const DesktopBrowserPanel = React.lazy(() =>
+  import('../../browser/DesktopBrowserPanel.js').then((module) => ({
+    default: module.DesktopBrowserPanel,
+  })),
+)
+const TerminalPanel = React.lazy(() =>
+  import('../../terminal/TerminalPanel.js').then((module) => ({ default: module.TerminalPanel })),
+)
 
 function deferred(element: ReactNode): ReactNode {
   return <Suspense fallback={null}>{element}</Suspense>
@@ -69,9 +75,7 @@ function BrowserTabContent({
   const initialized = state !== null
   useEffect(() => {
     if (availability.status !== 'available') return
-    const unsubscribe = desktopBrowserClient.onBrowserStateChange(
-      onStateChange,
-    )
+    const unsubscribe = desktopBrowserClient.onBrowserStateChange(onStateChange)
     if (!initialized) {
       void desktopBrowserClient
         .openBrowser()
@@ -96,10 +100,7 @@ function BrowserTabContent({
     return (
       <WorkbenchPanelUnavailable
         title="内置浏览器不可用"
-        description={
-          availability.reason ??
-          '当前桌面运行环境没有提供浏览器能力。'
-        }
+        description={availability.reason ?? '当前桌面运行环境没有提供浏览器能力。'}
       />
     )
   }
@@ -127,9 +128,7 @@ export type WorkbenchTabRenderContext = {
     onOpenWorkspacePath: () => void
     onRefreshDiff: () => void
     onReviewTabStateChange: (
-      value:
-        | ReviewTabUiState
-        | ((current: ReviewTabUiState) => ReviewTabUiState),
+      value: ReviewTabUiState | ((current: ReviewTabUiState) => ReviewTabUiState),
     ) => void
     onToggleReviewView: () => void
   }
@@ -164,9 +163,7 @@ export type WorkbenchTabRenderContext = {
     activeTabId: WorkbenchTabDescriptor['id'] | null
     available: boolean
     focusVersion: number
-    isCreating: (
-      tabId: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>['id'],
-    ) => boolean
+    isCreating: (tabId: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>['id']) => boolean
     itemContext: (
       tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>,
       status: DesktopSessionStatus,
@@ -174,18 +171,14 @@ export type WorkbenchTabRenderContext = {
     getPermissionMode: (
       tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>,
     ) => DesktopPermissionMode
-    getModelSelection?: (tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>) => Pick<DesktopModelSelection, 'providerID' | 'model' | 'variant'>
+    getModelSelection?: (
+      tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>,
+    ) => Pick<DesktopModelSelection, 'providerID' | 'model' | 'variant'>
     onInteractionError: (message: string) => void
     onOpenPatchReview?: (path?: string) => void
     onOpenPlan?: (request: OpenPlanInDockRequest) => void
-    onRecreate: (
-      tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>,
-    ) => void
-    onStateChange: (
-      threadId: string,
-      count: number,
-      status: DesktopSessionStatus,
-    ) => void
+    onRecreate: (tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>) => void
+    onStateChange: (threadId: string, count: number, status: DesktopSessionStatus) => void
     renderComposer: (
       tab: Extract<WorkbenchTabDescriptor, { kind: 'side-chat' }>,
       context: SideChatComposerRenderContext,
@@ -203,10 +196,7 @@ export type WorkbenchTabRenderContext = {
   }
 }
 
-export type WorkbenchTabLifecycle =
-  | 'unmount-when-hidden'
-  | 'keep-alive-hidden'
-  | 'external-surface'
+export type WorkbenchTabLifecycle = 'unmount-when-hidden' | 'keep-alive-hidden' | 'external-surface'
 
 export type WorkbenchTabAvailability = {
   status: 'loading' | 'available' | 'unavailable'
@@ -223,15 +213,10 @@ export type WorkbenchTabDefinition = {
   launcherIcon?: ReactNode
   launcherShortcut?: string | null
   lifecycle: WorkbenchTabLifecycle
-  getAvailability?: (
-    context: WorkbenchTabRenderContext,
-  ) => WorkbenchTabAvailability
+  getAvailability?: (context: WorkbenchTabRenderContext) => WorkbenchTabAvailability
   getTitle: (tab: WorkbenchTabDescriptor) => string
   getIcon?: (tab: WorkbenchTabDescriptor) => ReactNode
-  render: (
-    tab: WorkbenchTabDescriptor,
-    context: WorkbenchTabRenderContext,
-  ) => ReactNode
+  render: (tab: WorkbenchTabDescriptor, context: WorkbenchTabRenderContext) => ReactNode
 }
 
 const iconSize = APP_ICON_SIZE
@@ -244,9 +229,7 @@ const WORKBENCH_LAUNCHER_ORDER: Partial<Record<WorkbenchTabKind, number>> = {
   'side-chat': 4,
 }
 
-export function getWorkbenchLauncherPresentation(
-  definition: WorkbenchTabDefinition,
-): {
+export function getWorkbenchLauncherPresentation(definition: WorkbenchTabDefinition): {
   label: string
   icon: ReactNode
   shortcut?: string
@@ -257,7 +240,7 @@ export function getWorkbenchLauncherPresentation(
     shortcut:
       definition.launcherShortcut === undefined
         ? definition.shortcut
-        : definition.launcherShortcut ?? undefined,
+        : (definition.launcherShortcut ?? undefined),
   }
 }
 
@@ -271,9 +254,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     lifecycle: 'unmount-when-hidden',
     launcherIcon: <SquarePlus size={iconSize} />,
     getTitle: () => '审阅',
-    render: (_tab, context) => (
-      <WorkspaceReviewSidebar {...context.review} />
-    ),
+    render: (_tab, context) => <WorkspaceReviewSidebar {...context.review} />,
   },
   {
     kind: 'browser',
@@ -282,7 +263,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     shortcut: 'Ctrl+T',
     launcher: true,
     lifecycle: 'external-surface',
-    getAvailability: context => context.browser.availability,
+    getAvailability: (context) => context.browser.availability,
     getTitle: () => '浏览器',
     render: (_tab, context) => <BrowserTabContent context={context.browser} />,
   },
@@ -316,10 +297,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <FileText size={iconSize} />,
     launcher: false,
     lifecycle: 'unmount-when-hidden',
-    getTitle: tab =>
-      tab.kind === 'file-preview'
-        ? basename(tab.relativePath)
-        : '文件预览',
+    getTitle: (tab) => (tab.kind === 'file-preview' ? basename(tab.relativePath) : '文件预览'),
     getIcon: () => <FileText size={iconSize} />,
     render: (tab, context) =>
       tab.kind === 'file-preview' ? (
@@ -333,13 +311,9 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           revealLine={tab.line}
           previewTab={tab.preview}
           markdownViewMode={tab.markdownViewMode}
-          onSetMarkdownViewMode={mode =>
-            context.files.onSetFileMarkdownViewMode(tab.id, mode)
-          }
+          onSetMarkdownViewMode={(mode) => context.files.onSetFileMarkdownViewMode(tab.id, mode)}
           onPinTab={() => context.files.onPinFileTab(tab.id)}
-          onLoadError={(error, phase) =>
-            context.files.onLoadError(tab, error, phase)
-          }
+          onLoadError={(error, phase) => context.files.onLoadError(tab, error, phase)}
           onOpenFile={(file, options) => {
             context.files.onPreviewFile(file)
             if (!options.preview && file.type === 'file') {
@@ -364,7 +338,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <ListChecks size={iconSize} />,
     launcher: false,
     lifecycle: 'unmount-when-hidden',
-    getTitle: tab => (tab.kind === 'plan' ? tab.title : '计划'),
+    getTitle: (tab) => (tab.kind === 'plan' ? tab.title : '计划'),
     render: (tab, context) => (
       <RightDockPlanPanel
         content={
@@ -381,11 +355,9 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <FileCode2 size={iconSize} />,
     launcher: false,
     lifecycle: 'unmount-when-hidden',
-    getTitle: tab => tab.kind === 'skill-preview' ? tab.skill.name : '技能预览',
-    render: tab =>
-      tab.kind === 'skill-preview' ? (
-        <RightDockSkillPreviewPanel tab={tab} />
-      ) : null,
+    getTitle: (tab) => (tab.kind === 'skill-preview' ? tab.skill.name : '技能预览'),
+    render: (tab) =>
+      tab.kind === 'skill-preview' ? <RightDockSkillPreviewPanel tab={tab} /> : null,
   },
   {
     kind: 'attachment-preview',
@@ -394,9 +366,8 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     launcher: false,
     lifecycle: 'unmount-when-hidden',
     getTitle: () => '用户附件',
-    render: tab => tab.kind === 'attachment-preview'
-      ? <UserAttachmentPreviewPanel tab={tab} />
-      : null,
+    render: (tab) =>
+      tab.kind === 'attachment-preview' ? <UserAttachmentPreviewPanel tab={tab} /> : null,
   },
   {
     kind: 'side-chat',
@@ -405,26 +376,25 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     shortcut: 'Ctrl+Alt+S',
     launcher: true,
     lifecycle: 'unmount-when-hidden',
-    getTitle: tab => tab.kind === 'side-chat' ? tab.title : '侧边聊天',
-    render: (tab, context) => tab.kind === 'side-chat'
-      ? (
-          <SideChatThreadPanel
-            active={context.sideChat.activeTabId === tab.id}
-            creating={context.sideChat.isCreating(tab.id)}
-            focusVersion={context.sideChat.focusVersion}
-            itemContext={status => context.sideChat.itemContext(tab, status)}
-            onInteractionError={context.sideChat.onInteractionError}
-            onOpenPatchReview={context.sideChat.onOpenPatchReview}
-            onOpenPlan={context.sideChat.onOpenPlan}
-            onRecreate={context.sideChat.onRecreate}
-            onStateChange={context.sideChat.onStateChange}
-            permissionMode={context.sideChat.getPermissionMode(tab)}
-            modelSelection={context.sideChat.getModelSelection?.(tab)}
-            renderComposer={context.sideChat.renderComposer}
-            tab={tab}
-          />
-        )
-      : null,
+    getTitle: (tab) => (tab.kind === 'side-chat' ? tab.title : '侧边聊天'),
+    render: (tab, context) =>
+      tab.kind === 'side-chat' ? (
+        <SideChatThreadPanel
+          active={context.sideChat.activeTabId === tab.id}
+          creating={context.sideChat.isCreating(tab.id)}
+          focusVersion={context.sideChat.focusVersion}
+          itemContext={(status) => context.sideChat.itemContext(tab, status)}
+          onInteractionError={context.sideChat.onInteractionError}
+          onOpenPatchReview={context.sideChat.onOpenPatchReview}
+          onOpenPlan={context.sideChat.onOpenPlan}
+          onRecreate={context.sideChat.onRecreate}
+          onStateChange={context.sideChat.onStateChange}
+          permissionMode={context.sideChat.getPermissionMode(tab)}
+          modelSelection={context.sideChat.getModelSelection?.(tab)}
+          renderComposer={context.sideChat.renderComposer}
+          tab={tab}
+        />
+      ) : null,
   },
   {
     kind: 'terminal',
@@ -434,7 +404,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     launcher: true,
     launcherShortcut: null,
     lifecycle: 'keep-alive-hidden',
-    getAvailability: context => context.terminal.availability,
+    getAvailability: (context) => context.terminal.availability,
     getTitle: () => '终端',
     render: (_tab, context) => {
       if (context.terminal.availability.status === 'loading') {
@@ -445,8 +415,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           <WorkbenchPanelUnavailable
             title="集成终端不可用"
             description={
-              context.terminal.availability.reason ??
-              '当前桌面运行环境没有提供终端能力。'
+              context.terminal.availability.reason ?? '当前桌面运行环境没有提供终端能力。'
             }
           />
         )
@@ -472,14 +441,13 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     icon: <Bot size={iconSize} />,
     launcher: false,
     lifecycle: 'unmount-when-hidden',
-    getAvailability: context => context.sideTask.availability,
+    getAvailability: (context) => context.sideTask.availability,
     getTitle: () => '子智能体',
     render: (tab, context) =>
-      tab.kind === 'side-task' &&
-      context.sideTask.activeTaskId === tab.taskId ? (
-        context.sideTask.content ?? (
+      tab.kind === 'side-task' && context.sideTask.activeTaskId === tab.taskId ? (
+        (context.sideTask.content ?? (
           <div className="right-dock-empty-state">正在加载子智能体…</div>
-        )
+        ))
       ) : (
         <div className="right-dock-empty-state">
           <strong>子智能体已在其他标签切换</strong>
@@ -489,7 +457,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
   },
 ]
 
-const registry = new Map(definitions.map(definition => [definition.kind, definition]))
+const registry = new Map(definitions.map((definition) => [definition.kind, definition]))
 
 export function getWorkbenchTabDefinition(
   tabOrKind: WorkbenchTabDescriptor | WorkbenchTabKind,
@@ -514,7 +482,7 @@ export function getWorkbenchTabDisplayTitle(
 
 export function getWorkbenchLauncherDefinitions(): readonly WorkbenchTabDefinition[] {
   return definitions
-    .filter(definition => definition.launcher)
+    .filter((definition) => definition.launcher)
     .map((definition, index) => ({ definition, index }))
     .sort((left, right) => {
       const leftOrder = WORKBENCH_LAUNCHER_ORDER[left.definition.kind]
@@ -527,9 +495,7 @@ export function getWorkbenchLauncherDefinitions(): readonly WorkbenchTabDefiniti
     .map(({ definition }) => definition)
 }
 
-export function createLauncherTab(
-  kind: WorkbenchTabKind,
-): WorkbenchTabDescriptor | null {
+export function createLauncherTab(kind: WorkbenchTabKind): WorkbenchTabDescriptor | null {
   if (kind === 'review') return { id: 'review', kind: 'review' }
   if (kind === 'browser') return { id: 'browser', kind: 'browser' }
   if (kind === 'file-browser') {

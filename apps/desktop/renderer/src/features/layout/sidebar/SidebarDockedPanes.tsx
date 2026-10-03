@@ -1,13 +1,6 @@
 import type React from 'react'
 import { memo } from 'react'
-import {
-  ChevronDown,
-  ChevronRight,
-  ExternalLink,
-  MoveDown,
-  MoveRight,
-  X,
-} from 'lucide-react'
+import { ChevronDown, ChevronRight, ExternalLink, MoveDown, MoveRight, X } from 'lucide-react'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -42,10 +35,7 @@ export interface SidebarDockedPanesProps {
     target: WorkbenchPanelTarget,
     tabId: WorkbenchTabId,
   ) => void
-  onPopOutTab?: (
-    source: WorkbenchPanelTarget,
-    tabId: WorkbenchTabId,
-  ) => void
+  onPopOutTab?: (source: WorkbenchPanelTarget, tabId: WorkbenchTabId) => void
   onAddComposerFiles?: (files: string[]) => void
   onOpenFile?: (file: DesktopFileEntry) => void
 }
@@ -76,7 +66,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
         <span>工作区停靠视图</span>
         <span className="u-type-caption tw:opacity-75">{state.tabIds.length}</span>
       </div>
-      {state.tabIds.map(tabId => {
+      {state.tabIds.map((tabId) => {
         const tab = tabsById[tabId]
         if (!tab) return null
         const definition = getWorkbenchTabDefinition(tab)
@@ -98,7 +88,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                   icon: <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />,
                   onSelect: () => onCloseTab(tab.id),
                 },
-                ...getAvailableMoveTargets('sidebar', tab.kind).map(destTarget => ({
+                ...getAvailableMoveTargets('sidebar', tab.kind).map((destTarget) => ({
                   kind: 'item' as const,
                   label: `移到${destTarget === 'bottom' ? '底部面板' : '右侧栏'}`,
                   icon:
@@ -132,17 +122,18 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                       {active ? (
                         <ChevronDown size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                       ) : (
-                        <ChevronRight size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                        <ChevronRight
+                          size={APP_ICON_SIZES.sm}
+                          strokeWidth={APP_ICON_STROKE_WIDTH}
+                        />
                       )}
                     </span>
                     <span className="tw:shrink-0">{tabIcon}</span>
-                    <span className="tw:truncate u-type-control tw:text-app-text">
-                      {tabTitle}
-                    </span>
+                    <span className="tw:truncate u-type-control tw:text-app-text">{tabTitle}</span>
                   </div>
                   <div
                     className="tw:flex tw:items-center tw:gap-0.5"
-                    onClick={event => event.stopPropagation()}
+                    onClick={(event) => event.stopPropagation()}
                   >
                     <IconButton
                       aria-label="移到右侧栏"

@@ -1,4 +1,4 @@
-import type { ThreadWorktreeOperationRepository } from "../repositories/thread-worktree-operation-repository"
+import type { ThreadWorktreeOperationRepository } from '../repositories/thread-worktree-operation-repository'
 
 /**
  * Resumes thread-create operations that died between worktree creation and thread
@@ -7,7 +7,7 @@ import type { ThreadWorktreeOperationRepository } from "../repositories/thread-w
  */
 export type ThreadWorktreeRecoveryDatabase = Pick<
   ThreadWorktreeOperationRepository,
-  "recoverable" | "markPublished" | "markFailed" | "markCleaned"
+  'recoverable' | 'markPublished' | 'markFailed' | 'markCleaned'
 >
 
 export type ThreadWorktreeRecoveryDeps = {

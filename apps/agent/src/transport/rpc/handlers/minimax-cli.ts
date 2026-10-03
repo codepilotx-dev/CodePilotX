@@ -2,20 +2,20 @@ import {
   MiniMaxCliMutationParamsSchema,
   MiniMaxCliStatusParamsSchema,
   type RpcMethod,
-} from "@codepilotx/agent-protocol"
-import { Schema } from "effect"
-import { AgentError } from "../../../domain"
-import { MiniMaxCliIntegrationError } from "../../../integration/minimax-cli/MiniMaxCliIntegrationService"
-import type { RpcRouter } from "../RpcRouter"
-import type { RpcRouterContext } from "../request-context"
-import type { RpcHandlerGroup } from "./types"
+} from '@codepilotx/agent-protocol'
+import { Schema } from 'effect'
+import { AgentError } from '../../../domain'
+import { MiniMaxCliIntegrationError } from '../../../integration/minimax-cli/MiniMaxCliIntegrationService'
+import type { RpcRouter } from '../RpcRouter'
+import type { RpcRouterContext } from '../request-context'
+import type { RpcHandlerGroup } from './types'
 
 const decodeStatus = Schema.decodeUnknownSync(MiniMaxCliStatusParamsSchema)
 const decodeMutation = Schema.decodeUnknownSync(MiniMaxCliMutationParamsSchema)
 
 export const miniMaxCliHandlers = {
-  name: "minimax-cli",
-  methods: ["minimaxCli/status", "minimaxCli/install", "minimaxCli/uninstall"],
+  name: 'minimax-cli',
+  methods: ['minimaxCli/status', 'minimaxCli/install', 'minimaxCli/uninstall'],
   async handle(
     runtime: RpcRouter,
     method: RpcMethod,
@@ -24,11 +24,11 @@ export const miniMaxCliHandlers = {
   ): Promise<unknown> {
     try {
       switch (method) {
-        case "minimaxCli/status":
+        case 'minimaxCli/status':
           return await runtime.dependencies.minimaxCli.status(decodeStatus(rawParams))
-        case "minimaxCli/install":
+        case 'minimaxCli/install':
           return await runtime.dependencies.minimaxCli.install(decodeMutation(rawParams))
-        case "minimaxCli/uninstall":
+        case 'minimaxCli/uninstall':
           return await runtime.dependencies.minimaxCli.uninstall(decodeMutation(rawParams))
         default:
           return undefined
@@ -37,7 +37,7 @@ export const miniMaxCliHandlers = {
       if (cause instanceof MiniMaxCliIntegrationError) {
         throw new AgentError(cause.code, cause.message, cause.status)
       }
-      throw new AgentError("INTERNAL_ERROR", "MiniMax CLI 操作失败，请稍后重试", 500)
+      throw new AgentError('INTERNAL_ERROR', 'MiniMax CLI 操作失败，请稍后重试', 500)
     }
   },
 } as const satisfies RpcHandlerGroup

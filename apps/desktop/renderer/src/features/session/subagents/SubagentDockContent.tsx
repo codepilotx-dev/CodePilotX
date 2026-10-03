@@ -6,10 +6,7 @@ import {
   WorkbenchPanelLoading,
   WorkbenchPanelUnavailable,
 } from '../../layout/panels/WorkbenchPanelStates.js'
-import {
-  SubagentThreadPanel,
-  type SubagentThreadCallbacks,
-} from './SubagentThreadPanel.js'
+import { SubagentThreadPanel, type SubagentThreadCallbacks } from './SubagentThreadPanel.js'
 
 type Props = {
   availability: 'loading' | 'available' | 'unavailable'
@@ -80,38 +77,46 @@ export function SubagentDockContent({
       await onRefresh()
       onPatchApplied()
     },
-    onStop: task => void runAction(
-      desktopClient.stopSubagent ? () => desktopClient.stopSubagent!(task.id) : undefined,
-      '当前 Agent 不支持停止子智能体。',
-    ),
-    onRetry: task => void runAction(
-      desktopClient.retrySubagent ? () => desktopClient.retrySubagent!(task.id) : undefined,
-      '当前 Agent 不支持重试子智能体。',
-    ),
-    onApplyWorktree: task => void runAction(
-      desktopClient.applySubagentWorktree
-        ? () => desktopClient.applySubagentWorktree!(task.id)
-        : undefined,
-      '当前 Agent 不支持应用子智能体工作树。',
-    ),
-    onDiscardWorktree: task => void runAction(
-      desktopClient.discardSubagentWorktree
-        ? () => desktopClient.discardSubagentWorktree!(task.id)
-        : undefined,
-      '当前 Agent 不支持丢弃子智能体工作树。',
-    ),
-    onRestoreWorkspace: task => void runAction(
-      desktopClient.restoreSubagentWorkspace
-        ? () => desktopClient.restoreSubagentWorkspace!(task.id)
-        : undefined,
-      '当前 Agent 不支持恢复子智能体工作区。',
-    ),
+    onStop: (task) =>
+      void runAction(
+        desktopClient.stopSubagent ? () => desktopClient.stopSubagent!(task.id) : undefined,
+        '当前 Agent 不支持停止子智能体。',
+      ),
+    onRetry: (task) =>
+      void runAction(
+        desktopClient.retrySubagent ? () => desktopClient.retrySubagent!(task.id) : undefined,
+        '当前 Agent 不支持重试子智能体。',
+      ),
+    onApplyWorktree: (task) =>
+      void runAction(
+        desktopClient.applySubagentWorktree
+          ? () => desktopClient.applySubagentWorktree!(task.id)
+          : undefined,
+        '当前 Agent 不支持应用子智能体工作树。',
+      ),
+    onDiscardWorktree: (task) =>
+      void runAction(
+        desktopClient.discardSubagentWorktree
+          ? () => desktopClient.discardSubagentWorktree!(task.id)
+          : undefined,
+        '当前 Agent 不支持丢弃子智能体工作树。',
+      ),
+    onRestoreWorkspace: (task) =>
+      void runAction(
+        desktopClient.restoreSubagentWorkspace
+          ? () => desktopClient.restoreSubagentWorkspace!(task.id)
+          : undefined,
+        '当前 Agent 不支持恢复子智能体工作区。',
+      ),
     onOpenSubagent,
     onOpenPatchReview,
     onRequestRespond: async (request, behavior, alwaysAllow, updatedInput, extras) => {
       try {
         await desktopClient.respondToPermission(read.task.childThreadId, request.requestId, {
-          behavior, alwaysAllow, updatedInput, ...extras,
+          behavior,
+          alwaysAllow,
+          updatedInput,
+          ...extras,
         })
         await onRefresh()
       } catch (error) {

@@ -1,4 +1,4 @@
-import type { DesktopBrowserBounds } from "@codepilotx/shared/desktop-browser-ipc"
+import type { DesktopBrowserBounds } from '@codepilotx/shared/desktop-browser-ipc'
 
 export function scaleDesktopBrowserBounds(
   bounds: DesktopBrowserBounds,

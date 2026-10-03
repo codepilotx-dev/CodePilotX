@@ -1,7 +1,15 @@
-import type React from "react";
-import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import type React from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
   ArrowUpRight,
   ChevronRight,
@@ -14,18 +22,15 @@ import {
   PawPrint,
   Settings,
   Sparkles,
-} from "lucide-react";
+} from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { buildPopoverSizingStyle } from '../../../components/ui/popoverSizing.js'
 import { RemoteImage } from '../../../components/ui/RemoteImage.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import type {
-  DesktopUpdateStatus,
-  ModelProviderID,
-} from '../../../../shared/types.js'
-import { PopoverItem, PopoverSeparator } from "../../../components/ui/PopoverItem.js";
-import { PopoverMenu } from "../../../components/ui/PopoverMenu.js";
-import { SidebarRow } from "./SidebarRow.js";
+import type { DesktopUpdateStatus, ModelProviderID } from '../../../../shared/types.js'
+import { PopoverItem, PopoverSeparator } from '../../../components/ui/PopoverItem.js'
+import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
+import { SidebarRow } from './SidebarRow.js'
 import { useLocale } from '../../i18n/LocaleProvider.js'
 import {
   buildDesktopUpdateIndicatorModel,
@@ -45,56 +50,52 @@ import { cx } from '../../../utils/cx.js'
 import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 
 type PopoverUsageRow = {
-  id: string;
-  label: string;
-  usage: string;
-};
+  id: string
+  label: string
+  usage: string
+}
 
 type ProviderUsageState = {
-  providerID: ModelProviderID | null;
-  source: ProviderUsageSource | null;
-  loading: boolean;
-  error: string | null;
-};
+  providerID: ModelProviderID | null
+  source: ProviderUsageSource | null
+  loading: boolean
+  error: string | null
+}
 
 const EMPTY_USAGE: ProviderUsageState = {
   providerID: null,
   source: null,
   loading: false,
   error: null,
-};
+}
 
 type SidebarFooterProps = {
-  compact?: boolean;
-  onNavigate?: () => void;
-  onOpenWhatsNew: (restoreFocusElement: HTMLElement | null) => void;
-  onReport: (message: string) => void;
-};
+  compact?: boolean
+  onNavigate?: () => void
+  onOpenWhatsNew: (restoreFocusElement: HTMLElement | null) => void
+  onReport: (message: string) => void
+}
 
 export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(function SidebarFooter(
   { compact = false, onNavigate, onOpenWhatsNew, onReport },
   ref,
 ): React.ReactNode {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const location = useLocation()
+  const navigate = useNavigate()
   const { t } = useLocale()
-  const {
-    draft,
-    model,
-    providerID: configuredProviderID,
-  } = useDesktopSettings();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const accountMenuTriggerRef = useRef<HTMLButtonElement>(null);
-  const [usage, setUsage] = useState<ProviderUsageState>(EMPTY_USAGE);
+  const { draft, model, providerID: configuredProviderID } = useDesktopSettings()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const accountMenuTriggerRef = useRef<HTMLButtonElement>(null)
+  const [usage, setUsage] = useState<ProviderUsageState>(EMPTY_USAGE)
   const { auth: githubAuth } = useSyncExternalStore(
     desktopClient.onGithubAccountChange,
     desktopClient.getGithubAccountSnapshot,
     desktopClient.getGithubAccountSnapshot,
-  );
-  const [petToggleBusy, setPetToggleBusy] = useState(false);
-  const settingsActive = location.pathname.startsWith("/settings/");
-  const usageAvailable = Boolean(configuredProviderID && model);
-  const petEnabled = draft.values.pet.enabled;
+  )
+  const [petToggleBusy, setPetToggleBusy] = useState(false)
+  const settingsActive = location.pathname.startsWith('/settings/')
+  const usageAvailable = Boolean(configuredProviderID && model)
+  const petEnabled = draft.values.pet.enabled
   const [updateStatus, setUpdateStatus] = useState<DesktopUpdateStatus | null>(null)
   const updateIndicator = buildDesktopUpdateIndicatorModel(updateStatus)
 
@@ -103,109 +104,103 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
   }, [])
 
   const refreshUsage = useCallback(async (): Promise<void> => {
-    setUsage(previous => ({ ...previous, loading: true, error: null }));
+    setUsage((previous) => ({ ...previous, loading: true, error: null }))
     try {
-      const providerState = await desktopClient.getModelProviderState();
-      const providerID = providerState.selectedProviderID;
+      const providerState = await desktopClient.getModelProviderState()
+      const providerID = providerState.selectedProviderID
       if (!providerID || !providerState.apiKeyConfigured) {
         setUsage({
           providerID,
           source: null,
           loading: false,
           error: null,
-        });
-        return;
+        })
+        return
       }
       const result = await desktopClient.queryProviderUsage({
         range: '7d',
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
         providerIds: [protocolProviderId(providerID)],
-      });
-      const source = sourceForProvider(result.sources, providerID) ?? null;
+      })
+      const source = sourceForProvider(result.sources, providerID) ?? null
       setUsage({
         providerID,
         source,
         loading: false,
         error: source?.error?.message ?? null,
-      });
+      })
     } catch (fetchError) {
-      setUsage(previous => ({
+      setUsage((previous) => ({
         ...previous,
         loading: false,
-        error:
-          fetchError instanceof Error
-            ? fetchError.message
-            : String(fetchError),
-      }));
+        error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+      }))
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
-    if (!menuOpen) return;
-    void refreshUsage();
-  }, [menuOpen, refreshUsage]);
+    if (!menuOpen) return
+    void refreshUsage()
+  }, [menuOpen, refreshUsage])
 
   const refreshGithubAuth = useCallback(async (): Promise<void> => {
     try {
-      await desktopClient.getGithubAuthStatus();
+      await desktopClient.getGithubAuthStatus()
     } catch {
       // 保留已有账户信息，下一次打开菜单时重试。
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
-    void refreshGithubAuth();
-  }, [refreshGithubAuth]);
+    void refreshGithubAuth()
+  }, [refreshGithubAuth])
 
   useEffect(() => {
-    if (menuOpen) void refreshGithubAuth();
-  }, [menuOpen, refreshGithubAuth]);
+    if (menuOpen) void refreshGithubAuth()
+  }, [menuOpen, refreshGithubAuth])
 
   const logoutGithub = useCallback(async (): Promise<void> => {
     try {
-      await desktopClient.logoutGithub();
+      await desktopClient.logoutGithub()
     } catch (error) {
-      onReport(error instanceof Error ? error.message : String(error));
+      onReport(error instanceof Error ? error.message : String(error))
     }
-  }, [onReport]);
+  }, [onReport])
 
   const togglePet = useCallback(async (): Promise<void> => {
-    if (petToggleBusy) return;
-    const nextEnabled = !petEnabled;
-    setPetToggleBusy(true);
+    if (petToggleBusy) return
+    const nextEnabled = !petEnabled
+    setPetToggleBusy(true)
     try {
-      const bridge = window.codePilotXDesktop;
+      const bridge = window.codePilotXDesktop
       if (nextEnabled) {
-        if (typeof bridge?.openPetOverlay !== "function") {
-          throw new Error("宠物浮窗暂不可用");
+        if (typeof bridge?.openPetOverlay !== 'function') {
+          throw new Error('宠物浮窗暂不可用')
         }
-        await bridge.openPetOverlay();
+        await bridge.openPetOverlay()
       } else {
-        if (typeof bridge?.hidePetOverlay !== "function") {
-          throw new Error("宠物浮窗暂不可用");
+        if (typeof bridge?.hidePetOverlay !== 'function') {
+          throw new Error('宠物浮窗暂不可用')
         }
-        await bridge.hidePetOverlay();
+        await bridge.hidePetOverlay()
       }
-      draft.setValue('pet', current => ({
+      draft.setValue('pet', (current) => ({
         ...current,
         enabled: nextEnabled,
-      }));
-      draft.autoSave();
+      }))
+      draft.autoSave()
     } catch (error) {
-      onReport(error instanceof Error ? error.message : String(error));
+      onReport(error instanceof Error ? error.message : String(error))
     } finally {
-      setPetToggleBusy(false);
+      setPetToggleBusy(false)
     }
-  }, [draft, onReport, petEnabled, petToggleBusy]);
+  }, [draft, onReport, petEnabled, petToggleBusy])
 
-  const usageRows = useMemo<PopoverUsageRow[]>(
-    () => buildUsageRows(usage),
-    [usage],
-  );
-  const githubAuthenticated = githubAuth?.authenticated === true;
-  const githubUser = githubAuthenticated ? githubAuth.user : null;
-  const accountName = githubUser?.name || githubUser?.login || t("个人资料");
-  const accountTriggerName = compact || githubAuthenticated ? accountName : t("设置");
+  const usageRows = useMemo<PopoverUsageRow[]>(() => buildUsageRows(usage), [usage])
+  const githubAuthenticated = githubAuth?.authenticated === true
+  const githubUser = githubAuthenticated ? githubAuth.user : null
+  const accountName = githubUser?.name || githubUser?.login || t('个人资料')
+  const accountTriggerName = compact || githubAuthenticated ? accountName : t('设置')
   const openSettings = (path: string): void => {
     setMenuOpen(false)
     onNavigate?.()
@@ -235,7 +230,11 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             leading={
               <span className="sidebar-account-avatar" aria-hidden="true">
                 {!githubAuthenticated ? (
-                  compact ? <CircleUser data-icon-kind="artwork" size={14} /> : <Settings data-icon-kind="artwork" size={14} />
+                  compact ? (
+                    <CircleUser data-icon-kind="artwork" size={14} />
+                  ) : (
+                    <Settings data-icon-kind="artwork" size={14} />
+                  )
                 ) : githubUser?.avatarUrl ? (
                   <RemoteImage
                     alt=""
@@ -245,11 +244,21 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 ) : (
                   <CircleUser data-icon-kind="artwork" size={14} />
                 )}
-                {updateIndicator.visible ? <span className="sidebar-account-update-dot" aria-hidden="true" /> : null}
+                {updateIndicator.visible ? (
+                  <span className="sidebar-account-update-dot" aria-hidden="true" />
+                ) : null}
               </span>
             }
           >
-            <button aria-label={updateIndicator.visible ? `${accountTriggerName}，${t(updateIndicator.ariaLabel)}` : accountTriggerName} className="sidebar-footer-trigger" type="button">
+            <button
+              aria-label={
+                updateIndicator.visible
+                  ? `${accountTriggerName}，${t(updateIndicator.ariaLabel)}`
+                  : accountTriggerName
+              }
+              className="sidebar-footer-trigger"
+              type="button"
+            >
               <span className={compact ? 'u-sr-only' : undefined}>{accountTriggerName}</span>
             </button>
           </SidebarRow>
@@ -271,8 +280,16 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 )}
               </span>
             }
-            description={githubAuthenticated ? (githubUser?.name && githubUser.name !== githubUser.login ? `@${githubUser.login}` : t('GitHub 账户')) : t('未登录')}
-            onClick={() => openSettings(githubAuthenticated ? "/settings/profile" : "/settings/git")}
+            description={
+              githubAuthenticated
+                ? githubUser?.name && githubUser.name !== githubUser.login
+                  ? `@${githubUser.login}`
+                  : t('GitHub 账户')
+                : t('未登录')
+            }
+            onClick={() =>
+              openSettings(githubAuthenticated ? '/settings/profile' : '/settings/git')
+            }
           >
             {accountName}
           </PopoverItem>
@@ -281,10 +298,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
         <div className="popover-section">
           {usageAvailable ? (
             <DropdownMenu.Sub>
-              <DropdownMenu.SubTrigger
-                className="popover-item popover-sub-trigger"
-                tabIndex={-1}
-              >
+              <DropdownMenu.SubTrigger className="popover-item popover-sub-trigger" tabIndex={-1}>
                 <span className="popover-item-leading">
                   <span className="popover-item-icon">
                     <Gauge size={APP_ICON_SIZE} />
@@ -292,10 +306,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 </span>
                 <span className="popover-item-label">{t('剩余用量')}</span>
                 <span className="popover-item-trailing">
-                  <ChevronRight
-                    className="popover-item-arrow"
-                    size={APP_ICON_SIZES.sm}
-                  />
+                  <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} />
                 </span>
               </DropdownMenu.SubTrigger>
               <DropdownMenu.Portal>
@@ -308,7 +319,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                   sideOffset={4}
                   style={buildPopoverSizingStyle({
                     width: 280,
-                    maxWidth: "calc(100vw - 16px)",
+                    maxWidth: 'calc(100vw - 16px)',
                   })}
                 >
                   <div className="popover-usage-content">
@@ -317,25 +328,16 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                         {t('正在查询用量…')}
                       </div>
                     ) : usage.error ? (
-                      <div
-                        className="popover-usage-empty popover-usage-empty-error"
-                        role="status"
-                      >
+                      <div className="popover-usage-empty popover-usage-empty-error" role="status">
                         {usage.error}
                       </div>
                     ) : usageRows.length > 0 ? (
-                      <div
-                        aria-label={t('额度明细')}
-                        className="popover-usage-rows"
-                        role="group"
-                      >
-                        {usageRows.map(row => (
+                      <div aria-label={t('额度明细')} className="popover-usage-rows" role="group">
+                        {usageRows.map((row) => (
                           <div className="popover-usage-row" key={row.id}>
                             <span className="popover-usage-label">{row.label}</span>
                             <span className="popover-usage-value">
-                              <span className="popover-usage-amount">
-                                {row.usage}
-                              </span>
+                              <span className="popover-usage-amount">{row.usage}</span>
                             </span>
                           </div>
                         ))}
@@ -350,22 +352,13 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                       className="popover-usage-action"
                       tabIndex={-1}
                       onSelect={() => {
-                        openSettings("/settings/billing");
+                        openSettings('/settings/billing')
                       }}
                     >
-                      <span
-                        className={cx(
-                          'popover-usage-action-label',
-                          'u-flex-1',
-                          'u-min-w-0',
-                        )}
-                      >
+                      <span className={cx('popover-usage-action-label', 'u-flex-1', 'u-min-w-0')}>
                         {t('了解更多')}
                       </span>
-                      <ArrowUpRight
-                        className="popover-usage-action-icon"
-                        size={APP_ICON_SIZE}
-                      />
+                      <ArrowUpRight className="popover-usage-action-icon" size={APP_ICON_SIZE} />
                     </DropdownMenu.Item>
                   </div>
                 </DropdownMenu.SubContent>
@@ -376,16 +369,16 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             disabled={petToggleBusy}
             icon={<PawPrint size={APP_ICON_SIZE} />}
             onClick={() => {
-              void togglePet();
+              void togglePet()
             }}
           >
-            {t(petEnabled ? "隐藏宠物" : "显示宠物")}
+            {t(petEnabled ? '隐藏宠物' : '显示宠物')}
           </PopoverItem>
           <PopoverItem
             active={settingsActive}
             icon={<Settings size={APP_ICON_SIZE} />}
             shortcut="Ctrl+,"
-            onClick={() => openSettings("/settings/general")}
+            onClick={() => openSettings('/settings/general')}
           >
             {t('设置')}
           </PopoverItem>
@@ -394,9 +387,15 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
         <div className="popover-section">
           <DropdownMenu.Sub>
             <DropdownMenu.SubTrigger className="popover-item popover-sub-trigger" tabIndex={-1}>
-              <span className="popover-item-leading"><span className="popover-item-icon"><HelpCircle size={APP_ICON_SIZE} /></span></span>
+              <span className="popover-item-leading">
+                <span className="popover-item-icon">
+                  <HelpCircle size={APP_ICON_SIZE} />
+                </span>
+              </span>
               <span className="popover-item-label">{t('帮助')}</span>
-              <span className="popover-item-trailing"><ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} /></span>
+              <span className="popover-item-trailing">
+                <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} />
+              </span>
             </DropdownMenu.SubTrigger>
             <DropdownMenu.Portal>
               <DropdownMenu.SubContent
@@ -407,11 +406,19 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                 sideOffset={4}
                 style={buildPopoverSizingStyle({ width: 200, maxWidth: 'calc(100vw - 16px)' })}
               >
-                <PopoverItem icon={<Sparkles size={APP_ICON_SIZE} />} onClick={() => {
-                  setMenuOpen(false)
-                  onOpenWhatsNew(accountMenuTriggerRef.current)
-                }}>{t('新特性')}</PopoverItem>
-                <PopoverItem icon={<Keyboard size={APP_ICON_SIZE} />} onClick={() => openSettings('/settings/shortcuts')}>
+                <PopoverItem
+                  icon={<Sparkles size={APP_ICON_SIZE} />}
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onOpenWhatsNew(accountMenuTriggerRef.current)
+                  }}
+                >
+                  {t('新特性')}
+                </PopoverItem>
+                <PopoverItem
+                  icon={<Keyboard size={APP_ICON_SIZE} />}
+                  onClick={() => openSettings('/settings/shortcuts')}
+                >
                   {t('键盘快捷键')}
                 </PopoverItem>
                 <PopoverItem
@@ -419,11 +426,16 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                   description={updateIndicator.visible ? t(updateIndicator.ariaLabel) : undefined}
                   disabled={updateIndicator.disabled}
                   onClick={() => {
-                    void runDesktopUpdateIndicatorAction(desktopClient, updateIndicator.action ?? 'check').catch(() => {
+                    void runDesktopUpdateIndicatorAction(
+                      desktopClient,
+                      updateIndicator.action ?? 'check',
+                    ).catch(() => {
                       setUpdateStatus({ phase: 'error', message: '更新操作失败，请稍后重试' })
                     })
                   }}
-                >{t(updateIndicator.visible ? updateIndicator.label : '检查更新')}</PopoverItem>
+                >
+                  {t(updateIndicator.visible ? updateIndicator.label : '检查更新')}
+                </PopoverItem>
               </DropdownMenu.SubContent>
             </DropdownMenu.Portal>
           </DropdownMenu.Sub>
@@ -431,8 +443,8 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             <PopoverItem
               icon={<LogOut size={APP_ICON_SIZE} />}
               onClick={() => {
-                setMenuOpen(false);
-                void logoutGithub();
+                setMenuOpen(false)
+                void logoutGithub()
               }}
             >
               {t('退出登录')}
@@ -444,8 +456,8 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
         {t(updateIndicator.announcement)}
       </span>
     </footer>
-  );
-});
+  )
+})
 
 function buildUsageRows(usage: ProviderUsageState): PopoverUsageRow[] {
   const quotas = criticalQuotaWindows(usage.source, 3)

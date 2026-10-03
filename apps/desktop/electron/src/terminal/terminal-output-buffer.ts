@@ -1,4 +1,4 @@
-import type { DesktopTerminalChunk } from "@codepilotx/shared/desktop-terminal-ipc"
+import type { DesktopTerminalChunk } from '@codepilotx/shared/desktop-terminal-ipc'
 
 export interface TerminalReplay {
   oldestSequence: number
@@ -26,7 +26,7 @@ export class TerminalOutputBuffer {
   append(data: string): DesktopTerminalChunk {
     const sequence = this.#nextSequence++
     const normalizedData = trimUtf8Tail(data, this.#maximumBytes)
-    const bytes = Buffer.byteLength(normalizedData, "utf8")
+    const bytes = Buffer.byteLength(normalizedData, 'utf8')
     const chunk = {
       terminalId: this.#terminalId,
       instanceId: this.#instanceId,
@@ -41,7 +41,7 @@ export class TerminalOutputBuffer {
       if (removed) this.#totalBytes -= removed.bytes
       this.#truncated = true
     }
-    if (Buffer.byteLength(data, "utf8") > bytes) this.#truncated = true
+    if (Buffer.byteLength(data, 'utf8') > bytes) this.#truncated = true
     return chunk
   }
 
@@ -49,7 +49,7 @@ export class TerminalOutputBuffer {
     const oldestSequence = this.#chunks[0]?.sequence ?? this.#nextSequence
     const gap = afterSequence < oldestSequence - 1
     const chunks = this.#chunks
-      .filter(chunk => chunk.sequence > afterSequence)
+      .filter((chunk) => chunk.sequence > afterSequence)
       .map(({ bytes: _bytes, ...chunk }) => chunk)
     return {
       oldestSequence,
@@ -84,9 +84,9 @@ export class TerminalOutputBuffer {
 }
 
 function trimUtf8Tail(value: string, maximumBytes: number): string {
-  const encoded = Buffer.from(value, "utf8")
+  const encoded = Buffer.from(value, 'utf8')
   if (encoded.byteLength <= maximumBytes) return value
   let start = encoded.byteLength - maximumBytes
   while (start < encoded.byteLength && (encoded[start]! & 0xc0) === 0x80) start += 1
-  return encoded.subarray(start).toString("utf8")
+  return encoded.subarray(start).toString('utf8')
 }

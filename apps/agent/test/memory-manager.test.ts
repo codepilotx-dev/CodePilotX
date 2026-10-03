@@ -1,8 +1,8 @@
-import { describe, expect, test } from "bun:test"
-import { MemoryManager } from "../src/resource/MemoryManager"
+import { describe, expect, test } from 'bun:test'
+import { MemoryManager } from '../src/resource/MemoryManager'
 
-describe("MemoryManager", () => {
-  test("returns valid memory stats", () => {
+describe('MemoryManager', () => {
+  test('returns valid memory stats', () => {
     const manager = new MemoryManager()
     const stats = manager.getStats()
     expect(stats.rss).toBeGreaterThan(0)
@@ -12,24 +12,24 @@ describe("MemoryManager", () => {
     manager.dispose()
   })
 
-  test("skips shrink when active turns are in flight (mutual exclusion)", async () => {
+  test('skips shrink when active turns are in flight (mutual exclusion)', async () => {
     const manager = new MemoryManager()
     let hookRan = false
-    manager.registerHook("test", () => {
+    manager.registerHook('test', () => {
       hookRan = true
     })
 
     manager.notifyTurnStarted()
     expect(manager.diagnostics.activeTurns).toBe(1)
 
-    const result = await manager.shrink("manual")
+    const result = await manager.shrink('manual')
     expect(result.success).toBe(false)
     expect(hookRan).toBe(false)
 
     manager.notifyTurnCompleted()
     expect(manager.diagnostics.activeTurns).toBe(0)
 
-    const successfulResult = await manager.shrink("manual")
+    const successfulResult = await manager.shrink('manual')
     expect(successfulResult.success).toBe(true)
     expect(hookRan).toBe(true)
     expect(manager.diagnostics.shrinkCount).toBe(1)
@@ -37,7 +37,7 @@ describe("MemoryManager", () => {
     manager.dispose()
   })
 
-  test("debounces turn completion and cancels debounce on new turn start", async () => {
+  test('debounces turn completion and cancels debounce on new turn start', async () => {
     let shrinkCalled = false
     let currentTime = 1000
     const manager = new MemoryManager({
@@ -45,7 +45,7 @@ describe("MemoryManager", () => {
       now: () => currentTime,
     })
 
-    manager.registerHook("test", () => {
+    manager.registerHook('test', () => {
       shrinkCalled = true
     })
 
@@ -66,21 +66,21 @@ describe("MemoryManager", () => {
     manager.dispose()
   })
 
-  test("runs registered hooks and tolerates throwing hooks safely", async () => {
+  test('runs registered hooks and tolerates throwing hooks safely', async () => {
     const manager = new MemoryManager()
     let hook1Ran = false
     let hook2Ran = false
 
-    manager.registerHook("hook1", () => {
+    manager.registerHook('hook1', () => {
       hook1Ran = true
-      throw new Error("Hook 1 failed intentionally")
+      throw new Error('Hook 1 failed intentionally')
     })
 
-    const unregister = manager.registerHook("hook2", () => {
+    const unregister = manager.registerHook('hook2', () => {
       hook2Ran = true
     })
 
-    const result = await manager.shrink("manual")
+    const result = await manager.shrink('manual')
     expect(result.success).toBe(true)
     expect(hook1Ran).toBe(true)
     expect(hook2Ran).toBe(true)
@@ -90,21 +90,21 @@ describe("MemoryManager", () => {
     hook2Ran = false
     unregister()
 
-    await manager.shrink("manual")
+    await manager.shrink('manual')
     expect(hook1Ran).toBe(true)
     expect(hook2Ran).toBe(false)
 
     manager.dispose()
   })
 
-  test("triggers idle shrink when idle timeout expires", async () => {
+  test('triggers idle shrink when idle timeout expires', async () => {
     let idleShrinkRan = false
     const manager = new MemoryManager({
       debounceMs: 1000,
       idleIntervalMs: 30,
     })
 
-    manager.registerHook("idle-test", () => {
+    manager.registerHook('idle-test', () => {
       idleShrinkRan = true
     })
 

@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Schema } from 'effect'
 import {
   ApprovalRequestSchema,
   AttachmentSchema,
@@ -7,23 +7,23 @@ import {
   LocalContextReferenceSchema,
   MessageSchema,
   ThreadTurnBundleSchema,
-} from "./items"
-import { ThreadGoalSchema } from "./goal"
-import { ThreadListItemSchema, ThreadSchema, TurnSchema } from "./schema"
-import { AgentExecutionSchema, SubagentProjectionSchema } from "./subagent"
-import { PlanApprovalSchema } from "./plan-approval"
+} from './items'
+import { ThreadGoalSchema } from './goal'
+import { ThreadListItemSchema, ThreadSchema, TurnSchema } from './schema'
+import { AgentExecutionSchema, SubagentProjectionSchema } from './subagent'
+import { PlanApprovalSchema } from './plan-approval'
 
-export const QueuePauseReasonSchema = Schema.NullOr(Schema.Literals(["interrupted", "turn_failed"]))
+export const QueuePauseReasonSchema = Schema.NullOr(Schema.Literals(['interrupted', 'turn_failed']))
 export type QueuePauseReason = typeof QueuePauseReasonSchema.Type
 
 export const QueueActionSchema = Schema.Literals([
-  "added",
-  "edited",
-  "removed",
-  "paused",
-  "resumed",
-  "steer-accepted",
-  "steer-consumed",
+  'added',
+  'edited',
+  'removed',
+  'paused',
+  'resumed',
+  'steer-accepted',
+  'steer-consumed',
 ])
 export type QueueAction = typeof QueueActionSchema.Type
 
@@ -40,9 +40,11 @@ export const ThreadSnapshotSchema = Schema.Struct({
   goal: Schema.optional(Schema.NullOr(ThreadGoalSchema)),
   pendingPlanApproval: Schema.optional(Schema.NullOr(PlanApprovalSchema)),
   contextReferences: Schema.optional(Schema.Array(LocalContextReferenceSchema)),
-  queue: Schema.optional(Schema.Struct({
-    version: Schema.Number,
-    pauseReason: QueuePauseReasonSchema,
-  })),
+  queue: Schema.optional(
+    Schema.Struct({
+      version: Schema.Number,
+      pauseReason: QueuePauseReasonSchema,
+    }),
+  ),
 })
 export type ThreadSnapshot = typeof ThreadSnapshotSchema.Type

@@ -2,21 +2,13 @@ import { APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import React from 'react'
 import { ChevronRight } from 'lucide-react'
 import { DisclosureContent } from '../../components/ui/DisclosureContent.js'
-import type {
-  MarkdownDirectiveRegistry,
-  MarkdownDirectiveRenderer,
-} from './types.js'
+import type { MarkdownDirectiveRegistry, MarkdownDirectiveRenderer } from './types.js'
 
-const BUILTIN_DIRECTIVES: ReadonlyArray<
-  readonly [string, MarkdownDirectiveRenderer]
-> = [
+const BUILTIN_DIRECTIVES: ReadonlyArray<readonly [string, MarkdownDirectiveRenderer]> = [
   [
     'note',
     ({ argument, children, name }) => (
-      <aside
-        className="md-directive md-directive-note"
-        data-md-directive={name}
-      >
+      <aside className="md-directive md-directive-note" data-md-directive={name}>
         {argument ? <strong>{argument}</strong> : null}
         {children}
       </aside>
@@ -25,10 +17,7 @@ const BUILTIN_DIRECTIVES: ReadonlyArray<
   [
     'tip',
     ({ argument, children, name }) => (
-      <aside
-        className="md-directive md-directive-tip"
-        data-md-directive={name}
-      >
+      <aside className="md-directive md-directive-tip" data-md-directive={name}>
         {argument ? <strong>{argument}</strong> : null}
         {children}
       </aside>
@@ -37,10 +26,7 @@ const BUILTIN_DIRECTIVES: ReadonlyArray<
   [
     'warning',
     ({ argument, children, name }) => (
-      <aside
-        className="md-directive md-directive-warning"
-        data-md-directive={name}
-      >
+      <aside className="md-directive md-directive-warning" data-md-directive={name}>
         {argument ? <strong>{argument}</strong> : null}
         {children}
       </aside>
@@ -49,19 +35,13 @@ const BUILTIN_DIRECTIVES: ReadonlyArray<
   [
     'danger',
     ({ argument, children, name }) => (
-      <aside
-        className="md-directive md-directive-danger"
-        data-md-directive={name}
-      >
+      <aside className="md-directive md-directive-danger" data-md-directive={name}>
         {argument ? <strong>{argument}</strong> : null}
         {children}
       </aside>
     ),
   ],
-  [
-    'details',
-    (props) => <DetailsDirective {...props} />,
-  ],
+  ['details', (props) => <DetailsDirective {...props} />],
 ]
 
 function DetailsDirective({
@@ -95,9 +75,7 @@ function DetailsDirective({
   )
 }
 
-export const DEFAULT_MARKDOWN_DIRECTIVES: MarkdownDirectiveRegistry = new Map(
-  BUILTIN_DIRECTIVES,
-)
+export const DEFAULT_MARKDOWN_DIRECTIVES: MarkdownDirectiveRegistry = new Map(BUILTIN_DIRECTIVES)
 
 export function createMarkdownDirectiveRegistry(
   entries: Iterable<readonly [string, MarkdownDirectiveRenderer]> = [],
@@ -111,5 +89,8 @@ export function createMarkdownDirectiveRegistry(
 }
 
 export function normalizeDirectiveName(name: string): string {
-  return name.trim().toLowerCase().replace(/[^a-z0-9_-]/gu, '')
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/gu, '')
 }

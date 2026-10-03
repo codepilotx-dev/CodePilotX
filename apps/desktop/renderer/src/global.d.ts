@@ -26,31 +26,25 @@ declare global {
     codePilotXDesktop?: {
       listSystemFonts(): Promise<DesktopSystemFontsResult>
       getDesktopSettings(): Promise<DesktopStoredSettings>
-      saveDesktopSettings(
-        settings: DesktopStoredSettings,
-      ): Promise<DesktopStoredSettings>
+      saveDesktopSettings(settings: DesktopStoredSettings): Promise<DesktopStoredSettings>
       onDesktopSettingsChange?(
-        listener: (
-          change:
-            | DesktopStoredSettings
-            | { settings: DesktopStoredSettings },
-        ) => void,
+        listener: (change: DesktopStoredSettings | { settings: DesktopStoredSettings }) => void,
       ): () => void
-    } & DesktopPetOverlayBridge
-      & DesktopDataLocationIpcBridge
-      & DesktopEditIpcBridge
-      & DesktopTerminalIpcBridge
-      & DesktopUpdateIpcBridge
-      & DesktopNotificationIpcBridge
-      & DesktopAttachmentIpcBridge
-      & DesktopBrowserIpcBridge
-      & DesktopWindowIpcBridge
-      & DesktopWorkspaceIpcBridge
-      & DesktopShellIpcBridge
-      & DesktopClipboardIpcBridge
-      & DesktopStartupIpcBridge
-      & DesktopAppearanceIpcBridge<DesktopThemeSettings['codeThemeIds']['light']>
-      & DesktopDeepLinkIpcBridge
+    } & DesktopPetOverlayBridge &
+      DesktopDataLocationIpcBridge &
+      DesktopEditIpcBridge &
+      DesktopTerminalIpcBridge &
+      DesktopUpdateIpcBridge &
+      DesktopNotificationIpcBridge &
+      DesktopAttachmentIpcBridge &
+      DesktopBrowserIpcBridge &
+      DesktopWindowIpcBridge &
+      DesktopWorkspaceIpcBridge &
+      DesktopShellIpcBridge &
+      DesktopClipboardIpcBridge &
+      DesktopStartupIpcBridge &
+      DesktopAppearanceIpcBridge<DesktopThemeSettings['codeThemeIds']['light']> &
+      DesktopDeepLinkIpcBridge
   }
 }
 

@@ -6,26 +6,26 @@ import {
   AutomationScheduleSchema,
   AutomationSchema,
   AutomationStatusSchema,
-} from "@codepilotx/shared/automation"
-import { ModelRefSchema } from "@codepilotx/shared/model"
-import { PermissionConfigSchema } from "@codepilotx/shared/thread"
-import { Schema } from "effect"
-import { defineMethod, type MethodMap } from "../wire/definition"
-import { LimitSchema, NonEmptyStringSchema, OpaqueIDSchema } from "../wire/primitives"
+} from '@codepilotx/shared/automation'
+import { ModelRefSchema } from '@codepilotx/shared/model'
+import { PermissionConfigSchema } from '@codepilotx/shared/thread'
+import { Schema } from 'effect'
+import { defineMethod, type MethodMap } from '../wire/definition'
+import { LimitSchema, NonEmptyStringSchema, OpaqueIDSchema } from '../wire/primitives'
 
 const AutomationErrors = [
-  "AUTOMATION_NOT_FOUND",
-  "AUTOMATION_RUN_NOT_FOUND",
-  "PROJECT_NOT_FOUND",
-  "PROJECT_REMOVED",
-  "THREAD_NOT_FOUND",
-  "MODEL_UNAVAILABLE",
-  "WORKTREE_BRANCH_NOT_FOUND",
-  "OPERATION_ID_CONFLICT",
-  "PERMISSION_DENIED",
-  "CONFLICT",
-  "INVALID_REQUEST",
-  "INTERNAL_ERROR",
+  'AUTOMATION_NOT_FOUND',
+  'AUTOMATION_RUN_NOT_FOUND',
+  'PROJECT_NOT_FOUND',
+  'PROJECT_REMOVED',
+  'THREAD_NOT_FOUND',
+  'MODEL_UNAVAILABLE',
+  'WORKTREE_BRANCH_NOT_FOUND',
+  'OPERATION_ID_CONFLICT',
+  'PERMISSION_DENIED',
+  'CONFLICT',
+  'INVALID_REQUEST',
+  'INTERNAL_ERROR',
 ] as const
 
 const PositiveRevisionSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))
@@ -77,64 +77,67 @@ export const AutomationSchedulePreviewSchema = Schema.Struct({
 export type AutomationSchedulePreview = typeof AutomationSchedulePreviewSchema.Type
 
 export const AutomationRpcMethods = {
-  "automation/list": defineMethod({
+  'automation/list': defineMethod({
     params: Schema.Struct({
       statuses: Schema.optional(Schema.Array(AutomationStatusSchema)),
       query: Schema.optional(Schema.String),
     }),
     result: Schema.Struct({ automations: Schema.Array(AutomationSchema) }),
     errors: AutomationErrors,
-    capability: "automation.manage.v1",
+    capability: 'automation.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "automation/read": defineMethod({
+  'automation/read': defineMethod({
     params: Schema.Struct({ automationId: OpaqueIDSchema }),
     result: Schema.Struct({ automation: AutomationSchema }),
     errors: AutomationErrors,
-    capability: "automation.manage.v1",
+    capability: 'automation.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "automation/create": defineMethod({
+  'automation/create': defineMethod({
     params: AutomationCreateParamsSchema,
     result: Schema.Struct({ automation: AutomationSchema }),
     errors: AutomationErrors,
-    capability: "automation.manage.v1",
+    capability: 'automation.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "automation/update": defineMethod({
+  'automation/update': defineMethod({
     params: AutomationUpdateParamsSchema,
     result: Schema.Struct({ automation: AutomationSchema }),
     errors: AutomationErrors,
-    capability: "automation.manage.v1",
+    capability: 'automation.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "automation/delete": defineMethod({
-    params: Schema.Struct({ automationId: OpaqueIDSchema, expectedRevision: PositiveRevisionSchema }),
+  'automation/delete': defineMethod({
+    params: Schema.Struct({
+      automationId: OpaqueIDSchema,
+      expectedRevision: PositiveRevisionSchema,
+    }),
     result: Schema.Struct({ automation: AutomationSchema }),
     errors: AutomationErrors,
-    capability: "automation.manage.v1",
+    capability: 'automation.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "automation/run": defineMethod({
+  'automation/run': defineMethod({
     params: Schema.Struct({ automationId: OpaqueIDSchema, operationId: OpaqueIDSchema }),
     result: Schema.Struct({ run: AutomationRunSchema }),
     errors: AutomationErrors,
-    capability: "automation.manage.v1",
+    capability: 'automation.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "automation/run/list": defineMethod({
+  'automation/run/list': defineMethod({
     params: Schema.Struct({
       automationId: Schema.optional(OpaqueIDSchema),
       unreadOnly: Schema.optional(Schema.Boolean),
@@ -142,30 +145,30 @@ export const AutomationRpcMethods = {
     }),
     result: Schema.Struct({ runs: Schema.Array(AutomationRunSchema) }),
     errors: AutomationErrors,
-    capability: "automation.manage.v1",
+    capability: 'automation.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,
   }),
-  "automation/run/mark-read": defineMethod({
+  'automation/run/mark-read': defineMethod({
     params: Schema.Struct({ runId: OpaqueIDSchema }),
     result: Schema.Struct({ run: AutomationRunSchema }),
     errors: AutomationErrors,
-    capability: "automation.manage.v1",
+    capability: 'automation.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "automation/run/mark-all-read": defineMethod({
+  'automation/run/mark-all-read': defineMethod({
     params: Schema.Struct({ automationId: Schema.optional(OpaqueIDSchema) }),
     result: Schema.Struct({ updatedCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)) }),
     errors: AutomationErrors,
-    capability: "automation.manage.v1",
+    capability: 'automation.manage.v1',
     mutation: true,
     exactParams: true,
     exactResult: true,
   }),
-  "automation/schedule/preview": defineMethod({
+  'automation/schedule/preview': defineMethod({
     params: Schema.Struct({
       schedule: AutomationScheduleSchema,
       timeZone: NonEmptyStringSchema,
@@ -173,7 +176,7 @@ export const AutomationRpcMethods = {
     }),
     result: Schema.Struct({ preview: AutomationSchedulePreviewSchema }),
     errors: AutomationErrors,
-    capability: "automation.manage.v1",
+    capability: 'automation.manage.v1',
     mutation: false,
     exactParams: true,
     exactResult: true,

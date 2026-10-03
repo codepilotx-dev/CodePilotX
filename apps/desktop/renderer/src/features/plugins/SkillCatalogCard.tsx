@@ -1,11 +1,12 @@
 import type React from 'react'
 import { Check, Plus, ShieldAlert, ShieldCheck, ShieldX, Sparkles } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
-import type {
-  DesktopSkillAuditStatus,
-  DesktopSkillCatalogItem,
-} from '../../../shared/types.js'
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
+} from '../../components/ui/iconTokens.js'
+import type { DesktopSkillAuditStatus, DesktopSkillCatalogItem } from '../../../shared/types.js'
 
 type Props = {
   installing?: boolean
@@ -26,7 +27,7 @@ export function SkillCatalogCard({
         <button
           className="skill-catalog-card__main"
           data-catalog-item-id={`skill:${skill.id}`}
-          onClick={event => onOpenDetails(skill, event.currentTarget)}
+          onClick={(event) => onOpenDetails(skill, event.currentTarget)}
           type="button"
         >
           <span aria-hidden="true" className="skill-catalog-card__icon">
@@ -78,10 +79,14 @@ export function SkillCatalogCard({
 
 function renderAuditIcon(status: DesktopSkillAuditStatus): React.ReactNode {
   if (status === 'pass') {
-    return <ShieldCheck aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    return (
+      <ShieldCheck aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    )
   }
   if (status === 'warn') {
-    return <ShieldAlert aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    return (
+      <ShieldAlert aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    )
   }
   return <ShieldX aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
 }

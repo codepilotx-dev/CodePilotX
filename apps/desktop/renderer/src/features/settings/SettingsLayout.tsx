@@ -4,10 +4,7 @@ import { useParams } from 'react-router-dom'
 import { SettingsPage } from './SettingsPage.js'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
 import { useDesktopTheme } from '../theme/themeContext.js'
-import {
-  createSettingsSaveShortcutHandler,
-  useDesktopSettings,
-} from './useDesktopSettings.js'
+import { createSettingsSaveShortcutHandler, useDesktopSettings } from './useDesktopSettings.js'
 import { SETTINGS_ITEMS } from './settingsRegistry.js'
 import { NotFoundPage } from '../routing/NotFoundPage.js'
 import { useDesktopLayoutOutletContext } from '../layout/shell/desktopLayoutOutletContext.js'
@@ -18,20 +15,13 @@ type Props = {
   activeTabOverride?: string
 }
 
-export function SettingsLayout({
-  activeTabOverride,
-}: Props = {}): React.ReactNode {
+export function SettingsLayout({ activeTabOverride }: Props = {}): React.ReactNode {
   const { tab, projectId } = useParams<{
     tab?: string
     projectId?: string
   }>()
   const activeTab =
-    activeTabOverride ??
-    (tab
-      ? decodeURIComponent(tab)
-      : projectId
-        ? 'environment'
-        : '')
+    activeTabOverride ?? (tab ? decodeURIComponent(tab) : projectId ? 'environment' : '')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
   const settings = useDesktopSettings()
@@ -46,17 +36,13 @@ export function SettingsLayout({
   useEffect(() => {
     const saveSettings = async (): Promise<void> => {
       await Promise.all([
-        settings.draft.dirty
-          ? settings.draft.save()
-          : Promise.resolve(settings.draft.values),
-        theme.draft.dirty
-          ? theme.draft.save()
-          : Promise.resolve(theme.draft.settings),
+        settings.draft.dirty ? settings.draft.save() : Promise.resolve(settings.draft.values),
+        theme.draft.dirty ? theme.draft.save() : Promise.resolve(theme.draft.settings),
       ])
       setNoticeMessage(t('设置已保存'))
     }
     const onKeyDown = (event: KeyboardEvent): void => {
-      void createSettingsSaveShortcutHandler(saveSettings)(event).catch(error => {
+      void createSettingsSaveShortcutHandler(saveSettings)(event).catch((error) => {
         const message = error instanceof Error ? error.message : String(error)
         setErrorMessage(message)
       })
@@ -65,16 +51,13 @@ export function SettingsLayout({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [settings.draft, theme.draft, t])
 
-  if (!SETTINGS_ITEMS.some(item => item.routeId === activeTab)) {
+  if (!SETTINGS_ITEMS.some((item) => item.routeId === activeTab)) {
     return <NotFoundPage />
   }
 
   return (
     <div className="settings-page tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-col tw:overflow-hidden tw:bg-app-canvas tw:text-app-text">
-      <GlobalErrorModal
-        message={errorMessage}
-        onDismiss={() => setErrorMessage(null)}
-      />
+      <GlobalErrorModal message={errorMessage} onDismiss={() => setErrorMessage(null)} />
       <GlobalErrorModal
         message={noticeMessage}
         onDismiss={() => setNoticeMessage(null)}

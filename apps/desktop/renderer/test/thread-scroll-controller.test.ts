@@ -42,30 +42,14 @@ describe('thread scroll controller', () => {
   })
 
   test('restores an offset while preserving distance from the bottom', () => {
-    expect(
-      scrollOffsetForThreadBottomDistance(
-        { scrollSize: 1_000, viewportSize: 280 },
-        600,
-      ),
-    ).toBe(120)
-    expect(
-      scrollOffsetForThreadBottomDistance(
-        { scrollSize: 1_000, viewportSize: 280 },
-        900,
-      ),
-    ).toBe(0)
-    expect(
-      clampThreadScrollOffset(
-        { scrollSize: 1_000, viewportSize: 280 },
-        900,
-      ),
-    ).toBe(720)
-    expect(
-      clampThreadScrollOffset(
-        { scrollSize: 100, viewportSize: 280 },
-        20,
-      ),
-    ).toBe(0)
+    expect(scrollOffsetForThreadBottomDistance({ scrollSize: 1_000, viewportSize: 280 }, 600)).toBe(
+      120,
+    )
+    expect(scrollOffsetForThreadBottomDistance({ scrollSize: 1_000, viewportSize: 280 }, 900)).toBe(
+      0,
+    )
+    expect(clampThreadScrollOffset({ scrollSize: 1_000, viewportSize: 280 }, 900)).toBe(720)
+    expect(clampThreadScrollOffset({ scrollSize: 100, viewportSize: 280 }, 20)).toBe(0)
   })
 
   test('keeps a visible turn at the same viewport offset during resize', () => {
@@ -175,23 +159,14 @@ describe('thread scroll controller', () => {
   test('scrolls through virtua to the bottom sentinel index', () => {
     const calls: Array<[number, { align?: string; smooth?: boolean }]> = []
     const handle = {
-      scrollToIndex: (
-        index: number,
-        options: { align?: string; smooth?: boolean },
-      ) => calls.push([index, options]),
+      scrollToIndex: (index: number, options: { align?: string; smooth?: boolean }) =>
+        calls.push([index, options]),
     }
 
-    expect(
-      scrollVirtualizerToThreadBottom(handle as never, 7, true),
-    ).toBe(true)
+    expect(scrollVirtualizerToThreadBottom(handle as never, 7, true)).toBe(true)
     expect(calls).toEqual([[7, { align: 'end', offset: 0, smooth: true }]])
-    expect(
-      scrollVirtualizerToThreadBottom(handle as never, 8, false, 142),
-    ).toBe(true)
-    expect(calls[1]).toEqual([
-      8,
-      { align: 'end', offset: 142, smooth: false },
-    ])
+    expect(scrollVirtualizerToThreadBottom(handle as never, 8, false, 142)).toBe(true)
+    expect(calls[1]).toEqual([8, { align: 'end', offset: 142, smooth: false }])
     expect(scrollVirtualizerToThreadBottom(null, 7, false)).toBe(false)
   })
 

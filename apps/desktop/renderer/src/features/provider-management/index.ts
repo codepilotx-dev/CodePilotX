@@ -21,6 +21,4 @@ export type {
   ProviderUsageQueryResult,
 } from './types.js'
 export { useProviderManagementSnapshot } from './useProviderManagementSnapshot.js'
-export {
-  useAuthSession,
-} from './useAuthSession.js'
+export { useAuthSession } from './useAuthSession.js'

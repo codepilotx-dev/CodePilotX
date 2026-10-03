@@ -1,7 +1,4 @@
-import {
-  sessionDisplayTitle,
-  type SessionListItem,
-} from '../../uiTypes.js'
+import { sessionDisplayTitle, type SessionListItem } from '../../uiTypes.js'
 import {
   deriveSidebarSessionVisualState,
   type SidebarSessionVisualState,
@@ -31,27 +28,21 @@ export function buildCommandMenuTasks(
   pendingPermissionSessionIds: ReadonlySet<string> = new Set(),
 ): CommandMenuTask[] {
   return sessions
-    .filter(session => !session.archivedAt)
-    .filter(session => matchesTaskQuery(session, query))
+    .filter((session) => !session.archivedAt)
+    .filter((session) => matchesTaskQuery(session, query))
     .slice(0, COMMAND_MENU_TASK_LIMIT)
     .map((session, index) => ({
       session,
       id: session.id,
       title: sessionDisplayTitle(session),
       workspaceName: session.workspaceName,
-      visualState: deriveSidebarSessionVisualState(
-        session,
-        pendingPermissionSessionIds,
-      ),
+      visualState: deriveSidebarSessionVisualState(session, pendingPermissionSessionIds),
       shortcutIndex: index + 1,
       shortcutLabel: `Ctrl+${index + 1}`,
     }))
 }
 
-export function matchesTaskQuery(
-  session: SessionListItem,
-  query: string,
-): boolean {
+export function matchesTaskQuery(session: SessionListItem, query: string): boolean {
   const keyword = query.trim().toLowerCase()
   if (!keyword) return true
   return [

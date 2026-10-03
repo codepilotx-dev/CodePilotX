@@ -77,14 +77,14 @@ const ALL_FACES = [...SANS_FACES, ...MONO_FACES]
 function monoContext(family: string): FontMeasureContext | null {
   return {
     font: family,
-    measureText: text => ({ width: text.length * 8 }),
+    measureText: (text) => ({ width: text.length * 8 }),
   }
 }
 
 function proportionalContext(family: string): FontMeasureContext | null {
   return {
     font: family,
-    measureText: text => ({
+    measureText: (text) => ({
       width: text.startsWith('m') ? text.length * 12 : text.length * 6,
     }),
   }
@@ -97,13 +97,27 @@ describe('theme font loading tool', () => {
   })
 
   test('extracts weight axes accurately across named styles', () => {
-    expect(extractWeightFromFace({ family: 'F', fullName: 'F Thin', postscriptName: 'F-Thin' })).toBe(100)
-    expect(extractWeightFromFace({ family: 'F', fullName: 'F Light', postscriptName: 'F-Light' })).toBe(300)
-    expect(extractWeightFromFace({ family: 'F', fullName: 'F Regular', postscriptName: 'F-Regular' })).toBe(400)
-    expect(extractWeightFromFace({ family: 'F', fullName: 'F Medium', postscriptName: 'F-Medium' })).toBe(500)
-    expect(extractWeightFromFace({ family: 'F', fullName: 'F SemiBold', postscriptName: 'F-SemiBold' })).toBe(600)
-    expect(extractWeightFromFace({ family: 'F', fullName: 'F Bold', postscriptName: 'F-Bold' })).toBe(700)
-    expect(extractWeightFromFace({ family: 'F', fullName: 'F Heavy', postscriptName: 'F-Heavy' })).toBe(900)
+    expect(
+      extractWeightFromFace({ family: 'F', fullName: 'F Thin', postscriptName: 'F-Thin' }),
+    ).toBe(100)
+    expect(
+      extractWeightFromFace({ family: 'F', fullName: 'F Light', postscriptName: 'F-Light' }),
+    ).toBe(300)
+    expect(
+      extractWeightFromFace({ family: 'F', fullName: 'F Regular', postscriptName: 'F-Regular' }),
+    ).toBe(400)
+    expect(
+      extractWeightFromFace({ family: 'F', fullName: 'F Medium', postscriptName: 'F-Medium' }),
+    ).toBe(500)
+    expect(
+      extractWeightFromFace({ family: 'F', fullName: 'F SemiBold', postscriptName: 'F-SemiBold' }),
+    ).toBe(600)
+    expect(
+      extractWeightFromFace({ family: 'F', fullName: 'F Bold', postscriptName: 'F-Bold' }),
+    ).toBe(700)
+    expect(
+      extractWeightFromFace({ family: 'F', fullName: 'F Heavy', postscriptName: 'F-Heavy' }),
+    ).toBe(900)
   })
 
   test('generates dynamic @font-face CSS with local sources and variation settings', () => {
@@ -129,12 +143,8 @@ describe('theme font loading tool', () => {
     expect(fontFamilyWithFace(face, 'Inter, sans-serif', 'code')).toBe(
       '"CodePilotX-Selected-Mono", "JetBrains Mono Regular", "JetBrains Mono", Inter, sans-serif',
     )
-    expect(fontFamilyWithFace(null, 'Inter, sans-serif')).toBe(
-      'Inter, sans-serif',
-    )
-    expect(fontFamilyWithFace(undefined, 'Inter, sans-serif')).toBe(
-      'Inter, sans-serif',
-    )
+    expect(fontFamilyWithFace(null, 'Inter, sans-serif')).toBe('Inter, sans-serif')
+    expect(fontFamilyWithFace(undefined, 'Inter, sans-serif')).toBe('Inter, sans-serif')
   })
 
   test('deriveThemeVariables composes dynamic face aliases into font variables', () => {
@@ -251,13 +261,13 @@ describe('theme font picker model', () => {
       faces: ALL_FACES,
       kind: 'ui',
       currentFamily: null,
-      isMonospace: family => family === 'CodeMono',
+      isMonospace: (family) => family === 'CodeMono',
     })
     expect(options[0]).toEqual({
       value: SYSTEM_DEFAULT_FAMILY_VALUE,
       label: '系统默认',
     })
-    expect(options.map(option => option.label)).toEqual([
+    expect(options.map((option) => option.label)).toEqual([
       '系统默认',
       'CodeMono',
       'Inter',
@@ -268,9 +278,9 @@ describe('theme font picker model', () => {
       faces: ALL_FACES,
       kind: 'ui',
       currentFamily: 'Custom List, sans-serif',
-      isMonospace: family => family === 'CodeMono',
+      isMonospace: (family) => family === 'CodeMono',
     })
-    expect(custom.map(option => option.label)).toEqual([
+    expect(custom.map((option) => option.label)).toEqual([
       '系统默认',
       'CodeMono',
       'Inter',
@@ -284,18 +294,14 @@ describe('theme font picker model', () => {
       faces: ALL_FACES,
       kind: 'code',
       currentFamily: 'PrettySans',
-      isMonospace: family => family === 'CodeMono',
+      isMonospace: (family) => family === 'CodeMono',
     })
-    expect(options.map(option => option.label)).toEqual([
-      '系统默认',
-      'CodeMono',
-      'PrettySans',
-    ])
+    expect(options.map((option) => option.label)).toEqual(['系统默认', 'CodeMono', 'PrettySans'])
   })
 
   test('style options use the regular face as the default option', () => {
     const options = buildStyleOptions({
-      faces: SANS_FACES.filter(face => face.family === 'Inter'),
+      faces: SANS_FACES.filter((face) => face.family === 'Inter'),
       currentFace: null,
     })
     expect(options).toEqual([
@@ -387,12 +393,12 @@ describe('theme font picker model', () => {
         postscriptName: 'CodeMono-Missing',
       },
     })
-    expect(options.map(option => option.value)).toEqual([
+    expect(options.map((option) => option.value)).toEqual([
       'CodeMono-Regular',
       'CodeMono-Bold',
       'CodeMono-Missing',
     ])
-    expect(options.find(opt => opt.value === 'CodeMono-Missing')).toEqual({
+    expect(options.find((opt) => opt.value === 'CodeMono-Missing')).toEqual({
       value: 'CodeMono-Missing',
       label: 'Missing',
     })
@@ -455,12 +461,12 @@ describe('theme font picker model', () => {
     ]
 
     const options = buildStyleOptions({ faces: vfFaces, currentFace: null })
-    expect(options.map(option => option.value)).toEqual([
+    expect(options.map((option) => option.value)).toEqual([
       'MiSans-VF-Regular',
       'MiSans-VF-Bold',
       'MiSans-VF-Heavy',
     ])
-    expect(options.map(option => option.label)).toEqual(['Regular', 'Bold', 'Heavy'])
+    expect(options.map((option) => option.label)).toEqual(['Regular', 'Bold', 'Heavy'])
 
     const heavyCommit = fontPatchForSelection({
       familyValue: 'MiSans VF',
@@ -533,12 +539,14 @@ describe('theme font picker model', () => {
   })
 
   test('system default commits family null and face null', () => {
-    expect(fontPatchForSelection({
-      familyValue: SYSTEM_DEFAULT_FAMILY_VALUE,
-      faceValue: DEFAULT_FACE_VALUE,
-      familyFaces: MONO_FACES,
-      currentFace: null,
-    })).toEqual({ family: null, face: null })
+    expect(
+      fontPatchForSelection({
+        familyValue: SYSTEM_DEFAULT_FAMILY_VALUE,
+        faceValue: DEFAULT_FACE_VALUE,
+        familyFaces: MONO_FACES,
+        currentFace: null,
+      }),
+    ).toEqual({ family: null, face: null })
   })
 
   test('the default face commits family-only and non-default faces save the face', () => {
@@ -603,12 +611,14 @@ describe('theme font picker model', () => {
       fullName: 'CodeMono Missing',
       postscriptName: 'CodeMono-Missing',
     }
-    expect(fontPatchForSelection({
-      familyValue: 'CodeMono',
-      faceValue: 'CodeMono-Missing',
-      familyFaces: MONO_FACES,
-      currentFace,
-    })).toEqual({ family: 'CodeMono', face: currentFace })
+    expect(
+      fontPatchForSelection({
+        familyValue: 'CodeMono',
+        faceValue: 'CodeMono-Missing',
+        familyFaces: MONO_FACES,
+        currentFace,
+      }),
+    ).toEqual({ family: 'CodeMono', face: currentFace })
   })
 })
 

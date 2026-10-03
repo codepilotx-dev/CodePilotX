@@ -1,6 +1,6 @@
 @layer theme, vendor, reset, tokens, primitives, shell, features, utilities, overrides;
-@import "tailwindcss/theme.css" layer(theme) prefix(tw);
-@import "tailwindcss/utilities.css" layer(utilities) source("../") prefix(tw);
+@import 'tailwindcss/theme.css' layer(theme) prefix(tw);
+@import 'tailwindcss/utilities.css' layer(utilities) source('../') prefix(tw);
 
 @theme {
   --*: initial;

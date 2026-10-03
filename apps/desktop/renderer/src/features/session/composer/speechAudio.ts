@@ -14,15 +14,8 @@ export async function audioBlobToPcm16Wav(
   onContextCreated?.(context)
   try {
     const decoded = await context.decodeAudioData(await blob.arrayBuffer())
-    const frameCount = Math.max(
-      1,
-      Math.ceil(decoded.duration * DICTATION_SAMPLE_RATE),
-    )
-    const offline = new OfflineAudioContext(
-      1,
-      frameCount,
-      DICTATION_SAMPLE_RATE,
-    )
+    const frameCount = Math.max(1, Math.ceil(decoded.duration * DICTATION_SAMPLE_RATE))
+    const offline = new OfflineAudioContext(1, frameCount, DICTATION_SAMPLE_RATE)
     const source = offline.createBufferSource()
     source.buffer = decoded
     source.connect(offline.destination)

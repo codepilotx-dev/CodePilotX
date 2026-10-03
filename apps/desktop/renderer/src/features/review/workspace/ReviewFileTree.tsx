@@ -78,10 +78,7 @@ export function ReviewFileTreeRow({
         {dirCommentCount > 0 ? (
           <span className="review-comment-badge">{dirCommentCount}</span>
         ) : null}
-        <span
-          aria-hidden="true"
-          className="review-file-tree-directory-status"
-        />
+        <span aria-hidden="true" className="review-file-tree-directory-status" />
       </span>
     </button>
   )
@@ -143,11 +140,7 @@ const REVIEW_FILE_STATUS_ICONS: Record<ReviewFileStatusKind, LucideIcon> = {
   unknown: SquareDashed,
 }
 
-function ReviewFileStatusIcon({
-  status,
-}: {
-  status: ReviewFileStatusKind
-}): React.ReactNode {
+function ReviewFileStatusIcon({ status }: { status: ReviewFileStatusKind }): React.ReactNode {
   const Icon = REVIEW_FILE_STATUS_ICONS[status]
   const label = reviewFileStatusLabel(status)
   return (

@@ -31,38 +31,42 @@ export function UsageBillingSettings(): React.ReactNode {
   const [searchParams, setSearchParams] = useSearchParams()
   const providerManagement = useProviderManagementSnapshot()
   const analyticsSources = selectAnalyticsSources(providerManagement)
-  const tab: UsageTab = searchParams.get('view') === 'accounts'
-    ? 'accounts'
-    : 'application'
+  const tab: UsageTab = searchParams.get('view') === 'accounts' ? 'accounts' : 'application'
   const selectedProviderId = searchParams.get('provider') ?? undefined
   const selectedSourceId = searchParams.get('source') ?? undefined
-  const querySourceIds = useMemo(() => analyticsSources
-    .map(source => source.descriptor)
-    .filter(source =>
-      source.availability === 'queryable' &&
-      source.capabilities.some(capability =>
-        capability === 'usage' ||
-        capability === 'cost' ||
-        capability === 'balance' ||
-        capability === 'quota',
-      ),
-    )
-    .filter(source =>
-      !selectedProviderId ||
-      source.providerIds.some(providerId => String(providerId) === selectedProviderId),
-    )
-    .filter(source => !selectedSourceId || source.sourceId === selectedSourceId)
-    .map(source => source.sourceId), [
-      analyticsSources,
-      selectedProviderId,
-      selectedSourceId,
-    ])
+  const querySourceIds = useMemo(
+    () =>
+      analyticsSources
+        .map((source) => source.descriptor)
+        .filter(
+          (source) =>
+            source.availability === 'queryable' &&
+            source.capabilities.some(
+              (capability) =>
+                capability === 'usage' ||
+                capability === 'cost' ||
+                capability === 'balance' ||
+                capability === 'quota',
+            ),
+        )
+        .filter(
+          (source) =>
+            !selectedProviderId ||
+            source.providerIds.some((providerId) => String(providerId) === selectedProviderId),
+        )
+        .filter((source) => !selectedSourceId || source.sourceId === selectedSourceId)
+        .map((source) => source.sourceId),
+    [analyticsSources, selectedProviderId, selectedSourceId],
+  )
   const querySourceIdsKey = JSON.stringify(querySourceIds)
   const providerNames = useMemo(
-    () => Object.fromEntries(providerManagement.providers.map(provider => [
-      String(provider.providerID),
-      provider.displayName,
-    ])),
+    () =>
+      Object.fromEntries(
+        providerManagement.providers.map((provider) => [
+          String(provider.providerID),
+          provider.displayName,
+        ]),
+      ),
     [providerManagement.providers],
   )
   const [localRange, setLocalRange] = useState<LocalRange>('30d')
@@ -81,59 +85,66 @@ export function UsageBillingSettings(): React.ReactNode {
         }
       : null
 
-  const changeTab = useCallback((nextTab: UsageTab): void => {
-    setSearchParams(current => {
-      const next = new URLSearchParams(current)
-      if (nextTab === 'application') {
-        next.set('view', 'application')
-        next.delete('provider')
-        next.delete('source')
-      } else {
-        next.set('view', nextTab)
-      }
-      return next
-    })
-  }, [setSearchParams])
-
-  const loadLocalUsage = useCallback(async (
-    range: LocalRange,
-  ): Promise<void> => {
-    const request = ++localRequest.current
-    setLocalLoading(true)
-    setLocalError(null)
-    try {
-      const result = await desktopClient.getLocalUsage({ range, timeZone })
-      if (request === localRequest.current) setLocalData(result)
-    } catch (error) {
-      if (request === localRequest.current) {
-        setLocalError(error instanceof Error ? error.message : String(error))
-      }
-    } finally {
-      if (request === localRequest.current) setLocalLoading(false)
-    }
-  }, [timeZone])
-
-  const loadProviderUsage = useCallback(async ({
-    range = '7d',
-    sourceIds,
-    force = false,
-  }: {
-    range?: ProviderRange
-    sourceIds: readonly string[]
-    force?: boolean
-  }): Promise<void> => {
-    if (sourceIds.length === 0) return
-    try {
-      await providerManagementStore.querySources({
-        range,
-        timeZone,
-        sourceIds: [...sourceIds],
-        ...(force ? { force: true } : {}),
+  const changeTab = useCallback(
+    (nextTab: UsageTab): void => {
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current)
+        if (nextTab === 'application') {
+          next.set('view', 'application')
+          next.delete('provider')
+          next.delete('source')
+        } else {
+          next.set('view', nextTab)
+        }
+        return next
       })
-    } catch {
-      // The shared store keeps a safe error and the last successful result.
-    }
-  }, [timeZone])
+    },
+    [setSearchParams],
+  )
+
+  const loadLocalUsage = useCallback(
+    async (range: LocalRange): Promise<void> => {
+      const request = ++localRequest.current
+      setLocalLoading(true)
+      setLocalError(null)
+      try {
+        const result = await desktopClient.getLocalUsage({ range, timeZone })
+        if (request === localRequest.current) setLocalData(result)
+      } catch (error) {
+        if (request === localRequest.current) {
+          setLocalError(error instanceof Error ? error.message : String(error))
+        }
+      } finally {
+        if (request === localRequest.current) setLocalLoading(false)
+      }
+    },
+    [timeZone],
+  )
+
+  const loadProviderUsage = useCallback(
+    async ({
+      range = '7d',
+      sourceIds,
+      force = false,
+    }: {
+      range?: ProviderRange
+      sourceIds: readonly string[]
+      force?: boolean
+    }): Promise<void> => {
+      if (sourceIds.length === 0) return
+      try {
+        await providerManagementStore.querySources({
+          range,
+          timeZone,
+          sourceIds: [...sourceIds],
+          ...(force ? { force: true } : {}),
+        })
+      } catch {
+        // The shared store keeps a safe error and the last successful result.
+      }
+    },
+    [timeZone],
+  )
 
   useEffect(() => {
     void loadLocalUsage(localRange)
@@ -143,15 +154,10 @@ export function UsageBillingSettings(): React.ReactNode {
     if (tab !== 'accounts') return
     if (!providerManagement.loaded) return
     void loadProviderUsage({ range: '7d', sourceIds: querySourceIds })
-  }, [
-    loadProviderUsage,
-    providerManagement.loaded,
-    querySourceIdsKey,
-    tab,
-  ])
+  }, [loadProviderUsage, providerManagement.loaded, querySourceIdsKey, tab])
 
   const clearProviderFilter = useCallback((): void => {
-    setSearchParams(current => {
+    setSearchParams((current) => {
       const next = new URLSearchParams(current)
       next.delete('provider')
       next.delete('source')
@@ -180,8 +186,8 @@ export function UsageBillingSettings(): React.ReactNode {
           </div>
           <SegmentedControl<UsageTab>
             ariaLabel="用量与成本页签"
-            getPanelId={value => `usage-${value}-panel`}
-            getTabId={value => `usage-${value}-tab`}
+            getPanelId={(value) => `usage-${value}-panel`}
+            getTabId={(value) => `usage-${value}-tab`}
             onChange={changeTab}
             options={TAB_OPTIONS}
             semantics="tabs"
@@ -201,18 +207,18 @@ export function UsageBillingSettings(): React.ReactNode {
         ) : (
           <ProviderUsagePanel
             data={providerData}
-            descriptors={analyticsSources.map(source => source.descriptor)}
+            descriptors={analyticsSources.map((source) => source.descriptor)}
             error={providerManagement.error}
-            loading={
-              providerManagement.refreshingSources ||
-              providerManagement.loading
-            }
+            loading={providerManagement.refreshingSources || providerManagement.loading}
             onClearFilter={clearProviderFilter}
-            onRefresh={(sourceIds, force, range) => void loadProviderUsage({
-              range: range ?? '7d',
-              sourceIds: sourceIds ?? analyticsSources.map(source => source.descriptor.sourceId),
-              force,
-            })}
+            onRefresh={(sourceIds, force, range) =>
+              void loadProviderUsage({
+                range: range ?? '7d',
+                sourceIds:
+                  sourceIds ?? analyticsSources.map((source) => source.descriptor.sourceId),
+                force,
+              })
+            }
             providerNames={providerNames}
             refreshingSourceIds={providerManagement.refreshingSourceIds}
             selectedProviderId={selectedProviderId}

@@ -1,20 +1,20 @@
-import type { RenderTurnEntry } from "@codepilotx/session-view";
-import { normalizePathForComparison } from "../../../utils/pathUtils.js";
-import { desktopUserMessageInputToPreviewText } from "../../../../shared/desktopUserMessage.js";
+import type { RenderTurnEntry } from '@codepilotx/session-view'
+import { normalizePathForComparison } from '../../../utils/pathUtils.js'
+import { desktopUserMessageInputToPreviewText } from '../../../../shared/desktopUserMessage.js'
 
 export type ConversationTurnNavOutput = {
-  type: "file";
-  label: string;
-  path: string;
-};
+  type: 'file'
+  label: string
+  path: string
+}
 
 export type ConversationTurnNavItem = {
-  id: string;
-  rowIndex: number;
-  userText: string;
-  assistantText: string | null;
-  outputs: ConversationTurnNavOutput[];
-};
+  id: string
+  rowIndex: number
+  userText: string
+  assistantText: string | null
+  outputs: ConversationTurnNavOutput[]
+}
 
 export function deriveConversationTurnNavItems(
   turns: readonly RenderTurnEntry[],
@@ -22,49 +22,51 @@ export function deriveConversationTurnNavItems(
   return turns.map((turn, rowIndex) => {
     const assistantText = turn.assistantResultItems
       .map((item) => item.text)
-      .join("\n")
-      .trim();
+      .join('\n')
+      .trim()
 
     return {
       id: turn.id,
       rowIndex,
       userText: turn.userInputs
-        .map((input) => input.skills?.length ? desktopUserMessageInputToPreviewText({ text: input.content, skills: input.skills }) : input.content)
-        .join("\n")
+        .map((input) =>
+          input.skills?.length
+            ? desktopUserMessageInputToPreviewText({ text: input.content, skills: input.skills })
+            : input.content,
+        )
+        .join('\n')
         .trim(),
       assistantText: assistantText || null,
       outputs: collectFileOutputs(turn),
-    };
-  });
+    }
+  })
 }
 
-function collectFileOutputs(
-  turn: RenderTurnEntry,
-): ConversationTurnNavOutput[] {
-  const outputs: ConversationTurnNavOutput[] = [];
-  const seenPaths = new Set<string>();
+function collectFileOutputs(turn: RenderTurnEntry): ConversationTurnNavOutput[] {
+  const outputs: ConversationTurnNavOutput[] = []
+  const seenPaths = new Set<string>()
 
   for (const patch of turn.patchItems) {
     for (const file of patch.files) {
-      const path = file.path.trim();
-      const normalizedPath = normalizePathForCompare(path);
-      if (!normalizedPath || seenPaths.has(normalizedPath)) continue;
-      seenPaths.add(normalizedPath);
+      const path = file.path.trim()
+      const normalizedPath = normalizePathForCompare(path)
+      if (!normalizedPath || seenPaths.has(normalizedPath)) continue
+      seenPaths.add(normalizedPath)
       outputs.push({
-        type: "file",
+        type: 'file',
         label: fileName(path),
         path,
-      });
+      })
     }
   }
 
-  return outputs;
+  return outputs
 }
 
 function normalizePathForCompare(path: string): string {
-  return normalizePathForComparison(path);
+  return normalizePathForComparison(path)
 }
 
 function fileName(path: string): string {
-  return path.replace(/\\/gu, "/").split("/").at(-1) || path;
+  return path.replace(/\\/gu, '/').split('/').at(-1) || path
 }

@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Schema } from 'effect'
 
 const NonEmptyStringSchema = Schema.String.check(Schema.isMinLength(1))
 const NonNegativeIntSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
@@ -12,16 +12,16 @@ export const THREAD_GOAL_OBJECTIVE_MAX_LENGTH = 4_000
  * directly settable through `thread/goal/set`.
  */
 export const ThreadGoalStatusSchema = Schema.Literals([
-  "active",
-  "paused",
-  "blocked",
-  "usage-limited",
-  "budget-limited",
-  "complete",
+  'active',
+  'paused',
+  'blocked',
+  'usage-limited',
+  'budget-limited',
+  'complete',
 ])
 export type ThreadGoalStatus = typeof ThreadGoalStatusSchema.Type
 
-export const ThreadGoalUserStatusSchema = Schema.Literals(["active", "paused", "complete"])
+export const ThreadGoalUserStatusSchema = Schema.Literals(['active', 'paused', 'complete'])
 export type ThreadGoalUserStatus = typeof ThreadGoalUserStatusSchema.Type
 
 export const ThreadGoalSchema = Schema.Struct({

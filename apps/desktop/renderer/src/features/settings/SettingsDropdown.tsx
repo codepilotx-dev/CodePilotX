@@ -30,9 +30,16 @@ export function SettingsDropdown({
   ...props
 }: Props): React.ReactNode {
   const { t } = useLocale()
-  return <Select {...props} options={props.options.map(option => ({
-    ...option,
-    label: t(option.label),
-    detail: option.detail ? t(option.detail) : undefined,
-  }))} ariaLabel={t(ariaLabel)} onValueChange={onChange} />
+  return (
+    <Select
+      {...props}
+      options={props.options.map((option) => ({
+        ...option,
+        label: t(option.label),
+        detail: option.detail ? t(option.detail) : undefined,
+      }))}
+      ariaLabel={t(ariaLabel)}
+      onValueChange={onChange}
+    />
+  )
 }

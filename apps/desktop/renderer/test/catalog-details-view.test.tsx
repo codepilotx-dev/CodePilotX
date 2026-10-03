@@ -2,13 +2,25 @@ import { describe, expect, test } from 'bun:test'
 import type { MiniMaxCliStatus, PluginDetails, PluginSummary } from '@codepilotx/agent-protocol'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { PluginProductDetailsView } from '../src/features/plugins/PluginProductDetailsView.js'
-import { PLUGIN_CATALOG_DESCRIPTORS, mergePluginCatalog } from '../src/features/plugins/pluginCatalog.js'
+import {
+  PLUGIN_CATALOG_DESCRIPTORS,
+  mergePluginCatalog,
+} from '../src/features/plugins/pluginCatalog.js'
 
 const taskPlanning: PluginSummary = {
-  id: 'task-planning', name: '任务规划', version: '1.0.0',
-  description: '拆解和规划复杂工作', developerName: 'CodePilotX', category: 'Productivity',
-  source: 'bundled', installationPolicy: 'INSTALLED_BY_DEFAULT', installed: true, enabled: true,
-  status: 'ready', capabilities: ['task-planning'], skills: ['task-planning'],
+  id: 'task-planning',
+  name: '任务规划',
+  version: '1.0.0',
+  description: '拆解和规划复杂工作',
+  developerName: 'CodePilotX',
+  category: 'Productivity',
+  source: 'bundled',
+  installationPolicy: 'INSTALLED_BY_DEFAULT',
+  installed: true,
+  enabled: true,
+  status: 'ready',
+  capabilities: ['task-planning'],
+  skills: ['task-planning'],
 }
 
 const details: PluginDetails = {
@@ -20,8 +32,9 @@ const details: PluginDetails = {
 }
 
 function renderTaskDetails(pluginDetails: PluginDetails | null): string {
-  const item = mergePluginCatalog(PLUGIN_CATALOG_DESCRIPTORS, [taskPlanning])
-    .find(candidate => candidate.id === 'task-planning')!
+  const item = mergePluginCatalog(PLUGIN_CATALOG_DESCRIPTORS, [taskPlanning]).find(
+    (candidate) => candidate.id === 'task-planning',
+  )!
   return renderToStaticMarkup(
     <PluginProductDetailsView
       busy={false}
@@ -39,7 +52,9 @@ describe('Codex-style plugin product details', () => {
     expect(html).toContain('立即试用')
     expect(html).toContain('aria-label="示例提示词"')
     expect(html.match(/catalog-plugin-prompts__background/g)).toHaveLength(1)
-    expect(html).toMatch(/<img alt="" aria-hidden="true" class="catalog-plugin-prompts__background"/)
+    expect(html).toMatch(
+      /<img alt="" aria-hidden="true" class="catalog-plugin-prompts__background"/,
+    )
     expect(html.match(/catalog-plugin-prompts__item/g)).toHaveLength(3)
     expect(html.match(/catalog-plugin-prompts__plugin-icon/g)).toHaveLength(3)
     expect(html).toContain('Planning')
@@ -59,12 +74,19 @@ describe('Codex-style plugin product details', () => {
 
   test('keeps MiniMax install metadata and official guidance', () => {
     const miniMax: MiniMaxCliStatus = {
-      installationStatus: 'installed', installedVersion: '1.2.3', latestVersion: '1.2.3',
-      updateAvailable: false, nodeVersion: 'v22.0.0', npmVersion: '10.0.0',
-      authStatus: 'not-authenticated', generation: 1, updatedAt: 1,
+      installationStatus: 'installed',
+      installedVersion: '1.2.3',
+      latestVersion: '1.2.3',
+      updateAvailable: false,
+      nodeVersion: 'v22.0.0',
+      npmVersion: '10.0.0',
+      authStatus: 'not-authenticated',
+      generation: 1,
+      updatedAt: 1,
     }
-    const item = mergePluginCatalog(PLUGIN_CATALOG_DESCRIPTORS, [], null, { status: miniMax })
-      .find(candidate => candidate.id === 'minimax')!
+    const item = mergePluginCatalog(PLUGIN_CATALOG_DESCRIPTORS, [], null, { status: miniMax }).find(
+      (candidate) => candidate.id === 'minimax',
+    )!
     const html = renderToStaticMarkup(
       <PluginProductDetailsView
         busy={false}

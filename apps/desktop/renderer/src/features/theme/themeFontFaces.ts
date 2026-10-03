@@ -25,26 +25,16 @@ export function extractWeightFromFace(face: DesktopThemeFontFace): number {
   return 400
 }
 
-export function themeFontFaceAlias(
-  face: DesktopThemeFontFace,
-  kind: 'ui' | 'code' = 'ui',
-): string {
+export function themeFontFaceAlias(face: DesktopThemeFontFace, kind: 'ui' | 'code' = 'ui'): string {
   return kind === 'code' ? 'CodePilotX-Selected-Mono' : 'CodePilotX-Selected-Sans'
 }
 
-export function generateThemeFontFaceCss(
-  alias: string,
-  face: DesktopThemeFontFace,
-): string {
+export function generateThemeFontFaceCss(alias: string, face: DesktopThemeFontFace): string {
   const weight = extractWeightFromFace(face)
   const isItalic = /\bitalic\b/i.test(`${face.fullName} ${face.postscriptName}`)
-  const sourceNames = [
-    face.fullName,
-    face.postscriptName,
-    face.family,
-  ].filter(Boolean)
+  const sourceNames = [face.fullName, face.postscriptName, face.family].filter(Boolean)
   const uniqueNames = [...new Set(sourceNames)]
-  const src = uniqueNames.map(name => `local("${escapeCssString(name)}")`).join(', ')
+  const src = uniqueNames.map((name) => `local("${escapeCssString(name)}")`).join(', ')
 
   return `@font-face {
   font-family: "${escapeCssString(alias)}";

@@ -1,19 +1,19 @@
-const DEEP_LINK_SCHEME = "codepilotx"
-const DEEP_LINK_HOST = "threads"
+const DEEP_LINK_SCHEME = 'codepilotx'
+const DEEP_LINK_HOST = 'threads'
 const DEEP_LINK_PREFIX = `${DEEP_LINK_SCHEME}://`
 const DEEP_LINK_AUTHORITY = `${DEEP_LINK_PREFIX}${DEEP_LINK_HOST}/`
 
 const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z0-9+.-]*:/
 
 export function buildThreadDeepLink(threadId: string): string {
-  if (typeof threadId !== "string" || threadId.trim() === "") {
-    throw new Error("Cannot build a thread deep link from a blank thread id.")
+  if (typeof threadId !== 'string' || threadId.trim() === '') {
+    throw new Error('Cannot build a thread deep link from a blank thread id.')
   }
   return `${DEEP_LINK_AUTHORITY}${encodeURIComponent(threadId)}`
 }
 
 export function parseThreadDeepLink(value: string): string | null {
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     return null
   }
   const trimmed = value.trim()
@@ -21,9 +21,9 @@ export function parseThreadDeepLink(value: string): string | null {
     return null
   }
   const rest = trimmed.slice(DEEP_LINK_PREFIX.length)
-  const slashIndex = rest.indexOf("/")
-  const queryIndex = rest.indexOf("?")
-  const hashIndex = rest.indexOf("#")
+  const slashIndex = rest.indexOf('/')
+  const queryIndex = rest.indexOf('?')
+  const hashIndex = rest.indexOf('#')
   let authorityEnd = rest.length
   for (const index of [slashIndex, queryIndex, hashIndex]) {
     if (index !== -1 && index < authorityEnd) {
@@ -38,11 +38,11 @@ export function parseThreadDeepLink(value: string): string | null {
     return null
   }
   const pathWithSlash = rest.slice(authorityEnd)
-  if (pathWithSlash[0] !== "/") {
+  if (pathWithSlash[0] !== '/') {
     return null
   }
   const path = pathWithSlash.slice(1)
-  if (path === "" || path.includes("/") || path.includes("?") || path.includes("#")) {
+  if (path === '' || path.includes('/') || path.includes('?') || path.includes('#')) {
     return null
   }
   let decoded: string
@@ -58,11 +58,11 @@ export function parseThreadDeepLink(value: string): string | null {
 }
 
 export function resolveThreadReference(value: string): string | null {
-  if (typeof value !== "string") {
+  if (typeof value !== 'string') {
     return null
   }
   const trimmed = value.trim()
-  if (trimmed === "") {
+  if (trimmed === '') {
     return null
   }
   if (URL_SCHEME_PATTERN.test(trimmed)) {

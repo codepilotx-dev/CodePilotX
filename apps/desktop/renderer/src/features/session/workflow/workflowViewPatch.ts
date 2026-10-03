@@ -16,12 +16,10 @@ export function deriveWorkflowViewPatch(
   const uniqueWorkflowEvents = dedupeWorkflowEvents(workflowEvents)
   const derived = deriveWorkflowSessionState(uniqueWorkflowEvents, threadId)
   const hasPermissionEvents = uniqueWorkflowEvents.some(
-    event =>
-      isThreadItemEvent(event, threadId) &&
-      event.item.type === 'permission_request',
+    (event) => isThreadItemEvent(event, threadId) && event.item.type === 'permission_request',
   )
   const hasToolEvents = uniqueWorkflowEvents.some(
-    event =>
+    (event) =>
       isThreadItemEvent(event, threadId) &&
       (event.item.type === 'tool_call' || event.item.type === 'tool_result'),
   )
@@ -36,7 +34,7 @@ export function deriveWorkflowViewPatch(
           event.item.type === 'permission_request' &&
           event.item.status !== 'in_progress',
       )
-      .map(event => event.item.request!.requestId),
+      .map((event) => event.item.request!.requestId),
   )
 
   // Merge pending permissions: prefer workflow-derived results for items that
@@ -99,9 +97,7 @@ function workflowToolRunsToToolLog(
   toolRuns: ReturnType<typeof deriveWorkflowSessionState>['toolRuns'],
   currentToolLog: ToolLogEntry[],
 ): ToolLogEntry[] {
-  const expandedById = new Map(
-    currentToolLog.map(entry => [entry.id, entry.expanded] as const),
-  )
+  const expandedById = new Map(currentToolLog.map((entry) => [entry.id, entry.expanded] as const))
   const chronologicalEntries: ToolLogEntry[] = []
 
   for (const run of toolRuns) {
@@ -161,9 +157,6 @@ function isThreadItemEvent(
   return isThreadEvent(event, threadId) && 'item' in event
 }
 
-function isThreadEvent(
-  event: DesktopWorkflowEvent,
-  threadId: string | null | undefined,
-): boolean {
+function isThreadEvent(event: DesktopWorkflowEvent, threadId: string | null | undefined): boolean {
   return !threadId || event.threadId === threadId
 }

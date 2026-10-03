@@ -1,8 +1,5 @@
 import type { DesktopExternalOpenTarget } from '../../shared/types.js'
-import {
-  desktopClient,
-  type CodePilotXDesktopClient,
-} from './desktop-client/index.js'
+import { desktopClient, type CodePilotXDesktopClient } from './desktop-client/index.js'
 import { AgentRpcError } from './agentRpcClient.js'
 
 const DEFAULT_EXTERNAL_OPEN_TARGETS_TTL_MS = 60_000
@@ -18,13 +15,9 @@ type ExternalOpenTargetsCacheEntry = {
 }
 
 export type ExternalOpenTargetsStore = {
-  loadExternalOpenTargets(
-    targetPath: string,
-  ): Promise<DesktopExternalOpenTarget[]>
+  loadExternalOpenTargets(targetPath: string): Promise<DesktopExternalOpenTarget[]>
   prefetchExternalOpenTargets(targetPath: string): Promise<void>
-  openPathWithPreferredExternalTarget(
-    targetPath: string,
-  ): Promise<DesktopExternalOpenTarget>
+  openPathWithPreferredExternalTarget(targetPath: string): Promise<DesktopExternalOpenTarget>
   openPathWithExternalTarget(
     targetPath: string,
     targetId: string,
@@ -34,8 +27,7 @@ export type ExternalOpenTargetsStore = {
 export function shouldFallbackToExternalOpen(error: unknown): boolean {
   return (
     error instanceof AgentRpcError &&
-    (error.errorCode === 'FILE_NOT_TEXT' ||
-      error.errorCode === 'FILE_TOO_LARGE')
+    (error.errorCode === 'FILE_NOT_TEXT' || error.errorCode === 'FILE_TOO_LARGE')
   )
 }
 
@@ -48,14 +40,10 @@ export function createExternalOpenTargetsStore(
 ): ExternalOpenTargetsStore {
   const now = options.now ?? Date.now
   const ttlMs =
-    options.ttlMs === undefined
-      ? DEFAULT_EXTERNAL_OPEN_TARGETS_TTL_MS
-      : Math.max(0, options.ttlMs)
+    options.ttlMs === undefined ? DEFAULT_EXTERNAL_OPEN_TARGETS_TTL_MS : Math.max(0, options.ttlMs)
   const entries = new Map<string, ExternalOpenTargetsCacheEntry>()
 
-  function loadExternalOpenTargets(
-    targetPath: string,
-  ): Promise<DesktopExternalOpenTarget[]> {
+  function loadExternalOpenTargets(targetPath: string): Promise<DesktopExternalOpenTarget[]> {
     const key = cacheKey(targetPath)
     const existing = entries.get(key)
     if (existing && existing.expiresAt > now()) return existing.request
@@ -66,11 +54,11 @@ export function createExternalOpenTargetsStore(
     }
     entry.request = client
       .listExternalOpenTargets(targetPath)
-      .then(targets => {
+      .then((targets) => {
         entry.expiresAt = now() + ttlMs
         return targets
       })
-      .catch(error => {
+      .catch((error) => {
         if (entries.get(key) === entry) entries.delete(key)
         throw error
       })
@@ -78,9 +66,7 @@ export function createExternalOpenTargetsStore(
     return entry.request
   }
 
-  async function prefetchExternalOpenTargets(
-    targetPath: string,
-  ): Promise<void> {
+  async function prefetchExternalOpenTargets(targetPath: string): Promise<void> {
     await loadExternalOpenTargets(targetPath)
   }
 
@@ -88,7 +74,7 @@ export function createExternalOpenTargetsStore(
     targetPath: string,
   ): Promise<DesktopExternalOpenTarget> {
     const targets = await loadExternalOpenTargets(targetPath)
-    const target = targets.find(candidate => candidate.preferred) ?? targets[0]
+    const target = targets.find((candidate) => candidate.preferred) ?? targets[0]
     if (!target) throw new Error('没有可用的外部打开方式。')
     return openPathWithExternalTarget(targetPath, target.id)
   }
@@ -98,11 +84,11 @@ export function createExternalOpenTargetsStore(
     targetId: string,
   ): Promise<DesktopExternalOpenTarget> {
     const targets = await loadExternalOpenTargets(targetPath)
-    const target = targets.find(candidate => candidate.id === targetId)
+    const target = targets.find((candidate) => candidate.id === targetId)
     if (!target) throw new Error(`找不到外部打开方式：${targetId}`)
 
     await client.openPathWithTarget(targetPath, targetId)
-    const nextTargets = targets.map(candidate => ({
+    const nextTargets = targets.map((candidate) => ({
       ...candidate,
       preferred: candidate.id === targetId,
     }))
@@ -112,7 +98,7 @@ export function createExternalOpenTargetsStore(
       entry.request = Promise.resolve(nextTargets)
       entry.expiresAt = now() + ttlMs
     }
-    return nextTargets.find(candidate => candidate.id === targetId) ?? target
+    return nextTargets.find((candidate) => candidate.id === targetId) ?? target
   }
 
   return {
@@ -123,8 +109,7 @@ export function createExternalOpenTargetsStore(
   }
 }
 
-const externalOpenTargetsStore =
-  createExternalOpenTargetsStore(desktopClient)
+const externalOpenTargetsStore = createExternalOpenTargetsStore(desktopClient)
 
 export const {
   loadExternalOpenTargets,

@@ -11,7 +11,7 @@ type LocaleContextValue = {
 
 const LocaleContext = createContext<LocaleContextValue>({
   locale: 'zh-CN',
-  t: source => source,
+  t: (source) => source,
   formatDate: (date, options) => new Intl.DateTimeFormat('zh-CN', options).format(date),
   formatNumber: (number, options) => new Intl.NumberFormat('zh-CN', options).format(number),
 })
@@ -27,12 +27,15 @@ export function LocaleProvider({
     preference,
     typeof navigator === 'undefined' ? 'zh-CN' : navigator.language || 'zh-CN',
   )
-  const value = useMemo<LocaleContextValue>(() => ({
-    locale,
-    t: source => locale === 'en-US' ? enUS[source] ?? source : source,
-    formatDate: (date, options) => new Intl.DateTimeFormat(locale, options).format(date),
-    formatNumber: (number, options) => new Intl.NumberFormat(locale, options).format(number),
-  }), [locale])
+  const value = useMemo<LocaleContextValue>(
+    () => ({
+      locale,
+      t: (source) => (locale === 'en-US' ? (enUS[source] ?? source) : source),
+      formatDate: (date, options) => new Intl.DateTimeFormat(locale, options).format(date),
+      formatNumber: (number, options) => new Intl.NumberFormat(locale, options).format(number),
+    }),
+    [locale],
+  )
 
   useEffect(() => {
     document.documentElement.lang = locale

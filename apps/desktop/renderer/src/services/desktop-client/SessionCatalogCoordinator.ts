@@ -102,9 +102,7 @@ export class SessionCatalogCoordinator {
   }
 }
 
-function sessionLifecycleUpdate(
-  event: EventEnvelope,
-): SessionLifecycleUpdate | null {
+function sessionLifecycleUpdate(event: EventEnvelope): SessionLifecycleUpdate | null {
   switch (event.type) {
     case 'turn/queued':
     case 'turn/started':

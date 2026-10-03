@@ -50,8 +50,8 @@ Profile 文件名就是稳定 ID。ID 必须匹配 `[a-z0-9][a-z0-9_-]{0,63}`，
     "generation": "openai/gpt-5.6-mini",
     "organization": "openai/gpt-5.6-mini",
     "coding": "openai/gpt-5.6",
-    "security": "openai/gpt-5.6"
-  }
+    "security": "openai/gpt-5.6",
+  },
 }
 ```
 

@@ -1,27 +1,27 @@
-import { describe, expect, test } from "bun:test"
-import type { AgentConfig } from "../src/config/Config"
-import type { ConfigEdit, ConfigService } from "../src/config/ConfigService"
-import type { AgentLogger } from "../src/observability/AgentLogger"
-import { createApp, type TransportDependencies } from "../src/transport/server"
+import { describe, expect, test } from 'bun:test'
+import type { AgentConfig } from '../src/config/Config'
+import type { ConfigEdit, ConfigService } from '../src/config/ConfigService'
+import type { AgentLogger } from '../src/observability/AgentLogger'
+import { createApp, type TransportDependencies } from '../src/transport/server'
 
 const createSettingsApp = () => {
   const runtimeSettings = new Map<string, unknown>()
   let writtenEdits: ConfigEdit[] = []
-  let sidebarLayout = "classic"
+  let sidebarLayout = 'classic'
   const configService = {
     read: async () => ({
       config: {
-        model: "profile-model",
-        model_provider: "provider:test",
+        model: 'profile-model',
+        model_provider: 'provider:test',
         specialized_models: {
-          generation: "provider:test/fast",
-          coding: "provider:test/coder",
+          generation: 'provider:test/fast',
+          coding: 'provider:test/coder',
         },
         desktop: {
           sidebarLayout,
-          sidebarOrganization: "flat",
-          sidebarProjectSort: "updated",
-          sidebarSort: "manual",
+          sidebarOrganization: 'flat',
+          sidebarProjectSort: 'updated',
+          sidebarSort: 'manual',
         },
       },
       origins: {},
@@ -35,9 +35,9 @@ const createSettingsApp = () => {
     }),
     batchWrite: async ({ edits }: { edits: ConfigEdit[] }) => {
       writtenEdits = edits
-      const layoutEdit = edits.find(edit => edit.keyPath.join('.') === 'desktop.sidebarLayout')
+      const layoutEdit = edits.find((edit) => edit.keyPath.join('.') === 'desktop.sidebarLayout')
       if (layoutEdit) sidebarLayout = String(layoutEdit.value)
-      return { status: "ok", version: "v1", filePath: "config.json" }
+      return { status: 'ok', version: 'v1', filePath: 'config.json' }
     },
   } as unknown as ConfigService
   const db = {
@@ -84,122 +84,129 @@ const createSettingsApp = () => {
   }
 }
 
-describe("桌面侧栏运行时设置", () => {
-  test("侧栏布局通过 desktop.sidebarLayout 局部写入并往返读取", async () => {
+describe('桌面侧栏运行时设置', () => {
+  test('侧栏布局通过 desktop.sidebarLayout 局部写入并往返读取', async () => {
     const { app, writtenEdits, runtimeSettings } = createSettingsApp()
-    expect(await (await app.request('/api/config/desktop-projection')).json()).toMatchObject({ sidebarLayout: 'classic' })
+    expect(await (await app.request('/api/config/desktop-projection')).json()).toMatchObject({
+      sidebarLayout: 'classic',
+    })
     const response = await app.request('/api/config/desktop-projection', {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sidebarLayout: 'modern' }),
     })
     expect(response.status).toBe(200)
     expect(writtenEdits()).toEqual([{ keyPath: ['desktop', 'sidebarLayout'], value: 'modern' }])
     expect(runtimeSettings.get('desktop.runtime-state.v1')).toEqual({})
     expect(await (await app.request('/api/config/desktop-projection')).json()).toMatchObject({
-      sidebarLayout: 'modern', sidebarOrganization: 'flat', sidebarSort: 'manual',
+      sidebarLayout: 'modern',
+      sidebarOrganization: 'flat',
+      sidebarSort: 'manual',
     })
   })
 
-  test("专用模型通过桌面投影读取并写入对应配置路径", async () => {
+  test('专用模型通过桌面投影读取并写入对应配置路径', async () => {
     const { app, writtenEdits } = createSettingsApp()
 
-    const readResponse = await app.request("/api/config/desktop-projection")
+    const readResponse = await app.request('/api/config/desktop-projection')
     expect(readResponse.status).toBe(200)
     expect(await readResponse.json()).toMatchObject({
-      generationModel: "provider:test/fast",
-      codingModel: "provider:test/coder",
+      generationModel: 'provider:test/fast',
+      codingModel: 'provider:test/coder',
     })
 
-    const writeResponse = await app.request("/api/config/desktop-projection", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
+    const writeResponse = await app.request('/api/config/desktop-projection', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        generationModel: "provider:test/new-fast",
-        organizationModel: "provider:test/organizer",
-        codingModel: "provider:test/new-coder",
-        securityModel: "provider:test/reviewer",
+        generationModel: 'provider:test/new-fast',
+        organizationModel: 'provider:test/organizer',
+        codingModel: 'provider:test/new-coder',
+        securityModel: 'provider:test/reviewer',
       }),
     })
 
     expect(writeResponse.status).toBe(200)
     expect(writtenEdits()).toEqual([
-      { keyPath: ["specialized_models", "generation"], value: "provider:test/new-fast" },
-      { keyPath: ["specialized_models", "organization"], value: "provider:test/organizer" },
-      { keyPath: ["specialized_models", "coding"], value: "provider:test/new-coder" },
-      { keyPath: ["specialized_models", "security"], value: "provider:test/reviewer" },
+      { keyPath: ['specialized_models', 'generation'], value: 'provider:test/new-fast' },
+      { keyPath: ['specialized_models', 'organization'], value: 'provider:test/organizer' },
+      { keyPath: ['specialized_models', 'coding'], value: 'provider:test/new-coder' },
+      { keyPath: ['specialized_models', 'security'], value: 'provider:test/reviewer' },
     ])
   })
 
-  test("首次向导标记写入用户 config.json 的 desktop 节点", async () => {
+  test('首次向导标记写入用户 config.json 的 desktop 节点', async () => {
     const { app, runtimeSettings, writtenEdits } = createSettingsApp()
-    const response = await app.request("/api/config/desktop-projection", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
+    const response = await app.request('/api/config/desktop-projection', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ firstUseSetupCompleted: 1 }),
     })
 
     expect(response.status).toBe(200)
-    expect(runtimeSettings.get("desktop.runtime-state.v1")).toEqual({})
-    expect(writtenEdits()).toEqual([{
-      keyPath: ["desktop", "firstUseSetupCompleted"],
-      value: 1,
-    }])
+    expect(runtimeSettings.get('desktop.runtime-state.v1')).toEqual({})
+    expect(writtenEdits()).toEqual([
+      {
+        keyPath: ['desktop', 'firstUseSetupCompleted'],
+        value: 1,
+      },
+    ])
   })
 
-  test("手动顺序只写 runtime-state，并与 config.json 投影合并读取", async () => {
+  test('手动顺序只写 runtime-state，并与 config.json 投影合并读取', async () => {
     const { app, runtimeSettings, writtenEdits } = createSettingsApp()
-    const response = await app.request("/api/config/desktop-projection", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
+    const response = await app.request('/api/config/desktop-projection', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: "profile-model",
-        sidebarOrganization: "flat",
-        sidebarProjectSort: "updated",
-        sidebarSort: "manual",
-        sidebarManualOrder: { all: ["session-1"] },
+        model: 'profile-model',
+        sidebarOrganization: 'flat',
+        sidebarProjectSort: 'updated',
+        sidebarSort: 'manual',
+        sidebarManualOrder: { all: ['session-1'] },
       }),
     })
 
     expect(response.status).toBe(200)
-    expect(runtimeSettings.get("desktop.runtime-state.v1")).toEqual({
-      sidebarManualOrder: { all: ["session-1"] },
+    expect(runtimeSettings.get('desktop.runtime-state.v1')).toEqual({
+      sidebarManualOrder: { all: ['session-1'] },
     })
     expect(writtenEdits()).toEqual([])
 
-    const readResponse = await app.request("/api/config/desktop-projection")
+    const readResponse = await app.request('/api/config/desktop-projection')
     expect(readResponse.status).toBe(200)
     expect(await readResponse.json()).toMatchObject({
-      sidebarOrganization: "flat",
-      sidebarProjectSort: "updated",
-      sidebarSort: "manual",
-      sidebarManualOrder: { all: ["session-1"] },
+      sidebarOrganization: 'flat',
+      sidebarProjectSort: 'updated',
+      sidebarSort: 'manual',
+      sidebarManualOrder: { all: ['session-1'] },
     })
   })
 
-  test("终端 profile 使用独立 machine-local key，旧客户端省略字段时保留", async () => {
+  test('终端 profile 使用独立 machine-local key，旧客户端省略字段时保留', async () => {
     const { app, runtimeSettings, writtenEdits } = createSettingsApp()
-    const terminalResponse = await app.request("/api/config/desktop-projection", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ terminalProfileId: "powershell" }),
+    const terminalResponse = await app.request('/api/config/desktop-projection', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ terminalProfileId: 'powershell' }),
     })
     expect(terminalResponse.status).toBe(200)
-    expect(runtimeSettings.get("desktop.terminal-settings.v1")).toEqual({
-      terminalProfileId: "powershell",
+    expect(runtimeSettings.get('desktop.terminal-settings.v1')).toEqual({
+      terminalProfileId: 'powershell',
     })
-    expect(runtimeSettings.get("desktop.runtime-state.v1")).toEqual({})
+    expect(runtimeSettings.get('desktop.runtime-state.v1')).toEqual({})
     expect(writtenEdits()).toEqual([])
 
-    await app.request("/api/config/desktop-projection", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sidebarSort: "manual" }),
+    await app.request('/api/config/desktop-projection', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sidebarSort: 'manual' }),
     })
-    expect(runtimeSettings.get("desktop.terminal-settings.v1")).toEqual({
-      terminalProfileId: "powershell",
+    expect(runtimeSettings.get('desktop.terminal-settings.v1')).toEqual({
+      terminalProfileId: 'powershell',
     })
-    expect(await (await app.request("/api/config/desktop-projection")).json()).toMatchObject({
-      terminalProfileId: "powershell",
+    expect(await (await app.request('/api/config/desktop-projection')).json()).toMatchObject({
+      terminalProfileId: 'powershell',
     })
   })
 })

@@ -9,11 +9,7 @@ export function TabStripButtonProvider({
 }: {
   children: React.ReactNode
 }): React.ReactNode {
-  return (
-    <TabStripButtonContext.Provider value>
-      {children}
-    </TabStripButtonContext.Provider>
-  )
+  return <TabStripButtonContext.Provider value>{children}</TabStripButtonContext.Provider>
 }
 
 export function useResolvedButtonSize(size: ButtonSize): ButtonSize {

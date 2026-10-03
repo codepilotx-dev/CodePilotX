@@ -24,7 +24,7 @@ export function mergeComposerAttachments(
   incoming: readonly DesktopComposerAttachment[],
 ): { accepted: DesktopComposerAttachment[]; error: string | null } {
   const existingKeys = new Set(current.map(composerAttachmentKey))
-  const unique = incoming.filter(attachment => {
+  const unique = incoming.filter((attachment) => {
     const key = composerAttachmentKey(attachment)
     if (existingKeys.has(key)) return false
     existingKeys.add(key)
@@ -38,7 +38,7 @@ export function mergeComposerAttachments(
     if (available > 0) accepted.splice(-1, 1, errorAttachment('attachment-limit', error))
   }
   const managedBytes = [...current, ...accepted]
-    .filter(attachment => attachment.storage !== 'local-path')
+    .filter((attachment) => attachment.storage !== 'local-path')
     .reduce((total, attachment) => total + attachment.sizeBytes, 0)
   if (managedBytes > 25 * 1024 * 1024 && accepted.length > 0) {
     error = '图片与托管附件总量不能超过 25 MiB。'
@@ -47,9 +47,7 @@ export function mergeComposerAttachments(
   return { accepted, error: available === 0 ? error : null }
 }
 
-async function readClipboardImageAttachment(
-  file: File,
-): Promise<DesktopComposerAttachment> {
+async function readClipboardImageAttachment(file: File): Promise<DesktopComposerAttachment> {
   if (file.size > 10 * 1024 * 1024) {
     return errorAttachment('clipboard-image-size', '图片超过 10 MiB 限制。', file)
   }
@@ -80,11 +78,7 @@ function composerAttachmentKey(attachment: DesktopComposerAttachment): string {
   return `id:${attachment.id}`
 }
 
-function errorAttachment(
-  prefix: string,
-  error: string,
-  file?: File,
-): DesktopComposerAttachment {
+function errorAttachment(prefix: string, error: string, file?: File): DesktopComposerAttachment {
   return {
     id: `${prefix}:${crypto.randomUUID()}`,
     name: file?.name || '附件未添加',

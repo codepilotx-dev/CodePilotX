@@ -42,9 +42,9 @@ type StreamingPerfHarnessGlobal = {
 
 export function streamingPerfHarnessAvailable(): boolean {
   return (
-    typeof import.meta !== 'undefined'
-    && (import.meta.env?.MODE === 'performance' || import.meta.env?.DEV === true)
-    && typeof window !== 'undefined'
+    typeof import.meta !== 'undefined' &&
+    (import.meta.env?.MODE === 'performance' || import.meta.env?.DEV === true) &&
+    typeof window !== 'undefined'
   )
 }
 

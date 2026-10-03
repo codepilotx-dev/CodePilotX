@@ -31,7 +31,11 @@ import { Select, type SelectOption } from '../../components/ui/Select.js'
 import { Spinner } from '../../components/ui/Spinner.js'
 import { DisclosureContent } from '../../components/ui/DisclosureContent.js'
 import { useHeightTransition } from '../../hooks/useHeightTransition.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
+} from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import type {
   DesktopSessionGroup,
@@ -64,7 +68,9 @@ export function SessionGroupsView(): React.ReactNode {
   const [groups, setGroups] = useState<DesktopSessionGroup[]>([])
   const [detail, setDetail] = useState<DesktopSessionGroupDetail | null>(null)
   const [steps, setSteps] = useState<DesktopSessionGroupStep[]>([])
-  const [availableSessions, setAvailableSessions] = useState<Array<{ id: string; title: string; workspaceLabel: string }>>([])
+  const [availableSessions, setAvailableSessions] = useState<
+    Array<{ id: string; title: string; workspaceLabel: string }>
+  >([])
   const [sessionToAdd, setSessionToAdd] = useState('')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -88,16 +94,18 @@ export function SessionGroupsView(): React.ReactNode {
           desktopClient.listSessions({ archived: false }),
           desktopClient.listSessions({ archived: true }),
         ])
-        const sessionItems = [...activeSessions, ...archivedSessions].map(session => session.item)
-        const sessions = new Map(sessionItems.map(session => [session.id, session]))
-        setAvailableSessions(sessionItems.map(session => ({
-          id: session.id,
-          title: session.customTitle ?? session.aiTitle ?? session.sessionName ?? session.id,
-          workspaceLabel: session.workspaceName || '无项目',
-        })))
+        const sessionItems = [...activeSessions, ...archivedSessions].map((session) => session.item)
+        const sessions = new Map(sessionItems.map((session) => [session.id, session]))
+        setAvailableSessions(
+          sessionItems.map((session) => ({
+            id: session.id,
+            title: session.customTitle ?? session.aiTitle ?? session.sessionName ?? session.id,
+            workspaceLabel: session.workspaceName || '无项目',
+          })),
+        )
         setDetail({
           ...nextDetail,
-          members: nextDetail.members.map(member => {
+          members: nextDetail.members.map((member) => {
             const session = sessions.get(member.threadId)
             return {
               ...member,
@@ -118,24 +126,28 @@ export function SessionGroupsView(): React.ReactNode {
     }
   }, [groupId])
 
-  useEffect(() => { void refresh() }, [refresh])
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
 
   const filtered = useMemo(() => {
     const keyword = search.trim().toLocaleLowerCase()
     return keyword
-      ? groups.filter(group => `${group.name} ${group.description}`.toLocaleLowerCase().includes(keyword))
+      ? groups.filter((group) =>
+          `${group.name} ${group.description}`.toLocaleLowerCase().includes(keyword),
+        )
       : groups
   }, [groups, search])
 
   const memberThreadIds = useMemo(
-    () => new Set(detail?.members.map(m => m.threadId) ?? []),
+    () => new Set(detail?.members.map((m) => m.threadId) ?? []),
     [detail?.members],
   )
 
   const sessionSelectOptions: SelectOption[] = useMemo(() => {
     return availableSessions
-      .filter(session => !memberThreadIds.has(session.id))
-      .map(session => ({
+      .filter((session) => !memberThreadIds.has(session.id))
+      .map((session) => ({
         value: session.id,
         label: session.title,
         detail: session.workspaceLabel,
@@ -163,7 +175,10 @@ export function SessionGroupsView(): React.ReactNode {
     setError(null)
     try {
       if (editorMode === 'create') {
-        const group = await desktopClient.createSessionGroup({ name, description: draftDescription.trim() })
+        const group = await desktopClient.createSessionGroup({
+          name,
+          description: draftDescription.trim(),
+        })
         setEditorMode(null)
         navigate(`/workflows/${encodeURIComponent(group.id)}`)
       } else if (editorMode === 'edit' && detail) {
@@ -200,7 +215,10 @@ export function SessionGroupsView(): React.ReactNode {
 
   async function addSession(): Promise<void> {
     if (!detail || !sessionToAdd) return
-    await desktopClient.setSessionGroupMembership({ threadId: sessionToAdd, groupId: detail.group.id })
+    await desktopClient.setSessionGroupMembership({
+      threadId: sessionToAdd,
+      groupId: detail.group.id,
+    })
     setSessionToAdd('')
     await refresh()
   }
@@ -287,7 +305,11 @@ export function SessionGroupsView(): React.ReactNode {
                     <Pencil size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     <span>编辑</span>
                   </Button>
-                  <Button color="secondary" size="compact" onClick={() => setDeleteDialogOpen(true)}>
+                  <Button
+                    color="secondary"
+                    size="compact"
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
                     <Trash2 size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     <span>删除组</span>
                   </Button>
@@ -301,14 +323,15 @@ export function SessionGroupsView(): React.ReactNode {
                 </div>
                 <div className="session-group-digest-card">
                   <p className="session-group-digest">
-                    {detail.digest || '完成组内第一个会话步骤后，这里会自动整理目标、决策和修复结论。'}
+                    {detail.digest ||
+                      '完成组内第一个会话步骤后，这里会自动整理目标、决策和修复结论。'}
                   </p>
                 </div>
                 {detail.contextEntries.length ? (
                   <div className="session-group-context-grid">
                     {detail.contextEntries
-                      .filter(entry => entry.status === 'active')
-                      .map(entry => (
+                      .filter((entry) => entry.status === 'active')
+                      .map((entry) => (
                         <article className="session-group-context-card" key={entry.id}>
                           <div className="session-group-context-card__header">
                             <span className="chip-semantic accent">{entry.section}</span>
@@ -351,7 +374,7 @@ export function SessionGroupsView(): React.ReactNode {
                   </Button>
                 </div>
                 <div className="session-group-members">
-                  {detail.members.map(member => (
+                  {detail.members.map((member) => (
                     <article className="session-group-member-card" key={member.threadId}>
                       <div className="session-group-member-card__icon">
                         <MessageSquare size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -395,7 +418,7 @@ export function SessionGroupsView(): React.ReactNode {
                   <span className="session-group-section-count">{steps.length}</span>
                 </div>
                 <div className="session-group-timeline">
-                  {steps.map(step => (
+                  {steps.map((step) => (
                     <SessionGroupStepCard groupId={detail.group.id} key={step.id} step={step} />
                   ))}
                   {steps.length === 0 ? (
@@ -412,14 +435,14 @@ export function SessionGroupsView(): React.ReactNode {
         <PrimaryPageLayout
           className="session-groups-primary-page"
           description="组织相关任务，共享修复上下文、决策摘要和验证记录。"
-          search={(
+          search={
             <SearchInput
               aria-label="搜索工作流"
               onChange={setSearch}
               placeholder="搜索名称或说明…"
               value={search}
             />
-          )}
+          }
           title="工作流"
         >
           <main aria-live="polite" className="session-groups-index">
@@ -447,7 +470,7 @@ export function SessionGroupsView(): React.ReactNode {
                   <span>最近更新</span>
                 </div>
                 <div className="session-groups-table__rows">
-                  {filtered.map(group => (
+                  {filtered.map((group) => (
                     <Link
                       className="session-group-row"
                       key={group.id}
@@ -461,7 +484,9 @@ export function SessionGroupsView(): React.ReactNode {
                         </small>
                       </span>
                       <span className="session-group-row__projects">
-                        {group.projectLabels.length > 0 ? group.projectLabels.slice(0, 2).join('、') : '无项目'}
+                        {group.projectLabels.length > 0
+                          ? group.projectLabels.slice(0, 2).join('、')
+                          : '无项目'}
                       </span>
                       <span className="session-group-row__updated">
                         <span>{formatGroupTime(group.latestStepAt) || '暂无记录'}</span>
@@ -474,18 +499,30 @@ export function SessionGroupsView(): React.ReactNode {
             ) : null}
             {!loading && !error && groups.length === 0 ? (
               <div className="session-groups-empty-state">
-                <MessagesSquare aria-hidden="true" size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <MessagesSquare
+                  aria-hidden="true"
+                  size={APP_ICON_SIZES.lg}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
                 <h2>暂无工作流</h2>
                 <p>将相关任务组织在一起，共享上下文并追踪每一步验证。</p>
-                <Button color="secondary" onClick={openCreateDialog}>创建新工作流</Button>
+                <Button color="secondary" onClick={openCreateDialog}>
+                  创建新工作流
+                </Button>
               </div>
             ) : null}
             {!loading && !error && groups.length > 0 && filtered.length === 0 ? (
               <div className="session-groups-empty-state">
-                <MessagesSquare aria-hidden="true" size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <MessagesSquare
+                  aria-hidden="true"
+                  size={APP_ICON_SIZES.lg}
+                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                />
                 <h2>未找到工作流</h2>
                 <p>没有与“{search}”匹配的工作流。</p>
-                <Button color="secondary" size="compact" onClick={() => setSearch('')}>清除搜索</Button>
+                <Button color="secondary" size="compact" onClick={() => setSearch('')}>
+                  清除搜索
+                </Button>
               </div>
             ) : null}
           </main>
@@ -507,21 +544,22 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
   const [diffLoading, setDiffLoading] = useState(false)
   const diffRequestRef = useRef<Promise<RpcResult<'session-group/step/diff'>> | null>(null)
   const diffId = useId()
-  const diffResize = useHeightTransition([
-    diffLoading,
-    diff?.files.length ?? 0,
-  ])
-  const diffFiles = useMemo(() => diff?.files.map(file => ({
-    diff: {
-      path: file.path,
-      operation: file.operation === 'rename' ? 'update' as const : file.operation,
-      patch: file.patch,
-      hunks: file.hunks,
-      renderable: file.renderable,
-      tooLargeReason: file.tooLargeReason,
-    },
-    key: `${file.workspaceLabel}:${file.path}`,
-  })) ?? [], [diff])
+  const diffResize = useHeightTransition([diffLoading, diff?.files.length ?? 0])
+  const diffFiles = useMemo(
+    () =>
+      diff?.files.map((file) => ({
+        diff: {
+          path: file.path,
+          operation: file.operation === 'rename' ? ('update' as const) : file.operation,
+          patch: file.patch,
+          hunks: file.hunks,
+          renderable: file.renderable,
+          tooLargeReason: file.tooLargeReason,
+        },
+        key: `${file.workspaceLabel}:${file.path}`,
+      })) ?? [],
+    [diff],
+  )
 
   async function toggleDiff(): Promise<void> {
     const next = !diffOpen
@@ -622,7 +660,7 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
 
         {step.checkpoints.length ? (
           <ol className="session-group-step__evidence">
-            {step.checkpoints.map(checkpoint => {
+            {step.checkpoints.map((checkpoint) => {
               const checkpointLabel =
                 checkpoint.status === 'completed'
                   ? '已完成'
@@ -652,7 +690,7 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
 
         {step.validations.length ? (
           <div className="session-group-step__validations">
-            {step.validations.map(validation => (
+            {step.validations.map((validation) => (
               <div
                 className={cx(
                   'session-group-step__validation-item',
@@ -708,7 +746,11 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
             >
               <FileDiff size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               <span>{step.changedFiles.length} 个变更文件</span>
-              {diffOpen ? <ChevronUp size={APP_ICON_SIZES.sm} /> : <ChevronDown size={APP_ICON_SIZES.sm} />}
+              {diffOpen ? (
+                <ChevronUp size={APP_ICON_SIZES.sm} />
+              ) : (
+                <ChevronDown size={APP_ICON_SIZES.sm} />
+              )}
             </button>
             <DisclosureContent
               contentClassName="session-group-step__diff"
@@ -724,12 +766,8 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
                 {diffLoading ? (
                   <div className="session-group-diff-loading">正在加载 Diff…</div>
                 ) : diff ? (
-                  diffFiles.map(file => (
-                    <FileMutationDiffBody
-                      diff={file.diff}
-                      diffMarkerStyle="color"
-                      key={file.key}
-                    />
+                  diffFiles.map((file) => (
+                    <FileMutationDiffBody diff={file.diff} diffMarkerStyle="color" key={file.key} />
                   ))
                 ) : null}
               </div>

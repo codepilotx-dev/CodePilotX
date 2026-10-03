@@ -1,8 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import {
-  openTargetIconSrc,
-  KNOWN_OPEN_TARGET_IDS,
-} from '../src/components/ui/openTargetIcon.js'
+import { openTargetIconSrc, KNOWN_OPEN_TARGET_IDS } from '../src/components/ui/openTargetIcon.js'
 import {
   EDITOR_OPEN_TARGET_PRIORITY,
   OPEN_TARGET_STORED_SENTINELS,
@@ -62,18 +59,12 @@ describe('resolvePreferredOpenTarget', () => {
   })
 
   test('falls back to File Explorer when no editor is installed', () => {
-    expect(
-      resolvePreferredOpenTarget([target('file-explorer')], 'auto')?.id,
-    ).toBe('file-explorer')
+    expect(resolvePreferredOpenTarget([target('file-explorer')], 'auto')?.id).toBe('file-explorer')
     expect(resolvePreferredOpenTarget([], 'auto')).toBeUndefined()
   })
 
   test('never auto-selects GitHub Desktop or Windows Terminal', () => {
-    const targets = [
-      target('github-desktop'),
-      target('terminal'),
-      target('file-explorer'),
-    ]
+    const targets = [target('github-desktop'), target('terminal'), target('file-explorer')]
     expect(resolvePreferredOpenTarget(targets, 'default-app')?.id).toBe('file-explorer')
   })
 })

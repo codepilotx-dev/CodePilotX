@@ -1,4 +1,4 @@
-export type DesktopQuitOutcome = "exited" | "blocked"
+export type DesktopQuitOutcome = 'exited' | 'blocked'
 
 export interface DesktopQuitOrchestratorOptions {
   readonly stopRuntime: () => Promise<void>
@@ -15,7 +15,7 @@ export async function orchestrateDesktopQuit(
   options: DesktopQuitOrchestratorOptions,
 ): Promise<DesktopQuitOutcome> {
   const flushPromise = Promise.allSettled(
-    options.flushState.map(flush => Promise.resolve().then(flush)),
+    options.flushState.map((flush) => Promise.resolve().then(flush)),
   )
   let stopped = false
   let stopError: unknown
@@ -28,8 +28,8 @@ export async function orchestrateDesktopQuit(
   await flushPromise
   if (!stopped) {
     await options.onBlocked(stopError)
-    return "blocked"
+    return 'blocked'
   }
   options.exit()
-  return "exited"
+  return 'exited'
 }

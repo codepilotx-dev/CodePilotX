@@ -22,20 +22,20 @@
 
 ### 空间与文字
 
-| 角色 | 使用场景 | 禁止场景 |
-| --- | --- | --- |
-| `surface-canvas` | 页面、主工作区 | 卡片、输入框 |
-| `surface-recessed` | 侧栏、代码底板、下沉区域 | 浮层 |
-| `surface-panel` | 常驻面板、卡片、文档流摘要、审批容器 | 模态和覆盖工作区的浮动摘要 |
-| `surface-control` | 输入框、选择器、Composer 输入面 | 页面底色 |
-| `surface-raised` | Modal、Popover、Dropdown、Toast、悬浮 Composer | 常驻卡片 |
-| `surface-editor` | Diff、编辑器、预格式化代码 | 普通正文 |
-| `fg-primary` | 标题、正文、关键值 | 元信息 |
-| `fg-secondary` | 说明、次要操作 | 禁用信息 |
-| `fg-tertiary` | 时间、来源、低优先级元信息 | 正文 |
-| `fg-disabled` | 不可交互内容 | 可操作内容 |
-| `message-user-bg` | 静态用户消息背景 | hover、selected、active 等交互状态 |
-| `border-subtle/default/strong/focus` | 同级分隔、容器、强调边界、键盘焦点 | 用边框颜色假装业务状态 |
+| 角色                                 | 使用场景                                       | 禁止场景                           |
+| ------------------------------------ | ---------------------------------------------- | ---------------------------------- |
+| `surface-canvas`                     | 页面、主工作区                                 | 卡片、输入框                       |
+| `surface-recessed`                   | 侧栏、代码底板、下沉区域                       | 浮层                               |
+| `surface-panel`                      | 常驻面板、卡片、文档流摘要、审批容器           | 模态和覆盖工作区的浮动摘要         |
+| `surface-control`                    | 输入框、选择器、Composer 输入面                | 页面底色                           |
+| `surface-raised`                     | Modal、Popover、Dropdown、Toast、悬浮 Composer | 常驻卡片                           |
+| `surface-editor`                     | Diff、编辑器、预格式化代码                     | 普通正文                           |
+| `fg-primary`                         | 标题、正文、关键值                             | 元信息                             |
+| `fg-secondary`                       | 说明、次要操作                                 | 禁用信息                           |
+| `fg-tertiary`                        | 时间、来源、低优先级元信息                     | 正文                               |
+| `fg-disabled`                        | 不可交互内容                                   | 可操作内容                         |
+| `message-user-bg`                    | 静态用户消息背景                               | hover、selected、active 等交互状态 |
+| `border-subtle/default/strong/focus` | 同级分隔、容器、强调边界、键盘焦点             | 用边框颜色假装业务状态             |
 
 浅色主题中 `surface-recessed` 向深色方向派生，`surface-control` 与 `surface-raised` 向浅色方向派生；暗色主题保持相反的明度关系，使下沉、控件和浮起语义在自定义背景与对比度下仍然成立。常驻容器通过相邻表面与 1px 边框形成层级，不加阴影。
 
@@ -47,12 +47,12 @@
 
 Workbench 大区域使用独立的公共区域 token，布局 Feature 不直接绑定基础 surface：
 
-| 区域 | 语义 token | 默认来源 |
-| --- | --- | --- |
-| 窗口标题/菜单栏 | `--cpx-sys-color-workbench-titlebar-bg` | `--cpx-sys-color-surface-recessed` |
-| 左侧栏 | `--cpx-sys-color-workbench-sidebar-bg` | `--cpx-sys-color-surface-recessed` |
-| 主工作区 | `--cpx-sys-color-workbench-main-bg` | `--cpx-sys-color-surface-canvas` |
-| 右侧 Dock、底部 Panel | `--cpx-sys-color-workbench-panel-bg` | `--cpx-sys-color-workbench-main-bg` |
+| 区域                  | 语义 token                              | 默认来源                            |
+| --------------------- | --------------------------------------- | ----------------------------------- |
+| 窗口标题/菜单栏       | `--cpx-sys-color-workbench-titlebar-bg` | `--cpx-sys-color-surface-recessed`  |
+| 左侧栏                | `--cpx-sys-color-workbench-sidebar-bg`  | `--cpx-sys-color-surface-recessed`  |
+| 主工作区              | `--cpx-sys-color-workbench-main-bg`     | `--cpx-sys-color-surface-canvas`    |
+| 右侧 Dock、底部 Panel | `--cpx-sys-color-workbench-panel-bg`    | `--cpx-sys-color-workbench-main-bg` |
 
 `surface-panel` 仍用于工作区内部的常驻卡片、摘要和审批容器，不代表右侧 Dock 或底部 Panel 的外层底色。Feature 只消费公开区域 token，不消费颜色类 `--cpx-comp-*`，也不直接选择基础 surface。默认值相同的区域仍保持独立 token，以允许主题覆盖并避免组件耦合；工作区 toolbar/header 保持透明并继承 `workbench-main-bg`，不使用 titlebar token。
 
@@ -60,14 +60,14 @@ Workbench 大区域之间的持久结构边界使用 `border-default`；toolbar�
 
 ### 业务与交互语义
 
-| Tone | 唯一含义 | 典型场景 |
-| --- | --- | --- |
-| `accent` | 当前选择、焦点、主要交互 | 选中导航、焦点环、当前配置 |
-| `info` | 中性信息、来源、无风险进行中 | 提示、来源、同步中 |
-| `success` | 已成功、已通过、已连接 | 完成状态、批准、Diff added |
-| `warning` | 需注意、等待判断、可恢复风险 | 待审批、限额提醒 |
-| `danger` | 失败、拒绝、破坏性操作 | 删除、权限拒绝、Diff removed |
-| `skill` | Agent、Skill、Plugin、工具能力身份 | 能力标签、工具身份 |
+| Tone      | 唯一含义                           | 典型场景                     |
+| --------- | ---------------------------------- | ---------------------------- |
+| `accent`  | 当前选择、焦点、主要交互           | 选中导航、焦点环、当前配置   |
+| `info`    | 中性信息、来源、无风险进行中       | 提示、来源、同步中           |
+| `success` | 已成功、已通过、已连接             | 完成状态、批准、Diff added   |
+| `warning` | 需注意、等待判断、可恢复风险       | 待审批、限额提醒             |
+| `danger`  | 失败、拒绝、破坏性操作             | 删除、权限拒绝、Diff removed |
+| `skill`   | Agent、Skill、Plugin、工具能力身份 | 能力标签、工具身份           |
 
 每个彩色 tone 使用一致的角色族：基础色用于小图标或状态点，`*-fg` 用于短文字，`*-subtle-bg` 与 `*-subtle-border` 成对用于状态容器。大面积实色背景、仅靠红绿区分状态、用 `success` 表示“当前选中”都不允许。
 

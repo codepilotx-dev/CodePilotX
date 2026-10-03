@@ -11,16 +11,18 @@ describe('PetQuickReply', () => {
           toolName: 'AskUserQuestion',
           description: '请选择',
           input: {
-            questions: [{
-              id: 'editor',
-              header: '编辑器',
-              question: '选择编辑器',
-              options: [
-                { label: 'VS Code', description: '使用 VS Code' },
-                { label: 'Zed', description: '使用 Zed' },
-              ],
-              multiSelect: false,
-            }],
+            questions: [
+              {
+                id: 'editor',
+                header: '编辑器',
+                question: '选择编辑器',
+                options: [
+                  { label: 'VS Code', description: '使用 VS Code' },
+                  { label: 'Zed', description: '使用 Zed' },
+                ],
+                multiSelect: false,
+              },
+            ],
           },
         }}
         onRespond={() => undefined}

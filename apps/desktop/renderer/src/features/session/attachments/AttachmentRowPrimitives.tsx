@@ -1,7 +1,11 @@
 import { FileText, Image, ImageOff, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { IconButton } from '../../../components/ui/IconButton.js'
-import { APP_ICON_SIZE, APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
+import {
+  APP_ICON_SIZE,
+  APP_ICON_SIZES,
+  APP_ICON_STROKE_WIDTH,
+} from '../../../components/ui/iconTokens.js'
 
 type AttachmentHorizontalRowProps = {
   ariaLabel: string
@@ -43,27 +47,24 @@ export function AttachmentImageTile({
   source,
   status,
 }: AttachmentImageTileProps): React.ReactNode {
-  const content = status === 'loading' ? (
-    <span aria-label={`${name} 正在加载`} className="attachment-image-tile__loading" />
-  ) : status === 'error' ? (
-    <span className="attachment-image-tile__error">
-      <ImageOff aria-hidden="true" size={APP_ICON_SIZE} />
-      <span>加载失败</span>
-    </span>
-  ) : source ? (
-    <img alt={name} className="attachment-image-tile__image" src={source} />
-  ) : (
-    <span className="attachment-image-tile__fallback">
-      <Image aria-hidden="true" size={APP_ICON_SIZE} />
-    </span>
-  )
+  const content =
+    status === 'loading' ? (
+      <span aria-label={`${name} 正在加载`} className="attachment-image-tile__loading" />
+    ) : status === 'error' ? (
+      <span className="attachment-image-tile__error">
+        <ImageOff aria-hidden="true" size={APP_ICON_SIZE} />
+        <span>加载失败</span>
+      </span>
+    ) : source ? (
+      <img alt={name} className="attachment-image-tile__image" src={source} />
+    ) : (
+      <span className="attachment-image-tile__fallback">
+        <Image aria-hidden="true" size={APP_ICON_SIZE} />
+      </span>
+    )
 
   return (
-    <div
-      className="attachment-image-tile"
-      data-status={status}
-      title={errorMessage ?? name}
-    >
+    <div className="attachment-image-tile" data-status={status} title={errorMessage ?? name}>
       {onOpen ? (
         <button
           aria-label={`打开 ${name}`}
@@ -141,7 +142,7 @@ function AttachmentRemoveButton({
     <IconButton
       className="attachment-item-remove"
       color="ghostSecondary"
-      onClick={event => {
+      onClick={(event) => {
         event.stopPropagation()
         onRemove()
       }}

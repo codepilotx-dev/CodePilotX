@@ -6,7 +6,8 @@ import { chromium, expect } from '@playwright/test'
 import { compile } from 'sass'
 
 const rendererRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const source = (path: string) => JSON.stringify(resolve(rendererRoot, 'src', path).replaceAll('\\', '/'))
+const source = (path: string) =>
+  JSON.stringify(resolve(rendererRoot, 'src', path).replaceAll('\\', '/'))
 const harness = `
 import React, { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -80,17 +81,36 @@ createRoot(document.getElementById('root')).render(<Harness />);
 `
 if (process.versions.bun) {
   const result = await Bun.build({
-    entrypoints: ['model-switch-harness'], target: 'browser', format: 'esm',
+    entrypoints: ['model-switch-harness'],
+    target: 'browser',
+    format: 'esm',
     define: { 'process.env.NODE_ENV': '"development"' },
-    plugins: [{ name: 'model-switch-harness', setup(builder) {
-      builder.onResolve({ filter: /^react(?:\/.*)?$|^react-dom\/client$/ }, args => ({ path: Bun.resolveSync(args.path, rendererRoot), namespace: 'file' }))
-      builder.onResolve({ filter: /^model-switch-harness$/ }, () => ({ path: 'harness', namespace: 'model-switch' }))
-      builder.onLoad({ filter: /^harness$/, namespace: 'model-switch' }, () => ({ contents: harness, loader: 'jsx', resolveDir: rendererRoot }))
-    } }],
+    plugins: [
+      {
+        name: 'model-switch-harness',
+        setup(builder) {
+          builder.onResolve({ filter: /^react(?:\/.*)?$|^react-dom\/client$/ }, (args) => ({
+            path: Bun.resolveSync(args.path, rendererRoot),
+            namespace: 'file',
+          }))
+          builder.onResolve({ filter: /^model-switch-harness$/ }, () => ({
+            path: 'harness',
+            namespace: 'model-switch',
+          }))
+          builder.onLoad({ filter: /^harness$/, namespace: 'model-switch' }, () => ({
+            contents: harness,
+            loader: 'jsx',
+            resolveDir: rendererRoot,
+          }))
+        },
+      },
+    ],
   })
   assert.ok(result.success, result.logs.map(String).join('\n'))
   const child = Bun.spawn(['node', '--experimental-strip-types', fileURLToPath(import.meta.url)], {
-    stdin: new Blob([await result.outputs[0]!.text()]), stdout: 'inherit', stderr: 'inherit',
+    stdin: new Blob([await result.outputs[0]!.text()]),
+    stdout: 'inherit',
+    stderr: 'inherit',
   })
   process.exit(await child.exited)
 }
@@ -101,11 +121,19 @@ const browser = await chromium.launch({ channel: 'chrome', headless: true })
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } })
   const errors: string[] = []
-  page.on('pageerror', error => { errors.push(error.message); console.error(error.message) })
-  page.on('console', message => { if (message.type() === 'error') console.error(message.text()) })
-  await page.route('http://localhost/', route => route.fulfill({
-    contentType: 'text/html', body: `<html><head><style>${css}</style></head><body><div id="root"></div></body></html>`,
-  }))
+  page.on('pageerror', (error) => {
+    errors.push(error.message)
+    console.error(error.message)
+  })
+  page.on('console', (message) => {
+    if (message.type() === 'error') console.error(message.text())
+  })
+  await page.route('http://localhost/', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: `<html><head><style>${css}</style></head><body><div id="root"></div></body></html>`,
+    }),
+  )
   await page.goto('http://localhost/')
   await page.addScriptTag({ content: script, type: 'module' })
   const divider = '.canonical-model-switch-divider'
@@ -123,20 +151,36 @@ try {
     const section = page.locator('#' + id)
     await section.getByRole('button', { name: '重新加载' }).click()
     await expect(section.locator(divider)).toHaveText(id === 'main' ? expected : expected.slice(1))
-    assert.equal(await section.locator(divider).evaluateAll(elements => elements.every(element => {
-      const row = element.closest('[data-turn-navigation-id]')
-      const user = row?.querySelector('.canonical-user-message')
-      return !!user && !!(element.compareDocumentPosition(user) & Node.DOCUMENT_POSITION_FOLLOWING)
-    })), true, id + ': divider must precede its user message')
-    await section.locator('[data-scroll-container]').evaluate(element => { element.style.height = '240px' })
+    assert.equal(
+      await section.locator(divider).evaluateAll((elements) =>
+        elements.every((element) => {
+          const row = element.closest('[data-turn-navigation-id]')
+          const user = row?.querySelector('.canonical-user-message')
+          return (
+            !!user && !!(element.compareDocumentPosition(user) & Node.DOCUMENT_POSITION_FOLLOWING)
+          )
+        }),
+      ),
+      true,
+      id + ': divider must precede its user message',
+    )
+    await section.locator('[data-scroll-container]').evaluate((element) => {
+      element.style.height = '240px'
+    })
     await section.getByRole('button', { name: '跳转末轮' }).click()
     await expect(section.getByText('用户消息 3', { exact: true })).toBeVisible()
-    await expect.poll(() => section.locator('[data-turn-navigation-id="turn-3"]').evaluate(element => {
-      const rect = element.getBoundingClientRect()
-      const scrollRect = element.closest('[data-scroll-container]')!.getBoundingClientRect()
-      return rect.top < scrollRect.bottom && rect.bottom > scrollRect.top
-    })).toBe(true)
-    await section.locator('[data-scroll-container]').evaluate(element => { element.style.height = '600px' })
+    await expect
+      .poll(() =>
+        section.locator('[data-turn-navigation-id="turn-3"]').evaluate((element) => {
+          const rect = element.getBoundingClientRect()
+          const scrollRect = element.closest('[data-scroll-container]')!.getBoundingClientRect()
+          return rect.top < scrollRect.bottom && rect.bottom > scrollRect.top
+        }),
+      )
+      .toBe(true)
+    await section.locator('[data-scroll-container]').evaluate((element) => {
+      element.style.height = '600px'
+    })
   }
   const themeColors: string[] = []
   for (const section of await page.locator('[data-alignment]').all()) {
@@ -146,40 +190,80 @@ try {
   for (const theme of ['light', 'dark']) {
     await page.getByRole('button', { name: theme, exact: true }).click()
     for (const section of await page.locator('[data-alignment]').all()) {
-      const geometry = await section.evaluate(element => {
-        const rows = [...element.querySelectorAll('.cpx-agent-activity__item-header, .canonical-process-card__summary, .canonical-lifecycle-tool')]
+      const geometry = await section.evaluate((element) => {
+        const rows = [
+          ...element.querySelectorAll(
+            '.cpx-agent-activity__item-header, .canonical-process-card__summary, .canonical-lifecycle-tool',
+          ),
+        ]
         return {
-          icons: rows.map(row => row.querySelector('svg')!.getBoundingClientRect().left),
-          labels: rows.map(row => row.querySelector('span')!.getBoundingClientRect().left),
-          headers: rows.filter(row => !row.classList.contains('canonical-lifecycle-tool')).map(row => ({
-            height: row.getBoundingClientRect().height, radius: getComputedStyle(row).borderRadius,
-          })),
-          bodies: [...element.querySelectorAll('.canonical-process-card__body')].map(body =>
-            body.firstElementChild!.getBoundingClientRect().left),
+          icons: rows.map((row) => row.querySelector('svg')!.getBoundingClientRect().left),
+          labels: rows.map((row) => row.querySelector('span')!.getBoundingClientRect().left),
+          headers: rows
+            .filter((row) => !row.classList.contains('canonical-lifecycle-tool'))
+            .map((row) => ({
+              height: row.getBoundingClientRect().height,
+              radius: getComputedStyle(row).borderRadius,
+            })),
+          bodies: [...element.querySelectorAll('.canonical-process-card__body')].map(
+            (body) => body.firstElementChild!.getBoundingClientRect().left,
+          ),
         }
       })
-      assert.equal(geometry.icons.length, 5, 'tool, reasoning, answer and two pending rows are rendered')
-      assert.ok(Math.max(...geometry.icons) - Math.min(...geometry.icons) < 1, 'same-level icons align')
-      assert.ok(Math.max(...geometry.labels) - Math.min(...geometry.labels) < 1, 'same-level labels align')
+      assert.equal(
+        geometry.icons.length,
+        5,
+        'tool, reasoning, answer and two pending rows are rendered',
+      )
+      assert.ok(
+        Math.max(...geometry.icons) - Math.min(...geometry.icons) < 1,
+        'same-level icons align',
+      )
+      assert.ok(
+        Math.max(...geometry.labels) - Math.min(...geometry.labels) < 1,
+        'same-level labels align',
+      )
       assert.equal(geometry.headers.length, 3)
-      assert.ok(geometry.headers.every(header => Math.abs(header.height - geometry.headers[0]!.height) < 1
-        && header.radius === geometry.headers[0]!.radius), 'tool, reasoning and answer hover surfaces share height and radius')
+      assert.ok(
+        geometry.headers.every(
+          (header) =>
+            Math.abs(header.height - geometry.headers[0]!.height) < 1 &&
+            header.radius === geometry.headers[0]!.radius,
+        ),
+        'tool, reasoning and answer hover surfaces share height and radius',
+      )
       assert.equal(geometry.bodies.length, 2)
-      assert.ok(geometry.bodies.every(left => Math.abs(left - geometry.labels[0]!) < 1), 'expanded prose aligns with its heading at both widths')
+      assert.ok(
+        geometry.bodies.every((left) => Math.abs(left - geometry.labels[0]!) < 1),
+        'expanded prose aligns with its heading at both widths',
+      )
     }
-    const metrics = await page.locator(divider).evaluateAll(elements => elements.map(element => {
-      const before = getComputedStyle(element, '::before'), after = getComputedStyle(element, '::after')
-      const style = getComputedStyle(element)
-      const parent = element.closest('section')!
-      return { overflow: parent.scrollWidth > parent.clientWidth, before: before.borderTopWidth, after: after.borderTopWidth,
-        beforeWidth: parseFloat(before.width), afterWidth: parseFloat(after.width), color: style.color,
-        hiddenIcon: element.querySelector('svg')?.getAttribute('aria-hidden') }
-    }))
+    const metrics = await page.locator(divider).evaluateAll((elements) =>
+      elements.map((element) => {
+        const before = getComputedStyle(element, '::before'),
+          after = getComputedStyle(element, '::after')
+        const style = getComputedStyle(element)
+        const parent = element.closest('section')!
+        return {
+          overflow: parent.scrollWidth > parent.clientWidth,
+          before: before.borderTopWidth,
+          after: after.borderTopWidth,
+          beforeWidth: parseFloat(before.width),
+          afterWidth: parseFloat(after.width),
+          color: style.color,
+          hiddenIcon: element.querySelector('svg')?.getAttribute('aria-hidden'),
+        }
+      }),
+    )
     themeColors.push(metrics[0]!.color)
     for (const metric of metrics) {
       assert.equal(metric.overflow, false, 'long models must not overflow a narrow side chat')
-      assert.equal(metric.before, '1px'); assert.equal(metric.after, '1px')
-      assert.ok(Math.abs(metric.beforeWidth - metric.afterWidth) < 1, 'divider lines have equal widths')
+      assert.equal(metric.before, '1px')
+      assert.equal(metric.after, '1px')
+      assert.ok(
+        Math.abs(metric.beforeWidth - metric.afterWidth) < 1,
+        'divider lines have equal widths',
+      )
       assert.equal(metric.hiddenIcon, 'true')
       assert.notEqual(metric.color, '')
     }
@@ -187,12 +271,17 @@ try {
   assert.notEqual(themeColors[0], themeColors[1], 'divider foreground follows the active theme')
   assert.deepEqual(errors, [])
   if (process.env.TIMELINE_ALIGNMENT_SCREENSHOT) {
-    await page.locator('[data-alignment]').first().screenshot({ path: process.env.TIMELINE_ALIGNMENT_SCREENSHOT })
+    await page
+      .locator('[data-alignment]')
+      .first()
+      .screenshot({ path: process.env.TIMELINE_ALIGNMENT_SCREENSHOT })
   }
   if (process.env.MODEL_SWITCH_SCREENSHOT) {
     await page.screenshot({ path: process.env.MODEL_SWITCH_SCREENSHOT, fullPage: true })
   }
-  console.log('Timeline: model switch boundaries, history, navigation, and tool/reasoning/question alignment at main/side widths in light/dark themes passed.')
+  console.log(
+    'Timeline: model switch boundaries, history, navigation, and tool/reasoning/question alignment at main/side widths in light/dark themes passed.',
+  )
 } finally {
   await browser.close()
 }

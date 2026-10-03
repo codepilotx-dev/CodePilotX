@@ -34,11 +34,8 @@ export function resolvePetLookFrame(
   const deltaY = pointer.y - (mascot.top + mascot.height / 2)
   if (Math.hypot(deltaX, deltaY) <= PET_LOOK_DEAD_ZONE_PX) return null
 
-  const clockwiseDegrees =
-    (Math.atan2(deltaX, -deltaY) * (180 / Math.PI) + 360) % 360
-  const sector =
-    Math.round(clockwiseDegrees / PET_LOOK_SECTOR_DEGREES)
-    % PET_LOOK_SECTOR_COUNT
+  const clockwiseDegrees = (Math.atan2(deltaX, -deltaY) * (180 / Math.PI) + 360) % 360
+  const sector = Math.round(clockwiseDegrees / PET_LOOK_SECTOR_DEGREES) % PET_LOOK_SECTOR_COUNT
 
   return {
     columnIndex: sector % PET_LOOK_COLUMNS,

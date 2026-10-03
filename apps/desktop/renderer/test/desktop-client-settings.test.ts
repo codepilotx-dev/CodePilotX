@@ -1,17 +1,13 @@
 import { describe, expect, test } from 'bun:test'
 import type { Project } from '@codepilotx/shared'
-import type {
-  ThreadListItem,
-  ThreadSettings,
-  ThreadSnapshot,
-} from '@codepilotx/shared/thread'
-import {
-  createDesktopClient,
-  startGithubLoginFlow,
-} from '../src/services/desktop-client/index.js'
+import type { ThreadListItem, ThreadSettings, ThreadSnapshot } from '@codepilotx/shared/thread'
+import { createDesktopClient, startGithubLoginFlow } from '../src/services/desktop-client/index.js'
 
 const now = 1_700_000_000_000
-const selectedSkills = [{ name: 'review', path: 'builtin://review/SKILL.md' }, { name: 'plan', path: 'plugin://tools/skills/plan/SKILL.md' }]
+const selectedSkills = [
+  { name: 'review', path: 'builtin://review/SKILL.md' },
+  { name: 'plan', path: 'plugin://tools/skills/plan/SKILL.md' },
+]
 const projectRootPath = 'F:\\CodeProject\\CodePilotX-Ts'
 const primaryFolder = {
   id: 'folder-primary',
@@ -50,11 +46,13 @@ const projectWorkspace = {
   kind: 'project' as const,
   projectID: project.id,
   cwd: projectRootPath,
-  runtimeWorkspaceRoots: [{
-    folderId: primaryFolder.id,
-    path: projectRootPath,
-    role: 'primary' as const,
-  }],
+  runtimeWorkspaceRoots: [
+    {
+      folderId: primaryFolder.id,
+      path: projectRootPath,
+      role: 'primary' as const,
+    },
+  ],
   instructionSources: [],
   outputDirectory: null,
 }
@@ -62,100 +60,189 @@ const projectWorkspace = {
 describe('desktop thread settings client', () => {
   test('plan approval preserves target, operation and model and refreshes after success', async () => {
     const calls: string[] = []
-    const approval = { id: 'plan-approval-1', threadId: 'session-plan', turnId: 'plan-turn', planItemId: 'plan-item',
-      version: 1, status: 'pending' as const, title: '计划', markdown: '修改目标文件', nextTurnId: null, createdAt: now, resolvedAt: null }
-    const params = { threadId: approval.threadId, approvalId: approval.id, expectedVersion: 1, operationId: 'plan-op-1',
-      response: { action: 'implement' as const, model: { providerID: 'deepseek', id: 'deepseek-chat' } } }
-    const client = createDesktopClient({ fetch: async (_path, init) => {
-      const body = JSON.parse(String(init?.body))
-      calls.push(body.method)
-      if (body.method === 'initialized') return new Response(null, { status: 204 })
-      if (body.method === 'initialize') {
-        expect(body.params.capabilities).toContain('plan.approval.v1')
-        return rpc(body.id, { ...initializedResult(), capabilities: [...initializedResult().capabilities, 'plan.approval.v1'] })
-      }
-      if (body.method === 'planApproval/read') {
-        expect(body.params).toEqual({ threadId: approval.threadId })
-        return rpc(body.id, { approval })
-      }
-      if (body.method === 'planApproval/respond') {
-        expect(body.params).toEqual(params)
-        return rpc(body.id, { approval: { ...approval, status: 'implemented', version: 2, nextTurnId: 'coding-turn', resolvedAt: now }, disposition: 'applied' })
-      }
-      if (body.method === 'thread/read') {
-        expect(body.params.threadId).toBe(approval.threadId)
-        return rpc(body.id, snapshotResult(snapshot(approval.threadId, defaultSettings)))
-      }
-      if (body.method === 'project/list') return rpc(body.id, { projects: [], nextCursor: null })
-      throw new Error(`Unexpected method: ${body.method}`)
-    } })
-    expect((await client.readPlanApproval({ threadId: approval.threadId })).approval?.id).toBe(approval.id)
+    const approval = {
+      id: 'plan-approval-1',
+      threadId: 'session-plan',
+      turnId: 'plan-turn',
+      planItemId: 'plan-item',
+      version: 1,
+      status: 'pending' as const,
+      title: '计划',
+      markdown: '修改目标文件',
+      nextTurnId: null,
+      createdAt: now,
+      resolvedAt: null,
+    }
+    const params = {
+      threadId: approval.threadId,
+      approvalId: approval.id,
+      expectedVersion: 1,
+      operationId: 'plan-op-1',
+      response: {
+        action: 'implement' as const,
+        model: { providerID: 'deepseek', id: 'deepseek-chat' },
+      },
+    }
+    const client = createDesktopClient({
+      fetch: async (_path, init) => {
+        const body = JSON.parse(String(init?.body))
+        calls.push(body.method)
+        if (body.method === 'initialized') return new Response(null, { status: 204 })
+        if (body.method === 'initialize') {
+          expect(body.params.capabilities).toContain('plan.approval.v1')
+          return rpc(body.id, {
+            ...initializedResult(),
+            capabilities: [...initializedResult().capabilities, 'plan.approval.v1'],
+          })
+        }
+        if (body.method === 'planApproval/read') {
+          expect(body.params).toEqual({ threadId: approval.threadId })
+          return rpc(body.id, { approval })
+        }
+        if (body.method === 'planApproval/respond') {
+          expect(body.params).toEqual(params)
+          return rpc(body.id, {
+            approval: {
+              ...approval,
+              status: 'implemented',
+              version: 2,
+              nextTurnId: 'coding-turn',
+              resolvedAt: now,
+            },
+            disposition: 'applied',
+          })
+        }
+        if (body.method === 'thread/read') {
+          expect(body.params.threadId).toBe(approval.threadId)
+          return rpc(body.id, snapshotResult(snapshot(approval.threadId, defaultSettings)))
+        }
+        if (body.method === 'project/list') return rpc(body.id, { projects: [], nextCursor: null })
+        throw new Error(`Unexpected method: ${body.method}`)
+      },
+    })
+    expect((await client.readPlanApproval({ threadId: approval.threadId })).approval?.id).toBe(
+      approval.id,
+    )
     expect((await client.respondPlanApproval(params)).approval.status).toBe('implemented')
     expect(calls).not.toContain('interaction/respond')
     expect(calls.indexOf('thread/read')).toBeGreaterThan(calls.indexOf('planApproval/respond'))
   })
 
-  test.each(['answer', 'mixed', 'all', 'unsupported'] as const)('submits complete question results by original ids with capability gating (%s)', async mode => {
-    const responses: unknown[] = []
-    const questions = ['scope', 'format', 'filter'].map(id => ({
-      id, header: id, prompt: `请选择 ${id}`,
-      choices: [{ id: 'yes', label: '是', description: '保留', recommended: true },
-        { id: 'no', label: '否', description: '排除', recommended: false }],
-      allowFreeform: true, required: true,
-    }))
-    const client = createDesktopClient({
-      fetch: async (_path, init) => {
-        const body = JSON.parse(String(init?.body))
-        if (body.method === 'initialized') return new Response(null, { status: 204 })
-        if (body.method === 'initialize') return rpc(body.id, { ...initializedResult(), capabilities: [
-          ...initializedResult().capabilities, ...(mode === 'unsupported' ? [] : ['interaction.questionSkip.v1']),
-        ] })
-        if (body.method === 'interaction/listPending') {
-          expect(body.params.threadId).toBe('session-1')
-          return rpc(body.id, {
-          interactions: [{ interactionId: 'group-1', threadId: 'session-1',
-            turnId: 'turn-1', agentId: 'agent-1', createdAt: now, version: 1,
-            kind: 'question', questions }], nextCursor: null,
-          })
-        }
-        if (body.method === 'interaction/respond') {
-          responses.push(body.params)
-          return rpc(body.id, { interactionId: 'group-1', kind: 'question',
-            state: 'resolved', version: 2, resolvedAt: now, response: body.params.response })
-        }
-        if (body.method === 'thread/read') return rpc(body.id, snapshotResult(snapshot('session-1', defaultSettings)))
-        throw new Error(`Unhandled method: ${body.method}`)
-      },
-    })
-    const skippedQuestionIds = mode === 'answer' ? [] : mode === 'all' ? ['scope', 'format', 'filter'] : ['scope']
-    const submission = client.respondToPermission('session-1', 'question:group-1', {
-      behavior: 'allow', updatedInput: { answer: 'stale legacy answer',
-        answers: { scope: mode === 'answer' ? '是' : '', format: mode === 'all' ? '' : '中文自定义', filter: mode === 'all' ? '' : '否' }, skippedQuestionIds },
-    })
-    if (mode === 'unsupported') {
-      await expect(submission).rejects.toThrow('interaction.questionSkip.v1')
-      expect(responses).toHaveLength(0)
-      return
-    }
-    await submission
-    expect(responses).toHaveLength(1)
-    expect(responses[0]).toMatchObject({ interactionId: 'group-1', expectedVersion: 1,
-      response: { kind: 'question', status: 'answered', resolution: 'user', answers: [
-        ...(mode === 'all' ? skippedQuestionIds.map(questionId => ({ questionId, choiceIds: [], skipped: true })) : [
-          mode === 'mixed' ? { questionId: 'scope', choiceIds: [], skipped: true } : { questionId: 'scope', choiceIds: ['yes'] },
-          { questionId: 'format', choiceIds: [], text: '中文自定义' },
-          { questionId: 'filter', choiceIds: ['no'] },
-        ]),
-      ] },
-    })
-  })
+  test.each(['answer', 'mixed', 'all', 'unsupported'] as const)(
+    'submits complete question results by original ids with capability gating (%s)',
+    async (mode) => {
+      const responses: unknown[] = []
+      const questions = ['scope', 'format', 'filter'].map((id) => ({
+        id,
+        header: id,
+        prompt: `请选择 ${id}`,
+        choices: [
+          { id: 'yes', label: '是', description: '保留', recommended: true },
+          { id: 'no', label: '否', description: '排除', recommended: false },
+        ],
+        allowFreeform: true,
+        required: true,
+      }))
+      const client = createDesktopClient({
+        fetch: async (_path, init) => {
+          const body = JSON.parse(String(init?.body))
+          if (body.method === 'initialized') return new Response(null, { status: 204 })
+          if (body.method === 'initialize')
+            return rpc(body.id, {
+              ...initializedResult(),
+              capabilities: [
+                ...initializedResult().capabilities,
+                ...(mode === 'unsupported' ? [] : ['interaction.questionSkip.v1']),
+              ],
+            })
+          if (body.method === 'interaction/listPending') {
+            expect(body.params.threadId).toBe('session-1')
+            return rpc(body.id, {
+              interactions: [
+                {
+                  interactionId: 'group-1',
+                  threadId: 'session-1',
+                  turnId: 'turn-1',
+                  agentId: 'agent-1',
+                  createdAt: now,
+                  version: 1,
+                  kind: 'question',
+                  questions,
+                },
+              ],
+              nextCursor: null,
+            })
+          }
+          if (body.method === 'interaction/respond') {
+            responses.push(body.params)
+            return rpc(body.id, {
+              interactionId: 'group-1',
+              kind: 'question',
+              state: 'resolved',
+              version: 2,
+              resolvedAt: now,
+              response: body.params.response,
+            })
+          }
+          if (body.method === 'thread/read')
+            return rpc(body.id, snapshotResult(snapshot('session-1', defaultSettings)))
+          throw new Error(`Unhandled method: ${body.method}`)
+        },
+      })
+      const skippedQuestionIds =
+        mode === 'answer' ? [] : mode === 'all' ? ['scope', 'format', 'filter'] : ['scope']
+      const submission = client.respondToPermission('session-1', 'question:group-1', {
+        behavior: 'allow',
+        updatedInput: {
+          answer: 'stale legacy answer',
+          answers: {
+            scope: mode === 'answer' ? '是' : '',
+            format: mode === 'all' ? '' : '中文自定义',
+            filter: mode === 'all' ? '' : '否',
+          },
+          skippedQuestionIds,
+        },
+      })
+      if (mode === 'unsupported') {
+        await expect(submission).rejects.toThrow('interaction.questionSkip.v1')
+        expect(responses).toHaveLength(0)
+        return
+      }
+      await submission
+      expect(responses).toHaveLength(1)
+      expect(responses[0]).toMatchObject({
+        interactionId: 'group-1',
+        expectedVersion: 1,
+        response: {
+          kind: 'question',
+          status: 'answered',
+          resolution: 'user',
+          answers: [
+            ...(mode === 'all'
+              ? skippedQuestionIds.map((questionId) => ({
+                  questionId,
+                  choiceIds: [],
+                  skipped: true,
+                }))
+              : [
+                  mode === 'mixed'
+                    ? { questionId: 'scope', choiceIds: [], skipped: true }
+                    : { questionId: 'scope', choiceIds: ['yes'] },
+                  { questionId: 'format', choiceIds: [], text: '中文自定义' },
+                  { questionId: 'filter', choiceIds: ['no'] },
+                ]),
+          ],
+        },
+      })
+    },
+  )
 
   test('opens home and thread windows through the typed desktop bridge', async () => {
     const calls: unknown[] = []
     const client = createDesktopClient({
       window: {
         codePilotXDesktop: {
-          openWindow: async input => {
+          openWindow: async (input) => {
             calls.push(input)
           },
         },
@@ -165,10 +252,7 @@ describe('desktop thread settings client', () => {
     await client.newWindow()
     await client.openWindow({ kind: 'thread', threadId: 'thread-1' })
 
-    expect(calls).toEqual([
-      { kind: 'home' },
-      { kind: 'thread', threadId: 'thread-1' },
-    ])
+    expect(calls).toEqual([{ kind: 'home' }, { kind: 'thread', threadId: 'thread-1' }])
   })
 
   test('shows composer file entry only with Electron bridge and both Agent capabilities', async () => {
@@ -177,24 +261,27 @@ describe('desktop thread settings client', () => {
       grantComposerPaths: async () => [],
       getPathForFile: () => '',
     }
-    const createCapabilityClient = (capabilities: string[]) => createDesktopClient({
-      window: { codePilotXDesktop: bridge } as never,
-      fetch: async (_path, init) => {
-        const body = JSON.parse(String(init?.body))
-        if (body.method === 'initialized') return new Response(null, { status: 204 })
-        if (body.method === 'initialize') {
-          return rpc(body.id, { ...initializedResult(), capabilities })
-        }
-        throw new Error(`Unhandled method: ${body.method}`)
-      },
-    })
-    expect(await createCapabilityClient([
-      'attachments.v1',
-      'local-context.paths.v1',
-    ]).isComposerFileAttachmentAvailable()).toBe(true)
-    expect(await createCapabilityClient([
-      'attachments.v1',
-    ]).isComposerFileAttachmentAvailable()).toBe(false)
+    const createCapabilityClient = (capabilities: string[]) =>
+      createDesktopClient({
+        window: { codePilotXDesktop: bridge } as never,
+        fetch: async (_path, init) => {
+          const body = JSON.parse(String(init?.body))
+          if (body.method === 'initialized') return new Response(null, { status: 204 })
+          if (body.method === 'initialize') {
+            return rpc(body.id, { ...initializedResult(), capabilities })
+          }
+          throw new Error(`Unhandled method: ${body.method}`)
+        },
+      })
+    expect(
+      await createCapabilityClient([
+        'attachments.v1',
+        'local-context.paths.v1',
+      ]).isComposerFileAttachmentAvailable(),
+    ).toBe(true)
+    expect(
+      await createCapabilityClient(['attachments.v1']).isComposerFileAttachmentAvailable(),
+    ).toBe(false)
     expect(await createDesktopClient({}).isComposerFileAttachmentAvailable()).toBe(false)
   })
 
@@ -209,14 +296,16 @@ describe('desktop thread settings client', () => {
         if (body.method === 'initialized') return new Response(null, { status: 204 })
         if (body.method === 'context/path/import') {
           return rpc(body.id, {
-            references: [{
-              id: 'context-docs',
-              name: 'docs',
-              path: 'C:\\outside\\docs',
-              kind: 'directory',
-              status: 'available',
-              createdAt: now,
-            }],
+            references: [
+              {
+                id: 'context-docs',
+                name: 'docs',
+                path: 'C:\\outside\\docs',
+                kind: 'directory',
+                status: 'available',
+                createdAt: now,
+              },
+            ],
           })
         }
         if (body.method === 'model/list') return rpc(body.id, modelCatalog())
@@ -236,29 +325,33 @@ describe('desktop thread settings client', () => {
     await client.sendUserMessage('session-local-context', {
       text: '读取目录',
       skills: selectedSkills,
-      attachments: [{
-        id: 'draft-grant',
-        name: 'docs',
-        path: 'C:\\outside\\docs',
-        pathKind: 'directory',
-        localGrantId: 'draft-grant',
-        storage: 'local-path',
-        mediaType: 'inode/directory',
-        sizeBytes: 0,
-        kind: 'document',
-        status: 'ready',
-      }],
+      attachments: [
+        {
+          id: 'draft-grant',
+          name: 'docs',
+          path: 'C:\\outside\\docs',
+          pathKind: 'directory',
+          localGrantId: 'draft-grant',
+          storage: 'local-path',
+          mediaType: 'inode/directory',
+          sizeBytes: 0,
+          kind: 'document',
+          status: 'ready',
+        },
+      ],
     })
 
-    expect(calls.some(call => call.method === 'attachment/import')).toBe(false)
-    expect(calls.find(call => call.method === 'context/path/import')?.params)
-      .toMatchObject({
-        threadId: 'session-local-context',
-        paths: ['C:\\outside\\docs'],
-        operationId: expect.any(String),
-      })
-    expect(calls.find(call => call.method === 'turn/start')?.params)
-      .toMatchObject({ content: '读取目录 [docs]', skills: selectedSkills, contextReferenceIds: ['context-docs'] })
+    expect(calls.some((call) => call.method === 'attachment/import')).toBe(false)
+    expect(calls.find((call) => call.method === 'context/path/import')?.params).toMatchObject({
+      threadId: 'session-local-context',
+      paths: ['C:\\outside\\docs'],
+      operationId: expect.any(String),
+    })
+    expect(calls.find((call) => call.method === 'turn/start')?.params).toMatchObject({
+      content: '读取目录 [docs]',
+      skills: selectedSkills,
+      contextReferenceIds: ['context-docs'],
+    })
   })
 
   test('reimports retained attachments before starting an edited turn', async () => {
@@ -287,15 +380,17 @@ describe('desktop thread settings client', () => {
       }
       if (body.method === 'attachment/import') {
         return rpc(body.id, {
-          attachments: [{
-            id: 'cloned-history-id',
-            kind: 'text',
-            name: 'history.md',
-            mediaType: 'text/markdown',
-            sizeBytes: 7,
-            sha256: 'cloned-sha',
-            createdAt: now,
-          }],
+          attachments: [
+            {
+              id: 'cloned-history-id',
+              kind: 'text',
+              name: 'history.md',
+              mediaType: 'text/markdown',
+              sizeBytes: 7,
+              sha256: 'cloned-sha',
+              createdAt: now,
+            },
+          ],
         })
       }
       if (body.method === 'model/list') return rpc(body.id, modelCatalog())
@@ -319,25 +414,27 @@ describe('desktop thread settings client', () => {
       retainedAttachmentIds: ['history-id'],
     })
 
-    expect(calls.find(call => call.method === 'attachment/read')?.params).toEqual({
+    expect(calls.find((call) => call.method === 'attachment/read')?.params).toEqual({
       attachmentId: 'history-id',
     })
-    expect(calls.find(call => call.method === 'attachment/import')?.params).toMatchObject({
-      uploads: [{
-        kind: 'text',
-        name: 'history.md',
-        data: 'history',
-        encoding: 'utf8',
-      }],
+    expect(calls.find((call) => call.method === 'attachment/import')?.params).toMatchObject({
+      uploads: [
+        {
+          kind: 'text',
+          name: 'history.md',
+          data: 'history',
+          encoding: 'utf8',
+        },
+      ],
     })
-    expect(calls.find(call => call.method === 'turn/start')?.params).toMatchObject({
+    expect(calls.find((call) => call.method === 'turn/start')?.params).toMatchObject({
       attachmentIds: ['cloned-history-id'],
       content: '修改后的消息',
       threadId: 'session-edited',
     })
-    expect(
-      calls.find(call => call.method === 'turn/start')?.params.attachmentIds,
-    ).not.toContain('history-id')
+    expect(calls.find((call) => call.method === 'turn/start')?.params.attachmentIds).not.toContain(
+      'history-id',
+    )
   })
 
   test('routes shared Profile listing and selection through RPC v4', async () => {
@@ -355,14 +452,16 @@ describe('desktop thread settings client', () => {
             selectedProfile: null,
             restartRequired: false,
           },
-          profiles: [{
-            id: 'deep-review',
-            displayName: '深度审查',
-            filePath: 'C:/Users/example/.codepilotx/profiles/deep-review.json',
-            version: 'a'.repeat(64),
-            valid: true,
-            diagnostics: [],
-          }],
+          profiles: [
+            {
+              id: 'deep-review',
+              displayName: '深度审查',
+              filePath: 'C:/Users/example/.codepilotx/profiles/deep-review.json',
+              version: 'a'.repeat(64),
+              valid: true,
+              diagnostics: [],
+            },
+          ],
           profilesDirectory: 'C:/Users/example/.codepilotx/profiles',
         })
       }
@@ -387,10 +486,12 @@ describe('desktop thread settings client', () => {
 
     expect(listed.profiles[0]?.displayName).toBe('深度审查')
     expect(selected.profileState.restartRequired).toBe(true)
-    expect(calls).toEqual(expect.arrayContaining([
-      { method: 'config/profile/list', params: {} },
-      { method: 'config/profile/select', params: { profileId: 'deep-review' } },
-    ]))
+    expect(calls).toEqual(
+      expect.arrayContaining([
+        { method: 'config/profile/list', params: {} },
+        { method: 'config/profile/select', params: { profileId: 'deep-review' } },
+      ]),
+    )
   })
 
   test('routes tooling management and live updates through RPC v4', async () => {
@@ -464,15 +565,13 @@ describe('desktop thread settings client', () => {
 
     expect(await client.listTooling()).toEqual([toolingStatus])
     expect(await client.refreshTooling()).toEqual([toolingStatus])
-    expect(
-      (await client.setToolingPreference('ripgrep', 'system')).preference,
-    ).toBe('system')
+    expect((await client.setToolingPreference('ripgrep', 'system')).preference).toBe('system')
     expect(await client.installTooling('ripgrep', true)).toEqual(toolingStatus)
 
     const updates: unknown[] = []
-    const unsubscribe = client.onToolingUpdated(status => updates.push(status))
+    const unsubscribe = client.onToolingUpdated((status) => updates.push(status))
     for (let index = 0; index < 20 && !source.onmessage; index += 1) {
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 0))
     }
     expect(eventSubscribeParams).toEqual({
       streams: [{ streamId: 'global', after: 'latest' }],
@@ -513,7 +612,7 @@ describe('desktop thread settings client', () => {
       }),
     } as MessageEvent)
     for (let index = 0; index < 20 && updates.length === 0; index += 1) {
-      await new Promise(resolve => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 10))
     }
     expect(updates).toEqual([toolingStatus])
     unsubscribe()
@@ -537,7 +636,8 @@ describe('desktop thread settings client', () => {
       if (body?.method === 'initialized') return new Response(null, { status: 204 })
       if (body?.method === 'initialize') return rpc(body.id, initializedResult())
       if (body?.method === 'project/open') return rpc(body.id, { project })
-      if (body?.method === 'project/list') return rpc(body.id, { projects: [project], nextCursor: null })
+      if (body?.method === 'project/list')
+        return rpc(body.id, { projects: [project], nextCursor: null })
       if (body?.method === 'project/trust/read') {
         return rpc(body.id, {
           projectRoot: projectRootPath,
@@ -604,16 +704,9 @@ describe('desktop thread settings client', () => {
     })
 
     const planUpdate = client.setSessionPlanModeActive('session-1', false)
-    const permissionUpdate = client.setSessionPermissionMode(
-      'session-1',
-      'full-access',
-    )
+    const permissionUpdate = client.setSessionPermissionMode('session-1', 'full-access')
     const send = client.sendUserMessage('session-1', { text: '立即发送' })
-    const [, permissionSnapshot] = await Promise.all([
-      planUpdate,
-      permissionUpdate,
-      send,
-    ])
+    const [, permissionSnapshot] = await Promise.all([planUpdate, permissionUpdate, send])
 
     expect(methods).toEqual([
       'turn/start',
@@ -641,7 +734,8 @@ describe('desktop thread settings client', () => {
         const body = init?.body ? JSON.parse(String(init.body)) : null
         if (body?.method === 'initialized') return new Response(null, { status: 204 })
         if (body?.method === 'initialize') return rpc(body.id, initializedResult())
-        if (body?.method === 'project/list') return rpc(body.id, { projects: [project], nextCursor: null })
+        if (body?.method === 'project/list')
+          return rpc(body.id, { projects: [project], nextCursor: null })
         if (body?.method === 'thread/compact') {
           compactRequests.push(body.params)
           return rpc(body.id, {
@@ -658,10 +752,7 @@ describe('desktop thread settings client', () => {
           })
         }
         if (body?.method === 'thread/read') {
-          return rpc(
-            body.id,
-            snapshotResult(snapshot(body.params.threadId, defaultSettings)),
-          )
+          return rpc(body.id, snapshotResult(snapshot(body.params.threadId, defaultSettings)))
         }
         if (body?.method === 'thread/settings/update') {
           settingsRequests.push(body.params)
@@ -675,28 +766,44 @@ describe('desktop thread settings client', () => {
       },
     })
     await client.compactSession('real-uuid')
-    expect(compactRequests).toEqual([{
-      threadId: 'real-uuid',
-      operationId: expect.any(String),
-    }])
+    expect(compactRequests).toEqual([
+      {
+        threadId: 'real-uuid',
+        operationId: expect.any(String),
+      },
+    ])
     await client.setSessionPermissionProfile('real-uuid', 'read-only', 'never')
-    expect(settingsRequests).toEqual([{
-      threadId: 'real-uuid',
-      operationId: expect.any(String),
-      settings: {
-        permissionConfig: {
-          sandboxMode: 'read-only',
-          approvalPolicy: 'never',
-          approvalsReviewer: 'user',
+    expect(settingsRequests).toEqual([
+      {
+        threadId: 'real-uuid',
+        operationId: expect.any(String),
+        settings: {
+          permissionConfig: {
+            sandboxMode: 'read-only',
+            approvalPolicy: 'never',
+            approvalsReviewer: 'user',
+          },
         },
       },
-    }])
+    ])
 
     const unsupported: Array<[string, () => Promise<unknown>]> = [
-      ['restoreSessionTurnChanges', () => client.restoreSessionTurnChanges({ sessionId: 'real-uuid' } as never)],
-      ['saveSessionReviewComment', () => client.saveSessionReviewComment({ sessionId: 'real-uuid' } as never)],
-      ['resolveSessionReviewComment', () => client.resolveSessionReviewComment({ sessionId: 'real-uuid' } as never)],
-      ['deleteSessionReviewComment', () => client.deleteSessionReviewComment({ sessionId: 'real-uuid' } as never)],
+      [
+        'restoreSessionTurnChanges',
+        () => client.restoreSessionTurnChanges({ sessionId: 'real-uuid' } as never),
+      ],
+      [
+        'saveSessionReviewComment',
+        () => client.saveSessionReviewComment({ sessionId: 'real-uuid' } as never),
+      ],
+      [
+        'resolveSessionReviewComment',
+        () => client.resolveSessionReviewComment({ sessionId: 'real-uuid' } as never),
+      ],
+      [
+        'deleteSessionReviewComment',
+        () => client.deleteSessionReviewComment({ sessionId: 'real-uuid' } as never),
+      ],
       ['setSessionLocalRouterMode', () => client.setSessionLocalRouterMode('real-uuid', 'off')],
       ['rollbackSession', () => client.rollbackSession({ sessionId: 'real-uuid' } as never)],
       ['getSessionGoal', () => client.getSessionGoal('real-uuid')],
@@ -742,16 +849,18 @@ describe('desktop thread settings client', () => {
         requests.push({ method: body.method, params: body.params })
         if (body.method === 'mcp/status') {
           return rpc(body.id, {
-            servers: [{
-              name: 'fixture',
-              scope: 'local',
-              type: 'stdio',
-              state: 'connected',
-              auth: { source: 'none', canLogin: false, canLogout: false },
-              toolCount: 2,
-              resourceCount: 1,
-              promptCount: 1,
-            }],
+            servers: [
+              {
+                name: 'fixture',
+                scope: 'local',
+                type: 'stdio',
+                state: 'connected',
+                auth: { source: 'none', canLogin: false, canLogout: false },
+                toolCount: 2,
+                resourceCount: 1,
+                promptCount: 1,
+              },
+            ],
             totalTools: 2,
             totalResources: 1,
             totalPrompts: 1,
@@ -785,12 +894,14 @@ describe('desktop thread settings client', () => {
       },
     })
 
-    expect(await client.listMcpServers(projectRootPath)).toMatchObject([{
-      name: 'fixture',
-      scope: 'local',
-      effective: true,
-      diagnosticContext: true,
-    }])
+    expect(await client.listMcpServers(projectRootPath)).toMatchObject([
+      {
+        name: 'fixture',
+        scope: 'local',
+        effective: true,
+        diagnosticContext: true,
+      },
+    ])
     expect(await client.getMcpRuntimeStatus(projectRootPath)).toMatchObject({
       servers: [{ name: 'fixture', state: 'connected', toolCount: 2 }],
     })
@@ -811,7 +922,7 @@ describe('desktop thread settings client', () => {
       generation: 6,
     })
 
-    expect(requests.map(request => request.method)).toEqual([
+    expect(requests.map((request) => request.method)).toEqual([
       'mcp/list',
       'mcp/status',
       'mcp/save',
@@ -822,7 +933,7 @@ describe('desktop thread settings client', () => {
       'mcp/oauth/status',
       'mcp/oauth/logout',
     ])
-    for (const request of requests.filter(request => request.method !== 'mcp/oauth/status')) {
+    for (const request of requests.filter((request) => request.method !== 'mcp/oauth/status')) {
       expect(request.params.workspace).toBe(projectRootPath)
     }
     expect(requests[7]?.params).toEqual({ attemptId: 'oauth-attempt' })
@@ -892,13 +1003,17 @@ describe('desktop thread settings client', () => {
       const body = init?.body ? JSON.parse(String(init.body)) : null
       if (body?.method === 'initialized') return new Response(null, { status: 204 })
       if (body?.method === 'initialize') return rpc(body.id, initializedResult())
-      if (body?.method === 'project/list') return rpc(body.id, { projects: [project], nextCursor: null })
+      if (body?.method === 'project/list')
+        return rpc(body.id, { projects: [project], nextCursor: null })
       if (body?.method === 'model/list') return rpc(body.id, modelCatalog())
       if (body?.method === 'thread/read') {
-        return rpc(body.id, snapshotResult({
-          ...snapshot(body.params.threadId, defaultSettings),
-          queue: { version: 7, pauseReason: null },
-        }))
+        return rpc(
+          body.id,
+          snapshotResult({
+            ...snapshot(body.params.threadId, defaultSettings),
+            queue: { version: 7, pauseReason: null },
+          }),
+        )
       }
       if (typeof body?.method === 'string' && body.method.startsWith('queue/')) {
         queueRequests.push({ method: body.method, params: body.params })
@@ -933,13 +1048,17 @@ describe('desktop thread settings client', () => {
       { providerID: 'anthropic', model: 'claude-opus-4-1' },
     )
     expect(queueRequests[0]?.params.model).toEqual({
-      providerID: 'anthropic', id: 'claude-opus-4-1',
+      providerID: 'anthropic',
+      id: 'claude-opus-4-1',
     })
-    await client.updateQueuedFollowUp('thread-queue', 'input-1', { text: '更新', skills: selectedSkills.slice(1) })
+    await client.updateQueuedFollowUp('thread-queue', 'input-1', {
+      text: '更新',
+      skills: selectedSkills.slice(1),
+    })
     await client.removeQueuedFollowUp('thread-queue', 'input-2')
     await client.resumeQueuedFollowUps('thread-queue')
 
-    expect(queueRequests.map(request => request.method)).toEqual([
+    expect(queueRequests.map((request) => request.method)).toEqual([
       'queue/add',
       'queue/update',
       'queue/remove',
@@ -957,7 +1076,10 @@ describe('desktop thread settings client', () => {
       content: '下一轮',
       skills: selectedSkills,
     })
-    expect(queueRequests[1]?.params).toMatchObject({ content: '更新', skills: selectedSkills.slice(1) })
+    expect(queueRequests[1]?.params).toMatchObject({
+      content: '更新',
+      skills: selectedSkills.slice(1),
+    })
     expect(queueRequests[1]?.params).not.toHaveProperty('attachmentIds')
   })
 
@@ -965,19 +1087,31 @@ describe('desktop thread settings client', () => {
     let steerParams: Record<string, unknown> | null = null
     const activeSnapshot = (): ThreadSnapshot => ({
       ...snapshot('thread-active', defaultSettings),
-      turns: [{
-        id: 'turn-active', threadId: 'thread-active', sourceInputID: 'input-active', status: 'running', mode: 'chat',
-        model: { providerID: 'openai', id: 'gpt-5' }, permissionConfig: defaultSettings.permissionConfig,
-        rootAgentId: 'agent-active', mergedInputIDs: [],
-        startedAt: now, finishedAt: null, elapsedSeconds: 1, error: null,
-      }],
+      turns: [
+        {
+          id: 'turn-active',
+          threadId: 'thread-active',
+          sourceInputID: 'input-active',
+          status: 'running',
+          mode: 'chat',
+          model: { providerID: 'openai', id: 'gpt-5' },
+          permissionConfig: defaultSettings.permissionConfig,
+          rootAgentId: 'agent-active',
+          mergedInputIDs: [],
+          startedAt: now,
+          finishedAt: null,
+          elapsedSeconds: 1,
+          error: null,
+        },
+      ],
     })
     const client = createDesktopClient({
       fetch: async (_path, init) => {
         const body = init?.body ? JSON.parse(String(init.body)) : null
         if (body?.method === 'initialized') return new Response(null, { status: 204 })
         if (body?.method === 'initialize') return rpc(body.id, initializedResult())
-        if (body?.method === 'project/list') return rpc(body.id, { projects: [project], nextCursor: null })
+        if (body?.method === 'project/list')
+          return rpc(body.id, { projects: [project], nextCursor: null })
         if (body?.method === 'thread/read') {
           return rpc(body.id, snapshotResult(activeSnapshot()))
         }
@@ -1033,10 +1167,7 @@ describe('desktop thread settings client', () => {
       fetch: async () => new Response('nope', { status: 503 }),
     })
     const created = await browser.createSession({ sessionName: 'mock' })
-    const updated = await browser.setSessionPermissionMode(
-      created.sessionId,
-      'auto-review',
-    )
+    const updated = await browser.setSessionPermissionMode(created.sessionId, 'auto-review')
     expect(created.sessionId).toStartWith('browser-mock-')
     expect(updated.item.permissionMode).toBe('auto-review')
   })
@@ -1077,39 +1208,42 @@ describe('desktop thread settings client', () => {
       if (body?.method === 'interaction/listPending') {
         interactionListRequests += 1
         return rpc(body.id, {
-          interactions: [{
-            interactionId: 'hook-trust-1',
-            threadId: 'session-2',
-            turnId: 'turn-2',
-            agentId: 'agent-2',
-            createdAt: now,
-            version: 1,
-            kind: 'hookTrust',
-            configPath: '.codepilotx/hooks.json',
-            sha256: 'fixture-sha256',
-            hook: {
-              id: 'hook-1',
-              name: 'Fixture hook',
-              event: 'pre-tool',
-              command: 'fixture-command',
+          interactions: [
+            {
+              interactionId: 'hook-trust-1',
+              threadId: 'session-2',
+              turnId: 'turn-2',
+              agentId: 'agent-2',
+              createdAt: now,
+              version: 1,
+              kind: 'hookTrust',
+              configPath: '.codepilotx/hooks.json',
+              sha256: 'fixture-sha256',
+              hook: {
+                id: 'hook-1',
+                name: 'Fixture hook',
+                event: 'pre-tool',
+                command: 'fixture-command',
+              },
             },
-          }, {
-            interactionId: 'hook-trust-1',
-            threadId: 'session-1',
-            turnId: 'turn-1',
-            agentId: 'agent-1',
-            createdAt: now,
-            version: 1,
-            kind: 'hookTrust',
-            configPath: '.codepilotx/hooks.json',
-            sha256: 'fixture-sha256',
-            hook: {
-              id: 'hook-1',
-              name: 'Fixture hook',
-              event: 'pre-tool',
-              command: 'fixture-command',
+            {
+              interactionId: 'hook-trust-1',
+              threadId: 'session-1',
+              turnId: 'turn-1',
+              agentId: 'agent-1',
+              createdAt: now,
+              version: 1,
+              kind: 'hookTrust',
+              configPath: '.codepilotx/hooks.json',
+              sha256: 'fixture-sha256',
+              hook: {
+                id: 'hook-1',
+                name: 'Fixture hook',
+                event: 'pre-tool',
+                command: 'fixture-command',
+              },
             },
-          }],
+          ],
           nextCursor: null,
         })
       }
@@ -1119,19 +1253,13 @@ describe('desktop thread settings client', () => {
       if (body?.method === 'thread/list') {
         threadListRequests += 1
         return rpc(body.id, {
-          threads: [
-            listItem('session-1', defaultSettings),
-            listItem('session-2', defaultSettings),
-          ],
+          threads: [listItem('session-1', defaultSettings), listItem('session-2', defaultSettings)],
           nextCursor: null,
         })
       }
       if (body?.method === 'thread/read') {
         readThreadIds.push(params.threadId)
-        return rpc(
-          body.id,
-          snapshotResult(snapshot(params.threadId, defaultSettings)),
-        )
+        return rpc(body.id, snapshotResult(snapshot(params.threadId, defaultSettings)))
       }
       throw new Error(`Unhandled RPC method: ${body?.method}`)
     }
@@ -1141,17 +1269,17 @@ describe('desktop thread settings client', () => {
     })
     await client.listSessions()
     const sharedGlobalEventIds: string[] = []
-    const unsubscribeStore = client.onSessionStoreChange(change => {
+    const unsubscribeStore = client.onSessionStoreChange((change) => {
       pendingInteractionThreadIds = change.pendingInteractionThreadIds ?? []
     })
     const unsubscribeShared = client.subscribeAgentEventEnvelopes(
       { liveEventTypes: [] },
-      events => {
-        sharedGlobalEventIds.push(...events.map(event => event.eventId))
+      (events) => {
+        sharedGlobalEventIds.push(...events.map((event) => event.eventId))
       },
     )
     for (let index = 0; index < 20 && !source.onmessage; index += 1) {
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 0))
     }
     source.onmessage?.({
       data: JSON.stringify({
@@ -1175,12 +1303,8 @@ describe('desktop thread settings client', () => {
         },
       }),
     } as MessageEvent)
-    for (
-      let index = 0;
-      index < 20 && interactionListRequests === 0;
-      index += 1
-    ) {
-      await new Promise(resolve => setTimeout(resolve, 10))
+    for (let index = 0; index < 20 && interactionListRequests === 0; index += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10))
     }
     unsubscribeShared()
     unsubscribeStore()
@@ -1204,21 +1328,23 @@ describe('desktop thread settings client', () => {
     }
     const currentSnapshot = (): ThreadSnapshot => ({
       ...snapshot('session-1', defaultSettings),
-      turns: [{
-        id: 'turn-1',
-        threadId: 'session-1',
-        sourceInputID: 'input-1',
-        status: completed ? 'completed' : 'running',
-        mode: 'chat',
-        model: { providerID: 'openai', id: 'gpt-5' },
-        permissionConfig: defaultSettings.permissionConfig,
-        rootAgentId: 'agent-1',
-        mergedInputIDs: [],
-        startedAt: now,
-        finishedAt: completed ? now + 1_000 : null,
-        elapsedSeconds: completed ? 1 : 0,
-        error: null,
-      }],
+      turns: [
+        {
+          id: 'turn-1',
+          threadId: 'session-1',
+          sourceInputID: 'input-1',
+          status: completed ? 'completed' : 'running',
+          mode: 'chat',
+          model: { providerID: 'openai', id: 'gpt-5' },
+          permissionConfig: defaultSettings.permissionConfig,
+          rootAgentId: 'agent-1',
+          mergedInputIDs: [],
+          startedAt: now,
+          finishedAt: completed ? now + 1_000 : null,
+          elapsedSeconds: completed ? 1 : 0,
+          error: null,
+        },
+      ],
     })
     const fetcher = async (path: string, init?: RequestInit): Promise<Response> => {
       const body = init?.body ? JSON.parse(String(init.body)) : null
@@ -1265,10 +1391,12 @@ describe('desktop thread settings client', () => {
       }
       if (body?.method === 'thread/list') {
         return rpc(body.id, {
-          threads: [{
-            ...listItem('session-1', defaultSettings),
-            latestTurnStatus: completed ? 'completed' : 'running',
-          }],
+          threads: [
+            {
+              ...listItem('session-1', defaultSettings),
+              latestTurnStatus: completed ? 'completed' : 'running',
+            },
+          ],
           nextCursor: null,
         })
       }
@@ -1284,12 +1412,12 @@ describe('desktop thread settings client', () => {
     })
     await client.listSessions()
     await client.setActiveSession('session-1')
-    const unsubscribeStore = client.onSessionStoreChange(change => {
-      const status = change.sessions.find(item => item.item.id === 'session-1')?.item.status
+    const unsubscribeStore = client.onSessionStoreChange((change) => {
+      const status = change.sessions.find((item) => item.item.id === 'session-1')?.item.status
       if (status) observedStatuses.push(status)
     })
     for (let index = 0; index < 20 && !source.onmessage; index += 1) {
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 0))
     }
 
     completed = true
@@ -1303,12 +1431,8 @@ describe('desktop thread settings client', () => {
         },
       }),
     } as MessageEvent)
-    for (
-      let index = 0;
-      index < 50 && !observedStatuses.includes('done');
-      index += 1
-    ) {
-      await new Promise(resolve => setTimeout(resolve, 0))
+    for (let index = 0; index < 50 && !observedStatuses.includes('done'); index += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0))
     }
     unsubscribeStore()
 
@@ -1320,7 +1444,7 @@ describe('desktop thread settings client', () => {
     let completed = false
     let readRequests = 0
     let releaseStaleRead = () => {}
-    const staleReadGate = new Promise<void>(resolve => {
+    const staleReadGate = new Promise<void>((resolve) => {
       releaseStaleRead = resolve
     })
     const observedStatuses: string[] = []
@@ -1332,21 +1456,23 @@ describe('desktop thread settings client', () => {
     }
     const runningSnapshot = (): ThreadSnapshot => ({
       ...snapshot('session-1', defaultSettings),
-      turns: [{
-        id: 'turn-1',
-        threadId: 'session-1',
-        sourceInputID: 'input-1',
-        status: 'running',
-        mode: 'chat',
-        model: { providerID: 'openai', id: 'gpt-5' },
-        permissionConfig: defaultSettings.permissionConfig,
-        rootAgentId: 'agent-1',
-        mergedInputIDs: [],
-        startedAt: now,
-        finishedAt: null,
-        elapsedSeconds: 0,
-        error: null,
-      }],
+      turns: [
+        {
+          id: 'turn-1',
+          threadId: 'session-1',
+          sourceInputID: 'input-1',
+          status: 'running',
+          mode: 'chat',
+          model: { providerID: 'openai', id: 'gpt-5' },
+          permissionConfig: defaultSettings.permissionConfig,
+          rootAgentId: 'agent-1',
+          mergedInputIDs: [],
+          startedAt: now,
+          finishedAt: null,
+          elapsedSeconds: 0,
+          error: null,
+        },
+      ],
     })
     const completedTurn: ThreadSnapshot['turns'][number] = {
       ...runningSnapshot().turns[0]!,
@@ -1381,11 +1507,13 @@ describe('desktop thread settings client', () => {
       }
       if (body?.method === 'thread/list') {
         return rpc(body.id, {
-          threads: [{
-            ...listItem('session-1', defaultSettings),
-            latestTurnStatus: 'running',
-            unreadAt: completed ? now + 1_000 : null,
-          }],
+          threads: [
+            {
+              ...listItem('session-1', defaultSettings),
+              latestTurnStatus: 'running',
+              unreadAt: completed ? now + 1_000 : null,
+            },
+          ],
           nextCursor: null,
         })
       }
@@ -1403,19 +1531,19 @@ describe('desktop thread settings client', () => {
     })
     await client.listSessions()
     await client.setActiveSession('session-1')
-    const unsubscribeStore = client.onSessionStoreChange(change => {
-      const item = change.sessions.find(item => item.item.id === 'session-1')?.item
+    const unsubscribeStore = client.onSessionStoreChange((change) => {
+      const item = change.sessions.find((item) => item.item.id === 'session-1')?.item
       const status = item?.status
       if (status) observedStatuses.push(status)
       observedUnreadAt = item?.unreadAt
     })
     for (let index = 0; index < 20 && !source.onmessage; index += 1) {
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 0))
     }
 
     const staleRead = client.getSession('session-1')
     for (let index = 0; index < 20 && readRequests === 0; index += 1) {
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 0))
     }
     completed = true
     source.onmessage?.({
@@ -1444,12 +1572,12 @@ describe('desktop thread settings client', () => {
       index < 50 && (!observedStatuses.includes('done') || readRequests < 2);
       index += 1
     ) {
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 0))
     }
 
     releaseStaleRead()
     const staleResult = await staleRead
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await new Promise((resolve) => setTimeout(resolve, 0))
 
     const completedIndex = observedStatuses.indexOf('done')
     expect(completedIndex).toBeGreaterThanOrEqual(0)
@@ -1504,7 +1632,7 @@ describe('desktop thread settings client', () => {
       index < 50 && !observedStatuses.slice(statusCountBeforeNextTurn).includes('running');
       index += 1
     ) {
-      await new Promise(resolve => setTimeout(resolve, 0))
+      await new Promise((resolve) => setTimeout(resolve, 0))
     }
     unsubscribeStore()
 
@@ -1640,21 +1768,29 @@ describe('desktop thread settings client', () => {
     })
     await client.getGithubAuthStatus()
     await client.getGithubProfileOverview()
-    expect(requests.filter(request => request.method === 'github/profileOverview')).toHaveLength(1)
+    expect(requests.filter((request) => request.method === 'github/profileOverview')).toHaveLength(
+      1,
+    )
     expect(client.getGithubAccountSnapshot().overview?.user.login).toBe('octocat')
     await client.getGithubProfileOverview({ force: true })
-    expect(requests.filter(request => request.method === 'github/profileOverview')).toHaveLength(2)
-    expect(await client.pushWorkspaceBranch({
-      workspacePath: projectRootPath,
-      setUpstream: true,
-      forceWithLease: false,
-    })).toMatchObject({ ok: true, status: { branchName: 'feature' } })
-    expect(await client.createPullRequest({
-      workspacePath: projectRootPath,
-      title: 'PR title',
-      body: 'PR body',
-      draft: true,
-    })).toEqual({
+    expect(requests.filter((request) => request.method === 'github/profileOverview')).toHaveLength(
+      2,
+    )
+    expect(
+      await client.pushWorkspaceBranch({
+        workspacePath: projectRootPath,
+        setUpstream: true,
+        forceWithLease: false,
+      }),
+    ).toMatchObject({ ok: true, status: { branchName: 'feature' } })
+    expect(
+      await client.createPullRequest({
+        workspacePath: projectRootPath,
+        title: 'PR title',
+        body: 'PR body',
+        draft: true,
+      }),
+    ).toEqual({
       ok: true,
       url: 'https://github.com/octocat/repo/pull/7',
       output: '已创建 Pull Request #7',
@@ -1704,20 +1840,28 @@ describe('desktop thread settings client', () => {
       elapsedMs: 0,
     }
 
-    expect(await startGithubLoginFlow({
-      startGithubLogin: async input => ({ ...login, mode: input.mode }),
-      openExternalURL: async url => {
-        opened.push(url)
-      },
-    }, 'browser')).toEqual(login)
+    expect(
+      await startGithubLoginFlow(
+        {
+          startGithubLogin: async (input) => ({ ...login, mode: input.mode }),
+          openExternalURL: async (url) => {
+            opened.push(url)
+          },
+        },
+        'browser',
+      ),
+    ).toEqual(login)
     expect(opened).toEqual([login.authorizationUrl])
 
-    const failed = await startGithubLoginFlow({
-      startGithubLogin: async () => login,
-      openExternalURL: async () => {
-        throw new Error('无法打开系统浏览器')
+    const failed = await startGithubLoginFlow(
+      {
+        startGithubLogin: async () => login,
+        openExternalURL: async () => {
+          throw new Error('无法打开系统浏览器')
+        },
       },
-    }, 'browser')
+      'browser',
+    )
     expect(failed).toMatchObject({
       loginId: login.loginId,
       mode: 'browser',
@@ -1725,23 +1869,31 @@ describe('desktop thread settings client', () => {
       error: '无法打开系统浏览器',
     })
 
-    const missingUrl = await startGithubLoginFlow({
-      startGithubLogin: async () => ({ ...login, authorizationUrl: null }),
-      openExternalURL: async () => {
-        throw new Error('不应尝试打开空地址')
+    const missingUrl = await startGithubLoginFlow(
+      {
+        startGithubLogin: async () => ({ ...login, authorizationUrl: null }),
+        openExternalURL: async () => {
+          throw new Error('不应尝试打开空地址')
+        },
       },
-    }, 'browser')
+      'browser',
+    )
     expect(missingUrl).toMatchObject({
       state: 'failed',
       error: 'GitHub 登录服务未返回浏览器授权地址，请稍后重试。',
     })
 
-    expect(await startGithubLoginFlow({
-      startGithubLogin: async () => {
-        throw new Error('登录服务不可用')
-      },
-      openExternalURL: async () => {},
-    }, 'browser')).toMatchObject({
+    expect(
+      await startGithubLoginFlow(
+        {
+          startGithubLogin: async () => {
+            throw new Error('登录服务不可用')
+          },
+          openExternalURL: async () => {},
+        },
+        'browser',
+      ),
+    ).toMatchObject({
       loginId: null,
       mode: 'browser',
       state: 'failed',
@@ -1803,36 +1955,40 @@ function snapshotResult(value: ThreadSnapshot) {
 
 function modelCatalog() {
   return {
-    providers: [{
-      provider: {
-        id: 'openai',
-        name: 'OpenAI',
-        source: {
-          type: 'pi',
-          kind: 'builtin',
-          apis: ['openai-responses'],
+    providers: [
+      {
+        provider: {
+          id: 'openai',
+          name: 'OpenAI',
+          source: {
+            type: 'pi',
+            kind: 'builtin',
+            apis: ['openai-responses'],
+          },
+          auth: { apiKey: true, oauth: true },
         },
-        auth: { apiKey: true, oauth: true },
+        models: [
+          {
+            id: 'gpt-5',
+            providerID: 'openai',
+            name: 'GPT-5',
+            api: {
+              id: 'gpt-5',
+              type: 'pi',
+              name: 'openai-responses',
+              baseUrl: 'https://api.openai.com/v1',
+            },
+            capabilities: { tools: true, input: ['text'], output: ['text'] },
+            variants: [],
+            time: { released: now },
+            cost: [],
+            status: 'active',
+            enabled: true,
+            limit: { context: 128_000, output: 8_192 },
+          },
+        ],
       },
-      models: [{
-        id: 'gpt-5',
-        providerID: 'openai',
-        name: 'GPT-5',
-        api: {
-          id: 'gpt-5',
-          type: 'pi',
-          name: 'openai-responses',
-          baseUrl: 'https://api.openai.com/v1',
-        },
-        capabilities: { tools: true, input: ['text'], output: ['text'] },
-        variants: [],
-        time: { released: now },
-        cost: [],
-        status: 'active',
-        enabled: true,
-        limit: { context: 128_000, output: 8_192 },
-      }],
-    }],
+    ],
     defaultModel: { providerID: 'openai', id: 'gpt-5' },
     reviewerModel: null,
     catalogVersion: 1,
@@ -1888,7 +2044,6 @@ function initializedResult() {
   }
 }
 
-
 test('聊天宽度经过桌面 bridge 保存并在新 client 中读取', async () => {
   const { defaultDesktopStoredSettings } = await import('../shared/settingsSchema.js')
   let stored = defaultDesktopStoredSettings()
@@ -1912,7 +2067,8 @@ test('聊天宽度经过桌面 bridge 保存并在新 client 中读取', async (
 })
 
 test('日程会话显示过滤经过桌面 bridge 保存并在新 client 中读取', async () => {
-  const { defaultDesktopStoredSettings, normalizeDesktopStoredSettings } = await import('../shared/settingsSchema.js')
+  const { defaultDesktopStoredSettings, normalizeDesktopStoredSettings } =
+    await import('../shared/settingsSchema.js')
   let stored = defaultDesktopStoredSettings()
   const environment = {
     window: {
@@ -1930,7 +2086,8 @@ test('日程会话显示过滤经过桌面 bridge 保存并在新 client 中读�
   for (const sidebarShowScheduledSessions of [false, true]) {
     await client.saveDesktopSettings({ ...stored, sidebarShowScheduledSessions })
     const reopened = createDesktopClient(environment)
-    expect((await reopened.getDesktopSettings()).sidebarShowScheduledSessions)
-      .toBe(sidebarShowScheduledSessions)
+    expect((await reopened.getDesktopSettings()).sidebarShowScheduledSessions).toBe(
+      sidebarShowScheduledSessions,
+    )
   }
 })

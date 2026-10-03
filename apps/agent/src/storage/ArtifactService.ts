@@ -1,12 +1,12 @@
-import { Buffer } from "node:buffer"
-import type { AgentDatabase } from "./database/AgentDatabase"
+import { Buffer } from 'node:buffer'
+import type { AgentDatabase } from './database/AgentDatabase'
 import {
   ArtifactRepository,
   type NewArtifactRecord,
   type StoredArtifact,
-} from "./repositories/artifact-repository"
-import { ContentBlobStore } from "./ContentBlobStore"
-import { AgentError } from "../domain"
+} from './repositories/artifact-repository'
+import { ContentBlobStore } from './ContentBlobStore'
+import { AgentError } from '../domain'
 
 export type ArtifactBlobInput = {
   artifactId: string
@@ -63,16 +63,20 @@ export class ArtifactService {
     for (const input of inputs) {
       let data: Uint8Array
       try {
-        data = new Uint8Array(Buffer.from(input.data, "base64"))
+        data = new Uint8Array(Buffer.from(input.data, 'base64'))
       } catch {
         continue
       }
       if (data.byteLength === 0) continue
       if (data.byteLength > 50 * 1024 * 1024) {
-        throw new AgentError("ARTIFACT_TOO_LARGE", "Artifact 超过 50MB 上限", 413)
+        throw new AgentError('ARTIFACT_TOO_LARGE', 'Artifact 超过 50MB 上限', 413)
       }
       const stored = await this.blobs.put(data)
-      results.push({ artifactId: input.artifactId, sha256: stored.sha256, sizeBytes: data.byteLength })
+      results.push({
+        artifactId: input.artifactId,
+        sha256: stored.sha256,
+        sizeBytes: data.byteLength,
+      })
     }
     return results
   }

@@ -1,57 +1,53 @@
-import { Link2, Server, KeyRound, CheckCircle2, AlertTriangle, ShieldCheck } from "lucide-react";
-import type React from "react";
-import type { ModelProviderID } from "../../../shared/types.js";
-import { Button } from "../../components/ui/Button.js";
-import { SearchInput } from "../../components/ui/SearchInput.js";
-import { RemoteImage } from "../../components/ui/RemoteImage.js";
-import { SegmentedControl } from "../../components/ui/SegmentedControl.js";
+import { Link2, Server, KeyRound, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react'
+import type React from 'react'
+import type { ModelProviderID } from '../../../shared/types.js'
+import { Button } from '../../components/ui/Button.js'
+import { SearchInput } from '../../components/ui/SearchInput.js'
+import { RemoteImage } from '../../components/ui/RemoteImage.js'
+import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from "../../components/ui/iconTokens.js";
-import type { ProviderCatalogFilter } from "./modelCenterState.js";
+} from '../../components/ui/iconTokens.js'
+import type { ProviderCatalogFilter } from './modelCenterState.js'
 
-export type ProviderCatalogStatusTone =
-  | "positive"
-  | "warning"
-  | "danger"
-  | "neutral";
+export type ProviderCatalogStatusTone = 'positive' | 'warning' | 'danger' | 'neutral'
 
 export type ProviderCatalogItem = {
-  id: ModelProviderID;
-  name: string;
-  logoURL?: string;
-  source: string;
-  modelCount: number;
-  current: boolean;
-  canAddConnection: boolean;
-  connectionDisabled?: boolean;
-  keyCount?: number;
-  hasOAuth?: boolean;
-  healthTone?: "healthy" | "warning" | "neutral";
+  id: ModelProviderID
+  name: string
+  logoURL?: string
+  source: string
+  modelCount: number
+  current: boolean
+  canAddConnection: boolean
+  connectionDisabled?: boolean
+  keyCount?: number
+  hasOAuth?: boolean
+  healthTone?: 'healthy' | 'warning' | 'neutral'
   status: {
-    label: string;
-    tone: ProviderCatalogStatusTone;
-  };
-};
+    label: string
+    tone: ProviderCatalogStatusTone
+  }
+}
 
 export type ProviderCatalogProps = {
-  providers: readonly ProviderCatalogItem[];
-  query: string;
-  onQueryChange: (query: string) => void;
-  filter?: ProviderCatalogFilter;
-  onFilterChange?: (filter: ProviderCatalogFilter) => void;
-  onSelect: (providerId: ModelProviderID) => void;
-  onAddConnection: (providerId: ModelProviderID) => void;
-  onManageConnection: (providerId: ModelProviderID) => void;
-};
+  providers: readonly ProviderCatalogItem[]
+  query: string
+  onQueryChange: (query: string) => void
+  filter?: ProviderCatalogFilter
+  onFilterChange?: (filter: ProviderCatalogFilter) => void
+  onSelect: (providerId: ModelProviderID) => void
+  onAddConnection: (providerId: ModelProviderID) => void
+  onManageConnection: (providerId: ModelProviderID) => void
+}
 
 export function ProviderCatalog({
   providers,
   query,
   onQueryChange,
-  filter = "all",
+  filter = 'all',
   onFilterChange,
   onSelect,
   onAddConnection,
@@ -73,32 +69,26 @@ export function ProviderCatalog({
             className="model-center-catalog-filter"
             onChange={onFilterChange}
             options={[
-              { value: "all", label: "全部" },
-              { value: "configured", label: "已配置" },
-              { value: "unconfigured", label: "未配置" },
+              { value: 'all', label: '全部' },
+              { value: 'configured', label: '已配置' },
+              { value: 'unconfigured', label: '未配置' },
             ]}
             value={filter}
           />
         ) : null}
-        <span className="model-center-catalog-count">
-          {providers.length} 个
-        </span>
+        <span className="model-center-catalog-count">{providers.length} 个</span>
       </div>
 
       {providers.length === 0 ? (
         <div className="model-center-catalog-empty">
-          <Server
-            aria-hidden
-            size={APP_ICON_SIZE}
-            strokeWidth={APP_ICON_STROKE_WIDTH}
-          />
+          <Server aria-hidden size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           <strong>没有匹配的供应商</strong>
           <span>尝试调整搜索关键词或筛选条件。</span>
         </div>
       ) : (
         <div className="model-center-catalog-list settings-management-list">
           {providers.map((provider) => {
-            const hasKeys = (provider.keyCount ?? 0) > 0;
+            const hasKeys = (provider.keyCount ?? 0) > 0
             return (
               <article
                 className="provider-card settings-management-row"
@@ -107,7 +97,7 @@ export function ProviderCatalog({
                 key={provider.id}
               >
                 <button
-                  aria-current={provider.current ? "page" : undefined}
+                  aria-current={provider.current ? 'page' : undefined}
                   className="provider-card-main settings-management-row-main"
                   type="button"
                   onClick={() => onSelect(provider.id)}
@@ -117,27 +107,19 @@ export function ProviderCatalog({
                       <RemoteImage
                         alt=""
                         fallback={
-                          <Server
-                            aria-hidden
-                            size={14}
-                            data-icon-kind="artwork"
-                            strokeWidth={2}
-                          />
+                          <Server aria-hidden size={14} data-icon-kind="artwork" strokeWidth={2} />
                         }
                         src={provider.logoURL}
                       />
                     ) : (
-                      <Server
-                        aria-hidden
-                        size={14}
-                        data-icon-kind="artwork"
-                        strokeWidth={2}
-                      />
+                      <Server aria-hidden size={14} data-icon-kind="artwork" strokeWidth={2} />
                     )}
                   </span>
                   <span className="provider-card-copy settings-management-row-copy">
                     <span className="provider-card-heading">
-                      <strong className="settings-management-row-title" title={provider.name}>{provider.name}</strong>
+                      <strong className="settings-management-row-title" title={provider.name}>
+                        {provider.name}
+                      </strong>
                       {provider.current ? (
                         <span className="provider-card-current">当前</span>
                       ) : null}
@@ -153,16 +135,13 @@ export function ProviderCatalog({
                           OAuth 已连接
                         </span>
                       ) : (
-                        <span
-                          className="provider-card-badge"
-                          data-tone={provider.status.tone}
-                        >
+                        <span className="provider-card-badge" data-tone={provider.status.tone}>
                           {provider.status.label}
                         </span>
                       )}
                     </span>
                   </span>
-                  {provider.healthTone === "healthy" ? (
+                  {provider.healthTone === 'healthy' ? (
                     <span
                       className="provider-card-health-indicator"
                       data-tone="healthy"
@@ -170,7 +149,7 @@ export function ProviderCatalog({
                     >
                       <CheckCircle2 size={APP_ICON_SIZES.sm} aria-hidden />
                     </span>
-                  ) : provider.healthTone === "warning" ? (
+                  ) : provider.healthTone === 'warning' ? (
                     <span
                       className="provider-card-health-indicator"
                       data-tone="warning"
@@ -191,21 +170,19 @@ export function ProviderCatalog({
                         : onManageConnection(provider.id)
                     }
                   >
-                    <Link2
-                      aria-hidden
-                      size={APP_ICON_SIZE}
-                      strokeWidth={APP_ICON_STROKE_WIDTH}
-                    />
+                    <Link2 aria-hidden size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     {provider.connectionDisabled
-                      ? "不可用"
-                      : provider.canAddConnection ? "连接" : "查看"}
+                      ? '不可用'
+                      : provider.canAddConnection
+                        ? '连接'
+                        : '查看'}
                   </Button>
                 </span>
               </article>
-            );
+            )
           })}
         </div>
       )}
     </section>
-  );
+  )
 }

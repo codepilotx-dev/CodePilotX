@@ -1,4 +1,4 @@
-import type { AgentDatabase } from "../database/AgentDatabase"
+import type { AgentDatabase } from '../database/AgentDatabase'
 export const recoverInterruptedRuns = (database: AgentDatabase) => {
   const timestamp = Date.now()
   database.repositories.interactions.convergeHookTrustDecisions()

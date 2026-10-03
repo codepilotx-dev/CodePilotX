@@ -4,14 +4,11 @@ export function defaultDesktopClientEnvironment(): DesktopClientEnvironment {
   return {
     window: typeof window === 'undefined' ? undefined : window,
     localStorage: getDefaultLocalStorage(),
-    fetch:
-      typeof fetch === 'undefined'
-        ? undefined
-        : (input, init) => fetch(input, init),
+    fetch: typeof fetch === 'undefined' ? undefined : (input, init) => fetch(input, init),
     eventSourceFactory:
       typeof EventSource === 'undefined'
         ? undefined
-        : url => new EventSource(url, { withCredentials: true }),
+        : (url) => new EventSource(url, { withCredentials: true }),
   }
 }
 

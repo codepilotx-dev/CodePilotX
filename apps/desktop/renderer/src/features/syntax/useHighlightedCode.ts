@@ -1,15 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 
-import {
-  highlightCode,
-  peekHighlightedCode,
-  presentHighlightedCode,
-} from './highlighter.js'
+import { highlightCode, peekHighlightedCode, presentHighlightedCode } from './highlighter.js'
 import { normalizeSyntaxLanguage } from './language.js'
-import type {
-  SyntaxHighlightPresentation,
-  SyntaxHighlightResult,
-} from './types.js'
+import type { SyntaxHighlightPresentation, SyntaxHighlightResult } from './types.js'
 
 export const STREAMING_HIGHLIGHT_INTERVAL_MS = 120
 
@@ -63,7 +56,7 @@ export function useHighlightedCode({
         language: requestedLanguage,
         streaming,
         theme: requestedTheme,
-      }).then(nextResult => {
+      }).then((nextResult) => {
         if (requestGenerationRef.current === requestGeneration) {
           setResult(nextResult)
         }
@@ -73,10 +66,5 @@ export function useHighlightedCode({
     return () => window.clearTimeout(timeout)
   }, [code, requestedLanguage, requestedTheme, streaming])
 
-  return presentHighlightedCode(
-    result,
-    code,
-    requestedLanguage,
-    requestedTheme,
-  )
+  return presentHighlightedCode(result, code, requestedLanguage, requestedTheme)
 }

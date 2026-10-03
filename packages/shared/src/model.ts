@@ -1,5 +1,5 @@
-import { Model, Provider } from "@codepilotx/model-schema"
-import { Schema } from "effect"
+import { Model, Provider } from '@codepilotx/model-schema'
+import { Schema } from 'effect'
 
 export const ModelRefSchema = Model.Ref
 export type ModelRef = typeof ModelRefSchema.Type

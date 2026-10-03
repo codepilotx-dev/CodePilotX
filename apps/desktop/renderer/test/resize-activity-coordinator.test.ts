@@ -52,7 +52,7 @@ describe('resize activity coordinator', () => {
     coordinator.applyNativeActivity({ windowId: 1, phase: 'start', revision: 1 })
     expect(coordinator.isResizing()).toBe(true)
 
-    await new Promise(resolve => setTimeout(resolve, 40))
+    await new Promise((resolve) => setTimeout(resolve, 40))
 
     expect(coordinator.isResizing()).toBe(false)
   })

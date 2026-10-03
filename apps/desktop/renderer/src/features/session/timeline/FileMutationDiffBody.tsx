@@ -1,36 +1,31 @@
 import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
-import React from "react";
-import { LoaderCircle } from "lucide-react";
-import type { RpcResult } from "@codepilotx/agent-protocol";
-import type {
-  DesktopDiffMarkerStyle,
-} from "../../../../shared/types.js";
+import React from 'react'
+import { LoaderCircle } from 'lucide-react'
+import type { RpcResult } from '@codepilotx/agent-protocol'
+import type { DesktopDiffMarkerStyle } from '../../../../shared/types.js'
 
-import { Button } from "../../../components/ui/Button.js";
+import { Button } from '../../../components/ui/Button.js'
 
-export type ThreadPatchDiff = RpcResult<"thread/patch/diff">;
+export type ThreadPatchDiff = RpcResult<'thread/patch/diff'>
 
 const LazyFileMutationDiffContent = React.lazy(async () => {
-  const module = await import("./FileMutationDiffContent.js");
-  return { default: module.FileMutationDiffContent };
-});
+  const module = await import('./FileMutationDiffContent.js')
+  return { default: module.FileMutationDiffContent }
+})
 
 export const FileMutationDiffBody = React.memo(function FileMutationDiffBody({
   diff,
   diffMarkerStyle,
 }: {
-  diff: ThreadPatchDiff;
-  diffMarkerStyle: DesktopDiffMarkerStyle;
+  diff: ThreadPatchDiff
+  diffMarkerStyle: DesktopDiffMarkerStyle
 }): React.ReactNode {
   return (
     <React.Suspense fallback={<FileMutationDiffLoading />}>
-      <LazyFileMutationDiffContent
-        diff={diff}
-        diffMarkerStyle={diffMarkerStyle}
-      />
+      <LazyFileMutationDiffContent diff={diff} diffMarkerStyle={diffMarkerStyle} />
     </React.Suspense>
-  );
-});
+  )
+})
 
 export function FileMutationDiffLoading(): React.ReactNode {
   return (
@@ -38,18 +33,16 @@ export function FileMutationDiffLoading(): React.ReactNode {
       <LoaderCircle size={APP_ICON_SIZES.sm} className="canonical-spin" aria-hidden="true" />
       正在加载差异
     </div>
-  );
+  )
 }
 
-export function FileMutationDiffError({
-  onRetry,
-}: {
-  onRetry: () => void;
-}): React.ReactNode {
+export function FileMutationDiffError({ onRetry }: { onRetry: () => void }): React.ReactNode {
   return (
     <div className="canonical-file-mutation__message" role="alert">
       <span>无法加载本次文件差异</span>
-      <Button color="secondary" onClick={onRetry}>重试</Button>
+      <Button color="secondary" onClick={onRetry}>
+        重试
+      </Button>
     </div>
-  );
+  )
 }

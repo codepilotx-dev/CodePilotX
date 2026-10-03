@@ -10,14 +10,8 @@ import type {
 import { projectToDesktopWorkspace } from '../agentThreadAdapter.js'
 import type { createAgentRpcClient } from '../agentRpcClient.js'
 import { githubLoginFailure } from './fixtures.js'
-import {
-  desktopGitStatus,
-  type ReviewAgentGitStatus,
-} from './review-client.js'
-import type {
-  CodePilotXDesktopClient,
-  DesktopClientEnvironment,
-} from './types.js'
+import { desktopGitStatus, type ReviewAgentGitStatus } from './review-client.js'
+import type { CodePilotXDesktopClient, DesktopClientEnvironment } from './types.js'
 
 type GitApiMethod =
   | 'getGithubAuthStatus'
@@ -45,13 +39,12 @@ type Dependencies = {
   loadProjectById: (projectId: string) => Promise<Project>
   loadProjectForPath: (workspacePath: string) => Promise<Project>
   operationError: (error: unknown) => string
-  requireAgentCapability: (name: Extract<
-    ProtocolCapability,
-    | 'github.oauth.v1'
-    | 'github.pullRequests.v1'
-    | 'git.review.v1'
-    | 'git.workspace.v1'
-  >) => void
+  requireAgentCapability: (
+    name: Extract<
+      ProtocolCapability,
+      'github.oauth.v1' | 'github.pullRequests.v1' | 'git.review.v1' | 'git.workspace.v1'
+    >,
+  ) => void
   rpc: Pick<ReturnType<typeof createAgentRpcClient>, 'call'>
   withRequiredAgent: <T>(operation: () => Promise<T>) => Promise<T>
 }
@@ -71,8 +64,7 @@ export function createAgentGitApi({
     projectId ? loadProjectById(projectId) : loadProjectForPath(workspacePath)
 
   let activeGithubLoginId: string | null = null
-  let activeGithubLoginMode: Parameters<GitApi['startGithubLogin']>[0]['mode'] =
-    'browser'
+  let activeGithubLoginMode: Parameters<GitApi['startGithubLogin']>[0]['mode'] = 'browser'
 
   return {
     getGithubAuthStatus: async (): Promise<DesktopGithubAuthStatus> => {
@@ -90,7 +82,7 @@ export function createAgentGitApi({
         }
       }
     },
-    startGithubLogin: async input => {
+    startGithubLogin: async (input) => {
       try {
         return await withRequiredAgent(async () => {
           requireAgentCapability('github.oauth.v1')
@@ -102,11 +94,7 @@ export function createAgentGitApi({
           return status
         })
       } catch (error) {
-        return githubLoginFailure(
-          operationError(error),
-          activeGithubLoginId,
-          input.mode,
-        )
+        return githubLoginFailure(operationError(error), activeGithubLoginId, input.mode)
       }
     },
     pollGithubLogin: async () => {
@@ -125,20 +113,14 @@ export function createAgentGitApi({
           return status
         })
       } catch (error) {
-        return githubLoginFailure(
-          operationError(error),
-          activeGithubLoginId,
-          activeGithubLoginMode,
-        )
+        return githubLoginFailure(operationError(error), activeGithubLoginId, activeGithubLoginMode)
       }
     },
     logoutGithub: async (): Promise<DesktopGithubAuthStatus> => {
       try {
         return await withRequiredAgent(async () => {
           requireAgentCapability('github.oauth.v1')
-          const status = await rpc.call<DesktopGithubAuthStatus>(
-            'github/auth/logout',
-          )
+          const status = await rpc.call<DesktopGithubAuthStatus>('github/auth/logout')
           activeGithubLoginId = null
           return status
         })
@@ -156,10 +138,7 @@ export function createAgentGitApi({
         return await withRequiredAgent(async () => {
           requireAgentCapability('github.oauth.v1')
           const result = await rpc.call<{
-            repositories: Extract<
-              DesktopGithubRepositoryListResult,
-              { ok: true }
-            >['repositories']
+            repositories: Extract<DesktopGithubRepositoryListResult, { ok: true }>['repositories']
           }>('github/repositories')
           return { ok: true, repositories: result.repositories }
         })
@@ -167,12 +146,11 @@ export function createAgentGitApi({
         return { ok: false, error: operationError(error) }
       }
     },
-    cloneGithubRepository: async input => {
+    cloneGithubRepository: async (input) => {
       try {
         return await withRequiredAgent(async () => {
           requireAgentCapability('github.oauth.v1')
-          const picker =
-            environment.window?.codePilotXDesktop?.pickWorkspaceDirectory
+          const picker = environment.window?.codePilotXDesktop?.pickWorkspaceDirectory
           if (!picker) {
             throw new Error('当前桌面环境不支持选择克隆目录。')
           }
@@ -213,10 +191,7 @@ export function createAgentGitApi({
         return await withRequiredAgent(async () => {
           requireAgentCapability('github.oauth.v1')
           const result = await rpc.call<{
-            overview: Extract<
-              DesktopGithubProfileOverviewResult,
-              { ok: true }
-            >['overview']
+            overview: Extract<DesktopGithubProfileOverviewResult, { ok: true }>['overview']
           }>('github/profileOverview')
           return { ok: true, overview: result.overview }
         })
@@ -232,55 +207,48 @@ export function createAgentGitApi({
       ok: false,
       error: 'GitHub 用户状态编辑尚未接入 Agent。',
     }),
-    pushWorkspaceBranch: async input => {
+    pushWorkspaceBranch: async (input) => {
       try {
-        return await withRequiredAgent(
-          async (): Promise<DesktopGitOperationResult> => {
-            requireAgentCapability('github.pullRequests.v1')
-            const project = await loadProject(input.workspacePath, input.projectId)
-            const result = await rpc.call<{
-              repositoryUrl: string
-              status: Extract<
-                DesktopGitOperationResult,
-                { ok: true }
-              >['status']
-            }>('github/push', {
-              projectId: project.id,
-              setUpstream: input.setUpstream === true,
-              forceWithLease: input.forceWithLease === true,
-            })
-            return {
-              ok: true,
-              status: result.status,
-              output: `已推送到 ${result.repositoryUrl}`,
-            }
-          },
-        )
+        return await withRequiredAgent(async (): Promise<DesktopGitOperationResult> => {
+          requireAgentCapability('github.pullRequests.v1')
+          const project = await loadProject(input.workspacePath, input.projectId)
+          const result = await rpc.call<{
+            repositoryUrl: string
+            status: Extract<DesktopGitOperationResult, { ok: true }>['status']
+          }>('github/push', {
+            projectId: project.id,
+            setUpstream: input.setUpstream === true,
+            forceWithLease: input.forceWithLease === true,
+          })
+          return {
+            ok: true,
+            status: result.status,
+            output: `已推送到 ${result.repositoryUrl}`,
+          }
+        })
       } catch (error) {
         return { ok: false, error: operationError(error) }
       }
     },
-    createPullRequest: async input => {
+    createPullRequest: async (input) => {
       try {
-        return await withRequiredAgent(
-          async (): Promise<DesktopPullRequestResult> => {
-            requireAgentCapability('github.pullRequests.v1')
-            const project = await loadProject(input.workspacePath, input.projectId)
-            const result = await rpc.call<{
-              pullRequest: { htmlUrl: string; number: number }
-            }>('github/pullRequest/createForProject', {
-              projectId: project.id,
-              title: input.title,
-              ...(input.body === undefined ? {} : { body: input.body }),
-              ...(input.draft === undefined ? {} : { draft: input.draft }),
-            })
-            return {
-              ok: true,
-              url: result.pullRequest.htmlUrl,
-              output: `已创建 Pull Request #${result.pullRequest.number}`,
-            }
-          },
-        )
+        return await withRequiredAgent(async (): Promise<DesktopPullRequestResult> => {
+          requireAgentCapability('github.pullRequests.v1')
+          const project = await loadProject(input.workspacePath, input.projectId)
+          const result = await rpc.call<{
+            pullRequest: { htmlUrl: string; number: number }
+          }>('github/pullRequest/createForProject', {
+            projectId: project.id,
+            title: input.title,
+            ...(input.body === undefined ? {} : { body: input.body }),
+            ...(input.draft === undefined ? {} : { draft: input.draft }),
+          })
+          return {
+            ok: true,
+            url: result.pullRequest.htmlUrl,
+            output: `已创建 Pull Request #${result.pullRequest.number}`,
+          }
+        })
       } catch (error) {
         return { ok: false, error: operationError(error) }
       }
@@ -290,10 +258,9 @@ export function createAgentGitApi({
         return await withRequiredAgent(async () => {
           requireAgentCapability('git.review.v1')
           const project = await loadProject(workspacePath, projectId)
-          const result = await rpc.call<{ status: ReviewAgentGitStatus }>(
-            'review/status',
-            { projectId: project.id },
-          )
+          const result = await rpc.call<{ status: ReviewAgentGitStatus }>('review/status', {
+            projectId: project.id,
+          })
           return { ok: true as const, status: desktopGitStatus(result.status) }
         })
       } catch (error) {
@@ -314,7 +281,7 @@ export function createAgentGitApi({
           branchName: result.status.branchName,
         }
       }),
-    createWorkspaceBranch: async input => {
+    createWorkspaceBranch: async (input) => {
       try {
         return await withRequiredAgent(async () => {
           requireAgentCapability('git.workspace.v1')
@@ -322,9 +289,7 @@ export function createAgentGitApi({
           const result = await rpc.call('git/branch/create', {
             projectId: project.id,
             branchName: input.branchName,
-            ...(input.startPoint === undefined
-              ? {}
-              : { startPoint: input.startPoint }),
+            ...(input.startPoint === undefined ? {} : { startPoint: input.startPoint }),
           })
           invalidateProjectCache()
           return {
@@ -340,27 +305,25 @@ export function createAgentGitApi({
         return { ok: false as const, error: operationError(error) }
       }
     },
-    commitWorkspaceChanges: async input => {
+    commitWorkspaceChanges: async (input) => {
       try {
-        return await withRequiredAgent(
-          async (): Promise<DesktopGitOperationResult> => {
-            requireAgentCapability('git.review.v1')
-            const project = await loadProject(input.workspacePath, input.projectId)
-            const result = await rpc.call<{
-              output: string
-              status: ReviewAgentGitStatus
-            }>('review/commit', {
-              projectId: project.id,
-              message: input.message,
-              paths: input.paths,
-            })
-            return {
-              ok: true,
-              status: desktopGitStatus(result.status),
-              output: result.output,
-            }
-          },
-        )
+        return await withRequiredAgent(async (): Promise<DesktopGitOperationResult> => {
+          requireAgentCapability('git.review.v1')
+          const project = await loadProject(input.workspacePath, input.projectId)
+          const result = await rpc.call<{
+            output: string
+            status: ReviewAgentGitStatus
+          }>('review/commit', {
+            projectId: project.id,
+            message: input.message,
+            paths: input.paths,
+          })
+          return {
+            ok: true,
+            status: desktopGitStatus(result.status),
+            output: result.output,
+          }
+        })
       } catch (error) {
         return { ok: false, error: operationError(error) }
       }

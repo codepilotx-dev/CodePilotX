@@ -35,9 +35,7 @@ export function Dropdown({
 }: Props): React.ReactNode {
   return (
     <DropdownMenu.Root modal={modal} open={open} onOpenChange={onOpenChange}>
-      <DropdownMenu.Trigger asChild>
-        {trigger}
-      </DropdownMenu.Trigger>
+      <DropdownMenu.Trigger asChild>{trigger}</DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           data-theme-component="dropdown-surface"
@@ -55,9 +53,7 @@ export function Dropdown({
           sideOffset={sideOffset}
           style={buildPopoverSizingStyle({ width, maxWidth })}
         >
-          <div className="popover-scroll-content tw:min-w-0 tw:overflow-y-auto">
-            {children}
-          </div>
+          <div className="popover-scroll-content tw:min-w-0 tw:overflow-y-auto">{children}</div>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

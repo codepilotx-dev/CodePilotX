@@ -1,7 +1,4 @@
-import {
-  SessionError,
-  type SessionTreeEntry,
-} from "../../orchestration/harness/types"
+import { SessionError, type SessionTreeEntry } from '../../orchestration/harness/types'
 
 export type PiSessionEntryRow = {
   id: string
@@ -17,13 +14,17 @@ export type PiSessionEntryRow = {
 export const parsePiSessionEntry = (row: PiSessionEntryRow): SessionTreeEntry => {
   try {
     const value = JSON.parse(row.payload) as Partial<SessionTreeEntry>
-    if (value.id !== row.id || typeof value.type !== "string" || typeof value.timestamp !== "string") {
-      throw new Error("entry payload does not match its index columns")
+    if (
+      value.id !== row.id ||
+      typeof value.type !== 'string' ||
+      typeof value.timestamp !== 'string'
+    ) {
+      throw new Error('entry payload does not match its index columns')
     }
     return value as SessionTreeEntry
   } catch (cause) {
     throw new SessionError(
-      "invalid_session",
+      'invalid_session',
       `Invalid Pi session entry ${row.id}`,
       cause instanceof Error ? cause : undefined,
     )

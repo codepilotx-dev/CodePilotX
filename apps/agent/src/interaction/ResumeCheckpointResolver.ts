@@ -1,18 +1,17 @@
-import type { PlanCheckpoint } from "../orchestration/AgentRuntimeTypes"
-import type { ApprovalService } from "../permission/ApprovalService"
-import type { AgentDatabase } from "../storage/database/AgentDatabase"
+import type { PlanCheckpoint } from '../orchestration/AgentRuntimeTypes'
+import type { ApprovalService } from '../permission/ApprovalService'
+import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type {
   AcquiredResumeCheckpoint,
   RecoveryLeaseSummary,
   ResolvedResumeCheckpoint,
   ResumeCheckpointConsumer,
-} from "./types"
+} from './types'
 
 const record = (value: unknown): Record<string, unknown> =>
-  value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
     : {}
-
 
 export interface ResumeCheckpointResolverOptions {
   resolvedSubagentWait?: (turnID: string) => PlanCheckpoint | null
@@ -42,38 +41,46 @@ export class ResumeCheckpointResolver {
     consumer: ResumeCheckpointConsumer,
     leaseID: string,
   ): AcquiredResumeCheckpoint | null {
-    const existing = this.db.repositories.interactions.acquiredResumeCheckpointLease(turnID, leaseID)
+    const existing = this.db.repositories.interactions.acquiredResumeCheckpointLease(
+      turnID,
+      leaseID,
+    )
     if (existing) return existing
 
     const approvalCandidate = this.db.repositories.interactions.resolvedApprovalForResume(turnID)
     if (approvalCandidate) {
       const approval = this.approvals.load(approvalCandidate.id)
       if (
-        approval?.payload.runState
-        && approval.payload.interruption !== undefined
-        && approval.decision
-        && approval.payload.resolution
+        approval?.payload.runState &&
+        approval.payload.interruption !== undefined &&
+        approval.decision &&
+        approval.payload.resolution
       ) {
         const permissionGrant = this.approvals.permissionGrantResolution(approval)
         const checkpoint: ResolvedResumeCheckpoint = {
-          kind: "permission",
+          kind: 'permission',
           approvalID: approval.approvalID,
           toolCallID: approval.toolCallID,
           state: approval.payload.runState,
           interruption: approval.payload.interruption,
           decision: approval.decision,
-          answer: permissionGrant ? null : approval.payload.resolution.feedback ?? null,
+          answer: permissionGrant ? null : (approval.payload.resolution.feedback ?? null),
           ...(approval.payload.invocation.authorizationScope
-            ? { authorizationFingerprint: approval.payload.invocation.authorizationScope.fingerprint }
+            ? {
+                authorizationFingerprint:
+                  approval.payload.invocation.authorizationScope.fingerprint,
+              }
             : {}),
           ...(permissionGrant ? { permissionGrant } : {}),
         }
         return this.db.repositories.interactions.acquireResumeCheckpointLease({
           turnID,
           agentID: approval.agentID,
-          kind: "permission",
+          kind: 'permission',
           checkpoint,
-          ...(permissionGrant ? { permissionGrant: permissionGrant as unknown as Record<string, unknown> } : {}),
+          ...(permissionGrant
+            ? { permissionGrant: permissionGrant as unknown as Record<string, unknown> }
+            : {}),
           consumer,
           leaseID,
         })
@@ -85,31 +92,37 @@ export class ResumeCheckpointResolver {
       const payload = question.payload
       const storedCheckpoint = record(payload.checkpoint)
       const nested = record(storedCheckpoint.payload)
-      const state = typeof storedCheckpoint.state === "string"
-        ? storedCheckpoint.state
-        : typeof nested.state === "string" ? nested.state : null
-      const interruption = Object.prototype.hasOwnProperty.call(storedCheckpoint, "interruption")
+      const state =
+        typeof storedCheckpoint.state === 'string'
+          ? storedCheckpoint.state
+          : typeof nested.state === 'string'
+            ? nested.state
+            : null
+      const interruption = Object.prototype.hasOwnProperty.call(storedCheckpoint, 'interruption')
         ? storedCheckpoint.interruption
         : nested.interruption
       if (state && interruption !== undefined) {
         const storedAnswer = question.answer
-        const answerValue = Object.prototype.hasOwnProperty.call(storedAnswer, "value")
+        const answerValue = Object.prototype.hasOwnProperty.call(storedAnswer, 'value')
           ? storedAnswer.value
           : null
         const checkpoint: ResolvedResumeCheckpoint = {
-          kind: "question",
+          kind: 'question',
           questionID: question.id,
           toolCallID: question.toolCallID ?? question.id,
           state,
           interruption,
-          answer: typeof answerValue === "string"
-            ? answerValue
-            : answerValue == null ? null : JSON.stringify(answerValue),
+          answer:
+            typeof answerValue === 'string'
+              ? answerValue
+              : answerValue == null
+                ? null
+                : JSON.stringify(answerValue),
         }
         return this.db.repositories.interactions.acquireResumeCheckpointLease({
           turnID,
           agentID: question.agentID,
-          kind: "question",
+          kind: 'question',
           checkpoint,
           consumer,
           leaseID,
@@ -120,9 +133,9 @@ export class ResumeCheckpointResolver {
     const hookTrust = this.db.repositories.interactions.resolvedHookTrustForResume(turnID)
     if (hookTrust) {
       const checkpoint: ResolvedResumeCheckpoint = {
-        kind: "hook-trust",
+        kind: 'hook-trust',
         requestID: hookTrust.requestID,
-        state: "",
+        state: '',
         interruption: null,
         decision: hookTrust.decision,
         answer: null,
@@ -130,7 +143,7 @@ export class ResumeCheckpointResolver {
       return this.db.repositories.interactions.acquireResumeCheckpointLease({
         turnID,
         agentID: hookTrust.agentID,
-        kind: "hook-trust",
+        kind: 'hook-trust',
         checkpoint,
         consumer,
         leaseID,
@@ -142,7 +155,7 @@ export class ResumeCheckpointResolver {
     const agent = this.db.agentForTurn(turnID)
     if (!agent) return null
     const checkpoint: ResolvedResumeCheckpoint = {
-      kind: "subagent-wait",
+      kind: 'subagent-wait',
       state: wait.state,
       interruption: wait.interruption,
       answer: wait.answer,
@@ -150,7 +163,7 @@ export class ResumeCheckpointResolver {
     return this.db.repositories.interactions.acquireResumeCheckpointLease({
       turnID,
       agentID: agent.id,
-      kind: "subagent-wait",
+      kind: 'subagent-wait',
       checkpoint,
       consumer,
       leaseID,
@@ -166,14 +179,14 @@ export class ResumeCheckpointResolver {
   }
 }
 
-type PiResumeCheckpoint = Exclude<ResolvedResumeCheckpoint, { kind: "hook-trust" }>
+type PiResumeCheckpoint = Exclude<ResolvedResumeCheckpoint, { kind: 'hook-trust' }>
 
 export const toPlanCheckpoint = (acquired: {
   leaseID: string
   checkpoint: PiResumeCheckpoint
 }): PlanCheckpoint => {
   const checkpoint = acquired.checkpoint
-  if (checkpoint.kind === "permission") {
+  if (checkpoint.kind === 'permission') {
     return {
       state: checkpoint.state,
       interruption: checkpoint.interruption,
@@ -193,7 +206,7 @@ export const toPlanCheckpoint = (acquired: {
     interruption: checkpoint.interruption,
     answer: checkpoint.answer,
     resumeLeaseID: acquired.leaseID,
-    ...(checkpoint.kind === "question"
+    ...(checkpoint.kind === 'question'
       ? { checkpointID: checkpoint.questionID, toolCallID: checkpoint.toolCallID }
       : {}),
   }

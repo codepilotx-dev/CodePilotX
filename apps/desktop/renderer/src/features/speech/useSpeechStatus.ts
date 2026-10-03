@@ -42,28 +42,30 @@ export function useSpeechStatus(): SpeechStatusState {
   useEffect(() => {
     let active = true
     let unsubscribe = () => {}
-    void Promise.resolve().then(() => {
-      if (!active) return
-      unsubscribe = desktopClient.onSpeechStatusUpdated(next => {
+    void Promise.resolve()
+      .then(() => {
         if (!active) return
-        setStatus(next)
-        setError(null)
-        setLoading(false)
+        unsubscribe = desktopClient.onSpeechStatusUpdated((next) => {
+          if (!active) return
+          setStatus(next)
+          setError(null)
+          setLoading(false)
+        })
+        return desktopClient.getSpeechStatus()
       })
-      return desktopClient.getSpeechStatus()
-    }).then(
-      next => {
-        if (!active || !next) return
-        setStatus(next)
-        setError(null)
-        setLoading(false)
-      },
-      cause => {
-        if (!active) return
-        setError(errorMessage(cause))
-        setLoading(false)
-      },
-    )
+      .then(
+        (next) => {
+          if (!active || !next) return
+          setStatus(next)
+          setError(null)
+          setLoading(false)
+        },
+        (cause) => {
+          if (!active) return
+          setError(errorMessage(cause))
+          setLoading(false)
+        },
+      )
     return () => {
       active = false
       unsubscribe()

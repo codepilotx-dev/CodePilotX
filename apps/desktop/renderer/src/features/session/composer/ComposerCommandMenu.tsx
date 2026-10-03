@@ -36,7 +36,7 @@ export function filterComposerMenuItems(
 ): ComposerMenuItem[] {
   const normalized = keyword.toLocaleLowerCase().trim()
   return normalized
-    ? items.filter(item => item.matchText.toLocaleLowerCase().includes(normalized))
+    ? items.filter((item) => item.matchText.toLocaleLowerCase().includes(normalized))
     : items
 }
 
@@ -71,14 +71,20 @@ export function ComposerCommandMenu({
       {[...sections].map(([section, sectionItems], sectionIndex) => {
         const labelId = section ? `${id}-section-${sectionIndex}` : undefined
         return (
-          <div aria-labelledby={labelId} key={section || 'items'} role={section ? 'group' : undefined}>
-            {sectionIndex > 0 ? <div aria-hidden="true" className="chat-input__dropdown-separator" /> : null}
+          <div
+            aria-labelledby={labelId}
+            key={section || 'items'}
+            role={section ? 'group' : undefined}
+          >
+            {sectionIndex > 0 ? (
+              <div aria-hidden="true" className="chat-input__dropdown-separator" />
+            ) : null}
             {section ? (
               <div className="chat-input__dropdown-section-title" id={labelId}>
                 {section}
               </div>
             ) : null}
-            {sectionItems.map(item => (
+            {sectionItems.map((item) => (
               <button
                 aria-disabled={item.disabled ? true : undefined}
                 aria-current={item.isActive ? 'true' : undefined}
@@ -108,9 +114,7 @@ export function ComposerCommandMenu({
                     <span className="chat-input__dropdown-hint">{item.description}</span>
                   ) : null}
                 </span>
-                {item.meta ? (
-                  <span className="chat-input__dropdown-meta">{item.meta}</span>
-                ) : null}
+                {item.meta ? <span className="chat-input__dropdown-meta">{item.meta}</span> : null}
               </button>
             ))}
           </div>

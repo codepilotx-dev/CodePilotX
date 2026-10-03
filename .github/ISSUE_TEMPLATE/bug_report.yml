@@ -1,6 +1,6 @@
 name: 缺陷报告
 description: 提交可复现的 CodePilotX 行为问题
-title: "[Bug] "
+title: '[Bug] '
 labels:
   - bug
 body:

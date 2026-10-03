@@ -13,21 +13,36 @@ const MOCK_FONTS = [
   { family: 'Inter', fullName: 'Inter Regular', postscriptName: 'Inter-Regular', style: 'Regular' },
   { family: 'Inter', fullName: 'Inter Bold', postscriptName: 'Inter-Bold', style: 'Bold' },
   { family: 'Inter', fullName: 'Inter Italic', postscriptName: 'Inter-Italic', style: 'Italic' },
-  { family: 'PrettySans', fullName: 'PrettySans Regular', postscriptName: 'PrettySans-Regular', style: 'Regular' },
-  { family: 'CodeMono', fullName: 'CodeMono Regular', postscriptName: 'CodeMono-Regular', style: 'Regular' },
+  {
+    family: 'PrettySans',
+    fullName: 'PrettySans Regular',
+    postscriptName: 'PrettySans-Regular',
+    style: 'Regular',
+  },
+  {
+    family: 'CodeMono',
+    fullName: 'CodeMono Regular',
+    postscriptName: 'CodeMono-Regular',
+    style: 'Regular',
+  },
   { family: 'CodeMono', fullName: 'CodeMono Bold', postscriptName: 'CodeMono-Bold', style: 'Bold' },
 ] as const
 
-function installFontBridge(page: import('@playwright/test').Page, options: {
-  delayMs?: number
-  result?: { ok: true; fonts: readonly typeof MOCK_FONTS[number][] } | { ok: false; error: 'unsupported' | 'denied' | 'failed' }
-}): Promise<void> {
+function installFontBridge(
+  page: import('@playwright/test').Page,
+  options: {
+    delayMs?: number
+    result?:
+      | { ok: true; fonts: readonly (typeof MOCK_FONTS)[number][] }
+      | { ok: false; error: 'unsupported' | 'denied' | 'failed' }
+  },
+): Promise<void> {
   return page.addInitScript(
     ({ fonts, delayMs, result }) => {
       ;(window as unknown as { codePilotXDesktop?: unknown }).codePilotXDesktop = {
         listSystemFonts: async () => {
           if (delayMs > 0) {
-            await new Promise(resolve => setTimeout(resolve, delayMs))
+            await new Promise((resolve) => setTimeout(resolve, delayMs))
           }
           if (result && !result.ok) return result
           return { ok: true, fonts }
@@ -56,13 +71,16 @@ function installFontBridge(page: import('@playwright/test').Page, options: {
 async function expectTriggerContentFits(
   trigger: import('@playwright/test').Locator,
 ): Promise<void> {
-  await expect.poll(() => trigger.evaluate(element => {
-    const value = element.querySelector<HTMLElement>(
-      '.settings-dropdown-value',
-    )!
-    return element.scrollWidth === element.clientWidth
-      && value.scrollWidth === value.clientWidth
-  })).toBe(true)
+  await expect
+    .poll(() =>
+      trigger.evaluate((element) => {
+        const value = element.querySelector<HTMLElement>('.settings-dropdown-value')!
+        return (
+          element.scrollWidth === element.clientWidth && value.scrollWidth === value.clientWidth
+        )
+      }),
+    )
+    .toBe(true)
 }
 
 test('theme font picker enumerates, filters, searches, and persists family + face', async ({
@@ -72,11 +90,7 @@ test('theme font picker enumerates, filters, searches, and persists family + fac
   await page.setViewportSize(DESKTOP_VIEWPORT)
   await prepareVisualTheme(page, 'dark')
   await page.goto('/?visualCase=empty#/settings/appearance')
-  await waitForVisualPage(
-    page,
-    'dark',
-    page.getByRole('heading', { name: '外观' }),
-  )
+  await waitForVisualPage(page, 'dark', page.getByRole('heading', { name: '外观' }))
 
   const familyTrigger = page.getByRole('button', {
     name: '深色界面字体字体家族',
@@ -103,7 +117,8 @@ test('theme font picker enumerates, filters, searches, and persists family + fac
   await page.keyboard.press('Enter')
   await expect(familyTrigger).toHaveText('CodeMono')
   await expect(familyTrigger).toBeFocused()
-  await expect.poll(async () => (await familyTrigger.boundingBox())!.width)
+  await expect
+    .poll(async () => (await familyTrigger.boundingBox())!.width)
     .not.toBe(defaultFamilyWidth)
   await expectTriggerContentFits(familyTrigger)
 
@@ -122,7 +137,7 @@ test('theme font picker enumerates, filters, searches, and persists family + fac
   // The non-default face is persisted with its postscript identity.
   await expect
     .poll(() =>
-      page.evaluate(storageKey => {
+      page.evaluate((storageKey) => {
         const raw = localStorage.getItem(storageKey)
         if (!raw) return null
         return JSON.parse(raw).chromeThemes.dark.fonts
@@ -144,7 +159,7 @@ test('theme font picker enumerates, filters, searches, and persists family + fac
   await page.getByRole('option', { name: '常规', exact: true }).click()
   await expect
     .poll(() =>
-      page.evaluate(storageKey => {
+      page.evaluate((storageKey) => {
         const raw = localStorage.getItem(storageKey)
         if (!raw) return null
         return JSON.parse(raw).chromeThemes.dark.fonts
@@ -188,7 +203,7 @@ test('theme font picker enumerates, filters, searches, and persists family + fac
   await page.getByRole('option', { name: 'Inter' }).click()
   await expect
     .poll(() =>
-      page.evaluate(storageKey => {
+      page.evaluate((storageKey) => {
         const raw = localStorage.getItem(storageKey)
         if (!raw) return null
         const settings = JSON.parse(raw)
@@ -218,7 +233,7 @@ test('theme font picker enumerates, filters, searches, and persists family + fac
   await page.getByRole('option', { name: '系统默认' }).click()
   await expect
     .poll(() =>
-      page.evaluate(storageKey => {
+      page.evaluate((storageKey) => {
         const raw = localStorage.getItem(storageKey)
         if (!raw) return null
         return JSON.parse(raw).chromeThemes.light.fonts
@@ -234,18 +249,12 @@ test('theme font picker enumerates, filters, searches, and persists family + fac
   await expectNoHorizontalOverflow(page)
 })
 
-test('theme font picker keeps its compact layout on narrow windows', async ({
-  page,
-}) => {
+test('theme font picker keeps its compact layout on narrow windows', async ({ page }) => {
   await installFontBridge(page, {})
   await page.setViewportSize(COMPACT_VIEWPORT)
   await prepareVisualTheme(page, 'dark')
   await page.goto('/?visualCase=empty#/settings/appearance')
-  await waitForVisualPage(
-    page,
-    'dark',
-    page.getByRole('heading', { name: '外观' }),
-  )
+  await waitForVisualPage(page, 'dark', page.getByRole('heading', { name: '外观' }))
 
   await page.getByRole('button', { name: '深色界面字体字体家族' }).click()
   await expect(page.getByRole('option', { name: 'Inter' })).toBeVisible()
@@ -261,11 +270,7 @@ test('theme font picker degrades to the free-text input when enumeration fails',
   await page.setViewportSize(DESKTOP_VIEWPORT)
   await prepareVisualTheme(page, 'dark')
   await page.goto('/?visualCase=empty#/settings/appearance')
-  await waitForVisualPage(
-    page,
-    'dark',
-    page.getByRole('heading', { name: '外观' }),
-  )
+  await waitForVisualPage(page, 'dark', page.getByRole('heading', { name: '外观' }))
 
   await page.getByRole('button', { name: '深色界面字体字体家族' }).click()
   const textInput = page.getByRole('textbox', { name: '深色界面字体' })
@@ -274,7 +279,7 @@ test('theme font picker degrades to the free-text input when enumeration fails',
   await textInput.press('Enter')
   await expect
     .poll(() =>
-      page.evaluate(storageKey => {
+      page.evaluate((storageKey) => {
         const raw = localStorage.getItem(storageKey)
         if (!raw) return null
         return JSON.parse(raw).chromeThemes.dark.fonts

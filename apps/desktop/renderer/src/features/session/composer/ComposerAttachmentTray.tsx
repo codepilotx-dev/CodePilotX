@@ -1,4 +1,8 @@
-import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH, APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import {
+  APP_ICON_SIZES,
+  APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZE,
+} from '../../../components/ui/iconTokens.js'
 import React from 'react'
 import type { DesktopComposerAttachment } from '../../../../shared/types.js'
 import { resolveDraftAttachmentPreviewContent } from '../attachments/attachmentPreviewSupport.js'
@@ -33,7 +37,24 @@ function resolveFileCategory(name: string, kind: string): { bg: string; icon: Re
       icon: <Presentation className="composer-attachment-tile-icon" size={APP_ICON_SIZE} />,
     }
   }
-  if (['ts', 'tsx', 'js', 'jsx', 'json', 'py', 'go', 'rs', 'c', 'cpp', 'html', 'css', 'sql', 'sh'].includes(ext)) {
+  if (
+    [
+      'ts',
+      'tsx',
+      'js',
+      'jsx',
+      'json',
+      'py',
+      'go',
+      'rs',
+      'c',
+      'cpp',
+      'html',
+      'css',
+      'sql',
+      'sh',
+    ].includes(ext)
+  ) {
     return {
       bg: '#00bba7',
       icon: <Box className="composer-attachment-tile-icon" size={APP_ICON_SIZE} />,
@@ -57,11 +78,7 @@ function resolveFileCategory(name: string, kind: string): { bg: string; icon: Re
   }
 }
 
-export function ComposerAttachmentTray({
-  attachments,
-  onOpen,
-  onRemove,
-}: Props): React.ReactNode {
+export function ComposerAttachmentTray({ attachments, onOpen, onRemove }: Props): React.ReactNode {
   if (attachments.length === 0) return null
 
   return (

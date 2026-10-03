@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Schema } from 'effect'
 import {
   SessionGroupSchema,
   SessionGroupMembershipSchema,
@@ -7,14 +7,17 @@ import {
   SessionGroupContextStateSchema,
   SessionGroupContextChangeSchema,
   SessionGroupContextSectionSchema,
-} from "./session-group"
+} from './session-group'
 
 /** Canonical public names over the existing session_group storage generation. */
 export const WorkflowSchema = SessionGroupSchema
 export type Workflow = typeof WorkflowSchema.Type
 
 const { groupId: _membershipGroupId, ...membershipFields } = SessionGroupMembershipSchema.fields
-export const WorkflowMembershipSchema = Schema.Struct({ workflowId: Schema.String, ...membershipFields })
+export const WorkflowMembershipSchema = Schema.Struct({
+  workflowId: Schema.String,
+  ...membershipFields,
+})
 export type WorkflowMembership = typeof WorkflowMembershipSchema.Type
 
 const { groupId: _stepGroupId, ...stepFields } = SessionGroupStepSchema.fields
@@ -22,11 +25,17 @@ export const WorkflowStepSchema = Schema.Struct({ workflowId: Schema.String, ...
 export type WorkflowStep = typeof WorkflowStepSchema.Type
 
 const { groupId: _entryGroupId, ...entryFields } = SessionGroupContextEntrySchema.fields
-export const WorkflowContextEntrySchema = Schema.Struct({ workflowId: Schema.String, ...entryFields })
+export const WorkflowContextEntrySchema = Schema.Struct({
+  workflowId: Schema.String,
+  ...entryFields,
+})
 export type WorkflowContextEntry = typeof WorkflowContextEntrySchema.Type
 
 const { groupId: _stateGroupId, ...stateFields } = SessionGroupContextStateSchema.fields
-export const WorkflowContextStateSchema = Schema.Struct({ workflowId: Schema.String, ...stateFields })
+export const WorkflowContextStateSchema = Schema.Struct({
+  workflowId: Schema.String,
+  ...stateFields,
+})
 export type WorkflowContextState = typeof WorkflowContextStateSchema.Type
 
 export const WorkflowContextChangeSchema = SessionGroupContextChangeSchema

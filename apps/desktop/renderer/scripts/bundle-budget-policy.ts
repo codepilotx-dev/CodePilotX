@@ -3,10 +3,7 @@ export const BUNDLE_BUDGET_WARNING_FLOOR_BYTES = 8 * 1024
 export const BUNDLE_BUDGET_FAILURE_PERCENT = 0.05
 export const BUNDLE_BUDGET_FAILURE_FLOOR_BYTES = 32 * 1024
 
-export const BUNDLE_BUDGET_METRIC_NAMES = [
-  'entryCssRawBytes',
-  'newInteractiveCssRawBytes',
-] as const
+export const BUNDLE_BUDGET_METRIC_NAMES = ['entryCssRawBytes', 'newInteractiveCssRawBytes'] as const
 
 export type BundleBudgetMetricName = (typeof BUNDLE_BUDGET_METRIC_NAMES)[number]
 export type BundleBudgetStatus = 'pass' | 'warning' | 'failure'
@@ -43,11 +40,12 @@ export function evaluateBundleBudget(
   const failureLimitBytes = baselineBytes + failureDelta
 
   return {
-    status: observedBytes <= warningLimitBytes
-      ? 'pass'
-      : observedBytes <= failureLimitBytes
-        ? 'warning'
-        : 'failure',
+    status:
+      observedBytes <= warningLimitBytes
+        ? 'pass'
+        : observedBytes <= failureLimitBytes
+          ? 'warning'
+          : 'failure',
     baselineBytes,
     observedBytes,
     deltaBytes: observedBytes - baselineBytes,
@@ -72,13 +70,9 @@ export function parseBundleBudgetBaseline(value: unknown): BundleBudgetBaseline 
   const baselineMetrics = value.metrics
 
   const metrics = Object.fromEntries(
-    BUNDLE_BUDGET_METRIC_NAMES.map(name => {
+    BUNDLE_BUDGET_METRIC_NAMES.map((name) => {
       const metric = baselineMetrics[name]
-      if (
-        typeof metric !== 'number'
-        || !Number.isSafeInteger(metric)
-        || metric < 0
-      ) {
+      if (typeof metric !== 'number' || !Number.isSafeInteger(metric) || metric < 0) {
         throw new Error(`Renderer bundle budget baseline ${name} 必须为非负整数`)
       }
       return [name, metric]

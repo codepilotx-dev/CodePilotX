@@ -10,19 +10,19 @@
   backdrop-filter: blur(var(--cpx-sys-blur-sm, 4px));
 }
 
-.ui-dialog-backdrop[data-state="open"] {
+.ui-dialog-backdrop[data-state='open'] {
   animation: ui-dialog-backdrop-in var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out);
 }
 
-.ui-dialog-backdrop[data-state="closed"] {
+.ui-dialog-backdrop[data-state='closed'] {
   animation: ui-dialog-backdrop-out var(--cpx-sys-motion-exit) var(--cpx-sys-ease-in);
 }
 
-.ui-dialog-surface[data-state="open"] {
+.ui-dialog-surface[data-state='open'] {
   animation: radix-floating-surface-in var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out);
 }
 
-.ui-dialog-surface[data-state="closed"] {
+.ui-dialog-surface[data-state='closed'] {
   animation: radix-floating-surface-out var(--cpx-sys-motion-exit) var(--cpx-sys-ease-in);
 }
 
@@ -49,10 +49,7 @@
   --cpx-floating-offset-y: 0px;
 }
 
-:root[data-reduce-motion="on"] :is(
-  .ui-dialog-backdrop,
-  .ui-dialog-surface
-) {
+:root[data-reduce-motion='on'] :is(.ui-dialog-backdrop, .ui-dialog-surface) {
   animation: none;
 }
 
@@ -94,7 +91,9 @@
   top: var(--cpx-sys-space-1);
   right: max(
     var(--cpx-sys-space-3),
-    calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + var(--cpx-sys-space-3))
+    calc(
+      100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + var(--cpx-sys-space-3)
+    )
   );
   z-index: var(--cpx-sys-z-toast);
   display: inline-flex;
@@ -376,8 +375,7 @@
   display: flex;
   align-items: center;
   gap: var(--cpx-comp-button-gap);
-  padding: var(--cpx-comp-button-padding-block)
-    var(--cpx-comp-button-padding-inline);
+  padding: var(--cpx-comp-button-padding-block) var(--cpx-comp-button-padding-inline);
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-comp-input-radius);
   background: var(--cpx-sys-color-surface-control);

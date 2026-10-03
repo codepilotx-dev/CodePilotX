@@ -1,17 +1,14 @@
-import { describe, expect, test } from "bun:test"
-import type { DesktopLogger } from "../src/logging/desktop-logger"
+import { describe, expect, test } from 'bun:test'
+import type { DesktopLogger } from '../src/logging/desktop-logger'
 import {
   DesktopAgentConnectionCoordinator,
   type SidecarLifecycle,
-} from "../src/sidecar/connection-coordinator"
-import { SidecarTerminationError } from "../src/sidecar/failure-diagnostics"
-import type {
-  ConnectionStatus,
-  SidecarConnection,
-} from "../src/sidecar/supervisor"
+} from '../src/sidecar/connection-coordinator'
+import { SidecarTerminationError } from '../src/sidecar/failure-diagnostics'
+import type { ConnectionStatus, SidecarConnection } from '../src/sidecar/supervisor'
 
-describe("DesktopAgentConnectionCoordinator", () => {
-  test("统一拥有连接、丢失、清理和重连状态", async () => {
+describe('DesktopAgentConnectionCoordinator', () => {
+  test('统一拥有连接、丢失、清理和重连状态', async () => {
     const sidecar = new FakeSidecar()
     const reconnecting: number[] = []
     const connected: number[] = []
@@ -19,19 +16,25 @@ describe("DesktopAgentConnectionCoordinator", () => {
       supervisor: sidecar,
       logger,
       loadConnection: async () => undefined,
-      onConnected: connection => { connected.push(connection.generation) },
-      onReconnecting: connection => { reconnecting.push(connection.generation) },
-      onTerminalFailure: error => { throw error },
+      onConnected: (connection) => {
+        connected.push(connection.generation)
+      },
+      onReconnecting: (connection) => {
+        reconnecting.push(connection.generation)
+      },
+      onTerminalFailure: (error) => {
+        throw error
+      },
       isRelocating: () => false,
     })
 
     await coordinator.start()
-    expect(coordinator.status.lifecycle).toBe("connected")
+    expect(coordinator.status.lifecycle).toBe('connected')
     expect(connected).toEqual([1])
 
     sidecar.lose(0)
     await eventually(() => sidecar.connectCount === 2)
-    await eventually(() => coordinator.status.lifecycle === "connected")
+    await eventually(() => coordinator.status.lifecycle === 'connected')
     expect(reconnecting).toEqual([1])
     expect(connected).toEqual([1, 2])
     expect(sidecar.invalidateCount).toBe(1)
@@ -43,7 +46,7 @@ describe("DesktopAgentConnectionCoordinator", () => {
     expect(sidecar.invalidateCount).toBe(1)
   })
 
-  test("并发 stop 复用同一 Promise 并只关闭一次 sidecar", async () => {
+  test('并发 stop 复用同一 Promise 并只关闭一次 sidecar', async () => {
     const sidecar = new FakeSidecar()
     const coordinator = createCoordinator(sidecar)
     await coordinator.start()
@@ -55,10 +58,10 @@ describe("DesktopAgentConnectionCoordinator", () => {
     expect(sidecar.stopCount).toBe(1)
     sidecar.deferStop.resolve()
     await first
-    expect(coordinator.status.lifecycle).toBe("idle")
+    expect(coordinator.status.lifecycle).toBe('idle')
   })
 
-  test("loadConnection 等待期间 stop 后不得继续 UI 副作用", async () => {
+  test('loadConnection 等待期间 stop 后不得继续 UI 副作用', async () => {
     const sidecar = new FakeSidecar()
     const loadStarted = deferred<void>()
     const releaseLoad = deferred<void>()
@@ -70,11 +73,15 @@ describe("DesktopAgentConnectionCoordinator", () => {
         loadStarted.resolve()
         await releaseLoad.promise
         guard.assertCurrent()
-        effects.push("load-completed")
+        effects.push('load-completed')
       },
-      onConnected: () => { effects.push("connected") },
+      onConnected: () => {
+        effects.push('connected')
+      },
       onReconnecting: () => undefined,
-      onTerminalFailure: error => { throw error },
+      onTerminalFailure: (error) => {
+        throw error
+      },
       isRelocating: () => false,
     })
 
@@ -85,10 +92,10 @@ describe("DesktopAgentConnectionCoordinator", () => {
     await start
 
     expect(effects).toEqual([])
-    expect(coordinator.status.lifecycle).toBe("idle")
+    expect(coordinator.status.lifecycle).toBe('idle')
   })
 
-  test("onConnected 等待期间 stop 后不得继续 UI 副作用", async () => {
+  test('onConnected 等待期间 stop 后不得继续 UI 副作用', async () => {
     const sidecar = new FakeSidecar()
     const connectedStarted = deferred<void>()
     const releaseConnected = deferred<void>()
@@ -101,10 +108,12 @@ describe("DesktopAgentConnectionCoordinator", () => {
         connectedStarted.resolve()
         await releaseConnected.promise
         guard.assertCurrent()
-        effects.push("connected-completed")
+        effects.push('connected-completed')
       },
       onReconnecting: () => undefined,
-      onTerminalFailure: error => { throw error },
+      onTerminalFailure: (error) => {
+        throw error
+      },
       isRelocating: () => false,
     })
 
@@ -115,10 +124,10 @@ describe("DesktopAgentConnectionCoordinator", () => {
     await start
 
     expect(effects).toEqual([])
-    expect(coordinator.status.lifecycle).toBe("idle")
+    expect(coordinator.status.lifecycle).toBe('idle')
   })
 
-  test("无法确认旧进程退出时进入 failed 且不再 spawn", async () => {
+  test('无法确认旧进程退出时进入 failed 且不再 spawn', async () => {
     const sidecar = new FakeSidecar()
     const failures: string[] = []
     const coordinator = new DesktopAgentConnectionCoordinator({
@@ -127,15 +136,17 @@ describe("DesktopAgentConnectionCoordinator", () => {
       loadConnection: async () => undefined,
       onConnected: () => undefined,
       onReconnecting: () => undefined,
-      onTerminalFailure: (_error, kind) => { failures.push(kind) },
+      onTerminalFailure: (_error, kind) => {
+        failures.push(kind)
+      },
       isRelocating: () => false,
     })
     await coordinator.start()
     sidecar.invalidateError = new SidecarTerminationError()
 
     sidecar.lose(0)
-    await eventually(() => coordinator.status.lifecycle === "failed")
-    expect(failures).toEqual(["termination"])
+    await eventually(() => coordinator.status.lifecycle === 'failed')
+    expect(failures).toEqual(['termination'])
     expect(sidecar.connectCount).toBe(1)
   })
 })
@@ -159,8 +170,8 @@ class FakeSidecar implements SidecarLifecycle {
     this.connectCount += 1
     const connection = connectionFor(this.connectCount)
     this.statusListener?.({
-      state: "disconnected",
-      phase: "connecting",
+      state: 'disconnected',
+      phase: 'connecting',
       attempt: 1,
     })
     await validate(connection)
@@ -193,14 +204,16 @@ function createCoordinator(sidecar: FakeSidecar) {
     loadConnection: async () => undefined,
     onConnected: () => undefined,
     onReconnecting: () => undefined,
-    onTerminalFailure: error => { throw error },
+    onTerminalFailure: (error) => {
+      throw error
+    },
     isRelocating: () => false,
   })
 }
 
 function connectionFor(generation: number): SidecarConnection {
   return {
-    origin: "http://127.0.0.1:4312",
+    origin: 'http://127.0.0.1:4312',
     managed: false,
     port: 4312,
     generation,
@@ -221,13 +234,13 @@ function deferred<T>() {
 async function eventually(predicate: () => boolean): Promise<void> {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     if (predicate()) return
-    await new Promise(resolve => setTimeout(resolve, 1))
+    await new Promise((resolve) => setTimeout(resolve, 1))
   }
-  throw new Error("状态未在预期时间内收敛")
+  throw new Error('状态未在预期时间内收敛')
 }
 
 const logger: DesktopLogger = {
-  directory: "",
+  directory: '',
   consoleEnabled: false,
   debug: () => undefined,
   info: () => undefined,

@@ -31,9 +31,9 @@ const SURFACE_GZIP_BUDGET_KIB = 825
 const rootPackage = JSON.parse(
   readFileSync(resolve(__dirname, '..', '..', '..', 'package.json'), 'utf8'),
 ) as { version: string }
-const bundleBudgetBaseline = parseBundleBudgetBaseline(JSON.parse(
-  readFileSync(resolve(__dirname, 'bundle-budget-baseline.json'), 'utf8'),
-))
+const bundleBudgetBaseline = parseBundleBudgetBaseline(
+  JSON.parse(readFileSync(resolve(__dirname, 'bundle-budget-baseline.json'), 'utf8')),
+)
 
 const RENDERER_SRC_ROOT = resolve(__dirname, 'src')
 
@@ -84,10 +84,7 @@ export function resolveRendererDevServer(
   mode: string,
   environment: RendererDevEnvironment = process.env,
 ): Pick<ServerOptions, 'port' | 'hmr' | 'proxy'> {
-  const port = parsePort(
-    environment.CODEPILOTX_RENDERER_PORT,
-    'CODEPILOTX_RENDERER_PORT',
-  )
+  const port = parsePort(environment.CODEPILOTX_RENDERER_PORT, 'CODEPILOTX_RENDERER_PORT')
   const agentOrigin = environment.CODEPILOTX_AGENT_URL
   const authToken = environment.CODEPILOTX_AUTH_TOKEN
   if ((agentOrigin === undefined) !== (authToken === undefined)) {
@@ -133,9 +130,7 @@ export function resolveRendererServerOverrides(
   mode: string,
   environment: RendererDevEnvironment = process.env,
 ): Pick<ServerOptions, 'port' | 'hmr' | 'proxy'> | Record<string, never> {
-  return command === 'serve'
-    ? resolveRendererDevServer(mode, environment)
-    : {}
+  return command === 'serve' ? resolveRendererDevServer(mode, environment) : {}
 }
 
 function startupSplashAssets(): Plugin {
@@ -174,14 +169,8 @@ const NEW_SURFACE_MODULES: Record<string, readonly string[]> = {
     'features/session/CodingHeadingTransition.tsx',
     'features/session/NewSessionSuggestionPanel.tsx',
   ],
-  working: [
-    ...NEW_SURFACE_COMMON_MODULES,
-    'features/session/WorkingNewSessionView.tsx',
-  ],
-  chat: [
-    ...NEW_SURFACE_COMMON_MODULES,
-    'features/session/ChatNewSessionView.tsx',
-  ],
+  working: [...NEW_SURFACE_COMMON_MODULES, 'features/session/WorkingNewSessionView.tsx'],
+  chat: [...NEW_SURFACE_COMMON_MODULES, 'features/session/ChatNewSessionView.tsx'],
 }
 
 type BundleChunk = {
@@ -264,9 +253,7 @@ function collectCssFiles(
   return cssFiles
 }
 
-function assetByteLength(
-  asset: { type?: string; source?: unknown } | undefined,
-): number {
+function assetByteLength(asset: { type?: string; source?: unknown } | undefined): number {
   if (!asset || asset.type !== 'asset') return 0
   if (typeof asset.source === 'string') return Buffer.byteLength(asset.source)
   return asset.source instanceof Uint8Array ? asset.source.byteLength : 0
@@ -285,10 +272,7 @@ function formatKib(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)} KiB`
 }
 
-function formatCssBudget(
-  label: string,
-  evaluation: BundleBudgetEvaluation,
-): string {
+function formatCssBudget(label: string, evaluation: BundleBudgetEvaluation): string {
   const deltaPrefix = evaluation.deltaBytes >= 0 ? '+' : ''
   return [
     `${label}: ${formatKib(evaluation.observedBytes)} (${evaluation.observedBytes} bytes)`,
@@ -309,29 +293,32 @@ function routeBundleBudget(): Plugin {
         if (item.type !== 'chunk') continue
         chunks.set(item.fileName, item as unknown as BundleChunk)
       }
-      const entries = [...chunks.values()].filter(chunk => chunk.isEntry)
+      const entries = [...chunks.values()].filter((chunk) => chunk.isEntry)
 
       // Layer one: the static entry shell graph.
       const entryGraph = collectStaticGraph(
         chunks,
-        entries.map(chunk => chunk.fileName),
+        entries.map((chunk) => chunk.fileName),
       )
       const entryMeasure = measureGraph(chunks, entryGraph)
 
       // Layer two: each /new surface interactive graph, rooted at the chunks
       // containing its manifest modules.
-      const surfaceMeasures = new Map<string, {
-        rawBytes: number
-        gzipBytes: number
-      }>()
+      const surfaceMeasures = new Map<
+        string,
+        {
+          rawBytes: number
+          gzipBytes: number
+        }
+      >()
       const surfaceGraphs = new Set<string>()
       for (const [surface, modules] of Object.entries(NEW_SURFACE_MODULES)) {
-        const absolutePaths = modules.map(module =>
+        const absolutePaths = modules.map((module) =>
           normalizeSlashes(resolve(RENDERER_SRC_ROOT, module)),
         )
         const found = findChunksContainingModules(chunks, absolutePaths)
         const missingModules = absolutePaths.filter(
-          path => ![...found.values()].some(hits => hits.has(path)),
+          (path) => ![...found.values()].some((hits) => hits.has(path)),
         )
         if (missingModules.length > 0) {
           this.error(
@@ -339,10 +326,7 @@ function routeBundleBudget(): Plugin {
           )
           continue
         }
-        const graph = collectStaticGraph(
-          chunks,
-          [...entryGraph, ...found.keys()],
-        )
+        const graph = collectStaticGraph(chunks, [...entryGraph, ...found.keys()])
         surfaceMeasures.set(surface, measureGraph(chunks, graph))
         for (const fileName of graph) surfaceGraphs.add(fileName)
       }
@@ -354,11 +338,10 @@ function routeBundleBudget(): Plugin {
         newInteractiveCssRawBytes: measureCssAssets(bundle, interactiveCssFiles),
       }
       const largestAsyncCss = Object.entries(bundle)
-        .filter(([fileName, asset]) => (
-          fileName.endsWith('.css')
-          && !entryCssFiles.has(fileName)
-          && asset.type === 'asset'
-        ))
+        .filter(
+          ([fileName, asset]) =>
+            fileName.endsWith('.css') && !entryCssFiles.has(fileName) && asset.type === 'asset',
+        )
         .map(([fileName, asset]) => ({
           fileName,
           rawBytes: assetByteLength(asset),
@@ -373,7 +356,7 @@ function routeBundleBudget(): Plugin {
         }))
         .sort((left, right) => right.rawBytes - left.rawBytes)[0]
       const largestImmediateModules = [...entryGraph]
-        .flatMap(fileName => {
+        .flatMap((fileName) => {
           const chunk = chunks.get(fileName)
           return Object.entries(chunk?.modules ?? {}).map(([id, details]: [string, any]) => ({
             id,
@@ -424,7 +407,7 @@ function routeBundleBudget(): Plugin {
         )
       }
       this.info(
-        `/new largest modules: ${largestImmediateModules.map(module => `${module.id.replaceAll('\\', '/').split('/node_modules/').at(-1)} (${(module.renderedLength / 1024).toFixed(1)} KiB)`).join(', ')}`,
+        `/new largest modules: ${largestImmediateModules.map((module) => `${module.id.replaceAll('\\', '/').split('/node_modules/').at(-1)} (${(module.renderedLength / 1024).toFixed(1)} KiB)`).join(', ')}`,
       )
       if (entryMeasure.rawBytes > ENTRY_RAW_BUDGET_KIB * 1024) {
         this.error(
@@ -456,12 +439,7 @@ function routeBundleBudget(): Plugin {
 }
 
 export default defineConfig(({ command, mode }) => ({
-  plugins: [
-    tailwindcss(),
-    react(),
-    routeBundleBudget(),
-    startupSplashAssets(),
-  ],
+  plugins: [tailwindcss(), react(), routeBundleBudget(), startupSplashAssets()],
   define: {
     __CODEPILOTX_VERSION__: JSON.stringify(rootPackage.version),
   },
@@ -480,10 +458,7 @@ export default defineConfig(({ command, mode }) => ({
   },
   server: {
     fs: {
-      allow: [
-        resolve(__dirname),
-        resolve(__dirname, '..', 'build'),
-      ],
+      allow: [resolve(__dirname), resolve(__dirname, '..', 'build')],
     },
     strictPort: true,
     ...resolveRendererServerOverrides(command, mode),

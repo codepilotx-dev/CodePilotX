@@ -14,7 +14,10 @@ import { fullErrorMessage } from './utils/errors.js'
 
 function isResizeObserverLoopError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : typeof error === 'string' ? error : ''
-  return message.includes('ResizeObserver loop completed with undelivered notifications.') || message.includes('ResizeObserver loop limit exceeded')
+  return (
+    message.includes('ResizeObserver loop completed with undelivered notifications.') ||
+    message.includes('ResizeObserver loop limit exceeded')
+  )
 }
 
 export function App(): React.ReactNode {
@@ -26,10 +29,7 @@ export function App(): React.ReactNode {
       setErrorMessage(fullErrorMessage(error))
     }
     const handleError = (event: ErrorEvent): void => {
-      if (
-        isResizeObserverLoopError(event.error) ||
-        isResizeObserverLoopError(event.message)
-      ) {
+      if (isResizeObserverLoopError(event.error) || isResizeObserverLoopError(event.message)) {
         event.preventDefault()
         return
       }
@@ -54,11 +54,7 @@ export function App(): React.ReactNode {
     window.addEventListener('desktop:error', handleDesktopError)
     return () => {
       window.removeEventListener('error', handleError, true)
-      window.removeEventListener(
-        'unhandledrejection',
-        handleUnhandledRejection,
-        true,
-      )
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection, true)
       window.removeEventListener('desktop:error', handleDesktopError)
     }
   }, [])
@@ -81,9 +77,9 @@ export function App(): React.ReactNode {
                     />
                   </Suspense>
                 ) : null}
-                {window.location.hash.startsWith(PET_OVERLAY_HASH_PREFIX)
-                  ? null
-                  : <PageZoomCapsule />}
+                {window.location.hash.startsWith(PET_OVERLAY_HASH_PREFIX) ? null : (
+                  <PageZoomCapsule />
+                )}
                 <RouterProvider router={router} />
               </div>
             }

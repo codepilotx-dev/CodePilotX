@@ -2,15 +2,15 @@ import {
   deriveDesktopSurfaceUnder,
   type DesktopChromeTheme,
   type DesktopThemeSettingsV7,
-} from "@codepilotx/shared/desktop-theme"
-import type { DesktopStartupThemeSeed } from "@codepilotx/shared/desktop-appearance-ipc"
+} from '@codepilotx/shared/desktop-theme'
+import type { DesktopStartupThemeSeed } from '@codepilotx/shared/desktop-appearance-ipc'
 
-export type StartupStatusKind = "progress" | "terminal-error"
+export type StartupStatusKind = 'progress' | 'terminal-error'
 
 export interface StartupPageOptions {
   logoDataUrl: string
-  variant: "light" | "dark"
-  theme: Pick<DesktopChromeTheme, "surface" | "ink" | "accent"> & {
+  variant: 'light' | 'dark'
+  theme: Pick<DesktopChromeTheme, 'surface' | 'ink' | 'accent'> & {
     surfaceUnder: string
   }
 }
@@ -21,19 +21,14 @@ export function deriveSurfaceUnder(
   dark: boolean,
   contrast = dark ? 60 : 45,
 ): string {
-  return deriveDesktopSurfaceUnder(
-    surface,
-    ink,
-    dark ? "dark" : "light",
-    contrast,
-  )
+  return deriveDesktopSurfaceUnder(surface, ink, dark ? 'dark' : 'light', contrast)
 }
 
-export const RENDERER_STARTUP_THEME_QUERY_PARAM = "cpx-startup-theme"
+export const RENDERER_STARTUP_THEME_QUERY_PARAM = 'cpx-startup-theme'
 
 export function createRendererApplicationUrl(
   applicationOrigin: string,
-  startupTheme: Omit<StartupPageOptions, "logoDataUrl">,
+  startupTheme: Omit<StartupPageOptions, 'logoDataUrl'>,
 ): string {
   const target = new URL(applicationOrigin)
   const seed: DesktopStartupThemeSeed = {
@@ -42,20 +37,17 @@ export function createRendererApplicationUrl(
     surface: startupTheme.theme.surface,
     ink: startupTheme.theme.ink,
   }
-  target.searchParams.set(
-    RENDERER_STARTUP_THEME_QUERY_PARAM,
-    JSON.stringify(seed),
-  )
+  target.searchParams.set(RENDERER_STARTUP_THEME_QUERY_PARAM, JSON.stringify(seed))
   return target.href
 }
 
 export function resolveStartupPageTheme(
   settings: DesktopThemeSettingsV7,
-  systemVariant: "light" | "dark",
-): Omit<StartupPageOptions, "logoDataUrl"> {
-  const variant = settings.mode === "system" ? systemVariant : settings.mode
+  systemVariant: 'light' | 'dark',
+): Omit<StartupPageOptions, 'logoDataUrl'> {
+  const variant = settings.mode === 'system' ? systemVariant : settings.mode
   const { surface, ink, accent, contrast } = settings.chromeThemes[variant]
-  const dark = variant === "dark"
+  const dark = variant === 'dark'
   const surfaceUnder = deriveSurfaceUnder(surface, ink, dark, contrast)
   return {
     variant,
@@ -63,20 +55,15 @@ export function resolveStartupPageTheme(
   }
 }
 
-export function renderStartupPage({
-  logoDataUrl,
-  variant,
-  theme,
-}: StartupPageOptions): string {
+export function renderStartupPage({ logoDataUrl, variant, theme }: StartupPageOptions): string {
   const background = theme.surface
   const foreground = theme.ink
   const muted = `color-mix(in srgb, ${foreground} 62%, transparent)`
   const border = `color-mix(in srgb, ${foreground} 14%, transparent)`
   const hover = `color-mix(in srgb, ${foreground} 6%, transparent)`
-  const baseFilter = variant === "dark"
-    ? "grayscale(1) brightness(0) invert(1)"
-    : "grayscale(1) brightness(0)"
-  const baseOpacity = "0.24"
+  const baseFilter =
+    variant === 'dark' ? 'grayscale(1) brightness(0) invert(1)' : 'grayscale(1) brightness(0)'
+  const baseOpacity = '0.24'
   const shimmerPeak = `color-mix(in srgb, ${foreground} 92%, transparent)`
   const safeLogoDataUrl = escapeHtmlAttribute(logoDataUrl)
   const safeLogoCssUrl = escapeCssUrl(logoDataUrl)
@@ -438,16 +425,16 @@ export function renderStartupPage({
 
 function escapeHtmlAttribute(value: string): string {
   return value
-    .replaceAll("&", "&amp;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
+    .replaceAll('&', '&amp;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
 }
 
 function escapeCssUrl(value: string): string {
   return value
-    .replaceAll("\\", "\\\\")
+    .replaceAll('\\', '\\\\')
     .replaceAll('"', '\\"')
-    .replaceAll("\n", "")
-    .replaceAll("\r", "")
+    .replaceAll('\n', '')
+    .replaceAll('\r', '')
 }

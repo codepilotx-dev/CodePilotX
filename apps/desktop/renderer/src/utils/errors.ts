@@ -4,16 +4,9 @@ const RESIZE_OBSERVER_LOOP_MESSAGES = [
 ]
 
 export type ErrorContext =
-  | 'thread-read'
-  | 'thread-create'
-  | 'thread-send'
-  | 'project-list'
-  | 'general'
+  'thread-read' | 'thread-create' | 'thread-send' | 'project-list' | 'general'
 
-export function toUserErrorMessage(
-  error: unknown,
-  context?: ErrorContext,
-): string {
+export function toUserErrorMessage(error: unknown, context?: ErrorContext): string {
   const errorCode = extractErrorCode(error)
   const numericCode = extractNumericCode(error)
   const message = rawErrorMessage(error).trim()
@@ -176,7 +169,9 @@ function isDatabaseError(message: string): boolean {
 
 function isTechnicalError(message: string): boolean {
   return (
-    /\b(?:thread|project|turn|interaction|worktree|automation|config|model|provider)\/[a-zA-Z0-9_-]+/u.test(message) ||
+    /\b(?:thread|project|turn|interaction|worktree|automation|config|model|provider)\/[a-zA-Z0-9_-]+/u.test(
+      message,
+    ) ||
     message.includes('AgentRpcError') ||
     message.includes('RpcError') ||
     message.includes('   at ') ||
@@ -188,7 +183,7 @@ function isTechnicalError(message: string): boolean {
 function sanitizeErrorMessage(message: string): string {
   if (!message) return ''
   const lines = message.split('\n')
-  const cleanLines = lines.filter(line => !line.trim().startsWith('at '))
+  const cleanLines = lines.filter((line) => !line.trim().startsWith('at '))
   return cleanLines.join('\n').trim()
 }
 
@@ -197,14 +192,9 @@ export function fullErrorMessage(error: unknown): string {
 }
 
 export function isResizeObserverLoopError(error: unknown): boolean {
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === 'string'
-        ? error
-        : null
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : null
   if (!message) return false
-  return RESIZE_OBSERVER_LOOP_MESSAGES.some(item => message.includes(item))
+  return RESIZE_OBSERVER_LOOP_MESSAGES.some((item) => message.includes(item))
 }
 
 function formatUnknownError(error: unknown, seen: WeakSet<object>): string {
@@ -218,45 +208,37 @@ function formatError(error: Error, seen: WeakSet<object>): string {
   if (seen.has(error)) return '[Circular Error]'
   seen.add(error)
 
-  const primary =
-    error.stack ||
-    (error.message ? `${error.name}: ${error.message}` : String(error))
+  const primary = error.stack || (error.message ? `${error.name}: ${error.message}` : String(error))
   const details = Object.entries(error).filter(([key]) => key !== 'cause')
-  const extra =
-    details.length > 0
-      ? `\n${stringifyObject(Object.fromEntries(details), seen)}`
-      : ''
-  const cause =
-    'cause' in error
-      ? `\nCaused by: ${formatUnknownError(error.cause, seen)}`
-      : ''
+  const extra = details.length > 0 ? `\n${stringifyObject(Object.fromEntries(details), seen)}` : ''
+  const cause = 'cause' in error ? `\nCaused by: ${formatUnknownError(error.cause, seen)}` : ''
 
   return `${primary}${extra}${cause}`
 }
 
 function stringifyObject(value: object, seen: WeakSet<object>): string {
   try {
-    return JSON.stringify(
-      value,
-      (_key, item: unknown) => {
-        if (!item || typeof item !== 'object') return item
-        if (seen.has(item)) return '[Circular]'
-        seen.add(item)
-        if (item instanceof Error) {
-          return {
-            name: item.name,
-            message: item.message,
-            stack: item.stack,
-            ...Object.fromEntries(
-              Object.entries(item).filter(([key]) => key !== 'cause'),
-            ),
-            ...('cause' in item ? { cause: item.cause } : {}),
+    return (
+      JSON.stringify(
+        value,
+        (_key, item: unknown) => {
+          if (!item || typeof item !== 'object') return item
+          if (seen.has(item)) return '[Circular]'
+          seen.add(item)
+          if (item instanceof Error) {
+            return {
+              name: item.name,
+              message: item.message,
+              stack: item.stack,
+              ...Object.fromEntries(Object.entries(item).filter(([key]) => key !== 'cause')),
+              ...('cause' in item ? { cause: item.cause } : {}),
+            }
           }
-        }
-        return item
-      },
-      2,
-    ) ?? String(value)
+          return item
+        },
+        2,
+      ) ?? String(value)
+    )
   } catch {
     return String(value)
   }

@@ -3,11 +3,7 @@
 }
 
 .ui-skeleton-block {
-  --ui-skeleton-highlight: color-mix(
-    in srgb,
-    var(--cpx-sys-color-fg-primary) 12%,
-    transparent
-  );
+  --ui-skeleton-highlight: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 12%, transparent);
   position: relative;
   display: block;
   overflow: hidden;

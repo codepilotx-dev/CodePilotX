@@ -1,17 +1,7 @@
 import type React from 'react'
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import {
-  Maximize2,
-  Minimize2,
-} from 'lucide-react'
+import { Maximize2, Minimize2 } from 'lucide-react'
 import type {
   DesktopBrowserState,
   DesktopDiffMarkerStyle,
@@ -23,10 +13,7 @@ import type {
   DesktopWorkspace,
 } from '../../../../shared/types.js'
 import type { ReviewTabUiState } from '../tabs/conversationUiState.js'
-import {
-  APP_ICON_SIZE,
-  APP_ICON_STROKE_WIDTH,
-} from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { TabStripButtonProvider } from '../../../components/ui/TabStripButtonContext.js'
 import type {
@@ -45,10 +32,7 @@ import {
   type WorkbenchTabAvailability,
   type WorkbenchTabRenderContext,
 } from '../tabs/workbenchTabRegistry.js'
-import {
-  WorkbenchTabStrip,
-  workbenchTabDomId,
-} from '../tabs/WorkbenchTabStrip.js'
+import { WorkbenchTabStrip, workbenchTabDomId } from '../tabs/WorkbenchTabStrip.js'
 import { WorkbenchDockFrame } from './WorkbenchDockFrame.js'
 import {
   WorkbenchPanelLauncher,
@@ -109,9 +93,7 @@ type Props = {
   onAddComposerFiles: (filePaths: string[]) => void
   onRefreshReview: () => void
   onReviewTabStateChange: (
-    value:
-      | ReviewTabUiState
-      | ((current: ReviewTabUiState) => ReviewTabUiState),
+    value: ReviewTabUiState | ((current: ReviewTabUiState) => ReviewTabUiState),
   ) => void
   onResetWidth: () => void
   onResetHeight?: () => void
@@ -124,20 +106,10 @@ type Props = {
     tabId: WorkbenchTabId,
     index?: number,
   ) => void
-  onReorderTab: (
-    target: WorkbenchPanelTarget,
-    tabId: WorkbenchTabId,
-    index: number,
-  ) => void
+  onReorderTab: (target: WorkbenchPanelTarget, tabId: WorkbenchTabId, index: number) => void
   onPinTab: (tabId: WorkbenchTabId) => void
-  onPopOutTab?: (
-    source: WorkbenchPanelTarget,
-    tabId: WorkbenchTabId,
-  ) => void
-  onSetFileMarkdownViewMode: (
-    tabId: WorkbenchTabId,
-    mode: MarkdownFileViewMode,
-  ) => void
+  onPopOutTab?: (source: WorkbenchPanelTarget, tabId: WorkbenchTabId) => void
+  onSetFileMarkdownViewMode: (tabId: WorkbenchTabId, mode: MarkdownFileViewMode) => void
   onToggleRightFullWidth?: () => void
   onToggleReviewView: () => void
   sideChat: Omit<WorkbenchTabRenderContext['sideChat'], 'activeTabId'>
@@ -147,10 +119,7 @@ type Props = {
   sideTaskContent?: React.ReactNode
 }
 
-type FilePreviewTab = Extract<
-  WorkbenchTabDescriptor,
-  { kind: 'file-preview' }
->
+type FilePreviewTab = Extract<WorkbenchTabDescriptor, { kind: 'file-preview' }>
 
 export type WorkbenchFileLoadErrorEvent = {
   error: Error
@@ -201,9 +170,7 @@ function WorkbenchPanelResizeController({
   const isBottom = target === 'bottom'
   const size = isBottom ? (height ?? minHeight ?? 160) : width
   const minSize = isBottom ? (minHeight ?? 160) : minWidth
-  const maxSize = isBottom
-    ? (maxHeight ?? minHeight ?? 160)
-    : maxWidth
+  const maxSize = isBottom ? (maxHeight ?? minHeight ?? 160) : maxWidth
   const liveResize = useWorkbenchPanelLiveResize(target)
 
   const updateResizePhase = useCallback(
@@ -256,18 +223,10 @@ function WorkbenchPanelResizeController({
         aria-valuemax={maxSize}
         aria-valuemin={minSize}
         aria-valuenow={size}
-        className={
-          isBottom
-            ? 'bottom-panel-resize-handle'
-            : 'right-dock-resize-handle'
-        }
+        className={isBottom ? 'bottom-panel-resize-handle' : 'right-dock-resize-handle'}
         role="separator"
         tabIndex={0}
-        title={
-          isBottom
-            ? '拖拽调整高度，双击恢复默认高度'
-            : '拖拽调整宽度，双击恢复默认宽度'
-        }
+        title={isBottom ? '拖拽调整高度，双击恢复默认高度' : '拖拽调整宽度，双击恢复默认宽度'}
         onDoubleClick={isBottom ? onResetHeight : onResetWidth}
         onKeyDown={handleResizeKey}
         onLostPointerCapture={handleLostPointerCapture}
@@ -366,9 +325,7 @@ export function WorkbenchPanel({
     displayPath: string | null
   }>({ sessionId, displayPath: null })
   const terminalDisplayPath =
-    terminalDisplayPathState.sessionId === sessionId
-      ? terminalDisplayPathState.displayPath
-      : null
+    terminalDisplayPathState.sessionId === sessionId ? terminalDisplayPathState.displayPath : null
   const handleTerminalDisplayPathChange = useCallback(
     (displayPath: string | null) => {
       setTerminalDisplayPathState({ sessionId, displayPath })
@@ -376,15 +333,11 @@ export function WorkbenchPanel({
     [sessionId],
   )
   useEffect(() => {
-    setTerminalDisplayPathState(current =>
-      current.sessionId === sessionId
-        ? current
-        : { sessionId, displayPath: null },
+    setTerminalDisplayPathState((current) =>
+      current.sessionId === sessionId ? current : { sessionId, displayPath: null },
     )
   }, [sessionId])
-  const stableOnAppendBrowserAnnotation = useStableEvent(
-    onAppendBrowserAnnotation,
-  )
+  const stableOnAppendBrowserAnnotation = useStableEvent(onAppendBrowserAnnotation)
   const stableOnBrowserStateChange = useStableEvent(onBrowserStateChange)
   const stableOnClose = useStableEvent(onClose)
   const stableOnCreateBranch = useStableEvent(onCreateBranch)
@@ -395,14 +348,10 @@ export function WorkbenchPanel({
   const stableOnAppendComposerText = useStableEvent(onAppendComposerText)
   const stableOnAddComposerFiles = useStableEvent(onAddComposerFiles)
   const stableOnRefreshReview = useStableEvent(onRefreshReview)
-  const stableOnReviewTabStateChange = useStableEvent(
-    onReviewTabStateChange,
-  )
+  const stableOnReviewTabStateChange = useStableEvent(onReviewTabStateChange)
   const stableOnOpenTab = useStableEvent(onOpenTab)
   const stableOnPinTab = useStableEvent(onPinTab)
-  const stableOnSetFileMarkdownViewMode = useStableEvent(
-    onSetFileMarkdownViewMode,
-  )
+  const stableOnSetFileMarkdownViewMode = useStableEvent(onSetFileMarkdownViewMode)
   const stableOnToggleReviewView = useStableEvent(onToggleReviewView)
 
   const panelContext = useMemo<WorkbenchTabRenderContext>(
@@ -443,8 +392,7 @@ export function WorkbenchPanel({
         onAddComposerFiles: stableOnAddComposerFiles,
         onPinFileTab: stableOnPinTab,
         onSetFileMarkdownViewMode: stableOnSetFileMarkdownViewMode,
-        onLoadError: (tab, error, phase) =>
-          stableOnFileLoadError({ error, phase, tab, target }),
+        onLoadError: (tab, error, phase) => stableOnFileLoadError({ error, phase, tab, target }),
       },
       planContentByEventId,
       sideChat: {
@@ -519,9 +467,7 @@ export function WorkbenchPanel({
           ? liveResize.liveSize
           : width
       }
-      visibleWidth={
-        target === 'right' && liveResize ? liveResize.liveSize : width
-      }
+      visibleWidth={target === 'right' && liveResize ? liveResize.liveSize : width}
     >
       <WorkbenchPanelResizeController
         target={target}
@@ -618,13 +564,12 @@ const MemoizedWorkbenchPanelContent = memo(function WorkbenchPanelContent({
   return (
     <WorkbenchPanelContentSurface ref={contentRef} target={target}>
       {state.tabIds.length > 0 ? (
-        state.tabIds.map(tabId => {
+        state.tabIds.map((tabId) => {
           const tab = tabsById[tabId]
           if (!tab) return null
           const active = state.activeTabId === tab.id
           const definition = getWorkbenchTabDefinition(tab)
-          const shouldMount =
-            active || definition.lifecycle === 'keep-alive-hidden'
+          const shouldMount = active || definition.lifecycle === 'keep-alive-hidden'
           return (
             <div
               key={tab.id}
@@ -669,43 +614,43 @@ function WorkbenchLauncher({
   sideChatAvailable: boolean
 }): React.ReactNode {
   const launchers = getWorkbenchLauncherDefinitions().filter(
-    definition => definition.kind !== 'side-chat' || sideChatAvailable,
+    (definition) => definition.kind !== 'side-chat' || sideChatAvailable,
   )
 
   const actions = launchers.flatMap<
     Parameters<typeof WorkbenchPanelLauncher>[0]['actions'][number]
-  >(definition => {
+  >((definition) => {
     const presentation = getWorkbenchLauncherPresentation(definition)
     const availability = definition.getAvailability?.(panelContext) ?? {
       status: 'available' as const,
     }
     if (definition.kind === 'side-chat') {
-      return [{
+      return [
+        {
+          disabled: availability.status !== 'available',
+          id: definition.kind,
+          icon: presentation.icon,
+          label: presentation.label,
+          reason: availability.reason,
+          shortcut: presentation.shortcut,
+          onSelect: onCreateSideChat,
+        },
+      ]
+    }
+    const tab = createLauncherTab(definition.kind)
+    if (!tab) return []
+    return [
+      {
         disabled: availability.status !== 'available',
         id: definition.kind,
         icon: presentation.icon,
         label: presentation.label,
         reason: availability.reason,
         shortcut: presentation.shortcut,
-        onSelect: onCreateSideChat,
-      }]
-    }
-    const tab = createLauncherTab(definition.kind)
-    if (!tab) return []
-    return [{
-      disabled: availability.status !== 'available',
-      id: definition.kind,
-      icon: presentation.icon,
-      label: presentation.label,
-      reason: availability.reason,
-      shortcut: presentation.shortcut,
-      onSelect: () => onOpenTab(tab),
-    }]
+        onSelect: () => onOpenTab(tab),
+      },
+    ]
   })
 
-  return (
-    <WorkbenchPanelLauncher
-      actions={actions}
-    />
-  )
+  return <WorkbenchPanelLauncher actions={actions} />
 }

@@ -19,16 +19,15 @@ export type { DesktopClipboard } from './clipboard-client.js'
 export type { DesktopTerminalClient } from './terminal-client.js'
 export type { DesktopBrowserClient } from './desktop-browser-client.js'
 
-let terminalClientPromise:
-  | Promise<import('./terminal-client.js').DesktopTerminalClient>
-  | null = null
+let terminalClientPromise: Promise<import('./terminal-client.js').DesktopTerminalClient> | null =
+  null
 
 export function loadDesktopTerminalClient(): Promise<
   import('./terminal-client.js').DesktopTerminalClient
 > {
   terminalClientPromise ??= import('./terminal-client.js')
-    .then(module => module.terminalClient)
-    .catch(error => {
+    .then((module) => module.terminalClient)
+    .catch((error) => {
       terminalClientPromise = null
       throw error
     })

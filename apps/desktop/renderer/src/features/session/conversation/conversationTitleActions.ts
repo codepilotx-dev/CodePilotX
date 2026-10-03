@@ -7,10 +7,7 @@ export function canRegenerateConversationTitle(input: {
   status: DesktopSessionStatus
 }): boolean {
   return (
-    input.hasActiveSession &&
-    input.hasFirstMessage &&
-    input.status === 'done' &&
-    !input.pending
+    input.hasActiveSession && input.hasFirstMessage && input.status === 'done' && !input.pending
   )
 }
 
@@ -19,10 +16,7 @@ export function shouldCloseConversationRenameDialog(input: {
   requestedSessionId: string
   succeeded: boolean
 }): boolean {
-  return (
-    input.succeeded &&
-    input.activeSessionId === input.requestedSessionId
-  )
+  return input.succeeded && input.activeSessionId === input.requestedSessionId
 }
 
 export function normalizeConversationTitle(title: string): string {
@@ -49,10 +43,5 @@ export function canInlineEditConversationTitle(input: {
   isRegenerating: boolean
   isRenaming: boolean
 }): boolean {
-  return (
-    input.hasActiveSession &&
-    !input.isLoading &&
-    !input.isRegenerating &&
-    !input.isRenaming
-  )
+  return input.hasActiveSession && !input.isLoading && !input.isRegenerating && !input.isRenaming
 }

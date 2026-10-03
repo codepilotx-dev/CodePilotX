@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { AlertTriangle, ExternalLink } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
-import {
-  CONFIG_UPDATED_EVENT,
-  desktopClient,
-} from '../../services/desktop-client/index.js'
+import { CONFIG_UPDATED_EVENT, desktopClient } from '../../services/desktop-client/index.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
-import { PERMISSION_MODE_OPTIONS, permissionConfigForMode, permissionModeForConfig } from './settingsStorage.js'
+import {
+  PERMISSION_MODE_OPTIONS,
+  permissionConfigForMode,
+  permissionModeForConfig,
+} from './settingsStorage.js'
 import type {
   DesktopConfigReadResult,
   DesktopConfigProfileListResult,
@@ -24,9 +25,7 @@ import { Button } from '../../components/ui/Button.js'
 export function ConfigSettings(): React.ReactNode {
   const settings = useDesktopSettings()
   const { draft } = settings
-  const [dataLocation, setDataLocation] = useState<DesktopDataLocationState | null>(
-    null,
-  )
+  const [dataLocation, setDataLocation] = useState<DesktopDataLocationState | null>(null)
   const [changingLocation, setChangingLocation] = useState(false)
   const [promptPreview, setPromptPreview] = useState<string | null>(null)
   const [configRead, setConfigRead] = useState<DesktopConfigReadResult | null>(null)
@@ -47,10 +46,10 @@ export function ConfigSettings(): React.ReactNode {
     const { read, profiles } = await readConfigState()
     setConfigRead(read)
     setConfigProfiles(profiles)
-    if (configLayer === 'project' && !read.layers?.some(layer => layer.kind === 'project')) {
+    if (configLayer === 'project' && !read.layers?.some((layer) => layer.kind === 'project')) {
       setConfigLayer('user')
     }
-    if (configLayer === 'profile' && !read.layers?.some(layer => layer.kind === 'profile')) {
+    if (configLayer === 'profile' && !read.layers?.some((layer) => layer.kind === 'profile')) {
       setConfigLayer('user')
     }
   }
@@ -80,15 +79,13 @@ export function ConfigSettings(): React.ReactNode {
     return () => window.removeEventListener(CONFIG_UPDATED_EVENT, refresh)
   })
 
-  const selectedConfigLayer = configRead?.layers?.find(
-    layer => layer.kind === configLayer,
-  )
+  const selectedConfigLayer = configRead?.layers?.find((layer) => layer.kind === configLayer)
 
   useEffect(() => {
     let mounted = true
     void desktopClient
       .getDataLocation()
-      .then(state => {
+      .then((state) => {
         if (mounted) setDataLocation(state)
       })
       .catch(() => {
@@ -121,9 +118,7 @@ export function ConfigSettings(): React.ReactNode {
       <div className="settings-content-inner">
         <div className="settings-page-header">
           <h2 className="settings-page-title">配置</h2>
-          <p className="settings-page-desc">
-            配置审批策略和命令执行范围。
-          </p>
+          <p className="settings-page-desc">配置审批策略和命令执行范围。</p>
         </div>
 
         <SettingsSection>
@@ -140,17 +135,20 @@ export function ConfigSettings(): React.ReactNode {
                 value={configRead?.profileState.selectedProfile ?? ''}
                 options={[
                   { value: '', label: '基础配置' },
-                  ...(configProfiles?.profiles ?? []).map(profile => ({
+                  ...(configProfiles?.profiles ?? []).map((profile) => ({
                     value: profile.id,
                     label: profile.displayName,
                     detail: profile.valid ? profile.description : '配置无效',
                     disabled: !profile.valid,
                   })),
                 ]}
-                onChange={value => {
-                  void desktopClient.selectConfigProfile(value || null)
+                onChange={(value) => {
+                  void desktopClient
+                    .selectConfigProfile(value || null)
                     .then(() => reloadConfig())
-                    .catch(error => window.alert(error instanceof Error ? error.message : String(error)))
+                    .catch((error) =>
+                      window.alert(error instanceof Error ? error.message : String(error)),
+                    )
                 }}
               />
               <SettingsDropdown
@@ -159,18 +157,19 @@ export function ConfigSettings(): React.ReactNode {
                 value={configLayer}
                 options={[
                   { value: 'user', label: '用户配置' },
-                  ...(configRead?.layers?.some(layer => layer.kind === 'profile')
+                  ...(configRead?.layers?.some((layer) => layer.kind === 'profile')
                     ? [{ value: 'profile', label: '活动 Profile' }]
                     : []),
-                  ...(configRead?.layers?.some(layer => layer.kind === 'project')
+                  ...(configRead?.layers?.some((layer) => layer.kind === 'project')
                     ? [{ value: 'project', label: '项目配置' }]
                     : []),
                 ]}
-                onChange={value => setConfigLayer(value as 'user' | 'profile' | 'project')}
+                onChange={(value) => setConfigLayer(value as 'user' | 'profile' | 'project')}
               />
             </div>
             <div className="config-settings-source-actions">
-              <Button color="secondary"
+              <Button
+                color="secondary"
                 type="button"
                 disabled={!configProfiles?.profilesDirectory}
                 onClick={() => {
@@ -182,14 +181,13 @@ export function ConfigSettings(): React.ReactNode {
                 <ExternalLink size={APP_ICON_SIZE} />
                 打开 Profiles 目录
               </Button>
-              <Button color="secondary"
+              <Button
+                color="secondary"
                 type="button"
                 disabled={!selectedConfigLayer?.filePath}
                 onClick={() => {
                   if (selectedConfigLayer?.filePath) {
-                    void desktopClient.openPathWithDefaultTarget(
-                      selectedConfigLayer.filePath,
-                    )
+                    void desktopClient.openPathWithDefaultTarget(selectedConfigLayer.filePath)
                   }
                 }}
               >
@@ -214,14 +212,15 @@ export function ConfigSettings(): React.ReactNode {
                   width={260}
                   ariaLabel="权限预设"
                   value={permissionModeForConfig(draft.values.permissionConfig)}
-                  options={PERMISSION_MODE_OPTIONS.map(option => ({
+                  options={PERMISSION_MODE_OPTIONS.map((option) => ({
                     value: option.value,
                     label: option.label,
                     detail: option.detail,
                   }))}
-                  onChange={value => {
+                  onChange={(value) => {
                     const mode = value as Parameters<typeof permissionConfigForMode>[0]
-                    if (mode !== 'custom') draft.setValue('permissionConfig', permissionConfigForMode(mode))
+                    if (mode !== 'custom')
+                      draft.setValue('permissionConfig', permissionConfigForMode(mode))
                     draft.autoSave()
                   }}
                 />
@@ -234,15 +233,43 @@ export function ConfigSettings(): React.ReactNode {
                 <SettingsDropdown
                   width={260}
                   ariaLabel="文件访问范围"
-                  value={draft.values.permissionConfig.sandboxMode === 'read-only' ? ':read-only' : draft.values.permissionConfig.sandboxMode === 'danger-full-access' ? ':danger-full-access' : ':workspace'}
+                  value={
+                    draft.values.permissionConfig.sandboxMode === 'read-only'
+                      ? ':read-only'
+                      : draft.values.permissionConfig.sandboxMode === 'danger-full-access'
+                        ? ':danger-full-access'
+                        : ':workspace'
+                  }
                   options={[
-                    { value: ':read-only', label: '只读', detail: '结构化文件工具只读；终端命令在本机执行并经过风险、Hook 和审批' },
-                    { value: ':workspace', label: '当前工作区', detail: '结构化文件工具仅写当前工作区；终端命令在本机执行并经过风险、Hook 和审批' },
-                    { value: ':danger-full-access', label: '完全访问', detail: '结构化文件工具可访问本机路径；终端命令在本机执行并经过风险、Hook 和审批' },
+                    {
+                      value: ':read-only',
+                      label: '只读',
+                      detail: '结构化文件工具只读；终端命令在本机执行并经过风险、Hook 和审批',
+                    },
+                    {
+                      value: ':workspace',
+                      label: '当前工作区',
+                      detail:
+                        '结构化文件工具仅写当前工作区；终端命令在本机执行并经过风险、Hook 和审批',
+                    },
+                    {
+                      value: ':danger-full-access',
+                      label: '完全访问',
+                      detail:
+                        '结构化文件工具可访问本机路径；终端命令在本机执行并经过风险、Hook 和审批',
+                    },
                   ]}
-                  onChange={value => {
-                    const sandboxMode = value === ':read-only' ? 'read-only' : value === ':danger-full-access' ? 'danger-full-access' : 'workspace-write'
-                    draft.setValue('permissionConfig', { ...draft.values.permissionConfig, sandboxMode })
+                  onChange={(value) => {
+                    const sandboxMode =
+                      value === ':read-only'
+                        ? 'read-only'
+                        : value === ':danger-full-access'
+                          ? 'danger-full-access'
+                          : 'workspace-write'
+                    draft.setValue('permissionConfig', {
+                      ...draft.values.permissionConfig,
+                      sandboxMode,
+                    })
                     draft.autoSave()
                   }}
                 />
@@ -257,11 +284,23 @@ export function ConfigSettings(): React.ReactNode {
                   ariaLabel="Shell 安全级别"
                   value={draft.values.shellSecurityLevel}
                   options={[
-                    { value: 'strict', label: '严格', detail: '更多高风险特征直接拒绝，适合陌生仓库' },
-                    { value: 'balanced', label: '平衡', detail: '灾难级行为拒绝，可疑项转审批（推荐）' },
-                    { value: 'relaxed', label: '宽松', detail: '保留不可绕过底线，其余高风险尽量转审批' },
+                    {
+                      value: 'strict',
+                      label: '严格',
+                      detail: '更多高风险特征直接拒绝，适合陌生仓库',
+                    },
+                    {
+                      value: 'balanced',
+                      label: '平衡',
+                      detail: '灾难级行为拒绝，可疑项转审批（推荐）',
+                    },
+                    {
+                      value: 'relaxed',
+                      label: '宽松',
+                      detail: '保留不可绕过底线，其余高风险尽量转审批',
+                    },
                   ]}
-                  onChange={value => {
+                  onChange={(value) => {
                     draft.setValue('shellSecurityLevel', value as DesktopShellSecurityLevel)
                     draft.autoSave()
                   }}
@@ -275,22 +314,36 @@ export function ConfigSettings(): React.ReactNode {
                 <SettingsDropdown
                   width={260}
                   ariaLabel="审批时机"
-                  value={typeof draft.values.permissionConfig.approvalPolicy === 'object'
-                    ? 'granular'
-                    : draft.values.permissionConfig.approvalPolicy === 'on-failure'
-                      ? 'on-request'
-                      : draft.values.permissionConfig.approvalPolicy}
+                  value={
+                    typeof draft.values.permissionConfig.approvalPolicy === 'object'
+                      ? 'granular'
+                      : draft.values.permissionConfig.approvalPolicy === 'on-failure'
+                        ? 'on-request'
+                        : draft.values.permissionConfig.approvalPolicy
+                  }
                   options={[
                     { value: 'untrusted', label: '不可信', detail: '执行不受信任的操作前请求批准' },
                     { value: 'on-request', label: '按请求', detail: '需要提升权限时请求批准' },
                     { value: 'granular', label: '精细控制', detail: '分别控制不同类别的审批请求' },
                     { value: 'never', label: '从不', detail: '运行操作时不请求批准' },
                   ]}
-                  onChange={value => {
-                    const approvalPolicy = value === 'granular'
-                      ? { type: 'granular' as const, sandboxApproval: true, rules: true, skillApproval: true, requestPermissions: true, mcpTools: true, mcpElicitations: true }
-                      : value as 'untrusted' | 'on-request' | 'never'
-                    draft.setValue('permissionConfig', { ...draft.values.permissionConfig, approvalPolicy })
+                  onChange={(value) => {
+                    const approvalPolicy =
+                      value === 'granular'
+                        ? {
+                            type: 'granular' as const,
+                            sandboxApproval: true,
+                            rules: true,
+                            skillApproval: true,
+                            requestPermissions: true,
+                            mcpTools: true,
+                            mcpElicitations: true,
+                          }
+                        : (value as 'untrusted' | 'on-request' | 'never')
+                    draft.setValue('permissionConfig', {
+                      ...draft.values.permissionConfig,
+                      approvalPolicy,
+                    })
                     draft.autoSave()
                   }}
                 />
@@ -306,33 +359,55 @@ export function ConfigSettings(): React.ReactNode {
                   value={draft.values.permissionConfig.approvalsReviewer}
                   options={[
                     { value: 'user', label: '用户', detail: '由你确认或拒绝审批请求' },
-                    { value: 'auto_review', label: 'Guardian 自动审查', detail: '由独立 Guardian 模型处理审批请求' },
+                    {
+                      value: 'auto_review',
+                      label: 'Guardian 自动审查',
+                      detail: '由独立 Guardian 模型处理审批请求',
+                    },
                   ]}
-                  onChange={value => { const approvalsReviewer = value as 'user' | 'auto_review'; draft.setValue('permissionConfig', { ...draft.values.permissionConfig, approvalsReviewer }); draft.autoSave() }}
+                  onChange={(value) => {
+                    const approvalsReviewer = value as 'user' | 'auto_review'
+                    draft.setValue('permissionConfig', {
+                      ...draft.values.permissionConfig,
+                      approvalsReviewer,
+                    })
+                    draft.autoSave()
+                  }}
                 />
               }
             />
             {typeof draft.values.permissionConfig.approvalPolicy === 'object' ? (
               <>
-                {([
-                  ['sandboxApproval', '执行范围提升'],
-                  ['rules', '规则审批'],
-                  ['skillApproval', 'Skill 脚本'],
-                  ['requestPermissions', '动态权限请求'],
-                  ['mcpTools', 'MCP 工具调用'],
-                  ['mcpElicitations', 'MCP 交互请求'],
-                ] as const).map(([key, label]) => (
+                {(
+                  [
+                    ['sandboxApproval', '执行范围提升'],
+                    ['rules', '规则审批'],
+                    ['skillApproval', 'Skill 脚本'],
+                    ['requestPermissions', '动态权限请求'],
+                    ['mcpTools', 'MCP 工具调用'],
+                    ['mcpElicitations', 'MCP 交互请求'],
+                  ] as const
+                ).map(([key, label]) => (
                   <SettingsRow
                     key={key}
                     title={label}
                     description="允许该类审批请求出现；关闭时需要该能力的调用会直接拒绝。"
-                    control={<ToggleSwitch ariaLabel={label} checked={draft.values.permissionConfig.approvalPolicy[key]} onChange={checked => {
-                      const policy = draft.values.permissionConfig.approvalPolicy
-                      if (typeof policy !== 'object') return
-                      const approvalPolicy = { ...policy, [key]: checked }
-                      draft.setValue('permissionConfig', { ...draft.values.permissionConfig, approvalPolicy })
-                      draft.autoSave()
-                    }} />}
+                    control={
+                      <ToggleSwitch
+                        ariaLabel={label}
+                        checked={draft.values.permissionConfig.approvalPolicy[key]}
+                        onChange={(checked) => {
+                          const policy = draft.values.permissionConfig.approvalPolicy
+                          if (typeof policy !== 'object') return
+                          const approvalPolicy = { ...policy, [key]: checked }
+                          draft.setValue('permissionConfig', {
+                            ...draft.values.permissionConfig,
+                            approvalPolicy,
+                          })
+                          draft.autoSave()
+                        }}
+                      />
+                    }
                   />
                 ))}
               </>
@@ -341,7 +416,7 @@ export function ConfigSettings(): React.ReactNode {
         </SettingsSection>
 
         <SettingsSection title="诊断">
-          {configRead?.diagnostics.map(diagnostic => (
+          {configRead?.diagnostics.map((diagnostic) => (
             <SettingsRow
               key={`${diagnostic.scope}:${diagnostic.code}`}
               title={diagnostic.code}
@@ -356,18 +431,21 @@ export function ConfigSettings(): React.ReactNode {
             title="完整提示词诊断"
             description="仅在你主动请求时读取当前任务的 system/developer/contextual-user sections、来源、hash、token 估算和缓存分类；内容不会写入日志或遥测。"
             control={
-              <Button color="secondary"
+              <Button
+                color="secondary"
                 type="button"
-                onClick={() => void (async () => {
-                  try {
-                    const sessionId = await desktopClient.getActiveSessionId()
-                    if (!sessionId) throw new Error('当前没有活动任务')
-                    const preview = await desktopClient.getSessionPromptPreview(sessionId)
-                    setPromptPreview(JSON.stringify(preview, null, 2))
-                  } catch (error) {
-                    window.alert(error instanceof Error ? error.message : String(error))
-                  }
-                })()}
+                onClick={() =>
+                  void (async () => {
+                    try {
+                      const sessionId = await desktopClient.getActiveSessionId()
+                      if (!sessionId) throw new Error('当前没有活动任务')
+                      const preview = await desktopClient.getSessionPromptPreview(sessionId)
+                      setPromptPreview(JSON.stringify(preview, null, 2))
+                    } catch (error) {
+                      window.alert(error instanceof Error ? error.message : String(error))
+                    }
+                  })()
+                }
               >
                 预览当前任务提示词
               </Button>
@@ -396,7 +474,7 @@ export function ConfigSettings(): React.ReactNode {
                 value={draft.values.generationModel}
                 mainModel={settings.model}
                 specializedModelKey="generationModel"
-                onChange={v => {
+                onChange={(v) => {
                   draft.setValue('generationModel', v)
                   draft.autoSave()
                 }}
@@ -411,7 +489,7 @@ export function ConfigSettings(): React.ReactNode {
                 value={draft.values.organizationModel}
                 mainModel={settings.model}
                 specializedModelKey="organizationModel"
-                onChange={v => {
+                onChange={(v) => {
                   draft.setValue('organizationModel', v)
                   draft.autoSave()
                 }}
@@ -426,7 +504,7 @@ export function ConfigSettings(): React.ReactNode {
                 value={draft.values.codingModel}
                 mainModel={settings.model}
                 specializedModelKey="codingModel"
-                onChange={v => {
+                onChange={(v) => {
                   draft.setValue('codingModel', v)
                   draft.autoSave()
                 }}
@@ -441,7 +519,7 @@ export function ConfigSettings(): React.ReactNode {
                 value={draft.values.securityModel}
                 mainModel={settings.model}
                 specializedModelKey="securityModel"
-                onChange={v => {
+                onChange={(v) => {
                   draft.setValue('securityModel', v)
                   draft.autoSave()
                 }}
@@ -456,11 +534,7 @@ export function ConfigSettings(): React.ReactNode {
         >
           <SettingsRow
             title="当前数据目录"
-            description={
-              dataLocation
-                ? dataLocation.currentDataDir
-                : '加载中…'
-            }
+            description={dataLocation ? dataLocation.currentDataDir : '加载中…'}
             control={
               <span className="settings-row-status">
                 {dataLocation
@@ -476,24 +550,16 @@ export function ConfigSettings(): React.ReactNode {
           <SettingsRow
             title="配置文件"
             description={
-              dataLocation
-                ? appendDataFile(dataLocation.currentDataDir, 'config.json')
-                : '加载中…'
+              dataLocation ? appendDataFile(dataLocation.currentDataDir, 'config.json') : '加载中…'
             }
             control={<span className="settings-row-status">建议备份</span>}
           />
           <SettingsRow
             title="Provider 凭据文件（可选）"
             description={
-              dataLocation
-                ? appendDataFile(dataLocation.currentDataDir, 'auth.json')
-                : '加载中…'
+              dataLocation ? appendDataFile(dataLocation.currentDataDir, 'auth.json') : '加载中…'
             }
-            control={
-              <span className="settings-row-status">
-                使用 auth.json 仓库时
-              </span>
-            }
+            control={<span className="settings-row-status">使用 auth.json 仓库时</span>}
           />
           <SettingsRow
             title="快速恢复"
@@ -503,9 +569,7 @@ export function ConfigSettings(): React.ReactNode {
             <SettingsRow
               title="待生效目录"
               description={`重启后将使用：${dataLocation.pendingDataDir}`}
-              control={
-                <span className="settings-row-status">等待重启</span>
-              }
+              control={<span className="settings-row-status">等待重启</span>}
             />
           ) : null}
           <SettingsRow
@@ -516,11 +580,9 @@ export function ConfigSettings(): React.ReactNode {
                 : '选择父目录后会创建 .codepilotx，并立即重启完成安全迁移。旧目录不会删除。'
             }
             control={
-              <Button color="primary"
-                disabled={
-                  changingLocation ||
-                  dataLocation?.isEnvControlled
-                }
+              <Button
+                color="primary"
+                disabled={changingLocation || dataLocation?.isEnvControlled}
                 onClick={() => void handleChooseDataLocation()}
                 type="button"
               >
@@ -529,7 +591,6 @@ export function ConfigSettings(): React.ReactNode {
             }
           />
         </SettingsSection>
-
       </div>
     </SettingsContentArea>
   )

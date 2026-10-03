@@ -1,11 +1,11 @@
 export const DESKTOP_SHELL_IPC_CHANNELS = {
-  openExternal: "shell:open-external",
-  listExternalOpenTargets: "shell:list-external-open-targets",
-  openPathWithTarget: "shell:open-path-with-target",
-  revealPathInFolder: "shell:reveal-path-in-folder",
+  openExternal: 'shell:open-external',
+  listExternalOpenTargets: 'shell:list-external-open-targets',
+  openPathWithTarget: 'shell:open-path-with-target',
+  revealPathInFolder: 'shell:reveal-path-in-folder',
 } as const
 
-export type DesktopExternalOpenTargetKind = "editor" | "file-explorer" | "terminal"
+export type DesktopExternalOpenTargetKind = 'editor' | 'file-explorer' | 'terminal'
 
 export type DesktopExternalOpenTarget = {
   targetId: string

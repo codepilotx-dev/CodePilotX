@@ -369,7 +369,7 @@ export function KeyboardShortcutsSettings(): React.ReactNode {
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const rows = useMemo(() => {
     if (!normalizedQuery) return SHORTCUT_ROWS
-    return SHORTCUT_ROWS.filter(row =>
+    return SHORTCUT_ROWS.filter((row) =>
       [row.title, row.description, row.keys.join(' ')]
         .join(' ')
         .toLocaleLowerCase()
@@ -398,14 +398,9 @@ export function KeyboardShortcutsSettings(): React.ReactNode {
           </div>
           <div className="keyboard-shortcuts-list">
             {rows.map((row, index) => (
-              <ShortcutRowView
-                key={`${row.title}-${row.description}-${index}`}
-                row={row}
-              />
+              <ShortcutRowView key={`${row.title}-${row.description}-${index}`} row={row} />
             ))}
-            {rows.length === 0 && (
-              <p className="keyboard-shortcuts-empty">未找到匹配的快捷键。</p>
-            )}
+            {rows.length === 0 && <p className="keyboard-shortcuts-empty">未找到匹配的快捷键。</p>}
           </div>
         </section>
       </div>
@@ -416,10 +411,7 @@ export function KeyboardShortcutsSettings(): React.ReactNode {
 function ShortcutRowView({ row }: { row: ShortcutRow }): React.ReactNode {
   const action = row.action ?? 'delete'
   const ActionIcon = action === 'edit' ? Pencil : Trash2
-  const actionLabel =
-    action === 'edit'
-      ? `编辑 ${row.title} 快捷键`
-      : `移除 ${row.title} 快捷键`
+  const actionLabel = action === 'edit' ? `编辑 ${row.title} 快捷键` : `移除 ${row.title} 快捷键`
 
   return (
     <div className="keyboard-shortcuts-row">
@@ -429,7 +421,7 @@ function ShortcutRowView({ row }: { row: ShortcutRow }): React.ReactNode {
       </div>
       <div className="keyboard-shortcuts-keys">
         {row.keys.length > 0 ? (
-          row.keys.map(key => (
+          row.keys.map((key) => (
             <span className="keyboard-shortcut-key" key={key}>
               {key}
             </span>

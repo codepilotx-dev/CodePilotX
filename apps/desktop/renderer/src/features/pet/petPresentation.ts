@@ -7,19 +7,13 @@ import type {
 export type PetPresentation = DesktopPetPresentation
 
 type PetPresentationBridge = {
-  previewPetPresentation?: (
-    presentation: PetPresentation,
-  ) => void | Promise<void>
-  onPetPresentationPreview?: (
-    listener: (presentation: PetPresentation) => void,
-  ) => () => void
+  previewPetPresentation?: (presentation: PetPresentation) => void | Promise<void>
+  onPetPresentationPreview?: (listener: (presentation: PetPresentation) => void) => () => void
   getPetGlobalPointerPosition?: () => Promise<{ x: number; y: number }>
   getPetOverlayWindowState?: () => Promise<DesktopPetOverlayWindowState>
 }
 
-export function presentationFromPetSettings(
-  settings: DesktopPetSettings,
-): PetPresentation {
+export function presentationFromPetSettings(settings: DesktopPetSettings): PetPresentation {
   return {
     selectedPetId: settings.selectedPetId,
     size: settings.size,
@@ -28,6 +22,5 @@ export function presentationFromPetSettings(
 
 export function getPetPresentationBridge(): PetPresentationBridge | undefined {
   return window.codePilotXDesktop as
-    | (typeof window.codePilotXDesktop & PetPresentationBridge)
-    | undefined
+    (typeof window.codePilotXDesktop & PetPresentationBridge) | undefined
 }

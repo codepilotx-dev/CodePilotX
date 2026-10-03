@@ -61,18 +61,14 @@ export function createAgentReviewApi({
     projectId ? loadProjectById(projectId) : loadProjectForPath(workspacePath)
 
   return {
-    getAgentReviewSummary: input => {
+    getAgentReviewSummary: (input) => {
       const visualFixture = browserVisualReviewSummary(input.source)
       if (visualFixture) return Promise.resolve(visualFixture)
       return withAgentOrMock(
         async () => {
           requireReviewCapability()
           const project = await loadProject(input.workspacePath, input.projectId)
-          await preparePullRequestReview(
-            project.id,
-            input.source,
-            input.refresh === true,
-          )
+          await preparePullRequestReview(project.id, input.source, input.refresh === true)
           return rpc.call<DesktopReviewAgentSummaryResult>(
             input.refresh ? 'review/refresh' : 'review/summary',
             { projectId: project.id, source: input.source },
@@ -81,11 +77,8 @@ export function createAgentReviewApi({
         async () => unsupportedReviewOperation(),
       )
     },
-    getAgentReviewFileDiff: input => {
-      const visualFixture = browserVisualReviewFileDiff(
-        input.source,
-        input.path,
-      )
+    getAgentReviewFileDiff: (input) => {
+      const visualFixture = browserVisualReviewFileDiff(input.source, input.path)
       if (visualFixture) return Promise.resolve(visualFixture)
       return withAgentOrMock(
         async () => {
@@ -102,31 +95,23 @@ export function createAgentReviewApi({
         async () => unsupportedReviewOperation(),
       )
     },
-    getAgentReviewFileDiffs: input => {
+    getAgentReviewFileDiffs: (input) => {
       if (isBrowserVisualReviewCase()) {
-        const files = input.paths.flatMap(path => {
-          const file = browserVisualReviewFileDiff(
-            input.source,
-            path,
-          )
+        const files = input.paths.flatMap((path) => {
+          const file = browserVisualReviewFileDiff(input.source, path)
           return file ? [file] : []
         })
         return Promise.resolve({
           type: 'success' as const,
           generation: input.generation,
           files,
-          changedBytes: files.reduce(
-            (total, file) => total + file.patch.length,
-            0,
-          ),
+          changedBytes: files.reduce((total, file) => total + file.patch.length, 0),
         })
       }
       return withAgentOrMock(
         async () => {
           requireReviewCapability()
-          if (!(await rpc.ensureInitialized()).capabilities.includes(
-            'git.review.batch.v1',
-          )) {
+          if (!(await rpc.ensureInitialized()).capabilities.includes('git.review.batch.v1')) {
             unsupportedReviewOperation()
           }
           const project = await loadProject(input.workspacePath, input.projectId)
@@ -141,7 +126,7 @@ export function createAgentReviewApi({
         async () => unsupportedReviewOperation(),
       )
     },
-    applyAgentReviewOperation: input =>
+    applyAgentReviewOperation: (input) =>
       isBrowserVisualReviewCase()
         ? Promise.resolve()
         : withAgentOrMock(
@@ -160,12 +145,12 @@ export function createAgentReviewApi({
             },
             async () => unsupportedReviewOperation(),
           ),
-    applyAgentReviewBatch: input =>
+    applyAgentReviewBatch: (input) =>
       isBrowserVisualReviewCase()
         ? Promise.resolve({
             ok: true as const,
             action: input.action,
-            paths: input.items.map(item => item.path),
+            paths: input.items.map((item) => item.path),
             generation: input.generation,
             appliedCount: input.items.length,
           })
@@ -222,7 +207,7 @@ export function createAgentReviewApi({
             },
             async () => unsupportedReviewOperation(),
           ),
-    listAgentReviewComments: input =>
+    listAgentReviewComments: (input) =>
       isBrowserVisualReviewCase()
         ? Promise.resolve([])
         : withAgentOrMock(
@@ -240,7 +225,7 @@ export function createAgentReviewApi({
             },
             async () => unsupportedReviewOperation(),
           ),
-    saveAgentReviewComment: input =>
+    saveAgentReviewComment: (input) =>
       withAgentOrMock(
         async () => {
           requireReviewCapability()
@@ -258,18 +243,14 @@ export function createAgentReviewApi({
             hunkId: input.hunkId,
             revision: input.revision,
             body: input.body,
-            ...(input.githubCommentId
-              ? { githubCommentId: input.githubCommentId }
-              : {}),
-            ...(input.githubThreadId
-              ? { githubThreadId: input.githubThreadId }
-              : {}),
+            ...(input.githubCommentId ? { githubCommentId: input.githubCommentId } : {}),
+            ...(input.githubThreadId ? { githubThreadId: input.githubThreadId } : {}),
           })
           return result.comment
         },
         async () => unsupportedReviewOperation(),
       ),
-    resolveAgentReviewComment: input =>
+    resolveAgentReviewComment: (input) =>
       withAgentOrMock(
         async () => {
           requireReviewCapability()
@@ -285,7 +266,7 @@ export function createAgentReviewApi({
         },
         async () => unsupportedReviewOperation(),
       ),
-    deleteAgentReviewComment: input =>
+    deleteAgentReviewComment: (input) =>
       withAgentOrMock(
         async () => {
           requireReviewCapability()
@@ -298,7 +279,7 @@ export function createAgentReviewApi({
         },
         async () => unsupportedReviewOperation(),
       ),
-    publishAgentGithubReviewComment: input =>
+    publishAgentGithubReviewComment: (input) =>
       withAgentOrMock(
         async () => {
           requireGithubPullRequestCapability()
@@ -324,7 +305,7 @@ export function createAgentReviewApi({
         },
         async () => unsupportedReviewOperation(),
       ),
-    submitAgentGithubReview: input =>
+    submitAgentGithubReview: (input) =>
       withAgentOrMock(
         async () => {
           requireGithubPullRequestCapability()

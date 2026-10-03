@@ -9,10 +9,7 @@ import type {
 } from '../dock/rightDockState.js'
 
 export type IntegratedTerminalToggleAction =
-  | 'unavailable'
-  | 'hide-bottom'
-  | 'move-to-bottom'
-  | 'open-bottom'
+  'unavailable' | 'hide-bottom' | 'move-to-bottom' | 'open-bottom'
 
 export function resolveIntegratedTerminalToggleAction(
   threadId: string | null,
@@ -21,10 +18,7 @@ export function resolveIntegratedTerminalToggleAction(
 ): IntegratedTerminalToggleAction {
   if (!threadId || !available) return 'unavailable'
   if (state.right.tabIds.includes('terminal')) return 'move-to-bottom'
-  if (
-    state.bottom.open &&
-    state.bottom.activeTabId === 'terminal'
-  ) return 'hide-bottom'
+  if (state.bottom.open && state.bottom.activeTabId === 'terminal') return 'hide-bottom'
   return 'open-bottom'
 }
 
@@ -37,11 +31,7 @@ export function useIntegratedTerminalController({
 }: {
   threadId: string | null
   state: WorkbenchTabsState
-  openPanelTab: (
-    target: WorkbenchPanelTarget,
-    tab: WorkbenchTabDescriptor,
-    index?: number,
-  ) => void
+  openPanelTab: (target: WorkbenchPanelTarget, tab: WorkbenchTabDescriptor, index?: number) => void
   movePanelTab: (
     source: WorkbenchPanelTarget,
     target: WorkbenchPanelTarget,
@@ -55,7 +45,7 @@ export function useIntegratedTerminalController({
   useEffect(() => {
     let disposed = false
     void loadDesktopTerminalClient()
-      .then(client => {
+      .then((client) => {
         if (!disposed) setTerminalAvailable(client.available)
       })
       .catch(() => {
@@ -77,11 +67,7 @@ export function useIntegratedTerminalController({
   }, [movePanelTab, openPanelTab, state.right.tabIds, terminalAvailable, threadId])
 
   const toggleIntegratedTerminal = useCallback((): void => {
-    const action = resolveIntegratedTerminalToggleAction(
-      threadId,
-      state,
-      terminalAvailable,
-    )
+    const action = resolveIntegratedTerminalToggleAction(threadId, state, terminalAvailable)
     if (action === 'unavailable') return
     if (action === 'hide-bottom') {
       togglePanel('bottom')
@@ -101,16 +87,14 @@ export function useIntegratedTerminalController({
 
   return {
     terminalAvailable: threadId !== null && terminalAvailable,
-    terminalVisible:
-      state.bottom.open && state.bottom.activeTabId === 'terminal',
+    terminalVisible: state.bottom.open && state.bottom.activeTabId === 'terminal',
     openIntegratedTerminal,
     toggleIntegratedTerminal,
   }
 }
 
 export function isTerminalKeyboardTarget(target: EventTarget | null): boolean {
-  return target instanceof Element &&
-    target.closest('[data-terminal-keyboard-capture]') !== null
+  return target instanceof Element && target.closest('[data-terminal-keyboard-capture]') !== null
 }
 
 function focusTerminalAfterLayout(threadId: string | null): void {

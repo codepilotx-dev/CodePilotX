@@ -1,9 +1,6 @@
 import type React from 'react'
 import { useRef } from 'react'
-import type {
-  DesktopWorkspace,
-  ProjectAppearance,
-} from '../../../../shared/types.js'
+import type { DesktopWorkspace, ProjectAppearance } from '../../../../shared/types.js'
 import {
   focusSidebarHoverCardAnchor,
   type SidebarHoverCardOverlayRenderProps,
@@ -67,7 +64,7 @@ export function SidebarProjectHoverCardOverlay({
           onEdit()
           interactionProps.requestOpenChange(false)
         }}
-        onOpenFolder={path => {
+        onOpenFolder={(path) => {
           onOpenFolder(path)
           interactionProps.requestOpenChange(false)
         }}
@@ -81,24 +78,15 @@ export function SidebarProjectHoverCardOverlay({
   )
 }
 
-function focusProjectAnchorAfterUpdate(
-  projectKey: string,
-  willBePinned: boolean,
-): void {
+function focusProjectAnchorAfterUpdate(projectKey: string, willBePinned: boolean): void {
   requestAnimationFrame(() => {
     const projectAnchor = [
       ...document.querySelectorAll<HTMLElement>('.sidebar-project-button'),
-    ].find(
-      button => button.dataset.sidebarProjectKey === projectKey,
-    )
+    ].find((button) => button.dataset.sidebarProjectKey === projectKey)
     const preferredSection = willBePinned ? 'pinned' : 'projects'
     const sectionFallback =
-      document.querySelector<HTMLElement>(
-        `[data-sidebar-section-id="${preferredSection}"]`,
-      ) ??
-      document.querySelector<HTMLElement>(
-        '[data-sidebar-section-id="recent"]',
-      ) ??
+      document.querySelector<HTMLElement>(`[data-sidebar-section-id="${preferredSection}"]`) ??
+      document.querySelector<HTMLElement>('[data-sidebar-section-id="recent"]') ??
       document.querySelector<HTMLElement>('.sidebar-section-header')
     focusSidebarHoverCardAnchor(projectAnchor ?? sectionFallback)
   })

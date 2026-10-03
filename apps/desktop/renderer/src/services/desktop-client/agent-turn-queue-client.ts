@@ -1,10 +1,5 @@
-import type {
-  ModelRef,
-} from '@codepilotx/shared'
-import type {
-  PermissionConfig,
-  ThreadSnapshot,
-} from '@codepilotx/shared/thread'
+import type { ModelRef } from '@codepilotx/shared'
+import type { PermissionConfig, ThreadSnapshot } from '@codepilotx/shared/thread'
 import type { RpcResult } from '@codepilotx/agent-protocol'
 import { desktopUserMessageInputToPreviewText } from '../../../shared/desktopUserMessage.js'
 import type {
@@ -69,10 +64,7 @@ export function createAgentTurnQueueClient({
   ): Promise<AgentMessageAdmission> {
     await awaitPendingSettingsUpdate(sessionId)
     if (input.skills?.length) requireSkillInvocationCapability?.()
-    const { attachmentIds, contextReferenceIds } = await importMessageContext(
-      sessionId,
-      input,
-    )
+    const { attachmentIds, contextReferenceIds } = await importMessageContext(sessionId, input)
     const content = desktopUserMessageInputToPreviewText({ ...input, skills: undefined })
     const inputId = options?.inputId ?? crypto.randomUUID()
 
@@ -209,7 +201,7 @@ export function createAgentTurnQueueClient({
 }
 
 function findActiveTurn(snapshot: ThreadSnapshot) {
-  return [...snapshot.turns].reverse().find(turn =>
-    turn.status === 'running' || turn.status.startsWith('waiting-'),
-  )
+  return [...snapshot.turns]
+    .reverse()
+    .find((turn) => turn.status === 'running' || turn.status.startsWith('waiting-'))
 }

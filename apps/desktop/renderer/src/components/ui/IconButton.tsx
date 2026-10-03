@@ -1,10 +1,6 @@
 import { forwardRef } from 'react'
 import type React from 'react'
-import {
-  Button,
-  type ButtonColor,
-  type ButtonProps,
-} from './Button.js'
+import { Button, type ButtonColor, type ButtonProps } from './Button.js'
 
 export type IconButtonSize =
   | 'compact'
@@ -27,34 +23,23 @@ type Props = Omit<ButtonProps, 'children' | 'color' | 'size' | 'uniform'> & {
   size: IconButtonSize
 }
 
-export const IconButton = forwardRef<HTMLButtonElement, Props>(
-  function IconButton(
-    {
-      children,
-      title,
-      nativeTitle = true,
-      active = false,
-      className,
-      color,
-      size,
-      ...buttonProps
-    },
-    ref,
-  ): React.ReactNode {
-    return (
-      <Button
-        {...buttonProps}
-        ref={ref}
-        aria-label={title}
-        className={['icon-button', className].filter(Boolean).join(' ')}
-        color={color}
-        data-active={active || undefined}
-        size={size}
-        title={nativeTitle ? title : undefined}
-        uniform
-      >
-        {children}
-      </Button>
-    )
-  },
-)
+export const IconButton = forwardRef<HTMLButtonElement, Props>(function IconButton(
+  { children, title, nativeTitle = true, active = false, className, color, size, ...buttonProps },
+  ref,
+): React.ReactNode {
+  return (
+    <Button
+      {...buttonProps}
+      ref={ref}
+      aria-label={title}
+      className={['icon-button', className].filter(Boolean).join(' ')}
+      color={color}
+      data-active={active || undefined}
+      size={size}
+      title={nativeTitle ? title : undefined}
+      uniform
+    >
+      {children}
+    </Button>
+  )
+})

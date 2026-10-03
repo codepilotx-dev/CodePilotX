@@ -24,38 +24,34 @@ const SUBSCRIPTION_METHODS = new Set([
   'onToolingUpdated',
 ])
 
-export function createLazyBrowserMockClient(
-  storage: Storage | undefined,
-): BrowserMockClient {
+export function createLazyBrowserMockClient(storage: Storage | undefined): BrowserMockClient {
   let mockPromise: Promise<BrowserMockClient> | null = null
 
   const loadMock = (): Promise<BrowserMockClient> => {
     if (mockPromise) return mockPromise
     mockPromise = import('./browser-mock-client.js')
-      .then(module => module.createBrowserMockDesktopClient(storage))
-      .catch(error => {
+      .then((module) => module.createBrowserMockDesktopClient(storage))
+      .catch((error) => {
         mockPromise = null
         throw error
       })
     return mockPromise
   }
 
-  const subscribe = (
-    method: string,
-    callback: unknown,
-  ): (() => void) => {
+  const subscribe = (method: string, callback: unknown): (() => void) => {
     let cancelled = false
     let disposer: (() => void) | null = null
-    void loadMock().then(mock => {
-      if (cancelled) return
-      const subscribeMock = mock[method] as (
-        callback: unknown,
-      ) => () => void
-      disposer = subscribeMock(callback)
-    }, () => {
-      // The caller owns no async error channel for subscription setup. A later
-      // subscription or Promise method retries the cached dynamic import.
-    })
+    void loadMock().then(
+      (mock) => {
+        if (cancelled) return
+        const subscribeMock = mock[method] as (callback: unknown) => () => void
+        disposer = subscribeMock(callback)
+      },
+      () => {
+        // The caller owns no async error channel for subscription setup. A later
+        // subscription or Promise method retries the cached dynamic import.
+      },
+    )
     return () => {
       cancelled = true
       disposer?.()
@@ -70,7 +66,7 @@ export function createLazyBrowserMockClient(
         return (callback: unknown) => subscribe(prop, callback)
       }
       return (...args: unknown[]) =>
-        loadMock().then(mock => {
+        loadMock().then((mock) => {
           const method = mock[prop as keyof BrowserMockClient]
           if (typeof method !== 'function') {
             throw new Error(`Browser mock does not implement ${prop}.`)

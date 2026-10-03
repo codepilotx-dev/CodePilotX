@@ -1,15 +1,24 @@
-import type { Automation, AutomationExecution, AutomationRun, AutomationRunStatus } from "@codepilotx/shared/automation"
-import type { ModelRef } from "@codepilotx/shared/model"
-import type { PermissionConfig } from "@codepilotx/shared/thread"
-import { AgentError } from "../domain"
-import type { AutomationRepository } from "../storage/repositories/automation-repository"
+import type {
+  Automation,
+  AutomationExecution,
+  AutomationRun,
+  AutomationRunStatus,
+} from '@codepilotx/shared/automation'
+import type { ModelRef } from '@codepilotx/shared/model'
+import type { PermissionConfig } from '@codepilotx/shared/thread'
+import { AgentError } from '../domain'
+import type { AutomationRepository } from '../storage/repositories/automation-repository'
 
-type TerminalStatus = Extract<AutomationRunStatus, "completed" | "failed" | "interrupted">
-type RecoverableTurnStatus = "queued" | "running" | "waiting" | TerminalStatus
+type TerminalStatus = Extract<AutomationRunStatus, 'completed' | 'failed' | 'interrupted'>
+type RecoverableTurnStatus = 'queued' | 'running' | 'waiting' | TerminalStatus
 
-export type AutomationExecutionBinding = { threadId: string; turnId: string; worktreeId?: string | null }
+export type AutomationExecutionBinding = {
+  threadId: string
+  turnId: string
+  worktreeId?: string | null
+}
 export type ScheduledWorkDefinition = {
-  kind: Automation["kind"]
+  kind: Automation['kind']
   name: string
   prompt: string
   projectId: string | null
@@ -46,7 +55,7 @@ export class AutomationRunCoordinator {
   async startRun(run: AutomationRun) {
     const automation = this.repository.read(run.automationId)
     if (!automation) {
-      await this.finish(run.id, "failed", "AUTOMATION_NOT_FOUND")
+      await this.finish(run.id, 'failed', 'AUTOMATION_NOT_FOUND')
       return
     }
     try {
@@ -56,18 +65,40 @@ export class AutomationRunCoordinator {
       const queued = this.repository.bindExecution(run.id, binding, this.now())
       await this.changed(queued)
       const turnStatus = this.options.getTurnStatus?.(binding.turnId)
-      if (turnStatus === "running") await this.handleTurnRunning(binding.turnId)
-      else if (turnStatus === "completed" || turnStatus === "failed" || turnStatus === "interrupted") {
-        await this.finish(run.id, turnStatus, turnStatus === "completed" ? null : "AUTOMATION_TURN_TERMINATED")
+      if (turnStatus === 'running') await this.handleTurnRunning(binding.turnId)
+      else if (
+        turnStatus === 'completed' ||
+        turnStatus === 'failed' ||
+        turnStatus === 'interrupted'
+      ) {
+        await this.finish(
+          run.id,
+          turnStatus,
+          turnStatus === 'completed' ? null : 'AUTOMATION_TURN_TERMINATED',
+        )
       }
     } catch (cause) {
       const current = this.repository.readRun(run.id)
-      if (cause instanceof AgentError && cause.code === "CONFLICT" && current && current.status !== "claimed") return
-      await this.finish(run.id, "failed", cause instanceof AgentError ? cause.code : "INTERNAL_ERROR")
+      if (
+        cause instanceof AgentError &&
+        cause.code === 'CONFLICT' &&
+        current &&
+        current.status !== 'claimed'
+      )
+        return
+      await this.finish(
+        run.id,
+        'failed',
+        cause instanceof AgentError ? cause.code : 'INTERNAL_ERROR',
+      )
     }
   }
 
-  async handleTurnTerminal(turnId: string, status: TerminalStatus, safeErrorCode: string | null = null) {
+  async handleTurnTerminal(
+    turnId: string,
+    status: TerminalStatus,
+    safeErrorCode: string | null = null,
+  ) {
     const run = this.repository.findRunByTurn(turnId)
     if (!run) return null
     return this.finish(run.id, status, safeErrorCode)
@@ -75,7 +106,7 @@ export class AutomationRunCoordinator {
 
   async handleTurnRunning(turnId: string) {
     const run = this.repository.findRunByTurn(turnId)
-    if (!run || run.status === "running") return run
+    if (!run || run.status === 'running') return run
     const running = this.repository.markRunning(run.id, this.now())
     await this.changed(running)
     return running
@@ -85,16 +116,20 @@ export class AutomationRunCoordinator {
     const resumed: AutomationRun[] = []
     for (const run of this.repository.listActiveRuns()) {
       if (!run.turnId || !this.options.getTurnStatus) {
-        await this.finish(run.id, "interrupted", "AUTOMATION_RECOVERY_INTERRUPTED")
+        await this.finish(run.id, 'interrupted', 'AUTOMATION_RECOVERY_INTERRUPTED')
         continue
       }
       const status = this.options.getTurnStatus(run.turnId)
-      if (status === "completed" || status === "failed" || status === "interrupted") {
-        await this.finish(run.id, status, status === "completed" ? null : "AUTOMATION_TURN_TERMINATED")
+      if (status === 'completed' || status === 'failed' || status === 'interrupted') {
+        await this.finish(
+          run.id,
+          status,
+          status === 'completed' ? null : 'AUTOMATION_TURN_TERMINATED',
+        )
       } else if (status) resumed.push(run)
-      else await this.finish(run.id, "interrupted", "AUTOMATION_TURN_NOT_FOUND")
+      else await this.finish(run.id, 'interrupted', 'AUTOMATION_TURN_NOT_FOUND')
     }
-    const catchUps = this.repository.claimDue(this.now(), "startup-catch-up")
+    const catchUps = this.repository.claimDue(this.now(), 'startup-catch-up')
     await this.startRuns(catchUps)
     return { resumed, catchUps }
   }

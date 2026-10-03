@@ -36,15 +36,14 @@ export function SettingsPage({
   onError,
   onNotice,
 }: Props): React.ReactNode {
-  const resolvedTab = SETTINGS_ITEMS.some(item => item.routeId === activeTab)
+  const resolvedTab = SETTINGS_ITEMS.some((item) => item.routeId === activeTab)
     ? activeTab
     : 'general'
   let content: React.ReactNode
   if (resolvedTab === 'general') content = <GeneralSettings onNotice={onNotice} />
   else if (resolvedTab === 'providers') {
     content = <ProviderSettings onError={onError} onNotice={onNotice ?? (() => {})} />
-  }
-  else if (resolvedTab === 'voice') content = <VoiceSettings onNotice={onNotice} />
+  } else if (resolvedTab === 'voice') content = <VoiceSettings onNotice={onNotice} />
   else if (resolvedTab === 'appearance') content = <AppearanceSettings onError={onError} />
   else if (resolvedTab === 'config') content = <ConfigSettings />
   else if (resolvedTab === 'plugins') {
@@ -56,29 +55,25 @@ export function SettingsPage({
         onNotice={onNotice}
       />
     )
-  }
-  else if (resolvedTab === 'git') content = <GitSettings />
+  } else if (resolvedTab === 'git') content = <GitSettings />
   else if (resolvedTab === 'environment') {
     content = <EnvironmentSettings onError={onError} onNotice={onNotice} />
-  }
-  else if (resolvedTab === 'local-environment') content = <LocalEnvironmentSettings onError={onError} onNotice={onNotice} />
-  else if (resolvedTab === 'worktrees') content = <WorktreeSettings onError={onError} onNotice={onNotice} />
+  } else if (resolvedTab === 'local-environment')
+    content = <LocalEnvironmentSettings onError={onError} onNotice={onNotice} />
+  else if (resolvedTab === 'worktrees')
+    content = <WorktreeSettings onError={onError} onNotice={onNotice} />
   else if (resolvedTab === 'profile') content = <ProfileSettings />
-  else if (resolvedTab === 'personalization') content = <PersonalizationSettings onError={onError} onNotice={onNotice} />
+  else if (resolvedTab === 'personalization')
+    content = <PersonalizationSettings onError={onError} onNotice={onNotice} />
   else if (resolvedTab === 'memory') {
-    content = (
-      <MemorySettings
-        key={workspacePath ?? 'no-workspace'}
-        workspacePath={workspacePath}
-      />
-    )
-  }
-  else if (resolvedTab === 'pets') content = <PetSettings onError={onError} onNotice={onNotice} />
+    content = <MemorySettings key={workspacePath ?? 'no-workspace'} workspacePath={workspacePath} />
+  } else if (resolvedTab === 'pets') content = <PetSettings onError={onError} onNotice={onNotice} />
   else if (resolvedTab === 'shortcuts') content = <KeyboardShortcutsSettings />
   else if (resolvedTab === 'archived') content = <ArchivedConversationsSettings />
   else if (resolvedTab === 'billing') content = <UsageBillingSettings />
   else if (resolvedTab === 'browser') content = <BrowserSettings />
-  else if (resolvedTab === 'dependencies') content = <WorkspaceDependenciesSettings onError={onError} onNotice={onNotice} />
+  else if (resolvedTab === 'dependencies')
+    content = <WorkspaceDependenciesSettings onError={onError} onNotice={onNotice} />
   else content = <GeneralSettings onNotice={onNotice} />
   return content
 }

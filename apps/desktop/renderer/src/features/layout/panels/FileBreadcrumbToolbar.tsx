@@ -1,14 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type React from 'react'
-import {
-  ChevronDown,
-  ChevronRight,
-  FolderOpen,
-} from 'lucide-react'
-import type {
-  DesktopExternalOpenTarget,
-  DesktopWorkspace,
-} from '../../../../shared/types.js'
+import { ChevronDown, ChevronRight, FolderOpen } from 'lucide-react'
+import type { DesktopExternalOpenTarget, DesktopWorkspace } from '../../../../shared/types.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import {
   APP_ICON_SIZE,
@@ -68,11 +61,10 @@ export function FileBreadcrumbToolbar({
     () => resolveAbsolutePath(workspacePath, path),
     [path, workspacePath],
   )
-  const preferredOpenTarget =
-    openTargets.find(target => target.preferred) ?? openTargets[0]
+  const preferredOpenTarget = openTargets.find((target) => target.preferred) ?? openTargets[0]
 
   function rememberPreferredTarget(target: DesktopExternalOpenTarget): void {
-    const next = openTargets.map(candidate => ({
+    const next = openTargets.map((candidate) => ({
       ...candidate,
       preferred: candidate.id === target.id,
     }))
@@ -92,7 +84,7 @@ export function FileBreadcrumbToolbar({
     }
     let active = true
     void loadExternalOpenTargets(absolutePath)
-      .then(targets => {
+      .then((targets) => {
         if (active) setOpenTargets(targets)
       })
       .catch(() => {
@@ -105,10 +97,7 @@ export function FileBreadcrumbToolbar({
 
   return (
     <header className="file-breadcrumb-toolbar">
-      <div
-        aria-label={`文件路径：${path}`}
-        className="file-breadcrumb-toolbar__path"
-      >
+      <div aria-label={`文件路径：${path}`} className="file-breadcrumb-toolbar__path">
         {segments.map((segment, index) => {
           return (
             <span className="file-breadcrumb-toolbar__segment" key={segment.key}>
@@ -121,17 +110,11 @@ export function FileBreadcrumbToolbar({
                 />
               ) : null}
               {segment.file ? (
-                <span
-                  className="file-breadcrumb-toolbar__filename"
-                  title={path}
-                >
+                <span className="file-breadcrumb-toolbar__filename" title={path}>
                   <strong>{segment.label}</strong>
                 </span>
               ) : (
-                <span
-                  className="file-breadcrumb-toolbar__directory"
-                  title={segment.title}
-                >
+                <span className="file-breadcrumb-toolbar__directory" title={segment.title}>
                   {segment.label}
                 </span>
               )}
@@ -165,11 +148,7 @@ export function FileBreadcrumbToolbar({
           type="button"
           onClick={onToggleTree}
         >
-          <FolderOpen
-            aria-hidden="true"
-            size={APP_ICON_SIZE}
-            strokeWidth={APP_ICON_STROKE_WIDTH}
-          />
+          <FolderOpen aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         </IconButton>
         <div className="file-breadcrumb-toolbar__open-group">
           <IconButton
@@ -178,9 +157,7 @@ export function FileBreadcrumbToolbar({
             className="file-breadcrumb-toolbar__open"
             disabled={!absolutePath || !preferredOpenTarget}
             title={
-              preferredOpenTarget
-                ? `使用 ${preferredOpenTarget.label} 打开`
-                : '没有可用的外部应用'
+              preferredOpenTarget ? `使用 ${preferredOpenTarget.label} 打开` : '没有可用的外部应用'
             }
             type="button"
             onClick={() => {
@@ -223,14 +200,14 @@ export function FileBreadcrumbToolbar({
           >
             <PopoverRadioGroup
               value={preferredOpenTarget?.id ?? ''}
-              onValueChange={targetId => {
-                const target = openTargets.find(item => item.id === targetId)
+              onValueChange={(targetId) => {
+                const target = openTargets.find((item) => item.id === targetId)
                 if (!target || !absolutePath) return
                 openWithTarget(target)
                 setOpenTargetMenu(false)
               }}
             >
-              {openTargets.map(target => (
+              {openTargets.map((target) => (
                 <PopoverRadioItem
                   icon={
                     <OpenTargetIcon
@@ -283,10 +260,7 @@ function buildBreadcrumbSegments(
   workspace: DesktopWorkspace | null,
   workspacePath: string,
 ): BreadcrumbSegment[] {
-  const relativeSegments = path
-    .replace(/\\/g, '/')
-    .split('/')
-    .filter(Boolean)
+  const relativeSegments = path.replace(/\\/g, '/').split('/').filter(Boolean)
   const workspaceLabel =
     workspace?.name?.trim() ||
     workspacePath.replace(/\\/g, '/').split('/').filter(Boolean).at(-1) ||
@@ -315,10 +289,7 @@ function buildBreadcrumbSegments(
   return segments
 }
 
-function resolveAbsolutePath(
-  workspacePath: string | null,
-  relativePath: string,
-): string | null {
+function resolveAbsolutePath(workspacePath: string | null, relativePath: string): string | null {
   const value = relativePath.trim()
   if (!value) return null
   if (/^(?:[a-zA-Z]:[\\/]|\\\\|\/)/u.test(value)) return value

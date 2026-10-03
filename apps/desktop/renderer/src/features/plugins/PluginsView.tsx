@@ -1,7 +1,16 @@
 import type React from 'react'
 import type { PluginDetails } from '@codepilotx/agent-protocol'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertOctagon, ArrowLeft, ChevronRight, Clock, ListFilter, RefreshCw, Settings, Settings2 } from 'lucide-react'
+import {
+  AlertOctagon,
+  ArrowLeft,
+  ChevronRight,
+  Clock,
+  ListFilter,
+  RefreshCw,
+  Settings,
+  Settings2,
+} from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../../components/ui/Button.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
@@ -15,7 +24,11 @@ import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { SkeletonBlock, SkeletonRegion } from '../../components/ui/Skeleton.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
+import {
+  APP_ICON_SIZE,
+  APP_ICON_STROKE_WIDTH,
+  APP_ICON_SIZES,
+} from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import type { DesktopSkillCatalogItem, DesktopSkillOwnerFilter } from '../../../shared/types.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
@@ -122,11 +135,17 @@ export function PluginsView(): React.ReactNode {
     setSkillsLoading(true)
     setSkillsError(null)
     desktopClient
-      .listSkillsCatalog({ query: skillQuery, owner: skillOwner, view: 'trending', page: 0, perPage: 24 })
-      .then(result => {
+      .listSkillsCatalog({
+        query: skillQuery,
+        owner: skillOwner,
+        view: 'trending',
+        page: 0,
+        perPage: 24,
+      })
+      .then((result) => {
         if (!cancelled) setSkills(result.skills)
       })
-      .catch(error => {
+      .catch((error) => {
         if (!cancelled) {
           setSkills([])
           setSkillsError(error instanceof Error ? error.message : '技能目录加载失败。')
@@ -141,13 +160,21 @@ export function PluginsView(): React.ReactNode {
   }, [skillOwner, skillQuery, skillsReloadKey, tab])
 
   const pluginItems = useMemo(
-    () => mergePluginCatalog(PLUGIN_CATALOG_DESCRIPTORS, plugins, pluginLoadError, {
-      status: miniMaxCli.status,
-      loading: miniMaxCli.loading,
-      unsupported: miniMaxCli.unsupported,
-      error: miniMaxCli.error,
-    }),
-    [miniMaxCli.error, miniMaxCli.loading, miniMaxCli.status, miniMaxCli.unsupported, plugins, pluginLoadError],
+    () =>
+      mergePluginCatalog(PLUGIN_CATALOG_DESCRIPTORS, plugins, pluginLoadError, {
+        status: miniMaxCli.status,
+        loading: miniMaxCli.loading,
+        unsupported: miniMaxCli.unsupported,
+        error: miniMaxCli.error,
+      }),
+    [
+      miniMaxCli.error,
+      miniMaxCli.loading,
+      miniMaxCli.status,
+      miniMaxCli.unsupported,
+      plugins,
+      pluginLoadError,
+    ],
   )
   const visiblePlugins = useMemo(
     () => filterPluginCatalog(pluginItems, pluginQuery, pluginCategory, pluginStatus),
@@ -159,36 +186,39 @@ export function PluginsView(): React.ReactNode {
   )
   const pluginGroups = useMemo(() => groupPluginCatalogBySource(visiblePlugins), [visiblePlugins])
   const skillGroups = useMemo(() => groupSkillsForDisplay(skills ?? []), [skills])
-  const selectedPlugin = target?.kind === 'plugin'
-    ? pluginItems.find(item => item.id === target.id) ?? null
-    : null
-  const selectedSkill = target?.kind === 'skill'
-    ? skills?.find(item => item.id === target.id) ?? null
-    : null
+  const selectedPlugin =
+    target?.kind === 'plugin' ? (pluginItems.find((item) => item.id === target.id) ?? null) : null
+  const selectedSkill =
+    target?.kind === 'skill' ? (skills?.find((item) => item.id === target.id) ?? null) : null
   const selectedPluginDetailsKey = selectedPlugin
     ? `${workspacePath ?? ''}\u0000${selectedPlugin.id}`
     : null
 
   useEffect(() => {
     if (
-      !selectedPlugin
-      || !selectedPluginDetailsKey
-      || Object.hasOwn(pluginDetails, selectedPluginDetailsKey)
-      || pluginDetailsRequestsRef.current.has(selectedPluginDetailsKey)
-    ) return
+      !selectedPlugin ||
+      !selectedPluginDetailsKey ||
+      Object.hasOwn(pluginDetails, selectedPluginDetailsKey) ||
+      pluginDetailsRequestsRef.current.has(selectedPluginDetailsKey)
+    )
+      return
     let cancelled = false
     pluginDetailsRequestsRef.current.add(selectedPluginDetailsKey)
-    desktopClient.getPluginDetails(selectedPlugin.id, workspacePath).then(details => {
-      if (!cancelled) {
-        setPluginDetails(current => ({ ...current, [selectedPluginDetailsKey]: details }))
-      }
-    }).catch(() => {
-      if (!cancelled) {
-        setPluginDetails(current => ({ ...current, [selectedPluginDetailsKey]: null }))
-      }
-    }).finally(() => {
-      pluginDetailsRequestsRef.current.delete(selectedPluginDetailsKey)
-    })
+    desktopClient
+      .getPluginDetails(selectedPlugin.id, workspacePath)
+      .then((details) => {
+        if (!cancelled) {
+          setPluginDetails((current) => ({ ...current, [selectedPluginDetailsKey]: details }))
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPluginDetails((current) => ({ ...current, [selectedPluginDetailsKey]: null }))
+        }
+      })
+      .finally(() => {
+        pluginDetailsRequestsRef.current.delete(selectedPluginDetailsKey)
+      })
     return () => {
       cancelled = true
     }
@@ -205,7 +235,8 @@ export function PluginsView(): React.ReactNode {
     lastTargetRef.current = null
     window.requestAnimationFrame(() => {
       const selector = `[data-catalog-item-id="${previousTarget.kind}:${CSS.escape(previousTarget.id)}"]`
-      document.querySelector<HTMLButtonElement>(selector)?.focus() ?? searchInputRef.current?.focus()
+      document.querySelector<HTMLButtonElement>(selector)?.focus() ??
+        searchInputRef.current?.focus()
     })
   }, [target])
 
@@ -216,7 +247,16 @@ export function PluginsView(): React.ReactNode {
     if (targetLoaded && !targetExists) {
       setSearchParams(catalogBrowseParams(searchParams, tab), { replace: true })
     }
-  }, [location.invalid, searchParams, selectedPlugin, selectedSkill, setSearchParams, skills, tab, target])
+  }, [
+    location.invalid,
+    searchParams,
+    selectedPlugin,
+    selectedSkill,
+    setSearchParams,
+    skills,
+    tab,
+    target,
+  ])
 
   function showTab(nextTab: CatalogTab): void {
     setSearchParams(catalogBrowseParams(searchParams, nextTab))
@@ -240,13 +280,13 @@ export function PluginsView(): React.ReactNode {
     if (busyPluginIds.has(item.id)) return
     const action = pluginPrimaryAction(item)
     if (!action || action.disabled) return
-    setPluginErrors(current => ({ ...current, [item.id]: '' }))
+    setPluginErrors((current) => ({ ...current, [item.id]: '' }))
     if (action.kind === 'open-external') {
       if (!item.externalURL) return
       try {
         await desktopClient.openExternalURL(item.externalURL)
       } catch (error) {
-        setPluginErrors(current => ({
+        setPluginErrors((current) => ({
           ...current,
           [item.id]: error instanceof Error ? error.message : '无法打开安装说明。',
         }))
@@ -254,17 +294,19 @@ export function PluginsView(): React.ReactNode {
       return
     }
     if (action.kind === 'install-minimax' || action.kind === 'update-minimax') {
-      setBusyPluginIds(current => new Set(current).add(item.id))
+      setBusyPluginIds((current) => new Set(current).add(item.id))
       try {
         const result = await miniMaxCli.install()
-        setAnnouncement(`MiniMax CLI ${action.kind === 'update-minimax' ? '更新' : '安装'}完成，当前版本 ${result.installedVersion ?? '可用'}。`)
+        setAnnouncement(
+          `MiniMax CLI ${action.kind === 'update-minimax' ? '更新' : '安装'}完成，当前版本 ${result.installedVersion ?? '可用'}。`,
+        )
         window.requestAnimationFrame(() => trigger.isConnected && trigger.focus())
       } catch (error) {
         const message = error instanceof Error ? error.message : 'MiniMax CLI 安装失败。'
-        setPluginErrors(current => ({ ...current, [item.id]: message }))
+        setPluginErrors((current) => ({ ...current, [item.id]: message }))
         setAnnouncement(message)
       } finally {
-        setBusyPluginIds(current => {
+        setBusyPluginIds((current) => {
           const next = new Set(current)
           next.delete(item.id)
           return next
@@ -274,17 +316,17 @@ export function PluginsView(): React.ReactNode {
     }
     if (action.kind !== 'toggle-plugin') return
     if (!item.installed || (item.status !== 'enabled' && item.status !== 'disabled')) return
-    setBusyPluginIds(current => new Set(current).add(item.id))
+    setBusyPluginIds((current) => new Set(current).add(item.id))
     try {
       const result = await setPluginEnabled(item.id, checked ?? !action.checked)
       setAnnouncement(`${item.name}已${result.enabled ? '启用' : '禁用'}。`)
       window.requestAnimationFrame(() => trigger.isConnected && trigger.focus())
     } catch (error) {
       const message = error instanceof Error ? error.message : `${item.name}状态更新失败。`
-      setPluginErrors(current => ({ ...current, [item.id]: message }))
+      setPluginErrors((current) => ({ ...current, [item.id]: message }))
       setAnnouncement(message)
     } finally {
-      setBusyPluginIds(current => {
+      setBusyPluginIds((current) => {
         const next = new Set(current)
         next.delete(item.id)
         return next
@@ -294,17 +336,22 @@ export function PluginsView(): React.ReactNode {
 
   async function installSkill(skill: DesktopSkillCatalogItem): Promise<void> {
     if (skill.installed || installingSkillIds.has(skill.id)) return
-    setInstallingSkillIds(current => new Set(current).add(skill.id))
+    setInstallingSkillIds((current) => new Set(current).add(skill.id))
     setSkillsError(null)
     try {
-      const result = await desktopClient.installSkill({ id: skill.id, installUrl: skill.installUrl })
-      setSkills(current => current?.map(item =>
-        item.id === result.id ? { ...item, installed: result.installed } : item,
-      ))
+      const result = await desktopClient.installSkill({
+        id: skill.id,
+        installUrl: skill.installUrl,
+      })
+      setSkills((current) =>
+        current?.map((item) =>
+          item.id === result.id ? { ...item, installed: result.installed } : item,
+        ),
+      )
     } catch (error) {
       setSkillsError(error instanceof Error ? error.message : '技能安装失败。')
     } finally {
-      setInstallingSkillIds(current => {
+      setInstallingSkillIds((current) => {
         const next = new Set(current)
         next.delete(skill.id)
         return next
@@ -321,7 +368,7 @@ export function PluginsView(): React.ReactNode {
       setConfirmMiniMaxUninstall(false)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'MiniMax CLI 卸载失败。'
-      setPluginErrors(current => ({ ...current, minimax: message }))
+      setPluginErrors((current) => ({ ...current, minimax: message }))
       setAnnouncement(message)
     }
   }
@@ -336,23 +383,36 @@ export function PluginsView(): React.ReactNode {
       <WorkspaceHeaderItem align="start" id="plugins.navigation" order={0} slot="left">
         {target?.kind === 'plugin' ? (
           <div className="plugins-detail-breadcrumb">
-            <Button color="ghostSecondary" onClick={closeDetails} ref={backButtonRef} size="toolbar">
+            <Button
+              color="ghostSecondary"
+              onClick={closeDetails}
+              ref={backButtonRef}
+              size="toolbar"
+            >
               插件
             </Button>
-            <ChevronRight aria-hidden="true" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <ChevronRight
+              aria-hidden="true"
+              size={APP_ICON_SIZES.sm}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
             <span>{selectedPlugin?.name ?? target.id}</span>
           </div>
         ) : target ? (
           <Button color="ghostSecondary" onClick={closeDetails} ref={backButtonRef} size="toolbar">
-            <ArrowLeft aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <ArrowLeft
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+              strokeWidth={APP_ICON_STROKE_WIDTH}
+            />
             返回{tab === 'plugins' ? '插件' : '技能'}
           </Button>
         ) : (
           <SegmentedControl
             ariaLabel="扩展类型"
             className="plugins-segmented-tabs"
-            getPanelId={value => `${value}-panel`}
-            getTabId={value => `${value}-tab`}
+            getPanelId={(value) => `${value}-panel`}
+            getTabId={(value) => `${value}-tab`}
             onChange={showTab}
             overflowMode="fit"
             options={TAB_OPTIONS}
@@ -373,13 +433,17 @@ export function PluginsView(): React.ReactNode {
                   refreshPlugins()
                   miniMaxCli.refresh()
                 } else {
-                  setSkillsReloadKey(value => value + 1)
+                  setSkillsReloadKey((value) => value + 1)
                 }
               }}
               size="toolbar"
               title={`刷新${tab === 'plugins' ? '插件' : '技能'}目录`}
             >
-              <RefreshCw aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <RefreshCw
+                aria-hidden="true"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </IconButton>
             <IconButton
               color="ghostSecondary"
@@ -387,7 +451,11 @@ export function PluginsView(): React.ReactNode {
               size="toolbar"
               title="管理插件设置"
             >
-              <Settings2 aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              <Settings2
+                aria-hidden="true"
+                size={APP_ICON_SIZE}
+                strokeWidth={APP_ICON_STROKE_WIDTH}
+              />
             </IconButton>
           </div>
         </WorkspaceHeaderItem>
@@ -398,21 +466,27 @@ export function PluginsView(): React.ReactNode {
           {selectedPlugin ? (
             <CatalogDetailsView
               busy={busyPluginIds.has(selectedPlugin.id)}
-              details={selectedPluginDetailsKey ? pluginDetails[selectedPluginDetailsKey] ?? null : null}
+              details={
+                selectedPluginDetailsKey ? (pluginDetails[selectedPluginDetailsKey] ?? null) : null
+              }
               error={pluginErrors[selectedPlugin.id]}
               item={selectedPlugin}
               kind="plugin"
-              onPrimaryAction={(item, trigger, checked) => void runPluginAction(item, trigger, checked)}
+              onPrimaryAction={(item, trigger, checked) =>
+                void runPluginAction(item, trigger, checked)
+              }
               onTryPrompt={tryPluginPrompt}
-              onUninstall={selectedPlugin.id === 'minimax' ? () => setConfirmMiniMaxUninstall(true) : undefined}
+              onUninstall={
+                selectedPlugin.id === 'minimax' ? () => setConfirmMiniMaxUninstall(true) : undefined
+              }
             />
           ) : selectedSkill ? (
             <CatalogDetailsView
               installing={installingSkillIds.has(selectedSkill.id)}
               item={selectedSkill}
               kind="skill"
-              onInstall={item => void installSkill(item)}
-              onOpenSource={item => item.url && void desktopClient.openExternalURL(item.url)}
+              onInstall={(item) => void installSkill(item)}
+              onOpenSource={(item) => item.url && void desktopClient.openExternalURL(item.url)}
             />
           ) : (
             <div className="catalog-details-view">
@@ -423,11 +497,13 @@ export function PluginsView(): React.ReactNode {
       ) : (
         <PrimaryPageLayout
           className="plugins-primary-page"
-          description={tab === 'plugins'
-            ? '在常用工具中扩展 CodePilotX 的能力。'
-            : '查找并添加可复用的工作流指令。'}
+          description={
+            tab === 'plugins'
+              ? '在常用工具中扩展 CodePilotX 的能力。'
+              : '查找并添加可复用的工作流指令。'
+          }
           scrollContainerRef={scrollRegionRef}
-          search={(
+          search={
             <SearchInput
               aria-label={tab === 'plugins' ? '搜索插件' : '搜索技能'}
               onChange={tab === 'plugins' ? setPluginQuery : setSkillQuery}
@@ -435,10 +511,12 @@ export function PluginsView(): React.ReactNode {
               ref={searchInputRef}
               value={tab === 'plugins' ? pluginQuery : skillQuery}
             />
-          )}
+          }
           title={tab === 'plugins' ? '插件' : '技能'}
         >
-          <div aria-live="polite" className="plugins-sr-status">{announcement}</div>
+          <div aria-live="polite" className="plugins-sr-status">
+            {announcement}
+          </div>
           {tab === 'plugins' ? (
             <PluginDirectory
               busyPluginIds={busyPluginIds}
@@ -452,8 +530,10 @@ export function PluginsView(): React.ReactNode {
               loadError={pluginLoadError}
               loading={pluginsLoading}
               manage={() => navigate('/settings/plugins')}
-              onOpenDetails={item => openDetails({ kind: 'plugin', id: item.id, tab: 'plugins' })}
-              onPrimaryAction={(item, trigger, checked) => void runPluginAction(item, trigger, checked)}
+              onOpenDetails={(item) => openDetails({ kind: 'plugin', id: item.id, tab: 'plugins' })}
+              onPrimaryAction={(item, trigger, checked) =>
+                void runPluginAction(item, trigger, checked)
+              }
               onFilterMenuOpenChange={setFilterMenuOpen}
               pluginErrors={pluginErrors}
               pluginCategory={pluginCategory}
@@ -475,10 +555,10 @@ export function PluginsView(): React.ReactNode {
               groups={skillGroups}
               installingSkillIds={installingSkillIds}
               loading={skillsLoading}
-              onInstall={item => void installSkill(item)}
-              onOpenDetails={item => openDetails({ kind: 'skill', id: item.id, tab: 'skills' })}
+              onInstall={(item) => void installSkill(item)}
+              onOpenDetails={(item) => openDetails({ kind: 'skill', id: item.id, tab: 'skills' })}
               query={skillQuery}
-              refresh={() => setSkillsReloadKey(value => value + 1)}
+              refresh={() => setSkillsReloadKey((value) => value + 1)}
               setSkillOwner={setSkillOwner}
               skillOwner={skillOwner}
               skillsLoaded={skills !== undefined}
@@ -513,20 +593,22 @@ function CatalogStatusMenu(props: CatalogStatusMenuProps): React.ReactNode {
       align="end"
       onOpenChange={props.onOpenChange}
       open={props.open}
-      trigger={(
+      trigger={
         <IconButton color="secondary" size="toolbar" title="筛选目录">
           <ListFilter aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         </IconButton>
-      )}
+      }
       width="14rem"
     >
       <PopoverLabel>状态</PopoverLabel>
       <PopoverRadioGroup
-        onValueChange={value => props.setPluginStatus(value as PluginStatusFilter)}
+        onValueChange={(value) => props.setPluginStatus(value as PluginStatusFilter)}
         value={props.pluginStatus}
       >
-        {STATUS_OPTIONS.map(option => (
-          <PopoverRadioItem key={option.value} value={option.value}>{option.label}</PopoverRadioItem>
+        {STATUS_OPTIONS.map((option) => (
+          <PopoverRadioItem key={option.value} value={option.value}>
+            {option.label}
+          </PopoverRadioItem>
         ))}
       </PopoverRadioGroup>
     </PopoverMenu>
@@ -562,7 +644,12 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
         <header className="plugins-section-heading">
           <h2 id="included-plugins-title">已安装</h2>
           <span className="plugins-sr-status">共 {props.installed.length} 个插件</span>
-          <IconButton color="ghostSecondary" onClick={props.manage} size="toolbar" title="管理插件设置">
+          <IconButton
+            color="ghostSecondary"
+            onClick={props.manage}
+            size="toolbar"
+            title="管理插件设置"
+          >
             <Settings aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
         </header>
@@ -570,7 +657,7 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
           {props.installed.length === 0 ? (
             <li className="plugins-included-overview__empty">暂无已启用插件</li>
           ) : null}
-          {props.installed.map(item => (
+          {props.installed.map((item) => (
             <li key={item.id}>
               <button
                 aria-label={`查看 ${item.name} 详情`}
@@ -611,7 +698,11 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
       </div>
 
       {props.loadError ? (
-        <CatalogCallout message={props.loadError} onRetry={props.refresh} title="无法读取可管理插件状态" />
+        <CatalogCallout
+          message={props.loadError}
+          onRetry={props.refresh}
+          title="无法读取可管理插件状态"
+        />
       ) : null}
 
       {props.loading ? (
@@ -619,26 +710,28 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
       ) : props.total === 0 ? (
         <CatalogEmpty
           actionLabel="清除筛选"
-          message={props.query ? `没有找到与“${props.query}”匹配的插件。` : '清除来源或状态筛选后再试。'}
+          message={
+            props.query ? `没有找到与“${props.query}”匹配的插件。` : '清除来源或状态筛选后再试。'
+          }
           onAction={props.clearFilters}
           title={props.query ? '没有匹配的插件' : '当前筛选没有结果'}
         />
       ) : (
         <div className="plugins-source-groups">
-          {props.groups.map(group => (
+          {props.groups.map((group) => (
             <section className="plugins-source-group" key={group.category}>
               <header className="plugins-section-heading">
                 <h2>{group.label}</h2>
                 <span className="plugins-sr-status">共 {group.items.length} 项</span>
               </header>
               <ul className="plugins-catalog-grid">
-                {group.items.map(item => (
+                {group.items.map((item) => (
                   <PluginCatalogCard
                     busy={props.busyPluginIds.has(item.id)}
                     error={props.pluginErrors[item.id]}
                     item={item}
                     key={item.id}
-                    onOpenDetails={plugin => props.onOpenDetails(plugin)}
+                    onOpenDetails={(plugin) => props.onOpenDetails(plugin)}
                     onPrimaryAction={props.onPrimaryAction}
                   />
                 ))}
@@ -669,7 +762,13 @@ type SkillDirectoryProps = {
 function SkillDirectory(props: SkillDirectoryProps): React.ReactNode {
   const total = props.groups.installed.length + props.groups.recommended.length
   return (
-    <div aria-busy={props.loading || undefined} aria-labelledby="skills-tab" className="plugins-panel" id="skills-panel" role="tabpanel">
+    <div
+      aria-busy={props.loading || undefined}
+      aria-labelledby="skills-tab"
+      className="plugins-panel"
+      id="skills-panel"
+      role="tabpanel"
+    >
       <div className="plugins-directory-navigation">
         <SegmentedControl
           ariaLabel="技能来源"
@@ -693,9 +792,21 @@ function SkillDirectory(props: SkillDirectoryProps): React.ReactNode {
             <li>重启应用后重新加载 skills.sh 技能目录。</li>
           </ol>
           <div className="plugins-empty-actions">
-            <Button color="secondary" onClick={props.refresh}>重试</Button>
-            <Button color="secondary" onClick={() => void desktopClient.openExternalURL('https://skills.sh')}>打开 skills.sh</Button>
-            <Button color="secondary" onClick={() => void desktopClient.openExternalURL(SKILLS_SH_API_DOCS_URL)}>查看配置文档</Button>
+            <Button color="secondary" onClick={props.refresh}>
+              重试
+            </Button>
+            <Button
+              color="secondary"
+              onClick={() => void desktopClient.openExternalURL('https://skills.sh')}
+            >
+              打开 skills.sh
+            </Button>
+            <Button
+              color="secondary"
+              onClick={() => void desktopClient.openExternalURL(SKILLS_SH_API_DOCS_URL)}
+            >
+              查看配置文档
+            </Button>
           </div>
         </div>
       ) : props.loading && !props.skillsLoaded ? (
@@ -757,12 +868,12 @@ function SkillSection({
         <span className="plugins-sr-status">共 {items.length} 项</span>
       </header>
       <ul className="plugins-catalog-grid">
-        {items.map(item => (
+        {items.map((item) => (
           <SkillCatalogCard
             installing={installingSkillIds.has(item.id)}
             key={item.id}
             onInstall={onInstall}
-            onOpenDetails={skill => onOpenDetails(skill)}
+            onOpenDetails={(skill) => onOpenDetails(skill)}
             skill={item}
           />
         ))}
@@ -771,12 +882,25 @@ function SkillSection({
   )
 }
 
-function CatalogCallout({ message, onRetry, title }: { message: string; onRetry: () => void; title: string }): React.ReactNode {
+function CatalogCallout({
+  message,
+  onRetry,
+  title,
+}: {
+  message: string
+  onRetry: () => void
+  title: string
+}): React.ReactNode {
   return (
     <div className="plugins-callout" data-tone="danger" role="status">
       <AlertOctagon aria-hidden="true" size={APP_ICON_SIZE} />
-      <div><strong>{title}</strong><p>{message}</p></div>
-      <Button color="secondary" onClick={onRetry}>重试</Button>
+      <div>
+        <strong>{title}</strong>
+        <p>{message}</p>
+      </div>
+      <Button color="secondary" onClick={onRetry}>
+        重试
+      </Button>
     </div>
   )
 }
@@ -807,7 +931,11 @@ function CatalogEmpty({
       <Clock aria-hidden="true" size={APP_ICON_SIZE} />
       <h2>{title}</h2>
       <p>{message}</p>
-      {actionLabel && onAction ? <Button color="secondary" onClick={onAction}>{actionLabel}</Button> : null}
+      {actionLabel && onAction ? (
+        <Button color="secondary" onClick={onAction}>
+          {actionLabel}
+        </Button>
+      ) : null}
     </div>
   )
 }

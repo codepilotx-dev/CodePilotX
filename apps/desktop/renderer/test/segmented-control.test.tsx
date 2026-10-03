@@ -10,8 +10,8 @@ describe('SegmentedControl tabs', () => {
     const html = renderToStaticMarkup(
       <SegmentedControl
         ariaLabel="扩展类型"
-        getPanelId={value => `${value}-panel`}
-        getTabId={value => `${value}-tab`}
+        getPanelId={(value) => `${value}-panel`}
+        getTabId={(value) => `${value}-tab`}
         onChange={() => {}}
         options={[
           { value: 'plugins', label: '插件' },

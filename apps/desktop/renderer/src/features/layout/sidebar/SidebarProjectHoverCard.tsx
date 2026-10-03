@@ -1,9 +1,6 @@
 import type React from 'react'
 import { lazy, Suspense, useState } from 'react'
-import type {
-  DesktopWorkspace,
-  ProjectAppearance,
-} from '../../../../shared/types.js'
+import type { DesktopWorkspace, ProjectAppearance } from '../../../../shared/types.js'
 import { SidebarHoverCard } from './SidebarHoverCard.js'
 export { countOpenProjectSessions } from './sidebarViewModel.js'
 
@@ -47,14 +44,14 @@ export function SidebarProjectHoverCard({
   return (
     <SidebarHoverCard
       open={open}
-      onAnchorKeyDown={event => {
+      onAnchorKeyDown={(event) => {
         if (event.altKey || event.key !== 'ArrowRight') return
         event.preventDefault()
         setOpen(true)
-        setFocusRequest(current => current + 1)
+        setFocusRequest((current) => current + 1)
       }}
       onOpenChange={setOpen}
-      renderOverlay={interactionProps => (
+      renderOverlay={(interactionProps) => (
         <Suspense fallback={null}>
           <SidebarProjectHoverCardOverlay
             {...interactionProps}

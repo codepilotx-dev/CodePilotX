@@ -47,12 +47,7 @@ export function SidebarHoverCardSurface({
             .closest<HTMLElement>('.desktop-sidebar')
             ?.getBoundingClientRect()
           if (!sidebarRect) return anchorRect
-          return new DOMRect(
-            sidebarRect.right,
-            anchorRect.top,
-            0,
-            anchorRect.height,
-          )
+          return new DOMRect(sidebarRect.right, anchorRect.top, 0, anchorRect.height)
         },
       },
     }),
@@ -65,8 +60,8 @@ export function SidebarHoverCardSurface({
       if (!focusRef?.current) return
       focusRef.current.focus()
       if (
-        focusRef.current instanceof HTMLInputElement
-        || focusRef.current instanceof HTMLTextAreaElement
+        focusRef.current instanceof HTMLInputElement ||
+        focusRef.current instanceof HTMLTextAreaElement
       ) {
         focusRef.current.select()
       }
@@ -94,30 +89,30 @@ export function SidebarHoverCardSurface({
           ref={contentRef}
           side="right"
           sideOffset={4}
-          onBlur={event => {
+          onBlur={(event) => {
             if (
-              event.relatedTarget instanceof Node
-              && event.currentTarget.contains(event.relatedTarget)
+              event.relatedTarget instanceof Node &&
+              event.currentTarget.contains(event.relatedTarget)
             ) {
               return
             }
             closeAfterDelay()
           }}
-          onCloseAutoFocus={event => event.preventDefault()}
-          onEscapeKeyDown={event => {
+          onCloseAutoFocus={(event) => event.preventDefault()}
+          onEscapeKeyDown={(event) => {
             event.preventDefault()
             requestOpenChange(false)
             returnFocusToAnchor()
           }}
           onFocusCapture={keepOpen}
-          onKeyDown={event => {
+          onKeyDown={(event) => {
             if (event.key !== 'Tab') return
             const focusable = getFocusableChildren(event.currentTarget)
             const first = focusable[0]
             const last = focusable.at(-1)
             if (
-              (event.shiftKey && event.target === first)
-              || (!event.shiftKey && event.target === last)
+              (event.shiftKey && event.target === first) ||
+              (!event.shiftKey && event.target === last)
             ) {
               event.preventDefault()
               requestOpenChange(false)
@@ -129,15 +124,11 @@ export function SidebarHoverCardSurface({
               }
             }
           }}
-          onOpenAutoFocus={event => event.preventDefault()}
+          onOpenAutoFocus={(event) => event.preventDefault()}
           onPointerEnter={keepOpen}
           onPointerLeave={closeAfterDelay}
         >
-          <div
-            className={cx('sidebar-hover-card-surface', className)}
-          >
-            {children}
-          </div>
+          <div className={cx('sidebar-hover-card-surface', className)}>{children}</div>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
@@ -154,22 +145,20 @@ const TABBABLE_SELECTOR = [
 ].join(',')
 
 function getFocusableChildren(container: HTMLElement): HTMLElement[] {
-  return [...container.querySelectorAll<HTMLElement>(TABBABLE_SELECTOR)]
-    .filter(isTabbable)
+  return [...container.querySelectorAll<HTMLElement>(TABBABLE_SELECTOR)].filter(isTabbable)
 }
 
 function nextTabbableAfter(anchor: HTMLElement | null): HTMLElement | null {
   if (!anchor) return null
-  const tabbable = [...document.querySelectorAll<HTMLElement>(TABBABLE_SELECTOR)]
-    .filter(isTabbable)
+  const tabbable = [...document.querySelectorAll<HTMLElement>(TABBABLE_SELECTOR)].filter(isTabbable)
   const index = tabbable.indexOf(anchor)
-  return index >= 0 ? tabbable[index + 1] ?? null : null
+  return index >= 0 ? (tabbable[index + 1] ?? null) : null
 }
 
 function isTabbable(element: HTMLElement): boolean {
   return (
-    element.getAttribute('aria-hidden') !== 'true'
-    && element.tabIndex >= 0
-    && element.getClientRects().length > 0
+    element.getAttribute('aria-hidden') !== 'true' &&
+    element.tabIndex >= 0 &&
+    element.getClientRects().length > 0
   )
 }

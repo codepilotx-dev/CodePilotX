@@ -39,9 +39,7 @@ export const AlternatingFeatures: React.FC = () => {
                   {feature.highlights.map((item) => (
                     <div key={item} className="flex items-start gap-3">
                       <CheckCircle2 className="h-5 w-5 text-[#63715A] shrink-0 mt-0.5" />
-                      <span className="text-sm font-medium text-[#17211D]">
-                        {item}
-                      </span>
+                      <span className="text-sm font-medium text-[#17211D]">{item}</span>
                     </div>
                   ))}
                 </div>

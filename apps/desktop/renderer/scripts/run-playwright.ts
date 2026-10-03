@@ -4,10 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { killProcessTree } from '../../../../scripts/integration-test-runner'
 
 const rendererRoot = fileURLToPath(new URL('..', import.meta.url))
-const allowedConfigs = new Set([
-  'playwright.a11y.config.ts',
-  'playwright.config.ts',
-])
+const allowedConfigs = new Set(['playwright.a11y.config.ts', 'playwright.config.ts'])
 
 async function allocateLoopbackPort() {
   return await new Promise<number>((resolve, reject) => {
@@ -20,7 +17,7 @@ async function allocateLoopbackPort() {
         reject(new Error('无法分配 Playwright 回环端口'))
         return
       }
-      server.close((error) => error ? reject(error) : resolve(address.port))
+      server.close((error) => (error ? reject(error) : resolve(address.port)))
     })
   })
 }
@@ -56,7 +53,9 @@ async function main() {
     )
   }
   const args = process.argv.slice(3)
-  if (args.some(arg => arg === '--config' || arg.startsWith('--config=') || arg.startsWith('-c'))) {
+  if (
+    args.some((arg) => arg === '--config' || arg.startsWith('--config=') || arg.startsWith('-c'))
+  ) {
     throw new Error('请通过第一个参数选择白名单内的 Playwright 配置，不可重复指定 --config/-c')
   }
 

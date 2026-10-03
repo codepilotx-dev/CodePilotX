@@ -1,5 +1,5 @@
-import { readFile, rm } from "node:fs/promises"
-import { join } from "node:path"
+import { readFile, rm } from 'node:fs/promises'
+import { join } from 'node:path'
 import type {
   AppearanceMigrationBackup,
   AppearanceMigrationRecord,
@@ -8,25 +8,25 @@ import type {
   DesktopThemeFontFace,
   DesktopThemeSettingsV7,
   DesktopThemeVariant,
-} from "@codepilotx/shared/desktop-theme"
+} from '@codepilotx/shared/desktop-theme'
 import {
   DEFAULT_APPEARANCE_SETTINGS,
   DEFAULT_CHROME_THEMES,
   desktopThemeFontFaceMatchesFamily,
   normalizeDesktopAccentPreset,
-} from "@codepilotx/shared/desktop-theme"
-import { writeJsonAtomically } from "../windows/debounced-atomic-json-writer.js"
+} from '@codepilotx/shared/desktop-theme'
+import { writeJsonAtomically } from '../windows/debounced-atomic-json-writer.js'
 
 export type {
   AppearanceMigrationBackup,
   AppearanceMigrationRecord,
   DesktopChromeTheme,
   DesktopThemeSettingsV7,
-} from "@codepilotx/shared/desktop-theme"
+} from '@codepilotx/shared/desktop-theme'
 export {
   DEFAULT_APPEARANCE_SETTINGS,
   DEFAULT_CHROME_THEMES,
-} from "@codepilotx/shared/desktop-theme"
+} from '@codepilotx/shared/desktop-theme'
 
 type HexColor = DesktopHexColor
 type AppearanceVariant = DesktopThemeVariant
@@ -34,36 +34,36 @@ type AppearanceVariant = DesktopThemeVariant
 type RecordValue = Record<string, unknown>
 const CURRENT_APPEARANCE_SETTINGS_VERSION = 7
 const MIGRATION_RECORD_VERSION = 1
-const MIGRATION_ID = "ui-design-visual-theme"
+const MIGRATION_ID = 'ui-design-visual-theme'
 
 function isRecord(value: unknown): value is RecordValue {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function booleanOr(value: unknown, fallback: boolean): boolean {
-  return typeof value === "boolean" ? value : fallback
+  return typeof value === 'boolean' ? value : fallback
 }
 
 function colorOr(value: unknown, fallback: HexColor): HexColor {
-  return typeof value === "string" && /^#[\da-f]{6}$/i.test(value)
-    ? value.toLowerCase() as HexColor
+  return typeof value === 'string' && /^#[\da-f]{6}$/i.test(value)
+    ? (value.toLowerCase() as HexColor)
     : fallback
 }
 
 function numberInRange(value: unknown, fallback: number, minimum: number, maximum: number): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return fallback
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
   return Math.min(maximum, Math.max(minimum, Math.round(value)))
 }
 
 function fontOr(value: unknown): string | null {
   if (value === null) return null
-  if (typeof value !== "string") return null
+  if (typeof value !== 'string') return null
   const trimmed = value.trim()
   return trimmed.length > 0 && trimmed.length <= 200 ? trimmed : null
 }
 
 function faceFieldOr(value: unknown, maximumLength: number): string | null {
-  if (typeof value !== "string") return null
+  if (typeof value !== 'string') return null
   const trimmed = value.trim()
   return trimmed.length > 0 && trimmed.length <= maximumLength ? trimmed : null
 }
@@ -79,13 +79,15 @@ function fontFaceOr(value: unknown): DesktopThemeFontFace | null {
 }
 
 function codeThemeIdOr(value: unknown, fallback: string): string {
-  if (value === "auto") return fallback
-  return typeof value === "string" && /^[a-z0-9][a-z0-9-]{0,99}$/i.test(value)
-    ? value
-    : fallback
+  if (value === 'auto') return fallback
+  return typeof value === 'string' && /^[a-z0-9][a-z0-9-]{0,99}$/i.test(value) ? value : fallback
 }
 
-function normalizeChromeTheme(value: unknown, fallback: DesktopChromeTheme, variant: DesktopThemeVariant): DesktopChromeTheme {
+function normalizeChromeTheme(
+  value: unknown,
+  fallback: DesktopChromeTheme,
+  variant: DesktopThemeVariant,
+): DesktopChromeTheme {
   const source = isRecord(value) ? value : {}
   const fonts = isRecord(source.fonts) ? source.fonts : {}
   const semanticColors = isRecord(source.semanticColors) ? source.semanticColors : {}
@@ -118,9 +120,10 @@ function normalizeChromeTheme(value: unknown, fallback: DesktopChromeTheme, vari
 
 export function normalizeAppearanceSettings(value: unknown): DesktopThemeSettingsV7 {
   const source = isRecord(value) ? value : {}
-  const mode = source.mode === "light" || source.mode === "dark" || source.mode === "system"
-    ? source.mode
-    : DEFAULT_APPEARANCE_SETTINGS.mode
+  const mode =
+    source.mode === 'light' || source.mode === 'dark' || source.mode === 'system'
+      ? source.mode
+      : DEFAULT_APPEARANCE_SETTINGS.mode
   const codeThemeIds = isRecord(source.codeThemeIds) ? source.codeThemeIds : {}
   const chromeThemes = isRecord(source.chromeThemes) ? source.chromeThemes : {}
   const fontSizes = isRecord(source.fontSizes) ? source.fontSizes : {}
@@ -128,20 +131,21 @@ export function normalizeAppearanceSettings(value: unknown): DesktopThemeSetting
     version: 7,
     mode,
     chromeThemes: {
-      light: normalizeChromeTheme(chromeThemes.light, DEFAULT_CHROME_THEMES.light, "light"),
-      dark: normalizeChromeTheme(chromeThemes.dark, DEFAULT_CHROME_THEMES.dark, "dark"),
+      light: normalizeChromeTheme(chromeThemes.light, DEFAULT_CHROME_THEMES.light, 'light'),
+      dark: normalizeChromeTheme(chromeThemes.dark, DEFAULT_CHROME_THEMES.dark, 'dark'),
     },
     codeThemeIds: {
-      light: codeThemeIdOr(codeThemeIds.light, "codex-light"),
-      dark: codeThemeIdOr(codeThemeIds.dark, "codex-dark"),
+      light: codeThemeIdOr(codeThemeIds.light, 'codex-light'),
+      dark: codeThemeIdOr(codeThemeIds.dark, 'codex-dark'),
     },
     pointerCursorEnabled: booleanOr(
       source.pointerCursorEnabled,
       DEFAULT_APPEARANCE_SETTINGS.pointerCursorEnabled,
     ),
-    reduceMotion: source.reduceMotion === "on" || source.reduceMotion === "off"
-      ? source.reduceMotion
-      : "system",
+    reduceMotion:
+      source.reduceMotion === 'on' || source.reduceMotion === 'off'
+        ? source.reduceMotion
+        : 'system',
     fontSmoothingEnabled: booleanOr(
       source.fontSmoothingEnabled,
       DEFAULT_APPEARANCE_SETTINGS.fontSmoothingEnabled,
@@ -170,9 +174,9 @@ export function migrateAppearanceSettings(value: unknown): DesktopThemeSettingsV
 
   const originalVersion = value.version
   if (
-    typeof originalVersion !== "number"
-    || !Number.isInteger(originalVersion)
-    || originalVersion < 1
+    typeof originalVersion !== 'number' ||
+    !Number.isInteger(originalVersion) ||
+    originalVersion < 1
   ) {
     throw new UnsupportedAppearanceSettingsVersionError(originalVersion)
   }
@@ -188,15 +192,15 @@ export function migrateAppearanceSettings(value: unknown): DesktopThemeSettingsV
 
 export class UnsupportedAppearanceSettingsVersionError extends Error {
   constructor(readonly version: unknown) {
-    super("无法识别外观设置版本，原设置文件已保留")
-    this.name = "UnsupportedAppearanceSettingsVersionError"
+    super('无法识别外观设置版本，原设置文件已保留')
+    this.name = 'UnsupportedAppearanceSettingsVersionError'
   }
 }
 
 export class NewerAppearanceSettingsVersionError extends Error {
   constructor(readonly version: number) {
     super(`外观设置版本 ${version} 高于当前支持的版本，原设置文件已保留`)
-    this.name = "NewerAppearanceSettingsVersionError"
+    this.name = 'NewerAppearanceSettingsVersionError'
   }
 }
 
@@ -206,9 +210,9 @@ export class NewerAppearanceSettingsVersionError extends Error {
  * 外观再次重置为默认主题。
  */
 type MigrationRecordReadResult =
-  | { status: "missing" }
-  | { status: "record"; record: AppearanceMigrationRecord }
-  | { status: "unreadable"; reason: "read-error" | "invalid-json" | "unknown-record" }
+  | { status: 'missing' }
+  | { status: 'record'; record: AppearanceMigrationRecord }
+  | { status: 'unreadable'; reason: 'read-error' | 'invalid-json' | 'unknown-record' }
 
 function migrationBackupOr(value: unknown): AppearanceMigrationBackup | null {
   if (!isRecord(value)) return null
@@ -216,14 +220,17 @@ function migrationBackupOr(value: unknown): AppearanceMigrationBackup | null {
   const fontSizes = isRecord(value.fontSizes) ? value.fontSizes : null
   if (!chromeThemes || !fontSizes) return null
   // 备份只由本迁移写入，字段缺失即视为无法识别，不做兜底猜测。
-  if (typeof fontSizes.ui !== "number" || !Number.isFinite(fontSizes.ui)) return null
+  if (typeof fontSizes.ui !== 'number' || !Number.isFinite(fontSizes.ui)) return null
   if (!isRecord(chromeThemes.light) || !isRecord(chromeThemes.dark)) return null
   const normalizedThemes = {
-    light: normalizeChromeTheme(chromeThemes.light, DEFAULT_CHROME_THEMES.light, "light"),
-    dark: normalizeChromeTheme(chromeThemes.dark, DEFAULT_CHROME_THEMES.dark, "dark"),
+    light: normalizeChromeTheme(chromeThemes.light, DEFAULT_CHROME_THEMES.light, 'light'),
+    dark: normalizeChromeTheme(chromeThemes.dark, DEFAULT_CHROME_THEMES.dark, 'dark'),
   }
   // 旧迁移备份没有预设字段；完成记账时保留原字段集合。
-  for (const [variant, source] of [["light", chromeThemes.light], ["dark", chromeThemes.dark]] as const) {
+  for (const [variant, source] of [
+    ['light', chromeThemes.light],
+    ['dark', chromeThemes.dark],
+  ] as const) {
     if (source.accentPreset === undefined) delete normalizedThemes[variant].accentPreset
   }
   return {
@@ -236,13 +243,12 @@ function migrationRecordOr(value: unknown): AppearanceMigrationRecord | null {
   if (!isRecord(value)) return null
   if (value.version !== MIGRATION_RECORD_VERSION) return null
   if (value.migrationId !== MIGRATION_ID) return null
-  if (value.state !== "completed" && value.state !== "pending") return null
-  const backup = value.backup === undefined || value.backup === null
-    ? null
-    : migrationBackupOr(value.backup)
+  if (value.state !== 'completed' && value.state !== 'pending') return null
+  const backup =
+    value.backup === undefined || value.backup === null ? null : migrationBackupOr(value.backup)
   if (value.backup !== undefined && value.backup !== null && !backup) return null
   // pending 记录必须带备份：缺少备份说明它不属于本次迁移，沿用它会丢失恢复点。
-  if (value.state === "pending" && !backup) return null
+  if (value.state === 'pending' && !backup) return null
   return {
     version: MIGRATION_RECORD_VERSION,
     migrationId: MIGRATION_ID,
@@ -261,8 +267,8 @@ export class AppearanceSettingsStore {
   constructor(
     userDataDirectory: string,
     logger?: AppearanceSettingsLogger,
-    fileName = "appearance-settings.json",
-    migrationFileName = "appearance-migration.json",
+    fileName = 'appearance-settings.json',
+    migrationFileName = 'appearance-migration.json',
   ) {
     this.#filePath = join(userDataDirectory, fileName)
     this.#migrationFilePath = join(userDataDirectory, migrationFileName)
@@ -279,7 +285,7 @@ export class AppearanceSettingsStore {
 
   async load(): Promise<DesktopThemeSettingsV7> {
     try {
-      const source = await readFile(this.#filePath, "utf8")
+      const source = await readFile(this.#filePath, 'utf8')
       let parsed: unknown
       try {
         parsed = JSON.parse(source)
@@ -291,21 +297,21 @@ export class AppearanceSettingsStore {
       }
       const normalized = migrateAppearanceSettings(parsed)
       const recordRead = await this.#readMigrationRecord()
-      if (recordRead.status === "unreadable") {
+      if (recordRead.status === 'unreadable') {
         // 记录不可读、格式损坏或不属于本次迁移时只能原样保留：既不能重跑迁移
         // 覆盖备份，也不能改写自己无法识别的记录。
-        this.#logger?.info("appearance-settings.migration-record-preserved", {
+        this.#logger?.info('appearance-settings.migration-record-preserved', {
           reason: recordRead.reason,
         })
         return normalized
       }
-      const migrationRecord = recordRead.status === "record" ? recordRead.record : null
+      const migrationRecord = recordRead.status === 'record' ? recordRead.record : null
       if (JSON.stringify(parsed) !== JSON.stringify(normalized)) {
         await this.save(normalized)
       }
       // 仅完成旧迁移的记账，默认配色更新不得覆盖当前外观或原备份。
-      if (migrationRecord?.state === "pending") {
-        await this.#writeMigrationRecord({ ...migrationRecord, state: "completed" })
+      if (migrationRecord?.state === 'pending') {
+        await this.#writeMigrationRecord({ ...migrationRecord, state: 'completed' })
       }
       return normalized
     } catch (error) {
@@ -315,7 +321,7 @@ export class AppearanceSettingsStore {
       await this.#writeMigrationRecord({
         version: MIGRATION_RECORD_VERSION,
         migrationId: MIGRATION_ID,
-        state: "completed",
+        state: 'completed',
         backup: null,
       })
       return fallback
@@ -324,16 +330,18 @@ export class AppearanceSettingsStore {
 
   async canRestorePreviousAppearance(): Promise<boolean> {
     const recordRead = await this.#readMigrationRecord()
-    return recordRead.status === "record"
-      && recordRead.record.state === "completed"
-      && Boolean(recordRead.record.backup)
+    return (
+      recordRead.status === 'record' &&
+      recordRead.record.state === 'completed' &&
+      Boolean(recordRead.record.backup)
+    )
   }
 
   async restorePreviousAppearance(): Promise<DesktopThemeSettingsV7> {
     const recordRead = await this.#readMigrationRecord()
-    const record = recordRead.status === "record" ? recordRead.record : null
+    const record = recordRead.status === 'record' ? recordRead.record : null
     if (!record?.backup) {
-      throw new Error("无可用升级前外观备份")
+      throw new Error('无可用升级前外观备份')
     }
     const current = await this.load()
     const backup = record.backup
@@ -343,7 +351,7 @@ export class AppearanceSettingsStore {
         light: {
           ...current.chromeThemes.light,
           accent: backup.chromeThemes.light.accent,
-          accentPreset: backup.chromeThemes.light.accentPreset ?? "custom",
+          accentPreset: backup.chromeThemes.light.accentPreset ?? 'custom',
           surface: backup.chromeThemes.light.surface,
           ink: backup.chromeThemes.light.ink,
           contrast: backup.chromeThemes.light.contrast,
@@ -357,7 +365,7 @@ export class AppearanceSettingsStore {
         dark: {
           ...current.chromeThemes.dark,
           accent: backup.chromeThemes.dark.accent,
-          accentPreset: backup.chromeThemes.dark.accentPreset ?? "custom",
+          accentPreset: backup.chromeThemes.dark.accentPreset ?? 'custom',
           surface: backup.chromeThemes.dark.surface,
           ink: backup.chromeThemes.dark.ink,
           contrast: backup.chromeThemes.dark.contrast,
@@ -410,22 +418,22 @@ export class AppearanceSettingsStore {
   async #readMigrationRecord(): Promise<MigrationRecordReadResult> {
     let source: string
     try {
-      source = await readFile(this.#migrationFilePath, "utf8")
+      source = await readFile(this.#migrationFilePath, 'utf8')
     } catch (error) {
       return isMissingFileError(error)
-        ? { status: "missing" }
-        : { status: "unreadable", reason: "read-error" }
+        ? { status: 'missing' }
+        : { status: 'unreadable', reason: 'read-error' }
     }
     let parsed: unknown
     try {
       parsed = JSON.parse(source)
     } catch {
-      return { status: "unreadable", reason: "invalid-json" }
+      return { status: 'unreadable', reason: 'invalid-json' }
     }
     const record = migrationRecordOr(parsed)
     return record
-      ? { status: "record", record }
-      : { status: "unreadable", reason: "unknown-record" }
+      ? { status: 'record', record }
+      : { status: 'unreadable', reason: 'unknown-record' }
   }
 
   async #writeMigrationRecord(record: AppearanceMigrationRecord): Promise<void> {
@@ -435,11 +443,11 @@ export class AppearanceSettingsStore {
   async #assertExistingVersionWritable(): Promise<void> {
     if (this.#existingVersionChecked) return
     try {
-      const existing = JSON.parse(await readFile(this.#filePath, "utf8"))
+      const existing = JSON.parse(await readFile(this.#filePath, 'utf8'))
       if (
-        isRecord(existing)
-        && typeof existing.version === "number"
-        && existing.version > CURRENT_APPEARANCE_SETTINGS_VERSION
+        isRecord(existing) &&
+        typeof existing.version === 'number' &&
+        existing.version > CURRENT_APPEARANCE_SETTINGS_VERSION
       ) {
         throw new NewerAppearanceSettingsVersionError(existing.version)
       }
@@ -451,13 +459,13 @@ export class AppearanceSettingsStore {
 
   async #removeCorruptAndReset(): Promise<DesktopThemeSettingsV7> {
     await rm(this.#filePath, { force: true })
-    this.#logger?.info("appearance-settings.corrupt-reset", { reason: "invalid-json" })
+    this.#logger?.info('appearance-settings.corrupt-reset', { reason: 'invalid-json' })
     const fallback = normalizeAppearanceSettings(DEFAULT_APPEARANCE_SETTINGS)
     await this.save(fallback)
     await this.#writeMigrationRecord({
       version: MIGRATION_RECORD_VERSION,
       migrationId: MIGRATION_ID,
-      state: "completed",
+      state: 'completed',
       backup: null,
     })
     return fallback
@@ -473,5 +481,5 @@ export interface AppearanceSettingsLogger {
 }
 
 function isMissingFileError(error: unknown): boolean {
-  return isRecord(error) && error.code === "ENOENT"
+  return isRecord(error) && error.code === 'ENOENT'
 }

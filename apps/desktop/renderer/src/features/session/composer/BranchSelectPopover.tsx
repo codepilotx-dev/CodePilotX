@@ -54,12 +54,10 @@ export function BranchSelectPopover({
     const keyword = branchSearch.trim().toLowerCase()
     const availableBranches = [...branchSet]
     if (!keyword) return availableBranches
-    return availableBranches.filter(branch =>
-      branch.toLowerCase().includes(keyword),
-    )
+    return availableBranches.filter((branch) => branch.toLowerCase().includes(keyword))
   }, [branchSearch, branches, currentBranchName])
   const options = React.useMemo(
-    () => visibleBranches.map(branch => ({ value: branch })),
+    () => visibleBranches.map((branch) => ({ value: branch })),
     [visibleBranches],
   )
 
@@ -69,7 +67,7 @@ export function BranchSelectPopover({
       className={className}
       contentLabel="切换 Git 分支"
       emptyLabel="无匹配分支"
-      footer={(
+      footer={
         <SearchablePopoverAction
           icon={<Plus size={APP_ICON_SIZE} />}
           onClick={() => {
@@ -79,7 +77,7 @@ export function BranchSelectPopover({
         >
           创建并检出新分支...
         </SearchablePopoverAction>
-      )}
+      }
       listClassName="branch-popover-list-scroll"
       listLabel="Git 分支"
       open={open}
@@ -117,7 +115,7 @@ export function BranchSelectPopover({
       maxWidth={maxWidth}
       onOpenChange={onOpenChange}
       onSearchChange={onBranchSearchChange}
-      onSelect={option => {
+      onSelect={(option) => {
         void onBranchSelect(option.value)
         onOpenChange(false)
       }}

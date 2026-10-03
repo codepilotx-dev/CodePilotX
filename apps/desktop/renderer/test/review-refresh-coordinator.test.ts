@@ -16,7 +16,7 @@ describe('ReviewRefreshCoordinator', () => {
     }>()
     const forces: boolean[] = []
 
-    const result = await coordinator.request('project:unstaged', false, force => {
+    const result = await coordinator.request('project:unstaged', false, (force) => {
       forces.push(force)
       return Promise.resolve(
         forces.length === 1
@@ -36,7 +36,7 @@ describe('ReviewRefreshCoordinator', () => {
     }>()
     const forces: boolean[] = []
     let releaseFirst!: () => void
-    const firstBlocked = new Promise<void>(resolve => {
+    const firstBlocked = new Promise<void>((resolve) => {
       releaseFirst = resolve
     })
     const execute = async (force: boolean) => {
@@ -69,7 +69,7 @@ describe('ReviewRefreshCoordinator', () => {
     const forces: boolean[] = []
 
     await expect(
-      coordinator.request('project:unstaged', false, force => {
+      coordinator.request('project:unstaged', false, (force) => {
         forces.push(force)
         return Promise.resolve({
           cacheState: 'stale' as const,
@@ -89,33 +89,25 @@ describe('ReviewRefreshCoordinator', () => {
     let executions = 0
 
     coordinator.dispose()
-    const disposedResult = await coordinator.request(
-      'project:unstaged',
-      false,
-      () => {
-        executions += 1
-        return Promise.resolve({
-          cacheState: 'fresh' as const,
-          generation: 'disposed',
-        })
-      },
-    )
+    const disposedResult = await coordinator.request('project:unstaged', false, () => {
+      executions += 1
+      return Promise.resolve({
+        cacheState: 'fresh' as const,
+        generation: 'disposed',
+      })
+    })
 
     expect(disposedResult).toBeNull()
     expect(executions).toBe(0)
 
     coordinator.activate()
-    const activeResult = await coordinator.request(
-      'project:unstaged',
-      false,
-      () => {
-        executions += 1
-        return Promise.resolve({
-          cacheState: 'fresh' as const,
-          generation: 'active',
-        })
-      },
-    )
+    const activeResult = await coordinator.request('project:unstaged', false, () => {
+      executions += 1
+      return Promise.resolve({
+        cacheState: 'fresh' as const,
+        generation: 'active',
+      })
+    })
 
     expect(activeResult?.generation).toBe('active')
     expect(executions).toBe(1)
@@ -127,28 +119,21 @@ describe('ReviewRefreshCoordinator', () => {
       generation: string
     }>()
     let releaseOld!: () => void
-    const oldBlocked = new Promise<void>(resolve => {
+    const oldBlocked = new Promise<void>((resolve) => {
       releaseOld = resolve
     })
-    const oldRequest = coordinator.request(
-      'project:unstaged',
-      false,
-      async () => {
-        await oldBlocked
-        return { cacheState: 'fresh' as const, generation: 'old' }
-      },
-    )
+    const oldRequest = coordinator.request('project:unstaged', false, async () => {
+      await oldBlocked
+      return { cacheState: 'fresh' as const, generation: 'old' }
+    })
 
     coordinator.dispose()
     coordinator.activate()
-    const newRequest = coordinator.request(
-      'project:unstaged',
-      false,
-      () =>
-        Promise.resolve({
-          cacheState: 'fresh' as const,
-          generation: 'new',
-        }),
+    const newRequest = coordinator.request('project:unstaged', false, () =>
+      Promise.resolve({
+        cacheState: 'fresh' as const,
+        generation: 'new',
+      }),
     )
     releaseOld()
 
@@ -165,18 +150,14 @@ describe('ReviewRefreshCoordinator', () => {
 
     coordinator.dispose()
     coordinator.activate()
-    const result = await coordinator.request(
-      'project:unstaged',
-      false,
-      force => {
-        forces.push(force)
-        return Promise.resolve(
-          force
-            ? { cacheState: 'fresh' as const, generation: 'same' }
-            : { cacheState: 'stale' as const, generation: 'same' },
-        )
-      },
-    )
+    const result = await coordinator.request('project:unstaged', false, (force) => {
+      forces.push(force)
+      return Promise.resolve(
+        force
+          ? { cacheState: 'fresh' as const, generation: 'same' }
+          : { cacheState: 'stale' as const, generation: 'same' },
+      )
+    })
 
     expect(forces).toEqual([false, true])
     expect(result).toEqual({ cacheState: 'fresh', generation: 'same' })
@@ -190,42 +171,29 @@ describe('ReviewRefreshCoordinator', () => {
     }
 
     expect(isReviewRequestCurrent({ ...current }, current)).toBe(true)
-    expect(
-      isReviewRequestCurrent({ ...current, identity: 'project:staged' }, current),
-    ).toBe(false)
-    expect(
-      isReviewRequestCurrent({ ...current, generation: 'generation-1' }, current),
-    ).toBe(false)
-    expect(
-      isReviewRequestCurrent({ ...current, requestId: 8 }, current),
-    ).toBe(false)
+    expect(isReviewRequestCurrent({ ...current, identity: 'project:staged' }, current)).toBe(false)
+    expect(isReviewRequestCurrent({ ...current, generation: 'generation-1' }, current)).toBe(false)
+    expect(isReviewRequestCurrent({ ...current, requestId: 8 }, current)).toBe(false)
   })
 
   test('identity 包含项目、工作区、来源和评论会话', () => {
-    const summary = createReviewSummaryIdentity(
-      'project-1',
-      'C:\\workspace',
-      { kind: 'pull-request', owner: 'acme', repository: 'app', number: 7 },
-    )
+    const summary = createReviewSummaryIdentity('project-1', 'C:\\workspace', {
+      kind: 'pull-request',
+      owner: 'acme',
+      repository: 'app',
+      number: 7,
+    })
 
     expect(summary).toContain('project-1')
     expect(summary).toContain('C:\\workspace')
     expect(summary).toContain('pull-request:acme/app#7')
-    expect(createReviewCommentIdentity(summary, 'thread-1')).toEndWith(
-      '\0thread-1',
-    )
+    expect(createReviewCommentIdentity(summary, 'thread-1')).toEndWith('\0thread-1')
   })
 
   test('Git 事件只刷新同一 projectId', () => {
-    expect(
-      reviewGitChangeMatchesProject({ projectId: 'project-1' }, 'project-1'),
-    ).toBe(true)
-    expect(
-      reviewGitChangeMatchesProject({ projectId: 'project-2' }, 'project-1'),
-    ).toBe(false)
+    expect(reviewGitChangeMatchesProject({ projectId: 'project-1' }, 'project-1')).toBe(true)
+    expect(reviewGitChangeMatchesProject({ projectId: 'project-2' }, 'project-1')).toBe(false)
     expect(reviewGitChangeMatchesProject({}, 'project-1')).toBe(false)
-    expect(
-      reviewGitChangeMatchesProject({ projectId: 'project-1' }, null),
-    ).toBe(false)
+    expect(reviewGitChangeMatchesProject({ projectId: 'project-1' }, null)).toBe(false)
   })
 })
