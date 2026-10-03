@@ -154,7 +154,8 @@ function runCheck(opts: CheckOptions) {
     } catch (error) {
       fail(error instanceof Error ? error.message : String(error));
     }
-    // Check categories
+    // Check categories — 未知分类、重复分类与顺序漂移都会让 Unreleased
+    // 与发布归档、Release 正文的分类错位，因此一律失败关闭。
     const unreleasedSection =
       getChangelogSection(changelogText, "Unreleased")?.body ?? "";
     const validCategories = [
@@ -165,15 +166,34 @@ function runCheck(opts: CheckOptions) {
       "### Removed",
       "### Security",
     ];
-    for (const line of unreleasedSection.split("\n")) {
-      const trimmed = line.trim();
-      if (trimmed.startsWith("### ")) {
-        if (!validCategories.includes(trimmed)) {
-          warn(`Unreleased 中出现未知分类: "${trimmed}"`);
-        }
+    const categories = unreleasedSection
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith("### "));
+    let structureValid = true;
+    const failStructure = (msg: string) => {
+      fail(msg);
+      structureValid = false;
+    };
+    for (const category of new Set(categories)) {
+      if (!validCategories.includes(category)) {
+        failStructure(`Unreleased 中出现未知分类: "${category}"`);
       }
     }
-    ok("CHANGELOG.md 结构有效");
+    for (const category of new Set(categories)) {
+      if (categories.filter((item) => item === category).length > 1) {
+        failStructure(`Unreleased 中分类重复出现: "${category}"`);
+      }
+    }
+    const positions = categories
+      .filter((category) => validCategories.includes(category))
+      .map((category) => validCategories.indexOf(category));
+    if (positions.join(",") !== [...positions].sort((a, b) => a - b).join(",")) {
+      failStructure(
+        `Unreleased 分类顺序不符合规范，应为 ${validCategories.join(" → ")}`,
+      );
+    }
+    if (structureValid) ok("CHANGELOG.md 结构有效");
   }
 
   // 5. --base: 普通 PR 检查 Unreleased 有新增

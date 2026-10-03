@@ -75,6 +75,8 @@
 
 ### Changed
 
+- [scripts] version:check 强制校验 Unreleased 分类结构：未知分类由警告改为失败，并新增分类重复与顺序校验（规范顺序 Added → Changed → Fixed → Deprecated → Removed → Security），避免发布归档与 Release 正文的分类错位。
+
 - [desktop] 新版侧栏“新聊天”入口在默认、悬停和选中时均保持透明背景，保留键盘焦点提示与原有导航行为。
 
 - [desktop] 已安排页面改为复用共享自动化控制器，按需激活请求与订阅，并统一详情选中状态和离页草稿清理。
