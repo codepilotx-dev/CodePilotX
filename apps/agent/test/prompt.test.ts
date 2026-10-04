@@ -722,7 +722,10 @@ describe('电脑控制提示', () => {
     expect(instructions).toContain('本机电脑控制已就绪')
     expect(instructions).toContain('ToolSearch')
     expect(instructions).toContain('ComputerApps')
-    expect(instructions).toContain('请求用户授权')
+    expect(instructions).toContain('完全访问可直接使用')
+    expect(instructions).toContain('请求批准和帮我批准模式')
+    expect(instructions).toContain('请求用户确认')
+    expect(instructions).toContain('无需先去设置逐个添加')
     expect(instructions).not.toContain('未开启')
   })
 
