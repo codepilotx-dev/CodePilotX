@@ -23,10 +23,11 @@ export async function runBrowserOperation(
   await send('Page.enable')
   const assertOrigin = (url: string) => {
     if (url === 'about:blank' || url === 'about:srcdoc' || !url) return
-    if (!command.allowedOrigins.includes(new URL(url).origin))
+    if (command.deniedOrigins?.includes(new URL(url).origin) ||
+      (!command.allowAllSites && !command.allowedOrigins.includes(new URL(url).origin)))
       throw new Error(`站点需要授权：${new URL(url).origin}`)
   }
-  assertOrigin(contents.getURL())
+  if (op.action !== 'navigate') assertOrigin(contents.getURL())
   if (op.action === 'navigate') {
     if (!op.url) throw new Error('缺少网址')
     assertOrigin(op.url)
@@ -192,7 +193,8 @@ export async function runBrowserOperation(
               f.frame.url.startsWith('about:') ||
               Boolean(
                 URL.canParse(f.frame.url) &&
-                command.allowedOrigins.includes(new URL(f.frame.url).origin),
+                !command.deniedOrigins?.includes(new URL(f.frame.url).origin) &&
+                (command.allowAllSites || command.allowedOrigins.includes(new URL(f.frame.url).origin)),
               ),
           })),
           snapshot: String(snapshot).slice(0, 100000),

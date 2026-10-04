@@ -23,6 +23,7 @@ import { BrowserDownloads } from './browser-downloads.js'
 import { BrowserAnnotations } from './browser-annotations.js'
 
 type Entry = {
+  agentAuthorization?: BrowserCommand
   tab: BrowserTab
   owner: BrowserWindow
   contents?: WebContents
@@ -84,7 +85,7 @@ export class DesktopBrowserController {
           ? {
               tabId: entry.tab.tabId,
               allowed: (url) =>
-                !entry.tab.controlThreadId || this.#allowed(this.#hosts.get(entry.owner.id)!, url),
+                !entry.tab.controlThreadId || this.#allowed(this.#hosts.get(entry.owner.id)!, url, entry),
             }
           : undefined
       },
@@ -182,7 +183,7 @@ export class DesktopBrowserController {
     guest.setWindowOpenHandler(({ url }) => {
       if (isAllowedDesktopBrowserNavigation(url)) {
         const normalized = normalizeDesktopBrowserUrl(url).url
-        if (entry.tab.controlThreadId && !this.#allowed(host, normalized)) {
+        if (entry.tab.controlThreadId && !this.#allowed(host, normalized, entry)) {
           void this.#report(entry, { error: `站点需要授权：${new URL(normalized).origin}` })
           return { action: 'deny' }
         }
@@ -208,7 +209,7 @@ export class DesktopBrowserController {
     const intercept = (event: Electron.Event, url: string) => {
       if (
         !isAllowedDesktopBrowserNavigation(url) ||
-        (entry.tab.controlThreadId && !this.#allowed(host, url))
+        (entry.tab.controlThreadId && !this.#allowed(host, url, entry))
       ) {
         event.preventDefault()
         void this.#report(entry, {
@@ -221,7 +222,7 @@ export class DesktopBrowserController {
     guest.on('will-navigate', intercept)
     guest.on('will-redirect', intercept)
     guest.on('will-frame-navigate', (event) => {
-      if (!event.isMainFrame && entry.tab.controlThreadId && !this.#allowed(host, event.url))
+      if (!event.isMainFrame && entry.tab.controlThreadId && !this.#allowed(host, event.url, entry))
         event.preventDefault()
     })
     guest.on('did-start-loading', () => void this.#report(entry, { loading: true, error: null }))
@@ -627,12 +628,14 @@ export class DesktopBrowserController {
   #owned(host: WindowHost) {
     return [...this.#entries.values()].filter((e) => e.owner === host.owner)
   }
-  #allowed(host: WindowHost, url: string) {
+  #allowed(host: WindowHost, url: string, entry?: Entry) {
     if (url === 'about:blank' || url === 'about:srcdoc') return true
     try {
-      return host.permissions.some(
-        (p) => p.origin === new URL(url).origin && p.decision === 'allow',
-      )
+      const origin = new URL(url).origin
+      if (host.permissions.some((p) => p.origin === origin && p.decision === 'deny') || entry?.agentAuthorization?.deniedOrigins?.includes(origin)) return false
+      return host.permissions.some((p) => p.origin === origin && p.decision === 'allow') ||
+        !!entry?.agentAuthorization && entry.agentAuthorization.generation === entry.tab.generation &&
+        (entry.agentAuthorization.allowAllSites === true || entry.agentAuthorization.allowedOrigins.includes(origin))
     } catch {
       return false
     }
@@ -901,11 +904,7 @@ export class DesktopBrowserController {
       return
     const abort = new AbortController()
     entry.abort = abort
-    host.permissions = command.allowedOrigins.map((origin) => ({
-      origin,
-      decision: 'allow',
-      updatedAt: '',
-    }))
+    entry.agentAuthorization = command
     let result: BrowserResult | undefined
     let error: string | undefined
     let operationGuest: WebContents | undefined
@@ -979,6 +978,7 @@ export class DesktopBrowserController {
       if (current) {
         entry.capturing = false
         entry.abort = undefined
+        entry.agentAuthorization = undefined
         await this.#navigationReport(entry)
       }
       await this.#rpc
