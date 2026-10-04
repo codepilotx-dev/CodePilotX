@@ -78,11 +78,11 @@ export class ComputerHostRpcClient {
         authority: 'desktop-host',
       },
       protocols: ['thread-rpc-v4'],
-      capabilities: ['rpc.typed.v1', 'computer.host.v1', 'computer.use.v1'],
+      capabilities: ['rpc.typed.v1', 'computer.host.v1', 'computer.host.identity.v1', 'computer.policy.v1', 'computer.use.v1'],
       interactionDelivery: 'observe',
     })
     const capabilities = (payload.result as { capabilities?: string[] })?.capabilities ?? []
-    if (payload.error || !capabilities.includes('computer.host.v1'))
+    if (payload.error || !capabilities.includes('computer.host.identity.v1'))
       throw new Error('Agent 未提供电脑控制能力')
     const connectionId = (payload.result as { connectionId: string }).connectionId
     const response = await supervisor.request('/rpc', {

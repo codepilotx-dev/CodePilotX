@@ -37,6 +37,10 @@ identity on top of it. These portions are licensed under the MIT License. See
 `third_party/cpx-cua/LICENSE`, `third_party/cpx-cua/UPSTREAM.md` and
 `third_party/cpx-cua/NATIVE_NOTICES.md`.
 
+CPX-CUA's Windows signature verification adapts the CodeSigning sample from
+Microsoft Windows-classic-samples, copyright Microsoft Corporation, under MIT.
+See `third_party/cpx-cua/MICROSOFT_LICENSE` and the source link in `UPSTREAM.md`.
+
 CodePilotX uses Microsoft node-pty to provide native pseudoterminal support,
 including Windows ConPTY integration. node-pty is licensed under the MIT
 License; its license notice is distributed with the packaged dependency.

@@ -150,7 +150,7 @@ export type UseSessionStateResult = {
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
-    decisionExtras?: {},
+    decisionExtras?: Pick<DesktopPermissionDecision, 'grantScope' | 'computerGrant'>,
   ) => Promise<void>
   closeSession: (targetSessionId: string) => Promise<CloseSessionResult | null>
   updateSessionMetadata: (
@@ -807,9 +807,7 @@ export function useSessionState(options: UseSessionStateOptions): UseSessionStat
       behavior: 'allow' | 'deny',
       alwaysAllow = false,
       updatedInput?: Record<string, unknown>,
-      decisionExtras?: {
-        grantScope?: DesktopPermissionDecision['grantScope']
-      },
+      decisionExtras?: Pick<DesktopPermissionDecision, 'grantScope' | 'computerGrant'>,
     ): Promise<void> => {
       await decidePermissionAction(
         onErrorRef,

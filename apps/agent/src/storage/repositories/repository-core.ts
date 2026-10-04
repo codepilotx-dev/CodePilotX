@@ -116,7 +116,7 @@ export type ApprovalCheckpointPayload = {
   review: Record<string, unknown>
   runState?: string
   interruption?: unknown
-  resolution?: { decision: 'allow' | 'deny'; feedback?: string; resolvedAt: number }
+  resolution?: { decision: 'allow' | 'deny'; feedback?: string; resolvedAt: number; computerGrant?: 'chat' | 'persistent' }
   claimedAt?: number
 }
 

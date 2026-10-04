@@ -13,6 +13,7 @@ export type ResolvedResumeCheckpoint =
       interruption: unknown
       decision: 'allow' | 'deny'
       answer: string | null
+      computerGrant?: 'chat' | 'persistent'
       authorizationFingerprint?: string
       permissionGrant?: PermissionGrantResolution
     }

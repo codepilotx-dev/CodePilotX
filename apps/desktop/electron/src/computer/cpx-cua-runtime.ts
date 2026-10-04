@@ -135,6 +135,8 @@ export class CpxCuaRuntime {
       const names = new Set(Array.isArray(tools.tools) ? tools.tools.flatMap((tool: unknown) =>
         tool && typeof tool === 'object' && 'name' in tool && typeof tool.name === 'string' ? [tool.name] : [],
       ) : [])
+      if (!Array.isArray(tools.tools) || !tools.tools.some((tool: any) => tool?.name === 'cpx_apps' && tool['x-cpx-identity-v1'] === true))
+        throw new Error('CPX-CUA 缺少可信身份核验能力，请重新构建原生运行时')
       if (REQUIRED_TOOLS.some((name) => !names.has(name))) throw new Error('CPX-CUA 缺少必需的原生能力')
       if (this.#child !== child) throw new Error('CPX-CUA 启动已取消')
       this.#ready = true

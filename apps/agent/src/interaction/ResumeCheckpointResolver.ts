@@ -72,6 +72,8 @@ export class ResumeCheckpointResolver {
               }
             : {}),
           ...(permissionGrant ? { permissionGrant } : {}),
+          ...(approval.payload.invocation.name === 'ComputerRead' && approval.decision === 'allow'
+            ? { computerGrant: approval.payload.resolution.computerGrant ?? 'chat' as const } : {}),
         }
         return this.db.repositories.interactions.acquireResumeCheckpointLease({
           turnID,
@@ -199,6 +201,7 @@ export const toPlanCheckpoint = (acquired: {
         ? { authorizationFingerprint: checkpoint.authorizationFingerprint }
         : {}),
       ...(checkpoint.permissionGrant ? { permissionGrant: checkpoint.permissionGrant } : {}),
+      ...(checkpoint.computerGrant ? { computerGrant: checkpoint.computerGrant } : {}),
     }
   }
   return {

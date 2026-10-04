@@ -222,6 +222,7 @@ export const PendingApprovalInteractionSchema = Schema.Struct({
   cwd: Schema.optional(Schema.String),
   affectedPaths: Schema.optional(Schema.Array(AgentThread.ToolAffectedPathSchema)),
   reviewSummary: Schema.optional(AgentThread.ToolReviewSummarySchema),
+  computerApp: Schema.optional(AgentThread.ComputerAppApprovalSchema),
   requestedPermissions: AgentThread.AdditionalPermissionsSchema,
   allowedChoices: Schema.Array(Schema.Literals(['allow-once', 'deny', 'stop'])),
 })
@@ -290,6 +291,7 @@ export const InteractionListPendingResultSchema = Schema.Struct({
 })
 
 export const ApprovalInteractionResponseSchema = Schema.Struct({
+  computerGrant: Schema.optional(Schema.Literals(['chat', 'persistent'])),
   kind: Schema.Literal('approval'),
   decision: Schema.Literals(['allow-once', 'deny', 'stop']),
   feedback: Schema.optional(ApprovalFeedbackSchema),

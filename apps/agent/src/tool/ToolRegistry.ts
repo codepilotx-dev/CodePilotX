@@ -115,6 +115,7 @@ export interface ToolContext {
   readSnapshot?: { mtimeMs: number; sha256: string }
   fileSnapshots?: ToolFileSnapshots
   /** Host-inspected scope for the exact input being executed. */
+  computerGrant?: 'chat' | 'persistent'
   authorizationScope?: ToolAuthorizationScope
   fileSaved?: (input: { filePath: string; content: string }) => Promise<void>
   /** Persists host-only reversible evidence after a successful managed file mutation. */

@@ -502,6 +502,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const browser = new BrowserService(db, hub, configService)
     const tools = new ToolRegistry()
     const computer = new ComputerUseService(configService, db, hub)
+    yield* Effect.promise(() => computer.initialize())
     for (const definition of computerToolDefinitions(computer)) tools.register(definition)
     if (browser.available())
       for (const definition of browserToolDefinitions(browser)) tools.register(definition)

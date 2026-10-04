@@ -86,6 +86,7 @@ const approvalScopePayload = (invocation: ToolInvocation) =>
   invocation.authorizationScope
     ? {
         affectedPaths: invocation.authorizationScope.affectedPaths,
+        ...(invocation.authorizationScope.computerApp ? { computerApp: invocation.authorizationScope.computerApp } : {}),
         ...(invocation.authorizationScope.reviewSummary
           ? { reviewSummary: invocation.authorizationScope.reviewSummary }
           : {}),
@@ -357,6 +358,7 @@ export class ApprovalService {
     decision: 'allow' | 'deny',
     feedback?: string,
     operation?: InteractionOperationInput,
+    computerGrant?: 'chat' | 'persistent',
   ) {
     try {
       this.load(id)
@@ -369,7 +371,7 @@ export class ApprovalService {
     const safeFeedback = feedback?.trim()
       ? secretScrubber.scrubText(feedback.trim().slice(0, 4_000))
       : undefined
-    const result = this.db.resolveApprovalCheckpoint(id, decision, safeFeedback, operation)
+    const result = this.db.resolveApprovalCheckpoint(id, decision, safeFeedback, operation, computerGrant)
     if (result.state === 'missing')
       throw new AgentError('APPROVAL_NOT_FOUND', '审批请求不存在', 404)
     if (result.state === 'not-ready')

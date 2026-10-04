@@ -1,13 +1,21 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { mkdtemp } from 'node:fs/promises'
+import { mkdtemp, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { Effect } from 'effect'
+import { ComputerPolicyService } from '../src/computer/ComputerPolicyService'
 import { ComputerUseService } from '../src/computer/ComputerUseService'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { EventHub } from '../src/storage/events/EventHub'
 import type { ConfigService, ConfigEdit } from '../src/config/ConfigService'
 import { computerToolDefinitions } from '../src/tool/Computer/definition'
+import { ApprovalService } from '../src/permission/ApprovalService'
+import { ToolExecutor } from '../src/tool/ToolExecutor'
+import { InteractionService } from '../src/interaction/InteractionService'
+import { ResumeCheckpointResolver } from '../src/interaction/ResumeCheckpointResolver'
+import { ThreadProjection } from '../src/transport/ThreadProjection'
+import { WorkspaceService } from '../src/workspace/WorkspaceService'
+import { Model, Provider } from '@codepilotx/model-schema'
 import { ToolRegistry } from '../src/tool/ToolRegistry'
 import { PermissionDecisionEngine } from '../src/permission/PermissionDecisionEngine'
 import type { ToolInvocation } from '../src/domain'
@@ -17,7 +25,7 @@ import { removeFixturePaths } from './fixture-cleanup'
 const paths: string[] = []
 const cleanups: Array<() => void> = []
 const HOST = { instanceId: 'instance:test', connectionId: 'connection:test' }
-const APP = { appId: 'aumid:notepad', name: '记事本', pid: 42, windowId: '7', processKey: '1:2' }
+const APP = { appId: 'cpx2:notepad', name: '记事本', pid: 42, windowId: '7', processKey: '1:2', identity: { kind: 'packaged' as const, fingerprint: 'a'.repeat(64), legacyAppId: 'aumid:notepad', aumid: 'notepad' } }
 const REF = 'window:issued'
 
 type Identity = { threadID: string; turnID: string }
@@ -40,24 +48,30 @@ async function fixture(options: { enabled?: boolean } = {}) {
       unknown: 'keep',
     },
   }
+  const listeners = new Set<(event: any) => unknown>()
   const config = {
     snapshot: () => configuration,
+    snapshotLayers: () => [{ kind: 'user', config: configuration }],
+    subscribe: (listener: (event: any) => unknown) => { listeners.add(listener); return () => listeners.delete(listener) },
     read: async () => ({
       config: configuration,
       layers: [{ kind: 'user', version: 'test', config: configuration }],
     }),
     batchWrite: async ({ edits }: { edits: ConfigEdit[] }) => {
       for (const edit of edits) configuration[edit.keyPath[0]!][edit.keyPath[1]!] = edit.value
+      for (const listener of listeners) await listener({ scope: 'user', changedKeyPaths: edits.map((edit) => edit.keyPath) })
     },
   } as unknown as ConfigService
   const hub = await Effect.runPromise(EventHub.make)
-  const computer = new ComputerUseService(config, db, hub)
+  const policy = new ComputerPolicyService(config, join(root, 'requirements.toml'))
+  const computer = new ComputerUseService(config, db, hub, policy)
+  await computer.initialize()
   cleanups.push(() => {
     computer.dispose()
     db.close()
   })
-  computer.register(HOST.instanceId, HOST.connectionId, true)
-  return { db, computer, configuration }
+  computer.register(HOST.instanceId, HOST.connectionId, true, true)
+  return { db, computer, configuration, policy, root, hub }
 }
 
 const computerTools = (registry: ToolRegistry, mode: 'chat' | 'plan') =>
@@ -101,7 +115,7 @@ async function observe(
   signal: AbortSignal,
   result: ComputerResult,
 ): Promise<string> {
-  const reading = computer.read(identity, REF, signal)
+  const reading = computer.read(identity, REF, signal, false, undefined, 'chat')
   const command = await take(computer)
   computer.complete(command.requestId, command.generation, result)
   const text = (await reading).text ?? ''
@@ -109,13 +123,77 @@ async function observe(
 }
 
 describe('ComputerUseService', () => {
+  test('旧宿主缺少可信身份能力时保持不可用', async () => {
+    const { computer } = await fixture()
+    computer.register(HOST.instanceId, HOST.connectionId, true)
+    expect(computer.available()).toBe(false)
+  })
+  test('旧允许需要重新确认，旧拒绝继续限制且旧记录原样保留', async () => {
+    const { computer, db, configuration } = await fixture()
+    configuration.desktop.computerAppPermissions = [{ appId: APP.identity.legacyAppId, name: APP.name, decision: 'allow', unknown: 42 }]
+    const identity = { threadID: db.createThread('旧授权').id, turnID: 'turn:legacy' }
+    await discover(computer, identity, new AbortController().signal)
+    expect(computer.inspect(identity, REF, false).ruleRequiresApproval).toBe(true)
+    expect(computer.state().permissions[0]?.needsConfirmation).toBe(true)
+    await computer.configure({ appId: APP.appId, decision: 'allow' })
+    expect(configuration.desktop.computerAppPermissions[0].unknown).toBe(42)
+    configuration.desktop.computerAppPermissions[0].decision = 'deny'
+    expect(() => computer.inspect(identity, REF, false)).toThrow('旧路径授权已拒绝')
+  })
+  test('永久允许禁用后记录保留但需授权，已有效聊天授权继续使用', async () => {
+    const { computer, db, configuration, policy } = await fixture()
+    configuration.computer_use = { allow_persistent_approval: false }
+    configuration.desktop.computerAppApprovalsV2 = [{ appId: APP.appId, name: APP.name, decision: 'allow' }]
+    await policy.refresh()
+    const identity = { threadID: db.createThread('临时授权').id, turnID: 'turn:session' }
+    await discover(computer, identity, new AbortController().signal)
+    expect(computer.inspect(identity, REF, false).ruleRequiresApproval).toBe(true)
+    await expect(computer.configure({ appId: APP.appId, decision: 'allow' })).rejects.toThrow('禁止保存永久')
+    await computer.configure({ appId: APP.appId, decision: 'session', threadId: identity.threadID })
+    expect(computer.inspect(identity, REF, true).ruleRequiresApproval).toBe(false)
+    expect(configuration.desktop.computerAppApprovalsV2).toHaveLength(1)
+  })
+  test('策略收紧取消待执行命令并失效旧引用，聊天授权不会变成策略允许', async () => {
+    const { computer, db, policy, root } = await fixture()
+    const identity = { threadID: db.createThread('动态策略').id, turnID: 'turn:restrict' }
+    await discover(computer, identity, new AbortController().signal)
+    const reading = computer.read(identity, REF, new AbortController().signal, false, undefined, 'chat')
+    const rejected = reading.catch((error: Error) => error)
+    await writeFile(join(root, 'requirements.toml'), '[computer_use]\ndefault_app_access="deny"', 'utf8')
+    await policy.refresh()
+    expect((await rejected as Error).message).toContain('电脑控制已停止')
+    expect(computer.state().busy).toBe(false)
+    expect(computer.state().applications?.[0]?.policy).toMatchObject({ access: 'deny', source: 'managed' })
+    expect(() => computer.inspect(identity, REF, false)).toThrow('本回合电脑控制已停止')
+  })
+  test('手动临时授权只在指定聊天有效，设置保留聊天归属', async () => {
+    const { computer, db } = await fixture()
+    const first = { threadID: db.createThread('授权聊天').id, turnID: 'turn:manual-first' }
+    await discover(computer, first, new AbortController().signal)
+    await computer.configure({ appId: APP.appId, threadId: first.threadID, decision: 'session' })
+    expect(computer.inspect(first, REF, false).ruleRequiresApproval).toBe(false)
+    computer.stop()
+    const second = { threadID: db.createThread('其他聊天').id, turnID: 'turn:manual-second' }
+    await discover(computer, second, new AbortController().signal)
+    expect(computer.inspect(second, REF, false).ruleRequiresApproval).toBe(true)
+    expect(computer.state().permissions[0]?.chatThreadIds).toEqual([first.threadID])
+  })
+  test('未签名文件替换后新哈希身份不会继承原永久允许', async () => {
+    const { computer, db, configuration } = await fixture()
+    configuration.desktop.computerAppApprovalsV2 = [{ appId: 'cpx2:old-hash', name: '开发应用', decision: 'allow' }]
+    const identity = { threadID: db.createThread('开发应用').id, turnID: 'turn:hash' }
+    const pending = computer.list(identity, new AbortController().signal); const command = await take(computer)
+    computer.complete(command.requestId, command.generation, { text: '新文件', windows: [{ ...issuedWindow(), appId: 'cpx2:new-hash', identity: { kind: 'unsigned', legacyAppId: 'exe:dev', fingerprint: 'b'.repeat(64), sha256: 'b'.repeat(64) } }] })
+    await pending
+    expect(computer.inspect(identity, REF, false).ruleRequiresApproval).toBe(true)
+  })
   test('设置只发现应用标识，手动允许后才可在不询问模式读取，撤销后重新要求授权', async () => {
     const { computer, db } = await fixture()
     const discovery = computer.discoverApplications()
     const command = await take(computer)
     expect(command.kind).toBe('list')
     computer.complete(command.requestId, command.generation, { text: '应用', windows: [issuedWindow()] })
-    expect(await discovery).toEqual({ apps: [{ appId: APP.appId, name: APP.name }] })
+    expect(await discovery).toMatchObject({ apps: [{ appId: APP.appId, name: APP.name }] })
     expect(computer.state()).toMatchObject({ ownerTurnId: null, permissions: [] })
     await expect(computer.configure({ appId: 'forged', decision: 'allow' })).rejects.toThrow('请先发现')
     await computer.configure({ appId: APP.appId, decision: 'allow' })
@@ -157,8 +235,7 @@ describe('ComputerUseService', () => {
     expect(engine.evaluate({ ...invocation, permissionConfig: { ...invocation.permissionConfig, approvalPolicy: 'on-request' } }, tool).action).toBe('review')
     await observe(computer, identity, new AbortController().signal, { text: '窗口' })
     await computer.configure({ appId: APP.appId, decision: 'allow' })
-    const next = { ...identity, turnID: 'turn:policy-next' }
-    await discover(computer, next, new AbortController().signal)
+    const next = identity
     expect(engine.evaluate({ ...invocation, ...next, authorizationScope: computer.inspect(next, REF, false) }, tool).action).toBe('allow')
   })
 
@@ -187,14 +264,14 @@ describe('ComputerUseService', () => {
     expect(computer.inspect({ threadID: thread.id, turnID: 'turn:1' }, REF, false)).toMatchObject({
       ruleRequiresApproval: false,
     })
-    expect(computer.state().permissions).toEqual([
+    expect(computer.state().permissions).toMatchObject([
       { appId: APP.appId, name: APP.name, decision: 'session' },
     ])
 
     // Recording a decision retires the current control turn and its window
     // references, so the next turn re-discovers before reading the deny.
     await computer.configure({ appId: APP.appId, decision: 'deny' })
-    expect(computer.state().permissions).toEqual([
+    expect(computer.state().permissions).toMatchObject([
       { appId: APP.appId, name: APP.name, decision: 'deny' },
     ])
     await discover(computer, { threadID: thread.id, turnID: 'turn:2' }, signal)
@@ -203,7 +280,7 @@ describe('ComputerUseService', () => {
     ).toThrow('此应用的电脑控制权限已拒绝')
 
     await computer.configure({ appId: APP.appId, decision: 'remove' })
-    expect(computer.state().permissions).toEqual([])
+    expect(computer.state().permissions).toMatchObject([])
     await discover(computer, { threadID: thread.id, turnID: 'turn:3' }, signal)
     expect(
       computer.inspect({ threadID: thread.id, turnID: 'turn:3' }, REF, false),
@@ -332,7 +409,7 @@ describe('ComputerUseService', () => {
     const ownerIdentity = { threadID: owner.id, turnID: 'turn:owner' }
     await discover(computer, ownerIdentity, signal)
 
-    const reading = computer.read(ownerIdentity, REF, signal)
+    const reading = computer.read(ownerIdentity, REF, signal, false, undefined, 'chat')
     const command = await take(computer)
 
     expect(() =>
@@ -354,7 +431,7 @@ describe('ComputerUseService', () => {
     const signal = new AbortController().signal
     await discover(computer, identity, signal)
 
-    const reading = computer.read(identity, REF, signal)
+    const reading = computer.read(identity, REF, signal, false, undefined, 'chat')
     const command = await take(computer)
     computer.stop()
 
@@ -412,5 +489,114 @@ describe('ComputerUseService', () => {
     )
     expect(() => computer.requireHost(HOST.instanceId, HOST.connectionId)).not.toThrow()
     expect(computer.state().available).toBe(true)
+  })
+})
+
+const FULL_ACCESS = { sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'user' } as const
+
+describe('聊天电脑授权', () => {
+  test('完全访问可读和操作、不留下聊天授权；切换模式后重新询问，Plan 和其他 never 组合不自动允许', async () => {
+    const { computer, db, root } = await fixture()
+    const identity = { threadID: db.createThread().id, turnID: 'turn:full' }
+    const signal = new AbortController().signal
+    await discover(computer, identity, signal)
+    expect(computer.inspect(identity, REF, false, undefined, FULL_ACCESS).ruleRequiresApproval).toBe(false)
+    const registry = new ToolRegistry()
+    for (const definition of computerToolDefinitions(computer)) registry.register(definition)
+    const executor = new ToolExecutor(registry)
+    const context = { ...identity, agentID: 'main', taskMode: 'chat' as const,
+      toolCallID: 'full:read', signal, permissionConfig: FULL_ACCESS, workspace: await WorkspaceService.open(root) }
+    const allowed = await executor.execute<{ authorizationFingerprint: string }>('ComputerRead', { windowRef: REF }, { ...context, authorizationOnly: true })
+    const reading = executor.execute<ComputerResult>('ComputerRead', { windowRef: REF }, { ...context,
+      approvedToolCallID: context.toolCallID, approvedAuthorizationFingerprint: allowed.authorizationFingerprint })
+    const command = await take(computer)
+    computer.complete(command.requestId, command.generation, { text: '窗口', captureId: 'capture' })
+    const observationId = /observationId: (\S+)/.exec((await reading).text)![1]!
+    const acting = executor.execute('ComputerAction', { windowRef: REF, observationId, operation: { action: 'click', x: 1, y: 2, delivery: 'background' } }, { ...context, toolCallID: 'full:action' })
+    const actionCommand = await take(computer)
+    computer.complete(actionCommand.requestId, actionCommand.generation, { text: '完成' })
+    await acting
+    expect(computer.state().permissions).toEqual([])
+    expect(computer.inspect(identity, REF, false, undefined, { ...FULL_ACCESS, approvalPolicy: 'on-request' }).ruleRequiresApproval).toBe(true)
+    expect(computer.inspect(identity, REF, false, undefined, { ...FULL_ACCESS, sandboxMode: 'read-only' }).ruleRequiresApproval).toBe(true)
+    expect(() => computer.inspect(identity, REF, true, undefined, FULL_ACCESS)).toThrow('Plan')
+    await expect(computer.read(identity, REF, signal)).rejects.toThrow('聊天中确认')
+    await computer.configure({ appId: APP.appId, decision: 'deny' })
+    const next = { ...identity, turnID: 'turn:deny' }
+    await discover(computer, next, signal)
+    expect(() => computer.inspect(next, REF, false, undefined, FULL_ACCESS)).toThrow('已拒绝')
+  })
+
+  for (const reviewer of ['user', 'auto_review'] as const) {
+    test(`${reviewer} 首次使用走人工 checkpoint，应用授权恢复不打断读取和动作`, async () => {
+      const { computer, db, root, hub } = await fixture()
+      const grant = reviewer === 'user' ? 'chat' : 'persistent'
+      const permissions = { sandboxMode: 'workspace-write', approvalPolicy: reviewer === 'user' ? 'on-request' : 'untrusted', approvalsReviewer: reviewer } as const
+      const model = Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') })
+      const thread = db.createThread()
+      const turn = db.createTurn(thread.id, { content: '读取电脑', model, permissionConfig: permissions, strategy: 'queue', taskMode: 'chat' })
+      db.claimTurnExecution(turn.turnID)
+      const identity = { threadID: thread.id, turnID: turn.turnID }
+      const signal = new AbortController().signal
+      await discover(computer, identity, signal)
+      const registry = new ToolRegistry()
+      for (const definition of computerToolDefinitions(computer)) registry.register(definition)
+      let reviewed = 0
+      const approvals = new ApprovalService(db, hub, registry, async () => { reviewed++; return { decision: 'allow', risk: 'low', reason: '自动' } })
+      const executor = new ToolExecutor(registry, { dataDir: root, authorizeShell: (invocation, abort) => approvals.authorize(invocation, abort) })
+      const context = { ...identity, agentID: turn.agentID, toolCallID: 'computer:read', taskMode: 'chat' as const,
+        signal, workspace: await WorkspaceService.open(root), permissionConfig: permissions, model }
+      expect(await executor.execute('ComputerRead', { windowRef: REF }, { ...context, permissionConfig: FULL_ACCESS, authorizationOnly: true })).toMatchObject({ decision: 'allow' })
+      const result = await executor.execute('ComputerRead', { windowRef: REF }, { ...context, authorizationOnly: true })
+      expect(result).toMatchObject({ decision: 'ask' })
+      expect(reviewed).toBe(0)
+      await approvals.attachRunState(context.toolCallID, JSON.stringify({ version: 1 }), { name: 'ComputerRead', callId: context.toolCallID })
+      const stored = db.approvalCheckpointForToolCall(context.toolCallID)!
+      const interactions = new InteractionService({ db, hub, approvals, computer,
+        threads: { resumeTurn: async () => {} } } as unknown as ConstructorParameters<typeof InteractionService>[0])
+      expect(interactions.listPending({ threadId: thread.id }).interactions[0]).toMatchObject({ computerApp: { name: APP.name, allowPersistentApproval: true } })
+      expect(new ThreadProjection(db).snapshot(thread.id)?.approvals[0]).toMatchObject({ computerApp: { name: APP.name } })
+      await expect(interactions.respond({ interactionId: stored.approvalID, operationId: 'invalid:remember', expectedVersion: stored.version,
+        response: { kind: 'approval', decision: 'allow-once', remember: { scope: 'tool', value: 'ComputerRead' } } })).rejects.toThrow('记忆规则')
+      await interactions.respond({ interactionId: stored.approvalID, operationId: `allow:${reviewer}`, expectedVersion: stored.version,
+        response: { kind: 'approval', decision: 'allow-once', ...(grant === 'persistent' ? { computerGrant: grant } : {}) } })
+      const lease = new ResumeCheckpointResolver(db, approvals).acquire(turn.turnID, 'main', `lease:${reviewer}`)!
+      expect(lease.checkpoint).toMatchObject({ computerGrant: grant })
+      const resumed = executor.execute<ComputerResult>('ComputerRead', { windowRef: REF }, { ...context,
+        approvedToolCallID: context.toolCallID, approvedAuthorizationFingerprint: stored.payload.invocation.authorizationScope!.fingerprint,
+        approvedComputerGrant: grant })
+      const command = await take(computer)
+      computer.complete(command.requestId, command.generation, { text: '窗口', captureId: 'capture' })
+      const observationId = /observationId: (\S+)/.exec((await resumed).text)![1]!
+      expect(computer.state().permissions[0]).toMatchObject({ decision: grant === 'chat' ? 'session' : 'allow', chatThreadIds: [thread.id] })
+      expect(computer.inspect(identity, REF, false).ruleRequiresApproval).toBe(false)
+      const allowed = await executor.execute('ComputerRead', { windowRef: REF }, { ...context, toolCallID: 'next:read', authorizationOnly: true })
+      expect(allowed).toMatchObject({ decision: 'allow' })
+      const action = computer.action(identity, REF, observationId, { action: 'click', x: 1, y: 2, delivery: 'background' }, signal)
+      const actionCommand = await take(computer)
+      computer.complete(actionCommand.requestId, actionCommand.generation, { text: '完成' })
+      await action
+      await computer.configure({ appId: APP.appId, decision: 'remove' })
+      expect(() => computer.inspect(identity, REF, false)).toThrow('本回合电脑控制已停止')
+    })
+  }
+
+  test('永久授权禁用和失效引用在回复前复核，聊天授权仍可用', async () => {
+    const { computer, db, policy, configuration } = await fixture()
+    const identity = { threadID: db.createThread().id, turnID: 'turn:temporary' }
+    configuration.computer_use = { allow_persistent_approval: false }; await policy.refresh()
+    const signal = new AbortController().signal
+    await discover(computer, identity, signal)
+    const permissions = { ...FULL_ACCESS, approvalPolicy: 'on-request' } as const
+    const scope = computer.inspect(identity, REF, false, undefined, permissions)
+    expect(() => computer.validateGrant(identity, REF, scope.fingerprint, true, false, permissions)).toThrow('禁止保存永久')
+    expect(() => computer.validateGrant(identity, REF, 'b'.repeat(64), false, false, permissions)).toThrow('身份已变化')
+    computer.validateGrant(identity, REF, scope.fingerprint, false, false, permissions)
+    await observe(computer, identity, signal, { text: '窗口' })
+    expect(computer.inspect(identity, REF, true).ruleRequiresApproval).toBe(false)
+    computer.stop()
+    const other = { threadID: db.createThread().id, turnID: 'turn:other' }
+    await discover(computer, other, signal)
+    expect(computer.inspect(other, REF, false).ruleRequiresApproval).toBe(true)
   })
 })

@@ -101,7 +101,7 @@ export type ApprovalCheckpointPayload = {
   review: Record<string, unknown>
   runState?: string
   interruption?: unknown
-  resolution?: { decision: 'allow' | 'deny'; feedback?: string; resolvedAt: number }
+  resolution?: { decision: 'allow' | 'deny'; feedback?: string; resolvedAt: number; computerGrant?: 'chat' | 'persistent' }
   claimedAt?: number
 }
 
@@ -1200,6 +1200,7 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
     decision: 'allow' | 'deny',
     feedback?: string,
     operation?: InteractionOperationInput,
+    computerGrant?: 'chat' | 'persistent',
   ):
     | { state: 'resolved'; checkpoint: StoredApprovalCheckpoint; events: EventEnvelope[] }
     | {
@@ -1263,7 +1264,7 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
         )
         .run(decision, timestamp, approvalID)
       if (updated.changes !== 1) throw new Error(`审批 ${approvalID} 已被并发处理`)
-      const resolution = { decision, ...(feedback ? { feedback } : {}), resolvedAt: timestamp }
+      const resolution = { decision, ...(feedback ? { feedback } : {}), ...(computerGrant ? { computerGrant } : {}), resolvedAt: timestamp }
       this.sqlite
         .query('UPDATE approval_checkpoints SET payload = ?, updated_at = ? WHERE approval_id = ?')
         .run(stringify({ ...checkpoint.payload, resolution }), timestamp, approvalID)

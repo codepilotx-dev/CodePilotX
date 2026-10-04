@@ -742,6 +742,7 @@ describe('canonical thread state', () => {
       approvals: [],
     }
     const payload = {
+      computerApp: { name: '记事本', allowPersistentApproval: false },
       interactionId: 'approval-scoped',
       threadId: thread.id,
       turnId: activeTurn.id,
@@ -769,6 +770,7 @@ describe('canonical thread state', () => {
       paths: ['src/a.ts', 'src/b.ts'],
       affectedPaths: payload.affectedPaths,
       reviewSummary: payload.reviewSummary,
+      computerApp: payload.computerApp,
     })
   })
 

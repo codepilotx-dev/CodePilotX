@@ -12,7 +12,7 @@ export const computerHandlers: RpcHandlerGroup = {
     const params = Schema.decodeUnknownSync(methods[method as keyof typeof methods].params as Schema.Decoder<any, never>)(raw) as Record<string, any>
     if (method.startsWith('computer/host/')) {
       runtime.requireDesktopHost(context)
-      if (method !== 'computer/host/register') computer.requireHost(params.instanceId, context.connectionId!)
+      if (method !== 'computer/host/register' && method !== 'computer/host/registerIdentity') computer.requireHost(params.instanceId, context.connectionId!)
     }
     switch (method) {
       case 'computer/state': return computer.state()
@@ -20,6 +20,7 @@ export const computerHandlers: RpcHandlerGroup = {
       case 'computer/configure': return computer.configure(params)
       case 'computer/stop': computer.stop(); return { ok: true }
       case 'computer/host/register': return computer.register(params.instanceId, context.connectionId!, params.available)
+      case 'computer/host/registerIdentity': return computer.register(params.instanceId, context.connectionId!, params.available, true)
       case 'computer/host/next': return computer.next(params.generation)
       case 'computer/host/complete': computer.complete(params.requestId, params.generation, params.result); return { ok: true }
       case 'computer/host/release': computer.release(params.instanceId); return { ok: true }

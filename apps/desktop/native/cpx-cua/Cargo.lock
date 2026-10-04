@@ -687,6 +687,7 @@ dependencies = [
  "embed-resource",
  "platform-windows",
  "serde_json",
+ "sha2",
  "tokio",
  "windows 0.58.0",
 ]

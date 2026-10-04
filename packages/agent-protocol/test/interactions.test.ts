@@ -289,3 +289,11 @@ describe('server request interactions', () => {
     expect(decode(legacy)).toEqual(legacy)
   })
 })
+
+test('电脑应用授权使用独立响应字段，普通旧允许仍可解码', () => {
+  const decode = Schema.decodeUnknownSync(ServerRequestResultSchema)
+  expect(decode({ kind: 'approval', decision: 'allow-once' })).toEqual({ kind: 'approval', decision: 'allow-once' })
+  for (const computerGrant of ['chat', 'persistent'] as const)
+    expect(decode({ kind: 'approval', decision: 'allow-once', computerGrant })).toEqual({ kind: 'approval', decision: 'allow-once', computerGrant })
+  expect(() => decode({ kind: 'approval', decision: 'allow-once', computerGrant: 'workspace' })).toThrow()
+})

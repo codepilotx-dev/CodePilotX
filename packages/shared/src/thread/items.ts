@@ -535,6 +535,11 @@ export const ToolReviewSummarySchema = Schema.Struct({
 })
 export type ToolReviewSummary = typeof ToolReviewSummarySchema.Type
 
+export const ComputerAppApprovalSchema = Schema.Struct({
+  name: Schema.String,
+  allowPersistentApproval: Schema.Boolean,
+})
+
 export const ApprovalRequestSchema = Schema.Struct({
   id: Schema.String,
   threadId: Schema.String,
@@ -547,6 +552,7 @@ export const ApprovalRequestSchema = Schema.Struct({
   paths: Schema.Array(Schema.String),
   affectedPaths: Schema.optional(Schema.Array(ToolAffectedPathSchema)),
   reviewSummary: Schema.optional(ToolReviewSummarySchema),
+  computerApp: Schema.optional(ComputerAppApprovalSchema),
   requestedPermissions: AdditionalPermissionsSchema,
   review: Schema.NullOr(ShellReviewSchema),
   risk: Schema.Literals(['low', 'medium', 'high', 'critical']),

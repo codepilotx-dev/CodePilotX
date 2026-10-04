@@ -1483,6 +1483,10 @@ export class ThreadProjection {
       typeof row.request_payload === 'string'
         ? parse<Record<string, unknown>>(row.request_payload)
         : {}
+    const rawComputerApp = request.computerApp as Record<string, unknown> | undefined
+    const computerApp = rawComputerApp && typeof rawComputerApp.name === 'string' &&
+      typeof rawComputerApp.allowPersistentApproval === 'boolean'
+      ? { name: rawComputerApp.name, allowPersistentApproval: rawComputerApp.allowPersistentApproval } : undefined
     const requestKind = request.kind
     const rawPermissions = request.requestedPermissions
     const permissions =
@@ -1548,6 +1552,7 @@ export class ThreadProjection {
               : 'denied',
       createdAt: Number(row.created_at),
       ...(permissionGrant ? { permissionGrant } : {}),
+      ...(computerApp ? { computerApp } : {}),
     }
   }
 

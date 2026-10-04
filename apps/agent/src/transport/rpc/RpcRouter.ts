@@ -359,6 +359,7 @@ export class RpcRouter {
       new PlanApprovalService(dependencies.db, dependencies.hub, dependencies.threads)
     this.subscriptions = new EventSubscriptionRegistry(dependencies.db)
     this.interactions = new InteractionService({
+      ...(dependencies.computer ? { computer: dependencies.computer } : {}),
       db: dependencies.db,
       hub: dependencies.hub,
       approvals: dependencies.approvals,

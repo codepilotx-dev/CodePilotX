@@ -88,7 +88,7 @@ export type InlineApprovalCardProps = {
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
-    decisionExtras?: Pick<DesktopPermissionDecision, 'grantScope'>,
+    decisionExtras?: Pick<DesktopPermissionDecision, 'grantScope' | 'computerGrant'>,
   ) => void | Promise<void>
 }
 
@@ -133,7 +133,7 @@ export function InlineApprovalCard({
   }, [request.requestId])
   const command = buildInlineApprovalCommand(request)
   const commandPreviewTransition = useHeightTransition([isCommandExpanded, command.full])
-  const approvalTitle = inlineApprovalTitle(request)
+  const approvalTitle = request.computerApp ? `允许使用 ${request.computerApp.name}？` : inlineApprovalTitle(request)
   const previewLabel = inlineApprovalPreviewLabel(request)
   const reviewSummary = inlineApprovalReviewSummary(request)
   async function act(action: () => void | Promise<void>): Promise<void> {
@@ -163,6 +163,12 @@ export function InlineApprovalCard({
   ) : null
   const actions = (
     <div className="inline-approval-actions">
+      {request.computerApp?.allowPersistentApproval ? (
+        <Button color="secondary" disabled={disabled}
+          onClick={() => void act(() => onDecide(request, 'allow', false, undefined, { computerGrant: 'persistent' }))}>
+          始终允许
+        </Button>
+      ) : null}
       {isPermissionGrant && scopeOptions.length > 1 ? (
         <Dropdown
           width="auto"
@@ -220,16 +226,25 @@ export function InlineApprovalCard({
               'allow',
               false,
               undefined,
-              isPermissionGrant && selectedScope ? { grantScope: selectedScope } : undefined,
+              request.computerApp ? { computerGrant: 'chat' } : isPermissionGrant && selectedScope ? { grantScope: selectedScope } : undefined,
             ),
           )
         }
       >
-        {isPermissionGrant ? '允许' : '允许一次'}
+        {request.computerApp ? '允许此对话' : isPermissionGrant ? '允许' : '允许一次'}
       </Button>
     </div>
   )
 
+  if (request.computerApp) {
+    return (
+      <RequestCard title={approvalTitle} variant="permission" identity={identity}
+        disabledReason={disabledReason} navigation={navigation} error={error}>
+        <p className="inline-approval-target">截图会进入聊天，必要时可能切到前台。你可以随时停止操作。</p>
+        {actions}
+      </RequestCard>
+    )
+  }
   if (request.toolName === 'AskUserQuestion') {
     return (
       <AskUserQuestionApproval

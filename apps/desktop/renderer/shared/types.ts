@@ -1112,10 +1112,12 @@ export type DesktopPermissionGrant = {
 }
 
 export type DesktopPermissionDecision = AgentPermissionDecision & {
+  computerGrant?: 'chat' | 'persistent'
   grantScope?: DesktopPermissionGrantScope
 }
 
 export type DesktopPermissionRequest = AgentPermissionRequest & {
+  computerApp?: { name: string; allowPersistentApproval: boolean }
   permissionGrant?: DesktopPermissionGrant
 }
 

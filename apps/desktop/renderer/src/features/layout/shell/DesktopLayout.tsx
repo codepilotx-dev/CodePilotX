@@ -2116,7 +2116,7 @@ export function DesktopLayout(): React.ReactNode {
           onCloneGithub: () => setGithubRepositoryModalOpen(true),
           onClearWorkspace: handleClearWorkspace,
           onOpenMcpSettings: () => navigate('/settings/plugins?tab=mcps'),
-          onOpenComputerSettings: () => navigate('/settings/computer'),
+          onOpenComputerSettings: () => navigate('/settings/computer' + (routedSessionId ? '?threadId=' + encodeURIComponent(routedSessionId) : '')),
           onOpenModelSettings: () => navigate('/settings/providers'),
           onOpenSideChat: sideChatSupported ? handleOpenSideChat : undefined,
           onSkillTokenActivate: (invocation) => {
@@ -2280,7 +2280,7 @@ export function DesktopLayout(): React.ReactNode {
         onCloneGithub={() => setGithubRepositoryModalOpen(true)}
         onClearWorkspace={handleClearWorkspace}
         onOpenMcpSettings={() => navigate('/settings/plugins?tab=mcps')}
-        onOpenComputerSettings={() => navigate('/settings/computer')}
+        onOpenComputerSettings={() => navigate('/settings/computer?threadId=' + encodeURIComponent(tab.threadId))}
         onOpenModelSettings={() => navigate('/settings/providers')}
         onSkillTokenActivate={(invocation) => {
           void handleActivateComposerSkill(invocation)

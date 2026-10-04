@@ -849,6 +849,11 @@ const fixtures = {
     computerState,
   ),
   'computer/stop': methodFixture('computer/stop', {}, { ok: true }),
+  'computer/host/registerIdentity': methodFixture(
+    'computer/host/registerIdentity',
+    { instanceId: computerHostId, available: true },
+    computerState,
+  ),
   'computer/host/register': methodFixture(
     'computer/host/register',
     { instanceId: computerHostId, available: true },
@@ -5584,7 +5589,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(286)
+    expect(methods).toHaveLength(287)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )

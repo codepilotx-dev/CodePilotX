@@ -4,6 +4,7 @@ import type {
   ComputerCommand,
   ComputerResult,
   ComputerWindow,
+  ComputerIdentity,
 } from '@codepilotx/agent-protocol'
 import { CpxCuaRuntime, type CpxCuaToolResult } from './cpx-cua-runtime.js'
 import { ComputerHostRpcClient } from './computer-host-rpc-client.js'
@@ -26,6 +27,7 @@ type Host = {
 type NativeWindow = {
   appId: string
   processKey: string
+  identity: ComputerIdentity
   pid: number
   windowId: string
   name: string
@@ -65,7 +67,7 @@ export class DesktopComputerController {
     const host = this.#host ?? this.#createHost()
     if (host.registered) return
     try {
-      await this.#rpc.call('computer/host/register', { instanceId: host.instanceId, available: this.#ready })
+      await this.#rpc.call('computer/host/registerIdentity', { instanceId: host.instanceId, available: this.#ready })
       if (this.#disposed || this.#host !== host) return
       host.registered = true
       this.#poll()
@@ -145,11 +147,11 @@ export class DesktopComputerController {
           this.#activating = this.#runtime.start().then(async () => {
             if (this.#disposed || this.#host !== host || this.#generation !== generation) return
             this.#ready = true
-            await this.#rpc.call('computer/host/register', { instanceId, available: true })
+            await this.#rpc.call('computer/host/registerIdentity', { instanceId, available: true })
           }).catch(async () => {
             if (this.#host !== host || this.#generation !== generation) return
             this.#releaseNativeState()
-            await this.#rpc.call('computer/host/register', { instanceId, available: false }).catch(() => undefined)
+            await this.#rpc.call('computer/host/registerIdentity', { instanceId, available: false }).catch(() => undefined)
           }).finally(() => { this.#activating = undefined })
         }
         // Keep polling while native work runs so stop can retire the process.
@@ -225,7 +227,7 @@ export class DesktopComputerController {
     if (generation !== this.#generation) throw new Error('电脑发现已取消')
     if (raw.isError) return toResult(raw)
     const discovered = ((raw.structuredContent?.windows ?? []) as NativeWindow[]).flatMap((entry) =>
-      typeof entry.pid === 'number' && entry.appId && entry.windowId
+      typeof entry.pid === 'number' && entry.appId && entry.windowId && entry.identity
         ? [{ ...entry, windowId: String(entry.windowId) }]
         : [],
     )
@@ -245,6 +247,8 @@ export class DesktopComputerController {
       window_id: Number(window.windowId),
       cpx_app_id: window.appId,
       cpx_process_key: window.processKey,
+      cpx_fingerprint: window.identity.fingerprint,
+      cpx_window_id: window.windowId,
       include_accessibility_tree: true,
       include_screenshot: true,
     })
@@ -276,12 +280,13 @@ export class DesktopComputerController {
 /** The host only acts on a window whose identity still matches the one it issued. */
 export const matchesIssuedWindow = (
   issued: NativeWindow,
-  claimed: { appId: string; pid: number; windowId: string; processKey: string },
+  claimed: { appId: string; pid: number; windowId: string; processKey: string; identity?: ComputerIdentity },
 ): boolean =>
   issued.appId === claimed.appId &&
   issued.pid === claimed.pid &&
   issued.windowId === claimed.windowId &&
-  issued.processKey === claimed.processKey
+  issued.processKey === claimed.processKey &&
+  JSON.stringify(issued.identity) === JSON.stringify(claimed.identity)
 
 /**
  * Maps one agent operation onto the native tool that implements it.
@@ -300,6 +305,8 @@ export const nativeAction = (
     pid: window.pid,
     cpx_app_id: window.appId,
     cpx_process_key: window.processKey,
+    cpx_fingerprint: window.identity.fingerprint,
+    cpx_window_id: window.windowId,
     delivery_mode: operation.delivery,
   }
   if (operation.action === 'drag')

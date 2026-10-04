@@ -858,6 +858,7 @@ export function approvalToRequest(approval: ApprovalRequest): DesktopPermissionR
     description: approval.reason,
     requestKind: permissionGrant ? 'permission-grant' : approval.command ? 'shell-command' : 'tool',
     ...(permissionGrant ? { permissionGrant } : {}),
+    ...(approval.computerApp ? { computerApp: { ...approval.computerApp } } : {}),
   }
 }
 
@@ -892,6 +893,7 @@ function approvalParamsToRequest(params: Record<string, unknown>): DesktopPermis
       stringValue(params.toolCallID) ||
       stringValue(params.itemId),
     input,
+    ...(typeof record(params.computerApp).name === 'string' ? { computerApp: { name: String(record(params.computerApp).name), allowPersistentApproval: record(params.computerApp).allowPersistentApproval === true } } : {}),
     description: stringValue(params.reason) || '需要批准工具调用',
     requestKind: command ? 'shell-command' : 'tool',
   }

@@ -139,7 +139,8 @@ export class PermissionDecisionEngine {
     })
     const review = (reason: string): ResolvedPermissionDecision => ({
       action: 'review',
-      reviewer: invocation.permissionConfig.approvalsReviewer,
+      reviewer: invocation.authorizationScope?.computerApp && invocation.authorizationScope.ruleRequiresApproval
+        ? 'user' : invocation.permissionConfig.approvalsReviewer,
       sandbox,
       decision: 'ask',
       risk,
@@ -169,6 +170,10 @@ export class PermissionDecisionEngine {
       return invocation.permissionConfig.approvalPolicy === 'never'
         ? deny('never 策略禁止等待审批')
         : review('工具始终需要审批')
+
+    if (computerApp && !invocation.authorizationScope?.ruleRequiresApproval &&
+        !invocation.input.__hookRequiresApproval && !hasRequestedPermissions(invocation.input))
+      return allow('电脑应用访问资格已满足')
 
     // sandboxMode remains only as the v4/SQLite compatibility field. It maps
     // to structured file access and never claims an OS boundary for Shell.

@@ -1,5 +1,6 @@
 import { Effect } from 'effect'
 import { AgentError } from '../domain'
+import type { ComputerUseService } from '../computer/ComputerUseService'
 import type { ApprovalService } from '../permission/ApprovalService'
 import type { QuestionService } from '../session/QuestionService'
 import type { ThreadService } from '../session/ThreadService'
@@ -40,6 +41,7 @@ const offsetCursor = (value: unknown) => {
 export type InteractionServiceDependencies = {
   db: AgentDatabase
   hub: EventHub
+  computer?: ComputerUseService
   approvals: ApprovalService
   questions: QuestionService
   subagents: SubagentService
@@ -117,6 +119,7 @@ export class InteractionService {
           interactions.push({
             ...metadata,
             kind: 'approval',
+            ...(invocation.authorizationScope?.computerApp ? { computerApp: invocation.authorizationScope.computerApp } : {}),
             risk: ['low', 'medium', 'high', 'critical'].includes(checkpoint.risk)
               ? checkpoint.risk
               : 'high',
@@ -325,6 +328,23 @@ export class InteractionService {
         ['allow-once', 'deny', 'stop'] as const,
         'response.decision',
       )
+      const invocation = checkpoint.payload.invocation
+      const isComputer = invocation.name === 'ComputerRead' && !!invocation.authorizationScope?.computerApp
+      if (response.computerGrant !== undefined && (!isComputer || decision !== 'allow-once'))
+        throw new AgentError('INVALID_REQUEST', '应用授权范围仅用于允许读取应用', 400)
+      if (isComputer && response.remember !== undefined)
+        throw new AgentError('INVALID_REQUEST', '电脑应用授权不能使用命令或工具记忆规则', 400)
+      const computerGrant = isComputer && decision === 'allow-once'
+        ? enumValue(response.computerGrant ?? 'chat', ['chat', 'persistent'] as const, 'response.computerGrant')
+        : undefined
+      if (computerGrant) {
+        const computer = this.dependencies.computer
+        if (!computer) throw new AgentError('CAPABILITY_REQUIRED', '电脑控制不可用', 409)
+        computer.validateGrant({ threadID: invocation.threadID, turnID: invocation.turnID,
+          agentID: invocation.agentID, toolCallID: invocation.id },
+          String(invocation.input.windowRef), invocation.authorizationScope!.fingerprint,
+          computerGrant === 'persistent', invocation.taskMode === 'plan', invocation.permissionConfig)
+      }
       if (decision === 'stop') await stopCheckpoint(checkpoint)
       else {
         const rawFeedback = response.feedback
@@ -338,6 +358,7 @@ export class InteractionService {
           decision === 'allow-once' ? 'allow' : 'deny',
           trimmed ? secretScrubber.scrubText(trimmed) : undefined,
           operation,
+          computerGrant,
         )
         operationPersistedWithResolution = true
         queueResume(resolved)

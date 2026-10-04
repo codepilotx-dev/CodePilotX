@@ -896,6 +896,7 @@ function approvalFromPayload(payload: {
   tool: string
   command?: string
   cwd?: string
+  computerApp?: ApprovalRequest['computerApp']
   affectedPaths?: readonly { path: string; operation: 'create' | 'update' }[]
   reviewSummary?: {
     fileCount: number
@@ -929,6 +930,7 @@ function approvalFromPayload(payload: {
         ],
     ...(affectedPaths ? { affectedPaths } : {}),
     ...(payload.reviewSummary ? { reviewSummary: { ...payload.reviewSummary } } : {}),
+    ...(payload.computerApp ? { computerApp: { ...payload.computerApp } } : {}),
     requestedPermissions: payload.requestedPermissions,
     review: null,
     risk: payload.risk,

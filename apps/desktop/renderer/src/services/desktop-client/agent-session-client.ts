@@ -165,6 +165,7 @@ export const RENDERER_CAPABILITIES = [
   'calendar.manage.v1',
   'session-group.v1' as ProtocolCapability,
   'computer.use.v1' as ProtocolCapability,
+  'computer.policy.v1' as ProtocolCapability,
 ] as const satisfies ReadonlyArray<ProtocolCapability>
 const CAPABILITY_ALIASES = {
   prompt: 'prompt.preview.sensitive.v1',
@@ -1344,7 +1345,9 @@ export function createAgentSessionDesktopClient(
         ...(typeof decision.updatedInput?.feedback === 'string'
           ? { feedback: decision.updatedInput.feedback }
           : {}),
-        ...(decision.alwaysAllow
+        ...(interaction.computerApp && decision.behavior === 'allow'
+          ? { computerGrant: decision.computerGrant ?? (decision.alwaysAllow ? 'persistent' as const : 'chat' as const) } : {}),
+        ...(decision.alwaysAllow && !interaction.computerApp
           ? {
               remember: {
                 scope: 'tool' as const,

@@ -45,7 +45,7 @@ test('握手完成前不报告就绪，原生调用挂起时停止仍能结束�
   const rpc = {
     invalidate() {},
     async call(method: string, params: Record<string, unknown>) {
-      if (method === 'computer/host/register') registrations.push(params.available as boolean)
+      if (method === 'computer/host/registerIdentity') registrations.push(params.available as boolean)
       if (method === 'computer/host/complete') completions.push(params)
       if (method === 'computer/host/next') {
         const poll = deferred<Next>()
@@ -84,7 +84,7 @@ test('握手完成前不报告就绪，原生调用挂起时停止仍能结束�
   }
 }, 6000)
 
-const APP = { appId: 'aumid:notepad', name: '记事本', pid: 42, windowId: '7', processKey: '1:2' }
+const APP = { appId: 'aumid:notepad', name: '记事本', pid: 42, windowId: '7', processKey: '1:2', identity: { kind: 'unsigned' as const, fingerprint: 'a'.repeat(64), legacyAppId: 'exe:notepad', sha256: 'a'.repeat(64) } }
 const command = (operation: ComputerAction, extra: Partial<ComputerCommand> = {}): ComputerCommand =>
   ({
     requestId: 'request:1',
@@ -114,7 +114,7 @@ const NATIVE_PARAMS: Record<string, readonly string[]> = {
   scroll:
     'amount by delivery_mode direction element_token pid scope session target window_id x y',
 }
-const INJECTED = ['cpx_app_id', 'cpx_process_key']
+const INJECTED = ['cpx_app_id', 'cpx_process_key', 'cpx_fingerprint', 'cpx_window_id']
 const assertDeclared = ([name, args]: [string, Record<string, unknown>]) => {
   const declared = [...NATIVE_PARAMS[name]!.split(' '), ...INJECTED]
   expect(Object.keys(args).filter((key) => !declared.includes(key))).toEqual([])
@@ -144,6 +144,7 @@ test('窗口身份必须与宿主发放的引用完全一致', () => {
   expect(matchesIssuedWindow(APP, { ...APP, appId: 'aumid:calc' })).toBe(false)
   expect(matchesIssuedWindow(APP, { ...APP, pid: 43 })).toBe(false)
   expect(matchesIssuedWindow(APP, { ...APP, windowId: '8' })).toBe(false)
+  expect(matchesIssuedWindow(APP, { ...APP, identity: { ...APP.identity, fingerprint: 'b'.repeat(64) } })).toBe(false)
 })
 
 test('每个操作只发送目标原生工具声明的字段', () => {
@@ -165,6 +166,8 @@ test('元素优先使用 token，坐标形式带窗口坐标与截图', () => {
       pid: APP.pid,
       cpx_app_id: APP.appId,
       cpx_process_key: APP.processKey,
+      cpx_fingerprint: APP.identity.fingerprint,
+      cpx_window_id: APP.windowId,
       delivery_mode: 'background',
       element_token: 's00000001:4',
     },
@@ -180,6 +183,8 @@ test('元素优先使用 token，坐标形式带窗口坐标与截图', () => {
     pid: APP.pid,
     cpx_app_id: APP.appId,
     cpx_process_key: APP.processKey,
+      cpx_fingerprint: APP.identity.fingerprint,
+      cpx_window_id: APP.windowId,
     delivery_mode: 'foreground',
     window_id: 7,
     x: 10,

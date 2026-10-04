@@ -33,6 +33,7 @@ export interface PlanCheckpoint {
   approvalID?: string
   checkpointID?: string
   resumeLeaseID?: string
+  computerGrant?: 'chat' | 'persistent'
   permissionGrant?: {
     scope: 'tool-call' | 'turn' | 'session'
     grantedPermissions: {

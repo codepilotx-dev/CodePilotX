@@ -112,6 +112,7 @@ export interface ToolExecutionContext {
   approvedToolCallID?: string
   /** Host-derived scope fingerprint bound to the claimed approval. */
   approvedAuthorizationFingerprint?: string
+  approvedComputerGrant?: 'chat' | 'persistent'
   /** Runs normalization, hard-deny, hooks and review without executing the tool. */
   authorizationOnly?: boolean
   /** Optional active Skill ceiling. It can only remove tools from the effective policy. */
@@ -614,6 +615,8 @@ export class ToolExecutor {
         profile: context.profile ?? 'main',
         workspace,
         permissionConfig,
+        ...(resumedApproval && invocation.name === 'ComputerRead' && context.approvedComputerGrant
+          ? { computerGrant: context.approvedComputerGrant } : {}),
         model,
         deferredTools,
         fileSnapshots,
@@ -1294,6 +1297,10 @@ export class ToolExecutor {
     if (new Set(pathKeys).size !== pathKeys.length) {
       throw new AgentError('INVALID_TOOL_INSPECTION', '工具授权路径重复', 500)
     }
+    const computerApp = scope.computerApp
+    if (computerApp && (!nonFileScope || typeof computerApp.name !== 'string' ||
+        typeof computerApp.allowPersistentApproval !== 'boolean'))
+      throw new AgentError('INVALID_TOOL_INSPECTION', '应用授权信息无效', 500)
     const reviewSummary = scope.reviewSummary
     if (reviewSummary) {
       const values = [
@@ -1336,6 +1343,7 @@ export class ToolExecutor {
     return {
       authorizationScope: {
         affectedPaths,
+        ...(computerApp ? { computerApp: { ...computerApp } } : {}),
         fingerprint: scope.fingerprint,
         ruleRequiresApproval: scope.ruleRequiresApproval,
         ...(reviewSummary ? { reviewSummary: { ...reviewSummary } } : {}),
