@@ -143,7 +143,7 @@ export type DesktopComposerProps = {
   onStartReview?: (
     target: { type: 'uncommittedChanges' } | { type: 'baseBranch'; branch: string },
   ) => void
-  onPermissionChange: (value: DesktopPermissionMode) => void
+  onPermissionChange: (value: DesktopPermissionMode) => void | Promise<void>
   onPlanModeChange: (active: boolean) => void
   onLocalRouterModeChange: (mode: LocalRouterMode) => void
   onThinkingChange: (value: DesktopThinkingMode) => void

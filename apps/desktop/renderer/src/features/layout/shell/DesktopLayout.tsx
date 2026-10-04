@@ -1632,12 +1632,12 @@ export function DesktopLayout(): React.ReactNode {
   })
 
   const handlePermissionChange = useCallback(
-    (value: DesktopPermissionMode): void => {
+    async (value: DesktopPermissionMode): Promise<void> => {
       if (!sessionId) {
         setPermissionMode(value)
         return
       }
-      void setSessionPermissionMode(sessionId, value)
+      if (!await setSessionPermissionMode(sessionId, value)) throw new Error('权限模式未更新')
     },
     [sessionId, setPermissionMode, setSessionPermissionMode],
   )
@@ -2288,13 +2288,14 @@ export function DesktopLayout(): React.ReactNode {
         onBranchSelect={handleBranchSelect}
         onCreateBranch={handleCreateBranch}
         capabilities={{ goals: false, review: false, status: false }}
-        onPermissionChange={(value) => {
-          const previous = sideSettings.permissionMode
-          updateSideChatSettings(tab.id, { permissionMode: value })
-          void desktopClient.setSessionPermissionMode(tab.threadId, value).catch((error) => {
-            updateSideChatSettings(tab.id, { permissionMode: previous })
+        onPermissionChange={async (value) => {
+          try {
+            await desktopClient.setSessionPermissionMode(tab.threadId, value)
+            updateSideChatSettings(tab.id, { permissionMode: value })
+          } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : String(error))
-          })
+            throw error
+          }
         }}
         onPlanModeChange={(active) => {
           const previous = sideSettings.planModeActive

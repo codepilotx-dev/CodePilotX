@@ -4,7 +4,11 @@ export type RequestCardProps = {
   title: React.ReactNode
   identity?: string
   disabledReason?: string
+  disabled?: boolean
   navigation?: React.ReactNode
+  description?: React.ReactNode
+  details?: React.ReactNode
+  actions?: React.ReactNode
   children: React.ReactNode
   error?: string | null
   variant: 'question' | 'plan' | 'permission' | 'permission-grant'
@@ -14,7 +18,11 @@ export function RequestCard({
   title,
   identity,
   disabledReason,
+  disabled,
   navigation,
+  description,
+  details,
+  actions,
   children,
   error,
   variant,
@@ -36,8 +44,11 @@ export function RequestCard({
           {disabledReason}
         </p>
       ) : null}
-      <fieldset className="request-card-content" disabled={Boolean(disabledReason)}>
+      <fieldset className="request-card-content" disabled={disabled || Boolean(disabledReason)}>
+        {description}
         {children}
+        {details}
+        {actions}
       </fieldset>
       {error ? (
         <p className="ask-user-question-error" role="alert">

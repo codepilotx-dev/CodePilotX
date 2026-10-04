@@ -42,6 +42,7 @@ export function PlanApprovalCard({
   return (
     <QuestionAnswerForm
       requestId={`${approval.id}:${approval.version}`}
+      input={{ threadId: approval.threadId, version: approval.version }}
       questions={[PLAN_QUESTION]}
       variant="plan"
       identity={identity}

@@ -288,7 +288,7 @@ export function getSchemaMode(
   const mode = rawRequest.mode
 
   // Only "form" mode with a valid schema gets the interactive form
-  if (mode === 'form') {
+  if (mode === 'form' || mode === undefined) {
     const schema = parseMcpElicitationSchema(rawRequest.requestedSchema)
     return schema ? 'form' : 'unsupported'
   }

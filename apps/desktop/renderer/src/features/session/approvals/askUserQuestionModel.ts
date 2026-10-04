@@ -1,7 +1,26 @@
 import { isRecord } from '@codepilotx/shared/guards'
 export type AskUserQuestionOption = {
+  id?: string
   label: string
   description: string
+  recommended?: boolean
+}
+
+export const questionOptionId = (option: { id?: string; label: string }): string =>
+  option.id ?? option.label
+
+// Drafts belong to this Renderer lifetime; never persist answers to browser storage.
+export const questionDrafts = new Map<
+  string,
+  {
+    states: Record<string, QuestionState>
+    index: number
+  }
+>()
+export function reconcileQuestionDrafts(threadId: string, activeKeys: ReadonlySet<string>): void {
+  for (const key of questionDrafts.keys()) {
+    if (key.startsWith(`${threadId}:`) && !activeKeys.has(key)) questionDrafts.delete(key)
+  }
 }
 
 export type AskUserQuestion = {
@@ -56,17 +75,18 @@ export function areAllQuestionsAnswered(
 }
 
 export function canSubmitFromCurrentQuestion(
-  questions: Array<{ id?: string; question: string; options: Array<{ label: string }> }>,
+  questions: Array<{
+    id?: string
+    question: string
+    options: Array<{ id?: string; label: string }>
+  }>,
   questionStates: Record<string, QuestionState>,
   currentQuestionIndex: number,
 ): boolean {
   if (questions.length === 0) return false
-  return questions.every((question, index) => {
+  return questions.every((question) => {
     const state = questionStates[questionKey(question)] ?? initialQuestionState(question)
-    if (index === currentQuestionIndex) {
-      return state.selected.length > 0 || Boolean(state.custom.trim())
-    }
-    return isQuestionComplete(questionStates[questionKey(question)])
+    return state.skipped || state.selected.length > 0 || Boolean(state.custom.trim())
   })
 }
 
@@ -79,7 +99,8 @@ export function shouldShowQuestionSubmit(
   const state = states[questionKey(question)] ?? initialQuestionState(question)
   return (
     !state.skipped &&
-    (Boolean(state.custom.trim()) ||
+    (index === questions.length - 1 ||
+      Boolean(state.custom.trim()) ||
       (question.multiSelect && state.touched === true && state.selected.length > 0))
   )
 }
@@ -112,11 +133,12 @@ export function enterQuestionAction(
 }
 
 export function initialQuestionState(question: {
-  options: Array<{ label: string }>
+  options: Array<{ id?: string; label: string }>
+  multiSelect?: boolean
 }): QuestionState {
-  const firstOption = question.options[0]?.label
+  const firstOption = question.multiSelect ? undefined : question.options[0]
   return {
-    selected: firstOption ? [firstOption] : [],
+    selected: firstOption ? [questionOptionId(firstOption)] : [],
     custom: '',
     answered: false,
   }
@@ -162,12 +184,14 @@ export function nextOptionLabel(
   return question.options[nextIndex]?.label
 }
 
-export function questionOptionIds(question: { options: Array<{ label: string }> }): string[] {
-  return [...question.options.map((option) => option.label), CUSTOM_OPTION_ID]
+export function questionOptionIds(question: {
+  options: Array<{ id?: string; label: string }>
+}): string[] {
+  return [...question.options.map(questionOptionId), CUSTOM_OPTION_ID]
 }
 
 export function nextQuestionOptionId(
-  question: { options: Array<{ label: string }> },
+  question: { options: Array<{ id?: string; label: string }> },
   currentLabel: string | undefined,
   delta: -1 | 1,
 ): string | undefined {
@@ -229,7 +253,12 @@ export function buildAskUserQuestionAnswers(
           initialQuestionState(question))
     const answerParts = state.skipped
       ? []
-      : [...state.selected, ...(state.custom.trim() ? [state.custom.trim()] : [])]
+      : [
+          ...state.selected.map(
+            (id) => question.options.find((option) => questionOptionId(option) === id)?.label ?? id,
+          ),
+          ...(state.custom.trim() ? [state.custom.trim()] : []),
+        ]
     answers[question.id ?? question.question] = answerParts.join(', ')
   }
   return answers
@@ -246,6 +275,22 @@ export function buildAskUserQuestionUpdatedInput(
     .map(questionKey)
   return {
     ...input,
+    ...(questions.every((question) => question.options.every((option) => option.id))
+      ? {
+          questionAnswers: questions.map((question) => {
+            const state = questionStates[questionKey(question)] ?? initialQuestionState(question)
+            return {
+              questionId: questionKey(question),
+              choiceIds: state.skipped ? [] : state.selected,
+              ...(state.skipped
+                ? { skipped: true }
+                : state.custom.trim()
+                  ? { text: state.custom.trim() }
+                  : {}),
+            }
+          }),
+        }
+      : {}),
     ...(questions.length === 1
       ? { answer: answers[questions[0]!.id ?? questions[0]!.question] ?? '' }
       : {}),
@@ -283,7 +328,8 @@ export function parseAskUserQuestions(input: Record<string, unknown>): AskUserQu
     const question = stringValue(rawQuestion.question)
     const header = stringValue(rawQuestion.header)
     const rawOptions = rawQuestion.options
-    if (!question || !Array.isArray(rawOptions) || rawOptions.length < 2) return null
+    if (!question || !Array.isArray(rawOptions) || rawOptions.length > 3 || rawOptions.length === 1)
+      return null
 
     const options: AskUserQuestionOption[] = []
     for (const rawOption of rawOptions) {
@@ -291,7 +337,16 @@ export function parseAskUserQuestions(input: Record<string, unknown>): AskUserQu
       const label = normalizeRecommendedOptionLabel(stringValue(rawOption.label))
       const description = stringValue(rawOption.description) ?? ''
       if (!label) return null
-      options.push({ label, description })
+      options.push({
+        ...(typeof rawOption.id === 'string' ? { id: rawOption.id } : {}),
+        label,
+        description,
+        ...(typeof rawOption.recommended === 'boolean'
+          ? { recommended: rawOption.recommended }
+          : /[（(](?:recommended|推荐)[）)]\s*$/iu.test(String(rawOption.label))
+            ? { recommended: true }
+            : {}),
+      })
     }
 
     questions.push({

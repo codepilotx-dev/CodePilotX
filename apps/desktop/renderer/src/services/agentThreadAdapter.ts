@@ -427,6 +427,12 @@ export function agentEventsFromNotification(notification: AgentNotification): De
   if (notification.method === 'approval/requested') {
     return [{ ...base, type: 'permission_request', request: approvalParamsToRequest(params) }]
   }
+  if (notification.method === 'mcp/elicitationRequested') {
+    return [{ ...base, type: 'permission_request', request: {
+      requestId: String(params.interactionId), toolUseId: String(params.toolCallId), toolName: 'McpElicitation',
+      input: { serverName: params.server, request: params.request }, description: 'MCP 请求输入', requestKind: 'tool',
+    } }]
+  }
   if (notification.method === 'permission/requested') {
     return [{ ...base, type: 'permission_request', request: permissionParamsToRequest(params) }]
   }
@@ -525,7 +531,7 @@ function itemToSessionEvents(threadId: string, item: Item): DesktopSessionEvent[
         type: 'permission_request',
         content: item.prompt,
         createdAt: iso(item.createdAt),
-        metadata: { request: questionToRequest(item), agentId: item.agentId },
+        metadata: { request: questionToRequest(item, threadId), agentId: item.agentId },
       },
     ]
   }
@@ -711,7 +717,7 @@ function itemToAgentEvents(threadId: string, item: Item): DesktopAgentEvent[] {
       {
         type: 'permission_request',
         sessionId: threadId,
-        request: questionToRequest(item),
+        request: questionToRequest(item, threadId),
         createdAt,
       },
     ]
@@ -752,10 +758,22 @@ export function itemContextUsage(
     promptCacheWriteTokens: cacheWrite,
     promptUncachedTokens: input,
     reasoningTokens: reasoning,
+    ...(value.breakdown?.length ? { breakdown: value.breakdown } : {}),
   }
 }
 
 export function latestItemContextUsage(
+  items: readonly Item[],
+  fallbackProvider?: string,
+  fallbackModel?: string,
+): DesktopContextUsage | null {
+  const usage = latestRawItemContextUsage(items, fallbackProvider, fallbackModel)
+  if (!usage) return null
+  const averageCacheHitRate = averagePromptCacheHitRate(items)
+  return averageCacheHitRate === null ? usage : { ...usage, averageCacheHitRate }
+}
+
+function latestRawItemContextUsage(
   items: readonly Item[],
   fallbackProvider?: string,
   fallbackModel?: string,
@@ -767,6 +785,26 @@ export function latestItemContextUsage(
     if (usage) return usage
   }
   return null
+}
+
+/**
+ * 会话级缓存命中率：累计 cacheRead 除以累计 prompt 侧 token。
+ * 与单条 message 的口径不同，它跨所有请求，避免只看最后一条造成误判。
+ */
+export function averagePromptCacheHitRate(items: readonly Item[]): number | null {
+  let cacheReadTokens = 0
+  let promptTokens = 0
+  for (const item of items) {
+    if (item.type !== 'text' || !item.usage) continue
+    const input = nonNegativeNumber(item.usage.input) ?? 0
+    const cacheRead = nonNegativeNumber(item.usage.cacheRead) ?? 0
+    const cacheWrite = nonNegativeNumber(item.usage.cacheWrite) ?? 0
+    const current = input + cacheRead + cacheWrite
+    if (current <= 0) continue
+    cacheReadTokens += cacheRead
+    promptTokens += current
+  }
+  return promptTokens > 0 ? cacheReadTokens / promptTokens : null
 }
 
 function itemToToolLog(item: Item): DesktopToolLogEntry[] {
@@ -846,9 +884,13 @@ export function approvalToRequest(approval: ApprovalRequest): DesktopPermissionR
     : undefined
   return {
     requestId: approval.id,
+    ...(approval.grantOptions ? { grantOptions: approval.grantOptions } : {}),
+    ...(approval.toolIdentity ? { toolIdentity: approval.toolIdentity, toolInput: approval.input } : {}),
     toolName: approval.tool,
     toolUseId: approval.toolCallID,
     input: {
+      ...(approval.input ?? {}),
+      threadId: approval.threadId,
       command: approval.command,
       paths: approval.paths,
       risk: approval.risk,
@@ -879,6 +921,7 @@ function approvalParamsToRequest(params: Record<string, unknown>): DesktopPermis
   const cwd = stringValue(params.cwd) || stringValue(originalInput.cwd)
   const input = {
     ...(affectedPaths ? {} : originalInput),
+    ...(Array.isArray(originalInput.approvalFileDiffs) ? { approvalFileDiffs: originalInput.approvalFileDiffs } : {}),
     ...(command ? { command } : {}),
     ...(cwd ? { cwd } : {}),
     ...(paths ? { paths } : {}),
@@ -887,6 +930,8 @@ function approvalParamsToRequest(params: Record<string, unknown>): DesktopPermis
   }
   return {
     requestId: stringValue(params.interactionId) || stringValue(params.id),
+    ...(Array.isArray(params.grantOptions) ? { grantOptions: params.grantOptions as DesktopPermissionRequest['grantOptions'] } : {}),
+    ...(params.toolIdentity ? { toolIdentity: params.toolIdentity as DesktopPermissionRequest['toolIdentity'], toolInput: originalInput } : {}),
     toolName: stringValue(params.tool) || 'tool',
     toolUseId:
       stringValue(params.toolCallId) ||
@@ -942,9 +987,11 @@ function permissionParamsToRequest(params: Record<string, unknown>): DesktopPerm
   }
 }
 
-export function questionToRequest(question: QuestionItem): DesktopPermissionRequest {
+export function questionToRequest(question: QuestionItem, threadId = ''): DesktopPermissionRequest {
   return questionParamsToRequest({
     interactionId: question.id,
+    threadId,
+    version: question.version,
     questions: question.questions?.length
       ? question.questions
       : [
@@ -974,7 +1021,7 @@ function questionParamsToRequest(params: Record<string, unknown>): DesktopPermis
         id: stringValue(choice.id) || String(choiceIndex),
         label: stringValue(choice.label) || String(choice.value ?? ''),
         description: stringValue(choice.description),
-        recommended: choice.recommended === true || choiceIndex === 0,
+        recommended: choice.recommended === true,
       })),
     )
     return {
@@ -991,6 +1038,8 @@ function questionParamsToRequest(params: Record<string, unknown>): DesktopPermis
     toolName: 'AskUserQuestion',
     toolUseId: id,
     input: {
+      threadId: params.threadId,
+      version: params.version,
       question: primary.question,
       header: primary.header,
       options: primary.options,
@@ -1014,20 +1063,9 @@ function liveItemMetadata(
 }
 
 function questionOptions(
-  choices: ReadonlyArray<{ label: string; description?: string; recommended: boolean }>,
+  choices: ReadonlyArray<{ id: string; label: string; description?: string; recommended: boolean }>,
 ) {
-  if (choices.length >= 2)
-    return choices.map((choice) => ({
-      label:
-        choice.recommended && !choice.label.includes('(Recommended)')
-          ? `${choice.label} (Recommended)`
-          : choice.label,
-      description: choice.description ?? '',
-    }))
-  return [
-    { label: '继续 (Recommended)', description: '提交回答并继续执行。' },
-    { label: '忽略', description: '跳过这个问题。' },
-  ]
+  return choices.map((choice) => ({ ...choice, description: choice.description ?? '' }))
 }
 
 function pendingPermissionRequests(events: DesktopSessionEvent[]): DesktopPermissionRequest[] {

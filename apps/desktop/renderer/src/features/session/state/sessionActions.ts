@@ -301,7 +301,7 @@ export async function decidePermissionAction(
   behavior: 'allow' | 'deny',
   alwaysAllow = false,
   updatedInput?: Record<string, unknown>,
-  decisionExtras?: Pick<DesktopPermissionDecision, 'grantScope' | 'computerGrant'>,
+  decisionExtras?: Pick<DesktopPermissionDecision, 'grantScope' | 'computerGrant' | 'grantOptionId'>,
 ): Promise<void> {
   if (!sessionId) return
   try {

@@ -176,7 +176,7 @@ function selectPendingPermissions(state: CanonicalThreadState): DesktopPermissio
 
   for (const item of state.itemsById.values()) {
     if (item.type === 'question' && item.status === 'pending') {
-      add(questionToRequest(item), item.createdAt, 2)
+      add(questionToRequest(item, state.thread.id), item.createdAt, 2)
     } else if (item.type === 'tool' && item.state === 'waiting-permission') {
       add(toolToRequest(item), item.createdAt, 1)
     }

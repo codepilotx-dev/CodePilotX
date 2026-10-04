@@ -245,42 +245,153 @@
   height: var(--cpx-sys-space-3);
   flex-shrink: 0;
   color: var(--cpx-sys-color-fg-secondary);
-  cursor: default;
+  cursor: pointer;
 }
 
+/* 右对齐到圆环，面板向左展开，避免在工具栏右端溢出窗口。 */
 .context-usage-popover {
   position: absolute;
-  left: 50%;
-  bottom: calc(100% + 8px);
+  right: 0;
+  bottom: calc(100% + var(--cpx-sys-space-2));
   z-index: var(--cpx-sys-z-tooltip);
-  display: grid;
-  gap: var(--cpx-sys-space-1);
-  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3) var(--cpx-sys-space-3);
+  display: block;
+  width: 264px;
+  padding: var(--cpx-sys-space-3);
   border: 1px solid var(--cpx-sys-color-border-default);
   border-radius: var(--cpx-sys-radius-floating);
   background: var(--cpx-sys-color-surface-raised);
   box-shadow: var(--cpx-sys-shadow-floating);
   color: var(--cpx-sys-color-fg-tertiary);
-  font: var(--cpx-sys-type-caption);
-  text-align: center;
-  white-space: nowrap;
-  transform: translateX(-50%) translateY(3px);
+  text-align: left;
+  white-space: normal;
+  transform: translateY(var(--cpx-sys-space-1));
   opacity: 0;
+
+  // 隐藏时不能拦截点击，展开后由 hover 规则交还指针事件。
   pointer-events: none;
   transition:
     opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out),
     transform var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
 
-  strong {
-    color: var(--cpx-sys-color-fg-primary);
-    font-weight: var(--cpx-sys-font-weight-bold);
+  // 覆盖浮层与圆环之间的间距，鼠标移入面板时不会中途丢失 hover。
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: var(--cpx-sys-space-2);
   }
+}
+
+/* 上下文容量面板：圆环浮层与 /status 弹层共用同一套结构。 */
+.context-usage-panel {
+  display: block;
+}
+
+.context-usage-panel-header {
+  display: flex;
+  align-items: center;
+  gap: var(--cpx-sys-space-3);
+  margin-bottom: var(--cpx-sys-space-2);
+}
+
+.context-usage-panel-title {
+  flex-shrink: 0;
+  color: var(--cpx-sys-color-fg-primary);
+  font: var(--cpx-sys-type-body);
+  font-weight: var(--cpx-sys-font-weight-medium);
+}
+
+.context-usage-panel-total {
+  margin-left: auto;
+  min-width: 0;
+  text-align: right;
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-caption);
+  font-family: var(--cpx-sys-font-family-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.context-usage-panel-track {
+  display: flex;
+  height: var(--cpx-sys-space-2);
+  border-radius: var(--cpx-sys-radius-indicator);
+  background: var(--cpx-sys-color-border-default);
+  overflow: hidden;
+}
+
+.context-usage-panel-segment,
+.context-usage-panel-fill {
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.context-usage-panel-fill {
+  background: var(--cpx-sys-color-accent);
+}
+
+.context-usage-panel-rows {
+  display: grid;
+  gap: var(--cpx-sys-space-2);
+  margin-top: var(--cpx-sys-space-3);
+}
+
+.context-usage-panel-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cpx-sys-space-2);
+  font: var(--cpx-sys-type-body-sm);
+  color: var(--cpx-sys-color-fg-tertiary);
+}
+
+.context-usage-panel-dot {
+  width: var(--cpx-sys-space-2);
+  height: var(--cpx-sys-space-2);
+  flex-shrink: 0;
+  border: 1px solid var(--cpx-sys-color-border-default);
+  border-radius: var(--cpx-sys-radius-2xs);
+}
+
+.context-usage-panel-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-usage-panel-value {
+  margin-left: auto;
+  flex-shrink: 0;
+  text-align: right;
+  color: var(--cpx-sys-color-fg-primary);
+  font-family: var(--cpx-sys-font-family-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.context-usage-panel-divider {
+  margin-top: var(--cpx-sys-space-2);
+  padding-top: var(--cpx-sys-space-3);
+  border-top: 1px solid var(--cpx-sys-color-border-default);
+}
+
+.context-usage-panel-detail {
+  margin-top: var(--cpx-sys-space-2);
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-caption);
+}
+
+.context-usage-panel-empty {
+  color: var(--cpx-sys-color-fg-tertiary);
+  font: var(--cpx-sys-type-body-sm);
 }
 
 .context-usage-chip:hover .context-usage-popover,
 .context-usage-chip:focus-visible .context-usage-popover {
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 @media (max-width: 960px) {

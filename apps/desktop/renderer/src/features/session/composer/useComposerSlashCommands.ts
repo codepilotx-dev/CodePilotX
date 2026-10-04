@@ -16,6 +16,7 @@ type UseComposerSlashCommandsOptions = {
   onOpenReasoning: () => void
   onOpenStatus: () => void
   onOpenMcp?: () => void
+  onApprove?: () => void | Promise<void>
   onPlanModeChange?: (active: boolean) => void
   onGoalModeChange?: (active: boolean) => void
   onOpenReview: () => void
@@ -46,6 +47,7 @@ export function useComposerSlashCommands({
   onOpenReasoning,
   onOpenStatus,
   onOpenMcp,
+  onApprove,
   onPlanModeChange,
   onGoalModeChange,
   onOpenReview,
@@ -73,6 +75,7 @@ export function useComposerSlashCommands({
 
   const commands = useMemo<ComposerSlashCommand[]>(
     () => [
+      command('approve', '重试被拒绝的操作', '为最近的自动审查拒绝授权一次重试，仍经过 Guardian', Boolean(onApprove), hasThread && !sessionBusy, () => onApprove?.()),
       command('model', '模型', '选择当前任务使用的模型', true, true, onOpenModel),
       command(
         'reasoning',
@@ -205,6 +208,7 @@ export function useComposerSlashCommands({
       onClearProject,
       onGoalModeChange,
       onOpenMcp,
+      onApprove,
       onOpenModel,
       onOpenReasoning,
       onOpenReview,

@@ -1,3 +1,5 @@
+import type { ContextUsageBreakdownEntry } from '@codepilotx/shared/thread'
+
 export type { AgentPermissionRequest } from './permissions.js'
 
 export type AgentWorkspace = {
@@ -31,6 +33,10 @@ export type AgentContextUsage = {
   promptUncachedTokens?: number
   reasoningTokens?: number
   percentUsed?: number
+  /** Agent 按来源实测的上下文字符量；只用于展示占比，不是 token 账本。 */
+  breakdown?: readonly ContextUsageBreakdownEntry[]
+  /** 会话累计缓存命中率；只有渲染层聚合，不随协议下发。 */
+  averageCacheHitRate?: number
 }
 
 export type AgentToolLogEntry = {

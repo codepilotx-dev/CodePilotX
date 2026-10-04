@@ -80,6 +80,7 @@ import { ModelPickerPopover } from './ModelPickerPopover.js'
 import { ModelSelectTrigger } from './ModelSelectTrigger.js'
 import { resolveThinkingLabel, resolveThinkingOptions } from './ThinkingLevelPopover.js'
 import { ComposerStatusOverlay } from './ComposerStatusOverlay.js'
+import { ContextUsagePanel } from './ContextUsagePanel.js'
 import { ComputerControlChip } from './ComputerControlChip.js'
 import { useComputerState } from './useComputerState.js'
 import type { ComposerEditorHandle, ComposerEditorProps } from './ComposerEditor.js'
@@ -114,10 +115,12 @@ import {
   type ComposerSlashCommandId,
 } from './composerSlashCommands.js'
 import { useComposerSlashCommands } from './useComposerSlashCommands.js'
+import { ApprovalRulesDialog, ApprovalRetryDialog, AutoReviewNudge, useApprovalReviewState } from '../approvals/ApprovalManagement.js'
 import { BuiltinSkillIcon, skillScopeLabel } from '../../plugins/builtinSkillPresentation.js'
 import { buildThreadDeepLink } from '@codepilotx/shared/thread-reference'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
+import { useApprovalCapability } from '../approvals/useQuestionSkipCapability.js'
 import {
   ComposerCommandMenu,
   composerMenuItemId,
@@ -239,7 +242,7 @@ type Props = {
   onStartReview?: (
     target: { type: 'uncommittedChanges' } | { type: 'baseBranch'; branch: string },
   ) => void
-  onPermissionChange: (value: DesktopPermissionMode) => void
+  onPermissionChange: (value: DesktopPermissionMode) => void | Promise<void>
   onPlanModeChange?: (active: boolean) => void
   onLocalRouterModeChange?: (mode: LocalRouterMode) => void
   onSubmit: (delivery?: ComposerDeliveryIntent) => void
@@ -417,6 +420,11 @@ export function ComposerCard({
   const subagentMode = placement === 'side-task'
   const contextDropdownSide = contextDropdownSideOverride ?? 'top'
   const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(null)
+  const [fullAccessConfirmationOpen, setFullAccessConfirmationOpen] = useState(false)
+  const [fullAccessSaving, setFullAccessSaving] = useState(false)
+  const [fullAccessError, setFullAccessError] = useState('')
+  const [approvalRulesOpen, setApprovalRulesOpen] = useState(false)
+  const [approvalRetryOpen, setApprovalRetryOpen] = useState(false)
   const [selectedSessionGroup, setSelectedSessionGroup] = useState<DesktopSessionGroup | null>(null)
   const [sessionGroupEditorOpen, setSessionGroupEditorOpen] = useState(false)
   const [sessionGroupDraftName, setSessionGroupDraftName] = useState('')
@@ -569,6 +577,8 @@ export function ComposerCard({
   )
 
   const sessionBusy = sessionStatus === 'running' || sessionStatus === 'waiting'
+  const approvalReview = useApprovalReviewState(routedSessionId, sessionBusy)
+  const scopedGrantsSupported = useApprovalCapability(routedSessionId ?? '', Boolean(routedSessionId), 'interaction.scopedGrants.v1')
   const { commands: builtinSlashCommands, executeCommand } = useComposerSlashCommands({
     capabilities,
     planModeActive,
@@ -583,6 +593,7 @@ export function ComposerCard({
     onOpenReasoning: () => setOpenDropdown('model'),
     onOpenStatus: () => setOpenDropdown('status'),
     onOpenMcp: onOpenMcpSettings,
+    onApprove: approvalReview.supported ? () => setApprovalRetryOpen(true) : undefined,
     onPlanModeChange,
     onGoalModeChange,
     onOpenReview: suggestions.openReview,
@@ -1030,22 +1041,6 @@ export function ComposerCard({
   }
 
   const isRunning = sessionStatus === 'running' || sessionStatus === 'waiting'
-  const contextUsedText = contextUsage
-    ? `${formatCompactNumber(contextUsage.usedTokens)} / ${formatCompactNumber(
-        contextUsage.contextWindow,
-      )} token`
-    : '暂无上下文统计'
-  const promptCacheReadTokens = contextUsage?.promptCacheReadTokens ?? 0
-  const promptCacheWriteTokens = contextUsage?.promptCacheWriteTokens ?? 0
-  const promptUncachedTokens = contextUsage?.promptUncachedTokens ?? 0
-  const promptCacheTotalTokens =
-    promptCacheReadTokens + promptCacheWriteTokens + promptUncachedTokens
-  const promptCacheHitRate =
-    promptCacheTotalTokens > 0
-      ? Math.round((promptCacheReadTokens / promptCacheTotalTokens) * 100)
-      : 0
-  const reasoningTokens = contextUsage?.reasoningTokens ?? 0
-  const showContextUsageDetails = promptCacheTotalTokens > 0 || reasoningTokens > 0
   const usedPercent = contextUsage ? Math.min(100, Math.max(0, contextUsage.usedPercent)) : 0
   return (
     <div
@@ -1086,6 +1081,9 @@ export function ComposerCard({
           松开以添加文件
         </div>
       ) : null}
+      {routedSessionId ? <AutoReviewNudge key={routedSessionId} threadId={routedSessionId}
+        enabled={approvalReview.state.manualAllows >= 3 && permissionMode !== 'auto-review' && permissionMode !== 'full-access'}
+        onEnable={() => onPermissionChange('auto-review')} /> : null}
       <div
         className="composer composer-input-surface composer-top tw:relative tw:flex tw:min-h-0 tw:flex-col tw:justify-between"
         inert={submitting || undefined}
@@ -1290,7 +1288,9 @@ export function ComposerCard({
               value={permissionMode}
               onOpenChange={(open) => setOpenDropdown(open ? 'permission' : null)}
               onValueChange={(value) => {
-                onPermissionChange(value as DesktopPermissionMode)
+                if (value === 'approval-rules') setApprovalRulesOpen(true)
+                else if (value === 'full-access' && permissionMode !== 'full-access') { setFullAccessError(''); setFullAccessConfirmationOpen(true) }
+                else void Promise.resolve(onPermissionChange(value as DesktopPermissionMode)).catch((error: unknown) => onCommandError?.(error instanceof Error ? error.message : '权限模式未更新'))
                 closeDropdown()
               }}
             >
@@ -1326,6 +1326,7 @@ export function ComposerCard({
                 >
                   <Select.Viewport className="permission-select-scroll-area">
                     <div className="permission-select-scroll-content">
+                      {routedSessionId && workspace?.projectId && scopedGrantsSupported ? <Select.Item className="permission-select-item" value="approval-rules"><Select.ItemText>管理项目授权</Select.ItemText></Select.Item> : null}
                       {permissionOptions.map((option) => (
                         <Select.Item
                           className="permission-select-item"
@@ -1466,7 +1467,14 @@ export function ComposerCard({
               <span
                 aria-label={`上下文窗口使用量：${contextUsage ? `已用 ${usedPercent}%，剩余 ${100 - usedPercent}%` : '暂无数据'}`}
                 className="context-usage-chip"
+                role="button"
                 tabIndex={0}
+                onClick={() => setOpenDropdown('status')}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return
+                  event.preventDefault()
+                  setOpenDropdown('status')
+                }}
                 style={
                   {
                     '--context-usage-progress': usedPercent,
@@ -1475,39 +1483,7 @@ export function ComposerCard({
               >
                 <span className="chip-dot" />
                 <span className="context-usage-popover" role="tooltip">
-                  <span>上下文窗口：</span>
-                  {contextUsage ? (
-                    <>
-                      <strong>
-                        已用 {contextUsage.usedPercent}%，剩余 {contextUsage.remainingPercent}%
-                      </strong>
-                      <span>已使用 {contextUsedText}</span>
-                      {showContextUsageDetails ? (
-                        <>
-                          {promptCacheTotalTokens > 0 ? (
-                            <>
-                              <span>缓存详情：</span>
-                              <span>
-                                缓存读取 {formatCompactNumber(promptCacheReadTokens)} (命中率{' '}
-                                {promptCacheHitRate}%)
-                              </span>
-                              <span>缓存写入 {formatCompactNumber(promptCacheWriteTokens)}</span>
-                              <span>未缓存 {formatCompactNumber(promptUncachedTokens)}</span>
-                            </>
-                          ) : null}
-                          {reasoningTokens > 0 ? (
-                            <span>推理 token: {formatCompactNumber(reasoningTokens)}</span>
-                          ) : null}
-                        </>
-                      ) : null}
-                      <span>
-                        {contextUsage.provider ? `${contextUsage.provider} · ` : ''}
-                        {contextUsage.model}
-                      </span>
-                    </>
-                  ) : (
-                    <strong>{contextUsedText}</strong>
-                  )}
+                  <ContextUsagePanel contextUsage={contextUsage} />
                 </span>
               </span>
             ) : null}
@@ -1827,6 +1803,19 @@ export function ComposerCard({
         }}
         onCancel={() => setArchiveConfirmationOpen(false)}
       />
+      <ConfirmationDialog open={fullAccessConfirmationOpen} title="启用 Full Access？"
+        description={<><p>允许 Agent 使用完整文件访问范围并取消常规人工审批。请仅在信任当前任务时启用。</p>{fullAccessError ? <p role="alert">{fullAccessError}</p> : null}</>}
+        actionLabel="启用 Full Access" actionDisabled={fullAccessSaving} onCancel={() => { if (!fullAccessSaving) setFullAccessConfirmationOpen(false) }}
+        onAction={() => {
+          if (fullAccessSaving) return
+          setFullAccessSaving(true); setFullAccessError('')
+          void Promise.resolve().then(() => onPermissionChange('full-access')).then(() => setFullAccessConfirmationOpen(false))
+            .catch(() => setFullAccessError('权限模式未更新，请重试。')).finally(() => setFullAccessSaving(false))
+        }} />
+      {routedSessionId ? <>
+        <ApprovalRulesDialog key={`rules:${routedSessionId}`} threadId={routedSessionId} open={approvalRulesOpen} onClose={() => setApprovalRulesOpen(false)} />
+        <ApprovalRetryDialog key={`retry:${routedSessionId}`} threadId={routedSessionId} open={approvalRetryOpen} onClose={() => setApprovalRetryOpen(false)} />
+      </> : null}
     </div>
   )
 }

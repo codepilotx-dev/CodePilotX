@@ -1117,11 +1117,15 @@ export type DesktopPermissionGrant = {
 }
 
 export type DesktopPermissionDecision = AgentPermissionDecision & {
+  grantOptionId?: string
   computerGrant?: 'chat' | 'persistent'
   grantScope?: DesktopPermissionGrantScope
 }
 
 export type DesktopPermissionRequest = AgentPermissionRequest & {
+  grantOptions?: ApprovalRequest['grantOptions']
+  toolIdentity?: ApprovalRequest['toolIdentity']
+  toolInput?: ApprovalRequest['input']
   computerApp?: { name: string; allowPersistentApproval: boolean }
   permissionGrant?: DesktopPermissionGrant
 }
@@ -1640,6 +1644,11 @@ export type DesktopApi = {
   reinstallDesktopToolchain(): Promise<DesktopToolchainInstallResult>
   deleteDesktopToolchain(): Promise<DesktopToolchainInstallResult>
   readConfig(params?: RpcParams<'config/read'>): Promise<DesktopConfigReadResult>
+  pauseQuestion(interactionId: string, expectedVersion: number): Promise<void>
+  approvalReviewState(threadId: string): Promise<RpcResult<'approval/reviewState'>>
+  retryApproval(threadId: string, reviewId: string): Promise<void>
+  listApprovalRules(threadId: string): Promise<RpcResult<'approval/rules/list'>>
+  revokeApprovalRule(threadId: string, ruleId: string): Promise<void>
   writeConfigBatch(params: DesktopConfigBatchWriteParams): Promise<DesktopConfigWriteResult>
   listConfigProfiles(): Promise<DesktopConfigProfileListResult>
   selectConfigProfile(profileId: string | null): Promise<DesktopConfigProfileSelectResult>

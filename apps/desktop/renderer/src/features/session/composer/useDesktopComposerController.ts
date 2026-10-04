@@ -68,7 +68,7 @@ type ControllerOptions = {
     draftKey: ComposerDraftKey,
     snapshot: ComposerDraftContentSnapshot,
   ) => boolean | void
-  onPermissionChange: (value: DesktopPermissionMode) => void
+  onPermissionChange: (value: DesktopPermissionMode) => void | Promise<void>
   createSessionForWorkspace: (
     target?: DesktopWorkspace | null,
     initialSessionName?: string,
@@ -257,8 +257,8 @@ export function useDesktopComposerController({
 
   useEffect(() => {
     if (permissionModeVisible) return
-    onPermissionChange('default')
-  }, [onPermissionChange, permissionModeVisible])
+    void Promise.resolve(onPermissionChange('default')).catch((error: unknown) => onError?.(error instanceof Error ? error.message : '权限模式未更新'))
+  }, [onPermissionChange, permissionModeVisible, onError])
 
   useEffect(() => {
     let cancelled = false

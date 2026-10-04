@@ -16,10 +16,14 @@ import type {
   McpElicitationStringSchema,
 } from './mcpElicitationTypes.js'
 import { getFieldDefault, validateField } from './mcpElicitationUtils.js'
+import { RequestCard } from '../approvals/RequestCard.js'
 
 // ── Props ────────────────────────────────────────────────────
 
 export type McpElicitationFormProps = {
+  details?: React.ReactNode
+  busy?: boolean
+  error?: string | null
   serverName: string
   message: string
   schema: McpElicitationSchema
@@ -37,6 +41,9 @@ export function McpElicitationForm({
   onSubmit,
   onDecline,
   onCancel,
+  busy,
+  error,
+  details,
 }: McpElicitationFormProps): React.ReactNode {
   const fieldNames = Object.keys(schema.properties)
 
@@ -113,16 +120,10 @@ export function McpElicitationForm({
   const hasErrors = Object.keys(errors).length > 0
 
   return (
-    <section
-      className="inline-approval-card workflow-composer-card workflow-composer-card-mcp-form"
-      data-variant="mcp-form"
-      aria-label="MCP 表单"
-    >
-      <header className="inline-approval-header">
-        <h2>MCP 服务器 &ldquo;{serverName}&rdquo; 请求输入</h2>
-      </header>
+    <RequestCard variant="permission" title={`MCP 服务器 “${serverName}” 请求输入`} disabled={busy} error={error}>
 
       {message ? <p className="mcp-form-message">{message}</p> : null}
+      {details}
 
       <div className="mcp-form-fields">
         {fieldNames.map((name) => {
@@ -160,13 +161,15 @@ export function McpElicitationForm({
           <CornerDownLeft size={APP_ICON_SIZE} />
         </Button>
       </div>
-    </section>
+    </RequestCard>
   )
 }
 
 // ── Unsupported-mode fallback card ───────────────────────────
 
 export type McpElicitationUnsupportedProps = {
+  busy?: boolean
+  error?: string | null
   serverName: string
   message: string
   onDecline: () => void
@@ -178,16 +181,11 @@ export function McpElicitationUnsupported({
   message,
   onDecline,
   onCancel,
+  busy,
+  error,
 }: McpElicitationUnsupportedProps): React.ReactNode {
   return (
-    <section
-      className="inline-approval-card workflow-composer-card workflow-composer-card-mcp-unsupported"
-      data-variant="mcp-unsupported"
-      aria-label="不支持的 MCP 请求"
-    >
-      <header className="inline-approval-header">
-        <h2>MCP 服务器 &ldquo;{serverName}&rdquo; 请求输入</h2>
-      </header>
+    <RequestCard variant="permission" title={`MCP 服务器 “${serverName}” 请求输入`} disabled={busy} error={error}>
 
       {message ? <p className="mcp-form-message">{message}</p> : null}
 
@@ -207,7 +205,7 @@ export function McpElicitationUnsupported({
           取消
         </Button>
       </div>
-    </section>
+    </RequestCard>
   )
 }
 

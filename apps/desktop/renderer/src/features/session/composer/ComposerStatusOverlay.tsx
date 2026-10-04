@@ -5,7 +5,6 @@ import { X } from 'lucide-react'
 import { ChatInputDropdown } from './ChatInputDropdown.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import {
-  clampPercent,
   criticalQuotaWindows,
   formatCount,
   formatResetTime,
@@ -16,6 +15,7 @@ import {
   type ProviderUsageSource,
 } from '../../../utils/usageFormatters.js'
 import type { DesktopContextUsage, ModelProviderID } from '../../../../shared/types.js'
+import { ContextUsagePanel } from './ContextUsagePanel.js'
 
 type Props = {
   open: boolean
@@ -123,32 +123,7 @@ export function ComposerStatusOverlay({
 
         {/* Context Usage */}
         <div className="composer-status-section">
-          <div className="composer-status-label">上下文用量</div>
-          {contextUsage ? (
-            <>
-              <div className="composer-status-bar-track">
-                <div
-                  className="composer-status-bar-fill"
-                  style={
-                    {
-                      '--usage-ratio': clampPercent(contextUsage.usedPercent) / 100,
-                    } as React.CSSProperties
-                  }
-                />
-              </div>
-              <div className="composer-status-bar-meta">
-                <span className="composer-status-bar-percent">
-                  {Math.round(contextUsage.usedPercent)}%
-                </span>
-                <span className="composer-status-bar-detail">
-                  {contextUsage.usedTokens.toLocaleString()} /{' '}
-                  {contextUsage.contextWindow.toLocaleString()}
-                </span>
-              </div>
-            </>
-          ) : (
-            <div className="composer-status-empty">暂无上下文统计</div>
-          )}
+          <ContextUsagePanel contextUsage={contextUsage} />
         </div>
 
         {/* Quota section */}

@@ -80,9 +80,9 @@ export function ConfirmationDialog({
             </AlertDialog.Cancel>
           </header>
           <AlertDialog.Description asChild>
-            <p className="confirmation-dialog-description tw:m-0">
+            <div className="confirmation-dialog-description tw:m-0">
               {description ?? '请确认是否继续。'}
-            </p>
+            </div>
           </AlertDialog.Description>
           {suppression ? (
             <label className="confirmation-dialog-suppression tw:flex tw:cursor-pointer tw:items-center tw:gap-2">

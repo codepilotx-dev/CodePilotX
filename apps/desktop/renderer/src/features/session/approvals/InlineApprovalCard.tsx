@@ -1,5 +1,7 @@
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import React from 'react'
+import { decodeThreadPatchDiff } from '@codepilotx/agent-protocol'
+import { FileMutationDiffBody } from '../timeline/FileMutationDiffBody.js'
 import { ArrowDown, ArrowUp, ChevronDown, X } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import type {
@@ -13,6 +15,8 @@ import { Dropdown } from '../../../components/ui/Dropdown.js'
 import { AskUserQuestionApproval } from './AskUserQuestionApproval.js'
 import { useQuestionSkipCapability } from './useQuestionSkipCapability.js'
 import { RequestCard } from './RequestCard.js'
+import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
+import { useApprovalCapability } from './useQuestionSkipCapability.js'
 import {
   McpElicitationForm,
   McpElicitationUnsupported,
@@ -88,7 +92,10 @@ export type InlineApprovalCardProps = {
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
-    decisionExtras?: Pick<DesktopPermissionDecision, 'grantScope' | 'computerGrant'>,
+    decisionExtras?: Pick<
+      DesktopPermissionDecision,
+      'grantScope' | 'computerGrant' | 'grantOptionId'
+    >,
   ) => void | Promise<void>
 }
 
@@ -108,9 +115,21 @@ export function InlineApprovalCard({
   )
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [confirmGrant, setConfirmGrant] = React.useState<
+    NonNullable<DesktopPermissionRequest['grantOptions']>[number] | null
+  >(null)
+  const hasScopedGrants = useApprovalCapability(
+    request.requestId,
+    true,
+    'interaction.scopedGrants.v1',
+  )
+  const grantOptions = hasScopedGrants ? (request.grantOptions ?? []) : []
+  const requestIdRef = React.useRef(request.requestId)
+  requestIdRef.current = request.requestId
   const busyRef = React.useRef(false)
   const disabled = busy || Boolean(disabledReason)
   const [isCommandExpanded, setIsCommandExpanded] = React.useState(false)
+  const [detailsOpen, setDetailsOpen] = React.useState(false)
   const commandPreviewId = React.useId()
   const isPermissionGrant =
     request.requestKind === 'permission-grant' || Boolean(request.permissionGrant)
@@ -129,25 +148,41 @@ export function InlineApprovalCard({
     busyRef.current = false
     setBusy(false)
     setError(null)
+    setConfirmGrant(null)
+    setDetailsOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request.requestId])
   const command = buildInlineApprovalCommand(request)
   const commandPreviewTransition = useHeightTransition([isCommandExpanded, command.full])
-  const approvalTitle = request.computerApp ? `允许使用 ${request.computerApp.name}？` : inlineApprovalTitle(request)
+  const approvalTitle = request.computerApp
+    ? `允许使用 ${request.computerApp.name}？`
+    : inlineApprovalTitle(request)
   const previewLabel = inlineApprovalPreviewLabel(request)
   const reviewSummary = inlineApprovalReviewSummary(request)
+  const fileDiffs =
+    !request.toolIdentity && Array.isArray(request.input.approvalFileDiffs)
+      ? request.input.approvalFileDiffs.flatMap((value) => {
+          try {
+            return [decodeThreadPatchDiff(value)]
+          } catch {
+            return []
+          }
+        })
+      : []
   async function act(action: () => void | Promise<void>): Promise<void> {
     if (busyRef.current || disabledReason) return
     busyRef.current = true
     setBusy(true)
     setError(null)
+    const activeId = request.requestId
     try {
       await action()
     } catch {
-      setError('操作失败，请重试。')
-    } finally {
-      busyRef.current = false
-      setBusy(false)
+      if (requestIdRef.current === activeId) {
+        setError('操作失败，请重试。')
+        busyRef.current = false
+        setBusy(false)
+      }
     }
   }
   const navigation = onInterrupt ? (
@@ -163,9 +198,34 @@ export function InlineApprovalCard({
   ) : null
   const actions = (
     <div className="inline-approval-actions">
+      {grantOptions
+        .filter((option) => option.scope !== 'session')
+        .map((option) => (
+          <Button
+            key={option.id}
+            color="secondary"
+            disabled={disabled}
+            onClick={() => {
+              if (option.requiresConfirmation) setConfirmGrant(option)
+              else
+                void act(() =>
+                  onDecide(request, 'allow', false, undefined, { grantOptionId: option.id }),
+                )
+            }}
+          >
+            {option.label}
+          </Button>
+        ))}
       {request.computerApp?.allowPersistentApproval ? (
-        <Button color="secondary" disabled={disabled}
-          onClick={() => void act(() => onDecide(request, 'allow', false, undefined, { computerGrant: 'persistent' }))}>
+        <Button
+          color="secondary"
+          disabled={disabled}
+          onClick={() =>
+            void act(() =>
+              onDecide(request, 'allow', false, undefined, { computerGrant: 'persistent' }),
+            )
+          }
+        >
           始终允许
         </Button>
       ) : null}
@@ -226,21 +286,83 @@ export function InlineApprovalCard({
               'allow',
               false,
               undefined,
-              request.computerApp ? { computerGrant: 'chat' } : isPermissionGrant && selectedScope ? { grantScope: selectedScope } : undefined,
+              request.computerApp
+                ? { computerGrant: 'chat' }
+                : isPermissionGrant && selectedScope
+                  ? { grantScope: selectedScope }
+                  : undefined,
             ),
           )
         }
       >
         {request.computerApp ? '允许此对话' : isPermissionGrant ? '允许' : '允许一次'}
       </Button>
+      {grantOptions.some((option) => option.scope === 'session') ? (
+        <Dropdown
+          width="auto"
+          align="end"
+          trigger={
+            <button
+              type="button"
+              className="inline-approval-scope-trigger"
+              disabled={disabled}
+              aria-label="更多授权范围"
+            >
+              <ChevronDown size={APP_ICON_SIZE} />
+            </button>
+          }
+        >
+          {grantOptions
+            .filter((option) => option.scope === 'session')
+            .map((option) => (
+              <DropdownMenu.Item
+                key={option.id}
+                className="popover-item"
+                disabled={disabled}
+                onSelect={() =>
+                  void act(() =>
+                    onDecide(request, 'allow', false, undefined, { grantOptionId: option.id }),
+                  )
+                }
+              >
+                {option.label}
+              </DropdownMenu.Item>
+            ))}
+        </Dropdown>
+      ) : null}
+      <ConfirmationDialog
+        open={confirmGrant !== null}
+        title="允许访问所有网站？"
+        description="Agent 将能够读取和操作所有网站。明确拒绝的网站仍会被阻止，你可以在浏览器授权设置中撤销。"
+        actionLabel="允许所有网站"
+        actionDisabled={disabled}
+        onCancel={() => {
+          if (!busy) setConfirmGrant(null)
+        }}
+        onAction={() => {
+          if (confirmGrant)
+            void act(async () => {
+              await onDecide(request, 'allow', false, undefined, { grantOptionId: confirmGrant.id })
+              setConfirmGrant(null)
+            })
+        }}
+      />
     </div>
   )
 
   if (request.computerApp) {
     return (
-      <RequestCard title={approvalTitle} variant="permission" identity={identity}
-        disabledReason={disabledReason} navigation={navigation} error={error}>
-        <p className="inline-approval-target">截图会进入聊天，必要时可能切到前台。你可以随时停止操作。</p>
+      <RequestCard
+        title={approvalTitle}
+        variant="permission"
+        identity={identity}
+        disabledReason={disabledReason}
+        navigation={navigation}
+        error={error}
+      >
+        <p className="inline-approval-target">
+          截图会进入聊天，必要时可能切到前台。你可以随时停止操作。
+        </p>
         {actions}
       </RequestCard>
     )
@@ -270,16 +392,22 @@ export function InlineApprovalCard({
       if (schema) {
         return (
           <McpElicitationForm
+            key={request.requestId}
+            busy={disabled}
+            error={error}
+            details={elicitationConfirmationDetails(elicitationRequest?.presentation)}
             serverName={serverName}
             message={message}
             schema={schema}
-            onSubmit={(content) => onDecide(request, 'allow', false, { content })}
-            onDecline={() => onDecide(request, 'deny')}
+            onSubmit={(content) => void act(() => onDecide(request, 'allow', false, { content }))}
+            onDecline={() => void act(() => onDecide(request, 'deny'))}
             onCancel={() =>
-              onDecide(request, 'deny', false, {
-                cancelled: true,
-                action: 'cancel',
-              })
+              void act(() =>
+                onDecide(request, 'deny', false, {
+                  cancelled: true,
+                  action: 'cancel',
+                }),
+              )
             }
           />
         )
@@ -289,14 +417,18 @@ export function InlineApprovalCard({
     // Fallback: unsupported mode
     return (
       <McpElicitationUnsupported
+        busy={disabled}
+        error={error}
         serverName={serverName}
         message={message}
-        onDecline={() => onDecide(request, 'deny')}
+        onDecline={() => void act(() => onDecide(request, 'deny'))}
         onCancel={() =>
-          onDecide(request, 'deny', false, {
-            cancelled: true,
-            action: 'cancel',
-          })
+          void act(() =>
+            onDecide(request, 'deny', false, {
+              cancelled: true,
+              action: 'cancel',
+            }),
+          )
         }
       />
     )
@@ -360,36 +492,77 @@ export function InlineApprovalCard({
       ) : null}
       {reviewSummary ? <p className="inline-approval-target">{reviewSummary}</p> : null}
 
-      <div className="inline-approval-summary">
-        <div
-          id={commandPreviewId}
-          ref={commandPreviewTransition.ref}
-          className={
-            isCommandExpanded
-              ? 'inline-approval-command-preview expanded'
-              : 'inline-approval-command-preview'
-          }
-          style={commandPreviewTransition.style}
-        >
-          <div className="inline-approval-command-preview-header">
-            <span>{previewLabel}</span>
-            <button
-              aria-controls={commandPreviewId}
-              type="button"
-              aria-expanded={isCommandExpanded}
-              onClick={() => setIsCommandExpanded((value) => !value)}
-            >
-              {isCommandExpanded ? '折叠' : '展开'}
-              {isCommandExpanded ? (
-                <ArrowUp size={APP_ICON_SIZE} />
-              ) : (
-                <ArrowDown size={APP_ICON_SIZE} />
-              )}
-            </button>
-          </div>
-          <code className="inline-approval-command">{command.full}</code>
+      {fileDiffs.map((diff) => (
+        <details key={diff.path} className="request-card-content">
+          <summary>{diff.path} · 查看修改差异</summary>
+          <FileMutationDiffBody diff={diff} diffMarkerStyle="color" />
+        </details>
+      ))}
+
+      {request.toolIdentity ? (
+        <div className="request-card-content">
+          <p className="request-card-identity">
+            {request.toolIdentity.server} / {request.toolIdentity.tool}
+          </p>
+          {Object.entries(request.toolInput ?? {})
+            .slice(0, 4)
+            .map(([key, value]) => (
+              <div key={key}>
+                <span>{key}</span>
+                <code className="inline-approval-command">
+                  {typeof value === 'string' ? value : JSON.stringify(value)}
+                </code>
+              </div>
+            ))}
+          <Button color="secondary" onClick={() => setDetailsOpen(true)}>
+            查看全部参数
+          </Button>
         </div>
-      </div>
+      ) : (
+        <div className="inline-approval-summary">
+          <div
+            id={commandPreviewId}
+            ref={commandPreviewTransition.ref}
+            className={
+              isCommandExpanded
+                ? 'inline-approval-command-preview expanded'
+                : 'inline-approval-command-preview'
+            }
+            style={commandPreviewTransition.style}
+          >
+            <div className="inline-approval-command-preview-header">
+              <span>{previewLabel}</span>
+              <button
+                aria-controls={commandPreviewId}
+                type="button"
+                aria-expanded={isCommandExpanded}
+                onClick={() => setIsCommandExpanded((value) => !value)}
+              >
+                {isCommandExpanded ? '折叠' : '展开'}
+                {isCommandExpanded ? (
+                  <ArrowUp size={APP_ICON_SIZE} />
+                ) : (
+                  <ArrowDown size={APP_ICON_SIZE} />
+                )}
+              </button>
+            </div>
+            <code className="inline-approval-command">{command.full}</code>
+          </div>
+        </div>
+      )}
+
+      <ConfirmationDialog
+        open={detailsOpen}
+        title="工具参数"
+        actionLabel="关闭"
+        onAction={() => setDetailsOpen(false)}
+        onCancel={() => setDetailsOpen(false)}
+        description={
+          <pre className="inline-approval-command">
+            {JSON.stringify(request.toolInput ?? request.input, null, 2)}
+          </pre>
+        }
+      />
 
       {actions}
     </RequestCard>
@@ -397,12 +570,48 @@ export function InlineApprovalCard({
 }
 
 function inlineApprovalTitle(request: DesktopPermissionRequest): string {
+  if (request.toolIdentity)
+    return `允许 ${request.toolIdentity.server} / ${request.toolIdentity.tool}？`
   if (isCommandPermission(request)) return '需要运行命令，是否允许？'
   const affectedPaths = inlineApprovalAffectedPaths(request)
   if (affectedPaths.length > 0) {
     return `需要修改 ${affectedPaths.length} 个文件，是否允许？`
   }
   return request.description
+}
+
+function elicitationConfirmationDetails(value: unknown): React.ReactNode {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const presentation = value as Record<string, unknown>
+  if (presentation.type !== 'confirmation' || !Array.isArray(presentation.changes)) return null
+  if (
+    presentation.changes.some(
+      (change) =>
+        !change ||
+        typeof change !== 'object' ||
+        typeof (change as Record<string, unknown>).label !== 'string',
+    )
+  )
+    return null
+  return (
+    <div className="request-card-content">
+      {typeof presentation.title === 'string' ? <p>{presentation.title}</p> : null}
+      {presentation.changes.map((raw, index) => {
+        const change = raw as { label: string; before?: unknown; after?: unknown }
+        return (
+          <div key={index}>
+            <strong>{change.label}</strong>
+            {typeof change.before === 'string' ? (
+              <pre className="inline-approval-command">{change.before}</pre>
+            ) : null}
+            {typeof change.after === 'string' ? (
+              <pre className="inline-approval-command">{change.after}</pre>
+            ) : null}
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 function inlineApprovalPreviewLabel(request: DesktopPermissionRequest): string {

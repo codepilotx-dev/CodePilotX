@@ -406,6 +406,11 @@ export function createBrowserMockDesktopClient(
     },
     getRuntimeCapabilities: async () =>
       (await import('@codepilotx/agent-protocol/capabilities')).Capabilities,
+    pauseQuestion: async () => {},
+    approvalReviewState: async () => ({ manualAllows: 0, denials: [] }),
+    retryApproval: async () => {},
+    listApprovalRules: async () => ({ rules: [] }),
+    revokeApprovalRule: async () => {},
     listAutomations: async () => ({ automations: [] }),
     listAutomationRuns: async () => ({ runs: [] }),
     readAutomation: async () => {

@@ -10,11 +10,21 @@ import { SettingsContentArea } from './SettingsContentArea.js'
 import { Button } from '../../components/ui/Button.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { SettingsRow } from './SettingsRow.js'
+import { desktopClient } from '../../services/desktop-client/index.js'
 
 export function BrowserSettings(): React.ReactNode {
   const settings = useDesktopSettings()
   const { browserAllowedSites, setBrowserAllowedSites, draft } = settings
   const [sitePermissions, setSitePermissions] = useState<DesktopBrowserSitePermission[]>([])
+  const [allowAllSites, setAllowAllSites] = useState(false)
+  const [allSitesSaving, setAllSitesSaving] = useState(false)
+  const [allSitesError, setAllSitesError] = useState('')
+  useEffect(() => {
+    void desktopClient.readConfig().then((result) => {
+      const desktop = result.config.desktop as Record<string, unknown> | undefined
+      setAllowAllSites(desktop?.browserAllowAllSites === true)
+    }).catch(() => {})
+  }, [])
   const [downloadMode, setDownloadMode] = useState<'downloads' | 'ask'>('downloads')
   const [downloadLoaded, setDownloadLoaded] = useState(false)
   const [downloadSaving, setDownloadSaving] = useState(false)
@@ -71,6 +81,7 @@ export function BrowserSettings(): React.ReactNode {
     setSitePermissions(nextState.sitePermissions)
     draft.setValue('browserAllowedSites', nextState.allowedSites)
     draft.setValue('browserSitePermissions', nextState.sitePermissions)
+    setAllowAllSites(false)
   }
 
   return (
@@ -104,7 +115,7 @@ export function BrowserSettings(): React.ReactNode {
           actions={
             <Button
               color="danger"
-              disabled={sitePermissions.length === 0 && browserAllowedSites.length === 0}
+              disabled={sitePermissions.length === 0 && browserAllowedSites.length === 0 && !allowAllSites}
               type="button"
               onClick={() => void clearAllowedSites()}
             >
@@ -113,6 +124,14 @@ export function BrowserSettings(): React.ReactNode {
             </Button>
           }
         >
+          <SettingsRow title="所有网站授权" description={allowAllSites ? '已允许所有网站；明确拒绝的站点仍被阻止。' : '所有网站授权未启用。'}
+            control={<Button color="secondary" disabled={!allowAllSites || allSitesSaving} onClick={() => {
+              setAllSitesSaving(true)
+              setAllSitesError('')
+              void desktopClient.writeConfigBatch({ target: { kind: 'user' }, edits: [{ keyPath: ['desktop', 'browserAllowAllSites'], value: false }] })
+                .then(() => setAllowAllSites(false)).catch(() => setAllSitesError('撤销所有网站授权失败，请重试。')).finally(() => setAllSitesSaving(false))
+            }}>撤销所有网站授权</Button>} />
+          {allSitesError ? <p role="alert">{allSitesError}</p> : null}
           {sitePermissions.length ? (
             <div className="browser-allowed-sites">
               {sitePermissions.map((site) => (

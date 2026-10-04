@@ -12,18 +12,6 @@
   color: var(--cpx-sys-color-fg-primary);
   box-shadow: none;
 }
-.inline-approval-header {
-  padding: var(--inline-approval-header-padding, 0 var(--cpx-sys-space-3));
-
-  h2 {
-    margin: 0;
-    color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-body);
-    font-weight: var(--cpx-sys-font-weight-medium);
-    letter-spacing: 0;
-  }
-}
-
 .inline-approval-summary {
   display: flex;
   align-items: stretch;
@@ -122,7 +110,7 @@
   display: block;
   width: 100%;
   min-width: 0;
-  max-height: calc(var(--cpx-sys-space-8) * 3);
+  max-height: 3lh;
   overflow: auto;
   padding: 0;
   color: var(--cpx-sys-color-fg-secondary);
@@ -147,24 +135,6 @@
   &.tool {
     color: var(--cpx-sys-color-fg-secondary);
   }
-}
-
-.inline-approval-additions {
-  color: var(--cpx-sys-color-diff-added-fg);
-  font-weight: var(--cpx-sys-font-weight-bold);
-}
-
-.inline-approval-deletions {
-  color: var(--cpx-sys-color-diff-removed-fg);
-  font-weight: var(--cpx-sys-font-weight-bold);
-}
-
-.inline-approval-dot {
-  width: 6px;
-  height: 6px;
-  flex: 0 0 auto;
-  border-radius: var(--cpx-sys-radius-full);
-  background: var(--cpx-sys-color-fg-primary);
 }
 
 .inline-approval-options {
@@ -237,23 +207,8 @@
   }
 }
 
-.inline-approval-fixed-option {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  gap: var(--cpx-sys-space-2);
-  margin-top: var(--cpx-sys-space-1);
-}
-
-.inline-approval-note-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: var(--cpx-sys-color-fg-tertiary);
-}
-
 .inline-approval-actions {
+  flex-wrap: wrap;
   display: flex;
   gap: var(--cpx-sys-space-2);
   margin-left: auto;
@@ -365,19 +320,6 @@
   gap: var(--cpx-sys-space-1);
   color: var(--cpx-sys-color-fg-tertiary);
   font: var(--cpx-sys-type-caption);
-}
-
-.inline-approval-footer-key {
-  min-width: var(--cpx-sys-space-6);
-  padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
-  border: 1px solid var(--cpx-sys-color-border-subtle);
-  border-radius: var(--cpx-sys-radius-compact);
-  background: var(--cpx-sys-color-surface-editor);
-  color: var(--cpx-sys-color-fg-secondary);
-  font: var(--cpx-sys-type-caption);
-  font-weight: var(--cpx-sys-font-weight-bold);
-  line-height: var(--cpx-sys-line-height-none);
-  text-align: center;
 }
 
 /* --- Workflow cards --- */
@@ -583,10 +525,6 @@
   background: transparent;
 }
 
-.inline-approval-fixed-option {
-  align-items: flex-end;
-}
-
 .workflow-composer-card-question .inline-approval-footer,
 .workflow-composer-card-question .inline-approval-footer-split {
   border-top: 1px solid var(--cpx-sys-color-border-subtle);
@@ -601,11 +539,6 @@
   color: var(--cpx-sys-color-fg-secondary);
 }
 
-.workflow-composer-card-permission .inline-approval-header h2 {
-  color: var(--cpx-sys-color-fg-primary);
-  font-weight: var(--cpx-sys-font-weight-medium);
-}
-
 .workflow-composer-card-permission .inline-approval-command {
   padding: 0;
   color: var(--cpx-sys-color-fg-secondary);
@@ -613,12 +546,6 @@
 
 .workflow-composer-card-permission .inline-approval-options {
   gap: var(--cpx-sys-space-1);
-}
-
-.workflow-composer-card-permission .inline-approval-fixed-option {
-  margin-top: 0;
-  padding-top: var(--cpx-sys-space-1);
-  gap: var(--cpx-sys-space-2);
 }
 
 .workflow-composer-card-permission .inline-approval-actions {

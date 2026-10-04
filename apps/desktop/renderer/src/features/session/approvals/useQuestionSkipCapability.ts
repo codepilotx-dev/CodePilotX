@@ -1,7 +1,12 @@
 import React from 'react'
 import { desktopClient } from '../../../services/desktop-client/index.js'
+import type { ProtocolCapability } from '@codepilotx/agent-protocol'
 
 export function useQuestionSkipCapability(requestId: string, enabled: boolean): boolean {
+  return useApprovalCapability(requestId, enabled, 'interaction.questionSkip.v1')
+}
+
+export function useApprovalCapability(requestId: string, enabled: boolean, capability: ProtocolCapability): boolean {
   const [available, setAvailable] = React.useState(false)
   React.useEffect(() => {
     let active = true
@@ -10,7 +15,7 @@ export function useQuestionSkipCapability(requestId: string, enabled: boolean): 
       void desktopClient
         .getRuntimeCapabilities()
         .then((capabilities) => {
-          if (active) setAvailable(capabilities.includes('interaction.questionSkip.v1'))
+          if (active) setAvailable(capabilities.includes(capability))
         })
         .catch(() => {
           if (active) setAvailable(false)
@@ -18,6 +23,6 @@ export function useQuestionSkipCapability(requestId: string, enabled: boolean): 
     return () => {
       active = false
     }
-  }, [requestId, enabled])
+  }, [requestId, enabled, capability])
   return available
 }

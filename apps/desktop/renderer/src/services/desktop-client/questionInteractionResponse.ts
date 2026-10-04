@@ -11,6 +11,13 @@ export function questionInteractionResponse(
   decision: DesktopPermissionDecision,
 ): RpcResult<'interaction/respond'>['response'] {
   if (decision.behavior === 'deny') return { kind: 'question', status: 'ignored' }
+  const structured = decision.updatedInput?.questionAnswers
+  if (Array.isArray(structured)) {
+    return {
+      kind: 'question', status: 'answered', resolution: 'user',
+      answers: structured as Extract<RpcResult<'interaction/respond'>['response'], { kind: 'question'; status: 'answered' }>['answers'],
+    }
+  }
   const skippedIds = decision.updatedInput?.skippedQuestionIds ?? []
   if (
     !Array.isArray(skippedIds) ||
@@ -34,9 +41,7 @@ export function questionInteractionResponse(
       const value = rawAnswers[question.id] ?? (interaction.questions.length === 1 ? answer : '')
       const choice = question.choices.find(
         (candidate) =>
-          candidate.id === value ||
-          candidate.label === value ||
-          candidate.label.replace(/\s+\(Recommended\)$/u, '') === value,
+          candidate.id === value,
       )
       return {
         questionId: question.id,
