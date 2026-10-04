@@ -1,4 +1,4 @@
-import type { DesktopUserMessageInput } from '../../../../shared/types.js'
+import type { DesktopGoalSubmission, DesktopUserMessageInput } from '../../../../shared/types.js'
 import { hasBlockingComposerAttachmentErrors } from '../../../../shared/desktopUserMessage.js'
 import { toUserErrorMessage } from '../../../utils/errors.js'
 import type {
@@ -26,7 +26,7 @@ type SubmitTransactionOptions = {
   submitToSession: (
     sessionId: string,
     input: DesktopUserMessageInput,
-    metadata: { inputId: string },
+    metadata: { inputId: string; goal?: DesktopGoalSubmission },
   ) => Promise<ComposerDeliveryStatus | void>
 }
 
@@ -43,6 +43,9 @@ export function prepareComposerSubmission(
   }
   const attachments = annotationAttachments(snapshot)
   const text = serializeComposerDocument(snapshot.document)
+  if (snapshot.goalModeEnabled && !snapshot.document.text.trim()) {
+    return failed('prepare', '请输入目标内容')
+  }
   const skills =
     snapshot.skills ??
     (snapshot.skillInvocation
@@ -111,6 +114,7 @@ export async function executeComposerSubmitTransaction({
   try {
     const deliveryStatus = await submitToSession(sessionId, prepared.input, {
       inputId: prepared.clientId,
+      ...(draft.goalModeEnabled ? { goal: { objective: draft.document.text.trim() } } : {}),
     })
     return {
       status: deliveryStatus === 'queued' ? 'queued' : 'sent',

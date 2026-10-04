@@ -13,6 +13,7 @@ import type {
   DesktopThinkingMode,
   DesktopThreadGoal,
   DesktopUserMessageInput,
+  DesktopGoalSubmission,
   DesktopWorkspace,
   LocalRouterMode,
   ModelProviderID,
@@ -157,6 +158,7 @@ export type DesktopComposerProps = {
     options?: {
       delivery?: ComposerDeliveryIntent
       inputId?: string
+      goal?: DesktopGoalSubmission
       propagateError?: boolean
     },
   ) => Promise<'sent' | 'queued' | 'steered' | null>
@@ -268,17 +270,7 @@ export function DesktopComposer({
   onGoalClear,
   subagentMode = false,
 }: DesktopComposerProps): React.ReactNode {
-  const effectiveCapabilities =
-    placement === 'new-session'
-      ? {
-          ...capabilities,
-          goals: false,
-          dictation: capabilities?.dictation ?? true,
-        }
-      : {
-          ...capabilities,
-          dictation: capabilities?.dictation ?? true,
-        }
+  const effectiveCapabilities = { ...capabilities, dictation: capabilities?.dictation ?? true }
   const {
     branchName,
     canSubmit,
@@ -304,6 +296,9 @@ export function DesktopComposer({
     composerDocument,
     setGoalModeEnabled,
     skillCommands,
+    skillCatalogLoading,
+    skillCatalogError,
+    reloadSkillCatalog,
     taskPlanningAvailable,
     unsupportedAttachmentReason,
   } = useDesktopComposerController({
@@ -316,8 +311,8 @@ export function DesktopComposer({
     permissionMode,
     enableAutoReviewPermissionMode,
     enableFullAccessPermissionMode,
-    codingModel: resolveAvailableCodingModel(codingModel, providerOptions),
     planModeActive,
+    sessionBusy: sessionStatus === 'running' || sessionStatus === 'waiting',
     modelConfigured,
     selectedModelMetadata,
     workspace,
@@ -331,7 +326,6 @@ export function DesktopComposer({
     onRemoveAttachmentForDraft,
     onDraftAccepted,
     onPermissionChange,
-    onProviderModelChange,
     createSessionForWorkspace,
     submitToSession,
     onError,
@@ -350,6 +344,7 @@ export function DesktopComposer({
   }
 
   function handlePlanModeChange(active: boolean): void {
+    if (active) setGoalModeEnabled(false)
     if (active && workingPlugin) onWorkingPluginChange?.(null)
     onPlanModeChange(active)
   }
@@ -429,6 +424,9 @@ export function DesktopComposer({
         workspace={workspace}
         attachments={attachments}
         skillCommands={skillCommands}
+        skillCatalogLoading={skillCatalogLoading}
+        skillCatalogError={skillCatalogError}
+        onReloadSkillCatalog={reloadSkillCatalog}
         document={composerDocument}
         selectedSkillToken={activeSkillToken ?? undefined}
         hasConversationMessages={hasConversationMessages}

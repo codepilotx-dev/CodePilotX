@@ -61,7 +61,6 @@ import type {
   DesktopWorkspace,
   DesktopContextUsage,
   DesktopComposerAttachment,
-  DesktopFileEntry,
   DesktopModelProviderSummary,
   LocalRouterMode,
   ModelProviderID,
@@ -107,8 +106,6 @@ import {
   skillInvocationFromComposerToken,
 } from './composerSkillToken.js'
 import {
-  getActiveSkillTokenQuery,
-  getActiveSlashCommandQuery,
   mergeSlashCommands,
   parseSlashInvocation,
   type ComposerCommand,
@@ -124,9 +121,13 @@ import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js
 import {
   ComposerCommandMenu,
   composerMenuItemId,
-  filterComposerMenuItems,
   type ComposerMenuItem,
 } from './ComposerCommandMenu.js'
+import { useComposerWorkspaceContext } from './useComposerWorkspaceContext.js'
+import { useComposerSuggestions } from './useComposerSuggestions.js'
+import { useComposerSuggestionMenu } from './useComposerSuggestionMenu.js'
+import { nextEnabledMenuIndex } from './composerSuggestionMenu.js'
+export { getActiveComposerMention } from './composerSuggestionState.js'
 import { SessionGroupEditorDialog } from '../../session-groups/SessionGroupEditorDialog.js'
 import { SessionGroupSwitcherPopover } from '../../session-groups/SessionGroupSwitcherPopover.js'
 import {
@@ -203,6 +204,9 @@ type Props = {
   workspace: DesktopWorkspace | null
   attachments?: DesktopComposerAttachment[]
   document?: ComposerDocument
+  skillCatalogLoading?: boolean
+  skillCatalogError?: string | null
+  onReloadSkillCatalog?: () => void
   skillCommands?: ComposerSkillCommand[]
   selectedSkillToken?: ComposerSkillCommand
   contextTasks?: ComposerContextTask[]
@@ -330,6 +334,9 @@ export function ComposerCard({
   attachments = [],
   document,
   skillCommands = [],
+  skillCatalogLoading = false,
+  skillCatalogError,
+  onReloadSkillCatalog,
   selectedSkillToken,
   contextTasks = [],
   browserContext,
@@ -468,18 +475,11 @@ export function ComposerCard({
     setThinkingPreviewMode(null)
     setOpenDropdown(null)
   }, [draftKey])
-  const [reviewMenuRequested, setReviewMenuRequested] = useState(false)
-  const [buttonContextRequest, setButtonContextRequest] = useState<{
-    start: number
-    end: number
-    query: string
-    input: string
-  } | null>(null)
   const [branchSearch, setBranchSearch] = useState('')
-  const [dismissedSlashInput, setDismissedSlashInput] = useState<string | null>(null)
   const [isComposing, setIsComposing] = useState(false)
   const [fileDragActive, setFileDragActive] = useState(false)
   const fileDragDepthRef = useRef(0)
+  const filePickerRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const clearFileDrag = (): void => {
@@ -497,16 +497,33 @@ export function ComposerCard({
   useEffect(() => {
     if (submitOutcome?.status === 'failed') editorRef.current?.focus()
   }, [submitOutcome])
-  const [dismissedMention, setDismissedMention] = useState<number | null>(null)
-  const [dismissedSkillInput, setDismissedSkillInput] = useState<string | null>(null)
   const [selectionStart, setSelectionStart] = useState<number | null>(null)
+  const suggestions = useComposerSuggestions(input, selectionStart, isComposing, draftKey ?? '')
+  const suggestionRequest = suggestions.request
+  const requestInputRef = useRef(input)
+  requestInputRef.current = input
+  const contextScope = `${draftKey}:${workspace?.projectId}:${workspace?.primaryFolderId}:${workspace?.path}`
+  const contextScopeRef = useRef(contextScope)
+  contextScopeRef.current = contextScope
+  const activeContextRequest =
+    suggestionRequest?.kind === 'mention' || suggestionRequest?.kind === 'plus'
+      ? suggestionRequest
+      : null
+  const activeMention = suggestionRequest?.kind === 'mention' ? suggestionRequest : null
+  const buttonContextOpen = suggestionRequest?.kind === 'plus'
+  const activeSkillQuery = suggestionRequest?.kind === 'skill' ? suggestionRequest : null
+  const activeSlashQuery = suggestionRequest?.kind === 'slash' ? suggestionRequest : null
+  const reviewMenuRequested = suggestionRequest?.kind === 'review'
+
   const [archiveConfirmationOpen, setArchiveConfirmationOpen] = useState(false)
-  const [contextDirectory, setContextDirectory] = useState('.')
-  const [contextEntries, setContextEntries] = useState<DesktopFileEntry[]>([])
-  const [contextEntriesLoading, setContextEntriesLoading] = useState(false)
-  const [contextEntriesError, setContextEntriesError] = useState<string | null>(null)
-  const [contextReloadToken, setContextReloadToken] = useState(0)
-  const contextLoadGenerationRef = useRef(0)
+  const {
+    contextDirectory,
+    setContextDirectory,
+    contextEntries,
+    contextEntriesLoading,
+    contextEntriesError,
+    reloadContext,
+  } = useComposerWorkspaceContext(workspace, Boolean(activeContextRequest))
   const selectedPermission = permissionOptions.find((option) => option.value === permissionMode)
   const composerPlaceholder = modelCatalogLoading
     ? '加载模型列表中……'
@@ -568,7 +585,7 @@ export function ComposerCard({
     onOpenMcp: onOpenMcpSettings,
     onPlanModeChange,
     onGoalModeChange,
-    onOpenReview: () => setReviewMenuRequested(true),
+    onOpenReview: suggestions.openReview,
     onCompact,
     onOpenSide: onOpenSideChat,
     onFork: onForkConversation,
@@ -582,78 +599,63 @@ export function ComposerCard({
     onError: onCommandError,
   })
 
-  const activeSlashQuery = useMemo(() => {
-    if (isComposing || dismissedSlashInput === input) return null
-    return getActiveSlashCommandQuery(input, selectionStart)
-  }, [dismissedSlashInput, input, isComposing, selectionStart])
-
-  const activeMention = useMemo(() => {
-    if (isComposing) return null
-    if (dismissedMention !== null) return null
-    return getActiveComposerMention(input, selectionStart)
-  }, [input, isComposing, dismissedMention, selectionStart])
-  const activeContextRequest =
-    activeMention ?? (buttonContextRequest?.input === input ? buttonContextRequest : null)
-  const buttonContextOpen = Boolean(buttonContextRequest && buttonContextRequest.input === input)
-
-  useEffect(() => {
-    if (activeMention && buttonContextRequest) setButtonContextRequest(null)
-  }, [activeMention, buttonContextRequest])
-
-  const activeSkillQuery = useMemo(() => {
-    if (isComposing || dismissedSkillInput === input) return null
-    return getActiveSkillTokenQuery(input, selectionStart)
-  }, [dismissedSkillInput, input, isComposing, selectionStart])
-
-  const showSlashContextDropdown =
-    Boolean(activeSlashQuery) && !activeContextRequest && !activeSkillQuery
-
-  useEffect(() => {
-    const generation = ++contextLoadGenerationRef.current
-    if (!activeContextRequest || !workspace) {
-      setContextDirectory('.')
-      setContextEntries([])
-      setContextEntriesError(null)
-      setContextEntriesLoading(false)
-      return
-    }
-    setContextEntriesLoading(true)
-    setContextEntriesError(null)
-    void desktopClient
-      .listWorkspaceFiles(
-        workspace.path,
-        contextDirectory,
-        workspace.primaryFolderId,
-        workspace.projectId,
-      )
-      .then((entries) => {
-        if (contextLoadGenerationRef.current === generation) setContextEntries(entries)
-      })
-      .catch((error) => {
-        if (contextLoadGenerationRef.current === generation) {
-          setContextEntries([])
-          setContextEntriesError(error instanceof Error ? error.message : String(error))
-        }
-      })
-      .finally(() => {
-        if (contextLoadGenerationRef.current === generation) setContextEntriesLoading(false)
-      })
-  }, [Boolean(activeContextRequest), contextDirectory, contextReloadToken, workspace])
-
   const slashMenuItems = useMemo(
     () =>
-      mergeSlashCommands(builtinSlashCommands, skillCommands).map((command) =>
-        composerCommandMenuItem(command, executeCommand, onSkillSelect),
-      ),
-    [builtinSlashCommands, executeCommand, onSkillSelect, skillCommands],
+      mergeSlashCommands(
+        builtinSlashCommands,
+        capabilities.skills && !subagentMode ? skillCommands : [],
+      ).map((command) => composerCommandMenuItem(command, executeCommand, onSkillSelect)),
+    [
+      builtinSlashCommands,
+      executeCommand,
+      onSkillSelect,
+      skillCommands,
+      capabilities.skills,
+      subagentMode,
+    ],
   )
-  const skillMenuItems = useMemo(
-    () =>
-      skillCommands.map((command) =>
-        composerCommandMenuItem(command, executeCommand, onSkillSelect),
-      ),
-    [executeCommand, onSkillSelect, skillCommands],
-  )
+  const skillMenuItems = useMemo((): ComposerMenuItem[] => {
+    if (!capabilities.skills || subagentMode) return []
+    const items = skillCommands.map((command) =>
+      composerCommandMenuItem(command, executeCommand, onSkillSelect),
+    )
+    if (skillCatalogLoading || skillCatalogError || !items.length) {
+      items.push({
+        key: 'skills:status',
+        section: '技能',
+        label: skillCatalogLoading
+          ? '正在加载技能…'
+          : skillCatalogError
+            ? '技能加载失败'
+            : '暂无可用技能',
+        description: skillCatalogError ?? undefined,
+        status: skillCatalogLoading ? 'loading' : skillCatalogError ? 'error' : 'empty',
+        icon: null,
+        matchText: '',
+        onSelect: () => {},
+      })
+      if (skillCatalogError && onReloadSkillCatalog)
+        items.push({
+          key: 'skills:retry',
+          section: '技能',
+          label: '重新加载技能',
+          icon: <Activity size={APP_ICON_SIZE} />,
+          matchText: '重新加载 技能 retry skills',
+          completion: 'directory',
+          onSelect: onReloadSkillCatalog,
+        })
+    }
+    return items
+  }, [
+    executeCommand,
+    onSkillSelect,
+    skillCommands,
+    skillCatalogLoading,
+    skillCatalogError,
+    onReloadSkillCatalog,
+    capabilities.skills,
+    subagentMode,
+  ])
   const reviewMenuItems = useMemo(
     (): ComposerMenuItem[] => [
       {
@@ -697,9 +699,54 @@ export function ComposerCard({
       )
       closeDropdown()
     }
-    const items: ComposerMenuItem[] = contextTasks.map((task) => ({
+    const contextActions = builtinSlashCommands
+      .filter((command) => command.availability.visible && ['goal', 'plan'].includes(command.id))
+      .sort((a, b) => ['goal', 'plan'].indexOf(a.id) - ['goal', 'plan'].indexOf(b.id))
+      .map((command) => ({
+        ...composerCommandMenuItem(command, executeCommand, onSkillSelect),
+        section: '添加',
+      }))
+    const attachmentActions: ComposerMenuItem[] =
+      capabilities.fileAttachments && onAddFiles
+        ? [
+            {
+              key: 'attachment:local',
+              section: '添加',
+              label: '文件和文件夹',
+              description: workspace ? '选择项目文件和文件夹，或添加本机附件' : '从本机选择附件',
+              category: workspace && onAddFilePaths ? '文件和文件夹' : undefined,
+              icon: <Paperclip size={APP_ICON_SIZE} />,
+              matchText: '添加 文件 附件 add file attachment',
+              onSelect: () => filePickerRef.current?.click(),
+            },
+          ]
+        : []
+    const items: ComposerMenuItem[] = [
+      ...contextActions.filter((item) => item.command?.id === 'goal'),
+      ...attachmentActions,
+      ...contextActions.filter((item) => item.command?.id === 'plan'),
+    ]
+    const planning = skillCommands.find((command) => command.skill.name === 'task-planning')
+    if (capabilities.skills && !subagentMode)
+      items.push({
+        ...(planning
+          ? composerCommandMenuItem(planning, executeCommand, onSkillSelect)
+          : {
+              key: 'plugin:task-planning',
+              icon: <Brain size={APP_ICON_SIZE} />,
+              matchText: '规划任务 task planning',
+              onSelect: () => {},
+            }),
+        section: '插件',
+        label: '规划任务',
+        description:
+          planning?.description ??
+          (skillCatalogLoading ? '正在加载插件技能…' : '请先在插件设置中启用 task-planning'),
+        disabled: !planning,
+      })
+    const threadItems: ComposerMenuItem[] = contextTasks.slice(0, 5).map((task) => ({
       key: `thread:${task.id}`,
-      section: '最近任务',
+      section: '引用会话',
       label: task.title,
       description: task.workspaceName,
       icon: <MessageSquare size={APP_ICON_SIZE} />,
@@ -708,57 +755,33 @@ export function ComposerCard({
         insertReference('thread', `任务：${task.title}`, buildThreadDeepLink(task.id)),
     }))
     if (onOpenComputerSettings && computerSupported) {
-      items.push(
-        {
-          key: 'computer:use',
-          section: '电脑控制',
-          label: '使用电脑控制',
-          description: !computerState?.enabled
-            ? '请先在电脑控制设置中开启功能。'
+      items.push({
+        key: 'computer:use',
+        section: '插件',
+        label: '电脑操控',
+        description: !computerState?.enabled
+          ? '请先在电脑控制设置中开启功能。'
+          : computerState.policy?.valid === false
+            ? computerState.policy.reason
             : !computerState.available
               ? 'Windows 原生运行时尚未就绪，请查看设置。'
               : permissionMode === 'full-access'
-                ? '完全访问（never）不弹授权框；请先在应用授权中手动允许目标应用。'
-                : '需要开启功能；首次读取或操作应用会请求授权。',
-          icon: <MonitorSmartphone size={APP_ICON_SIZE} />,
-          matchText: 'computer 电脑 控制 应用 窗口',
-          onSelect: () => {
-            editorRef.current?.replaceTextRange(
-              activeContextRequest.start,
-              activeContextRequest.end,
-              '使用电脑控制读取并操作已运行应用：',
-            )
-            closeDropdown()
-          },
+                ? '直接读取和操作已运行应用。'
+                : '首次使用应用时，在聊天中确认授权。',
+        icon: <MonitorSmartphone size={APP_ICON_SIZE} />,
+        matchText: 'computer 电脑 控制 应用 窗口',
+        onSelect: () => {
+          editorRef.current?.replaceTextRange(
+            activeContextRequest.start,
+            activeContextRequest.end,
+            '使用电脑控制读取并操作已运行应用：',
+          )
+          closeDropdown()
         },
-        {
-          key: 'computer:settings',
-          section: '电脑控制',
-          label: '电脑控制设置与应用授权',
-          description: '开启功能、发现已运行应用并手动授权。',
-          icon: <MonitorSmartphone size={APP_ICON_SIZE} />,
-          matchText: 'computer 电脑 控制 设置 应用 授权',
-          onSelect: () => {
-            closeDropdown()
-            onOpenComputerSettings()
-          },
-        },
-      )
-      if (permissionMode === 'full-access')
-        items.push({
-          key: 'computer:approval',
-          section: '电脑控制',
-          label: '切换为允许授权询问',
-          description: '将此聊天权限切换为默认模式，允许首次应用授权请求。',
-          icon: <ShieldCheck size={APP_ICON_SIZE} />,
-          matchText: 'computer 电脑 授权 询问 权限',
-          onSelect: () => {
-            onPermissionChange('default')
-            closeDropdown()
-          },
-        })
+      })
     }
-    if (browserContext) {
+    items.push(...threadItems)
+    if (browserContext && !buttonContextOpen) {
       items.push({
         key: 'browser:current',
         section: '浏览器',
@@ -775,6 +798,16 @@ export function ComposerCard({
       })
     }
     if (workspace && capabilities.fileAttachments && onAddFilePaths) {
+      const fileItemsStart = items.length
+      if (onAddFiles)
+        items.push({
+          key: 'attachment:local',
+          section: '文件和文件夹',
+          label: '从本机选择附件',
+          icon: <Paperclip size={APP_ICON_SIZE} />,
+          matchText: '添加 文件 附件',
+          onSelect: () => filePickerRef.current?.click(),
+        })
       if (contextDirectory !== '.') {
         items.push({
           key: 'files:parent',
@@ -783,6 +816,7 @@ export function ComposerCard({
           description: parentWorkspacePath(contextDirectory),
           icon: <ChevronLeft size={APP_ICON_SIZE} />,
           matchText: '返回 上一级 parent',
+          completion: 'directory',
           onSelect: () => {
             setContextDirectory(parentWorkspacePath(contextDirectory))
             if (activeMention) {
@@ -806,6 +840,8 @@ export function ComposerCard({
           section: '文件和文件夹',
           label: entry.name,
           description: entry.path,
+          searchPath: entry.path,
+          completion: entry.type === 'directory' ? 'directory' : undefined,
           meta: entry.type === 'directory' ? '进入' : undefined,
           icon:
             entry.type === 'directory' ? (
@@ -828,6 +864,7 @@ export function ComposerCard({
       if (contextEntriesLoading) {
         items.push({
           key: 'files:loading',
+          status: 'loading',
           section: '文件和文件夹',
           label: '正在加载…',
           icon: <Activity size={APP_ICON_SIZE} />,
@@ -837,18 +874,48 @@ export function ComposerCard({
         })
       } else if (contextEntriesError) {
         items.push({
+          key: 'files:error',
+          section: '文件和文件夹',
+          label: '加载失败',
+          status: 'error',
+          icon: null,
+          matchText: '',
+          onSelect: () => {},
+        })
+        items.push({
           key: 'files:retry',
           section: '文件和文件夹',
           label: '重新加载',
           description: contextEntriesError,
           icon: <Activity size={APP_ICON_SIZE} />,
           matchText: 'retry 重试 重新加载',
-          onSelect: () => setContextReloadToken((value) => value + 1),
+          completion: 'directory',
+          onSelect: reloadContext,
+        })
+      } else if (contextEntries.length === 0) {
+        items.push({
+          key: 'files:empty',
+          section: '文件和文件夹',
+          label: '此目录暂无文件',
+          status: 'empty',
+          icon: null,
+          matchText: '',
+          onSelect: () => {},
         })
       }
+      for (const item of items.slice(fileItemsStart)) item.categoryOnly = true
     }
     return items
   }, [
+    builtinSlashCommands,
+    executeCommand,
+    onSkillSelect,
+    buttonContextOpen,
+    skillCommands,
+    skillCatalogLoading,
+    capabilities.skills,
+    subagentMode,
+    onAddFiles,
     activeContextRequest,
     activeMention,
     browserContext,
@@ -858,6 +925,7 @@ export function ComposerCard({
     contextEntriesError,
     contextEntriesLoading,
     contextTasks,
+    reloadContext,
     onOpenComputerSettings,
     computerSupported,
     computerState,
@@ -866,125 +934,52 @@ export function ComposerCard({
     onAddFilePaths,
     workspace,
   ])
-  const activeMenuScopeRef = useRef('')
-  const [storedActiveMenuKey, setStoredActiveMenuKey] = useState<string | null>(null)
-  const activeMenuKeyword = reviewMenuRequested
-    ? ''
+  const activeMenuKeyword = suggestionRequest?.query ?? ''
+  const sourceMenuItems = reviewMenuRequested
+    ? reviewMenuItems
     : activeSkillQuery
-      ? activeSkillQuery.query
-      : (activeContextRequest?.query ?? activeSlashQuery?.query ?? '')
-  const activeMenuItems = useMemo(() => {
-    const source = reviewMenuRequested
-      ? reviewMenuItems
-      : activeSkillQuery
-        ? skillMenuItems
-        : activeContextRequest
-          ? mentionMenuItems
-          : slashMenuItems
-    return filterComposerMenuItems(source, activeMenuKeyword)
-  }, [
-    activeMenuKeyword,
-    activeSkillQuery,
-    activeContextRequest,
-    mentionMenuItems,
-    reviewMenuItems,
-    reviewMenuRequested,
-    skillMenuItems,
-    slashMenuItems,
-  ])
-  const unifiedMenuOpen =
-    showSlashContextDropdown ||
-    Boolean(activeContextRequest) ||
-    Boolean(activeSkillQuery) ||
-    reviewMenuRequested
+      ? skillMenuItems
+      : activeContextRequest
+        ? mentionMenuItems
+        : [
+            ...slashMenuItems,
+            ...skillMenuItems.filter((item) => item.status || item.key === 'skills:retry'),
+          ]
+  const unifiedMenuOpen = Boolean(suggestionRequest)
+  const menuScope = `${draftKey}:${suggestionRequest?.kind}:${suggestionRequest?.start}`
+  const {
+    items: activeMenuItems,
+    activeKey: activeMenuKey,
+    activeItem: activeMenuItem,
+    setActiveKey: setActiveMenuKey,
+  } = useComposerSuggestionMenu(sourceMenuItems, activeMenuKeyword, menuScope, unifiedMenuOpen)
+  const activeMenuIndex = activeMenuItems.findIndex((item) => item.key === activeMenuKey)
 
-  const activeMenuScopeKey = `${
-    reviewMenuRequested
-      ? 0
-      : activeSkillQuery
-        ? 1
-        : activeContextRequest
-          ? `2:${activeContextRequest.start}:${contextDirectory}`
-          : 3
-  }:${activeMenuKeyword}`
-  const firstActiveMenuKey = activeMenuItems[firstEnabledMenuIndex(activeMenuItems)]?.key ?? null
-  const storedActiveMenuAvailable = activeMenuItems.some(
-    (item) => item.key === storedActiveMenuKey && !item.disabled,
-  )
-  const activeMenuKey = unifiedMenuOpen
-    ? activeMenuScopeRef.current === activeMenuScopeKey && storedActiveMenuAvailable
-      ? storedActiveMenuKey
-      : firstActiveMenuKey
-    : null
-  const activeMenuItem = activeMenuItems.find((item) => item.key === activeMenuKey)
-  const activeMenuIndex = activeMenuItem ? activeMenuItems.indexOf(activeMenuItem) : -1
-
-  function setActiveMenuKey(itemKey: string | null): void {
-    activeMenuScopeRef.current = activeMenuScopeKey
-    setStoredActiveMenuKey(itemKey)
-  }
-
-  useEffect(() => {
-    if (!unifiedMenuOpen) {
-      activeMenuScopeRef.current = ''
-      return
-    }
-    if (activeMenuScopeRef.current === activeMenuScopeKey && storedActiveMenuAvailable) {
-      return
-    }
-    activeMenuScopeRef.current = activeMenuScopeKey
-    setStoredActiveMenuKey(firstActiveMenuKey)
-  }, [activeMenuScopeKey, firstActiveMenuKey, storedActiveMenuAvailable, unifiedMenuOpen])
-
-  useEffect(() => {
-    if (dismissedSlashInput !== null && dismissedSlashInput !== input) {
-      setDismissedSlashInput(null)
-    }
-  }, [dismissedSlashInput, input])
-
-  useEffect(() => {
-    if (dismissedSkillInput !== null && dismissedSkillInput !== input) {
-      setDismissedSkillInput(null)
-    }
-  }, [dismissedSkillInput, input])
-
-  useEffect(() => {
-    // Reset mention dismissal when input changes away from the @ position
-    if (dismissedMention !== null) {
-      const atIndex = input.lastIndexOf('@', dismissedMention)
-      if (atIndex === -1 || input.slice(atIndex).includes(' ')) {
-        setDismissedMention(null)
-      }
-    }
-  }, [input, dismissedMention])
-
-  function closeDropdown(): void {
+  function closeDropdown(reason?: 'outside' | 'escape'): void {
     setOpenDropdown(null)
-    setReviewMenuRequested(false)
-    setButtonContextRequest(null)
+    suggestions.dismiss()
+    if (reason !== 'outside') editorRef.current?.focus()
   }
 
-  function handleUnifiedSlashSelect(item: ComposerMenuItem): void {
-    if (item.disabled || !activeSlashQuery) return
-    editorRef.current?.replaceTextRange(activeSlashQuery.start, activeSlashQuery.end, '')
-    setDismissedSlashInput(input)
-    // Same logic as handleUnifiedPlusSelect: skip closeDropdown for items
-    // that open a sub-dropown, otherwise React batches both setOpenDropdown
-    // calls and the sub-dropdown never opens.
-    const managesOwnDropdown =
-      item.command?.source === 'builtin' &&
-      (item.command.id === 'status' ||
-        item.command.id === 'model' ||
-        item.command.id === 'reasoning' ||
-        item.command.id === 'review')
-    item.onSelect()
-    if (!managesOwnDropdown) {
-      closeDropdown()
+  function handleSuggestionSelect(item: ComposerMenuItem): void {
+    if (item.disabled || item.status || !suggestionRequest) return
+    if (
+      item.completion === 'category' ||
+      item.key === 'category:back' ||
+      item.completion === 'directory'
+    ) {
+      item.onSelect()
+      editorRef.current?.focus()
+      return
     }
-  }
-
-  function handleUnifiedMentionSelect(item: ComposerMenuItem): void {
-    if (!item.disabled) item.onSelect()
+    if (item.command || item.key === 'attachment:local') {
+      editorRef.current?.replaceTextRange(suggestionRequest.start, suggestionRequest.end, '')
+      closeDropdown()
+      item.onSelect()
+      return
+    }
+    item.onSelect()
+    if (reviewMenuRequested) closeDropdown()
   }
 
   async function addWorkspaceContextPath(
@@ -994,24 +989,12 @@ export function ComposerCard({
     if (!workspace || !onAddFilePaths) return
     try {
       await onAddFilePaths(resolveWorkspaceContextPath(workspace.path, relativePath))
+      if (requestInputRef.current !== input || contextScopeRef.current !== contextScope) return
       editorRef.current?.replaceTextRange(mention.start, mention.end, '')
       closeDropdown()
     } catch (error) {
       onCommandError?.(error instanceof Error ? error.message : String(error))
     }
-  }
-
-  function handleSkillQuerySelect(item: ComposerMenuItem): void {
-    if (item.disabled || !activeSkillQuery) return
-    editorRef.current?.replaceTextRange(activeSkillQuery.start, activeSkillQuery.end, '')
-    item.onSelect()
-    closeDropdown()
-  }
-
-  function handleReviewSelect(item: ComposerMenuItem): void {
-    if (item.disabled) return
-    item.onSelect()
-    setReviewMenuRequested(false)
   }
 
   function handleDirectSlashSubmission(): boolean {
@@ -1162,6 +1145,7 @@ export function ComposerCard({
                 if (skill) onSkillTokenActivate?.(skill)
               }}
               onSelectionChange={setSelectionStart}
+              onBlur={suggestions.dismiss}
               onCompositionChange={(composing) => {
                 setIsComposing(composing)
                 if (composing) onCompositionStart?.()
@@ -1195,50 +1179,27 @@ export function ComposerCard({
                     event.preventDefault()
                     const boundaryIndex =
                       event.key === 'Home'
-                        ? firstEnabledMenuIndex(activeMenuItems)
-                        : lastEnabledMenuIndex(activeMenuItems)
+                        ? nextEnabledMenuIndex(activeMenuItems, -1, 1)
+                        : nextEnabledMenuIndex(activeMenuItems, 0, -1)
                     const boundaryItem = activeMenuItems[boundaryIndex]
                     if (boundaryItem) setActiveMenuKey(boundaryItem.key)
                     return true
                   }
-                  if (event.key === 'Enter' && !event.shiftKey) {
+                  if ((event.key === 'Enter' || event.key === 'Tab') && !event.shiftKey) {
                     const item = activeMenuItem
+                    event.preventDefault()
                     if (item && !item.disabled) {
-                      event.preventDefault()
-                      if (reviewMenuRequested) handleReviewSelect(item)
-                      else if (activeSkillQuery) handleSkillQuerySelect(item)
-                      else if (activeContextRequest) handleUnifiedMentionSelect(item)
-                      else handleUnifiedSlashSelect(item)
-                      return true
+                      handleSuggestionSelect(item)
                     }
+                    return true
                   }
                 }
 
                 // Escape: dismiss dropdowns or interrupt session
                 if (event.key === 'Escape') {
-                  if (showSlashContextDropdown) {
+                  if (unifiedMenuOpen) {
                     event.preventDefault()
-                    setDismissedSlashInput(input)
-                    return true
-                  }
-                  if (activeMention) {
-                    event.preventDefault()
-                    setDismissedMention(activeMention.start)
-                    return true
-                  }
-                  if (buttonContextOpen) {
-                    event.preventDefault()
-                    setButtonContextRequest(null)
-                    return true
-                  }
-                  if (activeSkillQuery) {
-                    event.preventDefault()
-                    setDismissedSkillInput(input)
-                    return true
-                  }
-                  if (reviewMenuRequested) {
-                    event.preventDefault()
-                    setReviewMenuRequested(false)
+                    closeDropdown()
                     return true
                   }
                   if (sessionStatus === 'running' || sessionStatus === 'waiting') {
@@ -1279,76 +1240,31 @@ export function ComposerCard({
           </Suspense>
         </div>
 
-        <ChatInputDropdown
-          open={showSlashContextDropdown}
-          side={contextDropdownSide}
-          width="100%"
-          maxWidth="100%"
-          onClose={() => {
-            setDismissedSlashInput(input)
+        <input
+          hidden
+          multiple
+          ref={filePickerRef}
+          type="file"
+          onChange={(event) => {
+            if (event.target.files?.length) onAddFiles?.(event.target.files)
+            event.target.value = ''
           }}
-        >
-          <ComposerCommandMenu
-            id={menuId}
-            activeKey={activeMenuKey}
-            items={slashMenuItems}
-            keyword={activeSlashQuery?.query ?? ''}
-            onActiveKeyChange={setActiveMenuKey}
-            onItemSelect={handleUnifiedSlashSelect}
-          />
-        </ChatInputDropdown>
-
+        />
         <ChatInputDropdown
-          open={Boolean(activeSkillQuery)}
+          open={unifiedMenuOpen}
           side={contextDropdownSide}
           width="100%"
           maxWidth="100%"
-          onClose={() => setDismissedSkillInput(input)}
+          suggestion
+          onClose={closeDropdown}
         >
           <ComposerCommandMenu
             id={menuId}
             activeKey={activeMenuKey}
-            items={skillMenuItems}
-            keyword={activeSkillQuery?.query ?? ''}
+            items={activeMenuItems}
+            keyword={activeMenuKeyword}
             onActiveKeyChange={setActiveMenuKey}
-            onItemSelect={handleSkillQuerySelect}
-          />
-        </ChatInputDropdown>
-
-        <ChatInputDropdown
-          open={reviewMenuRequested}
-          side={contextDropdownSide}
-          width="100%"
-          maxWidth="100%"
-          onClose={() => setReviewMenuRequested(false)}
-        >
-          <ComposerCommandMenu
-            id={menuId}
-            activeKey={activeMenuKey}
-            items={reviewMenuItems}
-            keyword=""
-            onActiveKeyChange={setActiveMenuKey}
-            onItemSelect={handleReviewSelect}
-          />
-        </ChatInputDropdown>
-
-        <ChatInputDropdown
-          open={Boolean(activeContextRequest)}
-          side={contextDropdownSide}
-          width="100%"
-          maxWidth="100%"
-          onClose={() => {
-            if (activeMention) setDismissedMention(activeMention.start)
-            setButtonContextRequest(null)
-          }}
-        >
-          <ComposerCommandMenu
-            id={menuId}
-            activeKey={activeMenuKey}
-            items={mentionMenuItems}
-            keyword={activeContextRequest?.query ?? ''}
-            onActiveKeyChange={setActiveMenuKey}
-            onItemSelect={handleUnifiedMentionSelect}
+            onItemSelect={handleSuggestionSelect}
           />
         </ChatInputDropdown>
 
@@ -1362,19 +1278,9 @@ export function ComposerCard({
               title="添加文件等内容"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
-                if (buttonContextOpen) {
-                  setButtonContextRequest(null)
-                  return
-                }
-                setButtonContextRequest({
-                  start: selectionStart,
-                  end: selectionStart,
-                  query: '',
-                  input,
-                })
-                setDismissedMention(activeMention?.start ?? null)
-                setDismissedSlashInput(input)
-                setDismissedSkillInput(input)
+                if (buttonContextOpen) closeDropdown()
+                else suggestions.openPlus()
+                editorRef.current?.focus()
               }}
             >
               <Plus size={APP_ICON_SIZE} />
@@ -1945,10 +1851,20 @@ function composerCommandMenuItem(
   onSkillSelect: ((skill: ComposerSkillCommand) => void) | undefined,
 ): ComposerMenuItem {
   return {
-    key: command.source === 'skill' ? `skill-${command.trigger}` : `slash-${command.id}`,
+    key: command.source === 'skill' ? `skill-${command.skill.path}` : `slash-${command.id}`,
+    section: command.source === 'skill' ? '技能' : '命令',
+    searchPath: command.source === 'skill' ? command.skill.path : undefined,
+    completion:
+      command.source === 'builtin' &&
+      ['model', 'reasoning', 'status', 'review'].includes(command.id)
+        ? 'submenu'
+        : undefined,
     label: command.title,
     description: command.description,
-    meta: command.source === 'skill' ? skillScopeLabel(command.skill.scope) : undefined,
+    meta:
+      command.source === 'skill'
+        ? `${skillScopeLabel(command.skill.scope)} · ${{ workspace: '项目', user: '本地', system: '系统', admin: '管理员' }[command.skill.source]}`
+        : undefined,
     icon:
       command.source === 'skill' ? (
         <BuiltinSkillIcon skill={command.skill} size={14} />
@@ -2029,57 +1945,4 @@ export function resolveComposerSubmitIntent(
 ): ComposerDeliveryIntent | null {
   if (!shouldSubmitComposerKey(event, shortcut, input)) return null
   return event.ctrlKey || event.metaKey ? 'follow-up' : 'default'
-}
-
-function firstEnabledMenuIndex(items: ComposerMenuItem[]): number {
-  return items.findIndex((item) => !item.disabled)
-}
-
-function lastEnabledMenuIndex(items: ComposerMenuItem[]): number {
-  for (let index = items.length - 1; index >= 0; index -= 1) {
-    if (!items[index]?.disabled) return index
-  }
-  return -1
-}
-
-function nextEnabledMenuIndex(
-  items: ComposerMenuItem[],
-  current: number,
-  direction: 1 | -1,
-): number {
-  if (items.length === 0) return -1
-  let index = current
-  for (let attempts = 0; attempts < items.length; attempts += 1) {
-    index = (index + direction + items.length) % items.length
-    if (!items[index]?.disabled) return index
-  }
-  return -1
-}
-
-/**
- * Detects an active @mention query before the text cursor.
- * Returns the range and query text, or null if no active mention.
- *
- * Rules:
- * - `@` must be at line start or preceded by whitespace
- * - Query is the continuous text after `@` up to the cursor
- * - Returns null when cursor is not at the end of the mention text
- */
-export function getActiveComposerMention(
-  input: string,
-  selectionStart: number | null,
-): { start: number; end: number; query: string } | null {
-  if (selectionStart == null || selectionStart <= 0) return null
-  const textBefore = input.slice(0, selectionStart)
-  const atIndex = textBefore.lastIndexOf('@')
-  if (atIndex === -1) return null
-  if (atIndex > 0 && !/\s/u.test(input[atIndex - 1] ?? '')) return null
-  const query = textBefore.slice(atIndex + 1)
-  if (query.includes(' ')) return null
-  // Cursor must be at end of query — no valid mention chars immediately after
-  const charAfterCursor = input[selectionStart]
-  if (charAfterCursor && /[a-zA-Z0-9\u4e00-\u9fff-]/.test(charAfterCursor)) {
-    return null
-  }
-  return { start: atIndex, end: selectionStart, query }
 }

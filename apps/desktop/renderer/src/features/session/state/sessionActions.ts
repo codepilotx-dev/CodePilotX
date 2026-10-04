@@ -15,6 +15,7 @@ import type {
   DesktopSessionStatus,
   DesktopThinkingMode,
   DesktopUserMessageInput,
+  DesktopGoalSubmission,
   DesktopWorkspace,
 } from '../../../../shared/types.js'
 import type { SessionListItem, SessionViewState } from '../../../uiTypes.js'
@@ -223,11 +224,14 @@ export async function submitSessionMessageAction(
     sessionStatus?: DesktopSessionStatus
     delivery?: 'default' | 'follow-up'
     inputId?: string
+    goal?: DesktopGoalSubmission
     propagateError?: boolean
   },
 ): Promise<'sent' | 'queued' | 'steered' | null> {
   if (!canSubmit || !sessionId) return null
-  const delivery = resolveSessionMessageDelivery(options?.sessionStatus, options?.delivery)
+  const delivery = options?.goal
+    ? 'start'
+    : resolveSessionMessageDelivery(options?.sessionStatus, options?.delivery)
   const modelSelection: DesktopModelSelection = {
     variant: settings.variant,
     providerID: settings.providerID,
@@ -254,7 +258,13 @@ export async function submitSessionMessageAction(
         modelSelection,
       )
     }
-    await desktopClient.sendUserMessage(sessionId, input, modelSelection, options?.inputId)
+    await desktopClient.sendUserMessage(
+      sessionId,
+      input,
+      modelSelection,
+      options?.inputId,
+      options?.goal,
+    )
     return 'sent'
   } catch (error) {
     onErrorRef.current(errorMessageOf(error, 'thread-send'))

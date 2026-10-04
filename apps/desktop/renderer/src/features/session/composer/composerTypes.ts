@@ -144,6 +144,7 @@ export type ComposerDraft = {
   >
   skillInvocation?: ComposerSkillInvocation
   skills?: ComposerSkillInvocation[]
+  goalModeEnabled?: boolean
   collaborationMode: ComposerCollaborationMode
   suggestionOrigin?: string
 }

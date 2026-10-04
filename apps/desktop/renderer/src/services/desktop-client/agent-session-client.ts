@@ -3510,15 +3510,24 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.disposeSession(sessionId),
       ),
-    sendUserMessage: async (sessionId, input, model, inputId) =>
+    sendUserMessage: async (sessionId, input, model, inputId, goal) =>
       withAgentOrMock(
         async () => {
-          await turnQueueClient.submitMessage(sessionId, input, 'start', {
-            model,
-            inputId,
-          })
+          const submit = async () => {
+            if (goal) requireAgentCapability('thread.goal.v1')
+            const current = goal
+              ? (await rpc.call('thread/goal/get', { threadId: sessionId })).goal
+              : null
+            await turnQueueClient.submitMessage(sessionId, input, 'start', {
+              model,
+              inputId,
+              ...(goal ? { goal: { ...goal, expectedVersion: current?.version ?? null } } : {}),
+            })
+          }
+          if (goal) await runGoalMutation(submit)
+          else await submit()
         },
-        () => mockClient.sendUserMessage(sessionId, input, model),
+        () => mockClient.sendUserMessage(sessionId, input, model, inputId, goal),
       ),
     submitSessionFollowUp: async (
       sessionId: string,

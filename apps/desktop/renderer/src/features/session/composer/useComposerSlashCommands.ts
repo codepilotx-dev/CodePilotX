@@ -88,7 +88,10 @@ export function useComposerSlashCommands({
         planModeActive ? '关闭计划模式' : '开启计划模式',
         !subagentMode,
         Boolean(onPlanModeChange),
-        () => onPlanModeChange?.(!planModeActive),
+        () => {
+          if (!planModeActive) onGoalModeChange?.(false)
+          onPlanModeChange?.(!planModeActive)
+        },
       ),
       command(
         'goal',
@@ -97,6 +100,7 @@ export function useComposerSlashCommands({
         capabilities.goals && !subagentMode,
         Boolean(onGoalModeChange),
         () => {
+          if (planModeActive) onPlanModeChange?.(false)
           if (!goalModeEnabled) onGoalModeChange?.(true)
         },
       ),

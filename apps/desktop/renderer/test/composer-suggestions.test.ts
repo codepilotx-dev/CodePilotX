@@ -39,6 +39,23 @@ import {
 } from '../src/features/session/workingSuggestions.js'
 
 describe('composer suggestions', () => {
+  test('技能刷新不复用旧请求，晚到的目录不会覆盖新缓存', async () => {
+    const workspace = `race-${crypto.randomUUID()}`
+    const resolvers: Array<(skills: ReturnType<typeof installedSkill>[]) => void> = []
+    const loader = () =>
+      new Promise<ReturnType<typeof installedSkill>[]>((resolve) => {
+        resolvers.push(resolve)
+      })
+    const old = loadCachedRuntimeSkills(workspace, false, loader)
+    const fresh = loadCachedRuntimeSkills(workspace, true, loader)
+    resolvers[1]!([installedSkill('fresh')])
+    await fresh
+    resolvers[0]!([installedSkill('old')])
+    await old
+    expect(
+      (await loadCachedRuntimeSkills(workspace, false, loader)).map((skill) => skill.name),
+    ).toEqual(['fresh'])
+  })
   test('loads enabled runtime skills once per workspace and refreshes on demand', async () => {
     let calls = 0
     const loader = async () => {

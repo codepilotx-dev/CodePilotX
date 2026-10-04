@@ -15,9 +15,10 @@ import {
 
 type Props = {
   open: boolean
-  onClose: () => void
+  onClose: (reason?: 'outside' | 'escape') => void
   side?: 'top' | 'bottom'
   children: React.ReactNode
+  suggestion?: boolean
 } & PopoverSizingProps
 
 export type ComputeDropdownMaxHeightInput = {
@@ -56,6 +57,7 @@ export function ChatInputDropdown({
   width,
   maxWidth,
   children,
+  suggestion = false,
 }: Props): React.ReactNode | null {
   const ref = useRef<HTMLDivElement | null>(null)
   const [maxHeight, setMaxHeight] = useState<number | null>(null)
@@ -72,17 +74,20 @@ export function ChatInputDropdown({
           side,
           anchorTop,
           windowHeight: window.innerHeight,
-          maxCap: DROPDOWN_MAX_CAP,
+          maxCap: suggestion ? 320 : DROPDOWN_MAX_CAP,
           safetyMargin: DROPDOWN_SAFETY_MARGIN,
         }),
       )
     }
     measure()
     window.addEventListener('resize', measure)
+    const observer = new ResizeObserver(measure)
+    if (ref.current.parentElement) observer.observe(ref.current.parentElement)
     return () => {
       window.removeEventListener('resize', measure)
+      observer.disconnect()
     }
-  }, [open, side])
+  }, [open, side, suggestion])
 
   useEffect(() => {
     if (!open) return
@@ -91,13 +96,13 @@ export function ChatInputDropdown({
       const target = e.target as HTMLElement | null
       if (!target) return
       if (shouldCloseChatInputDropdownForClick(target)) {
-        onClose()
+        onClose('outside')
       }
     }
 
     function onEscKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        onClose()
+      if (e.key === 'Escape' && !e.defaultPrevented && !e.isComposing && e.keyCode !== 229) {
+        onClose('escape')
       }
     }
 
@@ -112,9 +117,11 @@ export function ChatInputDropdown({
   const style: React.CSSProperties = buildPopoverSizingStyle({ width, maxWidth })
   if (maxHeight !== null) {
     style.maxHeight = `${maxHeight}px`
-    style.overflowY = 'auto'
+    style.overflowY = suggestion ? 'hidden' : 'auto'
     style.overflowX = 'hidden'
   }
+  if (suggestion)
+    Object.assign(style, { '--composer-suggestion-max-height': `${maxHeight ?? 320}px` })
 
   return (
     <AnimatePresence initial={false}>
@@ -124,6 +131,7 @@ export function ChatInputDropdown({
           maxHeightStyle={style}
           ref={ref}
           side={side}
+          suggestion={suggestion}
         >
           {children}
         </ChatInputDropdownSurface>
@@ -137,11 +145,13 @@ function ChatInputDropdownSurface({
   maxHeightStyle,
   ref,
   side,
+  suggestion,
 }: {
   children: React.ReactNode
   maxHeightStyle: React.CSSProperties
   ref: React.Ref<HTMLDivElement>
   side: 'top' | 'bottom'
+  suggestion: boolean
 }): React.ReactNode {
   const isPresent = useIsPresent()
   const reducedMotion = usePrefersReducedMotion()
@@ -154,6 +164,7 @@ function ChatInputDropdownSurface({
       className={[
         'popover-surface',
         'chat-input__dropdown',
+        suggestion ? 'chat-input__dropdown--suggestion' : '',
         side === 'bottom' ? 'chat-input__dropdown--bottom' : '',
       ].join(' ')}
       data-presence={isPresent ? 'present' : 'exiting'}

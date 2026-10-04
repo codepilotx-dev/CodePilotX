@@ -1,6 +1,6 @@
 import type { ModelRef } from '@codepilotx/shared'
 import type { PermissionConfig, ThreadSnapshot } from '@codepilotx/shared/thread'
-import type { RpcResult } from '@codepilotx/agent-protocol'
+import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
 import { desktopUserMessageInputToPreviewText } from '../../../shared/desktopUserMessage.js'
 import type {
   DesktopModelSelection,
@@ -11,6 +11,7 @@ import { createAgentRpcClient } from '../agentRpcClient.js'
 
 type AgentRpcClient = ReturnType<typeof createAgentRpcClient>
 type QueueStateResult = RpcResult<'queue/update'>
+type TurnGoal = NonNullable<RpcParams<'turn/start'>['goal']>
 
 export type AgentMessageDelivery = 'start' | 'steer' | 'follow-up'
 
@@ -59,10 +60,24 @@ export function createAgentTurnQueueClient({
     options?: {
       inputId?: string
       model?: string | DesktopModelSelection
-      goal?: { objective: string; tokenBudget?: number | null; expectedVersion: number | null }
+      goal?: TurnGoal
     },
   ): Promise<AgentMessageAdmission> {
     await awaitPendingSettingsUpdate(sessionId)
+    if (options?.goal) {
+      const snapshot = await loadThreadSnapshot(sessionId)
+      if (
+        delivery !== 'start' ||
+        snapshot.turns.some(
+          (turn) =>
+            turn.status === 'queued' ||
+            turn.status === 'running' ||
+            turn.status.startsWith('waiting-'),
+        )
+      )
+        throw new Error('当前任务正在执行，请等待本轮结束后提交目标')
+      if (taskModeForSession(sessionId) === 'plan') throw new Error('请先退出计划模式再提交目标')
+    }
     if (input.skills?.length) requireSkillInvocationCapability?.()
     const { attachmentIds, contextReferenceIds } = await importMessageContext(sessionId, input)
     const content = desktopUserMessageInputToPreviewText({ ...input, skills: undefined })
@@ -176,7 +191,7 @@ export function createAgentTurnQueueClient({
     attachmentIds: string[],
     contextReferenceIds: string[],
     model: string | DesktopModelSelection | undefined,
-    goal?: { objective: string; tokenBudget?: number | null; expectedVersion: number | null },
+    goal?: TurnGoal,
     skills?: DesktopUserMessageInput['skills'],
   ): Promise<void> {
     await rpc.call('turn/start', {

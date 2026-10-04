@@ -108,6 +108,7 @@ export type ComposerEditorProps = {
   onCompositionChange: (composing: boolean) => void
   onKeyDown: (event: KeyboardEvent) => boolean
   onPasteFiles?: (files: FileList) => boolean
+  onBlur?: () => void
 }
 
 export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorProps>(
@@ -127,6 +128,7 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
       onCompositionChange,
       onKeyDown,
       onPasteFiles,
+      onBlur,
     },
     forwardedRef,
   ) {
@@ -141,6 +143,7 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
       onCompositionChange,
       onKeyDown,
       onPasteFiles,
+      onBlur,
     })
 
     callbacksRef.current = {
@@ -151,6 +154,7 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
       onCompositionChange,
       onKeyDown,
       onPasteFiles,
+      onBlur,
     }
 
     useImperativeHandle(
@@ -265,6 +269,10 @@ export const ComposerEditor = forwardRef<ComposerEditorHandle, ComposerEditorPro
             : false
         },
         handleDOMEvents: {
+          blur: () => {
+            if (window.document.hasFocus()) callbacksRef.current.onBlur?.()
+            return false
+          },
           compositionstart: () => {
             callbacksRef.current.onCompositionChange(true)
             return false

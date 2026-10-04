@@ -119,8 +119,8 @@ export function getActiveSlashCommandQuery(
 ): ComposerTokenQuery | null {
   if (selectionStart == null || selectionStart <= 0) return null
   const beforeCursor = input.slice(0, selectionStart)
-  const match = beforeCursor.match(/(?:^|\s)\/([^\s/]*)$/u)
-  if (!match) return null
+  const match = beforeCursor.match(/(?:^|[\s([{])\/([^\s/]*)$/u)
+  if (!match || /^[^\s]/u.test(input.slice(selectionStart))) return null
   const token = match[0]
   const markerOffset = token.lastIndexOf('/')
   return {
@@ -155,7 +155,7 @@ export function getActiveSkillTokenQuery(
 ): ComposerTokenQuery | null {
   if (selectionStart == null || selectionStart <= 0) return null
   const beforeCursor = input.slice(0, selectionStart)
-  const match = beforeCursor.match(/(?:^|\s)\$([^\s$]*)$/u)
+  const match = beforeCursor.match(/(?:^|[\s([{])\$([^\s$]*)$/u)
   if (!match) return null
   const token = match[0]
   const markerOffset = token.lastIndexOf('$')

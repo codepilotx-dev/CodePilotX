@@ -204,6 +204,11 @@ export type DesktopComposerAttachment = {
   truncated?: boolean
 }
 
+export type DesktopGoalSubmission = Omit<
+  NonNullable<RpcParams<'turn/start'>['goal']>,
+  'expectedVersion'
+>
+
 export type DesktopUserMessageInput = {
   text: string
   skills?: readonly import('@codepilotx/agent-protocol').SkillSelection[]
@@ -1937,6 +1942,7 @@ export type DesktopApi = {
     content: DesktopUserMessageInput,
     model?: string | DesktopModelSelection,
     inputId?: string,
+    goal?: DesktopGoalSubmission,
   ): Promise<void>
   respondToPermission(
     sessionId: string,

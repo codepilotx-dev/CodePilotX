@@ -7,6 +7,8 @@ import {
   resolveThinkingOptions,
 } from '../src/features/session/composer/ThinkingLevelPopover.js'
 import { resolveComposerCanSubmit } from '../src/features/session/composer/useDesktopComposerController.js'
+import { useComposerSlashCommands } from '../src/features/session/composer/useComposerSlashCommands.js'
+import { DEFAULT_COMPOSER_CAPABILITIES } from '../src/features/session/composer/composerTypes.js'
 
 type ComposerCardProps = Parameters<typeof ComposerCard>[0]
 
@@ -58,6 +60,45 @@ function composerCardProps(overrides: Partial<ComposerCardProps> = {}): Composer
 }
 
 describe('composer surface variant', () => {
+  test('Goal 与 Plan 输入状态互斥，动作不删除持久化目标', async () => {
+    const changes: string[] = []
+    let commands: ReturnType<typeof useComposerSlashCommands>['commands'] = []
+    function Harness({ plan }: { plan: boolean }) {
+      commands = useComposerSlashCommands({
+        capabilities: DEFAULT_COMPOSER_CAPABILITIES,
+        planModeActive: plan,
+        goalModeEnabled: !plan,
+        hasConversationMessages: true,
+        hasThread: true,
+        canReview: false,
+        subagentMode: false,
+        sessionBusy: false,
+        reasoningAvailable: false,
+        showThreadActions: false,
+        showNewSessionActions: false,
+        canFork: false,
+        hasProject: false,
+        onOpenModel: () => {},
+        onOpenReasoning: () => {},
+        onOpenStatus: () => {},
+        onOpenReview: () => {},
+        onGoalModeChange: (active) => {
+          changes.push(`goal:${active}`)
+        },
+        onPlanModeChange: (active) => {
+          changes.push(`plan:${active}`)
+        },
+      }).commands
+      return null
+    }
+    renderToStaticMarkup(<Harness plan />)
+    await commands.find((command) => command.id === 'goal')?.execute()
+    expect(changes).toEqual(['plan:false', 'goal:true'])
+    changes.length = 0
+    renderToStaticMarkup(<Harness plan={false} />)
+    await commands.find((command) => command.id === 'plan')?.execute()
+    expect(changes).toEqual(['goal:false', 'plan:true'])
+  })
   test('Coding、Working 与 Chat 输出各自的 data-surface 标记', () => {
     const coding = renderToStaticMarkup(
       <ComposerCard {...composerCardProps({ surface: 'coding' })} />,

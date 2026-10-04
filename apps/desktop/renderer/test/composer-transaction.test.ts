@@ -25,6 +25,82 @@ function draft(overrides: Partial<ComposerDraft> = {}): ComposerDraft {
 }
 
 describe('composer submit transaction', () => {
+  test.each([false, true])('Goal 首轮完整提交，new-session=%s', async (isNew) => {
+    const source = draft({
+      goalModeEnabled: true,
+      skills: [{ name: 'repair', path: 'skills/repair' }],
+      attachments: [
+        {
+          id: 'attachment-1',
+          name: 'context.txt',
+          mimeType: 'text/plain',
+          sizeBytes: 4,
+          kind: 'text',
+          status: 'ready',
+        },
+      ],
+    })
+    const calls: Array<unknown> = []
+    const outcome = await executeComposerSubmitTransaction({
+      draft: source,
+      targetSessionId: isNew ? null : 'session:existing',
+      createSession: async () => 'session:new',
+      submitToSession: async (sessionId, input, metadata) => {
+        calls.push({ sessionId, input, metadata })
+        return 'sent'
+      },
+    })
+    expect(outcome.status).toBe('sent')
+    expect(calls).toEqual([
+      {
+        sessionId: isNew ? 'session:new' : 'session:existing',
+        input: {
+          text: source.document.text,
+          attachments: source.attachments,
+          skills: source.skills,
+        },
+        metadata: { inputId: 'draft-1', goal: { objective: source.document.text } },
+      },
+    ])
+  })
+  test('Goal 草稿迁移后失败保持目标输入状态与提交身份，空目标不创建聊天', async () => {
+    const store = new ComposerDraftStore(() => 'draft:next')
+    store.set(
+      'home',
+      draft({ goalModeEnabled: true, skills: [{ name: 'repair', path: 'skills/repair' }] }),
+    )
+    await executeComposerSubmitTransaction({
+      draft: store.get('home'),
+      createSession: async () => 'new',
+      navigateToSession: () => {
+        store.handoff('home', 'session:new')
+      },
+      submitToSession: async () => {
+        throw new Error('冲突')
+      },
+    })
+    expect(store.get('session:new')).toMatchObject({
+      clientId: 'draft-1',
+      goalModeEnabled: true,
+      skills: [{ name: 'repair', path: 'skills/repair' }],
+    })
+    expect(store.get('home').goalModeEnabled).toBeUndefined()
+    let created = false
+    const empty = await executeComposerSubmitTransaction({
+      draft: draft({
+        goalModeEnabled: true,
+        document: createComposerDocument(''),
+        skills: [{ name: 'repair', path: 'skills/repair' }],
+      }),
+      createSession: async () => {
+        created = true
+        return 'unexpected'
+      },
+      submitToSession: async () => 'sent',
+    })
+    expect(empty).toMatchObject({ status: 'failed', phase: 'prepare', message: '请输入目标内容' })
+    expect(created).toBeFalse()
+  })
   test('连续选择与发送后再次选择从当前草稿追加，提交保留全部 Skill', () => {
     const store = new ComposerDraftStore(() => 'draft-1')
     const review = { name: 'review', path: 'skills/review' }

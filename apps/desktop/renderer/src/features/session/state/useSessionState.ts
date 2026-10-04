@@ -18,6 +18,7 @@ import type {
   DesktopSessionStatus,
   DesktopThinkingMode,
   DesktopUserMessageInput,
+  DesktopGoalSubmission,
   DesktopWorkflowEvent,
   DesktopWorkspace,
   LocalRouterMode,
@@ -141,6 +142,7 @@ export type UseSessionStateResult = {
     options?: {
       delivery?: 'default' | 'follow-up'
       inputId?: string
+      goal?: DesktopGoalSubmission
       propagateError?: boolean
     },
   ) => Promise<'sent' | 'queued' | 'steered' | null>
@@ -750,6 +752,7 @@ export function useSessionState(options: UseSessionStateOptions): UseSessionStat
       options?: {
         delivery?: 'default' | 'follow-up'
         inputId?: string
+        goal?: DesktopGoalSubmission
         propagateError?: boolean
       },
     ): Promise<'sent' | 'queued' | 'steered' | null> => {
@@ -782,6 +785,7 @@ export function useSessionState(options: UseSessionStateOptions): UseSessionStat
           delivery: options?.delivery,
           inputId: options?.inputId,
           propagateError: options?.propagateError,
+          goal: options?.goal,
         },
       )
     },

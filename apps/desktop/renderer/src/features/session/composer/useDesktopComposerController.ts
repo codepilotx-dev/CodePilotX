@@ -6,8 +6,8 @@ import type {
   DesktopModelMetadata,
   DesktopPermissionMode,
   DesktopUserMessageInput,
+  DesktopGoalSubmission,
   DesktopWorkspace,
-  ModelProviderID,
   ThreadCreationSurface,
 } from '../../../../shared/types.js'
 import { hasBlockingComposerAttachmentErrors } from '../../../../shared/desktopUserMessage.js'
@@ -48,8 +48,8 @@ type ControllerOptions = {
   permissionMode: DesktopPermissionMode
   enableAutoReviewPermissionMode: boolean
   enableFullAccessPermissionMode: boolean
-  codingModel?: string
   planModeActive: boolean
+  sessionBusy: boolean
   modelConfigured: boolean
   selectedModelMetadata?: DesktopModelMetadata
   workspace: DesktopWorkspace | null
@@ -69,7 +69,6 @@ type ControllerOptions = {
     snapshot: ComposerDraftContentSnapshot,
   ) => boolean | void
   onPermissionChange: (value: DesktopPermissionMode) => void
-  onProviderModelChange: (providerID: ModelProviderID, modelPresetID: string) => void
   createSessionForWorkspace: (
     target?: DesktopWorkspace | null,
     initialSessionName?: string,
@@ -84,6 +83,7 @@ type ControllerOptions = {
     options?: {
       delivery?: ComposerDeliveryIntent
       inputId?: string
+      goal?: DesktopGoalSubmission
       propagateError?: boolean
     },
   ) => Promise<'sent' | 'queued' | 'steered' | null>
@@ -139,8 +139,8 @@ export function useDesktopComposerController({
   permissionMode,
   enableAutoReviewPermissionMode,
   enableFullAccessPermissionMode,
-  codingModel,
   planModeActive,
+  sessionBusy,
   modelConfigured,
   selectedModelMetadata,
   workspace,
@@ -154,13 +154,18 @@ export function useDesktopComposerController({
   onRemoveAttachmentForDraft,
   onDraftAccepted,
   onPermissionChange,
-  onProviderModelChange,
   createSessionForWorkspace,
   submitToSession,
   onError,
 }: ControllerOptions) {
   const navigate = useNavigate()
-  const [goalModeEnabled, setGoalModeEnabled] = useState(false)
+  const [goalModeEnabled, updateGoalModeEnabled] = useState(() =>
+    Boolean(composerDraftStore.get(draftKey).goalModeEnabled),
+  )
+  function setGoalModeEnabled(enabled: boolean): void {
+    composerDraftStore.update(draftKey, (draft) => ({ ...draft, goalModeEnabled: enabled }))
+    updateGoalModeEnabled(enabled)
+  }
   const [isComposing, setIsComposing] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [lastSubmitOutcome, setLastSubmitOutcome] = useState<ComposerSubmitOutcome | null>(null)
@@ -174,6 +179,8 @@ export function useDesktopComposerController({
   const activeDraftKeyRef = useRef<ComposerDraftKey>(draftKey)
   const [skillCommands, setSkillCommands] = useState<ComposerSkillCommand[]>([])
   const [runtimeSkillsLoaded, setRuntimeSkillsLoaded] = useState(false)
+  const [runtimeSkillsError, setRuntimeSkillsError] = useState<string | null>(null)
+  const [skillsReloadVersion, setSkillsReloadVersion] = useState(0)
   const [selectedSkillTokens, setSelectedSkillTokens] = useState<ComposerSkillCommand[]>(() =>
     restoreSkillTokens(draftSkills(initialDraftRef.current), []),
   )
@@ -212,16 +219,24 @@ export function useDesktopComposerController({
     attachments.length > 0 ||
     activeSkillToken !== null ||
     contextTokens.length > 0
-  const canSubmit = resolveComposerCanSubmit({
-    workingPluginSkillUnavailable,
-    hasContent: hasComposerContent,
-    hasAttachmentErrors,
-    unsupportedAttachmentReason,
-    modelConfigured,
-    isSubmitting,
-    placement,
-    routedSessionId,
-  })
+  const goalSubmitDisabledReason =
+    goalModeEnabled && sessionBusy
+      ? '当前任务正在执行，请等待本轮结束后提交目标'
+      : goalModeEnabled && !input.trim()
+        ? '请输入目标内容'
+        : null
+  const canSubmit =
+    !goalSubmitDisabledReason &&
+    resolveComposerCanSubmit({
+      workingPluginSkillUnavailable,
+      hasContent: hasComposerContent,
+      hasAttachmentErrors,
+      unsupportedAttachmentReason,
+      modelConfigured,
+      isSubmitting,
+      placement,
+      routedSessionId,
+    })
   const attachmentIds = useMemo(
     () => new Set(attachments.map((attachment) => attachment.id)),
     [attachments],
@@ -267,6 +282,7 @@ export function useDesktopComposerController({
         setDraftStoreVersion((value) => value + 1)
         const currentDraft = composerDraftStore.get(draftKey)
         draftClientIdRef.current = currentDraft.clientId
+        updateGoalModeEnabled(Boolean(currentDraft.goalModeEnabled))
         setSelectedSkillTokens(restoreSkillTokens(draftSkills(currentDraft), skillCommands))
         setContextTokens((current) =>
           sameContextTokens(current, contextTokensFromDocument(currentDraft.document.tokens)),
@@ -279,7 +295,7 @@ export function useDesktopComposerController({
     if (activeDraftKeyRef.current === draftKey) return
     activeDraftKeyRef.current = draftKey
     const nextDraft = composerDraftStore.get(draftKey)
-    setGoalModeEnabled(false)
+    updateGoalModeEnabled(Boolean(nextDraft.goalModeEnabled))
     setSelectedSkillTokens(restoreSkillTokens(draftSkills(nextDraft), skillCommands))
     setContextTokens(contextTokensFromDocument(nextDraft.document.tokens))
     setLastSubmitOutcome(null)
@@ -304,12 +320,16 @@ export function useDesktopComposerController({
       return
     }
     let cancelled = false
-    setRuntimeSkillsLoaded(false)
-    const load = (forceReload = false) =>
-      loadCachedRuntimeSkills(workspace?.path, forceReload)
+    let generation = 0
+    const load = (forceReload = false) => {
+      const request = ++generation
+      setRuntimeSkillsLoaded(false)
+      setRuntimeSkillsError(null)
+      setSkillCommands([])
+      return loadCachedRuntimeSkills(workspace?.path, forceReload)
         .then((skills) => skills.map(skillToComposerCommand))
         .then((commands) => {
-          if (!cancelled) {
+          if (!cancelled && request === generation) {
             setSkillCommands(commands)
             setRuntimeSkillsLoaded(true)
             setSelectedSkillTokens(
@@ -317,13 +337,14 @@ export function useDesktopComposerController({
             )
           }
         })
-        .catch(() => {
-          if (!cancelled) {
-            setSkillCommands([])
+        .catch((error) => {
+          if (!cancelled && request === generation) {
+            setRuntimeSkillsError(toUserErrorMessage(error))
             setRuntimeSkillsLoaded(true)
           }
         })
-    void load()
+    }
+    void load(skillsReloadVersion > 0)
     const unsubscribe = desktopClient.onRuntimeSkillsUpdated(() => {
       void load(true)
     })
@@ -331,7 +352,7 @@ export function useDesktopComposerController({
       cancelled = true
       unsubscribe()
     }
-  }, [draftKey, subagentMode, workspace?.path])
+  }, [draftKey, subagentMode, workspace?.path, skillsReloadVersion])
 
   function handleSubmit(delivery: ComposerDeliveryIntent = 'default'): void {
     if (submittingRef.current || composingRef.current || !modelConfigured || !canSubmit) {
@@ -354,68 +375,6 @@ export function useDesktopComposerController({
       attachments: [...attachments],
     }
 
-    if (goalModeEnabled && placement !== 'new-session' && routedSessionId) {
-      const goalText = input.trim()
-      if (!goalText) {
-        setLastSubmitOutcome({
-          status: 'failed',
-          phase: 'prepare',
-          message: '请输入目标内容',
-          sessionId: routedSessionId,
-        })
-        composerDraftStore.setSubmitOutcome(sourceDraftKey, {
-          status: 'failed',
-          phase: 'prepare',
-          message: '请输入目标内容',
-          sessionId: routedSessionId,
-        })
-        return
-      }
-      try {
-        await desktopClient.setSessionGoal(routedSessionId, {
-          objective: goalText,
-          status: 'active',
-        })
-        applyCodingModel()
-        const clearContent = onDraftAccepted
-          ? onDraftAccepted(sourceDraftKey, snapshot) !== false
-          : true
-        const nextDraft = composerDraftStore.completeSubmission(
-          sourceDraftKey,
-          draftClientIdRef.current,
-          { clearContent },
-        )
-        if (activeDraftKeyRef.current === sourceDraftKey) {
-          if (clearContent) {
-            setSelectedSkillTokens([])
-            setGoalModeEnabled(false)
-          }
-          draftClientIdRef.current = nextDraft.clientId
-        }
-        const successOutcome: ComposerSubmitOutcome = {
-          status: 'sent',
-          sessionId: routedSessionId,
-        }
-        setLastSubmitOutcome(successOutcome)
-        composerDraftStore.clearSubmitOutcome(sourceDraftKey)
-      } catch (error) {
-        console.error('Failed to set session goal:', error)
-        const message = errorMessageOf(error)
-        // A version conflict already refreshed canonical state in the client; tell the
-        // user through the global channel instead of an inline composer error.
-        onError?.(message)
-        const failureOutcome: ComposerSubmitOutcome = {
-          status: 'failed',
-          phase: 'send',
-          message,
-          sessionId: routedSessionId,
-        }
-        setLastSubmitOutcome(failureOutcome)
-        composerDraftStore.setSubmitOutcome(sourceDraftKey, failureOutcome)
-      }
-      return
-    }
-
     const draft: ComposerDraft = {
       ...composerDraftStore.get(sourceDraftKey),
       clientId: draftClientIdRef.current,
@@ -424,7 +383,9 @@ export function useDesktopComposerController({
       skills: draftSkills(composerDraftStore.get(sourceDraftKey)),
       skillInvocation: undefined,
       collaborationMode: planModeActive ? 'plan' : 'default',
+      goalModeEnabled,
     }
+    composerDraftStore.set(sourceDraftKey, draft)
     const isNewSession = placement === 'new-session'
     const outcome = await executeComposerSubmitTransaction({
       draft,
@@ -459,6 +420,7 @@ export function useDesktopComposerController({
           delivery,
           inputId: metadata.inputId,
           propagateError: true,
+          goal: metadata.goal,
         })
         if (!result) throw new Error('发送失败，请重试')
         return result === 'queued' ? 'queued' : 'sent'
@@ -496,16 +458,6 @@ export function useDesktopComposerController({
       draftClientIdRef.current = nextDraft.clientId
     }
     if (workingPlugin) onWorkingPluginChange?.(null)
-  }
-
-  function applyCodingModel(): void {
-    if (!codingModel) return
-    const slashIdx = codingModel.indexOf('/')
-    if (slashIdx <= 0 || slashIdx >= codingModel.length - 1) return
-    onProviderModelChange(
-      codingModel.slice(0, slashIdx) as ModelProviderID,
-      codingModel.slice(slashIdx + 1),
-    )
   }
 
   async function handleAddFiles(files: FileList): Promise<void> {
@@ -636,8 +588,11 @@ export function useDesktopComposerController({
     composerDocument,
     setGoalModeEnabled,
     skillCommands,
+    skillCatalogLoading: !runtimeSkillsLoaded,
+    skillCatalogError: runtimeSkillsError,
+    reloadSkillCatalog: () => setSkillsReloadVersion((version) => version + 1),
     taskPlanningAvailable: false,
-    unsupportedAttachmentReason,
+    unsupportedAttachmentReason: goalSubmitDisabledReason ?? unsupportedAttachmentReason,
   }
 }
 
@@ -681,13 +636,15 @@ export function loadCachedRuntimeSkills(
     const result = await desktopClient.listRuntimeSkills(path, {
       forceReload: force,
     })
-    return result.state === 'ready' && result.data
-      ? result.data.filter((skill) => skill.enabled)
-      : []
+    if (result.state !== 'ready') throw new Error(result.error)
+    return result.data.filter((skill) => skill.enabled)
   },
 ): Promise<DesktopInstalledSkill[]> {
   const key = workspacePath?.trim() || '__no_workspace__'
-  if (forceReload) runtimeSkillCache.delete(key)
+  if (forceReload) {
+    runtimeSkillCache.delete(key)
+    runtimeSkillRequests.delete(key)
+  }
   const cached = runtimeSkillCache.get(key)
   if (cached) return Promise.resolve(cached)
   const pending = runtimeSkillRequests.get(key)
@@ -695,12 +652,14 @@ export function loadCachedRuntimeSkills(
   const request = loader(workspacePath, forceReload)
     .then((skills) => {
       const enabled = skills.filter((skill) => skill.enabled)
-      runtimeSkillCache.set(key, enabled)
-      runtimeSkillRequests.delete(key)
+      if (runtimeSkillRequests.get(key) === request) {
+        runtimeSkillCache.set(key, enabled)
+        runtimeSkillRequests.delete(key)
+      }
       return enabled
     })
     .catch((error) => {
-      runtimeSkillRequests.delete(key)
+      if (runtimeSkillRequests.get(key) === request) runtimeSkillRequests.delete(key)
       throw error
     })
   runtimeSkillRequests.set(key, request)
@@ -742,10 +701,6 @@ function attachmentKindLabel(kind: DesktopComposerAttachment['kind']): string {
 
 function sessionPath(sessionId: string): string {
   return `/threads/${encodeURIComponent(sessionId)}`
-}
-
-function errorMessageOf(error: unknown): string {
-  return toUserErrorMessage(error, 'thread-send')
 }
 
 function draftSkills(draft: ComposerDraft): ComposerSkillInvocation[] {
