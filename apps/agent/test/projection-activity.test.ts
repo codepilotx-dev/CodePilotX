@@ -113,6 +113,7 @@ describe('活动投影', () => {
         reasoning: 2,
       },
     })
+    expect(projection.item(item)).not.toHaveProperty('usage.breakdown')
     expect(
       projection.item({
         ...item,
@@ -120,6 +121,71 @@ describe('活动投影', () => {
         data: { placement: 'result', text: '旧数据' },
       }),
     ).not.toHaveProperty('usage')
+  })
+
+  test('上下文来源拆解随 usage 投影，非法条目被丢弃而不影响整条 usage', () => {
+    const projection = new ThreadProjection({} as unknown as AgentDatabase)
+    const item: Item = {
+      id: 'text-breakdown',
+      turnID: 'turn-1',
+      agentID: 'agent-1',
+      type: 'text',
+      status: 'completed',
+      data: {
+        placement: 'result',
+        text: '完成',
+        usage: {
+          provider: 'openai',
+          model: 'gpt-test',
+          contextWindow: 128_000,
+          input: 10,
+          output: 4,
+          cacheRead: 20,
+          cacheWrite: 5,
+          reasoning: 2,
+          breakdown: [
+            { source: 'messages', chars: 120 },
+            { source: 'mcp_tools', chars: 30.7 },
+            { source: 'unknown-source', chars: 999 },
+            { source: 'skills', chars: -1 },
+          ],
+        },
+      } as Item['data'],
+      createdAt: 1000,
+      updatedAt: 1001,
+    }
+
+    expect(projection.item(item)).toMatchObject({
+      type: 'text',
+      usage: {
+        input: 10,
+        breakdown: [
+          { source: 'messages', chars: 120 },
+          { source: 'mcp_tools', chars: 30 },
+        ],
+      },
+    })
+
+    expect(
+      projection.item({
+        ...item,
+        id: 'text-broken-breakdown',
+        data: {
+          ...(item.data as Record<string, unknown>),
+          usage: {
+            provider: 'openai',
+            model: 'gpt-test',
+            contextWindow: 128_000,
+            input: 10,
+            output: 4,
+            cacheRead: 20,
+            cacheWrite: 5,
+            reasoning: 2,
+            breakdown: [{ source: 'messages', chars: 0 }],
+          },
+        },
+      } as Item),
+    ).not.toHaveProperty('usage.breakdown')
   })
 
   test('工具投影保留调用标识、命令和实际时间', () => {

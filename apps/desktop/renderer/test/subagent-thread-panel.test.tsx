@@ -335,7 +335,7 @@ describe('subagent thread panel', () => {
     expect(questionMarkup).toContain('role="radio"')
     expect(questionMarkup).toContain('跳过')
     expect(questionMarkup).toContain('跳过当前问题')
-    expect(questionMarkup).not.toContain('提交')
+    expect(questionMarkup).toContain('提交')
     const disabledMarkup = renderPanel({
       currentRun: run({ status: 'waiting-question' }),
       snapshot: snapshot({ items: [question] }),

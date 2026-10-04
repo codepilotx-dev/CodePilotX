@@ -638,7 +638,7 @@ describe('desktop history client', () => {
 
     await client.respondToPermission('session-1', 'question:question-request-1', {
       behavior: 'allow',
-      updatedInput: { answer: '单选' },
+      updatedInput: { questionAnswers: [{ questionId: 'filter_mode', choiceIds: ['single'] }] },
     })
 
     expect(respondRequests).toEqual([

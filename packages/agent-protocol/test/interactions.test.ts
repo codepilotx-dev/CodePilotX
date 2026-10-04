@@ -208,6 +208,7 @@ describe('server request interactions', () => {
     }
 
     expect(decode(base)).toEqual(base)
+    expect(decode({ ...base, questions: [{ ...question, choices: [] }] }).questions[0]?.choices).toEqual([])
     expect(() => decode({ ...base, questions: [] })).toThrow()
     expect(() => decode({ ...base, autoResolutionMs: 59_999 })).toThrow()
     expect(() => decode({ ...base, autoResolutionMs: 240_001 })).toThrow()

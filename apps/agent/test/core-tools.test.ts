@@ -698,6 +698,11 @@ describe('核心工具面', () => {
         { operation: 'create', path: 'vendor/repo/.git/hooks/pre-push' },
       ],
     })
+    expect(reviewed.at(-1)?.grantsForbidden).toBe(true)
+    expect(reviewed.at(-1)?.fileDiffs).toEqual([
+      expect.objectContaining({ path: 'normal.txt', operation: 'create', renderable: true,
+        patch: expect.stringContaining('+normal') }),
+    ])
     expect(await Bun.file(join(root, 'normal.txt')).exists()).toBe(false)
     expect(await Bun.file(join(root, '.git', 'hooks', 'pre-commit')).exists()).toBe(false)
     expect(await Bun.file(join(root, 'vendor', 'repo', '.git', 'hooks', 'pre-push')).exists()).toBe(

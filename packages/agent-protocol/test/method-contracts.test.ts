@@ -714,6 +714,11 @@ const computerState: RpcResult<'computer/state'> = {
   permissions: [{ appId: computerWindow.appId, name: computerWindow.name, decision: 'allow' }],
 }
 const fixtures = {
+  'interaction/questionPause': methodFixture('interaction/questionPause', { interactionId: 'question:1', expectedVersion: 2 }, { paused: true }),
+  'approval/rules/list': methodFixture('approval/rules/list', { threadId: 'thread:1' }, { rules: [] }),
+  'approval/rules/revoke': methodFixture('approval/rules/revoke', { threadId: 'thread:1', ruleId: 'rule:1' }, { revoked: true }),
+  'approval/reviewState': methodFixture('approval/reviewState', { threadId: 'thread:1' }, { manualAllows: 3, denials: [] }),
+  'approval/retry': methodFixture('approval/retry', { threadId: 'thread:1', reviewId: 'review:1', operationId: 'operation:1' }, { input: '重试这个操作' }),
   'browser/history/list': methodFixture(
     'browser/history/list',
     {},
@@ -5589,7 +5594,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(287)
+    expect(methods).toHaveLength(292)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )
@@ -5957,7 +5962,7 @@ describe('RPC method schema contracts', () => {
   })
 
   test('公共 runtime 方法表不包含 desktop host terminal schema', () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(266)
+    expect(Object.keys(RpcMethods)).toHaveLength(271)
     expect('terminal/host/context' in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain('terminal/host/context')
   })

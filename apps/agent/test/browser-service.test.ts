@@ -8,6 +8,7 @@ import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { EventHub } from '../src/storage/events/EventHub'
 import type { ConfigService, ConfigEdit } from '../src/config/ConfigService'
 import { initializeSchema } from '../src/storage/database/schema-initializer'
+import { SCHEMA_VERSION } from '../src/storage/database/schema'
 import { ToolExecutor } from '../src/tool/ToolExecutor'
 import { ToolRegistry } from '../src/tool/ToolRegistry'
 import { browserToolDefinitions } from '../src/tool/Browser/definition'
@@ -46,6 +47,30 @@ async function fixture() {
   return { db, config, browser, configuration, hub, root }
 }
 describe('BrowserService', () => {
+  test('单次操作只携带临时 origin；全站授权仍优先拒绝明确站点且可撤销', async () => {
+    const { db, browser, configuration } = await fixture()
+    const thread = db.createThread('临时授权')
+    const tab = await browser.create({ sourceThreadId: thread.id, url: 'https://once.test/' })
+    await browser.takeover(thread.id, tab.tabId)
+    const result = browser.execute(thread.id, tab.tabId, { action: 'snapshot' }, new AbortController().signal)
+    let next = await browser.next('window:test', 'host:test', 'connection:test')
+    while (!next.command) next = await browser.next('window:test', 'host:test', 'connection:test')
+    expect(next.command!.allowedOrigins).toContain('https://once.test')
+    expect(next.command!.allowAllSites).toBe(false)
+    expect(browser.permissions()).toEqual([])
+    browser.complete('window:test', 'host:test', next.command!.requestId, next.command!.generation, { text: '完成' })
+    await result
+    expect(configuration.desktop.browserSitePermissions).toEqual([])
+    expect(browser.inspect(thread.id, tab.tabId, { action: 'snapshot' }).ruleRequiresApproval).toBe(true)
+    await browser.grant('https://once.test', 'all-sites')
+    expect(browser.isGranted(thread.id, 'https://other.test')).toBe(true)
+    await browser.setPermission('https://blocked.test', 'deny')
+    expect(browser.isGranted(thread.id, 'https://blocked.test')).toBe(false)
+    expect(() => browser.inspect(thread.id, tab.tabId, { action: 'navigate', url: 'https://blocked.test/' })).toThrow('拒绝')
+    await browser.setPermission(undefined, 'clear')
+    expect(browser.allowsAllSites()).toBe(false)
+    expect(configuration.desktop.unknown).toBe('keep')
+  })
   test('browser tools use host inspection identity and origin policy; screenshot audit omits base64', async () => {
     const { db, browser, root } = await fixture()
     const thread = db.createThread('工具')
@@ -235,12 +260,12 @@ describe('BrowserService', () => {
     db.sqlite.exec('DROP TABLE browser_tabs; PRAGMA user_version = 50')
     initializeSchema(db.sqlite)
     expect(db.getThread(thread.id)).not.toBeNull()
-    expect(db.sqlite.query('PRAGMA user_version').get()).toMatchObject({ user_version: 52 })
+    expect(db.sqlite.query('PRAGMA user_version').get()).toMatchObject({ user_version: SCHEMA_VERSION })
     db.sqlite.exec(
       "ALTER TABLE browser_tabs ADD COLUMN future_note TEXT; INSERT INTO browser_tabs (id, record, future_note) VALUES ('future:tab', '{}', 'keep'); PRAGMA user_version = 50",
     )
     initializeSchema(db.sqlite)
-    expect(db.sqlite.query('PRAGMA user_version').get()).toMatchObject({ user_version: 52 })
+    expect(db.sqlite.query('PRAGMA user_version').get()).toMatchObject({ user_version: SCHEMA_VERSION })
     expect(db.sqlite.query("SELECT * FROM browser_tabs WHERE id = 'future:tab'").get()).toEqual({
       id: 'future:tab',
       record: '{}',
@@ -378,7 +403,7 @@ describe('BrowserService', () => {
     expect(
       db.sqlite.query('SELECT future_flag FROM browser_tabs WHERE id=?').get(tab.tabId),
     ).toEqual({ future_flag: 'keep' })
-    expect(db.sqlite.query('PRAGMA user_version').get()).toMatchObject({ user_version: 52 })
+    expect(db.sqlite.query('PRAGMA user_version').get()).toMatchObject({ user_version: SCHEMA_VERSION })
     db.sqlite.exec('DROP TABLE browser_downloads; PRAGMA user_version=72')
     initializeSchema(db.sqlite)
     expect(browser.available()).toBe(true)

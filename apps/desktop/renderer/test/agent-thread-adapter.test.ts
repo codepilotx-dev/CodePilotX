@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import type {
   AgentNotification,
+  Item,
   Project,
+  TextItem,
   ThreadListItem,
   ThreadSnapshot,
 } from '@codepilotx/shared/thread'
@@ -12,8 +14,10 @@ import {
   agentThreadSnapshotToDesktop,
   agentTurnStatusToDesktopStatus,
   desktopPermissionModeToPermissionConfig,
+  latestItemContextUsage,
   permissionModeFromPermissionConfig,
   questionToRequest,
+  approvalToRequest,
 } from '../src/services/agentThreadAdapter.js'
 
 const project: Project = {
@@ -35,6 +39,22 @@ const projectWorkspace = {
 }
 
 describe('agent thread adapter', () => {
+  test('MCP 参数独立于卡片展示字段，实时文件审批保留宿主 diff', () => {
+    const input = { command: 'actual parameter', paths: ['actual'], risk: 'actual', threadId: 'actual' }
+    const request = approvalToRequest({ id: 'approval', threadId: 'thread', turnId: 'turn', agentId: 'agent',
+      toolCallID: 'call', tool: 'mcp__fixture__save', command: null, cwd: null, paths: [], risk: 'high',
+      reason: '确认', status: 'pending', createdAt: 1, requestedPermissions: {}, review: null,
+      input, toolIdentity: { server: 'fixture', tool: 'save' } })
+    expect(request.toolInput).toEqual(input)
+    const preview = { path: 'normal.txt', operation: 'create', patch: '+normal', hunks: [], renderable: true, tooLargeReason: null }
+    const events = agentEventsFromNotification({ method: 'approval/requested', params: {
+      interactionId: 'approval', threadId: 'thread', turnId: 'turn', agentId: 'agent', toolCallId: 'call',
+      tool: 'apply_patch', reason: '确认', affectedPaths: [{ path: 'normal.txt', operation: 'create' }],
+      input: { approvalFileDiffs: [preview] }, risk: 'high', createdAt: 1, version: 1, kind: 'approval',
+    } } as AgentNotification)
+    expect(events[0]).toMatchObject({ request: { input: { approvalFileDiffs: [preview] } } })
+  })
+
   test('restores the latest actual model and exact variant without adopting queued selections', () => {
     const permissionConfig = desktopPermissionModeToPermissionConfig('default')
     const snapshot: ThreadSnapshot = {
@@ -1044,12 +1064,13 @@ describe('agent thread adapter', () => {
       agentId: 'agent-1',
       type: 'question',
       prompt: questions[0]!.prompt,
+      version: 1,
       choices: questions[0]!.choices,
       questions,
       status: 'pending',
       answer: null,
       createdAt: 1,
-    })
+    }, 'thread-1')
     const events = agentEventsFromNotification({
       jsonrpc: '2.0',
       method: 'question/requested',
@@ -1074,8 +1095,8 @@ describe('agent thread adapter', () => {
         header: question.header,
         multiSelect: question.maxAnswers > 1,
         options: [
-          { label: '是 (Recommended)', description: '保留' },
-          { label: '否', description: '排除' },
+          { id: `${question.id}-yes`, label: '是', description: '保留', recommended: true },
+          { id: `${question.id}-no`, label: '否', description: '排除', recommended: false },
         ],
       })),
     )
@@ -1095,8 +1116,8 @@ describe('agent thread adapter', () => {
       createdAt: 1,
     })
     expect(withoutDescription.input.options).toEqual([
-      { label: 'A (Recommended)', description: '' },
-      { label: 'B', description: '' },
+      { id: 'a', label: 'A', description: '', recommended: true },
+      { id: 'b', label: 'B', description: '', recommended: false },
     ])
   })
 
@@ -1639,5 +1660,51 @@ describe('agent thread adapter', () => {
     const desktop = agentThreadSnapshotToDesktop(snapshot, project)
     expect(desktop.item.status).toBe('cancelled')
     expect(desktop.item.latestTurnStatus).toBe('cancelled')
+  })
+
+  test('透传上下文来源拆解并聚合会话缓存命中率', () => {
+    const usageItem = (
+      id: string,
+      createdAt: number,
+      usage: Partial<NonNullable<TextItem['usage']>>,
+    ): Item => ({
+      id,
+      messageID: 'turn-1',
+      turnId: 'turn-1',
+      agentId: 'agent-1',
+      type: 'text',
+      placement: 'result',
+      text: '完成',
+      status: 'completed',
+      usage: {
+        provider: 'openai',
+        model: 'gpt-5.6',
+        contextWindow: 200_000,
+        input: 1_000,
+        output: 300,
+        cacheRead: 0,
+        cacheWrite: 0,
+        reasoning: 120,
+        ...usage,
+      },
+      createdAt,
+    })
+    const withoutBreakdown = usageItem('text-1', 1_000, {})
+    const withBreakdown = usageItem('text-2', 2_000, {
+      cacheRead: 9_000,
+      breakdown: [
+        { source: 'messages', chars: 120 },
+        { source: 'system_tools', chars: 30 },
+      ],
+    })
+
+    expect(latestItemContextUsage([withoutBreakdown])?.breakdown).toBeUndefined()
+    const usage = latestItemContextUsage([withoutBreakdown, withBreakdown])
+    expect(usage?.breakdown).toEqual([
+      { source: 'messages', chars: 120 },
+      { source: 'system_tools', chars: 30 },
+    ])
+    // 累计 cacheRead 9000 / 累计 prompt 侧 11000，而不是只看最后一条。
+    expect(usage?.averageCacheHitRate).toBeCloseTo(9_000 / 11_000, 6)
   })
 })

@@ -10,6 +10,9 @@ import {
   selectQuestionOption,
   shouldShowQuestionSubmit,
   type QuestionState,
+  questionDrafts,
+  reconcileQuestionDrafts,
+  nextQuestionIndex,
 } from '../src/features/session/approvals/askUserQuestionModel'
 
 const input = {
@@ -50,12 +53,36 @@ test('keeps options without descriptions without inventing explanatory text', ()
 })
 
 describe('AskUserQuestion pure model', () => {
-  test('shows confirmation only for valid custom or explicitly edited multi-select on any page', () => {
+  test('纯文本问题、重复选项文案和显式推荐使用结构化 ID', () => {
+    const questions = parseAskUserQuestions({ questions: [{ id: 'text', question: '补充', options: [] },
+      { id: 'choice', question: '选择', options: [{ id: 'a', label: '同名', recommended: false }, { id: 'b', label: '同名', recommended: true }] }] })!
+    expect(initialQuestionState(questions[0]!)).toMatchObject({ selected: [] })
+    expect(canSubmitFromCurrentQuestion(questions, {}, 1)).toBe(false)
+    const states = { text: { selected: [], custom: '回答', answered: false }, choice: { selected: ['b'], custom: '', answered: false } }
+    expect(buildAskUserQuestionUpdatedInput({}, questions, states).questionAnswers).toEqual([
+      { questionId: 'text', choiceIds: [], text: '回答' }, { questionId: 'choice', choiceIds: ['b'] },
+    ])
+    expect(questions[1]?.options.map((option) => option.recommended)).toEqual([false, true])
+  })
+  test('草稿隔离聊天和版本，翻题仅变更题号，失效请求清除草稿', () => {
+    const states = { q: { selected: ['a'], custom: '', answered: false } }
+    questionDrafts.set('thread:a:req:1', { states, index: 0 })
+    questionDrafts.set('thread:b:req:1', { states: {}, index: 0 })
+    const draft = questionDrafts.get('thread:a:req:1')!
+    draft.index = nextQuestionIndex(draft.index, 1, 3)
+    expect(draft.states).toEqual(states)
+    expect(draft.index).toBe(1)
+    reconcileQuestionDrafts('thread:a', new Set(['thread:a:req:2']))
+    expect(questionDrafts.has('thread:a:req:1')).toBe(false)
+    expect(questionDrafts.has('thread:b:req:1')).toBe(true)
+    questionDrafts.delete('thread:b:req:1')
+  })
+  test('末题显式提交，其他页仅自定义或编辑后的多选显示提交', () => {
     const [single, multi] = parseAskUserQuestions(input)!
     const draft = initialQuestionState(single!)
-    expect(shouldShowQuestionSubmit([single!], {}, 0)).toBe(false)
+    expect(shouldShowQuestionSubmit([single!], {}, 0)).toBe(true)
     expect(shouldShowQuestionSubmit([single!], { editor: { ...draft, answered: true } }, 0)).toBe(
-      false,
+      true,
     )
     expect(
       shouldShowQuestionSubmit(
@@ -66,8 +93,8 @@ describe('AskUserQuestion pure model', () => {
     ).toBe(true)
     expect(
       shouldShowQuestionSubmit([single!], { editor: { ...draft, selected: [], custom: '  ' } }, 0),
-    ).toBe(false)
-    expect(shouldShowQuestionSubmit([multi!], {}, 0)).toBe(false)
+    ).toBe(true)
+    expect(shouldShowQuestionSubmit([multi!], {}, 0)).toBe(true)
     expect(shouldShowQuestionSubmit([multi!], { features: { ...draft, touched: true } }, 0)).toBe(
       true,
     )
@@ -77,14 +104,14 @@ describe('AskUserQuestion pure model', () => {
         { features: { ...draft, selected: [], touched: true } },
         0,
       ),
-    ).toBe(false)
-    expect(shouldShowQuestionSubmit([single!, multi!], {}, 1)).toBe(false)
+    ).toBe(true)
+    expect(shouldShowQuestionSubmit([single!, multi!], {}, 1)).toBe(true)
     const confirmed = { editor: { ...draft, answered: true } }
     expect(shouldShowQuestionSubmit([single!, multi!], confirmed, 0)).toBe(false)
-    expect(shouldShowQuestionSubmit([single!, multi!], confirmed, 1)).toBe(false)
+    expect(shouldShowQuestionSubmit([single!, multi!], confirmed, 1)).toBe(true)
     expect(
       shouldShowQuestionSubmit([single!, multi!], { editor: { ...draft, answered: false } }, 1),
-    ).toBe(false)
+    ).toBe(true)
     expect(
       shouldShowQuestionSubmit(
         [single!, multi!],
@@ -107,13 +134,13 @@ describe('AskUserQuestion pure model', () => {
     expect(firstUnansweredQuestionIndex(questions, { editor: skipped })).toBe(1)
   })
 
-  test('keeps identical prompts independent by ID and does not confirm untouched defaults', () => {
+  test('同名问题按 ID 独立，有效默认草稿可一起提交', () => {
     const questions = parseAskUserQuestions({
       questions: [input.questions[0], { ...input.questions[0], id: 'second-editor' }],
     })!
     const states = { editor: { ...initialQuestionState(questions[0]!), answered: true } }
     expect(firstUnansweredQuestionIndex(questions, states)).toBe(1)
-    expect(canSubmitFromCurrentQuestion(questions, states, 0)).toBe(false)
+    expect(canSubmitFromCurrentQuestion(questions, states, 0)).toBe(true)
     expect(canSubmitFromCurrentQuestion(questions, states, 1)).toBe(true)
     expect(
       buildAskUserQuestionAnswers(questions, {
@@ -130,7 +157,7 @@ describe('AskUserQuestion pure model', () => {
         header: '编辑器',
         question: '选择编辑器',
         options: [
-          { label: 'VS Code', description: '使用 VS Code' },
+          { label: 'VS Code', description: '使用 VS Code', recommended: true },
           { label: 'Zed', description: '使用 Zed' },
         ],
         multiSelect: false,

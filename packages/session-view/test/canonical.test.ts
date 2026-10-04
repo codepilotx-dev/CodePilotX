@@ -45,6 +45,24 @@ const thread: Thread = {
   updatedAt: 2,
 }
 
+test('MCP 表单实时请求和三种回复经过统一 projection，重复事件不恢复待处理卡', () => {
+  for (const action of ['accept', 'decline', 'cancel'] as const) {
+    const requested = durable(11, 'mcp/elicitationRequested', {
+      interactionId: 'form', threadId: thread.id, turnId: 'turn', agentId: 'agent', toolCallId: 'call',
+      kind: 'mcp-elicitation', server: 'fixture', tool: 'save', version: 1, createdAt: 11,
+      request: { message: '输入名称', requestedSchema: { type: 'object', properties: {} } },
+    })
+    const pending = applyThreadEnvelope(createCanonicalThreadState(page([])), requested)
+    expect(pending.approvalsById.get('form')).toMatchObject({ status: 'pending', tool: 'McpElicitation',
+      input: { serverName: 'fixture' }, toolIdentity: { server: 'fixture', tool: 'save' } })
+    const resolved = applyThreadEnvelope(pending, durable(12, 'interaction/resolved', {
+      interactionId: 'form', resolvedAt: 12, result: { kind: 'mcp-elicitation', action },
+    }))
+    expect(resolved.approvalsById.get('form')?.status).toBe(action === 'accept' ? 'allowed' : action === 'cancel' ? 'cancelled' : 'denied')
+    expect(applyThreadEnvelope(resolved, requested).approvalsById.get('form')?.status).not.toBe('pending')
+  }
+})
+
 test('preserves plan approval on snapshot/history hydration and clears it on new input', () => {
   const approval = {
     id: 'plan-approval',
