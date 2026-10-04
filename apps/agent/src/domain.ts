@@ -200,6 +200,10 @@ export interface EventEnvelope<T = unknown> {
 }
 
 export interface ToolInvocation {
+  fileDiffs?: readonly import('@codepilotx/agent-protocol').RpcResult<'thread/patch/diff'>[]
+  retryAuthorization?: { reviewId: string; fingerprint: string }
+  toolPolicy?: Pick<import('./tool/ToolRegistry').ToolCatalogEntry, 'sdkName' | 'capabilities' | 'allowedModes' | 'approvalStrategy' | 'origin'>
+  grantsForbidden?: boolean
   id: string
   threadID: string
   turnID: string
@@ -229,6 +233,7 @@ export interface ToolReviewSummary {
 }
 
 export interface ToolAuthorizationScope {
+  browserOrigin?: string
   computerApp?: { name: string; allowPersistentApproval: boolean }
   affectedPaths: readonly ToolAffectedPath[]
   /** SHA-256 over the inspected input and its canonical mutation scope. */

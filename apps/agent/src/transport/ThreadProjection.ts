@@ -2,6 +2,7 @@ import type {
   ApprovalRequest,
   AgentExecution as WireAgentExecution,
   Attachment,
+  ContextUsageBreakdownEntry,
   LocalContextReference,
   Input,
   Item,
@@ -18,6 +19,7 @@ import type {
 import { realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
+  ContextUsageBreakdownSourceSchema,
   decodeApprovalPolicy,
   decodeStructuredPlan,
   InteractionQuestionSchema,
@@ -96,6 +98,7 @@ const modelUsage = (value: unknown): Extract<Item, { type: 'text' }>['usage'] =>
       ? Math.max(0, Math.trunc(current))
       : 0
   }
+  const breakdown = contextUsageBreakdown(usage.breakdown)
   return {
     provider: usage.provider,
     model: usage.model,
@@ -105,7 +108,25 @@ const modelUsage = (value: unknown): Extract<Item, { type: 'text' }>['usage'] =>
     cacheRead: token('cacheRead'),
     cacheWrite: token('cacheWrite'),
     reasoning: token('reasoning'),
+    ...(breakdown ? { breakdown } : {}),
   }
+}
+const isBreakdownSource = Schema.is(ContextUsageBreakdownSourceSchema)
+/** 逐条校验来源分类，未知分类或非法字符量直接丢弃，而不是让整条 usage 失败。 */
+const contextUsageBreakdown = (
+  value: unknown,
+): ContextUsageBreakdownEntry[] | undefined => {
+  if (!Array.isArray(value)) return undefined
+  const entries: ContextUsageBreakdownEntry[] = []
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') continue
+    const candidate = entry as { source?: unknown; chars?: unknown }
+    if (!isBreakdownSource(candidate.source)) continue
+    if (typeof candidate.chars !== 'number' || !Number.isFinite(candidate.chars)) continue
+    if (candidate.chars <= 0) continue
+    entries.push({ source: candidate.source, chars: Math.trunc(candidate.chars) })
+  }
+  return entries.length > 0 ? entries : undefined
 }
 const activityCommandStatus = (
   value: unknown,
@@ -787,6 +808,14 @@ export class ThreadProjection {
         )
         .all(threadId) as Array<Record<string, string | number | null>>
     ).map((row) => this.approval(row))
+    for (const payload of this.db.repositories.interactions.pendingMcpElicitations(threadId)) {
+      approvals.push({ id: String(payload.interactionId), threadId, turnId: String(payload.turnId),
+        agentId: String(payload.agentId), toolCallID: String(payload.toolCallId), tool: 'McpElicitation',
+        command: null, cwd: null, paths: [], requestedPermissions: {}, review: null, risk: 'medium',
+        reason: String((payload.request as Record<string, unknown>).message ?? 'MCP 请求输入'), status: 'pending', createdAt: Number(payload.createdAt),
+        input: { serverName: payload.server, request: payload.request },
+        toolIdentity: { server: String(payload.server), tool: String(payload.tool) } })
+    }
     return {
       thread,
       turns,
@@ -1366,6 +1395,7 @@ export class ThreadProjection {
         turnId: item.turnID,
         agentId,
         type: 'question',
+        version: this.db.repositories.interactions.pendingQuestionVersion(item.id)?.version,
         prompt: first?.prompt ?? asText(item.data.question) ?? '需要你的选择',
         choices:
           first?.choices ??
@@ -1553,6 +1583,11 @@ export class ThreadProjection {
       createdAt: Number(row.created_at),
       ...(permissionGrant ? { permissionGrant } : {}),
       ...(computerApp ? { computerApp } : {}),
+      ...(Array.isArray(request.grantOptions) ? { grantOptions: request.grantOptions as ApprovalRequest['grantOptions'] } : {}),
+      ...(request.toolIdentity ? { toolIdentity: request.toolIdentity as ApprovalRequest['toolIdentity'] } : {}),
+      ...(request.input ? { input: request.input as ApprovalRequest['input'] } : {}),
+      ...(request.affectedPaths ? { affectedPaths: request.affectedPaths as ApprovalRequest['affectedPaths'] } : {}),
+      ...(request.reviewSummary ? { reviewSummary: request.reviewSummary as ApprovalRequest['reviewSummary'] } : {}),
     }
   }
 

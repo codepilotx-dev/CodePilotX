@@ -34,6 +34,8 @@ export interface PromptSectionDiagnostic {
   source: PromptSource
   hash: string
   bytes: number
+  /** JS 字符串长度；上下文来源占比按它计算，与消息侧保持同一单位。 */
+  chars: number
   estimatedTokens: number
   included: boolean
   reason?: 'empty' | 'mode' | 'profile' | 'required-tools'

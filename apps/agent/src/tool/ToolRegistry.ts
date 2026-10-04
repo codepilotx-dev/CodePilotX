@@ -4,6 +4,7 @@ import {
   type SubagentProfile,
   type TaskMode,
   type ToolAuthorizationScope,
+  type ToolInvocation,
 } from '../domain'
 import { WorkspaceService, type WorkspaceFileRevision } from '../workspace/WorkspaceService'
 import type { PermissionConfig, SandboxMode } from '@codepilotx/shared/thread'
@@ -56,6 +57,8 @@ export type ToolFileSnapshots = {
   invalidate(paths: readonly string[]): Promise<void>
 }
 export type ToolInputInspection = {
+  grantsForbidden?: boolean
+  fileDiffs?: ToolInvocation['fileDiffs']
   authorizationScope: ToolAuthorizationScope
   configWrites?: readonly {
     path: string

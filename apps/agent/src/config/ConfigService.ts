@@ -139,6 +139,7 @@ const PROFILE_ALLOWED_ROOTS = new Set([
   'specialized_models',
 ])
 const KNOWN_CONFIG_ROOTS = new Set([
+  'approval_rules',
   ...PROFILE_ALLOWED_ROOTS,
   'profile',
   'model_providers',
@@ -650,6 +651,10 @@ export class ConfigService {
   private selectedProfile() {
     const value = this.user?.config.profile
     return typeof value === 'string' && PROFILE_ID.test(value) ? value : null
+  }
+
+  isProjectTrusted(projectRoot: string) {
+    return this.trustLevel(projectRoot) === 'trusted'
   }
 
   private trustLevel(projectRoot: string) {

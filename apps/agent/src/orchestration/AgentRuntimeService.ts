@@ -25,7 +25,11 @@ import { AgentError, type Item, type SubagentResult } from '../domain'
 import { createLiveEvent } from '../storage/events/EventPublisher'
 import { secretScrubber } from '../security/SecretScrubber'
 import { proposedPlanTitle } from './plan/ProposedPlanStreamParser'
-import { formatStructuredPlanMarkdown, type StructuredPlan } from '@codepilotx/shared/thread'
+import {
+  formatStructuredPlanMarkdown,
+  type ContextUsageBreakdownEntry,
+  type StructuredPlan,
+} from '@codepilotx/shared/thread'
 import { parseApplyPatch } from '../tool/ApplyPatch/parseApplyPatch'
 import { TurnPiBoundaryRepository } from '../storage/repositories/turn-pi-boundary-repository'
 import {
@@ -618,6 +622,7 @@ export class AgentRuntimeService implements AgentRuntime {
     workspace?: WorkspaceService,
     toolCatalog: readonly ToolCatalogEntry[] = [],
     onUsage?: AgentRuntimeRequest['onUsage'],
+    readContextUsageBreakdown?: () => readonly ContextUsageBreakdownEntry[] | undefined,
   ): PiRuntimeEventSink {
     const pendingFor = (context: PiRuntimeEventContext) => {
       const existing = this.pending.get(context.threadID)
@@ -717,6 +722,7 @@ export class AgentRuntimeService implements AgentRuntime {
           input.text === undefined
             ? contentText(input.content as never, '\n').trim()
             : input.text.trim()
+        const contextUsageBreakdown = readContextUsageBreakdown?.()
         const usage = {
           provider: input.provider || runtimeModel.provider,
           model: input.model || runtimeModel.id,
@@ -726,6 +732,7 @@ export class AgentRuntimeService implements AgentRuntime {
           cacheRead: input.usage.cacheRead,
           cacheWrite: input.usage.cacheWrite,
           reasoning: input.usage.reasoning,
+          ...(contextUsageBreakdown?.length ? { breakdown: [...contextUsageBreakdown] } : {}),
         }
         if (input.text === undefined || text) {
           const currentText = this.options.db.getItem(input.textItemID)
@@ -1307,6 +1314,9 @@ export class AgentRuntimeService implements AgentRuntime {
         model: request.fallbackModel,
         taskSummary: request.content,
       }
+      // 按来源实测的上下文字符量只对本次 run 有意义，用闭包保存，
+      // 由 executeHarnessRun 在每次 provider 请求前刷新、由 eventSink 读取。
+      let contextUsageBreakdown: ContextUsageBreakdownEntry[] | undefined
       const runtimeOptions: HarnessRuntimeOptions = {
         activated: (threadID, active) => this.active.set(threadID, active),
         toolExecutor: this.options.toolExecutor,
@@ -1325,6 +1335,7 @@ export class AgentRuntimeService implements AgentRuntime {
           request.workspace,
           activityToolCatalog,
           request.onUsage,
+          () => contextUsageBreakdown,
         ),
         beforeToolCall: async (_runtimeRequest, input) => {
           if ((PI_LIFECYCLE_TOOLS as readonly string[]).includes(input.tool)) return undefined
@@ -1561,6 +1572,9 @@ export class AgentRuntimeService implements AgentRuntime {
           onSkillDocumentRead: (path, hash) => composition.bindings.skills.documentRead(path, hash),
           onPromptComposed: async (bundle) =>
             request.onPromptComposed?.(bundle, { budgetText: bundle.instructions }),
+          onContextUsageMeasured: (breakdown) => {
+            contextUsageBreakdown = [...breakdown]
+          },
           canAutoCompact: () => !paused && !request.signal.aborted,
         })
       } catch (cause) {

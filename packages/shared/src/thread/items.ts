@@ -181,7 +181,7 @@ export const InteractionQuestionSchema = Schema.Struct({
   header: QuestionTextSchema.check(Schema.isMaxLength(12)),
   prompt: QuestionTextSchema,
   choices: Schema.Array(InteractionQuestionChoiceSchema)
-    .check(Schema.isMinLength(2))
+    .check(Schema.makeFilter((choices) => choices.length !== 1, { expected: 'zero or two to three choices' }))
     .check(Schema.isMaxLength(3)),
   allowFreeform: Schema.Literal(true),
   required: Schema.Literal(true),
@@ -195,6 +195,29 @@ export const InteractionQuestionAnswerSchema = Schema.Struct({
   skipped: Schema.optional(Schema.Literal(true)),
 })
 
+/** 上下文来源分类；只用于展示占比，不是 token 账本。 */
+export const ContextUsageBreakdownSourceSchema = Schema.Literals([
+  'messages',
+  'system_prompt',
+  'system_tools',
+  'mcp_tools',
+  'skills',
+  'memory',
+  'project',
+  'other',
+])
+export type ContextUsageBreakdownSource = typeof ContextUsageBreakdownSourceSchema.Type
+
+/**
+ * Agent 在模型请求前实测的来源字符量。各来源分别度量、互不叠加，
+ * 占比按 chars 计算，不与同一条 usage 的 provider token 数换算。
+ */
+export const ContextUsageBreakdownEntrySchema = Schema.Struct({
+  source: ContextUsageBreakdownSourceSchema,
+  chars: Schema.Number,
+})
+export type ContextUsageBreakdownEntry = typeof ContextUsageBreakdownEntrySchema.Type
+
 export const ModelUsageSchema = Schema.Struct({
   provider: Schema.String,
   model: Schema.String,
@@ -204,6 +227,7 @@ export const ModelUsageSchema = Schema.Struct({
   cacheRead: Schema.Number,
   cacheWrite: Schema.Number,
   reasoning: Schema.Number,
+  breakdown: Schema.optional(Schema.Array(ContextUsageBreakdownEntrySchema)),
 })
 export type ModelUsage = typeof ModelUsageSchema.Type
 
@@ -451,6 +475,7 @@ export const ExecutionPlanItemSchema = Schema.Struct({
 export type ExecutionPlanItem = typeof ExecutionPlanItemSchema.Type
 
 export const QuestionItemSchema = Schema.Struct({
+  version: Schema.optional(Schema.Number),
   id: Schema.String,
   messageID: Schema.String,
   turnId: Schema.String,
@@ -541,6 +566,15 @@ export const ComputerAppApprovalSchema = Schema.Struct({
 })
 
 export const ApprovalRequestSchema = Schema.Struct({
+  grantOptions: Schema.optional(Schema.Array(Schema.Struct({
+    id: Schema.String,
+    kind: Schema.Literals(['command', 'files', 'network', 'mcp', 'browser']),
+    scope: Schema.Literals(['session', 'project', 'origin', 'all-sites']),
+    label: Schema.String,
+    requiresConfirmation: Schema.optional(Schema.Boolean),
+  }))),
+  toolIdentity: Schema.optional(Schema.Struct({ server: Schema.String, tool: Schema.String })),
+  input: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
   id: Schema.String,
   threadId: Schema.String,
   turnId: Schema.String,

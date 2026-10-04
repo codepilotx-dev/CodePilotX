@@ -112,6 +112,7 @@ export class PromptComposer {
         source: section.source,
         hash: hash(section.content),
         bytes: bytes(section.content),
+        chars: section.content.length,
         estimatedTokens: Math.ceil(section.content.length / 4),
         included: reason === undefined,
         ...(reason ? { reason } : {}),

@@ -15,6 +15,11 @@ import {
   type ResolvedPermissionDecision,
 } from './PermissionDecisionEngine'
 import { secretScrubber } from '../security/SecretScrubber'
+import { ApprovalRules } from './ApprovalRules'
+import type { ConfigService } from '../config/ConfigService'
+import { analyzeShellRisk } from '../security/ShellRiskClassifier'
+import type { BrowserService } from '../browser/BrowserService'
+import type { ApprovalRule } from './ApprovalRules'
 
 export type Reviewer = (
   invocation: ToolInvocation,
@@ -69,24 +74,27 @@ const allowedPermissionScopes = (requested: unknown): Array<PermissionGrantResol
       : ['tool-call']
 
 const reviewerInvocation = (invocation: ToolInvocation): ToolInvocation => {
+  const { fileDiffs: _fileDiffs, ...reviewable } = invocation
   const scope = invocation.authorizationScope
-  return scope
+  return scope && scope.affectedPaths.length > 0
     ? {
-        ...invocation,
+        ...reviewable,
         input: {
           patchHash: scope.fingerprint,
           affectedPaths: scope.affectedPaths,
           summary: scope.reviewSummary ?? null,
         },
       }
-    : invocation
+    : reviewable
 }
 
 const approvalScopePayload = (invocation: ToolInvocation) =>
   invocation.authorizationScope
     ? {
         affectedPaths: invocation.authorizationScope.affectedPaths,
-        ...(invocation.authorizationScope.computerApp ? { computerApp: invocation.authorizationScope.computerApp } : {}),
+        ...(invocation.authorizationScope.computerApp
+          ? { computerApp: invocation.authorizationScope.computerApp }
+          : {}),
         ...(invocation.authorizationScope.reviewSummary
           ? { reviewSummary: invocation.authorizationScope.reviewSummary }
           : {}),
@@ -94,6 +102,7 @@ const approvalScopePayload = (invocation: ToolInvocation) =>
     : {}
 
 export class ApprovalService {
+  readonly rules: ApprovalRules
   private readonly decisions = new PermissionDecisionEngine()
   private agentStatusHandler?: (agentID: string, status: 'waiting_permission' | 'running') => void
 
@@ -102,7 +111,59 @@ export class ApprovalService {
     private readonly hub: EventHub,
     private readonly tools: ToolRegistry,
     private readonly reviewer: Reviewer | null = null,
-  ) {}
+    config?: ConfigService,
+    private readonly browser?: BrowserService,
+  ) {
+    this.rules = new ApprovalRules(db, tools, config)
+  }
+
+  approvalMetadata(invocation: ToolInvocation) {
+    const origin = (invocation.toolPolicy ?? this.tools.get(invocation.name)).origin
+    return {
+      grantOptions: [
+        ...this.rules.options(invocation),
+        ...this.browserRules(invocation).map((rule) => ({
+          id: rule.id,
+          kind: 'browser' as const,
+          scope: rule.scope,
+          label:
+            rule.scope === 'session'
+              ? '此聊天允许此网站'
+              : rule.scope === 'origin'
+                ? `始终允许 ${rule.target[0]}`
+                : '允许所有网站',
+          ...(rule.scope === 'all-sites' ? { requiresConfirmation: true } : {}),
+        })),
+      ],
+      ...(origin?.kind === 'mcp'
+        ? {
+            toolIdentity: { server: origin.serverName, tool: origin.rawToolName },
+            input: invocation.input,
+          }
+        : {}),
+      ...(invocation.fileDiffs?.length
+        ? { input: { approvalFileDiffs: invocation.fileDiffs } }
+        : {}),
+      ...approvalScopePayload(invocation),
+    }
+  }
+  private browserRules(invocation: ToolInvocation): ApprovalRule[] {
+    const origin = invocation.authorizationScope?.browserOrigin
+    if (!origin || !this.browser || invocation.input.__hookRequiresApproval) return []
+    return (['session', 'origin', 'all-sites'] as const).map((scope) => ({
+      id: `${invocation.authorizationScope!.fingerprint}:${scope}`,
+      kind: 'browser',
+      scope,
+      workspace: '',
+      target: [origin],
+    }))
+  }
+  validateGrant(invocation: ToolInvocation, id: string): ApprovalRule {
+    return (
+      this.browserRules(invocation).find((rule) => rule.id === id) ??
+      this.rules.validate(invocation, id)
+    )
+  }
 
   setAgentStatusHandler(
     handler: (agentID: string, status: 'waiting_permission' | 'running') => void,
@@ -117,36 +178,60 @@ export class ApprovalService {
   }
 
   async authorize(invocation: ToolInvocation, signal: AbortSignal): Promise<PermissionDecision> {
-    const tool = this.tools.get(invocation.name)
+    const tool = (invocation.toolPolicy ??
+      this.tools.get(invocation.name)) as import('../tool/ToolRegistry').ToolCatalogEntry
     const resolved = this.decisions.evaluate(invocation, tool)
     const safeInvocation = secretScrubber.scrub(invocation)
     if (resolved.action !== 'review')
       return { decision: resolved.decision, risk: resolved.risk, reason: resolved.reason }
+    if (typeof invocation.input.command === 'string') {
+      const analysis = analyzeShellRisk({
+        command: invocation.input.command,
+        ...(typeof invocation.input.cwd === 'string' ? { cwd: invocation.input.cwd } : {}),
+      })
+      if (analysis.hardDenied)
+        return { decision: 'deny', risk: analysis.risk, reason: analysis.reason }
+    }
+    if (
+      resolved.reviewer === 'user' &&
+      ((await this.rules.matches(invocation)) ||
+        !!(
+          invocation.authorizationScope?.browserOrigin &&
+          this.browser?.isGranted(invocation.threadID, invocation.authorizationScope.browserOrigin)
+        ))
+    )
+      return { decision: 'allow', risk: resolved.risk, reason: '已匹配用户授予的审批范围' }
     if (resolved.reviewer === 'auto_review' && this.reviewer) {
+      const fingerprint = this.retryFingerprint(invocation)
+      const retryAuthorization = this.db.repositories.interactions.claimApprovalRetry(
+        invocation.threadID,
+        fingerprint,
+      )
+      let reviewed: PermissionDecision
       try {
-        const reviewed = await this.reviewer(reviewerInvocation(safeInvocation), signal)
-        await this.emit(invocation.threadID, invocation.turnID, 'serverRequest/resolved', {
-          itemId: invocation.id,
-          turnId: invocation.turnID,
-          kind: 'approval-review',
-          ...reviewed,
-        })
-        if (reviewed.decision !== 'ask') return reviewed
-        return this.checkpointForHuman(safeInvocation, reviewed, resolved)
+        reviewed = await this.reviewer(
+          reviewerInvocation({
+            ...safeInvocation,
+            ...(retryAuthorization ? { retryAuthorization } : {}),
+          }),
+          signal,
+        )
       } catch (cause) {
-        if (invocation.permissionConfig.approvalPolicy === 'never')
-          return {
-            decision: 'deny',
-            risk: resolved.risk,
-            reason: `Guardian 不可用，已拒绝：${secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause))}`,
-          }
-        const review = {
-          decision: 'ask',
+        const denied = invocation.permissionConfig.approvalPolicy === 'never'
+        reviewed = {
+          decision: denied ? 'deny' : 'ask',
           risk: resolved.risk,
-          reason: `Guardian 不可用，转人工确认：${secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause))}`,
-        } satisfies PermissionDecision
-        return this.checkpointForHuman(safeInvocation, review, resolved)
+          reason: `Guardian 不可用，${denied ? '已拒绝' : '转人工确认'}：${secretScrubber.scrubText(cause instanceof Error ? cause.message : String(cause))}`,
+        }
       }
+      const event = this.db.repositories.interactions.recordApprovalReview(
+        safeInvocation,
+        fingerprint,
+        reviewed,
+      )
+      if (event) await Promise.allSettled([Effect.runPromise(this.hub.publish(event))])
+      if (reviewed.decision !== 'ask') return reviewed
+      return this.checkpointForHuman(safeInvocation, reviewed, resolved)
     }
     if (
       resolved.reviewer === 'auto_review' &&
@@ -164,6 +249,23 @@ export class ApprovalService {
         resolved.reviewer === 'auto_review' ? '未配置独立 Guardian，转人工确认' : resolved.reason,
     } satisfies PermissionDecision
     return this.checkpointForHuman(safeInvocation, review, resolved)
+  }
+  private retryFingerprint(invocation: ToolInvocation): string {
+    return createHash('sha256')
+      .update(
+        stable({
+          tool: invocation.name,
+          input: invocation.input,
+          scope: invocation.authorizationScope,
+          permissions: invocation.permissionConfig,
+          workspace: this.db.threadWorkspace(invocation.threadID),
+          taskMode: invocation.taskMode,
+        }),
+      )
+      .digest('hex')
+  }
+  requestRetry(threadID: string, reviewID: string, operationID: string) {
+    return this.db.repositories.interactions.authorizeApprovalRetry(threadID, reviewID, operationID)
   }
 
   prepare(
@@ -195,7 +297,7 @@ export class ApprovalService {
         command: safeInvocation.input.command ?? null,
         cwd: safeInvocation.input.cwd ?? null,
         requestedPermissions: requestedPermissions(safeInvocation.input),
-        ...approvalScopePayload(safeInvocation),
+        ...this.approvalMetadata(safeInvocation),
         // Dynamic permission requests persist their grant metadata so the
         // thread projection can restore permissionGrant without live events.
         ...(safeInvocation.name === 'request_permissions'
@@ -325,7 +427,7 @@ export class ApprovalService {
               : {}),
             ...(typeof invocation.input.cwd === 'string' ? { cwd: invocation.input.cwd } : {}),
             requestedPermissions: requestedPermissions(invocation.input),
-            ...approvalScopePayload(invocation),
+            ...this.approvalMetadata(invocation),
             allowedChoices: ['allow-once', 'deny', 'stop'],
           }
     const { checkpoint, events } = this.db.activateApprovalCheckpoint(
@@ -359,6 +461,7 @@ export class ApprovalService {
     feedback?: string,
     operation?: InteractionOperationInput,
     computerGrant?: 'chat' | 'persistent',
+    grantOptionId?: string,
   ) {
     try {
       this.load(id)
@@ -371,7 +474,19 @@ export class ApprovalService {
     const safeFeedback = feedback?.trim()
       ? secretScrubber.scrubText(feedback.trim().slice(0, 4_000))
       : undefined
-    const result = this.db.resolveApprovalCheckpoint(id, decision, safeFeedback, operation, computerGrant)
+    const loaded = this.load(id)
+    const grantRule =
+      grantOptionId && loaded && decision === 'allow'
+        ? this.validateGrant(loaded.payload.invocation, grantOptionId)
+        : undefined
+    const result = this.db.resolveApprovalCheckpoint(
+      id,
+      decision,
+      safeFeedback,
+      operation,
+      computerGrant,
+      grantRule,
+    )
     if (result.state === 'missing')
       throw new AgentError('APPROVAL_NOT_FOUND', '审批请求不存在', 404)
     if (result.state === 'not-ready')
@@ -389,6 +504,36 @@ export class ApprovalService {
     if (result.state !== 'resolved')
       throw new AgentError('APPROVAL_CHECKPOINT_INVALID', '审批 checkpoint 状态无效', 409)
     const checkpoint = result.checkpoint
+    try {
+      if (grantRule?.scope === 'project') await this.rules.persistProject(grantRule)
+      if (
+        grantRule?.kind === 'browser' &&
+        (grantRule.scope === 'origin' || grantRule.scope === 'all-sites')
+      )
+        await this.browser?.grant(grantRule.target[0]!, grantRule.scope)
+    } catch {
+      // Resolution already owns the durable resume. A settings error must not strand it.
+      const timestamp = Date.now()
+      const { event } = this.db.upsertItemWithEvent(
+        checkpoint.threadID,
+        {
+          id: `approval-grant-error:${id}`,
+          turnID: checkpoint.turnID,
+          agentID: checkpoint.agentID,
+          type: 'activity',
+          status: 'error',
+          data: {
+            activity: 'notice',
+            title: '持久授权未保存',
+            detail: '本次操作已允许，后续操作仍需审批。请在授权管理中重新设置。',
+          },
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+        'item/completed',
+      )
+      result.events.push(event)
+    }
     await Promise.allSettled(
       result.events.map((event) => Effect.runPromise(this.hub.publish(event))),
     )

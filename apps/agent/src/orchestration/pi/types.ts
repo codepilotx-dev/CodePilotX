@@ -7,7 +7,7 @@ import type {
 } from '../harness/types'
 import type { AgentTool, ThinkingLevel } from '../harness/agent-types'
 import type { Model, Models } from '@earendil-works/pi-ai'
-import type { ToolResultBlock } from '@codepilotx/shared/thread'
+import type { ContextUsageBreakdownEntry, ToolResultBlock } from '@codepilotx/shared/thread'
 import type {
   ModelRef,
   PermissionConfig,
@@ -57,6 +57,8 @@ export interface HarnessRuntimeRequest {
   /** Frozen deferred tool names from the persisted turn snapshot; the runtime may only bind these. */
   frozenDeferredToolNames?: readonly string[]
   onPromptComposed?: (bundle: PromptBundle) => void | Promise<void>
+  /** 每次 provider 请求前上报按来源实测的上下文字符量；仅用于展示。 */
+  onContextUsageMeasured?: (breakdown: readonly ContextUsageBreakdownEntry[]) => void
   onSkillDocumentRead?: (path: string, hash: string) => Promise<{ name: string } | undefined>
   preapprovedToolCalls?: ReadonlyMap<string, string | undefined>
   canAutoCompact?: () => boolean | Promise<boolean>

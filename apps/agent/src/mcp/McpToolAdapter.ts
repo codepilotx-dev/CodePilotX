@@ -188,6 +188,7 @@ export class McpToolAdapter {
               input as Record<string, unknown>,
               context.signal,
               requestMeta,
+              context.invocation,
             )
           },
           formatResult: (output) => {

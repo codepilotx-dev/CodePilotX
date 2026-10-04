@@ -6,6 +6,11 @@ import type { SubagentResult } from '../../domain'
 import { providerFailureCategory, providerFailureMessage } from '../../provider/ModelHealthService'
 import { PromptComposer } from '../../prompt/PromptComposer'
 import { inferPromptCacheRuntimePolicy } from '../../prompt/PromptCache'
+import {
+  buildContextUsageBreakdown,
+  contextItemsChars,
+  messagesChars,
+} from '../../context/context-usage-breakdown'
 import { secretScrubber } from '../../security/SecretScrubber'
 import { PiEventAdapter } from './PiEventAdapter'
 import { applyPromptCacheRuntimePolicy } from './PiPromptCacheAdapter'
@@ -143,6 +148,26 @@ export async function executeHarnessRun(
     const policy = inferPromptCacheRuntimePolicy(event.model, bundle.cacheKey)
     const applied = applyPromptCacheRuntimePolicy(event.payload, policy, bundle.stableContextText)
     return { payload: secretScrubber.scrub(applied.payload) }
+  })
+  // 上下文字符量统计是给面板看的旁路数据：任何失败都不得影响模型请求，
+  // 因此这里吞掉异常，只更新快照。
+  const measureContextUsage = (measuredMessagesChars: number) => {
+    try {
+      request.onContextUsageMeasured?.(
+        buildContextUsageBreakdown({
+          diagnostics: bundle.diagnostics,
+          tools,
+          injectedContextChars: contextItemsChars(bundle.contextItems),
+          messagesChars: measuredMessagesChars,
+        }),
+      )
+    } catch {
+      // 忽略：缺少分类数据时面板退化为只显示总量。
+    }
+  }
+  harness.on('context', (event) => {
+    measureContextUsage(messagesChars(event.messages))
+    return undefined
   })
   const pausedToolCalls = new Set<string>()
   // Lifecycle tools that only make sense as the sole call of an assistant

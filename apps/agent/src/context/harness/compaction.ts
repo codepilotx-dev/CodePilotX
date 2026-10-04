@@ -302,19 +302,20 @@ function estimateTextAndImageContentChars(
   return chars
 }
 
-/** Estimate token count for one message using a conservative character heuristic. */
-export function estimateTokens(message: AgentMessage): number {
-  let chars = 0
-
+/**
+ * Count the context-bearing characters of one message. Images count as a fixed
+ * budget instead of their base64 length, so they cannot dominate the metric.
+ */
+export function estimateMessageChars(message: AgentMessage): number {
   switch (message.role) {
     case 'user': {
-      chars = estimateTextAndImageContentChars(
+      return estimateTextAndImageContentChars(
         (message as { content: string | Array<{ type: string; text?: string }> }).content,
       )
-      return Math.ceil(chars / 4)
     }
     case 'assistant': {
       const assistant = message as AssistantMessage
+      let chars = 0
       for (const block of assistant.content) {
         if (block.type === 'text') {
           chars += block.text.length
@@ -324,25 +325,27 @@ export function estimateTokens(message: AgentMessage): number {
           chars += block.name.length + safeJsonStringify(block.arguments).length
         }
       }
-      return Math.ceil(chars / 4)
+      return chars
     }
     case 'custom':
     case 'toolResult': {
-      chars = estimateTextAndImageContentChars(message.content)
-      return Math.ceil(chars / 4)
+      return estimateTextAndImageContentChars(message.content)
     }
     case 'bashExecution': {
-      chars = message.command.length + message.output.length
-      return Math.ceil(chars / 4)
+      return message.command.length + message.output.length
     }
     case 'branchSummary':
     case 'compactionSummary': {
-      chars = message.summary.length
-      return Math.ceil(chars / 4)
+      return message.summary.length
     }
   }
 
   return 0
+}
+
+/** Estimate token count for one message using a conservative character heuristic. */
+export function estimateTokens(message: AgentMessage): number {
+  return Math.ceil(estimateMessageChars(message) / 4)
 }
 function findValidCutPoints(
   entries: SessionTreeEntry[],

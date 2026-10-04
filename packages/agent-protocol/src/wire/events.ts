@@ -57,6 +57,13 @@ const ToolTerminalPayloadSchema = Schema.Struct({
 })
 
 export const EventManifest = {
+  'mcp/elicitationRequested': defineEvent({
+    payload: Schema.Struct({ interactionId: OpaqueIDSchema, threadId: OpaqueIDSchema,
+      turnId: OpaqueIDSchema, agentId: OpaqueIDSchema, toolCallId: OpaqueIDSchema,
+      createdAt: TimestampSchema, version: SequenceSchema, kind: Schema.Literal('mcp-elicitation'),
+      server: Schema.String, tool: Schema.String, request: Schema.Record(Schema.String, JsonValueSchema) }),
+    version: 1, durability: 'durable', stream: 'thread', capability: 'mcp.elicitation.v1',
+  }),
   'computer/changed': defineEvent({ payload: ComputerStateSchema, version: 1, durability: 'durable', stream: 'global', capability: 'computer.use.v1', reconcilesWith: 'computer/state' }),
   'browser/dataChanged': defineEvent({
     payload: Schema.Struct({ collection: Schema.Literals(['history', 'downloads']) }),

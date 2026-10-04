@@ -3,6 +3,7 @@ import {
   McpClient,
   McpHttpError,
   McpTimeoutError,
+  McpAbortError,
   StdioTransport,
   StreamableHttpTransport,
   type CallToolResult,
@@ -18,6 +19,7 @@ import { McpOAuthAuthorizationRequiredError } from '@earendil-works/pi-mcp/oauth
 import { z } from 'zod'
 import { secretScrubber } from '../security/SecretScrubber'
 import type { McpOAuthCoordinator } from './McpOAuthCoordinator'
+import type { McpInvocationIdentity } from './McpElicitationService'
 
 export const MAX_MCP_SERVER_INSTRUCTIONS_BYTES = 16 * 1024
 
@@ -120,6 +122,7 @@ export type McpConnectedClient = {
     args: Record<string, unknown>,
     signal?: AbortSignal,
     requestMeta?: Record<string, unknown>,
+    identity?: McpInvocationIdentity,
   ): Promise<McpToolResult>
   listResources(cursor?: string): Promise<ListResourcesResult>
   readResource(uri: string): Promise<McpReadResourceResult>
@@ -272,7 +275,17 @@ const listPrompts = async (client: McpClient, timeoutMs: number) => {
 }
 
 export class McpClientFactory {
-  constructor(private readonly oauth?: McpOAuthCoordinator) {}
+  constructor(
+    private readonly oauth?: McpOAuthCoordinator,
+    private readonly elicit?: (
+      connectionId: string,
+      server: string,
+      tool: string,
+      identity: McpInvocationIdentity,
+      params: unknown,
+      signal: AbortSignal,
+    ) => Promise<unknown>,
+  ) {}
 
   async connect(
     server: McpServerDeclaration,
@@ -288,7 +301,7 @@ export class McpClientFactory {
       const client = new McpClient({
         name: 'codepilotx-agent',
         version: '0.2.0',
-        capabilities: {},
+        capabilities: this.elicit ? { elicitation: { form: {} } } : {},
         requestTimeoutMs: startupTimeout,
       })
       try {
@@ -368,6 +381,21 @@ export class McpClientFactory {
     onClosed: () => void,
     onAuthenticationRequired?: () => void,
   ): Promise<McpConnectedClient> {
+    const connectionId = crypto.randomUUID()
+    let active: { tool: string; identity: McpInvocationIdentity; signal: AbortSignal } | undefined
+    let queue = Promise.resolve()
+    if (this.elicit)
+      client.setRequestHandler('elicitation/create', (params, context) => {
+        if (!active || active.signal.aborted) return { action: 'cancel' }
+        return this.elicit!(
+          connectionId,
+          server.name,
+          active.tool,
+          active.identity,
+          params,
+          AbortSignal.any([context.signal, active.signal]),
+        )
+      })
     client.onClose(onClosed)
     client.onNotification('notifications/tools/list_changed', onCatalogChanged)
     client.onNotification('notifications/resources/list_changed', onCatalogChanged)
@@ -391,9 +419,38 @@ export class McpClientFactory {
       prompts,
       ...(instructions ? { instructions } : {}),
       transport,
-      callTool: async (name, args, signal, requestMeta) => {
+      callTool: async (name, args, signal, requestMeta, identity) => {
+        const prior = queue
+        let release!: () => void
+        const gate = new Promise<void>((resolve) => {
+          release = resolve
+        })
+        queue = prior.then(() => gate)
         try {
-          const options = { timeoutMs, ...(signal ? { signal } : {}) }
+          await new Promise<void>((resolve, reject) => {
+            const abort = () => {
+              signal?.removeEventListener('abort', abort)
+              reject(new McpAbortError())
+            }
+            signal?.addEventListener('abort', abort, { once: true })
+            if (signal?.aborted) abort()
+            void prior.then(() => {
+              signal?.removeEventListener('abort', abort)
+              resolve()
+            })
+          })
+        } catch (cause) {
+          release()
+          throw cause
+        }
+        const controller = new AbortController()
+        const operationSignal = signal
+          ? AbortSignal.any([signal, controller.signal])
+          : controller.signal
+        try {
+          if (operationSignal.aborted) throw new McpAbortError()
+          active = identity ? { tool: name, identity, signal: operationSignal } : undefined
+          const options = { timeoutMs, signal: operationSignal }
           if (!requestMeta) return await client.callTool(name, args, options)
           return toolResultSchema.parse(
             await client.request(
@@ -412,6 +469,10 @@ export class McpClientFactory {
             throw safeConnectionError(cause)
           }
           throw cause
+        } finally {
+          active = undefined
+          controller.abort()
+          release()
         }
       },
       listResources: (cursor) => client.listResourcesPage(cursor, { timeoutMs }),

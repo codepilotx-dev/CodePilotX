@@ -116,6 +116,8 @@ export const BrowserCommandSchema = Schema.Struct({
   generation: OpaqueIDSchema,
   operation: BrowserOperationSchema,
   allowedOrigins: Schema.Array(Schema.String),
+  deniedOrigins: Schema.optional(Schema.Array(Schema.String)),
+  allowAllSites: Schema.optional(Schema.Boolean),
 })
 export type BrowserCommand = typeof BrowserCommandSchema.Type
 export const BrowserResultSchema = Schema.Struct({

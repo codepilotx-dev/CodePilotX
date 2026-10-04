@@ -194,6 +194,7 @@ export const InteractionKindSchema = Schema.Literals([
   'permission',
   'question',
   'hookTrust',
+  'mcp-elicitation',
 ])
 export const InteractionStateSchema = Schema.Literals([
   'pending',
@@ -212,6 +213,9 @@ const InteractionMetadataFields = {
 }
 
 export const PendingApprovalInteractionSchema = Schema.Struct({
+  grantOptions: AgentThread.ApprovalRequestSchema.fields.grantOptions,
+  toolIdentity: AgentThread.ApprovalRequestSchema.fields.toolIdentity,
+  input: AgentThread.ApprovalRequestSchema.fields.input,
   ...InteractionMetadataFields,
   kind: Schema.Literal('approval'),
   toolCallId: OpaqueIDSchema,
@@ -247,6 +251,7 @@ export const InteractionQuestionChoiceSchema = AgentThread.InteractionQuestionCh
 export const InteractionQuestionSchema = AgentThread.InteractionQuestionSchema
 
 export const PendingQuestionInteractionSchema = Schema.Struct({
+  autoResolutionPaused: Schema.optional(Schema.Boolean),
   ...InteractionMetadataFields,
   kind: Schema.Literal('question'),
   toolCallId: Schema.optional(OpaqueIDSchema),
@@ -272,6 +277,9 @@ export const PendingHookTrustInteractionSchema = Schema.Struct({
 })
 
 export const PendingInteractionSchema = Schema.Union([
+  Schema.Struct({ ...InteractionMetadataFields, kind: Schema.Literal('mcp-elicitation'),
+    server: NonEmptyStringSchema, tool: NonEmptyStringSchema, toolCallId: OpaqueIDSchema,
+    request: Schema.Record(Schema.String, JsonValueSchema) }),
   PendingApprovalInteractionSchema,
   PendingPermissionInteractionSchema,
   PendingQuestionInteractionSchema,
@@ -291,6 +299,7 @@ export const InteractionListPendingResultSchema = Schema.Struct({
 })
 
 export const ApprovalInteractionResponseSchema = Schema.Struct({
+  grantOptionId: Schema.optional(NonEmptyStringSchema),
   computerGrant: Schema.optional(Schema.Literals(['chat', 'persistent'])),
   kind: Schema.Literal('approval'),
   decision: Schema.Literals(['allow-once', 'deny', 'stop']),
@@ -334,6 +343,8 @@ export const HookTrustInteractionResponseSchema = Schema.Struct({
 })
 
 export const InteractionResponseSchema = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal('mcp-elicitation'), action: Schema.Literals(['accept', 'decline', 'cancel']),
+    content: Schema.optional(Schema.Record(Schema.String, JsonValueSchema)) }),
   ApprovalInteractionResponseSchema,
   PermissionInteractionResponseSchema,
   QuestionInteractionResponseSchema,
@@ -763,6 +774,8 @@ export const ThreadPatchDiffResultSchema = Schema.Struct({
   renderable: Schema.Boolean,
   tooLargeReason: Schema.NullOr(Schema.Literals(['changed-lines', 'changed-bytes', 'line-bytes'])),
 })
+export const decodeThreadPatchDiff = (value: unknown): typeof ThreadPatchDiffResultSchema.Type =>
+  Schema.decodeUnknownSync(ThreadPatchDiffResultSchema)(value)
 
 export const PromptSourceSchema = Schema.Union([
   Schema.Struct({ type: Schema.Literal('builtin'), name: NonEmptyStringSchema }),
@@ -1336,6 +1349,35 @@ export const CoreRpcMethods = {
     capability: 'interactions.serverRequests.v1',
     mutation: true,
     exactParams: true,
+  }),
+  'interaction/questionPause': defineMethod({
+    params: Schema.Struct({ interactionId: OpaqueIDSchema, expectedVersion: SequenceSchema }),
+    result: Schema.Struct({ paused: Schema.Boolean }), errors: InteractionErrors,
+    capability: 'interaction.questionPause.v1', mutation: true,
+  }),
+  'approval/rules/list': defineMethod({
+    params: Schema.Struct({ threadId: OpaqueIDSchema }),
+    result: Schema.Struct({ rules: Schema.Array(Schema.Struct({ id: NonEmptyStringSchema,
+      kind: Schema.Literals(['network', 'mcp']), target: Schema.Array(Schema.String) })) }),
+    errors: InteractionErrors, capability: 'interaction.scopedGrants.v1', mutation: false,
+  }),
+  'approval/reviewState': defineMethod({
+    params: Schema.Struct({ threadId: OpaqueIDSchema }),
+    result: Schema.Struct({ manualAllows: NonNegativeIntSchema, denials: Schema.Array(Schema.Struct({
+      id: OpaqueIDSchema, tool: Schema.String, reason: Schema.String,
+      input: Schema.optional(Schema.Record(Schema.String, JsonValueSchema)),
+      retryOperationId: Schema.optional(OpaqueIDSchema), createdAt: TimestampSchema })) }),
+    errors: InteractionErrors, capability: 'approval.retry.v1', mutation: false,
+  }),
+  'approval/retry': defineMethod({
+    params: Schema.Struct({ threadId: OpaqueIDSchema, reviewId: OpaqueIDSchema, operationId: OpaqueIDSchema }),
+    result: Schema.Struct({ input: NonEmptyStringSchema }), errors: InteractionErrors,
+    capability: 'approval.retry.v1', mutation: true,
+  }),
+  'approval/rules/revoke': defineMethod({
+    params: Schema.Struct({ threadId: OpaqueIDSchema, ruleId: NonEmptyStringSchema }),
+    result: Schema.Struct({ revoked: Schema.Boolean }), errors: InteractionErrors,
+    capability: 'interaction.scopedGrants.v1', mutation: true,
   }),
   'project/list': defineMethod({
     params: ProjectListParamsSchema,

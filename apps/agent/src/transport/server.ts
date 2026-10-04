@@ -64,6 +64,7 @@ import type { MemoryManager } from '../resource/MemoryManager'
 import type { PlanApprovalService } from '../session/plan/PlanApprovalService'
 
 export interface TransportDependencies {
+  mcpElicitations?: import('../mcp/McpElicitationService').McpElicitationService
   config: AgentConfig
   configService: ConfigService
   db: AgentDatabase
@@ -491,6 +492,7 @@ export const createApp = (dependencies: TransportDependencies) => {
   } = dependencies
   const app = new Hono()
   const rpc = new RpcRouter({
+    ...(dependencies.mcpElicitations ? { mcpElicitations: dependencies.mcpElicitations } : {}),
     planApprovals: dependencies.planApprovals,
     config: dependencies.configService,
     db,

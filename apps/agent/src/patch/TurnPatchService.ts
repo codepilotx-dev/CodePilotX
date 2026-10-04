@@ -115,6 +115,48 @@ const collapseBatches = (batches: readonly StoredTurnPatchBatch[]): Endpoint[] =
   return [...byPath.values()]
 }
 
+/** Shared by committed changes and host-inspected approval previews. */
+export function buildFileDiff(
+  file: Pick<TurnPatchMutationFile, 'path' | 'operation' | 'beforeContent' | 'afterContent'>,
+): RpcResult<'thread/patch/diff'> {
+  const patch = createTwoFilesPatch(
+    file.operation === 'create' ? '/dev/null' : `a/${file.path}`,
+    file.operation === 'delete' ? '/dev/null' : `b/${file.path}`,
+    file.beforeContent ?? '',
+    file.afterContent ?? '',
+    undefined,
+    undefined,
+    { context: 3 },
+  )
+  const lines = patch.split('\n')
+  const changedLines = lines.filter(
+    (line) =>
+      (line.startsWith('+') && !line.startsWith('+++')) ||
+      (line.startsWith('-') && !line.startsWith('---')),
+  ).length
+  const changedBytes = Buffer.byteLength(patch, 'utf8')
+  const maximumLineBytes = lines.reduce(
+    (maximum, line) => Math.max(maximum, Buffer.byteLength(line, 'utf8')),
+    0,
+  )
+  const tooLargeReason =
+    changedLines > UNRENDERABLE_CHANGED_LINES
+      ? 'changed-lines'
+      : changedBytes > UNRENDERABLE_CHANGED_BYTES
+        ? 'changed-bytes'
+        : maximumLineBytes > UNRENDERABLE_LINE_BYTES
+          ? 'line-bytes'
+          : null
+  return {
+    path: file.path,
+    operation: file.operation,
+    patch: tooLargeReason ? '' : patch,
+    hunks: tooLargeReason ? [] : parseHunks(patch),
+    renderable: tooLargeReason === null,
+    tooLargeReason,
+  }
+}
+
 export class TurnPatchService {
   private readonly locks = new Map<string, Promise<void>>()
 
@@ -156,48 +198,7 @@ export class TurnPatchService {
       throw new AgentError('CHECKPOINT_UNAVAILABLE', '该文件缺少可显示的编辑证据', 409)
     }
 
-    const oldFileName = file.operation === 'create' ? '/dev/null' : `a/${file.path}`
-    const newFileName = file.operation === 'delete' ? '/dev/null' : `b/${file.path}`
-    const patch = createTwoFilesPatch(
-      oldFileName,
-      newFileName,
-      file.beforeContent ?? '',
-      file.afterContent ?? '',
-      undefined,
-      undefined,
-      { context: 3 },
-    )
-    const lines = patch.split('\n')
-    const changedLines = lines.reduce(
-      (total, line) =>
-        total +
-        ((line.startsWith('+') && !line.startsWith('+++')) ||
-        (line.startsWith('-') && !line.startsWith('---'))
-          ? 1
-          : 0),
-      0,
-    )
-    const changedBytes = Buffer.byteLength(patch, 'utf8')
-    const maximumLineBytes = lines.reduce(
-      (maximum, line) => Math.max(maximum, Buffer.byteLength(line, 'utf8')),
-      0,
-    )
-    const tooLargeReason =
-      changedLines > UNRENDERABLE_CHANGED_LINES
-        ? ('changed-lines' as const)
-        : changedBytes > UNRENDERABLE_CHANGED_BYTES
-          ? ('changed-bytes' as const)
-          : maximumLineBytes > UNRENDERABLE_LINE_BYTES
-            ? ('line-bytes' as const)
-            : null
-    return {
-      path: file.path,
-      operation: file.operation,
-      patch: tooLargeReason ? '' : patch,
-      hunks: tooLargeReason ? [] : parseHunks(patch),
-      renderable: tooLargeReason === null,
-      tooLargeReason,
-    }
+    return buildFileDiff(file)
   }
 
   async apply(input: ApplyInput): Promise<Item> {

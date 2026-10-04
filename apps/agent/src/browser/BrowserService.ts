@@ -151,6 +151,25 @@ export class BrowserService {
     }
     return records
   }
+  allowsAllSites(): boolean {
+    return (this.config.snapshot().desktop as Record<string, unknown> | undefined)?.browserAllowAllSites === true
+  }
+  isGranted(threadId: string, origin: string): boolean {
+    const permission = this.permissions().find((entry) => entry.origin === origin)
+    if (permission?.decision === 'deny') return false
+    return permission?.decision === 'allow' || this.allowsAllSites() ||
+      this.db.repositories.interactions.resolvedApprovalGrantRules(threadId).some((value) => {
+        const rule = value as { kind?: string; target?: string[] }
+        return rule.kind === 'browser' && rule.target?.[0] === origin
+      })
+  }
+  async grant(origin: string, scope: 'origin' | 'all-sites'): Promise<void> {
+    if (scope === 'origin') { await this.setPermission(origin, 'allow'); return }
+    await this.config.batchWrite({ target: { kind: 'user' }, edits: [
+      { keyPath: ['desktop', 'browserAllowAllSites'], value: true },
+    ] })
+    for (const host of this.hosts.values()) host.wake?.()
+  }
   async setPermission(origin?: string, decision?: 'allow' | 'deny' | 'remove' | 'clear') {
     if (!decision) return this.permissions()
     if (decision !== 'clear' && (!origin || new URL(browserUrl(origin)).origin !== origin))
@@ -188,6 +207,7 @@ export class BrowserService {
       edits: [
         { keyPath: ['desktop', 'browserSitePermissions'], value: next as never },
         { keyPath: ['desktop', 'browserAllowedSites'], value: allowed as never },
+        ...(decision === 'clear' ? [{ keyPath: ['desktop', 'browserAllowAllSites'], value: false }] : []),
       ],
       ...(user ? { expectedVersion: user.version } : {}),
     })
@@ -440,6 +460,7 @@ export class BrowserService {
       throw new AgentError('PERMISSION_DENIED', '此站点的浏览器授权已被拒绝', 403)
     return {
       origin,
+      ...(origin ? { browserOrigin: origin } : {}),
       fingerprint: createHash('sha256')
         .update(
           JSON.stringify({
@@ -453,15 +474,12 @@ export class BrowserService {
         )
         .digest('hex'),
       affectedPaths: [],
-      ruleRequiresApproval: Boolean(origin && permission?.decision !== 'allow'),
+      ruleRequiresApproval: Boolean(origin && !this.isGranted(threadId, origin)),
     }
   }
   async execute(threadId: string, tabId: string, operation: BrowserOperation, signal: AbortSignal) {
     const inspected = this.inspect(threadId, tabId, operation)
-    // Reached only after ToolExecutor authorizes this exact invocation.
-    if (inspected.origin && inspected.ruleRequiresApproval)
-      await this.setPermission(inspected.origin, 'allow')
-    this.inspect(threadId, tabId, operation)
+    // ToolExecutor authorizes this exact operation. A one-time approval never writes a site rule.
     let tab = this.require(tabId)
     if (tab.busy) throw new AgentError('INVALID_REQUEST', '此标签已有操作正在执行', 409)
     const host = this.hosts.get(tab.windowId)
@@ -484,7 +502,14 @@ export class BrowserService {
       operation: operation.url ? { ...operation, url: browserUrl(operation.url) } : operation,
       allowedOrigins: this.permissions()
         .filter((p) => p.decision === 'allow')
-        .map((p) => p.origin),
+        .map((p) => p.origin)
+        .concat(this.db.repositories.interactions.resolvedApprovalGrantRules(threadId).flatMap((value) => {
+          const rule = value as import('../permission/ApprovalRules').ApprovalRule
+          return rule.kind === 'browser' && rule.scope === 'session' ? rule.target : []
+        }))
+        .concat(inspected.origin ? [inspected.origin] : []),
+      deniedOrigins: this.permissions().filter((p) => p.decision === 'deny').map((p) => p.origin),
+      allowAllSites: this.allowsAllSites(),
     }
     try {
       signal.throwIfAborted()

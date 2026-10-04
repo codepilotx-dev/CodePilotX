@@ -69,7 +69,7 @@ const storedQuestions = (payload: Record<string, unknown>): InteractionQuestion[
           ]
         : []
     })
-    if (choices.length < 2 || choices.length > 3) return []
+    if (choices.length > 3) return []
     return [
       {
         id: question.id,
@@ -309,11 +309,19 @@ export class QuestionService {
   dispose() {
     this.autoResolution.dispose()
   }
+  async pause(id: string, version: number) {
+    const events = this.db.repositories.interactions.pauseQuestionAutoResolution(id, version)
+    if (!events) throw new AgentError('REQUEST_NOT_PENDING', '问题已失效或版本已变化', 409)
+    this.autoResolution.forget(id)
+    for (const event of events) await Effect.runPromise(this.hub.publish(event))
+    return { paused: true }
+  }
 
   restoreAutoResolutions() {
     const rows = this.db.repositories.interactions.pendingAutoResolutionQuestions()
     for (const row of rows) {
       const payload = row.payload
+      if (payload.autoResolutionPaused === true) continue
       const timeout =
         typeof payload.autoResolutionMs === 'number' ? payload.autoResolutionMs : undefined
       this.scheduleAutoResolution(row.id, row.createdAt, timeout, storedQuestions(payload))
@@ -332,7 +340,8 @@ export class QuestionService {
       id,
       deadline: createdAt + timeout,
       resolve: async () => {
-        await this.reply(id, autoAnswer(questions), false, 'auto')
+        if (questions.some((question) => question.choices.length === 0)) await this.reply(id, null, true, 'auto')
+        else await this.reply(id, autoAnswer(questions), false, 'auto')
       },
     })
   }

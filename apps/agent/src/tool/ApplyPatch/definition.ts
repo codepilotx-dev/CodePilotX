@@ -16,6 +16,7 @@ import type {
 import type { ToolContext, ToolDefinition, ToolInputInspection } from '../ToolRegistry'
 import { applyPatchText } from './applyPatchText'
 import { parseApplyPatch, type ApplyPatchOperation } from './parseApplyPatch'
+import { buildFileDiff } from '../../patch/TurnPatchService'
 
 const MAX_PATCH_BYTES = 1024 * 1024
 const MAX_AFFECTED_FILES = 100
@@ -377,8 +378,13 @@ export const applyPatchDefinition: ToolDefinition<ApplyPatchInput, ApplyPatchOut
   executionMode: 'sequential',
   inspectInput: async (input, context) => {
     const prepared = await preparePatch(input, context)
+    const protectedFile = (file: PreparedOperation) => filePathProtection(file.canonicalPath, file.path).requiresApproval
     return {
       authorizationScope: prepared.authorizationScope,
+      grantsForbidden: prepared.operations.some(protectedFile),
+      fileDiffs: prepared.operations.filter((file) => !protectedFile(file)).map((file) => buildFileDiff({
+        path: file.path, operation: file.operation, beforeContent: file.beforeContent, afterContent: file.content,
+      })),
       ...(prepared.configWrites.length ? { configWrites: prepared.configWrites } : {}),
     }
   },

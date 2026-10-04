@@ -691,6 +691,16 @@ function applyEnvelopePayload(
     case 'approval/requested':
       upsertApproval(state, approvalFromPayload(envelope.payload))
       return
+    case 'mcp/elicitationRequested': {
+      const payload = envelope.payload
+      upsertApproval(state, { id: payload.interactionId, threadId: payload.threadId,
+        turnId: payload.turnId, agentId: payload.agentId, toolCallID: payload.toolCallId,
+        tool: 'McpElicitation', command: null, cwd: null, paths: [], requestedPermissions: {}, review: null,
+        risk: 'medium', reason: String(payload.request.message ?? 'MCP 请求输入'), status: 'pending', createdAt: payload.createdAt,
+        input: { serverName: payload.server, request: payload.request },
+        toolIdentity: { server: payload.server, tool: payload.tool } })
+      return
+    }
     case 'permission/requested':
       upsertApproval(state, permissionFromPayload(envelope.payload))
       return
@@ -747,6 +757,10 @@ function applyEnvelopePayload(
       const approval = state.approvalsById.get(envelope.payload.interactionId)
       if (!approval) return
       const result = envelope.payload.result
+      if (result.kind === 'mcp-elicitation') {
+        upsertApproval(state, { ...approval, status: result.action === 'accept' ? 'allowed' : result.action === 'cancel' ? 'cancelled' : 'denied' })
+        return
+      }
       if (result?.kind !== 'approval' && result?.kind !== 'permission') return
       const status =
         result.kind === 'approval'
@@ -888,6 +902,9 @@ function appendItemDelta(
 }
 
 function approvalFromPayload(payload: {
+  grantOptions?: ApprovalRequest['grantOptions']
+  toolIdentity?: ApprovalRequest['toolIdentity']
+  input?: ApprovalRequest['input']
   interactionId: string
   threadId: string
   turnId: string
@@ -915,6 +932,9 @@ function approvalFromPayload(payload: {
       : payload.affectedPaths.map((affected) => ({ ...affected }))
   return {
     id: payload.interactionId,
+    ...(payload.grantOptions ? { grantOptions: payload.grantOptions } : {}),
+    ...(payload.toolIdentity ? { toolIdentity: payload.toolIdentity } : {}),
+    ...(payload.input ? { input: payload.input } : {}),
     threadId: payload.threadId,
     turnId: payload.turnId,
     agentId: payload.agentId,
@@ -985,6 +1005,7 @@ function permissionFromPayload(payload: {
 }
 
 function questionFromPayload(payload: {
+  version?: number
   interactionId: string
   turnId: string
   agentId: string
@@ -999,6 +1020,7 @@ function questionFromPayload(payload: {
     turnId: payload.turnId,
     agentId: payload.agentId,
     type: 'question',
+    ...(payload.version !== undefined ? { version: payload.version } : {}),
     prompt: first?.prompt ?? '需要你的选择',
     choices: first?.choices ?? [],
     questions: payload.questions,

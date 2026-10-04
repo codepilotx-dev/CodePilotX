@@ -128,6 +128,7 @@ import { AllRpcMethods as RpcMethods } from '@codepilotx/agent-protocol/host'
 import type { BrowserService } from '../../browser/BrowserService'
 
 export type RpcRouterDependencies = {
+  mcpElicitations?: import('../../mcp/McpElicitationService').McpElicitationService
   computer?: ComputerUseService
   browser?: BrowserService
   config: ConfigService
@@ -359,6 +360,7 @@ export class RpcRouter {
       new PlanApprovalService(dependencies.db, dependencies.hub, dependencies.threads)
     this.subscriptions = new EventSubscriptionRegistry(dependencies.db)
     this.interactions = new InteractionService({
+      ...(dependencies.mcpElicitations ? { mcpElicitations: dependencies.mcpElicitations } : {}),
       ...(dependencies.computer ? { computer: dependencies.computer } : {}),
       db: dependencies.db,
       hub: dependencies.hub,

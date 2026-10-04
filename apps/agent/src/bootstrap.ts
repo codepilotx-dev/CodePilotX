@@ -77,6 +77,7 @@ import { MiniMaxCliSettingsRepository } from './storage/repositories/minimax-cli
 import { MiniMaxCliIntegrationService } from './integration/minimax-cli/MiniMaxCliIntegrationService'
 import { McpSettingsRepository } from './storage/repositories/mcp-settings-repository'
 import { McpConfigService } from './mcp/McpConfigService'
+import { McpElicitationService } from './mcp/McpElicitationService'
 import { McpConnectionManager } from './mcp/McpConnectionManager'
 import { McpRuntimeService } from './mcp/McpRuntimeService'
 import { McpDiagnosticContextProvider } from './mcp/McpDiagnosticContextProvider'
@@ -517,10 +518,13 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       new McpOAuthCredentialRepository(credentials),
       `http://127.0.0.1:${config.port}/auth/mcp/callback`,
     )
+    const mcpElicitations = new McpElicitationService(db, hub)
+    yield* Effect.promise(() => mcpElicitations.restore())
     const mcpConnections = new McpConnectionManager(
       mcpConfigs,
       tools,
-      new McpClientFactory(mcpOAuthCoordinator),
+      new McpClientFactory(mcpOAuthCoordinator, (connectionId, server, tool, identity, params, signal) =>
+        mcpElicitations.request(connectionId, server, tool, identity, params, signal)),
       async (generation) => {
         await publishAgentEvent(db, hub, null, null, 'mcp/updated', {
           generation,
@@ -533,7 +537,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const mcp = new McpRuntimeService(mcpConfigs, mcpConnections, mcpOAuth)
     const reviewer = new ReviewerService(db, piModels, configService)
     const approvals = new ApprovalService(db, hub, tools, (invocation, signal) =>
-      reviewer.review(invocation, signal),
+      reviewer.review(invocation, signal), configService, browser,
     )
     let toolExecutor!: ToolExecutor
     const hooks = new HookService(
@@ -986,6 +990,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     yield* Effect.promise(() => startupRecovery.run())
     let disposed = false
     const app = createApp({
+      mcpElicitations,
       config,
       configService,
       db,

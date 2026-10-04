@@ -39,6 +39,7 @@ const offsetCursor = (value: unknown) => {
 }
 
 export type InteractionServiceDependencies = {
+  mcpElicitations?: import('../mcp/McpElicitationService').McpElicitationService
   db: AgentDatabase
   hub: EventHub
   computer?: ComputerUseService
@@ -60,6 +61,7 @@ export class InteractionService {
       ? new Set(rawParams.kinds.filter((kind): kind is string => typeof kind === 'string'))
       : null
     const interactions: Array<Record<string, unknown>> = []
+    if (!requestedKinds || requestedKinds.has('mcp-elicitation')) interactions.push(...repository.pendingMcpElicitations(threadID))
 
     if (!requestedKinds || requestedKinds.has('approval') || requestedKinds.has('permission')) {
       for (const row of repository.pendingApprovalIDs(threadID)) {
@@ -119,6 +121,7 @@ export class InteractionService {
           interactions.push({
             ...metadata,
             kind: 'approval',
+            ...this.dependencies.approvals.approvalMetadata(invocation),
             ...(invocation.authorizationScope?.computerApp ? { computerApp: invocation.authorizationScope.computerApp } : {}),
             risk: ['low', 'medium', 'high', 'critical'].includes(checkpoint.risk)
               ? checkpoint.risk
@@ -160,7 +163,7 @@ export class InteractionService {
                     ]
                   : []
               })
-              return choices.length >= 2 && choices.length <= 3
+              return choices.length <= 3
                 ? [
                     {
                       id: question.id,
@@ -169,6 +172,8 @@ export class InteractionService {
                       choices,
                       allowFreeform: true,
                       required: true,
+                      minAnswers: typeof question.minAnswers === 'number' ? question.minAnswers : 1,
+                      maxAnswers: typeof question.maxAnswers === 'number' ? question.maxAnswers : 1,
                     },
                   ]
                 : []
@@ -184,6 +189,7 @@ export class InteractionService {
           version: row.payloadVersion,
           kind: 'question',
           questions,
+          ...(row.payload.autoResolutionPaused === true ? { autoResolutionPaused: true } : {}),
           ...(typeof row.payload.autoResolutionMs === 'number'
             ? { autoResolutionMs: row.payload.autoResolutionMs }
             : {}),
@@ -239,7 +245,7 @@ export class InteractionService {
       }
       const duplicateKind = enumValue(
         duplicate.response.kind,
-        ['approval', 'permission', 'question', 'hookTrust'] as const,
+        ['approval', 'permission', 'question', 'hookTrust', 'mcp-elicitation'] as const,
         'response.kind',
       )
       const stopped =
@@ -255,7 +261,7 @@ export class InteractionService {
           } else
             await threads.abortStoppedTurn(target.threadID, target.turnID).catch(() => undefined)
         }
-      } else {
+      } else if (duplicateKind !== 'mcp-elicitation') {
         for (const target of repository.interactionResumeTargets(interactionID, duplicateKind)) {
           const execution = db.getAgentExecution(target.agentID)
           if (execution?.subagentRunID) await subagents.resumeTurn(target.threadID, target.turnID)
@@ -268,7 +274,7 @@ export class InteractionService {
     }
     const kind = enumValue(
       response.kind,
-      ['approval', 'permission', 'question', 'hookTrust'] as const,
+      ['approval', 'permission', 'question', 'hookTrust', 'mcp-elicitation'] as const,
       'response.kind',
     )
     const resolvedAt = Date.now()
@@ -317,7 +323,16 @@ export class InteractionService {
       )
     }
 
-    if (kind === 'approval') {
+    if (kind === 'mcp-elicitation') {
+      const service = this.dependencies.mcpElicitations
+      if (!service) throw new AgentError('CAPABILITY_REQUIRED', 'MCP 表单不可用', 409)
+      const action = enumValue(response.action, ['accept', 'decline', 'cancel'] as const, 'response.action')
+      await service.respond(interactionID, Number(expectedVersion), {
+        kind: 'mcp-elicitation', action,
+        ...(response.content ? { content: response.content as Record<string, import('@codepilotx/agent-protocol').JsonValue> } : {}),
+      }, operation)
+      operationPersistedWithResolution = true
+    } else if (kind === 'approval') {
       const checkpoint = db.getApprovalCheckpoint(interactionID)
       if (!checkpoint || checkpoint.status !== 'pending')
         throw new AgentError('REQUEST_NOT_PENDING', '审批请求不存在或已处理', 409)
@@ -329,6 +344,11 @@ export class InteractionService {
         'response.decision',
       )
       const invocation = checkpoint.payload.invocation
+      if (response.grantOptionId !== undefined && (decision !== 'allow-once' || typeof response.grantOptionId !== 'string'))
+        throw new AgentError('INVALID_REQUEST', '授权范围仅用于允许操作', 400)
+      if (response.grantOptionId !== undefined) approvals.validateGrant(invocation, String(response.grantOptionId))
+      if (response.remember !== undefined)
+        throw new AgentError('INVALID_REQUEST', '通用记忆规则不可用，请使用 Agent 提供的授权选项', 400)
       const isComputer = invocation.name === 'ComputerRead' && !!invocation.authorizationScope?.computerApp
       if (response.computerGrant !== undefined && (!isComputer || decision !== 'allow-once'))
         throw new AgentError('INVALID_REQUEST', '应用授权范围仅用于允许读取应用', 400)
@@ -359,6 +379,7 @@ export class InteractionService {
           trimmed ? secretScrubber.scrubText(trimmed) : undefined,
           operation,
           computerGrant,
+          typeof response.grantOptionId === 'string' ? response.grantOptionId : undefined,
         )
         operationPersistedWithResolution = true
         queueResume(resolved)
