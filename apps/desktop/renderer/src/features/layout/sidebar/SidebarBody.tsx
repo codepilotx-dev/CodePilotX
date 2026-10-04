@@ -47,6 +47,7 @@ import {
   sliceSidebarTimelineModel,
 } from './sidebarViewModel.js'
 import { cx } from '../../../utils/cx.js'
+import { moveFocusOnArrowKey } from '../../../utils/arrowListFocus.js'
 import type { SidebarProjectCatalogState } from './useSidebarProjectCatalog.js'
 import {
   type SidebarScrollModeKey,
@@ -482,7 +483,12 @@ export function SidebarBody({
       >
         {scrollHeader}
         {/* 次级导航与时间线/任务主体之间的分组间距，不再占用整个滚动视口的外边距 */}
-        <div className="sidebar-scroll-main">
+        <div
+          className="sidebar-scroll-main"
+          onKeyDown={(event) =>
+            moveFocusOnArrowKey(event, '.sidebar-session-button, .sidebar-project-button')
+          }
+        >
           {timeline ? (
             <Timeline
               activeSessionId={activeSessionId}

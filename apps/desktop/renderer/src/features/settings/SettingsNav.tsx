@@ -10,6 +10,7 @@ import {
   type SettingsSearchDocument,
 } from './settingsRegistry.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
+import { moveFocusOnArrowKey } from '../../utils/arrowListFocus.js'
 
 type Props = {
   activeTab: string
@@ -128,7 +129,10 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
           variant="standard"
         />
       </div>
-      <div className="settings-nav-menu tw:flex tw:w-full tw:min-w-0 tw:flex-col">
+      <div
+        className="settings-nav-menu tw:flex tw:w-full tw:min-w-0 tw:flex-col"
+        onKeyDown={(event) => moveFocusOnArrowKey(event, '.settings-nav-item')}
+      >
         {normalizedQuery ? (
           <SearchResults
             t={t}

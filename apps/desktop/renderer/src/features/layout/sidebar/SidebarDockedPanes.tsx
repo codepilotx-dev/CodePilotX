@@ -115,7 +115,15 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
               trigger={
                 <div
                   className="sidebar-docked-pane-header tw:flex tw:items-center tw:justify-between tw:px-2 tw:py-1.5 tw:cursor-pointer hover:tw:bg-app-hover"
+                  aria-expanded={active}
                   onClick={() => onSelectTab(tab.id)}
+                  onKeyDown={(event) => {
+                    if (event.nativeEvent.isComposing) return
+                    if (event.key !== 'Enter' && event.key !== ' ') return
+                    event.preventDefault()
+                    onSelectTab(tab.id)
+                  }}
+                  tabIndex={0}
                 >
                   <div className="tw:flex tw:items-center tw:gap-1.5 tw:min-w-0">
                     <span className="tw:text-app-text-muted tw:shrink-0">

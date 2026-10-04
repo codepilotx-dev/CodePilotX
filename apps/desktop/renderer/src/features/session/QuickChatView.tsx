@@ -311,8 +311,9 @@ function CodingQuickChatView(): React.ReactNode {
           <div className="quick-chat-hero">
             <button
               ref={whaleMarkRef}
-              aria-label={t('旋转鲸鱼图标')}
+              aria-hidden="true"
               className="quick-chat-mark"
+              tabIndex={-1}
               type="button"
               onClick={handleWhaleMarkClick}
             />
