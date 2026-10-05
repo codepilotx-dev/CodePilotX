@@ -44,6 +44,34 @@ export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
 export const DEFAULT_DESKTOP_THEME_SETTINGS: DesktopThemeSettings =
   DEFAULT_APPEARANCE_SETTINGS as DesktopThemeSettings
 
+export function resetAdvancedDesktopThemeSettings(
+  settings: DesktopThemeSettings,
+): DesktopThemeSettings {
+  const defaults = DEFAULT_DESKTOP_THEME_SETTINGS
+  const resetTheme = (variant: DesktopThemeVariant): DesktopChromeTheme => {
+    const theme = settings.chromeThemes[variant]
+    const defaultTheme = defaults.chromeThemes[variant]
+    return {
+      ...theme,
+      contrast: defaultTheme.contrast,
+      fonts: {
+        ...theme.fonts,
+        uiFace: defaultTheme.fonts.uiFace ?? null,
+        code: defaultTheme.fonts.code,
+        codeFace: defaultTheme.fonts.codeFace ?? null,
+      },
+    }
+  }
+  return {
+    ...settings,
+    chromeThemes: { light: resetTheme('light'), dark: resetTheme('dark') },
+    fontSizes: { ...defaults.fontSizes },
+    reduceMotion: defaults.reduceMotion,
+    pointerCursorEnabled: defaults.pointerCursorEnabled,
+    fontSmoothingEnabled: defaults.fontSmoothingEnabled,
+  }
+}
+
 export function getDesktopThemeForSelection(
   settings: DesktopThemeSettings,
   variant: DesktopThemeVariant,

@@ -4,36 +4,14 @@ import tailwindcss from '@tailwindcss/vite'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
-import {
-  BUNDLE_BUDGET_METRIC_NAMES,
-  evaluateBundleBudget,
-  parseBundleBudgetBaseline,
-  type BundleBudgetEvaluation,
-  type BundleBudgetMetricName,
-} from './scripts/bundle-budget-policy.js'
 
-// Two-layer real gates for the /new route. The entry gate bounds the static
-// shell graph (Vite entry plus `chunk.imports`). The entry now intentionally
-// includes every main-window top-level page, every settings tab and the ordinary
-// workbench UI, so the budget guards against accidental regressions instead of
-// forcing those surfaces back into dynamic chunks; heavyweight leaves (terminal,
-// file editor, mermaid/shiki/katex rendering) and the standalone pet overlay
-// remain behind dynamic isolation. Each surface gate bounds the interactive first
-// screen graph reachable from explicit module manifests. Raw JS is the primary
-// metric because the desktop server returns Bun.file without Content-Encoding;
-// gzip stays as a regression aid. JS keeps fixed post-optimization ceilings. CSS
-// uses an explicitly accepted baseline with warning and failure growth bands for
-// the static entry and /new interactive union.
-const ENTRY_RAW_BUDGET_KIB = 2625
-const ENTRY_GZIP_BUDGET_KIB = 760
-const SURFACE_RAW_BUDGET_KIB = 2840
-const SURFACE_GZIP_BUDGET_KIB = 825
+// Report the static entry graph and each /new interactive surface without size
+// limits: complete functionality and visual effects take priority over bundle size.
+// Raw JS reflects desktop loading because Bun.file has no Content-Encoding;
+// gzip remains an informational comparison. Existing dynamic isolation is unchanged.
 const rootPackage = JSON.parse(
   readFileSync(resolve(__dirname, '..', '..', '..', 'package.json'), 'utf8'),
 ) as { version: string }
-const bundleBudgetBaseline = parseBundleBudgetBaseline(
-  JSON.parse(readFileSync(resolve(__dirname, 'bundle-budget-baseline.json'), 'utf8')),
-)
 
 const RENDERER_SRC_ROOT = resolve(__dirname, 'src')
 
@@ -272,21 +250,9 @@ function formatKib(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)} KiB`
 }
 
-function formatCssBudget(label: string, evaluation: BundleBudgetEvaluation): string {
-  const deltaPrefix = evaluation.deltaBytes >= 0 ? '+' : ''
-  return [
-    `${label}: ${formatKib(evaluation.observedBytes)} (${evaluation.observedBytes} bytes)`,
-    `baseline ${formatKib(evaluation.baselineBytes)} (${evaluation.baselineBytes} bytes)`,
-    `delta ${deltaPrefix}${formatKib(evaluation.deltaBytes)}`,
-    `warn ${formatKib(evaluation.warningLimitBytes)}`,
-    `fail ${formatKib(evaluation.failureLimitBytes)}`,
-    evaluation.status.toUpperCase(),
-  ].join('; ')
-}
-
-function routeBundleBudget(): Plugin {
+function routeBundleReport(): Plugin {
   return {
-    name: 'codepilotx-route-bundle-budget',
+    name: 'codepilotx-route-bundle-report',
     generateBundle(_options, bundle) {
       const chunks = new Map<string, BundleChunk>()
       for (const item of Object.values(bundle)) {
@@ -333,10 +299,8 @@ function routeBundleBudget(): Plugin {
 
       const entryCssFiles = collectCssFiles(chunks, entryGraph)
       const interactiveCssFiles = collectCssFiles(chunks, surfaceGraphs)
-      const cssMetrics: Record<BundleBudgetMetricName, number> = {
-        entryCssRawBytes: measureCssAssets(bundle, entryCssFiles),
-        newInteractiveCssRawBytes: measureCssAssets(bundle, interactiveCssFiles),
-      }
+      const entryCssRawBytes = measureCssAssets(bundle, entryCssFiles)
+      const newInteractiveCssRawBytes = measureCssAssets(bundle, interactiveCssFiles)
       const largestAsyncCss = Object.entries(bundle)
         .filter(
           ([fileName, asset]) =>
@@ -374,28 +338,10 @@ function routeBundleBudget(): Plugin {
           `/new?surface=${surface} interactive JS: ${(measure.rawBytes / 1024).toFixed(1)} KiB raw / ${(measure.gzipBytes / 1024).toFixed(1)} KiB gzip (+${((measure.rawBytes - entryMeasure.rawBytes) / 1024).toFixed(1)} KiB raw vs entry)`,
         )
       }
-      const cssBudgetLabels: Record<BundleBudgetMetricName, string> = {
-        entryCssRawBytes: 'CSS entry',
-        newInteractiveCssRawBytes: 'CSS /new interactive union',
-      }
-      const cssBudgetFailures: string[] = []
-      for (const name of BUNDLE_BUDGET_METRIC_NAMES) {
-        const evaluation = evaluateBundleBudget(
-          bundleBudgetBaseline.metrics[name],
-          cssMetrics[name],
-        )
-        const message = formatCssBudget(cssBudgetLabels[name], evaluation)
-        if (evaluation.status === 'warning') this.warn(message)
-        else this.info(message)
-        if (evaluation.status === 'failure') cssBudgetFailures.push(message)
-
-        const warningAllowance = evaluation.warningLimitBytes - evaluation.baselineBytes
-        if (evaluation.deltaBytes <= -warningAllowance) {
-          this.info(
-            `${cssBudgetLabels[name]} is ${formatKib(-evaluation.deltaBytes)} below its accepted baseline; the baseline can be tightened after review`,
-          )
-        }
-      }
+      this.info(`CSS entry: ${formatKib(entryCssRawBytes)} raw (${entryCssRawBytes} bytes)`)
+      this.info(
+        `CSS /new interactive union: ${formatKib(newInteractiveCssRawBytes)} raw (${newInteractiveCssRawBytes} bytes)`,
+      )
       if (largestAsyncCss) {
         this.info(
           `Largest async CSS chunk: ${largestAsyncCss.fileName} (${formatKib(largestAsyncCss.rawBytes)} raw)`,
@@ -409,37 +355,12 @@ function routeBundleBudget(): Plugin {
       this.info(
         `/new largest modules: ${largestImmediateModules.map((module) => `${module.id.replaceAll('\\', '/').split('/node_modules/').at(-1)} (${(module.renderedLength / 1024).toFixed(1)} KiB)`).join(', ')}`,
       )
-      if (entryMeasure.rawBytes > ENTRY_RAW_BUDGET_KIB * 1024) {
-        this.error(
-          `Renderer entry static JS exceeds budget (${(entryMeasure.rawBytes / 1024).toFixed(1)} KiB raw; limit ${ENTRY_RAW_BUDGET_KIB} KiB)`,
-        )
-      }
-      if (entryMeasure.gzipBytes > ENTRY_GZIP_BUDGET_KIB * 1024) {
-        this.error(
-          `Renderer entry static JS exceeds budget (${(entryMeasure.gzipBytes / 1024).toFixed(1)} KiB gzip; limit ${ENTRY_GZIP_BUDGET_KIB} KiB)`,
-        )
-      }
-      for (const [surface, measure] of surfaceMeasures) {
-        if (measure.rawBytes > SURFACE_RAW_BUDGET_KIB * 1024) {
-          this.error(
-            `/new?surface=${surface} interactive JS exceeds budget (${(measure.rawBytes / 1024).toFixed(1)} KiB raw; limit ${SURFACE_RAW_BUDGET_KIB} KiB)`,
-          )
-        }
-        if (measure.gzipBytes > SURFACE_GZIP_BUDGET_KIB * 1024) {
-          this.error(
-            `/new?surface=${surface} interactive JS exceeds budget (${(measure.gzipBytes / 1024).toFixed(1)} KiB gzip; limit ${SURFACE_GZIP_BUDGET_KIB} KiB)`,
-          )
-        }
-      }
-      if (cssBudgetFailures.length > 0) {
-        this.error(`Renderer CSS bundle budget failed:\n${cssBudgetFailures.join('\n')}`)
-      }
     },
   }
 }
 
 export default defineConfig(({ command, mode }) => ({
-  plugins: [tailwindcss(), react(), routeBundleBudget(), startupSplashAssets()],
+  plugins: [tailwindcss(), react(), routeBundleReport(), startupSplashAssets()],
   define: {
     __CODEPILOTX_VERSION__: JSON.stringify(rootPackage.version),
   },

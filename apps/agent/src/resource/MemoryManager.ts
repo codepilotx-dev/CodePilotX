@@ -138,7 +138,7 @@ export class MemoryManager {
       this.shrinkCount++
       this.lastShrinkAt = this.now()
 
-      this.logger?.info('memory.shrink', {
+      this.logger?.[reason === 'manual' ? 'info' : 'debug']('memory.shrink', {
         reason,
         durationMs,
         rssBefore: statsBefore.rss,

@@ -4442,6 +4442,12 @@ test('settings shell search and appearance source contracts', async ({ page }) =
   await expect(modeGroup.locator('#appearance-system-preview-sheet')).toHaveCount(1)
 
   const preview = page.locator('.appearance-diff-preview')
+  const advancedTrigger = page.getByRole('button', { name: '高级', exact: true })
+  await expect(advancedTrigger).toHaveAttribute('aria-expanded', 'false')
+  await expect(
+    page.locator('.appearance-settings > .settings-section > .ui-disclosure-content'),
+  ).toHaveAttribute('aria-hidden', 'true')
+  await advancedTrigger.click()
   const previewDiff = preview.locator('.review-codex-diff[data-diff-type="split"]')
   await expect(previewDiff).toHaveCount(1)
   await expect(previewDiff).toHaveAttribute('data-overflow', 'scroll')
@@ -4485,8 +4491,8 @@ test('settings shell search and appearance source contracts', async ({ page }) =
       diffAfterGallery: Boolean(
         gallery.compareDocumentPosition(diff) & Node.DOCUMENT_POSITION_FOLLOWING,
       ),
-      editorsAfterDiff: Boolean(
-        diff.compareDocumentPosition(editors) & Node.DOCUMENT_POSITION_FOLLOWING,
+      diffAfterEditors: Boolean(
+        editors.compareDocumentPosition(diff) & Node.DOCUMENT_POSITION_FOLLOWING,
       ),
       galleryMaxWidth: galleryStyle.maxWidth,
       innerMaxWidth: innerStyle.maxWidth,
@@ -4497,23 +4503,28 @@ test('settings shell search and appearance source contracts', async ({ page }) =
   })
   expect(structure).toMatchObject({
     diffAfterGallery: true,
-    editorsAfterDiff: true,
-    galleryMaxWidth: 'none',
+    diffAfterEditors: true,
+    galleryMaxWidth: '100%',
     innerMaxWidth: '1049px',
     innerPadding: '20px',
     cardRadius: '12px',
   })
-  expect(structure.cardRatio).toBeCloseTo(17 / 12, 2)
+  expect(structure.cardRatio).toBeCloseTo(4 / 3, 2)
 
   await modeGroup.getByRole('radio', { name: '浅色' }).click()
-  await expect(page.locator('.appearance-theme-editor')).toHaveCount(1)
+  await expect(page.locator('.appearance-theme-editor[data-section="visual"]')).toHaveCount(1)
   await expect(
     page
-      .locator('.appearance-theme-editor')
+      .locator('.appearance-theme-editor[data-section="visual"]')
       .first()
       .locator('.settings-row-title')
       .evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim())),
-  ).resolves.toEqual(['浅色主题', '强调色', '背景', '前景', 'UI 字体', '代码字体', '对比度'])
+  ).resolves.toEqual(['浅色主题', '强调色', '背景', '前景', 'UI 字体'])
+  await expect(
+    page
+      .locator('.appearance-theme-editor[data-section="advanced"] .settings-row-title')
+      .evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim())),
+  ).resolves.toEqual(['浅色主题', 'UI 字体样式', '代码字体', '对比度'])
   const lightPicker = page.getByRole('combobox', { name: '浅色代码主题' })
   await expect(page.getByRole('button', { name: '导入' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '复制主题' })).toHaveCount(0)
@@ -4536,14 +4547,15 @@ test('settings shell search and appearance source contracts', async ({ page }) =
   ).toBeVisible()
 
   await modeGroup.getByRole('radio', { name: '系统' }).click()
-  await expect(page.locator('.appearance-theme-editor')).toHaveCount(2)
+  await expect(page.locator('.appearance-theme-editor[data-section="visual"]')).toHaveCount(2)
+  await expect(page.locator('.appearance-theme-editor[data-section="advanced"]')).toHaveCount(2)
   await expect(
     page
-      .locator('.appearance-settings > .settings-section')
+      .locator('.appearance-advanced-content > .settings-card')
       .last()
       .locator('.settings-row-title')
       .evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim())),
-  ).resolves.toEqual(['使用指针光标', '减少动态效果', '界面字号', '代码字号', '差异标记'])
+  ).resolves.toEqual(['减少动态效果', '使用指针光标', '差异标记'])
 
   const diffMarkerGroup = page.getByRole('radiogroup', { name: '差异标记选项' })
   const reduceMotionGroup = page.getByRole('radiogroup', {
@@ -4668,6 +4680,7 @@ test('settings shell search and appearance source contracts', async ({ page }) =
 
   await page.reload()
   await closeTransientErrorToast(page)
+  await page.getByRole('button', { name: '高级', exact: true }).click()
   await expect(
     page
       .getByRole('radiogroup', { name: '减少动态效果选项' })
@@ -4759,6 +4772,7 @@ for (const mode of MODES) {
       )
       .toBe(mode)
 
+    await page.getByRole('button', { name: '高级', exact: true }).click()
     const previewDiff = page
       .getByLabel(`${variantLabel}主题差异预览`)
       .locator('.review-codex-diff[data-diff-type="split"]')

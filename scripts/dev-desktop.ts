@@ -129,7 +129,7 @@ try {
     CODEPILOTX_DATA_DIR: agentDataDir,
     CODEPILOTX_USER_DATA_DIR: instance.userDataDir,
     CODEPILOTX_LOG_DIR: instance.logDir,
-    CODEPILOTX_CONSOLE_LOG: 'debug',
+    CODEPILOTX_CONSOLE_LOG: process.env.CODEPILOTX_CONSOLE_LOG ?? 'info',
     CODEPILOTX_LOG_DETAIL: 'development',
   })
   const outcome = await Promise.race([

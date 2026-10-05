@@ -88,7 +88,7 @@ async function run() {
       CODEPILOTX_BUILTIN_INTEGRATIONS_DIR: join(root, 'apps', 'agent', 'resources', 'integrations'),
       CODEPILOTX_LEGACY_DATA_DIR: join(root, '.codepilotx'),
       CODEPILOTX_LOG_DIR: agentLogDir,
-      CODEPILOTX_CONSOLE_LOG: 'debug',
+      CODEPILOTX_CONSOLE_LOG: process.env.CODEPILOTX_CONSOLE_LOG ?? 'info',
       CODEPILOTX_LOG_DETAIL: 'development',
       CODEPILOTX_RENDERER_DIST: fileURLToPath(new URL('../dist/renderer', import.meta.url)),
     },

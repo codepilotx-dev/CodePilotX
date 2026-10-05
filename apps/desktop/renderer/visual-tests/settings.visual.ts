@@ -88,6 +88,7 @@ test('appearance cards share the settings content grid', async ({ page }) => {
   await prepareVisualTheme(page, 'light')
   await page.goto('/?visualCase=empty#/settings/appearance')
   await waitForVisualPage(page, 'light', page.getByRole('heading', { name: '外观' }))
+  await page.getByRole('button', { name: '高级', exact: true }).click()
 
   const cardAlignment = await page.evaluate(() => {
     const themeCard = document.querySelector<HTMLElement>('.appearance-theme-editor')!
@@ -239,6 +240,7 @@ for (const mode of VISUAL_MODES) {
     )
     await expect(selectedThemeVisual).toHaveCSS('border-top-width', '2px')
     await expect(selectedThemeVisual).toHaveCSS('box-shadow', 'none')
+    await page.getByRole('button', { name: '高级', exact: true }).click()
 
     const diffMarkerGroup = page.getByRole('radiogroup', {
       name: '差异标记选项',
@@ -318,6 +320,7 @@ for (const mode of VISUAL_MODES) {
     }
 
     const pointerSwitch = page.getByRole('switch', { name: '使用指针光标' })
+    await page.getByRole('button', { name: '高级', exact: true }).click()
     const pointerSwitchThumb = pointerSwitch.locator('.toggle-knob')
     const expectCenteredThumb = async (): Promise<void> => {
       await expect
@@ -369,6 +372,7 @@ for (const contrast of CONTRAST_BOUNDARIES) {
     await page.setViewportSize(DESKTOP_VIEWPORT)
     await prepareVisualTheme(page, 'dark', { contrast })
     await page.goto('/?visualCase=empty#/settings/appearance')
+    await page.getByRole('button', { name: '高级', exact: true }).click()
     await waitForVisualPage(page, 'dark', page.getByRole('slider', { name: '深色对比度' }))
     await expect(page.getByRole('slider', { name: '深色对比度' })).toHaveValue(String(contrast))
     await expect(page.locator('body')).toHaveScreenshot(
@@ -389,6 +393,7 @@ for (const preset of [
     await page.setViewportSize(DESKTOP_VIEWPORT)
     await prepareVisualTheme(page, 'light', preset)
     await page.goto('/?visualCase=empty#/settings/appearance')
+    await page.getByRole('button', { name: '高级', exact: true }).click()
     await waitForVisualPage(page, 'light', page.getByRole('spinbutton', { name: '界面字号' }))
     await expect(page.getByRole('spinbutton', { name: '界面字号' })).toHaveValue(
       String(preset.uiFontSize),
@@ -411,6 +416,7 @@ for (const reduceMotion of ['on', 'off'] as const) {
     await page.setViewportSize(DESKTOP_VIEWPORT)
     await prepareVisualTheme(page, 'dark', { reduceMotion })
     await page.goto('/?visualCase=empty#/settings/appearance')
+    await page.getByRole('button', { name: '高级', exact: true }).click()
     await waitForVisualPage(page, 'dark', page.getByRole('group', { name: '减少动态效果选项' }))
     await expect(page.locator('html')).toHaveAttribute('data-reduce-motion', reduceMotion)
     await expect(page.locator('body')).toHaveScreenshot(

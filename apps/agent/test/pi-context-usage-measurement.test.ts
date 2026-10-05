@@ -26,6 +26,7 @@ describe('上下文用量度量', () => {
     const models = createModels()
     models.setProvider(faux.provider)
     const session = await new InMemorySessionRepo().create({ id: crypto.randomUUID() })
+    const events: string[] = []
 
     const runtimeOptions: HarnessRuntimeOptions = {
       harnessFactory: { resolve: async () => ({ models, session }) } as never,
@@ -33,7 +34,11 @@ describe('上下文用量度量', () => {
         deferredDefinitions: (exposure: { frozenDeferredToolNames?: readonly string[] }) =>
           frozenDeferredEnvelope([], exposure.frozenDeferredToolNames),
       } as never,
-      eventSink: {},
+      eventSink: {
+        event: (_context, event) => {
+          events.push(event.type)
+        },
+      },
     }
     const request: HarnessRuntimeRequest = {
       threadID: 'thread-usage',
@@ -75,6 +80,13 @@ describe('上下文用量度量', () => {
     })
 
     expect(measured.length).toBeGreaterThan(0)
+    expect(events.filter((type) => type === 'before_provider_request')).toHaveLength(1)
+    expect(events).toContain('before_agent_start')
+    expect(events).toContain('context')
+    expect(events.indexOf('context')).toBeLessThan(events.indexOf('before_provider_request'))
+    expect(events.indexOf('before_provider_request')).toBeLessThan(
+      events.lastIndexOf('message_end'),
+    )
     // Messages 已扣除注入的 context_data 文本，技能段不再被双算；
     // 余下的 2 个字符是 context_data 与用户正文之间的拼接分隔符。
     expect(measured.at(-1)).toEqual([

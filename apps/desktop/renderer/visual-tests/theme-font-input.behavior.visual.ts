@@ -7,6 +7,7 @@ test('theme font inputs preserve rapid edits and keyboard semantics', async ({ p
   await prepareVisualTheme(page, 'dark')
   await page.goto('/?visualCase=empty#/settings/appearance')
   await waitForVisualPage(page, 'dark', page.getByRole('heading', { name: '外观' }))
+  await page.getByRole('button', { name: '高级', exact: true }).click()
 
   let uiFont = page.getByRole('textbox', { name: '深色界面字体' })
   let codeFont = page.getByRole('textbox', { name: '深色代码字体' })
@@ -42,6 +43,7 @@ test('theme font inputs preserve rapid edits and keyboard semantics', async ({ p
   uiFont = restoredPage.getByRole('textbox', { name: '深色界面字体' })
   codeFont = restoredPage.getByRole('textbox', { name: '深色代码字体' })
   await waitForVisualPage(restoredPage, 'dark', uiFont)
+  await restoredPage.getByRole('button', { name: '高级', exact: true }).click()
   await expect(uiFont).toHaveValue('Inter, sans-serif')
   await expect(codeFont).toHaveValue('"JetBrains Mono", monospace')
 

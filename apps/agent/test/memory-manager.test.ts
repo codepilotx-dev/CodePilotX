@@ -2,6 +2,39 @@ import { describe, expect, test } from 'bun:test'
 import { MemoryManager } from '../src/resource/MemoryManager'
 
 describe('MemoryManager', () => {
+  test('自动收缩只写 debug，手动收缩写 info，hook 失败继续告警', async () => {
+    const logs: string[] = []
+    const manager = new MemoryManager({
+      logger: {
+        debug: (event) => {
+          logs.push(`debug:${event}`)
+        },
+        info: (event) => {
+          logs.push(`info:${event}`)
+        },
+        warn: (event) => {
+          logs.push(`warn:${event}`)
+        },
+        error: () => undefined,
+      },
+    })
+    try {
+      await manager.shrink('idle')
+      await manager.shrink('turn_end')
+      manager.registerHook('failed', () => {
+        throw new Error('hook failed')
+      })
+      await manager.shrink('manual')
+      expect(logs).toEqual([
+        'debug:memory.shrink',
+        'debug:memory.shrink',
+        'warn:memory.hook_failed',
+        'info:memory.shrink',
+      ])
+    } finally {
+      manager.dispose()
+    }
+  })
   test('returns valid memory stats', () => {
     const manager = new MemoryManager()
     const stats = manager.getStats()

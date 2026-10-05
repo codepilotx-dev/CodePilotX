@@ -20,11 +20,11 @@
 
 .appearance-mode-gallery {
   display: grid;
-  width: 100%;
+  width: 17rem;
+  max-width: 100%;
 
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--cpx-sys-space-3);
-  margin-bottom: var(--cpx-sys-space-4);
 }
 
 .appearance-mode-card {
@@ -73,7 +73,8 @@
   position: relative;
   box-sizing: border-box;
   display: block;
-  aspect-ratio: 17 / 12;
+  width: 100%;
+  aspect-ratio: 4 / 3;
   overflow: hidden;
   border: 1px solid var(--cpx-sys-color-border-subtle);
   border-radius: var(--cpx-sys-radius-lg);
@@ -108,6 +109,37 @@
 .appearance-theme-editors {
   display: grid;
   gap: var(--cpx-sys-space-5);
+}
+
+.appearance-settings > .settings-section > .appearance-theme-editors {
+  margin-top: var(--cpx-sys-space-4);
+}
+
+.appearance-advanced-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cpx-sys-space-4);
+}
+
+.appearance-advanced-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cpx-sys-space-2);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cpx-sys-color-fg-secondary);
+  font: inherit;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--cpx-sys-color-fg-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cpx-sys-color-border-focus);
+    outline-offset: 2px;
+  }
 }
 
 .appearance-theme-editor {

@@ -3,6 +3,7 @@ import type { AgentHarnessEvent } from '../orchestration/harness/types'
 import type { EventEnvelope } from '../domain'
 import type { EventHubSignal } from '../storage/events/EventHub'
 import type { AgentLogger, LogContext, LogLevel } from './AgentLogger'
+import { providerFailureCategory, providerFailureMessage } from '../provider/ModelHealthService'
 
 type JsonObject = Record<string, unknown>
 
@@ -20,7 +21,9 @@ const nonNegativeInteger = (value: unknown) => {
 const contextFor = (event: EventEnvelope, params: JsonObject): LogContext => ({
   ...(event.threadId ? { threadId: event.threadId } : {}),
   ...(event.turnId ? { turnId: event.turnId } : {}),
-  ...(text(params.agentId) ? { agentId: text(params.agentId)! } : {}),
+  ...((text(params.agentId) ?? text(params.rootAgentId))
+    ? { agentId: (text(params.agentId) ?? text(params.rootAgentId))! }
+    : {}),
 })
 
 const modelDetails = (value: unknown) => {
@@ -137,6 +140,7 @@ const toolDetails = (
 }
 
 const toolRecord = (
+  event: EventEnvelope,
   params: JsonObject,
 ): {
   context: LogContext
@@ -148,6 +152,7 @@ const toolRecord = (
   const tool = text(data.tool) ?? text(item.tool) ?? 'tool'
   const durationMs = number(data.durationMs)
   const context: LogContext = {
+    ...contextFor(event, params),
     ...((text(item.turnID) ?? text(item.turnId))
       ? { turnId: (text(item.turnID) ?? text(item.turnId))! }
       : {}),
@@ -177,10 +182,11 @@ const turnRecord = (
   details: Record<string, unknown>
 } => {
   const turn = object(params.turn)
+  const input = object(params.input)
   const turnId = text(turn.id) ?? text(params.turnId) ?? event.turnId ?? undefined
   const agentId = text(turn.rootAgentId) ?? text(params.rootAgentId)
-  const startedAt = number(turn.startedAt)
-  const finishedAt = number(turn.finishedAt)
+  const startedAt = number(turn.startedAt) ?? number(params.startedAt)
+  const finishedAt = number(turn.finishedAt) ?? number(params.finishedAt)
   return {
     context: {
       ...(event.threadId ? { threadId: event.threadId } : {}),
@@ -191,8 +197,10 @@ const turnRecord = (
       ...((text(turn.status) ?? text(params.status))
         ? { status: (text(turn.status) ?? text(params.status))! }
         : {}),
-      ...(text(turn.mode) ? { mode: text(turn.mode) } : {}),
-      ...modelDetails(turn.model),
+      ...((text(turn.mode) ?? text(input.taskMode))
+        ? { mode: text(turn.mode) ?? text(input.taskMode) }
+        : {}),
+      ...modelDetails(turn.model ?? input.model),
       ...(startedAt !== undefined && finishedAt !== undefined
         ? { durationMs: Math.max(0, finishedAt - startedAt) }
         : {}),
@@ -201,6 +209,7 @@ const turnRecord = (
 }
 
 export class ExecutionLogObserver {
+  private readonly turnStarts = new Map<string, number>()
   constructor(private readonly logger: AgentLogger) {}
 
   observeSignal(signal: EventHubSignal): void {
@@ -211,12 +220,19 @@ export class ExecutionLogObserver {
     const params = object(event.params)
     if (event.method === 'turn/queued')
       return this.log('info', 'turn.queued', turnRecord(event, params))
-    if (event.method === 'turn/started')
-      return this.log('info', 'turn.started', turnRecord(event, params))
-    if (event.method === 'turn/completed')
-      return this.log('info', 'turn.completed', turnRecord(event, params))
-    if (event.method === 'turn/failed') {
+    if (event.method === 'turn/started') {
       const record = turnRecord(event, params)
+      if (record.context.turnId)
+        this.turnStarts.set(
+          record.context.turnId,
+          number(object(params.turn).startedAt) ?? number(params.startedAt) ?? event.createdAt,
+        )
+      return this.log('info', 'turn.started', record)
+    }
+    if (event.method === 'turn/completed')
+      return this.log('info', 'turn.completed', this.finishTurn(event, params))
+    if (event.method === 'turn/failed') {
+      const record = this.finishTurn(event, params)
       const error = object(params.error)
       record.details = {
         ...record.details,
@@ -226,7 +242,7 @@ export class ExecutionLogObserver {
       return this.log('error', 'turn.failed', record)
     }
     if (event.method === 'turn/interrupted') {
-      const record = turnRecord(event, params)
+      const record = this.finishTurn(event, params)
       record.details = { ...record.details, reason: text(params.reason) ?? 'interrupted' }
       return this.log('warn', 'turn.interrupted', record)
     }
@@ -240,31 +256,37 @@ export class ExecutionLogObserver {
       })
     }
     if (event.method === 'tool/callStarted')
-      return this.log('info', 'tool.started', toolRecord(params))
+      return this.log('info', 'tool.started', toolRecord(event, params))
     if (event.method === 'tool/callCompleted')
-      return this.log('info', 'tool.completed', toolRecord(params))
+      return this.log('info', 'tool.completed', toolRecord(event, params))
     if (event.method === 'tool/error') {
-      const record = toolRecord(params)
+      const record = toolRecord(event, params)
       const error = object(params.error)
       record.details = {
         ...record.details,
         status: 'error',
         ...(text(error.code) ? { code: text(error.code) } : {}),
-        ...(text(error.message) ? { message: text(error.message) } : {}),
       }
       return this.log('error', 'tool.failed', record)
     }
-    if (event.method === 'approval/requested' || event.method === 'approval/cancelled') {
+    if (
+      event.method === 'approval/requested' ||
+      event.method === 'approval/cancelled' ||
+      event.method === 'permission/requested'
+    ) {
       return this.log(
         event.method.endsWith('cancelled') ? 'warn' : 'info',
         event.method.replace('/', '.'),
         {
           context: {
             ...contextFor(event, params),
-            ...(text(params.itemId) ? { toolCallId: text(params.itemId)! } : {}),
+            ...(text(params.toolCallId) ? { toolCallId: text(params.toolCallId)! } : {}),
+            ...(text(params.interactionId) ? { interactionId: text(params.interactionId)! } : {}),
           },
           details: {
             status: event.method.endsWith('cancelled') ? 'cancelled' : 'requested',
+            ...(text(params.tool) ? { tool: text(params.tool) } : {}),
+            ...(text(params.risk) ? { risk: text(params.risk) } : {}),
             ...(event.method.endsWith('cancelled') && text(params.reason)
               ? { reason: text(params.reason) }
               : {}),
@@ -273,9 +295,20 @@ export class ExecutionLogObserver {
       )
     }
     if (event.method === 'question/requested' || event.method === 'interaction/resolved') {
+      const result = object(params.result)
       return this.log('info', event.method.replace('/', '.'), {
-        context: contextFor(event, params),
-        details: { status: event.method.endsWith('resolved') ? 'resolved' : 'requested' },
+        context: {
+          ...contextFor(event, params),
+          ...(text(params.toolCallId) ? { toolCallId: text(params.toolCallId)! } : {}),
+          ...(text(params.interactionId) ? { interactionId: text(params.interactionId)! } : {}),
+        },
+        details: {
+          status:
+            text(result.status) ?? (event.method.endsWith('resolved') ? 'resolved' : 'requested'),
+          ...(text(result.kind) ? { kind: text(result.kind) } : {}),
+          ...(text(result.decision) ? { decision: text(result.decision) } : {}),
+          ...(text(result.resolution) ? { resolution: text(result.resolution) } : {}),
+        },
       })
     }
     if (event.method === 'queue/updated') {
@@ -306,66 +339,217 @@ export class ExecutionLogObserver {
     }
   }
 
+  private finishTurn(event: EventEnvelope, params: JsonObject) {
+    const record = turnRecord(event, params)
+    const turnId = record.context.turnId
+    const startedAt = turnId ? this.turnStarts.get(turnId) : undefined
+    if (startedAt !== undefined && record.details.durationMs === undefined) {
+      record.details.durationMs = Math.max(
+        0,
+        (number(params.finishedAt) ?? event.createdAt) - startedAt,
+      )
+    }
+    if (turnId) this.turnStarts.delete(turnId)
+    return record
+  }
+
   private log(level: LogLevel, event: string, fields: Record<string, unknown>) {
     this.logger[level](event, fields)
   }
 }
 
-type ProviderState = { startedAt: number; responseCount: number }
+type ProviderState = {
+  startedAt: number
+  responseCount: number
+  firstResponseMs?: number
+  requestIndex: number
+  provider: string
+  model: string
+}
 
 export class HarnessLogObserver {
   private readonly providers = new Map<string, ProviderState>()
+  private readonly steps = new Map<string, number>()
 
   constructor(
     private readonly logger: AgentLogger,
     private readonly now: () => number = Date.now,
   ) {}
 
+  finishTurn(turnId: string): void {
+    for (const key of this.steps.keys()) {
+      if (key.startsWith(`${turnId}:`)) {
+        this.steps.delete(key)
+        this.providers.delete(key)
+      }
+    }
+  }
+
   observe(context: LogContext, event: AgentHarnessEvent): void {
     const key = `${context.turnId ?? ''}:${context.agentId ?? ''}`
+    if (event.type === 'before_agent_start') {
+      this.logger.info('agent.preparing', {
+        context,
+        details: {
+          skillCount: event.resources.skills?.length ?? 0,
+          promptTemplateCount: event.resources.promptTemplates?.length ?? 0,
+        },
+      })
+      return
+    }
+    if (event.type === 'context') {
+      this.logger.info('context.prepared', {
+        context,
+        details: { messageCount: event.messages.length },
+      })
+      return
+    }
+    if (event.type === 'turn_composition' || event.type === 'save_point') {
+      this.logger.info(
+        event.type === 'turn_composition' ? 'agent.step-prepared' : 'agent.save-point',
+        {
+          context,
+          details: {
+            toolCount: event.activeToolNames.length,
+            ...(event.type === 'turn_composition'
+              ? { stepIndex: event.stepIndex + 1 }
+              : { hadPendingMutations: event.hadPendingMutations }),
+          },
+        },
+      )
+      return
+    }
+    if (event.type === 'queue_consumed') {
+      this.logger.info('queue.consumed', {
+        context,
+        details: { delivery: event.delivery, inputCount: event.inputIds.length },
+      })
+      return
+    }
+    if (
+      event.type === 'retry_scheduled' ||
+      event.type === 'retry_attempt_start' ||
+      event.type === 'retry_finished'
+    ) {
+      this.logger[event.type === 'retry_scheduled' ? 'warn' : 'info'](
+        event.type.replaceAll('_', '.'),
+        {
+          context,
+          details: {
+            operation: event.operation,
+            ...(event.type === 'retry_scheduled'
+              ? {
+                  attempt: event.attempt,
+                  maxAttempts: event.maxAttempts,
+                  delayMs: event.delayMs,
+                }
+              : {}),
+          },
+        },
+      )
+      return
+    }
     if (event.type === 'before_provider_request') {
       const model = object(event.model)
-      this.providers.set(key, { startedAt: this.now(), responseCount: 0 })
+      const requestIndex = (this.steps.get(key) ?? 0) + 1
+      this.steps.set(key, requestIndex)
+      const state: ProviderState = {
+        startedAt: this.now(),
+        responseCount: 0,
+        requestIndex,
+        provider: text(model.provider) ?? text(model.providerID) ?? 'unknown',
+        model: text(model.id) ?? 'unknown',
+      }
+      this.providers.set(key, state)
       this.logger.info('provider.requested', {
         context,
         details: {
-          provider: text(model.provider) ?? text(model.providerID) ?? 'unknown',
-          model: text(model.id) ?? 'unknown',
-          attempt: 1,
+          provider: state.provider,
+          model: state.model,
+          requestIndex,
         },
       })
       return
     }
     if (event.type === 'after_provider_response') {
-      const state = this.providers.get(key) ?? { startedAt: this.now(), responseCount: 0 }
-      state.responseCount += 1
-      this.providers.set(key, state)
+      const state = this.providers.get(key)
+      if (state) state.responseCount += 1
       this.logger[event.status >= 500 ? 'error' : event.status >= 400 ? 'warn' : 'info'](
         'provider.response',
         {
           context,
           details: {
             status: event.status,
-            attempt: state.responseCount,
-            durationMs: Math.max(0, this.now() - state.startedAt),
+            ...(state
+              ? {
+                  provider: state.provider,
+                  model: state.model,
+                  requestIndex: state.requestIndex,
+                  responseIndex: state.responseCount,
+                  durationMs: Math.max(0, this.now() - state.startedAt),
+                }
+              : {}),
           },
         },
       )
       return
     }
+    if (event.type === 'message_update') {
+      const state = this.providers.get(key)
+      if (
+        state &&
+        state.firstResponseMs === undefined &&
+        ['text_delta', 'thinking_delta', 'toolcall_delta'].includes(
+          event.assistantMessageEvent.type,
+        )
+      ) {
+        state.firstResponseMs = Math.max(0, this.now() - state.startedAt)
+        this.logger.info('provider.first-response', {
+          context,
+          details: {
+            provider: state.provider,
+            model: state.model,
+            requestIndex: state.requestIndex,
+            firstResponseMs: state.firstResponseMs,
+          },
+        })
+      }
+      return
+    }
     if (event.type === 'message_end' && event.message.role === 'assistant') {
       const message = event.message as unknown as JsonObject
       const usage = object(message.usage)
-      this.logger.info('provider.completed', {
-        context,
-        details: {
-          ...(text(message.stopReason) ? { reason: text(message.stopReason) } : {}),
-          inputTokens: number(usage.input) ?? 0,
-          outputTokens: number(usage.output) ?? 0,
-          cacheReadTokens: number(usage.cacheRead) ?? 0,
-          cacheWriteTokens: number(usage.cacheWrite) ?? 0,
+      const state = this.providers.get(key)
+      const reason = text(message.stopReason)
+      const category =
+        reason === 'error' ? providerFailureCategory(message.errorMessage) : undefined
+      this.logger[reason === 'error' ? 'error' : reason === 'aborted' ? 'warn' : 'info'](
+        reason === 'error'
+          ? 'provider.failed'
+          : reason === 'aborted'
+            ? 'provider.aborted'
+            : 'provider.completed',
+        {
+          context,
+          details: {
+            ...(reason ? { reason } : {}),
+            ...(category ? { category, message: providerFailureMessage(category, 'request') } : {}),
+            ...(state
+              ? {
+                  provider: state.provider,
+                  model: state.model,
+                  requestIndex: state.requestIndex,
+                  durationMs: Math.max(0, this.now() - state.startedAt),
+                  firstResponseMs: state.firstResponseMs,
+                }
+              : {}),
+            inputTokens: number(usage.input) ?? 0,
+            outputTokens: number(usage.output) ?? 0,
+            cacheReadTokens: number(usage.cacheRead) ?? 0,
+            cacheWriteTokens: number(usage.cacheWrite) ?? 0,
+          },
         },
-      })
+      )
       this.providers.delete(key)
       return
     }
@@ -388,10 +572,13 @@ export class HarnessLogObserver {
     }
     if (event.type === 'abort') {
       this.providers.delete(key)
+      this.steps.delete(key)
       this.logger.warn('agent.aborted', { context, details: { status: 'aborted' } })
       return
     }
     if (event.type === 'settled') {
+      this.providers.delete(key)
+      this.steps.delete(key)
       this.logger.info('agent.settled', {
         context,
         details: { status: 'settled', nextTurnCount: event.nextTurnCount },

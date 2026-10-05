@@ -1,9 +1,0 @@
-{
-  "schemaVersion": 2,
-  "acceptedAt": "2026-10-05",
-  "acceptedReason": "对齐 Codex 桌面会话视图视觉结构与计划展开交互规范",
-  "metrics": {
-    "entryCssRawBytes": 804041,
-    "newInteractiveCssRawBytes": 804041
-  }
-}

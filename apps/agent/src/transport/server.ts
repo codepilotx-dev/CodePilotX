@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { EventManifest, type EventType, type ProtocolCapability } from '@codepilotx/agent-protocol'
+import { AllRpcMethods } from '@codepilotx/agent-protocol/host'
 import { relative, resolve, sep } from 'node:path'
 import type { AgentModelCatalog } from '../provider/AgentModelCatalog'
 import type { AgentConfig } from '../config/Config'
@@ -676,16 +677,59 @@ export const createApp = (dependencies: TransportDependencies) => {
 
   app.post('/rpc', async (context) => {
     const body = await context.req.json().catch(() => null)
+    const request = body && typeof body === 'object' && !Array.isArray(body) ? body : {}
+    const params =
+      request.params && typeof request.params === 'object' && !Array.isArray(request.params)
+        ? request.params
+        : {}
+    const method =
+      typeof request.method === 'string' && Object.hasOwn(AllRpcMethods, request.method)
+        ? request.method
+        : request.method === 'initialized'
+          ? 'initialized'
+          : 'unknown'
+    const startedAt = performance.now()
     const connectionId = context.req.header('x-codepilotx-connection-id')
     const transportAuthority = rpcTransportAuthority(
       context.req.header('Authorization') ?? null,
       context.req.header('Cookie') ?? null,
       config.authToken,
     )
-    const result = await rpc.handle(body, {
-      ...(connectionId ? { connectionId } : {}),
-      ...(transportAuthority ? { transportAuthority } : {}),
-    })
+    let result: Awaited<ReturnType<RpcRouter['handle']>> = null
+    let failed = false
+    try {
+      result = await rpc.handle(body, {
+        ...(connectionId ? { connectionId } : {}),
+        ...(transportAuthority ? { transportAuthority } : {}),
+      })
+    } catch (cause) {
+      failed = true
+      throw cause
+    } finally {
+      const error = result && !Array.isArray(result) && 'error' in result ? result.error : undefined
+      logger.rpc({
+        method,
+        durationMs: Math.round(performance.now() - startedAt),
+        context: {
+          ...(typeof params.threadId === 'string' ? { threadId: params.threadId } : {}),
+          ...(typeof params.turnId === 'string' ? { turnId: params.turnId } : {}),
+        },
+        expectedWait:
+          method === 'browser/host/next' ||
+          method === 'computer/host/next' ||
+          ((method === 'thread/handoff/status' || method === 'thread/fork/status') &&
+            typeof params.waitMs === 'number' &&
+            params.waitMs > 0),
+        ...(failed
+          ? { rpcCode: -32603, code: 'INTERNAL_ERROR' }
+          : error
+            ? {
+                rpcCode: error.code,
+                ...(error.data ? { code: error.data.code, retryable: error.data.retryable } : {}),
+              }
+            : {}),
+      })
+    }
     if (Array.isArray(result)) return context.json(result.filter(Boolean))
     if (!result) return new Response(null, { status: 204 })
     return context.json(result)
