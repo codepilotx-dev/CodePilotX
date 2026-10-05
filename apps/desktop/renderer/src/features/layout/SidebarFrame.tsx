@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { Bot, History } from 'lucide-react'
 import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
 import { animate, motion, useMotionValue, useMotionValueEvent } from 'motion/react'
@@ -7,7 +7,12 @@ import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
 import { layoutTween, motionTransition } from '../motion/motionTransitions.js'
 import { useSidebarResizeCollapseConfirm } from './useSidebarResizeCollapseConfirm.js'
 import { useLiveResizeValue } from './useLiveResizeValue.js'
-import type { SidebarShellController } from './sidebarShellState.js'
+import {
+  SIDEBAR_PREVIEW_ENTER_DURATION,
+  SIDEBAR_PREVIEW_EXIT_DURATION,
+  SIDEBAR_PREVIEW_SETTLE_DURATION,
+  type SidebarShellController,
+} from './sidebarShellState.js'
 import { SIDEBAR_RAIL_WIDTH } from './sidebar/sidebarNavigation.js'
 
 export type SidebarContentKind = 'tasks' | 'settings'
@@ -31,6 +36,7 @@ type Props = {
   maxWidth: number
   minWidth: number
   width: number
+  defaultWidth: number
   onCollapse: () => void
   onSetWidth: (width: number) => void
   shell: SidebarShellController
@@ -44,12 +50,12 @@ export function SidebarFrame({
   maxWidth,
   minWidth,
   width,
+  defaultWidth,
   onCollapse,
   onSetWidth,
   shell,
 }: Props): React.ReactNode {
-  const modern = rail != null
-  const railWidth = modern ? SIDEBAR_RAIL_WIDTH : 0
+  const railWidth = SIDEBAR_RAIL_WIDTH
   const sidebarRef = useRef<HTMLElement>(null)
   const reducedMotion = usePrefersReducedMotion()
   const labels = getSidebarContentLabels(contentKind)
@@ -58,6 +64,9 @@ export function SidebarFrame({
     liveSizePixels: liveWidthPixels,
     previewSize: previewWidth,
   } = useLiveResizeValue(width)
+  const handleResetWidth = useCallback((): void => {
+    onSetWidth(defaultWidth)
+  }, [defaultWidth, onSetWidth])
 
   const {
     handleLostPointerCapture,
@@ -77,14 +86,31 @@ export function SidebarFrame({
       threshold: minWidth / 2,
     },
     onCollapse,
+    onResetSize: handleResetWidth,
     onResizePreview: previewWidth,
     onSetWidth,
   })
 
   const floating = shell.mode === 'preview'
-  const hidden = shell.mode === 'collapsed' || (modern && shell.pane === null)
-  const docked = modern ? shell.dockedVisible : shell.mode === 'docked'
-  const transition = modern ? { ...layoutTween, duration: floating ? 0.12 : 0.3 } : layoutTween
+  const hidden = shell.mode === 'collapsed'
+  const docked = shell.dockedVisible
+  const previousModeRef = useRef(shell.mode)
+  const modeDurationRef = useRef(0.3)
+  if (previousModeRef.current !== shell.mode) {
+    const previousMode = previousModeRef.current
+    previousModeRef.current = shell.mode
+    if (shell.mode === 'preview') {
+      modeDurationRef.current = SIDEBAR_PREVIEW_ENTER_DURATION
+    } else if (previousMode === 'preview' && shell.mode === 'docked') {
+      modeDurationRef.current = SIDEBAR_PREVIEW_SETTLE_DURATION
+    } else if (previousMode === 'preview' && shell.mode === 'collapsed') {
+      modeDurationRef.current = SIDEBAR_PREVIEW_EXIT_DURATION
+    } else {
+      modeDurationRef.current = 0.3
+    }
+  }
+  const duration = modeDurationRef.current
+  const transition = { ...layoutTween, duration }
   const dockedRef = useRef(docked)
   dockedRef.current = docked
   const allocatedWidth = useMotionValue(docked ? width : railWidth)
@@ -111,7 +137,15 @@ export function SidebarFrame({
         allocatedWidthAnimationRef.current = null
       }
     }
-  }, [allocatedWidth, docked, liveWidth, reducedMotion, modern, floating, railWidth])
+  }, [allocatedWidth, docked, liveWidth, reducedMotion, duration, railWidth])
+
+  useEffect(() => {
+    const active = floating && resizing
+    shell.onFloatingResizeChange(active)
+    return () => {
+      if (active) shell.onFloatingResizeChange(false)
+    }
+  }, [floating, resizing, shell.onFloatingResizeChange])
 
   useLayoutEffect(() => {
     const wasHidden = previousHiddenRef.current
@@ -126,21 +160,11 @@ export function SidebarFrame({
       ?.focus({ preventScroll: true })
   }, [hidden])
 
-  useEffect(() => {
-    const active = floating && resizing
-    shell.onFloatingResizeChange(active)
-    return () => {
-      if (active) shell.onFloatingResizeChange(false)
-    }
-  }, [floating, resizing, shell.onFloatingResizeChange])
-
   return (
     <>
-      {modern ? (
-        <div className="desktop-sidebar-rail-slot" data-sidebar-layout="modern">
-          {rail}
-        </div>
-      ) : null}
+      <div className="desktop-sidebar-rail-slot" data-sidebar-layout="modern">
+        {rail}
+      </div>
       <motion.div
         aria-hidden="true"
         className="desktop-sidebar-spacer"
@@ -150,16 +174,14 @@ export function SidebarFrame({
         id="desktop-sidebar-pane"
         ref={sidebarRef}
         onClick={
-          modern
-            ? (event) => {
-                if (
-                  event.target instanceof Element &&
-                  event.target.closest('a[href], .sidebar-timeline-toggle-button')
-                )
-                  shell.pin()
+          docked
+            ? undefined
+            : () => {
+                shell.pin()
               }
-            : undefined
         }
+        onPointerEnter={floating ? shell.onPreviewPanelEnter : undefined}
+        onPointerLeave={floating ? shell.onPreviewPanelLeave : undefined}
         aria-label={labels.sidebar}
         aria-hidden={hidden || undefined}
         className={[
@@ -183,8 +205,8 @@ export function SidebarFrame({
               }
         }
         data-sidebar-content={contentKind}
-        data-sidebar-layout={modern ? 'modern' : 'classic'}
-        data-sidebar-pane={modern ? shell.pane : undefined}
+        data-sidebar-layout="modern"
+        data-sidebar-pane={shell.pane ?? undefined}
         initial={hidden ? { opacity: 0, visibility: 'hidden', x: -8 } : false}
         inert={hidden ? true : undefined}
         style={
@@ -205,6 +227,7 @@ export function SidebarFrame({
             aria-valuemin={minWidth}
             aria-valuenow={width}
             className="sidebar-resizer"
+            onDoubleClick={handleResetWidth}
             onKeyDown={handleResizeKey}
             onLostPointerCapture={handleLostPointerCapture}
             onPointerCancel={handlePointerCancel}

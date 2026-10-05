@@ -43,7 +43,17 @@ import { SidebarProjectHoverCard } from './SidebarProjectHoverCard.js'
 import { ProjectManagementDialogs } from '../../projects/ProjectManagementDialogs.js'
 import { sidebarProjectDisclosureKey } from './sidebarDisclosureStore.js'
 
+const SESSION_KEY_SEPARATOR = '|'
+
 type Props = {
+  /** 项目行在默认区域的全局拖放序号。 */
+  dropIndex?: number
+  onItemDragStart?: (sessionId: string) => void
+  onItemDragEnd?: () => void
+  currentSectionId?: string | null
+  customSections?: readonly { id: string; title: string }[]
+  onMoveToSection?: (sessionId: string, sectionId: string) => void
+  onMoveToDefault?: (sessionId: string) => void
   activeSessionId: string | null
   bucket: SidebarProjectSessionBucket
   disclosureStore: KeyedDisclosureStore
@@ -72,6 +82,13 @@ type Props = {
 }
 
 function SidebarProjectGroupComponent({
+  dropIndex,
+  onItemDragStart,
+  onItemDragEnd,
+  currentSectionId = null,
+  customSections = [],
+  onMoveToSection,
+  onMoveToDefault,
   activeSessionId,
   bucket,
   disclosureStore,
@@ -190,7 +207,11 @@ function SidebarProjectGroupComponent({
       aria-label={`${managedProject.name}，${isExpanded ? '折叠项目任务' : '展开项目任务'}`}
       className="sidebar-project-button"
       data-current={isCurrent || undefined}
+      data-sidebar-drop-index={dropIndex}
       data-sidebar-project-key={projectKey}
+      data-sidebar-project-session-keys={bucket.allSessions
+        .map((session) => `session:${session.id}`)
+        .join(SESSION_KEY_SEPARATOR)}
       type="button"
       onClick={() => disclosureStore.setExpanded(disclosureKey, !isExpanded)}
     >
@@ -338,9 +359,15 @@ function SidebarProjectGroupComponent({
         {projectSessions.length > 0 ? (
           <SidebarSessionGroup
             activeSessionId={activeSessionId}
+            currentSectionId={currentSectionId}
+            customSections={customSections}
             pendingPermissionSessionIds={pendingPermissionSessionIds}
             titleLoadingIds={titleLoadingIds}
             groupKey={`project:${projectKey}`}
+            onItemDragEnd={onItemDragEnd}
+            onItemDragStart={onItemDragStart}
+            onMoveToDefault={onMoveToDefault}
+            onMoveToSection={onMoveToSection}
             manualOrderByScope={manualOrderByScope}
             now={now}
             sessionFallbackTitles={sessionFallbackTitles}

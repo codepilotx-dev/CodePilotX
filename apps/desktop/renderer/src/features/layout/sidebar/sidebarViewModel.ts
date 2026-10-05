@@ -2,6 +2,7 @@ import type {
   DesktopRemovedWorkspace,
   DesktopSidebarOrganization,
   DesktopWorkspace,
+  SidebarCustomSection,
 } from '../../../../shared/types.js'
 import type { SessionListItem } from '../../../uiTypes.js'
 import { sortSessionsByRecency } from '../../session/state/sessionSorting.js'
@@ -32,6 +33,7 @@ export type SidebarProjectSessionBucket = {
 
 export type SidebarViewModel = {
   allProjectSessions: SessionListItem[]
+  customSections: SidebarCustomSectionModel[]
   pinnedSessions: SessionListItem[]
   pinnedWorkspaces: DesktopWorkspace[]
   projectSessionBuckets: ReadonlyMap<string, SidebarProjectSessionBucket>
@@ -333,6 +335,7 @@ export function buildSidebarViewModel({
   manualOrderByScope = {},
   organization = 'projects',
   showScheduledSessions = true,
+  customSections = [],
   pendingPermissionSessionIds,
   recentWorkspaces,
   removedWorkspaces,
@@ -342,6 +345,7 @@ export function buildSidebarViewModel({
   manualOrderByScope?: Readonly<Record<string, readonly string[]>>
   organization?: DesktopSidebarOrganization
   showScheduledSessions?: boolean
+  customSections?: readonly SidebarCustomSection[]
   pendingPermissionSessionIds: ReadonlySet<string>
   recentWorkspaces: readonly DesktopWorkspace[]
   removedWorkspaces: readonly DesktopRemovedWorkspace[]
@@ -360,11 +364,7 @@ export function buildSidebarViewModel({
     .filter((session) => Boolean(session.pinnedAt))
     .sort((left, right) => timestampMs(right.pinnedAt) - timestampMs(left.pinnedAt))
   const pinnedIds = new Set(pinnedSessions.map((session) => session.id))
-  const unpinnedSessions = visibleSessions.filter((session) => !pinnedIds.has(session.id))
-  const standaloneSessions = unpinnedSessions.filter((session) => session.standalone)
-  const allProjectSessions = visibleSessions.filter((session) => !session.standalone)
-  const projectSessionBuckets = buildProjectSessionBuckets(allProjectSessions, unpinnedSessions)
-  const allProjects = mergeProjectWorkspaces(recentWorkspaces, unpinnedSessions, removedWorkspaces)
+  const allProjects = mergeProjectWorkspaces(recentWorkspaces, visibleSessions, removedWorkspaces)
   const pinnedWorkspaces = allProjects
     .filter((project) => Boolean(project.pinnedAt))
     .sort(
@@ -374,6 +374,36 @@ export function buildSidebarViewModel({
         projectKey(left).localeCompare(projectKey(right)),
     )
   const pinnedProjectKeys = new Set(pinnedWorkspaces.map(projectKey))
+  const customSectionModels = buildSidebarCustomSections({
+    sections: customSections,
+    sessions: visibleSessions,
+    projects: allProjects,
+  })
+  const claimedKeys = sidebarClaimedItemKeys({
+    pinnedItems: [
+      ...pinnedSessions.map((session) => ({
+        key: sidebarPinnedSessionKey(session),
+        kind: 'session' as const,
+        pinnedAt: session.pinnedAt ?? null,
+        session,
+      })),
+      ...pinnedWorkspaces.map((project) => ({
+        key: sidebarPinnedProjectKey(project),
+        kind: 'project' as const,
+        pinnedAt: project.pinnedAt ?? null,
+        project,
+      })),
+    ],
+    sections: customSections,
+  })
+  const inCustomSection = (session: SessionListItem): boolean =>
+    claimedKeys.has(sidebarPinnedSessionKey(session))
+  const unpinnedSessions = visibleSessions.filter(
+    (session) => !pinnedIds.has(session.id) && !inCustomSection(session),
+  )
+  const standaloneSessions = unpinnedSessions.filter((session) => session.standalone)
+  const allProjectSessions = visibleSessions.filter((session) => !session.standalone)
+  const projectSessionBuckets = buildProjectSessionBuckets(allProjectSessions, unpinnedSessions)
   const recentSessions =
     organization === 'flat'
       ? unpinnedSessions.filter(
@@ -381,7 +411,9 @@ export function buildSidebarViewModel({
         )
       : standaloneSessions
   const projectWorkspaces = sortProjectsForSidebar(
-    allProjects.filter((project) => !pinnedProjectKeys.has(projectKey(project))),
+    allProjects.filter(
+      (project) => !pinnedProjectKeys.has(projectKey(project)) && !claimedKeys.has(sidebarPinnedProjectKey(project)),
+    ),
     {
       manualOrderByScope,
       scopeKey: 'projects',
@@ -397,6 +429,7 @@ export function buildSidebarViewModel({
 
   return {
     allProjectSessions,
+    customSections: customSectionModels,
     pinnedSessions,
     pinnedWorkspaces,
     projectSessionBuckets,
@@ -462,36 +495,21 @@ export function buildSidebarPinnedItems({
   pinnedWorkspaces: readonly DesktopWorkspace[]
   storedOrder: readonly string[]
 }): SidebarPinnedItem[] {
-  const sessionItems: SidebarPinnedItem[] = pinnedSessions
-    .map((session): SidebarPinnedItem => ({
-      key: sidebarPinnedSessionKey(session),
-      kind: 'session',
-      pinnedAt: session.pinnedAt ?? null,
-      session,
-    }))
-    .sort((left, right) => timestampMs(right.pinnedAt) - timestampMs(left.pinnedAt))
-  const projectItems: SidebarPinnedItem[] = pinnedWorkspaces
-    .map((project): SidebarPinnedItem => ({
-      key: sidebarPinnedProjectKey(project),
-      kind: 'project',
-      pinnedAt: project.pinnedAt ?? null,
-      project,
-    }))
-    .sort((left, right) => timestampMs(right.pinnedAt) - timestampMs(left.pinnedAt))
-  const sessionKeys = new Set(sessionItems.map((item) => item.key))
-  const projectKeys = new Set(projectItems.map((item) => item.key))
-  // 置顶区固定为“全部置顶会话 → 全部置顶文件夹”；
-  // 旧 storedOrder 可能是跨类型混排，读取时按类型过滤，仅保留各类型内部的手动顺序。
-  return [
-    ...orderPinnedItemGroup(
-      sessionItems,
-      storedOrder.filter((key) => sessionKeys.has(key)),
-    ),
-    ...orderPinnedItemGroup(
-      projectItems,
-      storedOrder.filter((key) => projectKeys.has(key)),
-    ),
-  ]
+  const sessionItems: SidebarPinnedItem[] = pinnedSessions.map((session) => ({
+    key: sidebarPinnedSessionKey(session),
+    kind: 'session',
+    pinnedAt: session.pinnedAt ?? null,
+    session,
+  }))
+  const projectItems: SidebarPinnedItem[] = pinnedWorkspaces.map((project) => ({
+    key: sidebarPinnedProjectKey(project),
+    kind: 'project',
+    pinnedAt: project.pinnedAt ?? null,
+    project,
+  }))
+  // 置顶区是聊天与项目的混合有序列表：新置顶按时间排在前面，
+  // 已手动排序的条目沿用存储顺序，不再按类型分组。
+  return orderPinnedItemGroup([...sessionItems, ...projectItems], storedOrder)
 }
 
 function orderPinnedItemGroup(
@@ -501,7 +519,9 @@ function orderPinnedItemGroup(
   const storedKeySet = new Set(storedKeys)
   const itemByKey = new Map(items.map((item) => [item.key, item]))
   return [
-    ...items.filter((item) => !storedKeySet.has(item.key)),
+    ...items
+      .filter((item) => !storedKeySet.has(item.key))
+      .sort((left, right) => timestampMs(right.pinnedAt) - timestampMs(left.pinnedAt)),
     ...storedKeys.flatMap((key) => {
       const item = itemByKey.get(key)
       return item ? [item] : []
@@ -517,7 +537,7 @@ export function reorderSidebarPinnedItemKeys(
   if (sourceKey === targetKey) return null
   const source = items.find((item) => item.key === sourceKey)
   const target = items.find((item) => item.key === targetKey)
-  if (!source || !target || source.kind !== target.kind) return null
+  if (!source || !target) return null
   const order = items.map((item) => item.key)
   const sourceIndex = order.indexOf(sourceKey)
   const targetIndex = order.indexOf(targetKey)
@@ -526,6 +546,87 @@ export function reorderSidebarPinnedItemKeys(
   if (!moved) return null
   order.splice(targetIndex, 0, moved)
   return order
+}
+
+export type SidebarCustomSectionEntry =
+  | { key: string; kind: 'session'; session: SessionListItem }
+  | { key: string; kind: 'project'; project: DesktopWorkspace }
+
+export type SidebarCustomSectionModel = {
+  id: string
+  title: string
+  collapsed: boolean
+  sort: 'manual' | 'updated'
+  entries: SidebarCustomSectionEntry[]
+}
+
+/**
+ * 解析自定义分组的可见条目。只展示仍然存在的条目；
+ * 目录尚未加载或条目暂时缺失时保留原始键，不做删除。
+ */
+export function buildSidebarCustomSections({
+  sections,
+  sessions,
+  projects,
+}: {
+  sections: readonly SidebarCustomSection[]
+  sessions: readonly SessionListItem[]
+  projects: readonly DesktopWorkspace[]
+}): SidebarCustomSectionModel[] {
+  const sessionByKey = new Map(
+    sessions.map((session) => [sidebarPinnedSessionKey(session), session] as const),
+  )
+  const projectByKey = new Map(
+    projects.map((project) => [sidebarPinnedProjectKey(project), project] as const),
+  )
+  return sections.map((section) => {
+    const entries: SidebarCustomSectionEntry[] = []
+    for (const key of section.itemKeys) {
+      const session = sessionByKey.get(key)
+      if (session) {
+        entries.push({ key, kind: 'session', session })
+        continue
+      }
+      const project = projectByKey.get(key)
+      if (project) entries.push({ key, kind: 'project', project })
+    }
+    return {
+      id: section.id,
+      title: section.title,
+      collapsed: section.collapsed,
+      sort: section.sort,
+      entries:
+        section.sort === 'updated'
+          ? [...entries].sort(
+              (left, right) =>
+                customSectionEntryRecencyMs(right) - customSectionEntryRecencyMs(left),
+            )
+          : entries,
+    }
+  })
+}
+
+/** 自定义分组条目用于“最近更新”排序的时间：项目按最近活动时间参与比较。 */
+function customSectionEntryRecencyMs(entry: SidebarCustomSectionEntry): number {
+  if (entry.kind === 'session') {
+    return timestampMs(entry.session.lastMessageAt ?? entry.session.createdAt)
+  }
+  return timestampMs(entry.project.lastOpenedAt ?? entry.project.pinnedAt)
+}
+
+/** 自定义分组与置顶区共同决定条目的顶层归属，二者互斥。 */
+export function sidebarClaimedItemKeys({
+  pinnedItems,
+  sections,
+}: {
+  pinnedItems: readonly SidebarPinnedItem[]
+  sections: readonly SidebarCustomSection[]
+}): Set<string> {
+  const claimed = new Set(pinnedItems.map((item) => item.key))
+  for (const section of sections) {
+    for (const key of section.itemKeys) claimed.add(key)
+  }
+  return claimed
 }
 
 export function sidebarPinnedSessionKey(session: SessionListItem): string {

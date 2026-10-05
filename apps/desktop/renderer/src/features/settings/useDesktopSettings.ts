@@ -28,12 +28,13 @@ import type {
   ProjectAppearance,
   SidebarProductMode,
   SidebarSectionId,
+  SidebarCustomization,
+  SidebarCustomSection,
 } from '../../../shared/types.js'
 import {
-  createSidebarStateResetPatch,
+  DEFAULT_SIDEBAR_CUSTOMIZATION,
   SIDEBAR_STATE_VERSION,
 } from '../../../shared/settingsSchema.js'
-import { resetStoredSidebarLayout } from '../layout/useDesktopLayout.js'
 import {
   type StoredDesktopSettings,
   permissionConfigForMode,
@@ -187,6 +188,10 @@ export type UseDesktopSettingsResult = {
   setCollapsedSidebarSections: (
     value: SidebarSectionId[] | ((current: SidebarSectionId[]) => SidebarSectionId[]),
   ) => void
+  sidebarCustomization: SidebarCustomization
+  setSidebarCustomization: (
+    value: SidebarCustomization | ((current: SidebarCustomization) => SidebarCustomization),
+  ) => void
   syncExternalSettingsPatch: (patch: Partial<StoredDesktopSettings>) => void
   saveFirstUseSetupCompleted: (value: 0 | 1) => Promise<void>
   draft: DesktopSettingsDraft
@@ -207,6 +212,7 @@ export type UseDesktopRuntimeSettingsResult = Pick<
   | 'setReviewView'
   | 'setSidebarSessionPins'
   | 'setSidebarTimelineEnabled'
+  | 'setSidebarCustomization'
   | 'syncExternalSettingsPatch'
 > & {
   values: StoredDesktopSettings
@@ -489,6 +495,9 @@ function useDesktopSettingsState(
   const [browserSitePermissions, setBrowserSitePermissions] = useState<
     DesktopBrowserSitePermission[]
   >(initial.browserSitePermissions)
+  const [sidebarCustomization, setSidebarCustomization] = useState<SidebarCustomization>(
+    initial.sidebarCustomization ?? DEFAULT_SIDEBAR_CUSTOMIZATION,
+  )
   const [settingsLoaded, setSettingsLoaded] = useState(false)
   const skipNextAutoSaveRef = useRef(false)
   const initialLoadRef = useRef(true)
@@ -518,11 +527,12 @@ function useDesktopSettingsState(
           loadedSettings.sidebarStateVersion < SIDEBAR_STATE_VERSION
             ? {
                 ...loadedSettings,
-                ...createSidebarStateResetPatch(loadedSettings),
+                sidebarStateVersion: SIDEBAR_STATE_VERSION,
+                sidebarCustomization:
+                  loadedSettings.sidebarCustomization ?? DEFAULT_SIDEBAR_CUSTOMIZATION,
               }
             : loadedSettings
         if (loadedSettings.sidebarStateVersion < SIDEBAR_STATE_VERSION) {
-          resetStoredSidebarLayout()
           if (access === 'read-write') {
             try {
               await desktopClient.saveDesktopSettings(settings)
@@ -600,6 +610,7 @@ function useDesktopSettingsState(
         setBrowserAllowedSites(settings.browserAllowedSites)
         setCollapsedSidebarSections(settings.collapsedSidebarSections)
         setBrowserSitePermissions(settings.browserSitePermissions)
+        setSidebarCustomization(settings.sidebarCustomization ?? DEFAULT_SIDEBAR_CUSTOMIZATION)
         setCommittedDraftValues(settings)
         setDraftValues(cloneDesktopSettings(settings))
         draftDirtyKeysRef.current.clear()
@@ -693,6 +704,7 @@ function useDesktopSettingsState(
       browserAllowedSites,
       collapsedSidebarSections,
       browserSitePermissions,
+      sidebarCustomization,
       pet: committedDraftValues.pet,
       notifications: committedDraftValues.notifications,
     }),
@@ -771,6 +783,7 @@ function useDesktopSettingsState(
       browserAllowedSites,
       collapsedSidebarSections,
       browserSitePermissions,
+      sidebarCustomization,
       committedDraftValues.pet,
       committedDraftValues.notifications,
     ],
@@ -890,6 +903,7 @@ function useDesktopSettingsState(
     setBrowserAllowedSites(snapshot.browserAllowedSites)
     setCollapsedSidebarSections(snapshot.collapsedSidebarSections)
     setBrowserSitePermissions(snapshot.browserSitePermissions)
+    setSidebarCustomization(snapshot.sidebarCustomization ?? DEFAULT_SIDEBAR_CUSTOMIZATION)
     setCommittedDraftValues(snapshot)
   }, [])
 
@@ -1012,6 +1026,7 @@ function useDesktopSettingsState(
       setReviewView,
       setSidebarSessionPins,
       setSidebarTimelineEnabled,
+      setSidebarCustomization,
       syncExternalSettingsPatch,
     }),
     [
@@ -1019,6 +1034,7 @@ function useDesktopSettingsState(
       permissionMode,
       settingsLoaded,
       setPermissionMode,
+      setSidebarCustomization,
       syncExternalSettingsPatch,
     ],
   )
@@ -1151,6 +1167,8 @@ function useDesktopSettingsState(
     setRustSearchAndDiffKernels,
     setBrowserAllowedSites,
     setCollapsedSidebarSections,
+    sidebarCustomization,
+    setSidebarCustomization,
     syncExternalSettingsPatch,
     saveFirstUseSetupCompleted,
     draft,
@@ -1188,6 +1206,18 @@ function cloneDesktopSettings(settings: StoredDesktopSettings): StoredDesktopSet
     browserSitePermissions: settings.browserSitePermissions.map((permission) => ({
       ...permission,
     })),
+    sidebarCustomization: settings.sidebarCustomization
+      ? {
+          ...settings.sidebarCustomization,
+          sections: settings.sidebarCustomization.sections.map((s) => ({
+            ...s,
+            itemKeys: [...s.itemKeys],
+          })),
+          sectionOrder: [...settings.sidebarCustomization.sectionOrder],
+          destinationOrder: [...settings.sidebarCustomization.destinationOrder],
+          hiddenDestinationIds: [...settings.sidebarCustomization.hiddenDestinationIds],
+        }
+      : DEFAULT_SIDEBAR_CUSTOMIZATION,
     pet: { ...settings.pet },
   }
 }

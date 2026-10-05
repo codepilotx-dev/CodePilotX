@@ -60,6 +60,7 @@
     "--radix-select-content-available-height",
     "--radix-select-trigger-width",
     "--radix-tooltip-content-transform-origin",
+    "--sidebar-collapse-target-size",
     "--simple-view-height",
     "--advanced-view-height"
   ],

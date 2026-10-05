@@ -1,8 +1,10 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home } from 'lucide-react'
+import { Ellipsis, Home } from 'lucide-react'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { Tooltip } from '../../../components/ui/Tooltip.js'
+import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
+import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 import { useLocale } from '../../i18n/LocaleProvider.js'
@@ -21,6 +23,15 @@ type Props = {
   onPinPanel: () => void
 }
 
+/** 导航轨目的地键：与 sidebarCustomization.destinationOrder 中的 id 一一对应。 */
+export type SidebarRailDestinationId = 'automations' | 'plugins' | 'sessionGroups'
+
+const RAIL_DESTINATION_PANES: Record<SidebarRailDestinationId, SidebarPane | null> = {
+  automations: 'scheduled',
+  plugins: 'plugins',
+  sessionGroups: null,
+}
+
 export function SidebarNavigationRail({
   shell,
   activePane,
@@ -29,11 +40,13 @@ export function SidebarNavigationRail({
   onReport,
   onPinPanel,
 }: Props): ReactNode {
-  const { sidebarProductMode, sidebarTimelineEnabled } = useDesktopSettings()
+  const { sidebarProductMode, sidebarTimelineEnabled, sidebarCustomization } = useDesktopSettings()
   const { t } = useLocale()
   const navigate = useNavigate()
   const location = useLocation()
   const [tooltipId, setTooltipId] = useState<string | null>(null)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const moreTriggerRef = useRef<HTMLButtonElement>(null)
   const lastChatPath = useRef(newSessionPath(sidebarProductMode))
   if (location.pathname === '/new' || location.pathname.startsWith('/threads/'))
     lastChatPath.current = `${location.pathname}${location.search}`
@@ -42,6 +55,38 @@ export function SidebarNavigationRail({
     surface: sidebarProductMode,
     capabilityState,
   })
+  const destinationItems = items.filter((item) => item.view !== 'new')
+  const itemByDestinationId = new Map<SidebarRailDestinationId, (typeof destinationItems)[number]>()
+  for (const item of destinationItems) {
+    if (item.view in RAIL_DESTINATION_PANES) {
+      itemByDestinationId.set(item.view as SidebarRailDestinationId, item)
+    }
+  }
+  const hiddenDestinationIds = new Set(
+    sidebarCustomization.hiddenDestinationIds.filter(
+      (id): id is SidebarRailDestinationId => typeof id === 'string',
+    ),
+  )
+  const orderedDestinationIds = [
+    ...sidebarCustomization.destinationOrder,
+    ...Object.keys(RAIL_DESTINATION_PANES),
+  ].filter(
+    (id, index, list): id is SidebarRailDestinationId =>
+      id in RAIL_DESTINATION_PANES && list.indexOf(id) === index,
+  )
+  const directItems = orderedDestinationIds
+    .filter((id) => !hiddenDestinationIds.has(id))
+    .flatMap((id) => {
+      const item = itemByDestinationId.get(id)
+      return item ? [item] : []
+    })
+  const moreItems = orderedDestinationIds
+    .filter((id) => hiddenDestinationIds.has(id))
+    .flatMap((id) => {
+      const item = itemByDestinationId.get(id)
+      return item ? [item] : []
+    })
+
   const button = (
     id: string,
     label: string,
@@ -54,7 +99,7 @@ export function SidebarNavigationRail({
       content={t(label)}
       side="right"
       key={id}
-      open={tooltipId === id && canShowSidebarTooltip(shell.mode, false)}
+      open={tooltipId === id && !moreOpen && canShowSidebarTooltip(shell.mode, false)}
       onOpenChange={(open) =>
         setTooltipId((current) => (open ? id : current === id ? null : current))
       }
@@ -70,11 +115,16 @@ export function SidebarNavigationRail({
         color="ghost"
         size="icon"
         onClick={onClick}
+        onPointerEnter={
+          pane ? (event) => shell.onRailItemEnter(pane, event) : undefined
+        }
+        onPointerLeave={pane ? (event) => shell.onRailItemLeave(event) : undefined}
       >
         {icon}
       </IconButton>
     </Tooltip>
   )
+
   return (
     <nav className="sidebar-navigation-rail" aria-label={t('应用导航')}>
       <div className="sidebar-rail-destinations">
@@ -89,25 +139,63 @@ export function SidebarNavigationRail({
           sidebarTimelineEnabled ? 'activity' : 'chats',
           activePane === 'chats' || activePane === 'activity',
         )}
-        {items
-          .filter((item) => item.view !== 'new')
-          .map((item) => {
-            const pane = sidebarPaneForRoute(item.path, false)
-            const selected = pane
-              ? activePane === pane
-              : location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)
-            return button(
-              item.view,
-              item.label,
-              item.icon,
-              () => {
-                navigate(item.path)
-                if (pane) onPinPanel()
-              },
-              pane,
-              selected,
-            )
-          })}
+        {directItems.map((item) => {
+          const pane = RAIL_DESTINATION_PANES[item.view as SidebarRailDestinationId]
+          const selected = pane
+            ? activePane === pane
+            : location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)
+          return button(
+            item.view,
+            item.label,
+            item.icon,
+            () => {
+              navigate(item.path)
+              if (pane) onPinPanel()
+            },
+            pane,
+            selected,
+          )
+        })}
+        {moreItems.length > 0 ? (
+          <PopoverMenu
+            align="start"
+            open={moreOpen}
+            side="right"
+            width={200}
+            maxWidth="calc(100vw - 16px)"
+            onOpenChange={setMoreOpen}
+            trigger={
+              <IconButton
+                ref={moreTriggerRef}
+                title={t('更多')}
+                nativeTitle={false}
+                aria-label={t('更多')}
+                active={moreOpen}
+                className="sidebar-rail-button"
+                color="ghost"
+                size="icon"
+              >
+                <Ellipsis size={APP_ICON_SIZE} />
+              </IconButton>
+            }
+          >
+            {moreItems.map((item) => (
+              <PopoverItem
+                active={
+                  location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)
+                }
+                icon={item.icon}
+                key={item.view}
+                onClick={() => {
+                  setMoreOpen(false)
+                  navigate(item.path)
+                }}
+              >
+                {t(item.label)}
+              </PopoverItem>
+            ))}
+          </PopoverMenu>
+        ) : null}
       </div>
       <div className="sidebar-rail-bottom">
         <SidebarFooter

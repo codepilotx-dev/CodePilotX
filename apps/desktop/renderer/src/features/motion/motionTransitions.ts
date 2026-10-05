@@ -31,6 +31,22 @@ export const loadingTween: Transition = {
   ease: 'linear',
 }
 
+/**
+ * 右工作区宽度转换：显隐与 split/full 几何共用 Codex 外壳的 spring 分支，
+ * 不影响弹层、底栏与 composer 使用的 100ms layoutTween。
+ */
+export const workspacePanelSpring: Transition = {
+  type: 'spring',
+  duration: 0.35,
+  bounce: 0.1,
+}
+
+export const workspacePanelExitSpring: Transition = {
+  type: 'spring',
+  duration: 0.5,
+  bounce: 0.1,
+}
+
 // Compatibility names for components that still use the previous motion scale.
 export const fastTween = stateTween
 export const standardTween = enterTween

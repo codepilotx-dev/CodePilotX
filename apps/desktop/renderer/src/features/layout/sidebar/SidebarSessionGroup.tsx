@@ -8,6 +8,8 @@ import {
   Eye,
   EyeOff,
   Folder,
+  FolderInput,
+  Link,
   MessageCircle,
   MessageSquare,
   Pencil,
@@ -19,7 +21,7 @@ import { Reorder } from 'motion/react'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { ProjectAppearanceGlyph } from '../../projects/projectAppearance.js'
 import {
-  sessionDisplayTitle,
+  sessionResolvedTitle,
   sessionEditableTitle,
   type SessionListItem,
 } from '../../../uiTypes.js'
@@ -66,6 +68,19 @@ type Props = {
   manualOrderByScope?: Record<string, string[]>
   presentation?: 'compact' | 'workspace-meta'
   pagination?: 'incremental' | 'all'
+  /** 分组内首行的全局拖放序号基准，便于跨容器计算插入位置。 */
+  dropIndexBase?: number
+  /** 列表默认显示条数；聊天列表 10，项目与自定义分组沿用调用方设置。 */
+  initialLimit?: number
+  /** 可供“移动到分组”选择的自定义分组。 */
+  customSections?: readonly { id: string; title: string }[]
+  /** 当前会话所属的自定义分组；不在任何分组时为 null。 */
+  currentSectionId?: string | null
+  onMoveToSection?: (sessionId: string, sectionId: string) => void
+  onMoveToDefault?: (sessionId: string) => void
+  /** 跨容器拖放：开始拖动时上报选中载荷，结束时提交落点。 */
+  onItemDragStart?: (sessionId: string) => void
+  onItemDragEnd?: () => void
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
   onManualOrderChange?: (scopeKey: string, order: string[]) => void
   onPinSession: (session: SessionListItem) => void
@@ -89,6 +104,14 @@ function SidebarSessionGroupComponent({
   manualOrderByScope = {},
   presentation = 'compact',
   pagination = 'incremental',
+  dropIndexBase = 0,
+  initialLimit = GROUP_LIMIT,
+  customSections = [],
+  currentSectionId = null,
+  onMoveToSection,
+  onMoveToDefault,
+  onItemDragStart,
+  onItemDragEnd,
   onArchiveSessions,
   onManualOrderChange,
   onPinSession,
@@ -101,7 +124,7 @@ function SidebarSessionGroupComponent({
   const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null)
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null)
   const [confirmArchiveSessionId, setConfirmArchiveSessionId] = useState<string | null>(null)
-  const [visibleLimit, setVisibleLimit] = useState(GROUP_LIMIT)
+  const [visibleLimit, setVisibleLimit] = useState(initialLimit)
   const [renameSession, setRenameSession] = useState<SessionListItem | null>(null)
   const renameDialogMounted = useEverOpened(renameSession !== null)
   const [renameValue, setRenameValue] = useState('')
@@ -164,7 +187,7 @@ function SidebarSessionGroupComponent({
     }
     const activeIndex = orderedSessions.findIndex((session) => session.id === activeSessionId)
     if (groupChanged) {
-      setVisibleLimit(activeIndex < 0 ? GROUP_LIMIT : Math.max(GROUP_LIMIT, activeIndex + 1))
+      setVisibleLimit(activeIndex < 0 ? initialLimit : Math.max(initialLimit, activeIndex + 1))
       return
     }
     if (activeIndex >= 0) {
@@ -196,7 +219,7 @@ function SidebarSessionGroupComponent({
   }
 
   function getSessionContextMenuActions(session: SessionListItem): ContextMenuAction[] {
-    return [
+    const actions: Array<ContextMenuAction | null> = [
       {
         kind: 'item',
         label:
@@ -235,6 +258,24 @@ function SidebarSessionGroupComponent({
       },
       {
         kind: 'item',
+        label: '复制会话链接',
+        icon: <Link size={APP_ICON_SIZE} />,
+        onSelect: () => {
+          void desktopClipboard.writeText(`codepilotx://threads/${session.id}`)
+        },
+      },
+      session.workspacePath
+        ? {
+            kind: 'item' as const,
+            label: '复制工作目录',
+            icon: <Folder size={APP_ICON_SIZE} />,
+            onSelect: () => {
+              void desktopClipboard.writeText(session.workspacePath)
+            },
+          }
+        : null,
+      {
+        kind: 'item',
         label: sessionReadStatusActionLabel(session),
         icon: session.unreadAt ? <Eye size={APP_ICON_SIZE} /> : <EyeOff size={APP_ICON_SIZE} />,
         onSelect: () => onToggleSessionUnread(session),
@@ -259,10 +300,48 @@ function SidebarSessionGroupComponent({
         icon: <Archive size={APP_ICON_SIZE} />,
         onSelect: () => setConfirmArchiveSessionId(session.id),
       },
+      { kind: 'separator' },
+      {
+        kind: 'sub',
+        label: '移动到分组',
+        icon: <FolderInput size={APP_ICON_SIZE} />,
+        layout: 'flex',
+        children: buildMoveToSectionActions(session),
+      },
     ]
+    return actions.filter((action): action is ContextMenuAction => action !== null)
   }
 
-  function renderSessionRow(session: SessionListItem): React.ReactNode {
+  function buildMoveToSectionActions(session: SessionListItem): ContextMenuAction[] {
+    const actions: ContextMenuAction[] = [
+      {
+        kind: 'item',
+        label: session.pinnedAt ? '已置顶' : '置顶',
+        disabled: Boolean(session.pinnedAt),
+        onSelect: () => onPinSession(session),
+      },
+    ]
+    for (const section of customSections) {
+      actions.push({
+        kind: 'item',
+        label: section.title,
+        disabled: currentSectionId === section.id,
+        onSelect: () => onMoveToSection?.(session.id, section.id),
+      })
+    }
+    actions.push({
+      kind: 'item',
+      label: '默认区域',
+      disabled: !currentSectionId && !session.pinnedAt,
+      onSelect: () => {
+        if (session.pinnedAt) onUnpinSession(session)
+        onMoveToDefault?.(session.id)
+      },
+    })
+    return actions
+  }
+
+  function renderSessionRow(session: SessionListItem, rowIndex: number): React.ReactNode {
     const regeneratingTitle = titleLoadingIds.has(session.id)
     const visualState = deriveSidebarSessionVisualState(session, pendingPermissionSessionIds)
     const awaitingApproval = visualState === 'needs-input'
@@ -312,7 +391,7 @@ function SidebarSessionGroupComponent({
               active={hoveredSessionId === session.id || focusedSessionId === session.id}
               reducedMotion={reducedMotion}
             >
-              {sessionDisplayTitle(session, sessionFallbackTitles[session.id])}
+              {sessionResolvedTitle(session, sessionFallbackTitles[session.id])}
             </SidebarSessionTitle>
           )}
           {presentation === 'workspace-meta' ? <SidebarSessionSubtitle session={session} /> : null}
@@ -441,6 +520,7 @@ function SidebarSessionGroupComponent({
         {onManualOrderChange ? (
           <SidebarReorderItem
             as="li"
+            data-sidebar-drop-index={dropIndexBase + rowIndex}
             data-sidebar-session-extra={extraSessionIds.has(session.id) || undefined}
             presenceMotion={extraSessionIds.has(session.id)}
             reducedMotion={reducedMotion}
@@ -449,10 +529,12 @@ function SidebarSessionGroupComponent({
               const finalOrder = reorderSessionIdsRef.current
               setDraggedSessionId(null)
               persistManualOrder(finalOrder)
+              onItemDragEnd?.()
             }}
             onReorderDragStart={() => {
               reorderSessionIdsRef.current = orderedSessions.map((item) => item.id)
               setDraggedSessionId(session.id)
+              onItemDragStart?.(session.id)
             }}
           >
             {rowContent}
@@ -478,7 +560,7 @@ function SidebarSessionGroupComponent({
   const reorderValues = orderedSessions.map((session) => session.id)
   const sessionListClassName =
     'sidebar-session-list tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-px tw:p-0'
-  const sessionRows = visibleSessions.map(renderSessionRow)
+  const sessionRows = visibleSessions.map((session, index) => renderSessionRow(session, index))
   const visibleSessionKey = visibleSessions.map((session) => session.id).join('\u0000')
   const heightTransition = useHeightTransition([
     visibleSessionKey,
@@ -520,7 +602,7 @@ function SidebarSessionGroupComponent({
                     className="u-w-auto sidebar-show-more-button"
                     color="ghostTertiary"
                     onClick={() =>
-                      setVisibleLimit((current) => Math.min(current + GROUP_LIMIT, sessions.length))
+                      setVisibleLimit((current) => Math.min(current + initialLimit, sessions.length))
                     }
                     size="compact"
                     type="button"
@@ -532,7 +614,7 @@ function SidebarSessionGroupComponent({
                   <Button
                     className="u-w-auto sidebar-show-more-button"
                     color="ghostTertiary"
-                    onClick={() => setVisibleLimit(GROUP_LIMIT)}
+                    onClick={() => setVisibleLimit(initialLimit)}
                     size="compact"
                     type="button"
                   >
