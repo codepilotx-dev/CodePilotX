@@ -1,8 +1,38 @@
 import React from 'react'
-import { Maximize2, PanelRight } from 'lucide-react'
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Download,
+  Maximize2,
+  PanelRight,
+} from 'lucide-react'
 import type { StructuredPlan } from '@codepilotx/shared/thread'
 import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { MarkdownMessage } from '../../markdown/index.js'
+import {
+  createKeyedDisclosureStore,
+  useDisclosureExpanded,
+} from '../../../components/ui/keyedDisclosureStore.js'
+import { desktopClipboard } from '../../../services/desktop-client/index.js'
+
+export const planDisclosureStore = createKeyedDisclosureStore({ initialExpandedKeys: [] })
+
+export function usePlanExpanded(
+  threadId: string | undefined,
+  eventId: string,
+): [boolean, (expanded: boolean) => void] {
+  const key = `${threadId ?? 'default'}:${eventId}`
+  const expanded = useDisclosureExpanded(planDisclosureStore, key)
+  const setExpanded = React.useCallback(
+    (next: boolean) => {
+      planDisclosureStore.setExpanded(key, next)
+    },
+    [key],
+  )
+  return [expanded, setExpanded]
+}
 
 export type OpenPlanInDockRequest = {
   eventId: string
@@ -40,6 +70,7 @@ export function WorkflowPlanCard({
   streaming,
   isDocked,
   onOpenInRightDock,
+  threadId,
 }: {
   eventId: string
   summary: string
@@ -47,10 +78,47 @@ export function WorkflowPlanCard({
   streaming: boolean
   isDocked: boolean
   onOpenInRightDock: (plan: OpenPlanInDockRequest) => void
+  threadId?: string
 }): React.ReactNode {
   const title = structured?.title ?? planTitleFromSummary(summary)
   const presentation = planCardPresentation({ streaming, isDocked })
   const plan = createPlanDockRequest({ eventId, title, content: summary, streaming })
+  const [expanded, setExpanded] = usePlanExpanded(threadId, eventId)
+  const [copied, setCopied] = React.useState(false)
+  const copyTimeoutRef = React.useRef<number | null>(null)
+
+  React.useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current !== null) {
+        window.clearTimeout(copyTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const handleCopy = React.useCallback(() => {
+    void desktopClipboard
+      .writeText(summary)
+      .then(() => {
+        setCopied(true)
+        if (copyTimeoutRef.current !== null) {
+          window.clearTimeout(copyTimeoutRef.current)
+        }
+        copyTimeoutRef.current = window.setTimeout(() => setCopied(false), 1400)
+      })
+      .catch(() => undefined)
+  }, [summary])
+
+  const handleExport = React.useCallback(() => {
+    const blob = new Blob([summary], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'PLAN.md'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }, [summary])
 
   if (presentation.compact) {
     return (
@@ -69,10 +137,36 @@ export function WorkflowPlanCard({
   }
 
   return (
-    <article className="workflow-plan-card">
+    <article className="workflow-plan-card" data-expanded={expanded ? 'true' : 'false'}>
       <header className="workflow-plan-card__header">
         <span className="workflow-plan-card__label">{presentation.label}</span>
         <div className="workflow-plan-card__actions">
+          {!streaming ? (
+            <>
+              <button
+                aria-label={copied ? '已复制计划' : '复制计划'}
+                className="workflow-plan-card__dock"
+                title={copied ? '已复制' : '复制计划'}
+                type="button"
+                onClick={handleCopy}
+              >
+                {copied ? (
+                  <Check size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                ) : (
+                  <Copy size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                )}
+              </button>
+              <button
+                aria-label="导出计划 (PLAN.md)"
+                className="workflow-plan-card__dock"
+                title="导出计划 (PLAN.md)"
+                type="button"
+                onClick={handleExport}
+              >
+                <Download size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              </button>
+            </>
+          ) : null}
           {presentation.showOpenInRightDock ? (
             <button
               aria-label="在右侧打开计划"
@@ -89,9 +183,31 @@ export function WorkflowPlanCard({
 
       <h2 className="workflow-plan-card__title">{title}</h2>
 
-      <div className="workflow-plan-card__body">
+      <div className="workflow-plan-card__body" data-expanded={expanded ? 'true' : 'false'}>
         {structured ? <StructuredPlanView plan={structured} /> : <MarkdownMessage text={summary} />}
       </div>
+
+      {!streaming ? (
+        <div className="workflow-plan-card__footer">
+          <button
+            className="workflow-plan-card__expand-button"
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? (
+              <>
+                <ChevronUp size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <span>收起计划</span>
+              </>
+            ) : (
+              <>
+                <ChevronDown size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <span>展开计划</span>
+              </>
+            )}
+          </button>
+        </div>
+      ) : null}
     </article>
   )
 }
@@ -180,6 +296,6 @@ export function planCardPresentation({
     compact: isDocked,
     label: streaming ? '编写计划' : '计划',
     showOpenInRightDock: !streaming,
-    showFoldControls: false,
+    showFoldControls: !streaming,
   }
 }

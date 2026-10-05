@@ -133,7 +133,7 @@
 
 .workflow-plan-card__body {
   position: relative;
-  max-height: 150px;
+  max-height: 320px;
   overflow: hidden;
 
   &::after {
@@ -142,8 +142,52 @@
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 40px;
-    background: color-mix(in srgb, var(--cpx-sys-color-surface-raised) 88%, transparent);
+    height: 48px;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      color-mix(in srgb, var(--cpx-sys-color-surface-panel) 90%, transparent) 50%,
+      var(--cpx-sys-color-surface-panel) 100%
+    );
+    pointer-events: none;
+  }
+
+  &[data-expanded='true'] {
+    max-height: none;
+    overflow: visible;
+
+    &::after {
+      display: none;
+    }
+  }
+}
+
+.workflow-plan-card__footer {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--cpx-sys-space-2);
+}
+
+.workflow-plan-card__expand-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cpx-sys-space-1);
+  height: var(--cpx-sys-space-7);
+  padding: 0 var(--cpx-sys-space-3);
+  border: 1px solid var(--cpx-sys-color-border-subtle);
+  border-radius: var(--cpx-sys-radius-pill);
+  background: var(--cpx-sys-color-surface-raised);
+  color: var(--cpx-sys-color-fg-secondary);
+  font-size: var(--cpx-sys-font-size-xs);
+  font-weight: var(--cpx-sys-font-weight-medium);
+  cursor: pointer;
+  transition:
+    background var(--cpx-sys-motion-state) var(--cpx-sys-ease-out),
+    color var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
+
+  &:hover {
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
   }
 }
 

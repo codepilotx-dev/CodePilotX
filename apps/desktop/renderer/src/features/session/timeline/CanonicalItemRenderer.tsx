@@ -532,6 +532,7 @@ function CanonicalItemRendererContentComponent({
           streaming={item.status === 'streaming'}
           isDocked={rightDockPlanEventId === item.id}
           onOpenInRightDock={onOpenPlanInRightDock}
+          threadId={threadId}
         />
       )
     case 'execution-plan':
