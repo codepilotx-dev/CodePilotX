@@ -123,6 +123,7 @@ test('theme font picker enumerates, filters, searches, and persists family + fac
   await expectTriggerContentFits(familyTrigger)
 
   // Selecting a family with several faces enables the style dropdown.
+  await page.getByRole('button', { name: '高级', exact: true }).click()
   const styleTrigger = page.getByRole('combobox', {
     name: '深色界面字体字体样式',
   })

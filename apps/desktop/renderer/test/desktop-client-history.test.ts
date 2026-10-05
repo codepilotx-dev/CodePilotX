@@ -5,7 +5,10 @@ import {
   createDesktopClient,
   type DesktopClientEnvironment,
 } from '../src/services/desktop-client/index.js'
-import { DEFAULT_DESKTOP_THEME_SETTINGS } from '../shared/theme.js'
+import {
+  DEFAULT_DESKTOP_THEME_SETTINGS,
+  resetAdvancedDesktopThemeSettings,
+} from '../shared/theme.js'
 
 const now = 1_700_000_000_000
 const projectRootPath = 'F:\\CodeProject\\CodePilotX-Ts'
@@ -130,6 +133,71 @@ function sessionSnapshot(overrides: Partial<ThreadSnapshot['thread']> = {}): Thr
 }
 
 describe('desktop history client', () => {
+  test('resets both theme variants and persists only advanced defaults', async () => {
+    const defaults = structuredClone(DEFAULT_DESKTOP_THEME_SETTINGS)
+    const settings = structuredClone(defaults)
+    settings.mode = 'light'
+    settings.codeThemeIds.dark = 'nord'
+    settings.fontSizes = { ui: 16, code: 24 }
+    settings.reduceMotion = 'on'
+    settings.pointerCursorEnabled = !defaults.pointerCursorEnabled
+    settings.fontSmoothingEnabled = !defaults.fontSmoothingEnabled
+    for (const variant of ['light', 'dark'] as const) {
+      const theme = settings.chromeThemes[variant]
+      theme.accent = '#123456'
+      theme.accentPreset = 'custom'
+      theme.surface = '#234567'
+      theme.ink = '#345678'
+      theme.semanticColors.skill = '#456789'
+      theme.contrast = 99
+      theme.fonts = {
+        ui: 'Inter',
+        uiFace: { family: 'Inter', fullName: 'Inter Bold', postscriptName: 'Inter-Bold' },
+        code: 'CodeMono',
+        codeFace: {
+          family: 'CodeMono',
+          fullName: 'CodeMono Bold',
+          postscriptName: 'CodeMono-Bold',
+        },
+      }
+    }
+    const before = structuredClone(settings)
+    let stored = settings
+    const client = createDesktopClient({
+      window: {
+        codePilotXDesktop: {
+          pickWorkspaceDirectory: async () => null,
+          getAppearanceSettings: async () => stored,
+          saveAppearanceSettings: async (next) => {
+            stored = next
+            return next
+          },
+        },
+      },
+    })
+    const reset = resetAdvancedDesktopThemeSettings(settings)
+    expect(settings).toEqual(before)
+    expect(DEFAULT_DESKTOP_THEME_SETTINGS).toEqual(defaults)
+    expect(resetAdvancedDesktopThemeSettings(reset)).toEqual(reset)
+    await client.saveThemeSettings(reset)
+    const reloaded = await client.getThemeSettings()
+    expect(reloaded).toMatchObject({
+      mode: before.mode,
+      codeThemeIds: before.codeThemeIds,
+      fontSizes: defaults.fontSizes,
+      reduceMotion: defaults.reduceMotion,
+      pointerCursorEnabled: defaults.pointerCursorEnabled,
+      fontSmoothingEnabled: defaults.fontSmoothingEnabled,
+    })
+    for (const variant of ['light', 'dark'] as const) {
+      expect(reloaded.chromeThemes[variant]).toEqual({
+        ...before.chromeThemes[variant],
+        contrast: defaults.chromeThemes[variant].contrast,
+        fonts: { ...defaults.chromeThemes[variant].fonts, ui: 'Inter' },
+      })
+    }
+  })
+
   test('persists appearance settings through the minimal Electron bridge', async () => {
     let stored: unknown = {
       version: 2,

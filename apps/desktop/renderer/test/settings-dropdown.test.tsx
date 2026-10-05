@@ -1,8 +1,26 @@
 import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { SettingsDropdown } from '../src/features/settings/SettingsDropdown.js'
+import { ThemeFontPicker } from '../src/features/settings/ThemeFontPicker.js'
 
 describe('settings dropdown trigger contract', () => {
+  test('style-only font picker disables enumeration fallback without exposing a family editor', () => {
+    const html = renderToStaticMarkup(
+      <ThemeFontPicker
+        ariaLabel="深色界面字体"
+        placeholder="系统默认"
+        family="Inter"
+        face={{ family: 'Inter', fullName: 'Inter Bold', postscriptName: 'Inter-Bold' }}
+        kind="ui"
+        controls="style"
+        onCommit={() => undefined}
+      />,
+    )
+    expect(html).toContain('aria-label="深色界面字体字体样式"')
+    expect(html).toContain('disabled=""')
+    expect(html).not.toContain('<input')
+  })
+
   test('renders a focusable Radix Select trigger with its selected label', () => {
     const html = renderToStaticMarkup(
       <SettingsDropdown
