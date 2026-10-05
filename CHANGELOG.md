@@ -409,6 +409,8 @@
 
 ### Removed
 
+- [desktop/renderer] 移除启动入口及 coding、working、chat 新建页的 JS raw/gzip 体积上限和 CSS 基线增长门禁，保留资源体积报告与首屏模块完整性检查，完整功能和视觉交互效果优先于首屏体积。
+
 - [desktop/renderer] 移除未接入的新聊天标题轮播模块：删除 `chatHomeHero.ts` 与其测试，新任务页标题已由固定文案渲染；`ChatNewSessionView` 仍在使用的 `.chat-home-hero` 样式保留。
 
 - [agent/mcp] 移除旧 HTTP+SSE 客户端回退和调试服务器分支；已有配置原样保留，不受支持的端点连接时返回安全错误。

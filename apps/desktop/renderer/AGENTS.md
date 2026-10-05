@@ -40,6 +40,7 @@
 
 ## 测试与验证
 
+- 首屏 JS/CSS 体积只作信息统计，不设体积门禁；完整功能、视觉和交互效果优先，允许更长的加载时间，禁止为缩减体积删除或降级已要求的效果。
 - 测试重点是状态转换、client contract 和具体回归，放在现有 `test/` 目录。
 - 类型检查：`bun run --cwd apps/desktop/renderer typecheck`。
 - 完整测试：`bun run --cwd apps/desktop/renderer test`。
