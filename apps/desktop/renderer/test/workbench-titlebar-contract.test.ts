@@ -69,7 +69,8 @@ describe('workbench resize commit contract', () => {
     const desktopLayout = readRendererFile('src/features/layout/useDesktopLayout.ts')
 
     expectSourceNotContains(controller, 'startTransition')
-    expectSourceContains(controller, 'setRightDockWidthRatio(nextRatio)')
+    expectSourceContains(controller, 'commitRightDockRangeRatio(rightDockWidthToRangeRatio(')
+    expectSourceContains(controller, 'setRightDockWidthRatio(legacyRatio)')
     expectSourceContains(controller, 'setBottomPanelHeightRatio(nextRatio)')
     expectSourceContains(controller, 'rightPanelLiveResizeRef.current.previewSize(')
     expectSourceContains(controller, 'bottomPanelLiveResizeRef.current.previewSize(')

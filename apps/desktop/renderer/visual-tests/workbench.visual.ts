@@ -1032,18 +1032,6 @@ test('session header aligns with the right panel and bottom panel spans the work
   expect(headerWithDock!.width + dock!.width).toBeCloseTo(upper!.width, 0)
   expect(rightDockButtonAfter!.x).toBeCloseTo(rightDockButtonBefore!.x, 0)
 
-  const expandRightPanel = page.getByRole('button', {
-    name: '展开右侧面板',
-  })
-  await expandRightPanel.click()
-  await expect(page.getByRole('button', { name: '恢复右侧面板宽度' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  )
-  const fullWidthDock = await page.getByRole('complementary', { name: '右侧面板' }).boundingBox()
-  expect(fullWidthDock!.width).toBeCloseTo(upper!.width, 0)
-  await page.getByRole('button', { name: '恢复右侧面板宽度' }).click()
-
   await bottomPanelButton.click()
   const activeBottomPanelButton = page.getByRole('button', {
     name: '隐藏集成终端',

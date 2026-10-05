@@ -12,6 +12,7 @@ import {
 } from '../src/features/layout/sidebar/sidebarNavigation.js'
 import { resolveConversationProject } from '../src/features/projects/projectDetailsModel.js'
 import { expectSourceContains, expectSourceNotContains } from './source-contract.js'
+import { isSidebarPreviewHeld as isSidebarPreviewHeldForTest } from '../src/features/layout/sidebarShellState.js'
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import type { ProtocolCapability } from '@codepilotx/agent-protocol'
@@ -26,14 +27,16 @@ import {
 import {
   canShowSidebarTooltip,
   deriveSidebarShellMode,
-  isSidebarEdgeHit,
-  isSidebarNarrow,
-  isSidebarPanelHit,
-  isSidebarTriggerHoverReady,
+  isPointInTriangle,
+  isPreviewHoverSupported,
+  registerSidebarPreviewHold,
   resolveSidebarEscapeAction,
-  SIDEBAR_EDGE_HIT_WIDTH,
-  SIDEBAR_RESPONSIVE_BREAKPOINT,
-  shouldShowSidebarPreview,
+  SIDEBAR_PREVIEW_ENTER_DELAY,
+  SIDEBAR_PREVIEW_LEAVE_DELAY,
+  SIDEBAR_PREVIEW_MIN_WINDOW_WIDTH,
+  SIDEBAR_PREVIEW_SAFE_TIMEOUT,
+  SIDEBAR_PREVIEW_SETTLE_DURATION,
+  SIDEBAR_PREVIEW_SWITCH_DELAY,
 } from '../src/features/layout/sidebarShellState.js'
 import {
   DEFAULT_RESIZE_COLLAPSE_BEHAVIOR,
@@ -365,34 +368,38 @@ describe('设置导航', () => {
 })
 
 describe('sidebar shell modes', () => {
-  test('经典版预览只在隐藏时触发，与 Tooltip 互斥；拖拽只保持已有预览', () => {
-    const base = {
-      delayedTriggerHover: true,
-      pointerX: 60,
-      previewOpen: false,
-      rearmBlocked: false,
-      resizing: false,
-      sidebarWidth: 340,
-    }
-    expect(shouldShowSidebarPreview({ ...base, sidebarHidden: false })).toBe(false)
-    expect(shouldShowSidebarPreview({ ...base, sidebarHidden: true })).toBe(true)
-    expect(shouldShowSidebarPreview({ ...base, resizing: true })).toBe(false)
-    expect(shouldShowSidebarPreview({ ...base, resizing: true, previewOpen: true })).toBe(true)
-    expect(
-      shouldShowSidebarPreview({
-        ...base,
-        sidebarHidden: false,
-        resizing: true,
-        previewOpen: true,
-      }),
-    ).toBe(false)
+  test('悬停预览计时与预览保持注册表有固定基准', () => {
+    expect([
+      SIDEBAR_PREVIEW_ENTER_DELAY,
+      SIDEBAR_PREVIEW_SWITCH_DELAY,
+      SIDEBAR_PREVIEW_LEAVE_DELAY,
+      SIDEBAR_PREVIEW_SAFE_TIMEOUT,
+      SIDEBAR_PREVIEW_SETTLE_DURATION,
+      SIDEBAR_PREVIEW_MIN_WINDOW_WIDTH,
+    ]).toEqual([100, 300, 100, 1000, 0.12, 768])
+
+    expect(isPreviewHoverSupported()).toBeFalse()
     expect(canShowSidebarTooltip('docked', false)).toBe(true)
     expect(canShowSidebarTooltip('collapsed', true)).toBe(false)
     expect(canShowSidebarTooltip('collapsed', false)).toBe(true)
     expect(canShowSidebarTooltip('preview', false)).toBe(false)
+
+    expect(isPointInTriangle({ x: 60, y: 10 }, { x: 52, y: 10 }, { x: 62, y: 0 }, { x: 62, y: 100 })).toBe(
+      true,
+    )
+    expect(
+      isPointInTriangle({ x: 200, y: 10 }, { x: 52, y: 10 }, { x: 62, y: 0 }, { x: 62, y: 100 }),
+    ).toBe(false)
+
+    expect(isSidebarPreviewHeldForTest()).toBeFalse()
+    const release = registerSidebarPreviewHold('menu')
+    expect(isSidebarPreviewHeldForTest()).toBeTrue()
+    release()
+    expect(isSidebarPreviewHeldForTest()).toBeFalse()
+    expect(typeof release).toBe('function')
   })
 
-  test('新版入口映射功能面板，独立页面只显示图标栏', () => {
+  test('入口映射功能面板，独立页面只显示图标栏', () => {
     expect(
       [
         '/new',
@@ -402,9 +409,20 @@ describe('sidebar shell modes', () => {
         '/automations',
         '/settings/appearance',
         '/plugins',
+        '/plugins/detail',
         '/workflows',
       ].map((path) => sidebarPaneForRoute(path, false)),
-    ).toEqual(['chats', 'chats', 'chats', 'chats', 'scheduled', 'settings', null, null])
+    ).toEqual([
+      'chats',
+      'chats',
+      'chats',
+      'chats',
+      'scheduled',
+      'settings',
+      'plugins',
+      'plugins',
+      null,
+    ])
     expect(sidebarPaneForRoute('/threads/task-1', true)).toBe('activity')
     const base = { organization: 'projects', timelineEnabled: false } as const
     expect(sidebarPaneForRoute('/projects/project-1', true)).toBe('activity')
@@ -413,42 +431,30 @@ describe('sidebar shell modes', () => {
     )
   })
 
-  test('新版图标栏附近与悬停均不预览，经典版仍支持边缘触发', () => {
-    expect(isSidebarEdgeHit(0, SIDEBAR_RAIL_WIDTH)).toBe(false)
-    expect(isSidebarEdgeHit(52, SIDEBAR_RAIL_WIDTH)).toBe(true)
-    expect(isSidebarEdgeHit(64, SIDEBAR_RAIL_WIDTH)).toBe(true)
-    expect(isSidebarPanelHit(51, 340, SIDEBAR_RAIL_WIDTH)).toBe(false)
-    expect(isSidebarPanelHit(340, 340, SIDEBAR_RAIL_WIDTH)).toBe(true)
-    const base = {
-      delayedTriggerHover: false,
-      pointerX: 200,
-      previewOpen: true,
-      rearmBlocked: false,
-      resizing: false,
-      sidebarWidth: 340,
-      railWidth: SIDEBAR_RAIL_WIDTH,
-    }
-    expect(shouldShowSidebarPreview(base)).toBe(false)
-    expect(shouldShowSidebarPreview({ ...base, pointerX: 52, previewOpen: false })).toBe(false)
-    expect(shouldShowSidebarPreview({ ...base, delayedTriggerHover: true })).toBe(false)
-    expect(shouldShowSidebarPreview({ ...base, resizing: true })).toBe(false)
+  test('侧栏只在收起且入口可用时进入预览，不再按窗口宽度自动隐藏', () => {
     expect(
-      shouldShowSidebarPreview({ ...base, railWidth: 0, pointerX: 0, previewOpen: false }),
-    ).toBe(true)
+      deriveSidebarShellMode({ collapsed: false, previewOpen: false, paneAvailable: true }),
+    ).toBe('docked')
     expect(
-      deriveSidebarShellMode({
-        desktopCollapsed: true,
-        responsiveAutoHidden: false,
-        previewOpen: true,
-      }),
+      deriveSidebarShellMode({ collapsed: false, previewOpen: true, paneAvailable: true }),
+    ).toBe('docked')
+    expect(
+      deriveSidebarShellMode({ collapsed: true, previewOpen: false, paneAvailable: true }),
+    ).toBe('collapsed')
+    expect(
+      deriveSidebarShellMode({ collapsed: true, previewOpen: true, paneAvailable: true }),
     ).toBe('preview')
     expect(
-      deriveSidebarShellMode({
-        desktopCollapsed: false,
-        responsiveAutoHidden: false,
-        previewOpen: false,
-      }),
-    ).toBe('docked')
+      deriveSidebarShellMode({ collapsed: true, previewOpen: true, paneAvailable: false }),
+    ).toBe('collapsed')
+
+    const shellSource = readFileSync(
+      new URL('../src/features/layout/sidebarShellState.ts', import.meta.url),
+      'utf8',
+    )
+    expectSourceNotContains(shellSource, 'SIDEBAR_RESPONSIVE_BREAKPOINT')
+    expectSourceNotContains(shellSource, 'responsiveAutoHidden')
+    expectSourceNotContains(shellSource, 'ResizeObserver')
   })
 
   test('keeps independent runtime scroll modes without persistent storage', () => {
@@ -480,7 +486,7 @@ describe('sidebar shell modes', () => {
     expectSourceNotContains(controllerSource, 'timeline:recent')
   })
 
-  test('left and right side panels use thresholds while bottom keeps hold-target', () => {
+  test('侧边栏保留阈值收起，右工作区越界拖拽改由原始尺寸判定', () => {
     const leftBehavior = { kind: 'threshold', threshold: 120 } as const
 
     expect(shouldCollapseSidebarResize(119, leftBehavior)).toBeTrue()
@@ -491,9 +497,16 @@ describe('sidebar shell modes', () => {
       new URL('../src/features/layout/dock/RightDock.tsx', import.meta.url),
       'utf8',
     )
-    expectSourceContains(rightDockSource, 'SIDEBAR_COLLAPSE_HOLD_MS')
-    expectSourceContains(rightDockSource, "? { kind: 'hold-target' }")
-    expectSourceContains(rightDockSource, ": { kind: 'threshold', threshold: minSize / 2 }")
+    // 右工作区不再到阈值就销毁 divider：拖动全程保留，隐藏/完整视图在布局层判定。
+    expectSourceNotContains(rightDockSource, 'SIDEBAR_COLLAPSE_HOLD_MS')
+    expectSourceNotContains(rightDockSource, "threshold: minSize / 2")
+    expectSourceContains(rightDockSource, 'collapseEnabled: false')
+    expectSourceContains(rightDockSource, 'onResizeRawSize: isBottom ? undefined : onResizeRawSize')
+    expectSourceContains(
+      rightDockSource,
+      'shouldCommitResizeSize: isBottom ? undefined : shouldCommitResizeSize',
+    )
+    expectSourceContains(rightDockSource, 'RIGHT_DOCK_KEYBOARD_STEP = 10')
   })
 
   test('图标栏宽度只在 SCSS 与 SIDEBAR_RAIL_WIDTH 各出现一次且保持一致', () => {
@@ -510,122 +523,8 @@ describe('sidebar shell modes', () => {
     expectSourceContains(railSlot, `width: ${SIDEBAR_RAIL_WIDTH}px;`)
   })
 
-  test('uses the 720px container boundary without changing desktop preference', () => {
-    expect(isSidebarNarrow(SIDEBAR_RESPONSIVE_BREAKPOINT)).toBe(true)
-    expect(isSidebarNarrow(SIDEBAR_RESPONSIVE_BREAKPOINT + 1)).toBe(false)
-    expect(
-      deriveSidebarShellMode({
-        desktopCollapsed: false,
-        previewOpen: false,
-        responsiveAutoHidden: true,
-      }),
-    ).toBe('collapsed')
-    expect(
-      deriveSidebarShellMode({
-        desktopCollapsed: true,
-        previewOpen: true,
-        responsiveAutoHidden: false,
-      }),
-    ).toBe('preview')
-    expect(
-      deriveSidebarShellMode({
-        desktopCollapsed: false,
-        previewOpen: false,
-        responsiveAutoHidden: false,
-      }),
-    ).toBe('docked')
-    expect(
-      deriveSidebarShellMode({
-        desktopCollapsed: true,
-        previewOpen: true,
-        responsiveAutoHidden: false,
-      }),
-    ).toBe('preview')
-  })
 
-  test('opens at the 12px edge and keeps an open preview through its full width', () => {
-    expect(isSidebarEdgeHit(-1)).toBe(false)
-    expect(isSidebarEdgeHit(0)).toBe(true)
-    expect(isSidebarEdgeHit(SIDEBAR_EDGE_HIT_WIDTH)).toBe(true)
-    expect(isSidebarEdgeHit(SIDEBAR_EDGE_HIT_WIDTH + 0.01)).toBe(false)
 
-    expect(isSidebarPanelHit(275, 275)).toBe(true)
-    expect(isSidebarPanelHit(276, 275)).toBe(false)
-    expect(
-      shouldShowSidebarPreview({
-        delayedTriggerHover: false,
-        pointerX: 6,
-        previewOpen: false,
-        rearmBlocked: false,
-        resizing: false,
-        sidebarWidth: 275,
-      }),
-    ).toBe(true)
-    expect(
-      shouldShowSidebarPreview({
-        delayedTriggerHover: false,
-        pointerX: 6,
-        previewOpen: false,
-        rearmBlocked: true,
-        resizing: false,
-        sidebarWidth: 275,
-      }),
-    ).toBe(false)
-    expect(
-      shouldShowSidebarPreview({
-        delayedTriggerHover: false,
-        pointerX: 100,
-        previewOpen: false,
-        rearmBlocked: false,
-        resizing: false,
-        sidebarWidth: 275,
-      }),
-    ).toBe(false)
-    expect(
-      shouldShowSidebarPreview({
-        delayedTriggerHover: false,
-        pointerX: 100,
-        previewOpen: true,
-        rearmBlocked: false,
-        resizing: false,
-        sidebarWidth: 275,
-      }),
-    ).toBe(true)
-  })
-
-  test('honors trigger delay, rearm blocking, and floating resize', () => {
-    expect(isSidebarTriggerHoverReady(99)).toBe(false)
-    expect(isSidebarTriggerHoverReady(100)).toBe(true)
-    const base = {
-      delayedTriggerHover: false,
-      pointerX: null,
-      previewOpen: false,
-      rearmBlocked: false,
-      resizing: false,
-      sidebarWidth: 275,
-    }
-    expect(
-      shouldShowSidebarPreview({
-        ...base,
-        delayedTriggerHover: true,
-      }),
-    ).toBe(true)
-    expect(
-      shouldShowSidebarPreview({
-        ...base,
-        delayedTriggerHover: true,
-        rearmBlocked: true,
-      }),
-    ).toBe(false)
-    expect(
-      shouldShowSidebarPreview({
-        ...base,
-        rearmBlocked: true,
-        resizing: true,
-        previewOpen: true,
-      }),
-    ).toBe(true)
-  })
 
   test('prioritizes local handlers, transient panels, and settings return', () => {
     const base = {
@@ -871,7 +770,7 @@ describe('sidebar view model', () => {
     expect(model.recentSessions.map((item) => item.id)).toEqual(['regular-project-task'])
   })
 
-  test('pinned sessions always precede pinned projects regardless of pinnedAt', () => {
+  test('置顶列表把聊天与项目混排为同一条时间顺序', () => {
     const newerProject: DesktopWorkspace = {
       name: 'Newer project',
       path: 'C:\\newer',
@@ -894,16 +793,16 @@ describe('sidebar view model', () => {
       storedOrder: [],
     })
 
+    // 混合有序列表：没有手动顺序时按置顶时间倒序，聊天与项目不再分组。
     expect(byPinnedAt.map((item) => item.key)).toEqual([
-      sidebarPinnedSessionKey(pinnedSession),
       sidebarPinnedProjectKey(newerProject),
+      sidebarPinnedSessionKey(pinnedSession),
       sidebarPinnedProjectKey(olderProject),
     ])
   })
 
-  test('normalizes mixed cross-type stored order into sessions then projects', () => {
-    // 旧顺序：文件夹 B、会话 A、文件夹 C、会话 D
-    // 新顺序：会话 A、会话 D、文件夹 B、文件夹 C（各组内部相对顺序不变）
+  test('沿用混合手动顺序，不再按类型重新分组', () => {
+    // 存储顺序：文件夹 B、会话 A、文件夹 C、会话 D
     const projectB: DesktopWorkspace = {
       name: 'B',
       path: 'C:\\b',
@@ -936,14 +835,14 @@ describe('sidebar view model', () => {
     })
 
     expect(items.map((item) => item.key)).toEqual([
-      sidebarPinnedSessionKey(sessionA),
-      sidebarPinnedSessionKey(sessionD),
       sidebarPinnedProjectKey(projectB),
+      sidebarPinnedSessionKey(sessionA),
       sidebarPinnedProjectKey(projectC),
+      sidebarPinnedSessionKey(sessionD),
     ])
   })
 
-  test('reorders pinned items within the same kind and rejects cross-kind moves', () => {
+  test('置顶列表允许跨类型重排并拒绝自反移动', () => {
     const projectB: DesktopWorkspace = {
       name: 'B',
       path: 'C:\\b',
@@ -966,6 +865,12 @@ describe('sidebar view model', () => {
       storedOrder: [],
     })
 
+    // 无手动顺序时按置顶时间倒序：C(08:00)、B(06:00)、A(05:00)。
+    expect(items.map((item) => item.key)).toEqual([
+      sidebarPinnedProjectKey(projectC),
+      sidebarPinnedProjectKey(projectB),
+      sidebarPinnedSessionKey(sessionA),
+    ])
     expect(
       reorderSidebarPinnedItemKeys(
         items,
@@ -973,23 +878,32 @@ describe('sidebar view model', () => {
         sidebarPinnedProjectKey(projectC),
       ),
     ).toEqual([
-      sidebarPinnedSessionKey(sessionA),
       sidebarPinnedProjectKey(projectB),
       sidebarPinnedProjectKey(projectC),
+      sidebarPinnedSessionKey(sessionA),
+    ])
+    // 跨类型移动在同一条混合列表内合法。
+    expect(
+      reorderSidebarPinnedItemKeys(
+        items,
+        sidebarPinnedSessionKey(sessionA),
+        sidebarPinnedProjectKey(projectC),
+      ),
+    ).toEqual([
+      sidebarPinnedSessionKey(sessionA),
+      sidebarPinnedProjectKey(projectC),
+      sidebarPinnedProjectKey(projectB),
     ])
     expect(
       reorderSidebarPinnedItemKeys(
         items,
         sidebarPinnedSessionKey(sessionA),
-        sidebarPinnedProjectKey(projectC),
-      ),
-    ).toBeNull()
-    expect(
-      reorderSidebarPinnedItemKeys(
-        items,
-        sidebarPinnedProjectKey(projectC),
         sidebarPinnedSessionKey(sessionA),
       ),
+    ).toBeNull()
+    // 目标键不存在时保持原状，不产生新顺序。
+    expect(
+      reorderSidebarPinnedItemKeys(items, sidebarPinnedSessionKey(sessionA), 'session:missing'),
     ).toBeNull()
   })
 

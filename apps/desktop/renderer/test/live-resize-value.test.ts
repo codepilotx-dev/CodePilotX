@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import { normalizeLiveResizeSize } from '../src/features/layout/useLiveResizeValue.js'
+import { normalizeLiveResizeSize, resolveLiveResizeTarget } from '../src/features/layout/useLiveResizeValue.js'
 
 describe('live resize value', () => {
   test('deduplicates preview sizes at the current physical pixel boundary', () => {
@@ -12,5 +12,11 @@ describe('live resize value', () => {
     expect(normalizeLiveResizeSize(600.4, Number.NaN)).toBe(600)
     expect(normalizeLiveResizeSize(600.4, 0)).toBe(600)
     expect(normalizeLiveResizeSize(600.4, 2)).toBe(600.5)
+  })
+
+  test('折叠的面板宿主收敛到 0 宽度，而不是上一次提交的分屏宽度', () => {
+    expect(resolveLiveResizeTarget(893, true)).toBe(0)
+    expect(resolveLiveResizeTarget(893, false)).toBe(893)
+    expect(resolveLiveResizeTarget(893.14, true)).toBe(0)
   })
 })

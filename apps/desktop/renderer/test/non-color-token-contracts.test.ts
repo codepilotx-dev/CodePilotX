@@ -532,11 +532,33 @@ describe('non-color design token contracts', () => {
     ).toEqual([])
   })
 
-  test('tokens.scss defines the 3-tier layout width tokens (reading 768px, content 1009px, wide 1250px)', async () => {
+  test('tokens.scss pins the shared page widths and the conversation width', async () => {
     const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
-    expect(tokens.get('--cpx-sys-layout-reading-max-width')).toBe('768px')
     expect(tokens.get('--cpx-sys-layout-content-max-width')).toBe('1009px')
     expect(tokens.get('--cpx-sys-layout-wide-max-width')).toBe('1250px')
+    // 会话正文上限是摘要三段判定的基准，必须与 threadSummaryState 的 736 一致。
+    expect(tokens.get('--cpx-sys-layout-conversation-max-width')).toBe('736px')
+    expect(tokens.has('--cpx-sys-layout-reading-max-width')).toBe(false)
+  })
+
+  test('页面宽度不再有手动档位：布局只读会话/一级页面两个固定上限', async () => {
+    const desktopLayout = await read('../src/features/layout/shell/DesktopLayout.tsx')
+    const conversationPage = await read(
+      '../src/features/session/conversation/ConversationPage.tsx',
+    )
+    const workbench = await read('../src/styles/features/_layout-workbench.scss')
+    const canonical = await read('../src/styles/features/_canonical-conversation.scss')
+
+    expect(desktopLayout).not.toContain('data-page-width')
+    expect(conversationPage).not.toContain('data-conversation-width')
+    expect(workbench).not.toContain('data-page-width')
+    expect(canonical).not.toContain('data-conversation-width')
+    expect(workbench).toMatch(
+      /\.desktop-main-route\s*\{\s*--page-content-max-width:\s*var\(--cpx-sys-layout-content-max-width\);/,
+    )
+    expect(canonical).toContain(
+      '--page-content-max-width: var(--cpx-sys-layout-conversation-max-width);',
+    )
   })
 
   test('canonical conversation lets the final agent response fill the page width', async () => {

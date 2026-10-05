@@ -2,7 +2,10 @@ import { describe, expect, test } from 'bun:test'
 
 import {
   THREAD_SUMMARY_PANEL_WIDTH,
+  THREAD_SUMMARY_PINNED_STORAGE_KEY,
   deriveThreadSummaryState,
+  publishThreadSummaryPreference,
+  readThreadSummaryPinnedPreference,
   resolveThreadSummaryDisplayMode,
   resolveThreadSummaryDisplayModeUpdate,
   resolveThreadSummaryShiftOffset,
@@ -107,6 +110,35 @@ describe('thread summary state', () => {
       isPopoverOpen: false,
     })
     expect(transitionThreadSummaryMode(open, 'overlay', 'overlay')).toBe(open)
+  })
+
+  test('persists only the pinning preference through its own UI key', () => {
+    const stored = new Map<string, string>()
+    const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        localStorage: {
+          getItem: (key: string) => stored.get(key) ?? null,
+          setItem: (key: string, value: string) => stored.set(key, value),
+        },
+      },
+    })
+    try {
+      // 未写入过的用户读到默认置顶。
+      expect(readThreadSummaryPinnedPreference()).toBe(true)
+
+      publishThreadSummaryPreference({ isPinned: false, isPopoverOpen: true })
+      expect(stored.get(THREAD_SUMMARY_PINNED_STORAGE_KEY)).toBe('false')
+
+      // 浮层开合不写存储：只有置顶偏好是持久 UI 偏好。
+      publishThreadSummaryPreference({ isPinned: false, isPopoverOpen: false })
+      expect(stored.get(THREAD_SUMMARY_PINNED_STORAGE_KEY)).toBe('false')
+      expect([...stored.keys()]).toEqual([THREAD_SUMMARY_PINNED_STORAGE_KEY])
+    } finally {
+      if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow)
+      else Reflect.deleteProperty(globalThis, 'window')
+    }
   })
 })
 

@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { motionValue } from 'motion/react'
 import {
   applyWorkbenchPanelAction,
   createSkillPreviewTab,
   createDefaultWorkbenchTabsState,
+  getWorkbenchWorkspaceLayout,
   type WorkbenchTabDescriptor,
 } from '../src/features/layout/dock/rightDockState.js'
 import {
@@ -18,6 +20,7 @@ import {
   createDefaultReviewTabUiState,
   isReviewDiffExpanded,
   openPatchReviewTabState,
+  patchConversationUiState,
   toggleReviewDiffExpansion,
   validateConversationUiState,
 } from '../src/features/layout/tabs/conversationUiState.js'
@@ -28,10 +31,11 @@ import {
   RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY,
   bottomPanelHeightFromRatio,
   bottomPanelHeightToRatio,
-  createRightDockResponsiveState,
   getResponsiveRightDockDefaultWidth,
-  reduceRightDockResponsiveState,
+  resolveRightDockDragLayout,
+  rightDockWidthFromRangeRatio,
   rightDockWidthFromRatio,
+  rightDockWidthToRangeRatio,
   rightDockWidthToRatio,
 } from '../src/features/layout/shell/workbenchLayoutSizing.js'
 import {
@@ -57,6 +61,7 @@ import {
 import { resolveIntegratedTerminalToggleAction } from '../src/features/layout/shell/useIntegratedTerminalController.js'
 import { WorkbenchTabsHeader } from '../src/features/layout/dock/RightDock.js'
 import { WorkbenchDockFrame } from '../src/features/layout/dock/WorkbenchDockFrame.js'
+import { WorkbenchPanelPresence } from '../src/features/layout/panels/WorkbenchPanelPresence.js'
 import { WorkbenchPanelLauncher } from '../src/features/layout/panels/WorkbenchPanelStates.js'
 
 const review = { id: 'review', kind: 'review' } as const
@@ -107,7 +112,6 @@ describe('workbench dynamic tab state', () => {
         {
           target: 'right',
           open: true,
-          fullWidth: false,
           targetWidth: 600,
           visibleWidth: 600,
         },
@@ -408,9 +412,6 @@ describe('workbench dynamic tab state', () => {
   test('closing or moving the last tab closes its empty source panel', () => {
     let state = open(createDefaultWorkbenchTabsState(), review)
     state = applyWorkbenchPanelAction(state, {
-      type: 'toggleRightFullWidth',
-    })
-    state = applyWorkbenchPanelAction(state, {
       type: 'closeTab',
       target: 'right',
       tabId: 'review',
@@ -528,15 +529,12 @@ describe('workbench dynamic tab state', () => {
     expect(state.bottom.tabIds).toEqual([])
   })
 
-  test('closing a full-width right panel from a side task exits full width', () => {
+  test('closing a side task panel returns focus to chat', () => {
     let state = open(createDefaultWorkbenchTabsState(), {
       id: 'side-task:task-1',
       kind: 'side-task',
       taskId: 'task-1',
       childThreadId: 'thread-1',
-    })
-    state = applyWorkbenchPanelAction(state, {
-      type: 'toggleRightFullWidth',
     })
     state = applyWorkbenchPanelAction(state, {
       type: 'closeTab',
@@ -749,25 +747,25 @@ describe('workbench dynamic tab state', () => {
     expect(state.tabsById.review).toBeUndefined()
   })
 
-  test('closing a full-width right panel restores full width on reopen', () => {
+  test('closing a right panel returns to chat and reopens in split', () => {
     let state = open(createDefaultWorkbenchTabsState(), review)
-    state = applyWorkbenchPanelAction(state, {
-      type: 'toggleRightFullWidth',
-    })
     state = applyWorkbenchPanelAction(state, {
       type: 'closePanel',
       target: 'right',
     })
 
     expect(state.rightFullWidth).toBe(false)
-    expect(state.restoreRightFullWidthOnNextOpen).toBe(true)
+    expect(state.right.open).toBe(false)
+    expect(getWorkbenchWorkspaceLayout(state)).toBe('chat')
 
     state = applyWorkbenchPanelAction(state, {
       type: 'togglePanel',
       target: 'right',
     })
-    expect(state.rightFullWidth).toBe(true)
-    expect(state.restoreRightFullWidthOnNextOpen).toBe(false)
+    expect(state.rightFullWidth).toBe(false)
+    expect(getWorkbenchWorkspaceLayout(state)).toBe('split')
+    expect(state.workspaceView?.layoutMode).toBe('split')
+    expect(state.right.tabIds).toEqual(['review'])
   })
 
   test('resets pre-v4 workbench state instead of migrating legacy tools', () => {
@@ -1242,7 +1240,312 @@ describe('workbench dynamic tab state', () => {
     })
     expect(state.workbench.tabsById['file-browser']).not.toHaveProperty('directoryPath')
   })
+
+  test('workspace layout cycles split → chat → split', () => {
+    let state = open(createDefaultWorkbenchTabsState(), review)
+    expect(getWorkbenchWorkspaceLayout(state)).toBe('split')
+
+    state = applyWorkbenchPanelAction(state, { type: 'stepWorkspaceLayout' })
+    expect(getWorkbenchWorkspaceLayout(state)).toBe('chat')
+
+    state = applyWorkbenchPanelAction(state, { type: 'stepWorkspaceLayout' })
+    expect(getWorkbenchWorkspaceLayout(state)).toBe('split')
+
+  })
+
+  test('hiding tabs keeps mounted tabs, their active selection, and the remembered mode', () => {
+    let state = open(createDefaultWorkbenchTabsState(), review)
+    state = open(state, browser)
+    state = applyWorkbenchPanelAction(state, { type: 'setWorkspaceLayout', layout: 'chat' })
+
+    expect(state.right.tabIds).toEqual(['review', 'browser:fixture'])
+    expect(state.right.activeTabId).toBe('browser:fixture')
+    expect(state.workspaceView).toEqual({
+      layoutMode: 'split',
+      tabsHidden: true,
+      selectedSurface: 'chat',
+      sidePanelSelectedSurface: 'content',
+    })
+
+    state = applyWorkbenchPanelAction(state, { type: 'setWorkspaceLayout', layout: 'split' })
+    expect(state.workspaceView?.tabsHidden).toBe(false)
+    expect(state.workspaceView?.layoutMode).toBe('split')
+    expect(state.right.open).toBe(true)
+  })
+
+  test('split view focuses chat or content without changing the active tab', () => {
+    let state = open(createDefaultWorkbenchTabsState(), review)
+    state = open(state, browser)
+    state = applyWorkbenchPanelAction(state, { type: 'focusPanel', target: 'main' })
+
+    expect(state.workspaceView?.selectedSurface).toBe('chat')
+    expect(getWorkbenchWorkspaceLayout(state)).toBe('split')
+    expect(state.right.activeTabId).toBe('browser:fixture')
+    expect(state.focusArea).toBe('main')
+
+    state = applyWorkbenchPanelAction(state, { type: 'focusPanel', target: 'right' })
+    expect(state.workspaceView?.selectedSurface).toBe('content')
+    expect(getWorkbenchWorkspaceLayout(state)).toBe('split')
+    expect(state.focusArea).toBe('right-panel')
+  })
+
+  test('closing the last real content tab returns to the chat surface', () => {
+    let state = open(createDefaultWorkbenchTabsState(), review)
+    state = applyWorkbenchPanelAction(state, {
+      type: 'closeTab',
+      target: 'right',
+      tabId: 'review',
+    })
+
+    expect(getWorkbenchWorkspaceLayout(state)).toBe('chat')
+    expect(state.right.tabIds).toEqual([])
+    expect(state.right.open).toBe(false)
+    expect(state.focusArea).toBe('main')
+  })
+
+  test('background tab restores never reveal the workspace', () => {
+    let state = open(createDefaultWorkbenchTabsState(), review)
+    state = applyWorkbenchPanelAction(state, { type: 'setWorkspaceLayout', layout: 'chat' })
+    state = applyWorkbenchPanelAction(state, {
+      type: 'openTab',
+      target: 'right',
+      tab: browser,
+      reveal: false,
+    })
+
+    expect(getWorkbenchWorkspaceLayout(state)).toBe('chat')
+    expect(state.right.tabIds).toEqual(['review', 'browser:fixture'])
+  })
+
+  test('restores legacy full width as split and keeps tabs and selection', () => {
+    const fileTab = {
+      id: 'file:src/main.ts',
+      kind: 'file-preview',
+      workspacePath: 'F:\\project',
+      relativePath: 'src/main.ts',
+      preview: false,
+    } as const
+    const base = {
+      schemaVersion: 4,
+      workbench: {
+        schemaVersion: 2,
+        tabsById: { review, [fileTab.id]: fileTab },
+        right: { open: true, activeTabId: 'review', tabIds: ['review', fileTab.id] },
+        bottom: { open: false, activeTabId: null, tabIds: [] },
+        rightFullWidth: true,
+        restoreRightFullWidthOnNextOpen: false,
+        focusArea: 'right-panel',
+      },
+      mainScrollTop: 0,
+      sideChatInput: '',
+      sideChatAttachments: [],
+    }
+
+    const restoredFull = validateConversationUiState(base, { workspacePath: 'F:\\project' })
+    expect(restoredFull.workbench.workspaceView).toEqual({
+      layoutMode: 'split',
+      tabsHidden: false,
+      selectedSurface: 'content',
+      sidePanelSelectedSurface: 'content',
+    })
+
+    expect(restoredFull.workbench.rightFullWidth).toBe(false)
+    expect(restoredFull.workbench.restoreRightFullWidthOnNextOpen).toBe(false)
+    expect(restoredFull.workbench.right.tabIds).toEqual(['review', fileTab.id])
+    expect(restoredFull.workbench.right.activeTabId).toBe('review')
+
+    for (const tabsHidden of [false, true]) {
+      const persistedFull = validateConversationUiState({
+        ...base,
+        workbench: {
+          ...base.workbench,
+          restoreRightFullWidthOnNextOpen: true,
+          workspaceView: {
+            layoutMode: 'full',
+            tabsHidden,
+            selectedSurface: tabsHidden ? 'chat' : 'content',
+            sidePanelSelectedSurface: 'content',
+          },
+        },
+      }, { workspacePath: 'F:\\project' })
+      expect(persistedFull.workbench.workspaceView).toMatchObject({ layoutMode: 'split', tabsHidden })
+      expect(persistedFull.workbench.rightFullWidth).toBe(false)
+      expect(persistedFull.workbench.restoreRightFullWidthOnNextOpen).toBe(false)
+      expect(persistedFull.workbench.right.tabIds).toEqual(['review', fileTab.id])
+      expect(persistedFull.workbench.right.activeTabId).toBe('review')
+    }
+
+    const restoredSplit = validateConversationUiState(
+      { ...base, workbench: { ...base.workbench, rightFullWidth: false } },
+      { workspacePath: 'F:\\project' },
+    )
+    expect(restoredSplit.workbench.workspaceView).toMatchObject({
+      layoutMode: 'split',
+      tabsHidden: false,
+    })
+
+    const restoredChat = validateConversationUiState(
+      {
+        ...base,
+        workbench: { ...base.workbench, right: { ...base.workbench.right, open: false } },
+      },
+      { workspacePath: 'F:\\project' },
+    )
+    expect(restoredChat.workbench.workspaceView).toMatchObject({
+      tabsHidden: true,
+      selectedSurface: 'chat',
+    })
+    // 隐藏不等于销毁：标签与激活项照旧保留。
+    expect(restoredChat.workbench.right.tabIds).toEqual(['review', 'file:src/main.ts'])
+    expect(restoredChat.workbench.right.activeTabId).toBe('review')
+  })
+
+  test('a persisted full view without renderable tabs falls back to split', () => {
+    const state = validateConversationUiState({
+      schemaVersion: 4,
+      workbench: {
+        schemaVersion: 2,
+        tabsById: {},
+        right: { open: true, activeTabId: null, tabIds: [] },
+        bottom: { open: false, activeTabId: null, tabIds: [] },
+        rightFullWidth: true,
+        restoreRightFullWidthOnNextOpen: false,
+        focusArea: 'right-panel',
+        workspaceView: {
+          layoutMode: 'full',
+          tabsHidden: false,
+          selectedSurface: 'content',
+          sidePanelSelectedSurface: 'content',
+        },
+      },
+      mainScrollTop: 0,
+      sideChatInput: '',
+      sideChatAttachments: [],
+    })
+
+    expect(state.workbench.workspaceView).toEqual({
+      layoutMode: 'split',
+      tabsHidden: true,
+      selectedSurface: 'chat',
+      sidePanelSelectedSurface: 'content',
+    })
+  })
+
+  test('keeps unknown workbench fields and unknown tab records across a save', () => {
+    const storage = makeMemoryStorage()
+    const raw = {
+      schemaVersion: 4,
+      mainScrollTop: 12,
+      futureTopLevel: { keep: true },
+      workbench: {
+        schemaVersion: 2,
+        tabsById: { 'future-tool': { id: 'future-tool', kind: 'future-tool' } },
+        right: { open: false, activeTabId: null, tabIds: [] },
+        bottom: { open: false, activeTabId: null, tabIds: [] },
+        futureWorkbenchField: 'keep',
+      },
+    }
+    storage.setItem('conversation.ui-state.thread-1', JSON.stringify(raw))
+
+    installLocalStorage(storage)
+    try {
+      patchConversationUiState('thread-1', { mainScrollTop: 20 })
+    } finally {
+      restoreLocalStorage()
+    }
+
+    const written = JSON.parse(storage.getItem('conversation.ui-state.thread-1') as string)
+    expect(written.mainScrollTop).toBe(20)
+    expect(written.futureTopLevel).toEqual({ keep: true })
+    expect(written.workbench.futureWorkbenchField).toBe('keep')
+    expect(written.workbench.tabsById['future-tool']).toEqual({
+      id: 'future-tool',
+      kind: 'future-tool',
+    })
+  })
+
+  test('右工作区隐藏时保留宿主并对隐藏面设置 inert', () => {
+    const liveResize = {
+      liveSize: motionValue(600),
+      liveSizePixels: motionValue('600px'),
+      previewSize: () => undefined,
+    }
+    const refs = {
+      mainRouteRef: { current: null },
+      workspaceRef: { current: null },
+    }
+    const render = (visible: boolean, keepMounted: boolean): string =>
+      renderToStaticMarkup(
+        createElement(
+          WorkbenchPanelPresence,
+          {
+            keepMounted,
+            liveResize,
+            minSize: 320,
+            size: 600,
+            target: 'right' as const,
+            visible,
+            ...refs,
+          },
+          createElement('span', null, '已打开内容'),
+        ),
+      )
+
+    const hidden = render(false, true)
+    expect(hidden).toContain('已打开内容')
+    expect(hidden).toContain('data-workbench-panel-presence="hidden"')
+    expect(hidden).toContain('inert=""')
+
+    const shown = render(true, true)
+    expect(shown).toContain('已打开内容')
+    expect(shown).toContain('data-workbench-panel-presence="open"')
+    expect(shown).not.toContain('inert=""')
+
+    // 底栏维持原语义：不可见即卸载。
+    expect(render(false, false)).toBe('')
+  })
 })
+
+function makeMemoryStorage(): Storage {
+  const map = new Map<string, string>()
+  return {
+    get length() {
+      return map.size
+    },
+    clear() {
+      map.clear()
+    },
+    getItem(key) {
+      return map.get(key) ?? null
+    },
+    key(index) {
+      return Array.from(map.keys())[index] ?? null
+    },
+    removeItem(key) {
+      map.delete(key)
+    },
+    setItem(key, value) {
+      map.set(key, String(value))
+    },
+  } as Storage
+}
+
+const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window')
+
+function installLocalStorage(localStorage: Storage): void {
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: { localStorage },
+  })
+}
+
+function restoreLocalStorage(): void {
+  if (originalWindowDescriptor) {
+    Object.defineProperty(globalThis, 'window', originalWindowDescriptor)
+  } else {
+    Reflect.deleteProperty(globalThis, 'window')
+  }
+}
 
 describe('workbench right panel sizing', () => {
   test('使用 Codex 动态公式计算默认宽度并按可用工作区夹紧', () => {
@@ -1272,48 +1575,6 @@ describe('workbench right panel sizing', () => {
     expect(bottomPanelHeightFromRatio(ratio, 800)).toBe(220)
   })
 
-  test('右栏按整窗 960px 阈值自动收起，恢复保留 24px 回差', () => {
-    let state = createRightDockResponsiveState(800)
-    state = reduceRightDockResponsiveState(state, {
-      type: 'resize',
-      windowWidth: 959,
-    })
-    expect(state).toEqual({ suppressed: true, manualOverride: false })
-
-    state = reduceRightDockResponsiveState(state, {
-      type: 'resize',
-      windowWidth: 970,
-    })
-    expect(state).toEqual({ suppressed: true, manualOverride: false })
-
-    state = reduceRightDockResponsiveState(state, {
-      type: 'resize',
-      windowWidth: 984,
-    })
-    expect(state).toEqual({ suppressed: false, manualOverride: false })
-  })
-
-  test('受限状态手动打开后保持显示，主动关闭后恢复自动抑制', () => {
-    let state = createRightDockResponsiveState(660)
-    state = reduceRightDockResponsiveState(state, {
-      type: 'manualOpen',
-      windowWidth: 660,
-    })
-    expect(state).toEqual({ suppressed: true, manualOverride: true })
-
-    state = reduceRightDockResponsiveState(state, {
-      type: 'resize',
-      windowWidth: 600,
-    })
-    expect(state).toEqual({ suppressed: true, manualOverride: true })
-
-    state = reduceRightDockResponsiveState(state, {
-      type: 'manualClose',
-      windowWidth: 600,
-    })
-    expect(state).toEqual({ suppressed: true, manualOverride: false })
-  })
-
   test('保留右栏 v2 比例 key，并用底栏 v3 重置旧高度', () => {
     expect(RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY).toEndWith('.v2')
     expect(BOTTOM_PANEL_HEIGHT_RATIO_STORAGE_KEY).toEndWith('.v3')
@@ -1340,6 +1601,33 @@ describe('workbench right panel sizing', () => {
     const bottomRatio = resolveInitialBottomPanelHeightRatio('2', 800)
     expect(bottomPanelHeightFromRatio(bottomRatio, 800)).toBe(220)
   })
+
+  test('越界拖拽仅可隐藏内容，拉宽仍保持分屏', () => {
+    // 160px 是内容隐藏阈值：小于即隐藏，达到即恢复内容。
+    expect(resolveRightDockDragLayout(159)).toBe('chat')
+    expect(resolveRightDockDragLayout(160)).toBe('split')
+
+    // 有效区间内始终是分裂态。
+    expect(resolveRightDockDragLayout(600)).toBe('split')
+
+    // 拉宽越界也保持分屏，尺寸由现有上限夹紧。
+    expect(resolveRightDockDragLayout(1_450)).toBe('split')
+    expect(resolveRightDockDragLayout(1_430)).toBe('split')
+
+  })
+
+  test('有效区间比例在宽度变化时保留用户在选择区间内的位置', () => {
+    const ratio = rightDockWidthToRangeRatio(500, 1_165)
+    expect(rightDockWidthFromRangeRatio(ratio, 1_165)).toBe(500)
+
+    // 区间按比例收缩：不再把 width/W 直接缩放成更窄的绝对宽度。
+    expect(rightDockWidthFromRangeRatio(ratio, 685)).toBe(325)
+    expect(rightDockWidthFromRangeRatio(ratio, 1_165)).toBe(500)
+    expect(rightDockWidthToRangeRatio(320, 1_165)).toBe(0)
+    expect(rightDockWidthToRangeRatio(9_999, 1_165)).toBe(1)
+    // 没有可用区间（工作区未测量或窄于下限）时比例退化为 0。
+    expect(rightDockWidthToRangeRatio(500, 0)).toBe(0)
+  })
 })
 
 describe('workbench layout snapshot v1', () => {
@@ -1355,30 +1643,6 @@ describe('workbench layout snapshot v1', () => {
   function makeSnapshot(overrides: Partial<WorkbenchLayoutSnapshot> = {}): WorkbenchLayoutSnapshot {
     const base = createDefaultWorkbenchLayoutSnapshot(baselineInput)
     return { ...base, ...overrides }
-  }
-
-  function makeMemoryStorage(): Storage {
-    const map = new Map<string, string>()
-    return {
-      get length() {
-        return map.size
-      },
-      clear() {
-        map.clear()
-      },
-      getItem(key) {
-        return map.get(key) ?? null
-      },
-      key(index) {
-        return Array.from(map.keys())[index] ?? null
-      },
-      removeItem(key) {
-        map.delete(key)
-      },
-      setItem(key, value) {
-        map.set(key, String(value))
-      },
-    } as Storage
   }
 
   test('默认可见态下 mainContent 必须为 true', () => {
