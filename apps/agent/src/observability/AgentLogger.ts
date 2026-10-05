@@ -18,6 +18,15 @@ const SLOW_RPC_REQUEST_MS = 10_000
 const SENSITIVE_KEY = /authorization|token|api[-_]?key|password|secret|credential|cookie/i
 const BEARER_VALUE = /\bBearer\s+[^\s,;"']+/gi
 const OPENAI_KEY = /\bsk-[A-Za-z0-9_-]+\b/g
+const TOKEN_METRICS = new Set([
+  'inputTokens',
+  'outputTokens',
+  'cacheReadTokens',
+  'cacheWriteTokens',
+  'beforeTokens',
+  'afterTokens',
+  'totalTokens',
+])
 const CONSOLE_KEYS = new Set([
   'attempt',
   'code',
@@ -40,6 +49,47 @@ const CONSOLE_KEYS = new Set([
   'scope',
   'tool',
   'version',
+  'path',
+  'stepIndex',
+  'requestIndex',
+  'responseIndex',
+  'rpcCode',
+  'retryable',
+  'operation',
+  'maxAttempts',
+  'delayMs',
+  'firstResponseMs',
+  'toolCount',
+  'messageCount',
+  'skillCount',
+  'promptTemplateCount',
+  'inputCount',
+  'nextTurnCount',
+  'beforeCount',
+  'delivery',
+  'hadPendingMutations',
+  'decision',
+  'kind',
+  'risk',
+  'category',
+  'shellTool',
+  'backend',
+  'timedOut',
+  'stdoutBytes',
+  'stderrBytes',
+  'outputTruncated',
+  'resolution',
+  'timeoutMs',
+  'cwdScope',
+  'commandBytes',
+  'fileCount',
+  'editCount',
+  'contentBytes',
+  'patchBytes',
+  'hunkCount',
+  'additions',
+  'deletions',
+  ...TOKEN_METRICS,
 ])
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
@@ -50,6 +100,7 @@ export type LogContext = {
   turnId?: string
   agentId?: string
   toolCallId?: string
+  interactionId?: string
 }
 export type StructuredLogFields = {
   context?: LogContext
@@ -88,7 +139,12 @@ const sanitizeString = (value: string, limit = MAX_STRING_LENGTH) => {
 }
 
 const sanitize = (value: unknown, detailMode: LogDetailMode, key?: string): LogValue => {
-  if (key && SENSITIVE_KEY.test(key)) return '[REDACTED]'
+  if (
+    key &&
+    SENSITIVE_KEY.test(key) &&
+    !(TOKEN_METRICS.has(key) && typeof value === 'number' && Number.isFinite(value) && value >= 0)
+  )
+    return '[REDACTED]'
   if (value instanceof Error) {
     return {
       name: sanitizeString(value.name),
@@ -135,12 +191,15 @@ const consoleLine = (
   fields: StructuredLogFields,
 ): string => {
   const parts = [`${at.toISOString().slice(11, 23)} [agent] ${level.toUpperCase()} ${event}`]
-  const context = fields.context
+  const context = fields.context ? (sanitize(fields.context, 'safe') as LogContext) : undefined
   if (context?.threadId) parts.push(`thread=${shortId(context.threadId)}`)
   if (context?.turnId) parts.push(`turn=${shortId(context.turnId)}`)
   if (context?.agentId) parts.push(`agent=${shortId(context.agentId)}`)
   if (context?.toolCallId) parts.push(`call=${shortId(context.toolCallId)}`)
-  for (const [key, value] of Object.entries(fields.details ?? {})) {
+  if (context?.interactionId) parts.push(`interaction=${shortId(context.interactionId)}`)
+  for (const [key, value] of Object.entries(
+    sanitize(fields.details ?? {}, 'safe') as Record<string, LogValue>,
+  )) {
     if (
       !CONSOLE_KEYS.has(key) ||
       value === undefined ||
@@ -199,9 +258,35 @@ export class AgentLogger {
       this.write(level, 'http.request.failed', { details: input })
       return
     }
-    const slowRequestMs = input.path === '/rpc' ? SLOW_RPC_REQUEST_MS : SLOW_HTTP_REQUEST_MS
-    if (input.durationMs >= slowRequestMs) {
+    if (input.path === '/rpc') return
+    if (input.durationMs >= SLOW_HTTP_REQUEST_MS) {
       this.write('warn', 'http.request.slow', { details: input })
+    }
+  }
+
+  rpc(input: {
+    method: string
+    durationMs: number
+    context?: LogContext
+    expectedWait?: boolean
+    rpcCode?: number
+    code?: string
+    retryable?: boolean
+  }) {
+    const { context, expectedWait, ...details } = input
+    const fields = { context, details }
+    if (input.rpcCode !== undefined) {
+      this.write(
+        input.rpcCode === -32603 || input.code === 'INTERNAL_ERROR' ? 'error' : 'warn',
+        'rpc.request.failed',
+        fields,
+      )
+    } else if (expectedWait) {
+      this.write('debug', 'rpc.wait.completed', fields)
+    } else if (input.durationMs >= SLOW_RPC_REQUEST_MS) {
+      this.write('warn', 'rpc.request.slow', fields)
+    } else {
+      this.write('debug', 'rpc.request.completed', fields)
     }
   }
 

@@ -285,8 +285,16 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       })
     })
     const executionLogs = new ExecutionLogObserver(logger)
-    const unsubscribeExecutionLogs = hub.listen((signal) => executionLogs.observeSignal(signal))
     const harnessLogs = new HarnessLogObserver(logger)
+    const unsubscribeExecutionLogs = hub.listen((signal) => {
+      executionLogs.observeSignal(signal)
+      if (
+        signal.event.turnId &&
+        ['turn/completed', 'turn/failed', 'turn/interrupted'].includes(signal.event.method)
+      ) {
+        harnessLogs.finishTurn(signal.event.turnId)
+      }
+    })
     const desktopSettings = configService.snapshot().desktop as Record<string, unknown> | undefined
     const configuredTooling =
       desktopSettings?.tooling &&

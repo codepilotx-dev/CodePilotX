@@ -225,6 +225,13 @@ export async function executeHarnessRun(
     },
   )
   const unsubscribe = harness.subscribe((event) => adapter.handle(event))
+  // These hooks are not broadcast by subscribe; forward metadata through the same event sink.
+  for (const type of ['before_agent_start', 'context', 'before_provider_request'] as const) {
+    harness.on(type, async (event) => {
+      await adapter.handle(event)
+      return undefined
+    })
+  }
   const compact = async (trigger: RuntimeCompactionTrigger, instructions?: string) => {
     compactionTrigger = trigger
     try {
