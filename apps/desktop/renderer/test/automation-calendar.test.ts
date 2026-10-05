@@ -184,11 +184,12 @@ describe('automation calendar compact month & residing agenda', () => {
       new URL('../src/styles/features/automation-calendar.scss', import.meta.url),
       'utf8',
     )
-    expect(calendarStyles).toContain(
-      '.automation-calendar__toolbar {\n  display: flex;\n  align-items: flex-end;',
+    // 匹配容忍换行符与缩进差异，避免 Windows CRLF 检出触发误报。
+    expect(calendarStyles).toMatch(
+      /\.automation-calendar__toolbar\s*\{\s*display:\s*flex;\s*align-items:\s*flex-end;/,
     )
-    expect(calendarStyles).toContain(
-      '.automation-calendar__title-group {\n  display: flex;\n  align-items: flex-end;',
+    expect(calendarStyles).toMatch(
+      /\.automation-calendar__title-group\s*\{\s*display:\s*flex;\s*align-items:\s*flex-end;/,
     )
   })
 })

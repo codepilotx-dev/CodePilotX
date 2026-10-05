@@ -10,7 +10,6 @@ import {
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] as const
 
 const NEW_ROUTE = '/?visualCase=empty#/new'
-const PREWARM_TIMEOUT_MS = 240_000
 const ROUTES = [
   ['new', NEW_ROUTE],
   ['thread-rich', '/?visualCase=rich#/threads/visual-rich'],
@@ -60,20 +59,8 @@ async function preparePage(page: Page, route: string): Promise<void> {
   await closeTransientErrorToast(page)
 }
 
-test.beforeAll(async ({ browser }, testInfo) => {
-  testInfo.setTimeout(PREWARM_TIMEOUT_MS)
-  const baseURL = testInfo.project.use.baseURL
-  if (typeof baseURL !== 'string') {
-    throw new Error('a11y Playwright 配置缺少 baseURL')
-  }
-
-  const page = await browser.newPage({ baseURL })
-  try {
-    await preparePage(page, NEW_ROUTE)
-  } finally {
-    await page.close()
-  }
-})
+// 每项测试的 preparePage 已包含同一套就绪检查，不再预热独立页面：手动
+// Context 的导航没有超时，任何卡顿都会以整个文件的钩子超时收场。
 
 async function expectNoWcagViolations(page: Page, testInfo: TestInfo): Promise<void> {
   const results = await new AxeBuilder({ page }).withTags([...WCAG_TAGS]).analyze()

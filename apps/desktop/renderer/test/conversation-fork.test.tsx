@@ -26,7 +26,7 @@ describe('conversation fork', () => {
     expect(markup.indexOf('aria-label="复制"')).toBeLessThan(
       markup.indexOf('aria-label="在新聊天中继续"'),
     )
-    expect(markup).toContain('lucide-git-fork')
+    expect(markup).toContain('lucide-split')
   })
 
   test('does not expose the fork action for streaming or process text', () => {

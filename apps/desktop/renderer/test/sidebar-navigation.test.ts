@@ -327,6 +327,7 @@ describe('Codex 侧栏导航', () => {
       'providers',
       'plugins',
       'browser',
+      'computer',
     ])
     const providers = SETTINGS_ITEMS.find((item) => item.routeId === 'providers')
     expect(providers?.rows.map((row) => row.title)).toEqual([

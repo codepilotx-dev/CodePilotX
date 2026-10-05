@@ -29,7 +29,7 @@ function patch(count: number, overrides: Partial<PatchDisplay> = {}): PatchDispl
 }
 
 describe('canonical patch card', () => {
-  test('keeps extra file rows mounted while initially showing three', () => {
+  test('shows three file rows and leaves the rest unmounted until revealed', () => {
     const markup = renderToStaticMarkup(
       <PatchSummaryView onOpenReview={() => undefined} patch={patch(4)} />,
     )
@@ -38,10 +38,11 @@ describe('canonical patch card', () => {
     expect(markup).toContain('已编辑 4 个文件')
     expect(markup).toContain('src/file-1.ts')
     expect(markup).toContain('src/file-3.ts')
-    expect(markup).toContain('src/file-4.ts')
+    // until-exit 策略：折叠内容在展开前不挂载，展开后保留到退场。
+    expect(markup).not.toContain('src/file-4.ts')
     expect(markup).toContain('再显示 1 个文件')
     expect(markup).toContain('aria-expanded="false"')
-    expect(markup).toContain('data-mount-policy="always"')
+    expect(markup).toContain('data-mount-policy="until-exit"')
     expect(markup).toContain('aria-hidden="true"')
     expect(markup).toContain('inert')
     expect(markup).toContain('class="canonical-patch-card__disclosure"')

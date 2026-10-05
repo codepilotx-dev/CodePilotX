@@ -18,9 +18,14 @@ describe('ExecutionPlanCard', () => {
       Bun.file(new URL('../src/styles/features/_session-page.scss', import.meta.url)).text(),
     ])
 
-    expect(componentSource).toContain('<button\n                  aria-label={statsAvailable')
-    expect(componentSource).toContain('className="composer-change-summary__file-row"')
-    expect(componentSource).not.toContain('<Button\n                  aria-label={statsAvailable')
+    // 只校验原生按钮、统计感知的 aria-label 与自有 class，不依赖源码缩进换行。
+    expect(componentSource).toMatch(
+      /<button\b[\s\S]{0,400}?aria-label=\{[\s\S]{0,120}?statsAvailable/,
+    )
+    expect(componentSource).toMatch(
+      /<button\b[\s\S]{0,400}?className="composer-change-summary__file-row"/,
+    )
+    expect(componentSource).not.toMatch(/<Button\b[\s\S]{0,400}?statsAvailable/)
     expect(stylesheet).toContain('&__file-row {')
     expect(stylesheet).not.toContain('&__file-row.ui-button')
   })
