@@ -20,10 +20,13 @@ export function BrowserSettings(): React.ReactNode {
   const [allSitesSaving, setAllSitesSaving] = useState(false)
   const [allSitesError, setAllSitesError] = useState('')
   useEffect(() => {
-    void desktopClient.readConfig().then((result) => {
-      const desktop = result.config.desktop as Record<string, unknown> | undefined
-      setAllowAllSites(desktop?.browserAllowAllSites === true)
-    }).catch(() => {})
+    void desktopClient
+      .readConfig()
+      .then((result) => {
+        const desktop = result.config.desktop as Record<string, unknown> | undefined
+        setAllowAllSites(desktop?.browserAllowAllSites === true)
+      })
+      .catch(() => {})
   }, [])
   const [downloadMode, setDownloadMode] = useState<'downloads' | 'ask'>('downloads')
   const [downloadLoaded, setDownloadLoaded] = useState(false)
@@ -115,7 +118,9 @@ export function BrowserSettings(): React.ReactNode {
           actions={
             <Button
               color="danger"
-              disabled={sitePermissions.length === 0 && browserAllowedSites.length === 0 && !allowAllSites}
+              disabled={
+                sitePermissions.length === 0 && browserAllowedSites.length === 0 && !allowAllSites
+              }
               type="button"
               onClick={() => void clearAllowedSites()}
             >
@@ -124,13 +129,32 @@ export function BrowserSettings(): React.ReactNode {
             </Button>
           }
         >
-          <SettingsRow title="所有网站授权" description={allowAllSites ? '已允许所有网站；明确拒绝的站点仍被阻止。' : '所有网站授权未启用。'}
-            control={<Button color="secondary" disabled={!allowAllSites || allSitesSaving} onClick={() => {
-              setAllSitesSaving(true)
-              setAllSitesError('')
-              void desktopClient.writeConfigBatch({ target: { kind: 'user' }, edits: [{ keyPath: ['desktop', 'browserAllowAllSites'], value: false }] })
-                .then(() => setAllowAllSites(false)).catch(() => setAllSitesError('撤销所有网站授权失败，请重试。')).finally(() => setAllSitesSaving(false))
-            }}>撤销所有网站授权</Button>} />
+          <SettingsRow
+            title="所有网站授权"
+            description={
+              allowAllSites ? '已允许所有网站；明确拒绝的站点仍被阻止。' : '所有网站授权未启用。'
+            }
+            control={
+              <Button
+                color="secondary"
+                disabled={!allowAllSites || allSitesSaving}
+                onClick={() => {
+                  setAllSitesSaving(true)
+                  setAllSitesError('')
+                  void desktopClient
+                    .writeConfigBatch({
+                      target: { kind: 'user' },
+                      edits: [{ keyPath: ['desktop', 'browserAllowAllSites'], value: false }],
+                    })
+                    .then(() => setAllowAllSites(false))
+                    .catch(() => setAllSitesError('撤销所有网站授权失败，请重试。'))
+                    .finally(() => setAllSitesSaving(false))
+                }}
+              >
+                撤销所有网站授权
+              </Button>
+            }
+          />
           {allSitesError ? <p role="alert">{allSitesError}</p> : null}
           {sitePermissions.length ? (
             <div className="browser-allowed-sites">

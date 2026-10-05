@@ -972,8 +972,13 @@ export function createAgentSessionDesktopClient(
       sharedSnapshot.thread.projectID ? projectsById.get(sharedSnapshot.thread.projectID) : null,
     )
     snapshot = applyLifecycleSnapshotFreshness(snapshot, requestEpoch)
-    const activeDraftKeys = new Set(snapshot.view.pendingPermissions.filter((request) => request.toolName === 'AskUserQuestion')
-      .map((request) => `${sessionId}:${request.requestId}:${String(request.input.version ?? '')}`))
+    const activeDraftKeys = new Set(
+      snapshot.view.pendingPermissions
+        .filter((request) => request.toolName === 'AskUserQuestion')
+        .map(
+          (request) => `${sessionId}:${request.requestId}:${String(request.input.version ?? '')}`,
+        ),
+    )
     if (sharedSnapshot.pendingPlanApproval) {
       const plan = sharedSnapshot.pendingPlanApproval
       activeDraftKeys.add(`${sessionId}:${plan.id}:${plan.version}:${plan.version}`)
@@ -1359,16 +1364,33 @@ export function createAgentSessionDesktopClient(
           ? { feedback: decision.updatedInput.feedback }
           : {}),
         ...(interaction.computerApp && decision.behavior === 'allow'
-          ? { computerGrant: decision.computerGrant ?? (decision.alwaysAllow ? 'persistent' as const : 'chat' as const) } : {}),
+          ? {
+              computerGrant:
+                decision.computerGrant ??
+                (decision.alwaysAllow ? ('persistent' as const) : ('chat' as const)),
+            }
+          : {}),
         ...(decision.grantOptionId ? { grantOptionId: decision.grantOptionId } : {}),
       })
       return
     }
     if (interaction.kind === 'mcp-elicitation') {
       requireAgentCapability('mcp.elicitation.v1')
-      await respondToInteraction(interaction, { kind: 'mcp-elicitation',
-        action: decision.updatedInput?.cancelled ? 'cancel' : decision.behavior === 'allow' ? 'accept' : 'decline',
-        ...(decision.behavior === 'allow' ? { content: decision.updatedInput?.content as Record<string, import('@codepilotx/agent-protocol').JsonValue> } : {}),
+      await respondToInteraction(interaction, {
+        kind: 'mcp-elicitation',
+        action: decision.updatedInput?.cancelled
+          ? 'cancel'
+          : decision.behavior === 'allow'
+            ? 'accept'
+            : 'decline',
+        ...(decision.behavior === 'allow'
+          ? {
+              content: decision.updatedInput?.content as Record<
+                string,
+                import('@codepilotx/agent-protocol').JsonValue
+              >,
+            }
+          : {}),
       })
       return
     }
@@ -2584,32 +2606,40 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.readConfig(params),
       ),
-    pauseQuestion: (interactionId, expectedVersion) => withRequiredAgent(async () => {
-      requireAgentCapability('interaction.questionPause.v1')
-      await rpc.call('interaction/questionPause', { interactionId, expectedVersion })
-    }),
-    approvalReviewState: (threadId) => withRequiredAgent(async () => {
-      requireAgentCapability('approval.retry.v1')
-      return rpc.call('approval/reviewState', { threadId })
-    }),
-    retryApproval: (threadId, reviewId) => withRequiredAgent(async () => {
-      requireAgentCapability('approval.retry.v1')
-      const key = `${threadId}:${reviewId}`
-      const state = await rpc.call('approval/reviewState', { threadId })
-      const operationId = state.denials.find((denial) => denial.id === reviewId)?.retryOperationId ?? approvalRetryOperations.get(key) ?? crypto.randomUUID()
-      approvalRetryOperations.set(key, operationId)
-      const { input } = await rpc.call('approval/retry', { threadId, reviewId, operationId })
-      await turnQueueClient.submitMessage(threadId, { text: input }, 'start', {})
-      approvalRetryOperations.delete(key)
-    }),
-    listApprovalRules: (threadId) => withRequiredAgent(async () => {
-      requireAgentCapability('interaction.scopedGrants.v1')
-      return rpc.call('approval/rules/list', { threadId })
-    }),
-    revokeApprovalRule: (threadId, ruleId) => withRequiredAgent(async () => {
-      requireAgentCapability('interaction.scopedGrants.v1')
-      await rpc.call('approval/rules/revoke', { threadId, ruleId })
-    }),
+    pauseQuestion: (interactionId, expectedVersion) =>
+      withRequiredAgent(async () => {
+        requireAgentCapability('interaction.questionPause.v1')
+        await rpc.call('interaction/questionPause', { interactionId, expectedVersion })
+      }),
+    approvalReviewState: (threadId) =>
+      withRequiredAgent(async () => {
+        requireAgentCapability('approval.retry.v1')
+        return rpc.call('approval/reviewState', { threadId })
+      }),
+    retryApproval: (threadId, reviewId) =>
+      withRequiredAgent(async () => {
+        requireAgentCapability('approval.retry.v1')
+        const key = `${threadId}:${reviewId}`
+        const state = await rpc.call('approval/reviewState', { threadId })
+        const operationId =
+          state.denials.find((denial) => denial.id === reviewId)?.retryOperationId ??
+          approvalRetryOperations.get(key) ??
+          crypto.randomUUID()
+        approvalRetryOperations.set(key, operationId)
+        const { input } = await rpc.call('approval/retry', { threadId, reviewId, operationId })
+        await turnQueueClient.submitMessage(threadId, { text: input }, 'start', {})
+        approvalRetryOperations.delete(key)
+      }),
+    listApprovalRules: (threadId) =>
+      withRequiredAgent(async () => {
+        requireAgentCapability('interaction.scopedGrants.v1')
+        return rpc.call('approval/rules/list', { threadId })
+      }),
+    revokeApprovalRule: (threadId, ruleId) =>
+      withRequiredAgent(async () => {
+        requireAgentCapability('interaction.scopedGrants.v1')
+        await rpc.call('approval/rules/revoke', { threadId, ruleId })
+      }),
     writeConfigBatch: (params) =>
       withAgentOrMock(
         async () => {

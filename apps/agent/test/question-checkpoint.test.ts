@@ -23,23 +23,56 @@ describe('问题 checkpoint', () => {
     databases.push(db)
     const hub = await Effect.runPromise(EventHub.make)
     const thread = db.createThread()
-    const input = { content: '规划', model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
-      permissionConfig: { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' }, strategy: 'queue', taskMode: 'plan' } as const
+    const input = {
+      content: '规划',
+      model: Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('test') }),
+      permissionConfig: {
+        sandboxMode: 'workspace-write',
+        approvalPolicy: 'on-request',
+        approvalsReviewer: 'user',
+      },
+      strategy: 'queue',
+      taskMode: 'plan',
+    } as const
     const turn = db.createTurn(thread.id, input)
     db.startTurnExecution(turn.turnID, { ...input, id: turn.inputID })
     const questions = [{ id: 'text', header: '需求', question: '补充需求', options: [] }]
     expect(requestUserInputSchema.safeParse({ questions }).success).toBe(true)
-    expect(interactionQuestions([{ ...questions[0]!, options: [{ label: 'A', description: 'a' }, { label: 'B', description: 'b', recommended: true }] }])[0]?.choices.map((choice) => choice.recommended)).toEqual([false, true])
+    expect(
+      interactionQuestions([
+        {
+          ...questions[0]!,
+          options: [
+            { label: 'A', description: 'a' },
+            { label: 'B', description: 'b', recommended: true },
+          ],
+        },
+      ])[0]?.choices.map((choice) => choice.recommended),
+    ).toEqual([false, true])
     const service = new QuestionService(db, hub)
-    const id = await service.checkpoint(thread.id, turn.turnID, turn.agentID, { kind: 'clarification', questions, autoResolutionMs: 60_000,
-      checkpoint: { state: '{"version":2}', interruption: { name: 'request_user_input' } } })
+    const id = await service.checkpoint(thread.id, turn.turnID, turn.agentID, {
+      kind: 'clarification',
+      questions,
+      autoResolutionMs: 60_000,
+      checkpoint: { state: '{"version":2}', interruption: { name: 'request_user_input' } },
+    })
     await expect(service.pause(id, 99)).rejects.toThrow('版本')
     await service.pause(id, 2)
-    expect(db.repositories.interactions.pendingQuestionPayload(id)).toMatchObject({ autoResolutionPaused: true })
+    expect(db.repositories.interactions.pendingQuestionPayload(id)).toMatchObject({
+      autoResolutionPaused: true,
+    })
     service.dispose()
     const restored = new QuestionService(db, hub)
-    await expect(restored.reply(id, [{ questionId: 'text', choiceIds: [], text: ' ' }])).rejects.toThrow()
-    await restored.reply(id, [{ questionId: 'text', choiceIds: [], text: '保留自由输入' }], false, 'user', false)
+    await expect(
+      restored.reply(id, [{ questionId: 'text', choiceIds: [], text: ' ' }]),
+    ).rejects.toThrow()
+    await restored.reply(
+      id,
+      [{ questionId: 'text', choiceIds: [], text: '保留自由输入' }],
+      false,
+      'user',
+      false,
+    )
     expect(restored.claimResolvedCheckpoint(turn.turnID)?.approval.answer).toContain('保留自由输入')
     await expect(restored.pause(id, 2)).rejects.toThrow('失效')
     restored.dispose()

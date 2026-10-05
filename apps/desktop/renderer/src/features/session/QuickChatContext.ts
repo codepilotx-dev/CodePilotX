@@ -86,7 +86,10 @@ export type QuickChatContextValue = {
     behavior: 'allow' | 'deny',
     alwaysAllow?: boolean,
     updatedInput?: Record<string, unknown>,
-    decisionExtras?: Pick<DesktopPermissionDecision, 'grantScope' | 'computerGrant' | 'grantOptionId'>,
+    decisionExtras?: Pick<
+      DesktopPermissionDecision,
+      'grantScope' | 'computerGrant' | 'grantOptionId'
+    >,
   ) => void | Promise<void>
   sessionStatus: DesktopSessionStatus
   composerProps: DesktopComposerProps | null

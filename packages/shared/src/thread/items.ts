@@ -181,7 +181,11 @@ export const InteractionQuestionSchema = Schema.Struct({
   header: QuestionTextSchema.check(Schema.isMaxLength(12)),
   prompt: QuestionTextSchema,
   choices: Schema.Array(InteractionQuestionChoiceSchema)
-    .check(Schema.makeFilter((choices) => choices.length !== 1, { expected: 'zero or two to three choices' }))
+    .check(
+      Schema.makeFilter((choices) => choices.length !== 1, {
+        expected: 'zero or two to three choices',
+      }),
+    )
     .check(Schema.isMaxLength(3)),
   allowFreeform: Schema.Literal(true),
   required: Schema.Literal(true),
@@ -566,13 +570,17 @@ export const ComputerAppApprovalSchema = Schema.Struct({
 })
 
 export const ApprovalRequestSchema = Schema.Struct({
-  grantOptions: Schema.optional(Schema.Array(Schema.Struct({
-    id: Schema.String,
-    kind: Schema.Literals(['command', 'files', 'network', 'mcp', 'browser']),
-    scope: Schema.Literals(['session', 'project', 'origin', 'all-sites']),
-    label: Schema.String,
-    requiresConfirmation: Schema.optional(Schema.Boolean),
-  }))),
+  grantOptions: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        kind: Schema.Literals(['command', 'files', 'network', 'mcp', 'browser']),
+        scope: Schema.Literals(['session', 'project', 'origin', 'all-sites']),
+        label: Schema.String,
+        requiresConfirmation: Schema.optional(Schema.Boolean),
+      }),
+    ),
+  ),
   toolIdentity: Schema.optional(Schema.Struct({ server: Schema.String, tool: Schema.String })),
   input: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
   id: Schema.String,

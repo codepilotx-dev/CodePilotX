@@ -208,7 +208,9 @@ describe('server request interactions', () => {
     }
 
     expect(decode(base)).toEqual(base)
-    expect(decode({ ...base, questions: [{ ...question, choices: [] }] }).questions[0]?.choices).toEqual([])
+    expect(
+      decode({ ...base, questions: [{ ...question, choices: [] }] }).questions[0]?.choices,
+    ).toEqual([])
     expect(() => decode({ ...base, questions: [] })).toThrow()
     expect(() => decode({ ...base, autoResolutionMs: 59_999 })).toThrow()
     expect(() => decode({ ...base, autoResolutionMs: 240_001 })).toThrow()
@@ -293,8 +295,17 @@ describe('server request interactions', () => {
 
 test('电脑应用授权使用独立响应字段，普通旧允许仍可解码', () => {
   const decode = Schema.decodeUnknownSync(ServerRequestResultSchema)
-  expect(decode({ kind: 'approval', decision: 'allow-once' })).toEqual({ kind: 'approval', decision: 'allow-once' })
+  expect(decode({ kind: 'approval', decision: 'allow-once' })).toEqual({
+    kind: 'approval',
+    decision: 'allow-once',
+  })
   for (const computerGrant of ['chat', 'persistent'] as const)
-    expect(decode({ kind: 'approval', decision: 'allow-once', computerGrant })).toEqual({ kind: 'approval', decision: 'allow-once', computerGrant })
-  expect(() => decode({ kind: 'approval', decision: 'allow-once', computerGrant: 'workspace' })).toThrow()
+    expect(decode({ kind: 'approval', decision: 'allow-once', computerGrant })).toEqual({
+      kind: 'approval',
+      decision: 'allow-once',
+      computerGrant,
+    })
+  expect(() =>
+    decode({ kind: 'approval', decision: 'allow-once', computerGrant: 'workspace' }),
+  ).toThrow()
 })

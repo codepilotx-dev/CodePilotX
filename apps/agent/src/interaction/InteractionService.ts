@@ -61,7 +61,8 @@ export class InteractionService {
       ? new Set(rawParams.kinds.filter((kind): kind is string => typeof kind === 'string'))
       : null
     const interactions: Array<Record<string, unknown>> = []
-    if (!requestedKinds || requestedKinds.has('mcp-elicitation')) interactions.push(...repository.pendingMcpElicitations(threadID))
+    if (!requestedKinds || requestedKinds.has('mcp-elicitation'))
+      interactions.push(...repository.pendingMcpElicitations(threadID))
 
     if (!requestedKinds || requestedKinds.has('approval') || requestedKinds.has('permission')) {
       for (const row of repository.pendingApprovalIDs(threadID)) {
@@ -122,7 +123,9 @@ export class InteractionService {
             ...metadata,
             kind: 'approval',
             ...this.dependencies.approvals.approvalMetadata(invocation),
-            ...(invocation.authorizationScope?.computerApp ? { computerApp: invocation.authorizationScope.computerApp } : {}),
+            ...(invocation.authorizationScope?.computerApp
+              ? { computerApp: invocation.authorizationScope.computerApp }
+              : {}),
             risk: ['low', 'medium', 'high', 'critical'].includes(checkpoint.risk)
               ? checkpoint.risk
               : 'high',
@@ -326,11 +329,28 @@ export class InteractionService {
     if (kind === 'mcp-elicitation') {
       const service = this.dependencies.mcpElicitations
       if (!service) throw new AgentError('CAPABILITY_REQUIRED', 'MCP 表单不可用', 409)
-      const action = enumValue(response.action, ['accept', 'decline', 'cancel'] as const, 'response.action')
-      await service.respond(interactionID, Number(expectedVersion), {
-        kind: 'mcp-elicitation', action,
-        ...(response.content ? { content: response.content as Record<string, import('@codepilotx/agent-protocol').JsonValue> } : {}),
-      }, operation)
+      const action = enumValue(
+        response.action,
+        ['accept', 'decline', 'cancel'] as const,
+        'response.action',
+      )
+      await service.respond(
+        interactionID,
+        Number(expectedVersion),
+        {
+          kind: 'mcp-elicitation',
+          action,
+          ...(response.content
+            ? {
+                content: response.content as Record<
+                  string,
+                  import('@codepilotx/agent-protocol').JsonValue
+                >,
+              }
+            : {}),
+        },
+        operation,
+      )
       operationPersistedWithResolution = true
     } else if (kind === 'approval') {
       const checkpoint = db.getApprovalCheckpoint(interactionID)
@@ -344,26 +364,49 @@ export class InteractionService {
         'response.decision',
       )
       const invocation = checkpoint.payload.invocation
-      if (response.grantOptionId !== undefined && (decision !== 'allow-once' || typeof response.grantOptionId !== 'string'))
+      if (
+        response.grantOptionId !== undefined &&
+        (decision !== 'allow-once' || typeof response.grantOptionId !== 'string')
+      )
         throw new AgentError('INVALID_REQUEST', '授权范围仅用于允许操作', 400)
-      if (response.grantOptionId !== undefined) approvals.validateGrant(invocation, String(response.grantOptionId))
+      if (response.grantOptionId !== undefined)
+        approvals.validateGrant(invocation, String(response.grantOptionId))
       if (response.remember !== undefined)
-        throw new AgentError('INVALID_REQUEST', '通用记忆规则不可用，请使用 Agent 提供的授权选项', 400)
-      const isComputer = invocation.name === 'ComputerRead' && !!invocation.authorizationScope?.computerApp
+        throw new AgentError(
+          'INVALID_REQUEST',
+          '通用记忆规则不可用，请使用 Agent 提供的授权选项',
+          400,
+        )
+      const isComputer =
+        invocation.name === 'ComputerRead' && !!invocation.authorizationScope?.computerApp
       if (response.computerGrant !== undefined && (!isComputer || decision !== 'allow-once'))
         throw new AgentError('INVALID_REQUEST', '应用授权范围仅用于允许读取应用', 400)
       if (isComputer && response.remember !== undefined)
         throw new AgentError('INVALID_REQUEST', '电脑应用授权不能使用命令或工具记忆规则', 400)
-      const computerGrant = isComputer && decision === 'allow-once'
-        ? enumValue(response.computerGrant ?? 'chat', ['chat', 'persistent'] as const, 'response.computerGrant')
-        : undefined
+      const computerGrant =
+        isComputer && decision === 'allow-once'
+          ? enumValue(
+              response.computerGrant ?? 'chat',
+              ['chat', 'persistent'] as const,
+              'response.computerGrant',
+            )
+          : undefined
       if (computerGrant) {
         const computer = this.dependencies.computer
         if (!computer) throw new AgentError('CAPABILITY_REQUIRED', '电脑控制不可用', 409)
-        computer.validateGrant({ threadID: invocation.threadID, turnID: invocation.turnID,
-          agentID: invocation.agentID, toolCallID: invocation.id },
-          String(invocation.input.windowRef), invocation.authorizationScope!.fingerprint,
-          computerGrant === 'persistent', invocation.taskMode === 'plan', invocation.permissionConfig)
+        computer.validateGrant(
+          {
+            threadID: invocation.threadID,
+            turnID: invocation.turnID,
+            agentID: invocation.agentID,
+            toolCallID: invocation.id,
+          },
+          String(invocation.input.windowRef),
+          invocation.authorizationScope!.fingerprint,
+          computerGrant === 'persistent',
+          invocation.taskMode === 'plan',
+          invocation.permissionConfig,
+        )
       }
       if (decision === 'stop') await stopCheckpoint(checkpoint)
       else {

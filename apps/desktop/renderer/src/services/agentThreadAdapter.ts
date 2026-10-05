@@ -428,10 +428,20 @@ export function agentEventsFromNotification(notification: AgentNotification): De
     return [{ ...base, type: 'permission_request', request: approvalParamsToRequest(params) }]
   }
   if (notification.method === 'mcp/elicitationRequested') {
-    return [{ ...base, type: 'permission_request', request: {
-      requestId: String(params.interactionId), toolUseId: String(params.toolCallId), toolName: 'McpElicitation',
-      input: { serverName: params.server, request: params.request }, description: 'MCP 请求输入', requestKind: 'tool',
-    } }]
+    return [
+      {
+        ...base,
+        type: 'permission_request',
+        request: {
+          requestId: String(params.interactionId),
+          toolUseId: String(params.toolCallId),
+          toolName: 'McpElicitation',
+          input: { serverName: params.server, request: params.request },
+          description: 'MCP 请求输入',
+          requestKind: 'tool',
+        },
+      },
+    ]
   }
   if (notification.method === 'permission/requested') {
     return [{ ...base, type: 'permission_request', request: permissionParamsToRequest(params) }]
@@ -885,7 +895,9 @@ export function approvalToRequest(approval: ApprovalRequest): DesktopPermissionR
   return {
     requestId: approval.id,
     ...(approval.grantOptions ? { grantOptions: approval.grantOptions } : {}),
-    ...(approval.toolIdentity ? { toolIdentity: approval.toolIdentity, toolInput: approval.input } : {}),
+    ...(approval.toolIdentity
+      ? { toolIdentity: approval.toolIdentity, toolInput: approval.input }
+      : {}),
     toolName: approval.tool,
     toolUseId: approval.toolCallID,
     input: {
@@ -921,7 +933,9 @@ function approvalParamsToRequest(params: Record<string, unknown>): DesktopPermis
   const cwd = stringValue(params.cwd) || stringValue(originalInput.cwd)
   const input = {
     ...(affectedPaths ? {} : originalInput),
-    ...(Array.isArray(originalInput.approvalFileDiffs) ? { approvalFileDiffs: originalInput.approvalFileDiffs } : {}),
+    ...(Array.isArray(originalInput.approvalFileDiffs)
+      ? { approvalFileDiffs: originalInput.approvalFileDiffs }
+      : {}),
     ...(command ? { command } : {}),
     ...(cwd ? { cwd } : {}),
     ...(paths ? { paths } : {}),
@@ -930,15 +944,29 @@ function approvalParamsToRequest(params: Record<string, unknown>): DesktopPermis
   }
   return {
     requestId: stringValue(params.interactionId) || stringValue(params.id),
-    ...(Array.isArray(params.grantOptions) ? { grantOptions: params.grantOptions as DesktopPermissionRequest['grantOptions'] } : {}),
-    ...(params.toolIdentity ? { toolIdentity: params.toolIdentity as DesktopPermissionRequest['toolIdentity'], toolInput: originalInput } : {}),
+    ...(Array.isArray(params.grantOptions)
+      ? { grantOptions: params.grantOptions as DesktopPermissionRequest['grantOptions'] }
+      : {}),
+    ...(params.toolIdentity
+      ? {
+          toolIdentity: params.toolIdentity as DesktopPermissionRequest['toolIdentity'],
+          toolInput: originalInput,
+        }
+      : {}),
     toolName: stringValue(params.tool) || 'tool',
     toolUseId:
       stringValue(params.toolCallId) ||
       stringValue(params.toolCallID) ||
       stringValue(params.itemId),
     input,
-    ...(typeof record(params.computerApp).name === 'string' ? { computerApp: { name: String(record(params.computerApp).name), allowPersistentApproval: record(params.computerApp).allowPersistentApproval === true } } : {}),
+    ...(typeof record(params.computerApp).name === 'string'
+      ? {
+          computerApp: {
+            name: String(record(params.computerApp).name),
+            allowPersistentApproval: record(params.computerApp).allowPersistentApproval === true,
+          },
+        }
+      : {}),
     description: stringValue(params.reason) || '需要批准工具调用',
     requestKind: command ? 'shell-command' : 'tool',
   }

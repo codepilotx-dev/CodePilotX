@@ -152,22 +152,32 @@ export class BrowserService {
     return records
   }
   allowsAllSites(): boolean {
-    return (this.config.snapshot().desktop as Record<string, unknown> | undefined)?.browserAllowAllSites === true
+    return (
+      (this.config.snapshot().desktop as Record<string, unknown> | undefined)
+        ?.browserAllowAllSites === true
+    )
   }
   isGranted(threadId: string, origin: string): boolean {
     const permission = this.permissions().find((entry) => entry.origin === origin)
     if (permission?.decision === 'deny') return false
-    return permission?.decision === 'allow' || this.allowsAllSites() ||
+    return (
+      permission?.decision === 'allow' ||
+      this.allowsAllSites() ||
       this.db.repositories.interactions.resolvedApprovalGrantRules(threadId).some((value) => {
         const rule = value as { kind?: string; target?: string[] }
         return rule.kind === 'browser' && rule.target?.[0] === origin
       })
+    )
   }
   async grant(origin: string, scope: 'origin' | 'all-sites'): Promise<void> {
-    if (scope === 'origin') { await this.setPermission(origin, 'allow'); return }
-    await this.config.batchWrite({ target: { kind: 'user' }, edits: [
-      { keyPath: ['desktop', 'browserAllowAllSites'], value: true },
-    ] })
+    if (scope === 'origin') {
+      await this.setPermission(origin, 'allow')
+      return
+    }
+    await this.config.batchWrite({
+      target: { kind: 'user' },
+      edits: [{ keyPath: ['desktop', 'browserAllowAllSites'], value: true }],
+    })
     for (const host of this.hosts.values()) host.wake?.()
   }
   async setPermission(origin?: string, decision?: 'allow' | 'deny' | 'remove' | 'clear') {
@@ -207,7 +217,9 @@ export class BrowserService {
       edits: [
         { keyPath: ['desktop', 'browserSitePermissions'], value: next as never },
         { keyPath: ['desktop', 'browserAllowedSites'], value: allowed as never },
-        ...(decision === 'clear' ? [{ keyPath: ['desktop', 'browserAllowAllSites'], value: false }] : []),
+        ...(decision === 'clear'
+          ? [{ keyPath: ['desktop', 'browserAllowAllSites'], value: false }]
+          : []),
       ],
       ...(user ? { expectedVersion: user.version } : {}),
     })
@@ -503,12 +515,18 @@ export class BrowserService {
       allowedOrigins: this.permissions()
         .filter((p) => p.decision === 'allow')
         .map((p) => p.origin)
-        .concat(this.db.repositories.interactions.resolvedApprovalGrantRules(threadId).flatMap((value) => {
-          const rule = value as import('../permission/ApprovalRules').ApprovalRule
-          return rule.kind === 'browser' && rule.scope === 'session' ? rule.target : []
-        }))
+        .concat(
+          this.db.repositories.interactions
+            .resolvedApprovalGrantRules(threadId)
+            .flatMap((value) => {
+              const rule = value as import('../permission/ApprovalRules').ApprovalRule
+              return rule.kind === 'browser' && rule.scope === 'session' ? rule.target : []
+            }),
+        )
         .concat(inspected.origin ? [inspected.origin] : []),
-      deniedOrigins: this.permissions().filter((p) => p.decision === 'deny').map((p) => p.origin),
+      deniedOrigins: this.permissions()
+        .filter((p) => p.decision === 'deny')
+        .map((p) => p.origin),
       allowAllSites: this.allowsAllSites(),
     }
     try {

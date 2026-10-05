@@ -10,11 +10,7 @@ import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
  * Chat-scoped computer control indicator. It renders nothing unless this chat
  * owns the current control turn, so no standalone computer panel is needed.
  */
-export function ComputerControlChip({
-  threadId,
-}: {
-  threadId: string | null
-}): React.ReactNode {
+export function ComputerControlChip({ threadId }: { threadId: string | null }): React.ReactNode {
   const { state } = useComputerState()
   const [stopping, setStopping] = useState(false)
 

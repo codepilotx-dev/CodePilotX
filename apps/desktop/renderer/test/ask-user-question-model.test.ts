@@ -54,13 +54,28 @@ test('keeps options without descriptions without inventing explanatory text', ()
 
 describe('AskUserQuestion pure model', () => {
   test('纯文本问题、重复选项文案和显式推荐使用结构化 ID', () => {
-    const questions = parseAskUserQuestions({ questions: [{ id: 'text', question: '补充', options: [] },
-      { id: 'choice', question: '选择', options: [{ id: 'a', label: '同名', recommended: false }, { id: 'b', label: '同名', recommended: true }] }] })!
+    const questions = parseAskUserQuestions({
+      questions: [
+        { id: 'text', question: '补充', options: [] },
+        {
+          id: 'choice',
+          question: '选择',
+          options: [
+            { id: 'a', label: '同名', recommended: false },
+            { id: 'b', label: '同名', recommended: true },
+          ],
+        },
+      ],
+    })!
     expect(initialQuestionState(questions[0]!)).toMatchObject({ selected: [] })
     expect(canSubmitFromCurrentQuestion(questions, {}, 1)).toBe(false)
-    const states = { text: { selected: [], custom: '回答', answered: false }, choice: { selected: ['b'], custom: '', answered: false } }
+    const states = {
+      text: { selected: [], custom: '回答', answered: false },
+      choice: { selected: ['b'], custom: '', answered: false },
+    }
     expect(buildAskUserQuestionUpdatedInput({}, questions, states).questionAnswers).toEqual([
-      { questionId: 'text', choiceIds: [], text: '回答' }, { questionId: 'choice', choiceIds: ['b'] },
+      { questionId: 'text', choiceIds: [], text: '回答' },
+      { questionId: 'choice', choiceIds: ['b'] },
     ])
     expect(questions[1]?.options.map((option) => option.recommended)).toEqual([false, true])
   })

@@ -1637,7 +1637,7 @@ export function DesktopLayout(): React.ReactNode {
         setPermissionMode(value)
         return
       }
-      if (!await setSessionPermissionMode(sessionId, value)) throw new Error('权限模式未更新')
+      if (!(await setSessionPermissionMode(sessionId, value))) throw new Error('权限模式未更新')
     },
     [sessionId, setPermissionMode, setSessionPermissionMode],
   )
@@ -2116,7 +2116,11 @@ export function DesktopLayout(): React.ReactNode {
           onCloneGithub: () => setGithubRepositoryModalOpen(true),
           onClearWorkspace: handleClearWorkspace,
           onOpenMcpSettings: () => navigate('/settings/plugins?tab=mcps'),
-          onOpenComputerSettings: () => navigate('/settings/computer' + (routedSessionId ? '?threadId=' + encodeURIComponent(routedSessionId) : '')),
+          onOpenComputerSettings: () =>
+            navigate(
+              '/settings/computer' +
+                (routedSessionId ? '?threadId=' + encodeURIComponent(routedSessionId) : ''),
+            ),
           onOpenModelSettings: () => navigate('/settings/providers'),
           onOpenSideChat: sideChatSupported ? handleOpenSideChat : undefined,
           onSkillTokenActivate: (invocation) => {
@@ -2280,7 +2284,9 @@ export function DesktopLayout(): React.ReactNode {
         onCloneGithub={() => setGithubRepositoryModalOpen(true)}
         onClearWorkspace={handleClearWorkspace}
         onOpenMcpSettings={() => navigate('/settings/plugins?tab=mcps')}
-        onOpenComputerSettings={() => navigate('/settings/computer?threadId=' + encodeURIComponent(tab.threadId))}
+        onOpenComputerSettings={() =>
+          navigate('/settings/computer?threadId=' + encodeURIComponent(tab.threadId))
+        }
         onOpenModelSettings={() => navigate('/settings/providers')}
         onSkillTokenActivate={(invocation) => {
           void handleActivateComposerSkill(invocation)

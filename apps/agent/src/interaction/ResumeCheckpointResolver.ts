@@ -73,7 +73,8 @@ export class ResumeCheckpointResolver {
             : {}),
           ...(permissionGrant ? { permissionGrant } : {}),
           ...(approval.payload.invocation.name === 'ComputerRead' && approval.decision === 'allow'
-            ? { computerGrant: approval.payload.resolution.computerGrant ?? 'chat' as const } : {}),
+            ? { computerGrant: approval.payload.resolution.computerGrant ?? ('chat' as const) }
+            : {}),
         }
         return this.db.repositories.interactions.acquireResumeCheckpointLease({
           turnID,

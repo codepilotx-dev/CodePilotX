@@ -1226,7 +1226,9 @@ export class AgentRuntimeService implements AgentRuntime {
                   taskSummary: request.content,
                   toolCallID: request.resume.toolCallID,
                   approvedToolCallID: request.resume.toolCallID,
-                  ...(request.resume.computerGrant ? { approvedComputerGrant: request.resume.computerGrant } : {}),
+                  ...(request.resume.computerGrant
+                    ? { approvedComputerGrant: request.resume.computerGrant }
+                    : {}),
                   onSkillDocumentRead: (path, hash) =>
                     composition.bindings.skills.documentRead(path, hash),
                   ...(request.resume.authorizationFingerprint

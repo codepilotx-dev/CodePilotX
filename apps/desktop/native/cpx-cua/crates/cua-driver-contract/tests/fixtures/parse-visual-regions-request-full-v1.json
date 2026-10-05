@@ -1,10 +1,7 @@
 {
   "capture_id": "capture-full",
   "options": {
-    "kinds": [
-      "text",
-      "icon"
-    ],
+    "kinds": ["text", "icon"],
     "min_confidence": 0.25,
     "max_regions": 200
   }

@@ -47,15 +47,15 @@ create `CuaDriver` directly. This path does not start an executable or open a
 socket, and TCC checks execute as the importing application:
 
 ```ts
-import { CuaDriver } from '@trycua/cua-driver';
+import { CuaDriver } from '@trycua/cua-driver'
 
-const driver = CuaDriver.create(undefined);
+const driver = CuaDriver.create(undefined)
 try {
-  const metadata = await driver.metadata();
+  const metadata = await driver.metadata()
   // Invoke typed driver operations here.
 } finally {
-  await driver.shutdown();
-  driver.uniffiDestroy();
+  await driver.shutdown()
+  driver.uniffiDestroy()
 }
 ```
 
@@ -146,18 +146,18 @@ until its socket accepts connections, returns SDK and MCP connection details,
 and owns restart and cleanup:
 
 ```ts
-import { CuaDriver, EmbeddedCuaDriverHost } from '@trycua/cua-driver';
+import { CuaDriver, EmbeddedCuaDriverHost } from '@trycua/cua-driver'
 
 const embedded = new EmbeddedCuaDriverHost(
   '/path/inside/YourApp.app/Contents/Resources/cua-driver',
-  'com.example.your-app'
-);
-const connection = await embedded.start();
-const driver = CuaDriver.connect(connection.socketPath);
+  'com.example.your-app',
+)
+const connection = await embedded.start()
+const driver = CuaDriver.connect(connection.socketPath)
 // Application calls use driver; an agent runtime uses connection.mcp.
-driver.uniffiDestroy();
-await embedded.stop();
-embedded.uniffiDestroy();
+driver.uniffiDestroy()
+await embedded.stop()
+embedded.uniffiDestroy()
 ```
 
 The package does not install or bundle cua-driver. Ship a compatible executable
@@ -265,9 +265,9 @@ is most of the call's latency. A host whose targets accept faster input can
 shorten it at trusted launch with one variable, in the same environment as the
 window-observation variables above. `EmbeddedCuaDriverHost` admits it too:
 
-| Variable                | Meaning                                         | Default | Accepted range                                        |
-| ----------------------- | ----------------------------------------------- | ------- | ----------------------------------------------------- |
-| `CUA_DRIVER_KEY_GAP_MS` | Gap between synthesized key events, per event.  | 8       | 2 to 100; smaller values are raised, larger clamped   |
+| Variable                | Meaning                                        | Default | Accepted range                                      |
+| ----------------------- | ---------------------------------------------- | ------- | --------------------------------------------------- |
+| `CUA_DRIVER_KEY_GAP_MS` | Gap between synthesized key events, per event. | 8       | 2 to 100; smaller values are raised, larger clamped |
 
 Unset, empty, or unparsable values keep the default. No tool argument can
 change the gap. An explicit `type_text` `delay_ms` still applies on top of it.
@@ -294,7 +294,7 @@ and about 980 ms at `2`. All ten read-backs (five per value) matched exactly.
 | Permission prompts / startup gate             | May prompt once               | **Never prompts**                      |
 | Settings → Privacy & Security entries         | CuaDriver                     | your app only                          |
 | `check_permissions` `source.attribution`      | `driver-daemon` (or `caller`) | `host`                                 |
-| Overlay, background input, capture, all tools | full                          | full, identical                       |
+| Overlay, background input, capture, all tools | full                          | full, identical                        |
 
 Everything else is unchanged: the agent-cursor overlay, background (no-focus-steal)
 clicking and typing, AX tree reads, and per-window screenshots.

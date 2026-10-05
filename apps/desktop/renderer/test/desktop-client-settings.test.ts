@@ -201,10 +201,13 @@ describe('desktop thread settings client', () => {
             filter: mode === 'all' ? '' : '否',
           },
           skippedQuestionIds,
-          questionAnswers: questions.map((question) => skippedQuestionIds.includes(question.id)
-            ? { questionId: question.id, choiceIds: [], skipped: true }
-            : question.id === 'format' ? { questionId: question.id, choiceIds: [], text: '中文自定义' }
-            : { questionId: question.id, choiceIds: [question.id === 'scope' ? 'yes' : 'no'] }),
+          questionAnswers: questions.map((question) =>
+            skippedQuestionIds.includes(question.id)
+              ? { questionId: question.id, choiceIds: [], skipped: true }
+              : question.id === 'format'
+                ? { questionId: question.id, choiceIds: [], text: '中文自定义' }
+                : { questionId: question.id, choiceIds: [question.id === 'scope' ? 'yes' : 'no'] },
+          ),
         },
       })
       if (mode === 'unsupported') {

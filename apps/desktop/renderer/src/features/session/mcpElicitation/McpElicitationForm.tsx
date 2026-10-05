@@ -120,8 +120,12 @@ export function McpElicitationForm({
   const hasErrors = Object.keys(errors).length > 0
 
   return (
-    <RequestCard variant="permission" title={`MCP 服务器 “${serverName}” 请求输入`} disabled={busy} error={error}>
-
+    <RequestCard
+      variant="permission"
+      title={`MCP 服务器 “${serverName}” 请求输入`}
+      disabled={busy}
+      error={error}
+    >
       {message ? <p className="mcp-form-message">{message}</p> : null}
       {details}
 
@@ -185,8 +189,12 @@ export function McpElicitationUnsupported({
   error,
 }: McpElicitationUnsupportedProps): React.ReactNode {
   return (
-    <RequestCard variant="permission" title={`MCP 服务器 “${serverName}” 请求输入`} disabled={busy} error={error}>
-
+    <RequestCard
+      variant="permission"
+      title={`MCP 服务器 “${serverName}” 请求输入`}
+      disabled={busy}
+      error={error}
+    >
       {message ? <p className="mcp-form-message">{message}</p> : null}
 
       <div className="mcp-form-unsupported">

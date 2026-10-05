@@ -693,12 +693,25 @@ function applyEnvelopePayload(
       return
     case 'mcp/elicitationRequested': {
       const payload = envelope.payload
-      upsertApproval(state, { id: payload.interactionId, threadId: payload.threadId,
-        turnId: payload.turnId, agentId: payload.agentId, toolCallID: payload.toolCallId,
-        tool: 'McpElicitation', command: null, cwd: null, paths: [], requestedPermissions: {}, review: null,
-        risk: 'medium', reason: String(payload.request.message ?? 'MCP 请求输入'), status: 'pending', createdAt: payload.createdAt,
+      upsertApproval(state, {
+        id: payload.interactionId,
+        threadId: payload.threadId,
+        turnId: payload.turnId,
+        agentId: payload.agentId,
+        toolCallID: payload.toolCallId,
+        tool: 'McpElicitation',
+        command: null,
+        cwd: null,
+        paths: [],
+        requestedPermissions: {},
+        review: null,
+        risk: 'medium',
+        reason: String(payload.request.message ?? 'MCP 请求输入'),
+        status: 'pending',
+        createdAt: payload.createdAt,
         input: { serverName: payload.server, request: payload.request },
-        toolIdentity: { server: payload.server, tool: payload.tool } })
+        toolIdentity: { server: payload.server, tool: payload.tool },
+      })
       return
     }
     case 'permission/requested':
@@ -758,7 +771,15 @@ function applyEnvelopePayload(
       if (!approval) return
       const result = envelope.payload.result
       if (result.kind === 'mcp-elicitation') {
-        upsertApproval(state, { ...approval, status: result.action === 'accept' ? 'allowed' : result.action === 'cancel' ? 'cancelled' : 'denied' })
+        upsertApproval(state, {
+          ...approval,
+          status:
+            result.action === 'accept'
+              ? 'allowed'
+              : result.action === 'cancel'
+                ? 'cancelled'
+                : 'denied',
+        })
         return
       }
       if (result?.kind !== 'approval' && result?.kind !== 'permission') return

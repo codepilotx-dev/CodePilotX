@@ -13,8 +13,14 @@ export const richQuestionSchema = z
     id: z.string().trim().min(1).max(128),
     header: z.string().trim().min(1).max(12),
     question: z.string().trim().min(1),
-    options: z.array(questionOptionSchema).max(3).refine((options) => options.length !== 1, '提供零项或二至三项选项'),
-    multiSelect: z.boolean().refine((value) => !value, 'Plan 问题仅支持单选').optional(),
+    options: z
+      .array(questionOptionSchema)
+      .max(3)
+      .refine((options) => options.length !== 1, '提供零项或二至三项选项'),
+    multiSelect: z
+      .boolean()
+      .refine((value) => !value, 'Plan 问题仅支持单选')
+      .optional(),
   })
   .strict()
 

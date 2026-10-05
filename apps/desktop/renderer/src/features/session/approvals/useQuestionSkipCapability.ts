@@ -6,7 +6,11 @@ export function useQuestionSkipCapability(requestId: string, enabled: boolean): 
   return useApprovalCapability(requestId, enabled, 'interaction.questionSkip.v1')
 }
 
-export function useApprovalCapability(requestId: string, enabled: boolean, capability: ProtocolCapability): boolean {
+export function useApprovalCapability(
+  requestId: string,
+  enabled: boolean,
+  capability: ProtocolCapability,
+): boolean {
   const [available, setAvailable] = React.useState(false)
   React.useEffect(() => {
     let active = true

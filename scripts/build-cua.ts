@@ -15,7 +15,16 @@ if (process.platform !== 'win32') throw new Error('CPX-CUA 当前仅支持 Windo
 
 console.log(`[CodePilotX] 构建 CPX-CUA（${release ? 'release' : 'debug'} / ${target}）`)
 const child = Bun.spawn(
-  ['cargo', 'build', '--locked', '--target', target, '-p', 'cpx-cua', ...(release ? ['--release'] : [])],
+  [
+    'cargo',
+    'build',
+    '--locked',
+    '--target',
+    target,
+    '-p',
+    'cpx-cua',
+    ...(release ? ['--release'] : []),
+  ],
   { cwd: project, stdin: 'inherit', stdout: 'inherit', stderr: 'inherit' },
 )
 const exitCode = await child.exited

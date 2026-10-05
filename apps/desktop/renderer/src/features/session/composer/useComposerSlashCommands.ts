@@ -75,7 +75,14 @@ export function useComposerSlashCommands({
 
   const commands = useMemo<ComposerSlashCommand[]>(
     () => [
-      command('approve', '重试被拒绝的操作', '为最近的自动审查拒绝授权一次重试，仍经过 Guardian', Boolean(onApprove), hasThread && !sessionBusy, () => onApprove?.()),
+      command(
+        'approve',
+        '重试被拒绝的操作',
+        '为最近的自动审查拒绝授权一次重试，仍经过 Guardian',
+        Boolean(onApprove),
+        hasThread && !sessionBusy,
+        () => onApprove?.(),
+      ),
       command('model', '模型', '选择当前任务使用的模型', true, true, onOpenModel),
       command(
         'reasoning',

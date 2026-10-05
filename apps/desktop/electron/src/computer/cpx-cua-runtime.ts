@@ -46,7 +46,18 @@ const START_TIMEOUT_MS = 20_000
  * reported as a failure instead of outliving the control turn.
  */
 const TOOL_TIMEOUT_MS = 25_000
-const REQUIRED_TOOLS = ['cpx_apps', 'get_window_state', 'click', 'double_click', 'right_click', 'type_text', 'press_key', 'hotkey', 'scroll', 'drag']
+const REQUIRED_TOOLS = [
+  'cpx_apps',
+  'get_window_state',
+  'click',
+  'double_click',
+  'right_click',
+  'type_text',
+  'press_key',
+  'hotkey',
+  'scroll',
+  'drag',
+]
 
 /**
  * Line-delimited JSON-RPC client for the CPX-CUA native stdio runtime.
@@ -104,7 +115,9 @@ export class CpxCuaRuntime {
     this.#child = child
     this.#buffer = ''
     child.stdout?.setEncoding('utf8')
-    child.stdout?.on('data', (chunk: string) => { if (this.#child === child) this.#consume(chunk) })
+    child.stdout?.on('data', (chunk: string) => {
+      if (this.#child === child) this.#consume(chunk)
+    })
     // Native tracing output is diagnostics only; it never reaches the renderer.
     child.stderr?.setEncoding('utf8')
     child.stderr?.on('data', (chunk: string) => {
@@ -132,12 +145,24 @@ export class CpxCuaRuntime {
       )
       this.#notify('notifications/initialized', {})
       const tools = await this.#request('tools/list', {}, START_TIMEOUT_MS)
-      const names = new Set(Array.isArray(tools.tools) ? tools.tools.flatMap((tool: unknown) =>
-        tool && typeof tool === 'object' && 'name' in tool && typeof tool.name === 'string' ? [tool.name] : [],
-      ) : [])
-      if (!Array.isArray(tools.tools) || !tools.tools.some((tool: any) => tool?.name === 'cpx_apps' && tool['x-cpx-identity-v1'] === true))
+      const names = new Set(
+        Array.isArray(tools.tools)
+          ? tools.tools.flatMap((tool: unknown) =>
+              tool && typeof tool === 'object' && 'name' in tool && typeof tool.name === 'string'
+                ? [tool.name]
+                : [],
+            )
+          : [],
+      )
+      if (
+        !Array.isArray(tools.tools) ||
+        !tools.tools.some(
+          (tool: any) => tool?.name === 'cpx_apps' && tool['x-cpx-identity-v1'] === true,
+        )
+      )
         throw new Error('CPX-CUA 缺少可信身份核验能力，请重新构建原生运行时')
-      if (REQUIRED_TOOLS.some((name) => !names.has(name))) throw new Error('CPX-CUA 缺少必需的原生能力')
+      if (REQUIRED_TOOLS.some((name) => !names.has(name)))
+        throw new Error('CPX-CUA 缺少必需的原生能力')
       if (this.#child !== child) throw new Error('CPX-CUA 启动已取消')
       this.#ready = true
     } catch (error) {

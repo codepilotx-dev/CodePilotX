@@ -40,18 +40,58 @@ const projectWorkspace = {
 
 describe('agent thread adapter', () => {
   test('MCP 参数独立于卡片展示字段，实时文件审批保留宿主 diff', () => {
-    const input = { command: 'actual parameter', paths: ['actual'], risk: 'actual', threadId: 'actual' }
-    const request = approvalToRequest({ id: 'approval', threadId: 'thread', turnId: 'turn', agentId: 'agent',
-      toolCallID: 'call', tool: 'mcp__fixture__save', command: null, cwd: null, paths: [], risk: 'high',
-      reason: '确认', status: 'pending', createdAt: 1, requestedPermissions: {}, review: null,
-      input, toolIdentity: { server: 'fixture', tool: 'save' } })
+    const input = {
+      command: 'actual parameter',
+      paths: ['actual'],
+      risk: 'actual',
+      threadId: 'actual',
+    }
+    const request = approvalToRequest({
+      id: 'approval',
+      threadId: 'thread',
+      turnId: 'turn',
+      agentId: 'agent',
+      toolCallID: 'call',
+      tool: 'mcp__fixture__save',
+      command: null,
+      cwd: null,
+      paths: [],
+      risk: 'high',
+      reason: '确认',
+      status: 'pending',
+      createdAt: 1,
+      requestedPermissions: {},
+      review: null,
+      input,
+      toolIdentity: { server: 'fixture', tool: 'save' },
+    })
     expect(request.toolInput).toEqual(input)
-    const preview = { path: 'normal.txt', operation: 'create', patch: '+normal', hunks: [], renderable: true, tooLargeReason: null }
-    const events = agentEventsFromNotification({ method: 'approval/requested', params: {
-      interactionId: 'approval', threadId: 'thread', turnId: 'turn', agentId: 'agent', toolCallId: 'call',
-      tool: 'apply_patch', reason: '确认', affectedPaths: [{ path: 'normal.txt', operation: 'create' }],
-      input: { approvalFileDiffs: [preview] }, risk: 'high', createdAt: 1, version: 1, kind: 'approval',
-    } } as AgentNotification)
+    const preview = {
+      path: 'normal.txt',
+      operation: 'create',
+      patch: '+normal',
+      hunks: [],
+      renderable: true,
+      tooLargeReason: null,
+    }
+    const events = agentEventsFromNotification({
+      method: 'approval/requested',
+      params: {
+        interactionId: 'approval',
+        threadId: 'thread',
+        turnId: 'turn',
+        agentId: 'agent',
+        toolCallId: 'call',
+        tool: 'apply_patch',
+        reason: '确认',
+        affectedPaths: [{ path: 'normal.txt', operation: 'create' }],
+        input: { approvalFileDiffs: [preview] },
+        risk: 'high',
+        createdAt: 1,
+        version: 1,
+        kind: 'approval',
+      },
+    } as AgentNotification)
     expect(events[0]).toMatchObject({ request: { input: { approvalFileDiffs: [preview] } } })
   })
 
@@ -1057,20 +1097,23 @@ describe('agent thread adapter', () => {
       required: true as const,
       maxAnswers: id === 'scope' ? 2 : 1,
     }))
-    const request = questionToRequest({
-      id: 'interaction-group',
-      messageID: 'turn-1',
-      turnId: 'turn-1',
-      agentId: 'agent-1',
-      type: 'question',
-      prompt: questions[0]!.prompt,
-      version: 1,
-      choices: questions[0]!.choices,
-      questions,
-      status: 'pending',
-      answer: null,
-      createdAt: 1,
-    }, 'thread-1')
+    const request = questionToRequest(
+      {
+        id: 'interaction-group',
+        messageID: 'turn-1',
+        turnId: 'turn-1',
+        agentId: 'agent-1',
+        type: 'question',
+        prompt: questions[0]!.prompt,
+        version: 1,
+        choices: questions[0]!.choices,
+        questions,
+        status: 'pending',
+        answer: null,
+        createdAt: 1,
+      },
+      'thread-1',
+    )
     const events = agentEventsFromNotification({
       jsonrpc: '2.0',
       method: 'question/requested',

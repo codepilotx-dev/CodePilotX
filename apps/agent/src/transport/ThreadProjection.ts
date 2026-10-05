@@ -113,9 +113,7 @@ const modelUsage = (value: unknown): Extract<Item, { type: 'text' }>['usage'] =>
 }
 const isBreakdownSource = Schema.is(ContextUsageBreakdownSourceSchema)
 /** 逐条校验来源分类，未知分类或非法字符量直接丢弃，而不是让整条 usage 失败。 */
-const contextUsageBreakdown = (
-  value: unknown,
-): ContextUsageBreakdownEntry[] | undefined => {
+const contextUsageBreakdown = (value: unknown): ContextUsageBreakdownEntry[] | undefined => {
   if (!Array.isArray(value)) return undefined
   const entries: ContextUsageBreakdownEntry[] = []
   for (const entry of value) {
@@ -809,12 +807,25 @@ export class ThreadProjection {
         .all(threadId) as Array<Record<string, string | number | null>>
     ).map((row) => this.approval(row))
     for (const payload of this.db.repositories.interactions.pendingMcpElicitations(threadId)) {
-      approvals.push({ id: String(payload.interactionId), threadId, turnId: String(payload.turnId),
-        agentId: String(payload.agentId), toolCallID: String(payload.toolCallId), tool: 'McpElicitation',
-        command: null, cwd: null, paths: [], requestedPermissions: {}, review: null, risk: 'medium',
-        reason: String((payload.request as Record<string, unknown>).message ?? 'MCP 请求输入'), status: 'pending', createdAt: Number(payload.createdAt),
+      approvals.push({
+        id: String(payload.interactionId),
+        threadId,
+        turnId: String(payload.turnId),
+        agentId: String(payload.agentId),
+        toolCallID: String(payload.toolCallId),
+        tool: 'McpElicitation',
+        command: null,
+        cwd: null,
+        paths: [],
+        requestedPermissions: {},
+        review: null,
+        risk: 'medium',
+        reason: String((payload.request as Record<string, unknown>).message ?? 'MCP 请求输入'),
+        status: 'pending',
+        createdAt: Number(payload.createdAt),
         input: { serverName: payload.server, request: payload.request },
-        toolIdentity: { server: String(payload.server), tool: String(payload.tool) } })
+        toolIdentity: { server: String(payload.server), tool: String(payload.tool) },
+      })
     }
     return {
       thread,
@@ -1514,9 +1525,15 @@ export class ThreadProjection {
         ? parse<Record<string, unknown>>(row.request_payload)
         : {}
     const rawComputerApp = request.computerApp as Record<string, unknown> | undefined
-    const computerApp = rawComputerApp && typeof rawComputerApp.name === 'string' &&
+    const computerApp =
+      rawComputerApp &&
+      typeof rawComputerApp.name === 'string' &&
       typeof rawComputerApp.allowPersistentApproval === 'boolean'
-      ? { name: rawComputerApp.name, allowPersistentApproval: rawComputerApp.allowPersistentApproval } : undefined
+        ? {
+            name: rawComputerApp.name,
+            allowPersistentApproval: rawComputerApp.allowPersistentApproval,
+          }
+        : undefined
     const requestKind = request.kind
     const rawPermissions = request.requestedPermissions
     const permissions =
@@ -1583,11 +1600,19 @@ export class ThreadProjection {
       createdAt: Number(row.created_at),
       ...(permissionGrant ? { permissionGrant } : {}),
       ...(computerApp ? { computerApp } : {}),
-      ...(Array.isArray(request.grantOptions) ? { grantOptions: request.grantOptions as ApprovalRequest['grantOptions'] } : {}),
-      ...(request.toolIdentity ? { toolIdentity: request.toolIdentity as ApprovalRequest['toolIdentity'] } : {}),
+      ...(Array.isArray(request.grantOptions)
+        ? { grantOptions: request.grantOptions as ApprovalRequest['grantOptions'] }
+        : {}),
+      ...(request.toolIdentity
+        ? { toolIdentity: request.toolIdentity as ApprovalRequest['toolIdentity'] }
+        : {}),
       ...(request.input ? { input: request.input as ApprovalRequest['input'] } : {}),
-      ...(request.affectedPaths ? { affectedPaths: request.affectedPaths as ApprovalRequest['affectedPaths'] } : {}),
-      ...(request.reviewSummary ? { reviewSummary: request.reviewSummary as ApprovalRequest['reviewSummary'] } : {}),
+      ...(request.affectedPaths
+        ? { affectedPaths: request.affectedPaths as ApprovalRequest['affectedPaths'] }
+        : {}),
+      ...(request.reviewSummary
+        ? { reviewSummary: request.reviewSummary as ApprovalRequest['reviewSummary'] }
+        : {}),
     }
   }
 

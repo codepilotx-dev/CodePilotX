@@ -115,7 +115,12 @@ import {
   type ComposerSlashCommandId,
 } from './composerSlashCommands.js'
 import { useComposerSlashCommands } from './useComposerSlashCommands.js'
-import { ApprovalRulesDialog, ApprovalRetryDialog, AutoReviewNudge, useApprovalReviewState } from '../approvals/ApprovalManagement.js'
+import {
+  ApprovalRulesDialog,
+  ApprovalRetryDialog,
+  AutoReviewNudge,
+  useApprovalReviewState,
+} from '../approvals/ApprovalManagement.js'
 import { BuiltinSkillIcon, skillScopeLabel } from '../../plugins/builtinSkillPresentation.js'
 import { buildThreadDeepLink } from '@codepilotx/shared/thread-reference'
 import { desktopClient } from '../../../services/desktop-client/index.js'
@@ -578,7 +583,11 @@ export function ComposerCard({
 
   const sessionBusy = sessionStatus === 'running' || sessionStatus === 'waiting'
   const approvalReview = useApprovalReviewState(routedSessionId, sessionBusy)
-  const scopedGrantsSupported = useApprovalCapability(routedSessionId ?? '', Boolean(routedSessionId), 'interaction.scopedGrants.v1')
+  const scopedGrantsSupported = useApprovalCapability(
+    routedSessionId ?? '',
+    Boolean(routedSessionId),
+    'interaction.scopedGrants.v1',
+  )
   const { commands: builtinSlashCommands, executeCommand } = useComposerSlashCommands({
     capabilities,
     planModeActive,
@@ -1081,9 +1090,18 @@ export function ComposerCard({
           松开以添加文件
         </div>
       ) : null}
-      {routedSessionId ? <AutoReviewNudge key={routedSessionId} threadId={routedSessionId}
-        enabled={approvalReview.state.manualAllows >= 3 && permissionMode !== 'auto-review' && permissionMode !== 'full-access'}
-        onEnable={() => onPermissionChange('auto-review')} /> : null}
+      {routedSessionId ? (
+        <AutoReviewNudge
+          key={routedSessionId}
+          threadId={routedSessionId}
+          enabled={
+            approvalReview.state.manualAllows >= 3 &&
+            permissionMode !== 'auto-review' &&
+            permissionMode !== 'full-access'
+          }
+          onEnable={() => onPermissionChange('auto-review')}
+        />
+      ) : null}
       <div
         className="composer composer-input-surface composer-top tw:relative tw:flex tw:min-h-0 tw:flex-col tw:justify-between"
         inert={submitting || undefined}
@@ -1289,8 +1307,14 @@ export function ComposerCard({
               onOpenChange={(open) => setOpenDropdown(open ? 'permission' : null)}
               onValueChange={(value) => {
                 if (value === 'approval-rules') setApprovalRulesOpen(true)
-                else if (value === 'full-access' && permissionMode !== 'full-access') { setFullAccessError(''); setFullAccessConfirmationOpen(true) }
-                else void Promise.resolve(onPermissionChange(value as DesktopPermissionMode)).catch((error: unknown) => onCommandError?.(error instanceof Error ? error.message : '权限模式未更新'))
+                else if (value === 'full-access' && permissionMode !== 'full-access') {
+                  setFullAccessError('')
+                  setFullAccessConfirmationOpen(true)
+                } else
+                  void Promise.resolve(onPermissionChange(value as DesktopPermissionMode)).catch(
+                    (error: unknown) =>
+                      onCommandError?.(error instanceof Error ? error.message : '权限模式未更新'),
+                  )
                 closeDropdown()
               }}
             >
@@ -1326,7 +1350,11 @@ export function ComposerCard({
                 >
                   <Select.Viewport className="permission-select-scroll-area">
                     <div className="permission-select-scroll-content">
-                      {routedSessionId && workspace?.projectId && scopedGrantsSupported ? <Select.Item className="permission-select-item" value="approval-rules"><Select.ItemText>管理项目授权</Select.ItemText></Select.Item> : null}
+                      {routedSessionId && workspace?.projectId && scopedGrantsSupported ? (
+                        <Select.Item className="permission-select-item" value="approval-rules">
+                          <Select.ItemText>管理项目授权</Select.ItemText>
+                        </Select.Item>
+                      ) : null}
                       {permissionOptions.map((option) => (
                         <Select.Item
                           className="permission-select-item"
@@ -1803,19 +1831,47 @@ export function ComposerCard({
         }}
         onCancel={() => setArchiveConfirmationOpen(false)}
       />
-      <ConfirmationDialog open={fullAccessConfirmationOpen} title="启用 Full Access？"
-        description={<><p>允许 Agent 使用完整文件访问范围并取消常规人工审批。请仅在信任当前任务时启用。</p>{fullAccessError ? <p role="alert">{fullAccessError}</p> : null}</>}
-        actionLabel="启用 Full Access" actionDisabled={fullAccessSaving} onCancel={() => { if (!fullAccessSaving) setFullAccessConfirmationOpen(false) }}
+      <ConfirmationDialog
+        open={fullAccessConfirmationOpen}
+        title="启用 Full Access？"
+        description={
+          <>
+            <p>允许 Agent 使用完整文件访问范围并取消常规人工审批。请仅在信任当前任务时启用。</p>
+            {fullAccessError ? <p role="alert">{fullAccessError}</p> : null}
+          </>
+        }
+        actionLabel="启用 Full Access"
+        actionDisabled={fullAccessSaving}
+        onCancel={() => {
+          if (!fullAccessSaving) setFullAccessConfirmationOpen(false)
+        }}
         onAction={() => {
           if (fullAccessSaving) return
-          setFullAccessSaving(true); setFullAccessError('')
-          void Promise.resolve().then(() => onPermissionChange('full-access')).then(() => setFullAccessConfirmationOpen(false))
-            .catch(() => setFullAccessError('权限模式未更新，请重试。')).finally(() => setFullAccessSaving(false))
-        }} />
-      {routedSessionId ? <>
-        <ApprovalRulesDialog key={`rules:${routedSessionId}`} threadId={routedSessionId} open={approvalRulesOpen} onClose={() => setApprovalRulesOpen(false)} />
-        <ApprovalRetryDialog key={`retry:${routedSessionId}`} threadId={routedSessionId} open={approvalRetryOpen} onClose={() => setApprovalRetryOpen(false)} />
-      </> : null}
+          setFullAccessSaving(true)
+          setFullAccessError('')
+          void Promise.resolve()
+            .then(() => onPermissionChange('full-access'))
+            .then(() => setFullAccessConfirmationOpen(false))
+            .catch(() => setFullAccessError('权限模式未更新，请重试。'))
+            .finally(() => setFullAccessSaving(false))
+        }}
+      />
+      {routedSessionId ? (
+        <>
+          <ApprovalRulesDialog
+            key={`rules:${routedSessionId}`}
+            threadId={routedSessionId}
+            open={approvalRulesOpen}
+            onClose={() => setApprovalRulesOpen(false)}
+          />
+          <ApprovalRetryDialog
+            key={`retry:${routedSessionId}`}
+            threadId={routedSessionId}
+            open={approvalRetryOpen}
+            onClose={() => setApprovalRetryOpen(false)}
+          />
+        </>
+      ) : null}
     </div>
   )
 }

@@ -34,8 +34,10 @@ export function filterAdvertisedCapabilities(db: AgentDatabase): ReadonlyArray<P
       ((capability !== 'browser.manage.v1' && capability !== 'browser.host.v1') ||
         new BrowserRepository(db).available()) &&
       (capability !== 'browser.data.v1' || new BrowserDataRepository(db).available()) &&
-      (capability !== 'mcp.elicitation.v1' || db.repositories.interactions.interactionTableAvailable('mcp_elicitations')) &&
-      (capability !== 'approval.retry.v1' || db.repositories.interactions.interactionTableAvailable('approval_reviews')) &&
+      (capability !== 'mcp.elicitation.v1' ||
+        db.repositories.interactions.interactionTableAvailable('mcp_elicitations')) &&
+      (capability !== 'approval.retry.v1' ||
+        db.repositories.interactions.interactionTableAvailable('approval_reviews')) &&
       (capability !== 'thread.creation-surface.v1' || creationSurface) &&
       (capability !== 'plan.approval.v1' || db.repositories.planApprovals.available()) &&
       (capability !== 'thread.goal.v1' ||

@@ -257,7 +257,9 @@ export function useDesktopComposerController({
 
   useEffect(() => {
     if (permissionModeVisible) return
-    void Promise.resolve(onPermissionChange('default')).catch((error: unknown) => onError?.(error instanceof Error ? error.message : '权限模式未更新'))
+    void Promise.resolve(onPermissionChange('default')).catch((error: unknown) =>
+      onError?.(error instanceof Error ? error.message : '权限模式未更新'),
+    )
   }, [onPermissionChange, permissionModeVisible, onError])
 
   useEffect(() => {

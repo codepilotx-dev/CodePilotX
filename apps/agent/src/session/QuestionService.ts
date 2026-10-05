@@ -340,7 +340,8 @@ export class QuestionService {
       id,
       deadline: createdAt + timeout,
       resolve: async () => {
-        if (questions.some((question) => question.choices.length === 0)) await this.reply(id, null, true, 'auto')
+        if (questions.some((question) => question.choices.length === 0))
+          await this.reply(id, null, true, 'auto')
         else await this.reply(id, autoAnswer(questions), false, 'auto')
       },
     })

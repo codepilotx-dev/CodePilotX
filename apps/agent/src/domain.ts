@@ -202,7 +202,10 @@ export interface EventEnvelope<T = unknown> {
 export interface ToolInvocation {
   fileDiffs?: readonly import('@codepilotx/agent-protocol').RpcResult<'thread/patch/diff'>[]
   retryAuthorization?: { reviewId: string; fingerprint: string }
-  toolPolicy?: Pick<import('./tool/ToolRegistry').ToolCatalogEntry, 'sdkName' | 'capabilities' | 'allowedModes' | 'approvalStrategy' | 'origin'>
+  toolPolicy?: Pick<
+    import('./tool/ToolRegistry').ToolCatalogEntry,
+    'sdkName' | 'capabilities' | 'allowedModes' | 'approvalStrategy' | 'origin'
+  >
   grantsForbidden?: boolean
   id: string
   threadID: string

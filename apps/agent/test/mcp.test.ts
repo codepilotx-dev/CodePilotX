@@ -774,8 +774,14 @@ describe('MCP transports', () => {
   }, 10_000)
 
   test('stdio 表单提问绑定当前调用，取消排队调用不取消正在回答的表单', async () => {
-    const serverModule = Bun.resolveSync('@modelcontextprotocol/sdk/server/index.js', import.meta.dir)
-    const transportModule = Bun.resolveSync('@modelcontextprotocol/sdk/server/stdio.js', import.meta.dir)
+    const serverModule = Bun.resolveSync(
+      '@modelcontextprotocol/sdk/server/index.js',
+      import.meta.dir,
+    )
+    const transportModule = Bun.resolveSync(
+      '@modelcontextprotocol/sdk/server/stdio.js',
+      import.meta.dir,
+    )
     const typesModule = Bun.resolveSync('@modelcontextprotocol/sdk/types.js', import.meta.dir)
     const source = `
       const { Server } = await import(${JSON.stringify(serverModule)});
@@ -794,24 +800,44 @@ describe('MCP transports', () => {
     const answer = Promise.withResolvers<unknown>()
     const identity = { threadID: 'thread', turnID: 'turn', agentID: 'agent', toolCallID: 'call' }
     let receivedSignal: AbortSignal | undefined
-    const connection = await new McpClientFactory(undefined, async (_connection, serverName, tool, actualIdentity, params, signal) => {
-      expect({ serverName, tool, actualIdentity }).toEqual({ serverName: 'forms', tool: 'ask', actualIdentity: identity })
-      expect(params).toMatchObject({ message: '填写名称' })
-      receivedSignal = signal
-      entered.resolve()
-      return answer.promise
-    }).connect({ name: 'forms', scope: 'user', enabled: true,
-      transport: { type: 'stdio', command: process.execPath, args: ['--eval', source] }, startupTimeoutMs: 20_000 }, () => undefined)
+    const connection = await new McpClientFactory(
+      undefined,
+      async (_connection, serverName, tool, actualIdentity, params, signal) => {
+        expect({ serverName, tool, actualIdentity }).toEqual({
+          serverName: 'forms',
+          tool: 'ask',
+          actualIdentity: identity,
+        })
+        expect(params).toMatchObject({ message: '填写名称' })
+        receivedSignal = signal
+        entered.resolve()
+        return answer.promise
+      },
+    ).connect(
+      {
+        name: 'forms',
+        scope: 'user',
+        enabled: true,
+        transport: { type: 'stdio', command: process.execPath, args: ['--eval', source] },
+        startupTimeoutMs: 20_000,
+      },
+      () => undefined,
+    )
     try {
       const current = connection.callTool('ask', {}, undefined, undefined, identity)
       await entered.promise
       const abort = new AbortController()
-      const queued = connection.callTool('ask', {}, abort.signal, undefined, { ...identity, toolCallID: 'queued' })
+      const queued = connection.callTool('ask', {}, abort.signal, undefined, {
+        ...identity,
+        toolCallID: 'queued',
+      })
       abort.abort()
       await expect(queued).rejects.toBeInstanceOf(McpAbortError)
       expect(receivedSignal?.aborted).toBe(false)
       answer.resolve({ action: 'accept', content: { name: 'fixture' } })
-      expect((await current).content).toEqual([{ type: 'text', text: JSON.stringify({ action: 'accept', content: { name: 'fixture' } }) }])
+      expect((await current).content).toEqual([
+        { type: 'text', text: JSON.stringify({ action: 'accept', content: { name: 'fixture' } }) },
+      ])
     } finally {
       answer.resolve({ action: 'cancel' })
       await connection.close()

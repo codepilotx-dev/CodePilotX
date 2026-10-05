@@ -188,7 +188,10 @@ async function verifyPackagedCuaRuntime(executable: string): Promise<void> {
         const line = buffer.slice(0, index).trim()
         buffer = buffer.slice(index + 1)
         if (line) {
-          const message = JSON.parse(line) as { id?: number; result?: { serverInfo?: { name?: string } } }
+          const message = JSON.parse(line) as {
+            id?: number
+            result?: { serverInfo?: { name?: string } }
+          }
           if (message.id === 1) return message.result?.serverInfo?.name ?? null
         }
         index = buffer.indexOf('\n')

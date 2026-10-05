@@ -37,7 +37,8 @@ export class ComputerHostRpcClient {
       await this.initialization
     }
     const capability = methods[method].capability
-    if (capability && !this.capabilities.has(capability)) throw new Error('Agent 未提供电脑控制能力')
+    if (capability && !this.capabilities.has(capability))
+      throw new Error('Agent 未提供电脑控制能力')
     const payload = await this.request(supervisor, method, params)
     if (payload.error) {
       if (payload.error.data?.code === 'UNAUTHORIZED') this.invalidate()
@@ -55,7 +56,9 @@ export class ComputerHostRpcClient {
         'Content-Type': 'application/json',
         ...(this.connectionId ? { 'X-CodePilotX-Connection-ID': this.connectionId } : {}),
       },
-      signal: AbortSignal.timeout(method === 'computer/host/next' ? NEXT_TIMEOUT_MS : CALL_TIMEOUT_MS),
+      signal: AbortSignal.timeout(
+        method === 'computer/host/next' ? NEXT_TIMEOUT_MS : CALL_TIMEOUT_MS,
+      ),
       body: JSON.stringify({
         jsonrpc: '2.0',
         id: `desktop-computer:${++this.sequence}`,
@@ -78,7 +81,13 @@ export class ComputerHostRpcClient {
         authority: 'desktop-host',
       },
       protocols: ['thread-rpc-v4'],
-      capabilities: ['rpc.typed.v1', 'computer.host.v1', 'computer.host.identity.v1', 'computer.policy.v1', 'computer.use.v1'],
+      capabilities: [
+        'rpc.typed.v1',
+        'computer.host.v1',
+        'computer.host.identity.v1',
+        'computer.policy.v1',
+        'computer.use.v1',
+      ],
       interactionDelivery: 'observe',
     })
     const capabilities = (payload.result as { capabilities?: string[] })?.capabilities ?? []

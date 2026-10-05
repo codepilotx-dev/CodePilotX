@@ -101,7 +101,13 @@ export type ApprovalCheckpointPayload = {
   review: Record<string, unknown>
   runState?: string
   interruption?: unknown
-  resolution?: { decision: 'allow' | 'deny'; feedback?: string; resolvedAt: number; computerGrant?: 'chat' | 'persistent'; grantRule?: import('../../permission/ApprovalRules').ApprovalRule }
+  resolution?: {
+    decision: 'allow' | 'deny'
+    feedback?: string
+    resolvedAt: number
+    computerGrant?: 'chat' | 'persistent'
+    grantRule?: import('../../permission/ApprovalRules').ApprovalRule
+  }
   claimedAt?: number
 }
 
@@ -290,10 +296,37 @@ import { ExecutionRepositoryDatabase } from './execution-repository'
 
 export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryDatabase {
   interactionTableAvailable(table: 'mcp_elicitations' | 'approval_reviews') {
-    const columns = this.sqlite.query(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
-    const required = table === 'mcp_elicitations'
-      ? ['id', 'thread_id', 'turn_id', 'agent_id', 'tool_call_id', 'connection_id', 'payload', 'version', 'status', 'response', 'created_at']
-      : ['id', 'thread_id', 'tool_call_id', 'invocation', 'fingerprint', 'decision', 'risk', 'reason', 'retry_operation_id', 'retry_consumed_at', 'created_at']
+    const columns = this.sqlite.query(`PRAGMA table_info(${table})`).all() as Array<{
+      name: string
+    }>
+    const required =
+      table === 'mcp_elicitations'
+        ? [
+            'id',
+            'thread_id',
+            'turn_id',
+            'agent_id',
+            'tool_call_id',
+            'connection_id',
+            'payload',
+            'version',
+            'status',
+            'response',
+            'created_at',
+          ]
+        : [
+            'id',
+            'thread_id',
+            'tool_call_id',
+            'invocation',
+            'fingerprint',
+            'decision',
+            'risk',
+            'reason',
+            'retry_operation_id',
+            'retry_consumed_at',
+            'created_at',
+          ]
     return required.every((name) => columns.some((column) => column.name === name))
   }
   recoverInterruptedInteractions(timestamp: number) {
@@ -571,13 +604,24 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
     if (!row || row.payloadVersion !== version) return null
     const events: EventEnvelope[] = []
     this.transaction(() => {
-      this.sqlite.query("UPDATE question_requests SET payload = ? WHERE id = ? AND status = 'pending' AND payload_version = ?")
+      this.sqlite
+        .query(
+          "UPDATE question_requests SET payload = ? WHERE id = ? AND status = 'pending' AND payload_version = ?",
+        )
         .run(stringify({ ...row.payload, autoResolutionPaused: true }), id, version)
-      events.push(this.insertEvent(row.threadID, row.turnID, 'question/requested', {
-        interactionId: id, threadId: row.threadID, turnId: row.turnID, agentId: row.agentID,
-        createdAt: row.createdAt, version, kind: 'question', questions: row.payload.questions,
-        autoResolutionPaused: true,
-      }))
+      events.push(
+        this.insertEvent(row.threadID, row.turnID, 'question/requested', {
+          interactionId: id,
+          threadId: row.threadID,
+          turnId: row.turnID,
+          agentId: row.agentID,
+          createdAt: row.createdAt,
+          version,
+          kind: 'question',
+          questions: row.payload.questions,
+          autoResolutionPaused: true,
+        }),
+      )
     })
     return events
   }
@@ -595,96 +639,225 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
   }
   pendingMcpElicitations(threadID?: string): Array<Record<string, unknown>> {
     if (!this.interactionTableAvailable('mcp_elicitations')) return []
-    const rows = this.sqlite.query("SELECT payload FROM mcp_elicitations WHERE status = 'pending' AND (? IS NULL OR thread_id = ?) ORDER BY created_at, id")
+    const rows = this.sqlite
+      .query(
+        "SELECT payload FROM mcp_elicitations WHERE status = 'pending' AND (? IS NULL OR thread_id = ?) ORDER BY created_at, id",
+      )
       .all(threadID ?? null, threadID ?? null) as Array<{ payload: string }>
     return rows.map((row) => JSON.parse(row.payload) as Record<string, unknown>)
   }
-  recordApprovalReview(invocation: ToolInvocation, fingerprint: string, review: import('../../domain').PermissionDecision) {
+  recordApprovalReview(
+    invocation: ToolInvocation,
+    fingerprint: string,
+    review: import('../../domain').PermissionDecision,
+  ) {
     if (!this.interactionTableAvailable('approval_reviews')) return null
     const id = crypto.randomUUID()
     const timestamp = now()
     return this.transaction(() => {
-      this.sqlite.query('INSERT INTO approval_reviews (id, thread_id, tool_call_id, invocation, fingerprint, decision, risk, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(id, invocation.threadID, invocation.id, stringify(invocation), fingerprint, review.decision, review.risk, review.reason, timestamp)
-      const item: import('../../domain').Item = { id: `approval-review:${id}`, turnID: invocation.turnID,
-        agentID: invocation.agentID, type: 'activity', status: review.decision === 'deny' ? 'error' : 'completed',
-        data: { activity: 'notice', title: `自动审查${review.decision === 'allow' ? '已允许' : review.decision === 'deny' ? '已拒绝' : '转人工确认'} · ${invocation.name}`, detail: review.reason },
-        createdAt: timestamp, updatedAt: timestamp }
+      this.sqlite
+        .query(
+          'INSERT INTO approval_reviews (id, thread_id, tool_call_id, invocation, fingerprint, decision, risk, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          id,
+          invocation.threadID,
+          invocation.id,
+          stringify(invocation),
+          fingerprint,
+          review.decision,
+          review.risk,
+          review.reason,
+          timestamp,
+        )
+      const item: import('../../domain').Item = {
+        id: `approval-review:${id}`,
+        turnID: invocation.turnID,
+        agentID: invocation.agentID,
+        type: 'activity',
+        status: review.decision === 'deny' ? 'error' : 'completed',
+        data: {
+          activity: 'notice',
+          title: `自动审查${review.decision === 'allow' ? '已允许' : review.decision === 'deny' ? '已拒绝' : '转人工确认'} · ${invocation.name}`,
+          detail: review.reason,
+        },
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      }
       const { event } = this.upsertItemWithEvent(invocation.threadID, item, 'item/completed')
       return event
     })
   }
   approvalReviewState(threadID: string) {
-    const rows = this.interactionTableAvailable('approval_reviews') ? this.sqlite.query("SELECT id, invocation, reason, retry_operation_id, created_at FROM approval_reviews WHERE thread_id = ? AND decision = 'deny' AND retry_consumed_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 20")
-      .all(threadID) as Array<{ id: string; invocation: string; reason: string; retry_operation_id: string | null; created_at: number }> : []
-    const count = this.sqlite.query("SELECT count(*) AS count FROM approval_requests WHERE thread_id = ? AND reply = 'allow' AND status IN ('resolved', 'claimed')")
+    const rows = this.interactionTableAvailable('approval_reviews')
+      ? (this.sqlite
+          .query(
+            "SELECT id, invocation, reason, retry_operation_id, created_at FROM approval_reviews WHERE thread_id = ? AND decision = 'deny' AND retry_consumed_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 20",
+          )
+          .all(threadID) as Array<{
+          id: string
+          invocation: string
+          reason: string
+          retry_operation_id: string | null
+          created_at: number
+        }>)
+      : []
+    const count = this.sqlite
+      .query(
+        "SELECT count(*) AS count FROM approval_requests WHERE thread_id = ? AND reply = 'allow' AND status IN ('resolved', 'claimed')",
+      )
       .get(threadID) as { count: number }
-    return { manualAllows: count.count, denials: rows.map((row) => {
-      const invocation = JSON.parse(row.invocation) as ToolInvocation
-      return { id: row.id, tool: invocation.name, input: invocation.input, reason: row.reason,
-        ...(row.retry_operation_id ? { retryOperationId: row.retry_operation_id } : {}), createdAt: row.created_at }
-    }) }
+    return {
+      manualAllows: count.count,
+      denials: rows.map((row) => {
+        const invocation = JSON.parse(row.invocation) as ToolInvocation
+        return {
+          id: row.id,
+          tool: invocation.name,
+          input: invocation.input,
+          reason: row.reason,
+          ...(row.retry_operation_id ? { retryOperationId: row.retry_operation_id } : {}),
+          createdAt: row.created_at,
+        }
+      }),
+    }
   }
   authorizeApprovalRetry(threadID: string, reviewID: string, operationID: string) {
-    if (!this.interactionTableAvailable('approval_reviews')) throw new AgentError('CAPABILITY_REQUIRED', '自动审查重试存储不可用', 409)
+    if (!this.interactionTableAvailable('approval_reviews'))
+      throw new AgentError('CAPABILITY_REQUIRED', '自动审查重试存储不可用', 409)
     return this.transaction(() => {
-      const row = this.sqlite.query("SELECT invocation, retry_operation_id, retry_consumed_at FROM approval_reviews WHERE id = ? AND thread_id = ? AND decision = 'deny'")
-        .get(reviewID, threadID) as { invocation: string; retry_operation_id: string | null; retry_consumed_at: number | null } | null
-      if (!row || row.retry_consumed_at !== null || (row.retry_operation_id !== null && row.retry_operation_id !== operationID)) throw new AgentError('REQUEST_NOT_PENDING', '此自动审查拒绝已经失效或已授权重试', 409)
+      const row = this.sqlite
+        .query(
+          "SELECT invocation, retry_operation_id, retry_consumed_at FROM approval_reviews WHERE id = ? AND thread_id = ? AND decision = 'deny'",
+        )
+        .get(reviewID, threadID) as {
+        invocation: string
+        retry_operation_id: string | null
+        retry_consumed_at: number | null
+      } | null
+      if (
+        !row ||
+        row.retry_consumed_at !== null ||
+        (row.retry_operation_id !== null && row.retry_operation_id !== operationID)
+      )
+        throw new AgentError('REQUEST_NOT_PENDING', '此自动审查拒绝已经失效或已授权重试', 409)
       const invocation = JSON.parse(row.invocation) as ToolInvocation
       if (row.retry_operation_id === null) {
-        this.sqlite.query('UPDATE approval_reviews SET retry_operation_id = ? WHERE id = ? AND retry_operation_id IS NULL').run(operationID, reviewID)
-        this.upsertItemWithEvent(threadID, {
-          id: `approval-retry:${reviewID}`, turnID: invocation.turnID, agentID: invocation.agentID,
-          type: 'activity', status: 'completed', data: { activity: 'notice', title: `已授权一次重试 · ${invocation.name}`, detail: '仍须经过 Guardian 审查；仅匹配原工具、参数和范围。' }, createdAt: now(), updatedAt: now(),
-        }, 'item/completed')
+        this.sqlite
+          .query(
+            'UPDATE approval_reviews SET retry_operation_id = ? WHERE id = ? AND retry_operation_id IS NULL',
+          )
+          .run(operationID, reviewID)
+        this.upsertItemWithEvent(
+          threadID,
+          {
+            id: `approval-retry:${reviewID}`,
+            turnID: invocation.turnID,
+            agentID: invocation.agentID,
+            type: 'activity',
+            status: 'completed',
+            data: {
+              activity: 'notice',
+              title: `已授权一次重试 · ${invocation.name}`,
+              detail: '仍须经过 Guardian 审查；仅匹配原工具、参数和范围。',
+            },
+            createdAt: now(),
+            updatedAt: now(),
+          },
+          'item/completed',
+        )
       }
-      return { input: `请重试刚才被自动审查拒绝的 ${invocation.name} 操作，保持工具、参数和申请范围不变。用户已为这一次重试提供授权；仍须经过 Guardian 审查。\n操作参数：${stringify(invocation.input)}` }
+      return {
+        input: `请重试刚才被自动审查拒绝的 ${invocation.name} 操作，保持工具、参数和申请范围不变。用户已为这一次重试提供授权；仍须经过 Guardian 审查。\n操作参数：${stringify(invocation.input)}`,
+      }
     })
   }
   claimApprovalRetry(threadID: string, fingerprint: string) {
     if (!this.interactionTableAvailable('approval_reviews')) return undefined
     return this.transaction(() => {
-      const row = this.sqlite.query('SELECT id FROM approval_reviews WHERE thread_id = ? AND fingerprint = ? AND retry_operation_id IS NOT NULL AND retry_consumed_at IS NULL ORDER BY created_at DESC LIMIT 1')
+      const row = this.sqlite
+        .query(
+          'SELECT id FROM approval_reviews WHERE thread_id = ? AND fingerprint = ? AND retry_operation_id IS NOT NULL AND retry_consumed_at IS NULL ORDER BY created_at DESC LIMIT 1',
+        )
         .get(threadID, fingerprint) as { id: string } | null
       if (!row) return undefined
-      this.sqlite.query('UPDATE approval_reviews SET retry_consumed_at = ? WHERE id = ? AND retry_consumed_at IS NULL').run(now(), row.id)
+      this.sqlite
+        .query(
+          'UPDATE approval_reviews SET retry_consumed_at = ? WHERE id = ? AND retry_consumed_at IS NULL',
+        )
+        .run(now(), row.id)
       return { reviewId: row.id, fingerprint }
     })
   }
   createMcpElicitation(payload: Record<string, unknown>, connectionID: string) {
     let event!: EventEnvelope
     this.transaction(() => {
-      this.sqlite.query('INSERT INTO mcp_elicitations (id, thread_id, turn_id, agent_id, tool_call_id, connection_id, payload, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(String(payload.interactionId), String(payload.threadId), String(payload.turnId), String(payload.agentId), String(payload.toolCallId), connectionID, stringify(payload), Number(payload.createdAt))
-      event = this.insertEvent(String(payload.threadId), String(payload.turnId), 'mcp/elicitationRequested', payload)
+      this.sqlite
+        .query(
+          'INSERT INTO mcp_elicitations (id, thread_id, turn_id, agent_id, tool_call_id, connection_id, payload, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          String(payload.interactionId),
+          String(payload.threadId),
+          String(payload.turnId),
+          String(payload.agentId),
+          String(payload.toolCallId),
+          connectionID,
+          stringify(payload),
+          Number(payload.createdAt),
+        )
+      event = this.insertEvent(
+        String(payload.threadId),
+        String(payload.turnId),
+        'mcp/elicitationRequested',
+        payload,
+      )
     })
     return event
   }
-  resolveMcpElicitation(id: string, version: number, response: Record<string, unknown>, operation?: InteractionOperationInput) {
-    const row = this.sqlite.query("SELECT thread_id, turn_id FROM mcp_elicitations WHERE id = ? AND version = ? AND status = 'pending'")
+  resolveMcpElicitation(
+    id: string,
+    version: number,
+    response: Record<string, unknown>,
+    operation?: InteractionOperationInput,
+  ) {
+    const row = this.sqlite
+      .query(
+        "SELECT thread_id, turn_id FROM mcp_elicitations WHERE id = ? AND version = ? AND status = 'pending'",
+      )
       .get(id, version) as { thread_id: string; turn_id: string } | null
     if (!row) throw new AgentError('REQUEST_NOT_PENDING', 'MCP 表单已失效或版本已变化', 409)
     let event!: EventEnvelope
     this.transaction(() => {
-      const result = this.sqlite.query("UPDATE mcp_elicitations SET status = 'resolved', response = ? WHERE id = ? AND version = ? AND status = 'pending'")
+      const result = this.sqlite
+        .query(
+          "UPDATE mcp_elicitations SET status = 'resolved', response = ? WHERE id = ? AND version = ? AND status = 'pending'",
+        )
         .run(stringify(response), id, version)
       if (result.changes !== 1) throw new AgentError('REQUEST_NOT_PENDING', 'MCP 表单已经处理', 409)
       if (operation) this.saveInteractionOperation(operation)
       event = this.insertEvent(row.thread_id, row.turn_id, 'interaction/resolved', {
-        interactionId: id, result: response, resolvedAt: now(),
+        interactionId: id,
+        result: response,
+        resolvedAt: now(),
       })
     })
     return event
   }
 
   resolvedApprovalGrantRules(threadID: string): unknown[] {
-    const rows = this.sqlite.query(`SELECT c.payload FROM approval_checkpoints c
+    const rows = this.sqlite
+      .query(
+        `SELECT c.payload FROM approval_checkpoints c
       JOIN approval_requests r ON r.id = c.approval_id
-      WHERE r.thread_id = ? AND r.reply = 'allow' AND r.status IN ('resolved', 'claimed')`).all(threadID) as Array<{ payload: string }>
+      WHERE r.thread_id = ? AND r.reply = 'allow' AND r.status IN ('resolved', 'claimed')`,
+      )
+      .all(threadID) as Array<{ payload: string }>
     return rows.flatMap((row) => {
       const payload = JSON.parse(row.payload) as ApprovalCheckpointPayload
-      return payload.resolution?.grantRule?.scope === 'session' ? [payload.resolution.grantRule] : []
+      return payload.resolution?.grantRule?.scope === 'session'
+        ? [payload.resolution.grantRule]
+        : []
     })
   }
 
@@ -1381,7 +1554,13 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
         )
         .run(decision, timestamp, approvalID)
       if (updated.changes !== 1) throw new Error(`审批 ${approvalID} 已被并发处理`)
-      const resolution = { decision, ...(feedback ? { feedback } : {}), ...(computerGrant ? { computerGrant } : {}), ...(grantRule ? { grantRule } : {}), resolvedAt: timestamp }
+      const resolution = {
+        decision,
+        ...(feedback ? { feedback } : {}),
+        ...(computerGrant ? { computerGrant } : {}),
+        ...(grantRule ? { grantRule } : {}),
+        resolvedAt: timestamp,
+      }
       this.sqlite
         .query('UPDATE approval_checkpoints SET payload = ?, updated_at = ? WHERE approval_id = ?')
         .run(stringify({ ...checkpoint.payload, resolution }), timestamp, approvalID)
@@ -1453,7 +1632,10 @@ export abstract class InteractionRepositoryDatabase extends ExecutionRepositoryD
         "SELECT COUNT(*) AS count FROM question_requests WHERE thread_id = ? AND status = 'pending'",
       )
       .get(threadID) as { count: number } | null
-    return { approvals: Number(approvals?.count ?? 0) + this.pendingMcpElicitations(threadID).length, questions: Number(questions?.count ?? 0) }
+    return {
+      approvals: Number(approvals?.count ?? 0) + this.pendingMcpElicitations(threadID).length,
+      questions: Number(questions?.count ?? 0),
+    }
   }
 
   invalidateApprovalCheckpoint(approvalID: string, reason: string) {

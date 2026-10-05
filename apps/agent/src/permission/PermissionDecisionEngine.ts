@@ -139,8 +139,11 @@ export class PermissionDecisionEngine {
     })
     const review = (reason: string): ResolvedPermissionDecision => ({
       action: 'review',
-      reviewer: invocation.authorizationScope?.computerApp && invocation.authorizationScope.ruleRequiresApproval
-        ? 'user' : invocation.permissionConfig.approvalsReviewer,
+      reviewer:
+        invocation.authorizationScope?.computerApp &&
+        invocation.authorizationScope.ruleRequiresApproval
+          ? 'user'
+          : invocation.permissionConfig.approvalsReviewer,
       sandbox,
       decision: 'ask',
       risk,
@@ -163,7 +166,9 @@ export class PermissionDecisionEngine {
       if (policy === 'never') return deny(`never 策略禁止新的电脑应用授权：${computerApp.name}`)
       return isGranularApprovalPolicy(policy) && !policy[approvalCapability(invocation, tool)]
         ? deny(`细粒度策略禁止新的电脑应用授权：${computerApp.name}`)
-        : review(`允许在此聊天中读取和操作应用：${computerApp.name}。截图会进入聊天，必要时会短暂切到前台。`)
+        : review(
+            `允许在此聊天中读取和操作应用：${computerApp.name}。截图会进入聊天，必要时会短暂切到前台。`,
+          )
     }
     if (tool.approvalStrategy === 'never-review') return allow('工具声明为无需审批')
     if (tool.approvalStrategy === 'always-review')
@@ -171,8 +176,12 @@ export class PermissionDecisionEngine {
         ? deny('never 策略禁止等待审批')
         : review('工具始终需要审批')
 
-    if (computerApp && !invocation.authorizationScope?.ruleRequiresApproval &&
-        !invocation.input.__hookRequiresApproval && !hasRequestedPermissions(invocation.input))
+    if (
+      computerApp &&
+      !invocation.authorizationScope?.ruleRequiresApproval &&
+      !invocation.input.__hookRequiresApproval &&
+      !hasRequestedPermissions(invocation.input)
+    )
       return allow('电脑应用访问资格已满足')
 
     // sandboxMode remains only as the v4/SQLite compatibility field. It maps

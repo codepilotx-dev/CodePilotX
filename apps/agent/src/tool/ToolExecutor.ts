@@ -488,10 +488,19 @@ export class ToolExecutor {
         : input
     const invocation: ToolInvocation = {
       ...baseInvocation,
-      toolPolicy: { sdkName: definition.sdkName, capabilities: definition.capabilities,
-        allowedModes: definition.allowedModes, approvalStrategy: definition.approvalStrategy,
-        ...(definition.origin ? { origin: definition.origin } : {}) },
-      ...(sensitiveEnvironment || protectedGitWrite || protectedConfigWrite || inspection?.grantsForbidden ? { grantsForbidden: true } : {}),
+      toolPolicy: {
+        sdkName: definition.sdkName,
+        capabilities: definition.capabilities,
+        allowedModes: definition.allowedModes,
+        approvalStrategy: definition.approvalStrategy,
+        ...(definition.origin ? { origin: definition.origin } : {}),
+      },
+      ...(sensitiveEnvironment ||
+      protectedGitWrite ||
+      protectedConfigWrite ||
+      inspection?.grantsForbidden
+        ? { grantsForbidden: true }
+        : {}),
       input: policyInput,
       ...(authorizationScope ? { authorizationScope } : {}),
       ...(context.authorizationOnly ? { durableApproval: true } : {}),
@@ -574,15 +583,35 @@ export class ToolExecutor {
       if (!this.options)
         throw new AgentError('TOOL_REVIEW_REQUIRED', '工具需要审批但执行器未配置审批服务', 403)
       if (inspection?.fileDiffs) invocation.fileDiffs = inspection.fileDiffs
-      else if ((name === 'Write' || name === 'Edit') && !sensitiveEnvironment && !protectedConfigWrite && !protectedGitWrite && typeof pathValue === 'string') {
+      else if (
+        (name === 'Write' || name === 'Edit') &&
+        !sensitiveEnvironment &&
+        !protectedConfigWrite &&
+        !protectedGitWrite &&
+        typeof pathValue === 'string'
+      ) {
         try {
           const current = await workspace.readEditorFile(pathValue).catch((cause: unknown) => {
-            if (cause instanceof AgentError && cause.code === 'WORKSPACE_PATH_NOT_FOUND' && name === 'Write') return null
+            if (
+              cause instanceof AgentError &&
+              cause.code === 'WORKSPACE_PATH_NOT_FOUND' &&
+              name === 'Write'
+            )
+              return null
             throw cause
           })
-          const afterContent = name === 'Edit' ? applyEditsText(current!.content, input.edits as EditOperation[]) : String(input.content)
-          invocation.fileDiffs = [buildFileDiff({ path: current?.path ?? workspace.displayPath(resolve(workspace.rootPath, pathValue)),
-            operation: current ? 'update' : 'create', beforeContent: current?.content ?? null, afterContent })]
+          const afterContent =
+            name === 'Edit'
+              ? applyEditsText(current!.content, input.edits as EditOperation[])
+              : String(input.content)
+          invocation.fileDiffs = [
+            buildFileDiff({
+              path: current?.path ?? workspace.displayPath(resolve(workspace.rootPath, pathValue)),
+              operation: current ? 'update' : 'create',
+              beforeContent: current?.content ?? null,
+              afterContent,
+            }),
+          ]
         } catch {
           // Existing execution validation remains authoritative when no text preview is available.
         }
@@ -635,7 +664,8 @@ export class ToolExecutor {
         workspace,
         permissionConfig,
         ...(resumedApproval && invocation.name === 'ComputerRead' && context.approvedComputerGrant
-          ? { computerGrant: context.approvedComputerGrant } : {}),
+          ? { computerGrant: context.approvedComputerGrant }
+          : {}),
         model,
         deferredTools,
         fileSnapshots,
@@ -1317,8 +1347,12 @@ export class ToolExecutor {
       throw new AgentError('INVALID_TOOL_INSPECTION', '工具授权路径重复', 500)
     }
     const computerApp = scope.computerApp
-    if (computerApp && (!nonFileScope || typeof computerApp.name !== 'string' ||
-        typeof computerApp.allowPersistentApproval !== 'boolean'))
+    if (
+      computerApp &&
+      (!nonFileScope ||
+        typeof computerApp.name !== 'string' ||
+        typeof computerApp.allowPersistentApproval !== 'boolean')
+    )
       throw new AgentError('INVALID_TOOL_INSPECTION', '应用授权信息无效', 500)
     const reviewSummary = scope.reviewSummary
     if (reviewSummary) {
@@ -1361,7 +1395,13 @@ export class ToolExecutor {
     })
     return {
       ...(value.grantsForbidden ? { grantsForbidden: true } : {}),
-      ...(value.fileDiffs ? { fileDiffs: value.fileDiffs.filter((diff) => affectedPaths.some((path) => path.path === diff.path)) } : {}),
+      ...(value.fileDiffs
+        ? {
+            fileDiffs: value.fileDiffs.filter((diff) =>
+              affectedPaths.some((path) => path.path === diff.path),
+            ),
+          }
+        : {}),
       authorizationScope: {
         ...(nonFileScope && scope.browserOrigin ? { browserOrigin: scope.browserOrigin } : {}),
         affectedPaths,

@@ -531,8 +531,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const mcpConnections = new McpConnectionManager(
       mcpConfigs,
       tools,
-      new McpClientFactory(mcpOAuthCoordinator, (connectionId, server, tool, identity, params, signal) =>
-        mcpElicitations.request(connectionId, server, tool, identity, params, signal)),
+      new McpClientFactory(
+        mcpOAuthCoordinator,
+        (connectionId, server, tool, identity, params, signal) =>
+          mcpElicitations.request(connectionId, server, tool, identity, params, signal),
+      ),
       async (generation) => {
         await publishAgentEvent(db, hub, null, null, 'mcp/updated', {
           generation,
@@ -544,8 +547,13 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     const mcpOAuth = new McpOAuthService(mcpConfigs, mcpConnections, mcpOAuthCoordinator)
     const mcp = new McpRuntimeService(mcpConfigs, mcpConnections, mcpOAuth)
     const reviewer = new ReviewerService(db, piModels, configService)
-    const approvals = new ApprovalService(db, hub, tools, (invocation, signal) =>
-      reviewer.review(invocation, signal), configService, browser,
+    const approvals = new ApprovalService(
+      db,
+      hub,
+      tools,
+      (invocation, signal) => reviewer.review(invocation, signal),
+      configService,
+      browser,
     )
     let toolExecutor!: ToolExecutor
     const hooks = new HookService(

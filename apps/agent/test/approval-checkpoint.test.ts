@@ -195,8 +195,11 @@ describe('审批范围与外部交互', () => {
     }
     const grant = rules.candidates(mcp).find((rule) => rule.scope === 'project')!
     const futureRule = { id: grant.id, kind: 'future', target: ['keep'], scope: 'project' }
-    await config.batchWrite({ cwd: grant.workspace, target: { kind: 'project' },
-      edits: [{ keyPath: ['approval_rules'], value: [futureRule] }] })
+    await config.batchWrite({
+      cwd: grant.workspace,
+      target: { kind: 'project' },
+      edits: [{ keyPath: ['approval_rules'], value: [futureRule] }],
+    })
     await rules.persistProject(grant)
     expect(
       await rules.matches({ ...mcp, threadID: db.createThread('同一项目', project.id).id }),

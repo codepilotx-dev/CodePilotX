@@ -26,9 +26,13 @@ export function createAgentComputerApi({
     }, fallback)
   return {
     getComputerState: () => call(() => rpc.call('computer/state', {}), mockClient.getComputerState),
-    discoverComputerApps: () => call(() => rpc.call('computer/apps', {}), mockClient.discoverComputerApps),
+    discoverComputerApps: () =>
+      call(() => rpc.call('computer/apps', {}), mockClient.discoverComputerApps),
     configureComputer: (input: RpcParams<'computer/configure'>) =>
-      call(() => rpc.call('computer/configure', input), () => mockClient.configureComputer(input)),
+      call(
+        () => rpc.call('computer/configure', input),
+        () => mockClient.configureComputer(input),
+      ),
     stopComputer: () => call(() => rpc.call('computer/stop', {}), mockClient.stopComputer),
     onComputerChanged: (callback) =>
       rpc.subscribeEnvelope({ liveEventTypes: AGENT_LIVE_EVENT_FILTERS.computer }, (events) => {

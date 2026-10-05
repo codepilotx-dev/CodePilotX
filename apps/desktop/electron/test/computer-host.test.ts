@@ -11,13 +11,21 @@ import { CpxCuaRuntime, resolveCpxCuaExecutable } from '../src/computer/cpx-cua-
 import type { DesktopLogger } from '../src/logging/desktop-logger'
 
 const logger: DesktopLogger = {
-  directory: '', consoleEnabled: false,
-  debug() {}, info() {}, warn() {}, error() {}, forwardConsoleLine() {},
+  directory: '',
+  consoleEnabled: false,
+  debug() {},
+  info() {},
+  warn() {},
+  error() {},
+  forwardConsoleLine() {},
 }
 function deferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (error: Error) => void
-  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no })
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes
+    reject = no
+  })
   return { promise, resolve, reject }
 }
 async function until(predicate: () => boolean) {
@@ -45,7 +53,8 @@ test('握手完成前不报告就绪，原生调用挂起时停止仍能结束�
   const rpc = {
     invalidate() {},
     async call(method: string, params: Record<string, unknown>) {
-      if (method === 'computer/host/registerIdentity') registrations.push(params.available as boolean)
+      if (method === 'computer/host/registerIdentity')
+        registrations.push(params.available as boolean)
       if (method === 'computer/host/complete') completions.push(params)
       if (method === 'computer/host/next') {
         const poll = deferred<Next>()
@@ -55,13 +64,30 @@ test('握手完成前不报告就绪，原生调用挂起时停止仍能结束�
       return { ok: true }
     },
   } as unknown as ComputerHostClient
-  const controller = new DesktopComputerController({
-    getSupervisor: () => undefined, resolveExecutable: () => undefined, logger,
-  }, { rpc, runtime: {
-    start: () => { starts++; return ready.promise },
-    stop: () => { stops++; if (calls) native.reject(new Error('stopped')) },
-    callTool: () => { calls++; return native.promise },
-  } })
+  const controller = new DesktopComputerController(
+    {
+      getSupervisor: () => undefined,
+      resolveExecutable: () => undefined,
+      logger,
+    },
+    {
+      rpc,
+      runtime: {
+        start: () => {
+          starts++
+          return ready.promise
+        },
+        stop: () => {
+          stops++
+          if (calls) native.reject(new Error('stopped'))
+        },
+        callTool: () => {
+          calls++
+          return native.promise
+        },
+      },
+    },
+  )
   try {
     await controller.ensure()
     await until(() => polls.length > 0)
@@ -70,9 +96,16 @@ test('握手完成前不报告就绪，原生调用挂起时停止仍能结束�
     expect(registrations).toEqual([false])
     ready.resolve()
     await until(() => registrations.includes(true) && polls.length > 0)
-    polls.shift()!.resolve({ generation: 'generation:1', enabled: true, command: {
-      requestId: 'request:blocked', generation: 'generation:1', kind: 'list', session: 'session:1',
-    } })
+    polls.shift()!.resolve({
+      generation: 'generation:1',
+      enabled: true,
+      command: {
+        requestId: 'request:blocked',
+        generation: 'generation:1',
+        kind: 'list',
+        session: 'session:1',
+      },
+    })
     await until(() => calls > 0 && polls.length > 0)
     const before = stops
     polls.shift()!.resolve({ generation: 'generation:2', enabled: true, command: null })
@@ -80,12 +113,28 @@ test('握手完成前不报告就绪，原生调用挂起时停止仍能结束�
     expect(completions).toEqual([])
   } finally {
     controller.dispose()
-    for (const poll of polls) poll.resolve({ generation: 'generation:2', enabled: false, command: null })
+    for (const poll of polls)
+      poll.resolve({ generation: 'generation:2', enabled: false, command: null })
   }
 }, 6000)
 
-const APP = { appId: 'aumid:notepad', name: '记事本', pid: 42, windowId: '7', processKey: '1:2', identity: { kind: 'unsigned' as const, fingerprint: 'a'.repeat(64), legacyAppId: 'exe:notepad', sha256: 'a'.repeat(64) } }
-const command = (operation: ComputerAction, extra: Partial<ComputerCommand> = {}): ComputerCommand =>
+const APP = {
+  appId: 'aumid:notepad',
+  name: '记事本',
+  pid: 42,
+  windowId: '7',
+  processKey: '1:2',
+  identity: {
+    kind: 'unsigned' as const,
+    fingerprint: 'a'.repeat(64),
+    legacyAppId: 'exe:notepad',
+    sha256: 'a'.repeat(64),
+  },
+}
+const command = (
+  operation: ComputerAction,
+  extra: Partial<ComputerCommand> = {},
+): ComputerCommand =>
   ({
     requestId: 'request:1',
     generation: 'generation:1',
@@ -102,17 +151,15 @@ const command = (operation: ComputerAction, extra: Partial<ComputerCommand> = {}
  * unlisted key is a hard rejection rather than an ignored extra.
  */
 const NATIVE_PARAMS: Record<string, readonly string[]> = {
-  click: 'action button capture_id count delivery_mode element_token from_zoom modifier pid scope session target window_id x y',
-  double_click:
-    'delivery_mode element_token from_zoom modifier pid session window_id x y',
+  click:
+    'action button capture_id count delivery_mode element_token from_zoom modifier pid scope session target window_id x y',
+  double_click: 'delivery_mode element_token from_zoom modifier pid session window_id x y',
   right_click: 'delivery_mode element_token from_zoom modifier pid session window_id x y',
   drag: 'button delivery_mode duration_ms from_x from_y from_zoom modifier pid scope session steps target to_x to_y window_id',
   type_text: 'delay_ms delivery_mode element_token pid scope session target text window_id x y',
-  press_key:
-    'delivery_mode element_token key modifiers pid scope session target window_id x y',
+  press_key: 'delivery_mode element_token key modifiers pid scope session target window_id x y',
   hotkey: 'delivery_mode element_token keys pid scope session target window_id x y',
-  scroll:
-    'amount by delivery_mode direction element_token pid scope session target window_id x y',
+  scroll: 'amount by delivery_mode direction element_token pid scope session target window_id x y',
 }
 const INJECTED = ['cpx_app_id', 'cpx_process_key', 'cpx_fingerprint', 'cpx_window_id']
 const assertDeclared = ([name, args]: [string, Record<string, unknown>]) => {
@@ -144,7 +191,12 @@ test('窗口身份必须与宿主发放的引用完全一致', () => {
   expect(matchesIssuedWindow(APP, { ...APP, appId: 'aumid:calc' })).toBe(false)
   expect(matchesIssuedWindow(APP, { ...APP, pid: 43 })).toBe(false)
   expect(matchesIssuedWindow(APP, { ...APP, windowId: '8' })).toBe(false)
-  expect(matchesIssuedWindow(APP, { ...APP, identity: { ...APP.identity, fingerprint: 'b'.repeat(64) } })).toBe(false)
+  expect(
+    matchesIssuedWindow(APP, {
+      ...APP,
+      identity: { ...APP.identity, fingerprint: 'b'.repeat(64) },
+    }),
+  ).toBe(false)
 })
 
 test('每个操作只发送目标原生工具声明的字段', () => {
@@ -183,8 +235,8 @@ test('元素优先使用 token，坐标形式带窗口坐标与截图', () => {
     pid: APP.pid,
     cpx_app_id: APP.appId,
     cpx_process_key: APP.processKey,
-      cpx_fingerprint: APP.identity.fingerprint,
-      cpx_window_id: APP.windowId,
+    cpx_fingerprint: APP.identity.fingerprint,
+    cpx_window_id: APP.windowId,
     delivery_mode: 'foreground',
     window_id: 7,
     x: 10,
@@ -195,7 +247,15 @@ test('元素优先使用 token，坐标形式带窗口坐标与截图', () => {
 
 test('拖拽只走坐标形式，元素 token 不会泄漏到原生拖拽参数', () => {
   const [name, args] = nativeAction(
-    { action: 'drag', elementToken: 's00000001:4', x: 1, y: 2, endX: 3, endY: 4, delivery: 'foreground' },
+    {
+      action: 'drag',
+      elementToken: 's00000001:4',
+      x: 1,
+      y: 2,
+      endX: 3,
+      endY: 4,
+      delivery: 'foreground',
+    },
     command({ action: 'drag', x: 1, y: 2, endX: 3, endY: 4, delivery: 'foreground' }),
     APP,
   )
@@ -215,9 +275,11 @@ test('没有截图时不带 capture_id，原生只对 click 做截图准入', ()
 })
 
 test('原生结果保留文本、错误码与截图，用于聊天与渲染', () => {
-  const grounded = toResult({ structuredContent: { elements: [
-    { element_token: 's00000001:4', role: 'button', label: '确定' },
-  ] } })
+  const grounded = toResult({
+    structuredContent: {
+      elements: [{ element_token: 's00000001:4', role: 'button', label: '确定' }],
+    },
+  })
   expect(grounded.text).toContain('s00000001:4')
   expect(grounded.text).toContain('确定')
   expect(

@@ -85,7 +85,8 @@ export class DesktopBrowserController {
           ? {
               tabId: entry.tab.tabId,
               allowed: (url) =>
-                !entry.tab.controlThreadId || this.#allowed(this.#hosts.get(entry.owner.id)!, url, entry),
+                !entry.tab.controlThreadId ||
+                this.#allowed(this.#hosts.get(entry.owner.id)!, url, entry),
             }
           : undefined
       },
@@ -632,10 +633,18 @@ export class DesktopBrowserController {
     if (url === 'about:blank' || url === 'about:srcdoc') return true
     try {
       const origin = new URL(url).origin
-      if (host.permissions.some((p) => p.origin === origin && p.decision === 'deny') || entry?.agentAuthorization?.deniedOrigins?.includes(origin)) return false
-      return host.permissions.some((p) => p.origin === origin && p.decision === 'allow') ||
-        !!entry?.agentAuthorization && entry.agentAuthorization.generation === entry.tab.generation &&
-        (entry.agentAuthorization.allowAllSites === true || entry.agentAuthorization.allowedOrigins.includes(origin))
+      if (
+        host.permissions.some((p) => p.origin === origin && p.decision === 'deny') ||
+        entry?.agentAuthorization?.deniedOrigins?.includes(origin)
+      )
+        return false
+      return (
+        host.permissions.some((p) => p.origin === origin && p.decision === 'allow') ||
+        (!!entry?.agentAuthorization &&
+          entry.agentAuthorization.generation === entry.tab.generation &&
+          (entry.agentAuthorization.allowAllSites === true ||
+            entry.agentAuthorization.allowedOrigins.includes(origin)))
+      )
     } catch {
       return false
     }

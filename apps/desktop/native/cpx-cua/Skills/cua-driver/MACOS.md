@@ -102,17 +102,17 @@ is safe even for apps that normally foreground on media-load
 
 ## Intent → tool mapping (macOS-specific)
 
-| Intent                                | Use                                                                                    | Don't use                                                   |
-| ------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Open / launch an app                  | `launch_app({bundle_id})` or `launch_app({bundle_id, urls:[...]})`                     | `open -a`, `osascript 'tell app … to launch/activate/open'` |
-| Find a pid                            | `list_apps` or `launch_app`'s return                                                   | `pgrep`, `ps`, `osascript frontmost`                        |
+| Intent                                | Use                                                                                   | Don't use                                                   |
+| ------------------------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Open / launch an app                  | `launch_app({bundle_id})` or `launch_app({bundle_id, urls:[...]})`                    | `open -a`, `osascript 'tell app … to launch/activate/open'` |
+| Find a pid                            | `list_apps` or `launch_app`'s return                                                  | `pgrep`, `ps`, `osascript frontmost`                        |
 | Enumerate an app's windows            | `list_windows({pid})`: or read the `windows` array `launch_app` already returns       | `osascript 'every window of app …'`                         |
-| Move or resize one exact window       | `set_window_frame({pid, window_id, x, y, width, height})`                              | `osascript` position/size writes or title-bar dragging      |
-| Click / type / scroll / keys          | `click`, `type_text`, `scroll`, `press_key`, `hotkey`                                  | `osascript`, `cliclick`, raw `CGEvent`, `open <url>`        |
+| Move or resize one exact window       | `set_window_frame({pid, window_id, x, y, width, height})`                             | `osascript` position/size writes or title-bar dragging      |
+| Click / type / scroll / keys          | `click`, `type_text`, `scroll`, `press_key`, `hotkey`                                 | `osascript`, `cliclick`, raw `CGEvent`, `open <url>`        |
 | Drag / drag-and-drop / marquee select | `drag({pid, from_x, from_y, to_x, to_y})` (pixel-only: macOS AX has no semantic drag) | `cliclick dd:`, `osascript drag`                            |
-| Screenshot                            | `get_window_state` (window) or authorized `get_desktop_state` (desktop)                | `screencapture`                                             |
-| Quit an app                           | ask the user first, then `hotkey({pid, keys:["cmd","q"]})`                             | `kill`, `killall`, `pkill`                                  |
-| Hand a file/URL to an app             | `launch_app({bundle_id, urls:[<path>]})`                                               | `open -a <App> <path>`, `open <url>`                        |
+| Screenshot                            | `get_window_state` (window) or authorized `get_desktop_state` (desktop)               | `screencapture`                                             |
+| Quit an app                           | ask the user first, then `hotkey({pid, keys:["cmd","q"]})`                            | `kill`, `killall`, `pkill`                                  |
+| Hand a file/URL to an app             | `launch_app({bundle_id, urls:[<path>]})`                                              | `open -a <App> <path>`, `open <url>`                        |
 
 ### The narrow carve-out
 
@@ -367,7 +367,7 @@ There is no backgrounded path that reaches these apps today.
   background pixel click lands wherever the pointer happens to be. When the
   target maps a Tk library or Python's `_tkinter`, a background window pixel
   click returns `background_unavailable` with `reason:
-  "pointer_reading_toolkit"`. Other pointer-reading apps cannot be detected
+"pointer_reading_toolkit"`. Other pointer-reading apps cannot be detected
   cheaply; their background result stays "not driver-verified" and says the
   pointer was not moved. Retry with `delivery_mode:"foreground"`, which moves
   the pointer first.

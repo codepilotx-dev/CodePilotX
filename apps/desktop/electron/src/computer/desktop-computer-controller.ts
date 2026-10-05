@@ -56,9 +56,14 @@ export class DesktopComputerController {
   #activating?: Promise<void>
   #executing?: Promise<void>
 
-  constructor(private readonly options: DesktopComputerControllerOptions, dependencies?: { rpc: ComputerHostClient; runtime: ComputerRuntime }) {
+  constructor(
+    private readonly options: DesktopComputerControllerOptions,
+    dependencies?: { rpc: ComputerHostClient; runtime: ComputerRuntime },
+  ) {
     this.#rpc = dependencies?.rpc ?? new ComputerHostRpcClient(options.getSupervisor)
-    this.#runtime = dependencies?.runtime ?? new CpxCuaRuntime(options.resolveExecutable, options.logger, () => this.#runtimeLost())
+    this.#runtime =
+      dependencies?.runtime ??
+      new CpxCuaRuntime(options.resolveExecutable, options.logger, () => this.#runtimeLost())
   }
 
   /** Registers with the Agent and starts draining computer commands. */
@@ -67,7 +72,10 @@ export class DesktopComputerController {
     const host = this.#host ?? this.#createHost()
     if (host.registered) return
     try {
-      await this.#rpc.call('computer/host/registerIdentity', { instanceId: host.instanceId, available: this.#ready })
+      await this.#rpc.call('computer/host/registerIdentity', {
+        instanceId: host.instanceId,
+        available: this.#ready,
+      })
       if (this.#disposed || this.#host !== host) return
       host.registered = true
       this.#poll()
@@ -96,9 +104,7 @@ export class DesktopComputerController {
     if (host) {
       host.stopped = true
       clearTimeout(host.timer)
-      void this.#rpc
-        .call('computer/host/release', { instanceId: host.instanceId })
-        .catch(() => {})
+      void this.#rpc.call('computer/host/release', { instanceId: host.instanceId }).catch(() => {})
     }
     this.#releaseNativeState()
   }
@@ -114,7 +120,9 @@ export class DesktopComputerController {
     this.#releaseNativeState()
     if (!host || this.#disposed) return
     host.registered = false
-    void this.#rpc.call('computer/host/release', { instanceId: host.instanceId }).catch(() => undefined)
+    void this.#rpc
+      .call('computer/host/release', { instanceId: host.instanceId })
+      .catch(() => undefined)
   }
 
   /**
@@ -134,25 +142,42 @@ export class DesktopComputerController {
     if (this.#disposed || !host || host.stopped) return
     const instanceId = host.instanceId
     void this.#rpc
-      .call('computer/host/next', { instanceId, ...(this.#generation ? { generation: this.#generation } : {}) })
+      .call('computer/host/next', {
+        instanceId,
+        ...(this.#generation ? { generation: this.#generation } : {}),
+      })
       .then(async (result) => {
         if (this.#disposed || this.#host !== host || instanceId !== host.instanceId) return
         if (result.generation !== this.#generation) {
           this.#releaseNativeState()
           this.#generation = result.generation
         }
-        if (!result.enabled) { this.#releaseNativeState(); return }
+        if (!result.enabled) {
+          this.#releaseNativeState()
+          return
+        }
         if (!this.#ready && !this.#activating && !this.#executing) {
           const generation = this.#generation
-          this.#activating = this.#runtime.start().then(async () => {
-            if (this.#disposed || this.#host !== host || this.#generation !== generation) return
-            this.#ready = true
-            await this.#rpc.call('computer/host/registerIdentity', { instanceId, available: true })
-          }).catch(async () => {
-            if (this.#host !== host || this.#generation !== generation) return
-            this.#releaseNativeState()
-            await this.#rpc.call('computer/host/registerIdentity', { instanceId, available: false }).catch(() => undefined)
-          }).finally(() => { this.#activating = undefined })
+          this.#activating = this.#runtime
+            .start()
+            .then(async () => {
+              if (this.#disposed || this.#host !== host || this.#generation !== generation) return
+              this.#ready = true
+              await this.#rpc.call('computer/host/registerIdentity', {
+                instanceId,
+                available: true,
+              })
+            })
+            .catch(async () => {
+              if (this.#host !== host || this.#generation !== generation) return
+              this.#releaseNativeState()
+              await this.#rpc
+                .call('computer/host/registerIdentity', { instanceId, available: false })
+                .catch(() => undefined)
+            })
+            .finally(() => {
+              this.#activating = undefined
+            })
         }
         // Keep polling while native work runs so stop can retire the process.
         if (result.command) {
@@ -162,7 +187,9 @@ export class DesktopComputerController {
             await previous
             if (!this.#disposed && command.generation === this.#generation)
               await this.#execute(instanceId, command)
-          })().finally(() => { if (this.#executing === executing) this.#executing = undefined })
+          })().finally(() => {
+            if (this.#executing === executing) this.#executing = undefined
+          })
           this.#executing = executing
         }
       })
@@ -173,10 +200,13 @@ export class DesktopComputerController {
       })
       .finally(() => {
         if (this.#disposed || this.#host !== host || host.stopped) return
-        host.timer = setTimeout(() => {
-          if (host.registered) this.#poll()
-          else void this.ensure()
-        }, this.#ready && host.registered ? 0 : IDLE_POLL_MS)
+        host.timer = setTimeout(
+          () => {
+            if (host.registered) this.#poll()
+            else void this.ensure()
+          },
+          this.#ready && host.registered ? 0 : IDLE_POLL_MS,
+        )
       })
   }
 
@@ -184,7 +214,11 @@ export class DesktopComputerController {
     let failed = false
     const result = await this.#dispatch(command).catch((): ComputerResult => {
       failed = true
-      return { text: '电脑运行时连接失效或超时；结果不确定，请重新发现应用。', isError: true, code: 'computer_runtime_lost' }
+      return {
+        text: '电脑运行时连接失效或超时；结果不确定，请重新发现应用。',
+        isError: true,
+        code: 'computer_runtime_lost',
+      }
     })
     if (command.generation !== this.#generation || this.#disposed) return
     try {
@@ -213,8 +247,7 @@ export class DesktopComputerController {
   }
 
   #resolveWindow(command: ComputerCommand): NativeWindow {
-    if (!command.window)
-      throw new Error('电脑命令缺少窗口引用，请重新发现并读取应用')
+    if (!command.window) throw new Error('电脑命令缺少窗口引用，请重新发现并读取应用')
     const issued = this.#windows.get(command.window.ref)
     if (!issued) throw new Error('窗口引用已失效，请重新发现应用')
     if (!matchesIssuedWindow(issued, command.window))
@@ -226,10 +259,11 @@ export class DesktopComputerController {
     const raw = await this.#runtime.callTool('cpx_apps', {})
     if (generation !== this.#generation) throw new Error('电脑发现已取消')
     if (raw.isError) return toResult(raw)
-    const discovered = ((raw.structuredContent?.windows ?? []) as NativeWindow[]).flatMap((entry) =>
-      typeof entry.pid === 'number' && entry.appId && entry.windowId && entry.identity
-        ? [{ ...entry, windowId: String(entry.windowId) }]
-        : [],
+    const discovered = ((raw.structuredContent?.windows ?? []) as NativeWindow[]).flatMap(
+      (entry) =>
+        typeof entry.pid === 'number' && entry.appId && entry.windowId && entry.identity
+          ? [{ ...entry, windowId: String(entry.windowId) }]
+          : [],
     )
     this.#windows.clear()
     const windows: ComputerWindow[] = discovered.map((entry) => {
@@ -280,7 +314,13 @@ export class DesktopComputerController {
 /** The host only acts on a window whose identity still matches the one it issued. */
 export const matchesIssuedWindow = (
   issued: NativeWindow,
-  claimed: { appId: string; pid: number; windowId: string; processKey: string; identity?: ComputerIdentity },
+  claimed: {
+    appId: string
+    pid: number
+    windowId: string
+    processKey: string
+    identity?: ComputerIdentity
+  },
 ): boolean =>
   issued.appId === claimed.appId &&
   issued.pid === claimed.pid &&
@@ -383,14 +423,29 @@ export const toResult = (raw: CpxCuaToolResult): ComputerResult => {
   const text = (raw.content ?? [])
     .flatMap((part) => (typeof part.text === 'string' ? [part.text] : []))
     .join('\n')
-  const elements = Array.isArray(structured.elements) ? structured.elements.flatMap((entry: unknown) => {
-    if (!entry || typeof entry !== 'object') return []
-    const element = entry as Record<string, unknown>
-    if (typeof element.element_token !== 'string') return []
-    return [{ element_token: element.element_token, role: element.role, label: element.label, value: element.value, enabled: element.enabled, actions: element.actions, frame: element.frame }]
-  }) : []
+  const elements = Array.isArray(structured.elements)
+    ? structured.elements.flatMap((entry: unknown) => {
+        if (!entry || typeof entry !== 'object') return []
+        const element = entry as Record<string, unknown>
+        if (typeof element.element_token !== 'string') return []
+        return [
+          {
+            element_token: element.element_token,
+            role: element.role,
+            label: element.label,
+            value: element.value,
+            enabled: element.enabled,
+            actions: element.actions,
+            frame: element.frame,
+          },
+        ]
+      })
+    : []
   return {
-    text: [text || (raw.isError ? 'CPX-CUA 未能完成请求' : '操作已完成'), ...(elements.length ? [`界面元素：\n${JSON.stringify(elements)}`] : [])].join('\n'),
+    text: [
+      text || (raw.isError ? 'CPX-CUA 未能完成请求' : '操作已完成'),
+      ...(elements.length ? [`界面元素：\n${JSON.stringify(elements)}`] : []),
+    ].join('\n'),
     ...(raw.isError ? { isError: true } : {}),
     ...(typeof structured.code === 'string' ? { code: structured.code } : {}),
     ...(images.length ? { images } : {}),

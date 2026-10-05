@@ -19,28 +19,59 @@ test('全站授权仍阻止明确拒绝的主站、导航与 frame，单次 orig
   const navigations: string[] = []
   const contents = {
     getURL: () => 'https://blocked.test/',
-    loadURL: async (url: string) => { navigations.push(url) },
+    loadURL: async (url: string) => {
+      navigations.push(url)
+    },
     debugger: { isAttached: () => true, sendCommand: async () => ({}) },
   } as unknown as Parameters<typeof runBrowserOperation>[0]
-  const command: BrowserCommand = { requestId: 'request', tabId: 'tab', generation: 'generation',
-    allowedOrigins: ['https://allowed.test'], deniedOrigins: ['https://blocked.test'], allowAllSites: true,
-    operation: { action: 'snapshot' } }
-  const invoke = (next: BrowserCommand) => runBrowserOperation(contents, next, () => 'document', new AbortController().signal)
+  const command: BrowserCommand = {
+    requestId: 'request',
+    tabId: 'tab',
+    generation: 'generation',
+    allowedOrigins: ['https://allowed.test'],
+    deniedOrigins: ['https://blocked.test'],
+    allowAllSites: true,
+    operation: { action: 'snapshot' },
+  }
+  const invoke = (next: BrowserCommand) =>
+    runBrowserOperation(contents, next, () => 'document', new AbortController().signal)
   await expect(invoke(command)).rejects.toThrow('需要授权')
-  await expect(invoke({ ...command, operation: { action: 'navigate', url: 'https://blocked.test/' } })).rejects.toThrow('需要授权')
-  await invoke({ ...command, allowAllSites: false, operation: { action: 'navigate', url: 'https://allowed.test/' } })
+  await expect(
+    invoke({ ...command, operation: { action: 'navigate', url: 'https://blocked.test/' } }),
+  ).rejects.toThrow('需要授权')
+  await invoke({
+    ...command,
+    allowAllSites: false,
+    operation: { action: 'navigate', url: 'https://allowed.test/' },
+  })
   expect(navigations).toEqual(['https://allowed.test/'])
-  await expect(invoke({ ...command, allowAllSites: false, operation: { action: 'navigate', url: 'https://other.test/' } })).rejects.toThrow('需要授权')
+  await expect(
+    invoke({
+      ...command,
+      allowAllSites: false,
+      operation: { action: 'navigate', url: 'https://other.test/' },
+    }),
+  ).rejects.toThrow('需要授权')
   Object.assign(contents, {
     getURL: () => 'https://allowed.test/',
-    debugger: { isAttached: () => true, sendCommand: async (method: string) => {
-      if (method === 'Page.getFrameTree') return { frameTree: { frame: { id: 'main', url: 'https://allowed.test/' },
-        childFrames: [{ frame: { id: 'child', url: 'https://blocked.test/' } }] } }
-      if (method === 'Target.getTargets') return { targetInfos: [] }
-      return {}
-    } },
+    debugger: {
+      isAttached: () => true,
+      sendCommand: async (method: string) => {
+        if (method === 'Page.getFrameTree')
+          return {
+            frameTree: {
+              frame: { id: 'main', url: 'https://allowed.test/' },
+              childFrames: [{ frame: { id: 'child', url: 'https://blocked.test/' } }],
+            },
+          }
+        if (method === 'Target.getTargets') return { targetInfos: [] }
+        return {}
+      },
+    },
   })
-  await expect(invoke({ ...command, operation: { action: 'snapshot', target: { frameId: 'child' } } })).rejects.toThrow('需要授权')
+  await expect(
+    invoke({ ...command, operation: { action: 'snapshot', target: { frameId: 'child' } } }),
+  ).rejects.toThrow('需要授权')
 })
 
 afterEach(async () => {

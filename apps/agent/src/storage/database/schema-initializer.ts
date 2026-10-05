@@ -71,7 +71,7 @@ const SCHEDULE_CALENDAR_SCHEMA = [
 ] as const
 
 export const FINAL_SCHEMA = [
-  "CREATE TABLE approval_reviews (id TEXT PRIMARY KEY, thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE, tool_call_id TEXT NOT NULL, invocation TEXT NOT NULL, fingerprint TEXT NOT NULL, decision TEXT NOT NULL, risk TEXT NOT NULL, reason TEXT NOT NULL, retry_operation_id TEXT, retry_consumed_at INTEGER, created_at INTEGER NOT NULL)",
+  'CREATE TABLE approval_reviews (id TEXT PRIMARY KEY, thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE, tool_call_id TEXT NOT NULL, invocation TEXT NOT NULL, fingerprint TEXT NOT NULL, decision TEXT NOT NULL, risk TEXT NOT NULL, reason TEXT NOT NULL, retry_operation_id TEXT, retry_consumed_at INTEGER, created_at INTEGER NOT NULL)',
   "CREATE TABLE mcp_elicitations (id TEXT PRIMARY KEY, thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE, turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE, agent_id TEXT NOT NULL, tool_call_id TEXT NOT NULL, connection_id TEXT NOT NULL, payload TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL DEFAULT 'pending', response TEXT, created_at INTEGER NOT NULL)",
   'CREATE TABLE agent_checkpoints (\n        agent_id TEXT PRIMARY KEY REFERENCES agent_executions(id) ON DELETE CASCADE,\n        turn_id TEXT NOT NULL REFERENCES turns(id) ON DELETE CASCADE,\n        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n        state TEXT NOT NULL,\n        payload TEXT NOT NULL,\n        version INTEGER NOT NULL,\n        created_at INTEGER NOT NULL,\n        updated_at INTEGER NOT NULL\n      )',
   'CREATE TABLE agent_compactions (\n          id TEXT PRIMARY KEY,\n          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,\n          turn_id TEXT REFERENCES turns(id) ON DELETE SET NULL,\n          baseline_version INTEGER NOT NULL,\n          before_count INTEGER NOT NULL,\n          after_count INTEGER NOT NULL,\n          summary TEXT NOT NULL,\n          replacement_history TEXT NOT NULL,\n          created_at INTEGER NOT NULL\n        , before_tokens INTEGER NOT NULL DEFAULT 0, after_tokens INTEGER NOT NULL DEFAULT 0, target_tokens INTEGER NOT NULL DEFAULT 0, usage_sample_id TEXT)',
@@ -1533,7 +1533,16 @@ class SchemaInitializer {
                 this.sqlite.exec('ALTER TABLE inputs ADD COLUMN skills TEXT')
             },
             51: () => this.sqlite.exec(BROWSER_DATA_SCHEMA.join(';')),
-            52: () => this.sqlite.exec(FINAL_SCHEMA.filter((statement) => /^CREATE TABLE (?:mcp_elicitations|approval_reviews) /u.test(statement)).map((statement) => statement.replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS ')).join(';')),
+            52: () =>
+              this.sqlite.exec(
+                FINAL_SCHEMA.filter((statement) =>
+                  /^CREATE TABLE (?:mcp_elicitations|approval_reviews) /u.test(statement),
+                )
+                  .map((statement) =>
+                    statement.replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS '),
+                  )
+                  .join(';'),
+              ),
             50: () =>
               this.sqlite.exec(
                 BROWSER_SCHEMA.map((statement) =>

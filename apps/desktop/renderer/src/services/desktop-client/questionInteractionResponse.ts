@@ -14,8 +14,13 @@ export function questionInteractionResponse(
   const structured = decision.updatedInput?.questionAnswers
   if (Array.isArray(structured)) {
     return {
-      kind: 'question', status: 'answered', resolution: 'user',
-      answers: structured as Extract<RpcResult<'interaction/respond'>['response'], { kind: 'question'; status: 'answered' }>['answers'],
+      kind: 'question',
+      status: 'answered',
+      resolution: 'user',
+      answers: structured as Extract<
+        RpcResult<'interaction/respond'>['response'],
+        { kind: 'question'; status: 'answered' }
+      >['answers'],
     }
   }
   const skippedIds = decision.updatedInput?.skippedQuestionIds ?? []
@@ -39,10 +44,7 @@ export function questionInteractionResponse(
       if (skippedIds.includes(question.id))
         return { questionId: question.id, choiceIds: [], skipped: true as const }
       const value = rawAnswers[question.id] ?? (interaction.questions.length === 1 ? answer : '')
-      const choice = question.choices.find(
-        (candidate) =>
-          candidate.id === value,
-      )
+      const choice = question.choices.find((candidate) => candidate.id === value)
       return {
         questionId: question.id,
         choiceIds: choice ? [choice.id] : [],
