@@ -2,28 +2,59 @@ import type React from 'react'
 import { PanelBottom, PanelRight } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
-import type { WorkbenchPanelSnapshot } from './rightDockState.js'
+import type { WorkbenchPanelSnapshot, WorkspaceLayout } from './rightDockState.js'
 
 export type WorkspaceShellControlsProps = {
   rightDockState: WorkbenchPanelSnapshot
+  hasWorkspaceTabs: boolean
+  workspaceLayout: WorkspaceLayout
+  /** 空工作区的“新建标签页”复用浏览器标签创建流程；不可用时禁用并给出原因。 */
+  canCreateWorkspaceTab: boolean
+  createWorkspaceTabReason?: string
   terminalAvailable: boolean
   terminalVisible: boolean
   showBottomPanel: boolean
   showRightPanel: boolean
   onToggleTerminal: () => void
-  onToggleRightPanel: () => void
+  /** 在仅聊天与分屏之间切换。 */
+  onStepWorkspaceLayout: () => void
+  onCreateWorkspaceTab: () => void
+}
+
+/**
+ * 右侧工作区入口文案与可观察布局同步：
+ * chat 显示“显示标签页”（无标签时是“新建标签页”），split 显示“隐藏标签页”。
+ */
+export function resolveWorkspaceControlPresentation(
+  layout: WorkspaceLayout,
+  hasTabs: boolean,
+): { label: string; pressed: boolean } {
+  if (layout === 'chat') {
+    return { label: hasTabs ? '显示标签页' : '新建标签页', pressed: false }
+  }
+  return { label: '隐藏标签页', pressed: true }
 }
 
 export function WorkspaceShellControls({
-  rightDockState,
+  canCreateWorkspaceTab,
+  createWorkspaceTabReason,
+  hasWorkspaceTabs,
+  workspaceLayout,
   terminalAvailable,
   terminalVisible,
   showBottomPanel,
   showRightPanel,
   onToggleTerminal,
-  onToggleRightPanel,
+  onStepWorkspaceLayout,
+  onCreateWorkspaceTab,
 }: WorkspaceShellControlsProps): React.ReactNode {
   if (!showBottomPanel && !showRightPanel) return null
+
+  const workspaceControl = resolveWorkspaceControlPresentation(
+    workspaceLayout,
+    hasWorkspaceTabs,
+  )
+  const creatingEmptyWorkspace = workspaceLayout === 'chat' && !hasWorkspaceTabs
 
   return (
     <div className="workspace-shell-controls">
@@ -50,15 +81,26 @@ export function WorkspaceShellControls({
       ) : null}
       {showRightPanel ? (
         <IconButton
-          aria-label={rightDockState.open ? '关闭右侧面板' : '显示右侧面板'}
-          aria-pressed={rightDockState.open}
+          aria-label={
+            creatingEmptyWorkspace
+              ? `${workspaceControl.label} (Ctrl+Shift+B)`
+              : workspaceControl.label
+          }
+          aria-pressed={creatingEmptyWorkspace ? false : workspaceControl.pressed}
           className="workspace-shell-control-button"
           color="ghostSecondary"
+          disabled={creatingEmptyWorkspace && !canCreateWorkspaceTab}
           size="toolbar"
-          title={rightDockState.open ? '关闭右侧面板' : '显示右侧面板'}
-          onClick={onToggleRightPanel}
+          title={
+            creatingEmptyWorkspace
+              ? canCreateWorkspaceTab
+                ? '新建标签页 (Ctrl+Shift+B)'
+                : (createWorkspaceTabReason ?? '当前环境无法新建标签页')
+              : `${workspaceControl.label} (Ctrl+Shift+B)`
+          }
+          onClick={creatingEmptyWorkspace ? onCreateWorkspaceTab : onStepWorkspaceLayout}
         >
-          <RightPanelToggleIcon open={rightDockState.open} />
+          <RightPanelToggleIcon open={creatingEmptyWorkspace ? false : workspaceControl.pressed} />
         </IconButton>
       ) : null}
     </div>

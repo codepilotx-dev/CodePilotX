@@ -48,6 +48,7 @@ import type { GitWorkflowMode } from '../panels/GitWorkflowModal.js'
 import { SidebarFrame } from '../SidebarFrame.js'
 import { SidebarNavigationRail } from '../sidebar/SidebarNavigationRail.js'
 import { SidebarScheduledPane } from '../sidebar/SidebarScheduledPane.js'
+import { SidebarPluginsPane } from '../sidebar/SidebarPluginsPane.js'
 import { SIDEBAR_RAIL_WIDTH, sidebarPaneForRoute } from '../sidebar/sidebarNavigation.js'
 import { useSidebarCapabilities } from '../sidebar/SidebarTopNav.js'
 import { AutomationControllerProvider } from '../../automation/AutomationControllerProvider.js'
@@ -259,7 +260,6 @@ export function DesktopLayout(): React.ReactNode {
   const location = useLocation()
   const routeLabel = routeAccessibilityLabel(location.pathname)
   const settings = useDesktopRuntimeSettings()
-  const modernSidebar = settings.values.sidebarLayout === 'modern'
   const activeSidebarPane = sidebarPaneForRoute(
     location.pathname,
     settings.values.sidebarTimelineEnabled,
@@ -335,6 +335,11 @@ export function DesktopLayout(): React.ReactNode {
     workbenchLayoutState,
     workbenchPanelState,
     setWorkbenchPanelState,
+    workspaceView,
+    workspaceLayout,
+    committedWorkspaceLayout,
+    setWorkspaceLayout,
+    stepWorkspaceLayout,
     rightDockState,
     bottomPanelState,
     bottomPanelVisible,
@@ -346,6 +351,9 @@ export function DesktopLayout(): React.ReactNode {
     rightDockWidth,
     rightPanelCommittedSize,
     rightPanelLiveResize,
+    handleRightDockResizeRaw,
+    handleRightDockResizePreview,
+    shouldCommitRightDockResize,
     bottomPanelMinHeight,
     bottomPanelMaxHeight,
     bottomPanelHeight,
@@ -370,9 +378,7 @@ export function DesktopLayout(): React.ReactNode {
     closeTabsToRight,
     pinTab,
     setFileMarkdownViewMode,
-    toggleRightFullWidth,
-  } = useWorkbenchShellController({ modern: modernSidebar, activePane: activeSidebarPane })
-  const rightDockFullWidth = rightDockVisible && workbenchPanelState.rightFullWidth
+  } = useWorkbenchShellController({ activePane: activeSidebarPane })
   const [rightResizePhase, setRightResizePhase] = useState<ResizePhase>('idle')
   const mainRouteRef = useRef<HTMLDivElement>(null)
   const commandMenuInputRef = useRef<HTMLInputElement>(null)
@@ -382,9 +388,9 @@ export function DesktopLayout(): React.ReactNode {
   const visibleRightDockState = useMemo(
     () => ({
       ...rightDockState,
-      open: rightDockVisible,
+      open: workspaceLayout !== 'chat',
     }),
-    [rightDockState, rightDockVisible],
+    [rightDockState, workspaceLayout],
   )
   const lastErrorRef = useRef<{ message: string; timestamp: number } | null>(null)
   const handleErrorMessage = useCallback((raw: unknown): void => {
@@ -536,13 +542,13 @@ export function DesktopLayout(): React.ReactNode {
     handleSettingsBack,
   } = useWorkbenchRouteController()
   const toggleSidebarCollapsed = useCallback((): void => {
-    if (modernSidebar && activeSidebarPane === null) {
+    if (activeSidebarPane === null) {
       navigate(QUICK_CHAT_PATH)
       sidebarShell.pin()
       return
     }
     toggleSidebarPanel()
-  }, [modernSidebar, activeSidebarPane, navigate, sidebarShell.pin, toggleSidebarPanel])
+  }, [activeSidebarPane, navigate, sidebarShell.pin, toggleSidebarPanel])
   useEffect(() => {
     const bridge = window.codePilotXDesktop
     if (!bridge) return
@@ -1366,6 +1372,8 @@ export function DesktopLayout(): React.ReactNode {
             type: 'openTab',
             target: 'right',
             tab: attachmentPreviewTabRef.current,
+            // 会话恢复不主动揭开用户隐藏的工作区。
+            reveal: false,
           })
         : state
     }
@@ -1425,6 +1433,8 @@ export function DesktopLayout(): React.ReactNode {
           type: 'openTab',
           target: sideChatPanelTargetsRef.current.get(tab.id) ?? 'right',
           tab,
+          // 侧边聊天重新挂接保持当前显隐，不额外揭开右工作区。
+          reveal: false,
         })
       }
       return next
@@ -1589,6 +1599,7 @@ export function DesktopLayout(): React.ReactNode {
     openFolder: handleChooseWorkspace,
     toggleSidebar: toggleSidebarCollapsed,
     togglePanel,
+    stepWorkspaceLayout,
     openFiles: handleOpenFilesDock,
     openBrowser: handleOpenBrowser,
     reloadBrowser: handleReloadBrowser,
@@ -1888,8 +1899,6 @@ export function DesktopLayout(): React.ReactNode {
       canNavigateBack={canNavigateBack}
       canNavigateForward={canNavigateForward}
       onToggleSidebar={toggleSidebarCollapsed}
-      onSidebarTriggerPointerEnter={sidebarShell.onTriggerPointerEnter}
-      onSidebarTriggerPointerLeave={sidebarShell.onTriggerPointerLeave}
       onClose={() => {
         void desktopClient.closeWindow()
       }}
@@ -1903,27 +1912,20 @@ export function DesktopLayout(): React.ReactNode {
     />
   )
 
-  const displayedSidebarPane = modernSidebar
-    ? sidebarShell.pane
-    : isSettingsRoute
-      ? 'settings'
-      : 'chats'
+  const displayedSidebarPane = sidebarShell.pane
   const retainedTaskPane =
     useLastNonNull(
       displayedSidebarPane === 'chats' || displayedSidebarPane === 'activity'
         ? displayedSidebarPane
         : null,
     ) ?? 'chats'
-  const scheduledSidebarMounted = useEverOpened(
-    modernSidebar && displayedSidebarPane === 'scheduled',
-  )
+  const scheduledSidebarMounted = useEverOpened(displayedSidebarPane === 'scheduled')
+  const pluginsSidebarMounted = useEverOpened(displayedSidebarPane === 'plugins')
 
   const appSidebarContent = (
     <DesktopSidebar
-      onNavigate={sidebarShell.pin}
       active={displayedSidebarPane === 'chats' || displayedSidebarPane === 'activity'}
-      pane={modernSidebar ? retainedTaskPane : undefined}
-      capabilityState={sidebarCapabilities}
+      pane={retainedTaskPane}
       activeSessionId={sessionId}
       catalogStatus={catalogStatus}
       pendingPermissionSessionIds={pendingPermissionSessionIds}
@@ -1936,7 +1938,7 @@ export function DesktopLayout(): React.ReactNode {
       workspace={currentWorkspace}
       onChooseWorkspace={() => void handleChooseWorkspace()}
       onCreateSession={(workspaceItem) => {
-        if (modernSidebar) sidebarShell.pin()
+        sidebarShell.pin()
         void handleCreateSession(workspaceItem)
       }}
       onOpenCommandMenu={() => setCommandMenuOpen(true)}
@@ -1945,7 +1947,7 @@ export function DesktopLayout(): React.ReactNode {
       onRemoveWorkspace={handleRemoveWorkspace}
       onUnpinWorkspace={handleUnpinWorkspace}
       onSelectSession={(session) => {
-        if (modernSidebar) sidebarShell.pin()
+        sidebarShell.pin()
         handleSelectSession(session)
       }}
       onArchiveSessions={handleArchiveSessions}
@@ -1971,7 +1973,7 @@ export function DesktopLayout(): React.ReactNode {
       activeTab={settingsActiveTab}
       onBack={handleSettingsBack}
       onTabChange={(tab) => {
-        if (modernSidebar) sidebarShell.pin()
+        sidebarShell.pin()
         handleSettingsTabChange(tab)
       }}
     />
@@ -2013,19 +2015,18 @@ export function DesktopLayout(): React.ReactNode {
   const sidebar = (
     <SidebarFrame
       rail={
-        modernSidebar ? (
-          <SidebarNavigationRail
-            shell={sidebarShell}
-            activePane={activeSidebarPane}
-            capabilityState={sidebarCapabilities}
-            onOpenWhatsNew={openWhatsNewDialog}
-            onReport={setNoticeMessage}
-            onPinPanel={sidebarShell.pin}
-          />
-        ) : undefined
+        <SidebarNavigationRail
+          shell={sidebarShell}
+          activePane={activeSidebarPane}
+          capabilityState={sidebarCapabilities}
+          onOpenWhatsNew={openWhatsNewDialog}
+          onReport={setNoticeMessage}
+          onPinPanel={sidebarShell.pin}
+        />
       }
       collapsed={sidebarCollapsed}
       contentKind={isSettingsRoute ? 'settings' : 'tasks'}
+      defaultWidth={340}
       maxWidth={sidebarMaxWidth}
       minWidth={sidebarMinWidth}
       width={sidebarWidth}
@@ -2038,6 +2039,7 @@ export function DesktopLayout(): React.ReactNode {
         hidden={
           displayedSidebarPane === 'settings' ||
           displayedSidebarPane === 'scheduled' ||
+          displayedSidebarPane === 'plugins' ||
           displayedSidebarPane === null
         }
       >
@@ -2049,6 +2051,11 @@ export function DesktopLayout(): React.ReactNode {
       {scheduledSidebarMounted ? (
         <div className="sidebar-panel-content" hidden={displayedSidebarPane !== 'scheduled'}>
           <SidebarScheduledPane />
+        </div>
+      ) : null}
+      {pluginsSidebarMounted ? (
+        <div className="sidebar-panel-content" hidden={displayedSidebarPane !== 'plugins'}>
+          <SidebarPluginsPane />
         </div>
       ) : null}
     </SidebarFrame>
@@ -2651,7 +2658,7 @@ export function DesktopLayout(): React.ReactNode {
 
   const renderWorkbenchPanel = (target: WorkbenchPanelTarget): React.ReactNode => {
     const state = target === 'right' ? rightDockState : bottomPanelState
-    if (!state.open || (target === 'right' && !rightDockVisible)) {
+    if (target === 'bottom' && !state.open) {
       return null
     }
     return (
@@ -2686,7 +2693,6 @@ export function DesktopLayout(): React.ReactNode {
         terminalAvailable={terminalAvailable}
         width={rightDockWidth}
         height={bottomPanelHeight}
-        rightFullWidth={rightDockFullWidth}
         workspace={currentWorkspace}
         browserDraftKey={mainComposerDraftKey}
         onAppendComposerText={handleAppendComposerText}
@@ -2761,7 +2767,9 @@ export function DesktopLayout(): React.ReactNode {
         onSetFileMarkdownViewMode={setFileMarkdownViewMode}
         onSetHeight={handleSetBottomPanelHeight}
         onSetWidth={handleSetRightDockWidth}
-        onToggleRightFullWidth={toggleRightFullWidth}
+        onResizeRawSize={target === 'right' ? handleRightDockResizeRaw : undefined}
+        onResizePreview={target === 'right' ? handleRightDockResizePreview : undefined}
+        shouldCommitResizeSize={target === 'right' ? shouldCommitRightDockResize : undefined}
         onToggleReviewView={() => setReviewView(reviewView === 'inline' ? 'split' : 'inline')}
         onCreateSideChat={() => void createSideChat()}
         sideChat={{
@@ -3217,29 +3225,29 @@ export function DesktopLayout(): React.ReactNode {
               workspaceRef={workspaceRef}
               workspaceStyle={
                 {
-                  '--sidebar-w': modernSidebar
-                    ? sidebarShell.dockedVisible
-                      ? `${sidebarWidth}px`
-                      : `${SIDEBAR_RAIL_WIDTH}px`
-                    : sidebarCollapsed
-                      ? '0px'
-                      : `${sidebarWidth}px`,
+                  '--sidebar-w': sidebarShell.dockedVisible
+                    ? `${sidebarWidth}px`
+                    : `${SIDEBAR_RAIL_WIDTH}px`,
                 } as React.CSSProperties
               }
               workspaceHeader={
                 <DesktopWorkspaceHeader
                   divider={isConversationRoute}
-                  fullWidth={rightDockFullWidth}
                   rightDockOpen={rightDockVisible}
                   shellControls={
                     <WorkspaceShellControls
+                      canCreateWorkspaceTab={browserAvailability === 'available'}
+                      createWorkspaceTabReason="当前桌面运行环境没有提供内置浏览器能力。"
+                      hasWorkspaceTabs={workbenchPanelState.right.tabIds.length > 0}
                       rightDockState={visibleRightDockState}
                       terminalAvailable={terminalAvailable}
                       terminalVisible={terminalVisible}
+                      workspaceLayout={workspaceLayout}
                       showBottomPanel={isQuickChatPage || isConversationRoute}
                       showRightPanel={isQuickChatPage || isConversationRoute}
+                      onCreateWorkspaceTab={handleOpenBrowser}
+                      onStepWorkspaceLayout={stepWorkspaceLayout}
                       onToggleTerminal={toggleIntegratedTerminal}
-                      onToggleRightPanel={() => togglePanel('right')}
                     />
                   }
                 />
@@ -3249,7 +3257,6 @@ export function DesktopLayout(): React.ReactNode {
                   aria-label="主要内容"
                   ref={mainRouteRef}
                   className="desktop-main-route"
-                  data-page-width={settings.values.conversationWidth}
                   id="desktop-main-content"
                   tabIndex={-1}
                   role="region"
@@ -3262,7 +3269,7 @@ export function DesktopLayout(): React.ReactNode {
               }
               auxiliaryPanel={
                 <WorkbenchPanelPresence
-                  fullWidth={rightDockFullWidth}
+                  keepMounted
                   liveResize={rightPanelLiveResize}
                   mainRouteRef={mainRouteRef}
                   workspaceRef={workspaceRef}
@@ -3293,7 +3300,7 @@ export function DesktopLayout(): React.ReactNode {
               }
               auxiliaryPanelVisible={rightDockVisible}
               bottomPanelVisible={bottomPanelVisible}
-              auxiliaryMaximized={workbenchLayoutState?.auxiliaryMaximized ?? false}
+              workspaceLayout={workspaceLayout}
               resizeActive={rightResizePhase !== 'idle'}
             />
           </WorkspaceHeaderProvider>

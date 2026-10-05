@@ -20,6 +20,7 @@
 }
 
 .quick-chat-view {
+  --page-content-max-width: var(--cpx-sys-layout-conversation-max-width);
   --quick-chat-surface-width: min(var(--page-content-max-width), 100%);
   --composer-surface-top-padding: 0.85em 1em 0.7em;
   --composer-surface-top-border: 0;

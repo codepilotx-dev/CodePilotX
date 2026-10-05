@@ -11,7 +11,6 @@ export type DesktopWorkspaceHeaderProps = {
   className?: string
   /** 仅会话滚动内容需要边界时显示 0.5px divider；首页与设置页不固定画线。 */
   divider?: boolean
-  fullWidth: boolean
   rightDockOpen: boolean
   shellControls: React.ReactNode
 }
@@ -26,7 +25,6 @@ const EMPTY_WIDTHS: HeaderSideWidths = { left: 0, right: 0 }
 export function DesktopWorkspaceHeader({
   className,
   divider = false,
-  fullWidth,
   rightDockOpen,
   shellControls,
 }: DesktopWorkspaceHeaderProps): React.ReactNode {
@@ -37,8 +35,8 @@ export function DesktopWorkspaceHeader({
   const shellControlsRef = useRef<HTMLDivElement>(null)
   const [widths, setWidths] = useState<HeaderSideWidths>(EMPTY_WIDTHS)
   const routeItems = useMemo(
-    () => (fullWidth ? [] : selectWorkspaceHeaderItems(snapshot, routeScope)),
-    [fullWidth, routeScope, snapshot],
+    () => selectWorkspaceHeaderItems(snapshot, routeScope),
+    [routeScope, snapshot],
   )
 
   useLayoutEffect(() => {
@@ -91,7 +89,6 @@ export function DesktopWorkspaceHeader({
     <header
       className={['desktop-workspace-header', className].filter(Boolean).join(' ')}
       data-divider={divider || undefined}
-      data-full-width={fullWidth || undefined}
       data-right-dock-open={rightDockOpen || undefined}
       aria-label="工作区工具栏"
       role="toolbar"

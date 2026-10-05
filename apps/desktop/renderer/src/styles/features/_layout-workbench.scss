@@ -103,10 +103,6 @@
   }
 }
 
-.app-shell[data-auxiliary-maximized='true'] .desktop-main {
-  border-left: 0;
-}
-
 .bottom-panel-is-resizing {
   .desktop-workspace-panel--bottom,
   .desktop-workspace-panel-spacer--bottom {
@@ -149,20 +145,12 @@
   overflow: hidden;
 }
 
-.desktop-workspace-panel[data-workbench-panel-presence='exiting'] {
+.desktop-workspace-panel[data-workbench-panel-presence='hidden'] {
   pointer-events: none;
 }
 
 .desktop-main-route {
   --page-content-max-width: var(--cpx-sys-layout-content-max-width);
-
-  &[data-page-width='narrow'] {
-    --page-content-max-width: var(--cpx-sys-layout-reading-max-width);
-  }
-
-  &[data-page-width='wide'] {
-    --page-content-max-width: var(--cpx-sys-layout-wide-max-width);
-  }
 
   display: flex;
   flex-direction: column;

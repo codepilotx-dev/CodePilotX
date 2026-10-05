@@ -27,7 +27,8 @@ export function mergeBrowserWorkbench(
     next[panel].tabIds.push(...previousBrowserIds.filter((id) => !next[panel].tabIds.includes(id)))
     if (previous[panel].activeTabId && previousBrowserIds.includes(previous[panel].activeTabId!)) {
       next[panel].activeTabId = previous[panel].activeTabId
-      next[panel].open = previous[panel].open
+      // 右栏的 open 是 workspaceView 的投影，后台同步不得改写显隐/完整视图状态。
+      if (panel === 'bottom') next[panel].open = previous[panel].open
     }
   }
   for (const record of [...records].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))) {

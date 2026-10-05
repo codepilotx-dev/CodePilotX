@@ -81,8 +81,6 @@ type Props = {
   canNavigateBack: boolean
   canNavigateForward: boolean
   onToggleSidebar: () => void
-  onSidebarTriggerPointerEnter: () => void
-  onSidebarTriggerPointerLeave: () => void
   onMinimize: () => void
   onToggleMaximize: () => void
   onClose: () => void
@@ -221,8 +219,6 @@ export function MenuBar({
   canNavigateBack,
   canNavigateForward,
   onToggleSidebar,
-  onSidebarTriggerPointerEnter,
-  onSidebarTriggerPointerLeave,
   onMinimize,
   onToggleMaximize,
   onClose,
@@ -336,8 +332,6 @@ export function MenuBar({
           <IconButton
             data-app-shell-sidebar-trigger
             onClick={onToggleSidebar}
-            onPointerEnter={onSidebarTriggerPointerEnter}
-            onPointerLeave={onSidebarTriggerPointerLeave}
             color="ghost"
             size="toolbar"
             title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
@@ -515,10 +509,10 @@ export function MenuBar({
               </MenuItem>
               <MenuItem
                 disabled={!isViewActionEnabled('toggleSidePanel')}
-                shortcut="Ctrl+J"
+                shortcut="Ctrl+Shift+B"
                 onSelect={() => onViewMenuAction('toggleSidePanel')}
               >
-                切换右侧面板
+                切换右侧工作区标签页
               </MenuItem>
               <MenuItem
                 disabled={!isViewActionEnabled('toggleBottomPanel')}

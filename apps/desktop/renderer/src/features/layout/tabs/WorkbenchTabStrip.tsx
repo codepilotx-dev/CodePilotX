@@ -77,6 +77,7 @@ export function WorkbenchTabStrip({
       ),
     [sideChatAvailable],
   )
+  const stripTabCount = state.tabIds.length
 
   useEffect(() => {
     const activeTabId = state.activeTabId
@@ -87,6 +88,7 @@ export function WorkbenchTabStrip({
     })
   }, [state.activeTabId])
 
+  // 标签栏在布局切换时保持同一实例，横向 scrollLeft 由浏览器自然保留。
   const focusAt = (index: number): void => {
     const tabId = state.tabIds[index]
     if (!tabId) return
@@ -101,16 +103,16 @@ export function WorkbenchTabStrip({
   ): void => {
     if (event.key === 'ArrowLeft') {
       event.preventDefault()
-      focusAt((index - 1 + state.tabIds.length) % state.tabIds.length)
+      focusAt((index - 1 + stripTabCount) % stripTabCount)
     } else if (event.key === 'ArrowRight') {
       event.preventDefault()
-      focusAt((index + 1) % state.tabIds.length)
+      focusAt((index + 1) % stripTabCount)
     } else if (event.key === 'Home') {
       event.preventDefault()
       focusAt(0)
     } else if (event.key === 'End') {
       event.preventDefault()
-      focusAt(state.tabIds.length - 1)
+      focusAt(stripTabCount - 1)
     } else if (event.key === 'Delete') {
       event.preventDefault()
       onCloseTab(tabId)
@@ -132,7 +134,7 @@ export function WorkbenchTabStrip({
             const tabIcon = definition.getIcon?.(tab) ?? definition.icon
             const tabTitle = getWorkbenchTabDisplayTitle(tab, terminalDisplayPath)
             const active = state.activeTabId === tab.id
-            const canCloseRight = index < state.tabIds.length - 1
+            const canCloseRight = index < stripTabCount - 1
             const hasDivider =
               !active && canCloseRight && state.tabIds[index + 1] !== state.activeTabId
             return (

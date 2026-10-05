@@ -1,17 +1,5 @@
-.conversation-width-icon {
-  transform-origin: center;
-
-  &[data-width='narrow'] {
-    transform: scaleX(0.75);
-  }
-
-  &[data-width='wide'] {
-    transform: scaleX(1.25);
-  }
-}
-
 .conversation-page {
-  --page-content-max-width: 48rem;
+  --page-content-max-width: var(--cpx-sys-layout-conversation-max-width);
   --conversation-shift-offset: 0px;
   --conversation-rail-inline-start: var(--cpx-sys-space-2);
   --conversation-rail-width: var(--cpx-sys-space-8);
@@ -28,16 +16,6 @@
   --conversation-grouped-item-gap: 4px;
   --thread-resource-row-padding-x: 12px;
   background: var(--cpx-sys-color-surface-canvas);
-
-  &[data-conversation-width='narrow'],
-  .desktop-main-route[data-page-width='narrow'] & {
-    --page-content-max-width: var(--cpx-sys-layout-reading-max-width);
-  }
-
-  &[data-conversation-width='wide'],
-  .desktop-main-route[data-page-width='wide'] & {
-    --page-content-max-width: var(--cpx-sys-layout-wide-max-width);
-  }
 }
 
 .conversation-page .chat-session-header {
@@ -65,10 +43,6 @@
   &[data-thread-summary-inline='true'][data-thread-summary-mode='shift'] {
     --conversation-shift-offset: -154px;
   }
-}
-
-.conversation-page[data-conversation-width='wide'] .workflow-page__main {
-  --conversation-shift-offset: 0px;
 }
 
 .conversation-page .session-timeline-main,

@@ -13,10 +13,8 @@ export { clampPrimarySidebarWidth }
 export const RIGHT_DOCK_MIN_WIDTH = 320
 export const RIGHT_DOCK_MAIN_MIN_WIDTH = 352
 export const RIGHT_DOCK_DEFAULT_WIDTH = 600
-/** 右栏自动收起按整个窗口宽度计算。 */
-export const RIGHT_DOCK_RESPONSIVE_WINDOW_WIDTH = 960
-/** 恢复右栏需要越过阈值的回差，避免窗口拖动时反复开关。 */
-export const RIGHT_DOCK_RESPONSIVE_HYSTERESIS = 24
+/** 越界拖拽把内容收成隐藏的原始宽度阈值。 */
+export const RIGHT_DOCK_HIDE_THRESHOLD = 160
 
 export const BOTTOM_PANEL_MIN_HEIGHT = 160
 export const BOTTOM_PANEL_DEFAULT_HEIGHT = 220
@@ -28,16 +26,6 @@ export interface WorkbenchSize {
   width: number
   height: number
 }
-
-export interface RightDockResponsiveState {
-  suppressed: boolean
-  manualOverride: boolean
-}
-
-export type RightDockResponsiveAction =
-  | { type: 'resize'; windowWidth: number }
-  | { type: 'manualOpen'; windowWidth: number }
-  | { type: 'manualClose'; windowWidth: number }
 
 export function rightDockWidthFromRatio(ratio: number, workspaceWidth: number): number {
   const safeWorkspaceWidth = normalizeDimension(workspaceWidth)
@@ -59,6 +47,40 @@ export function getRightDockMaxWidth(workspaceWidth: number): number {
     RIGHT_DOCK_MIN_WIDTH,
     normalizeDimension(workspaceWidth) - RIGHT_DOCK_MAIN_MIN_WIDTH,
   )
+}
+
+/**
+ * 有效尺寸区间比例：跨工作区宽度变化时保留用户在选择区间内的位置，
+ * 而不是保留 width/W（后者在窗口变窄时会挤压主区）。
+ */
+export function rightDockWidthToRangeRatio(width: number, workspaceWidth: number): number {
+  const safeWidth = normalizeDimension(workspaceWidth)
+  const minimum = RIGHT_DOCK_MIN_WIDTH
+  const maximum = getRightDockMaxWidth(safeWidth)
+  if (maximum <= minimum) return 0
+  const safe = Number.isFinite(width) ? width : RIGHT_DOCK_DEFAULT_WIDTH
+  return clampUnitInterval((safe - minimum) / (maximum - minimum))
+}
+
+export function rightDockWidthFromRangeRatio(ratio: number, workspaceWidth: number): number {
+  const safeWidth = normalizeDimension(workspaceWidth)
+  const minimum = RIGHT_DOCK_MIN_WIDTH
+  const maximum = getRightDockMaxWidth(safeWidth)
+  return Math.round(minimum + clampUnitInterval(ratio) * (maximum - minimum))
+}
+
+export type RightDockDragLayout = 'chat' | 'split'
+
+/**
+ * 越界拖拽的布局判定：只读未夹紧的原始指针尺寸，因此 pointer cancel 后
+ * 回到已提交布局，不需要额外的回滚状态。拉宽时由现有尺寸上限夹紧。
+ */
+export function resolveRightDockDragLayout(
+  rawWidth: number,
+): RightDockDragLayout {
+  if (!Number.isFinite(rawWidth)) return 'split'
+  if (rawWidth < RIGHT_DOCK_HIDE_THRESHOLD) return 'chat'
+  return 'split'
 }
 
 export function getResponsiveRightDockDefaultWidth(
@@ -98,31 +120,6 @@ export function getBottomPanelMaxHeight(workspaceHeight: number): number {
       Math.min(safeWorkspaceHeight * 0.5, safeWorkspaceHeight - BOTTOM_PANEL_UPPER_MIN_HEIGHT),
     ),
   )
-}
-
-export function createRightDockResponsiveState(windowWidth: number): RightDockResponsiveState {
-  return {
-    suppressed: normalizeDimension(windowWidth) < RIGHT_DOCK_RESPONSIVE_WINDOW_WIDTH,
-    manualOverride: false,
-  }
-}
-
-export function reduceRightDockResponsiveState(
-  state: RightDockResponsiveState,
-  action: RightDockResponsiveAction,
-): RightDockResponsiveState {
-  const windowWidth = normalizeDimension(action.windowWidth)
-  return {
-    suppressed: state.suppressed
-      ? windowWidth < RIGHT_DOCK_RESPONSIVE_WINDOW_WIDTH + RIGHT_DOCK_RESPONSIVE_HYSTERESIS
-      : windowWidth < RIGHT_DOCK_RESPONSIVE_WINDOW_WIDTH,
-    manualOverride:
-      action.type === 'manualClose'
-        ? false
-        : action.type === 'manualOpen'
-          ? state.suppressed || windowWidth < RIGHT_DOCK_RESPONSIVE_WINDOW_WIDTH
-          : state.manualOverride,
-  }
 }
 
 function normalizeDimension(value: number): number {

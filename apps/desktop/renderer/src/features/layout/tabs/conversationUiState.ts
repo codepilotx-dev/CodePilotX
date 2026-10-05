@@ -1,12 +1,15 @@
 import type { DesktopComposerAttachment, DesktopReviewSource } from '../../../../shared/types.js'
 import {
   createDefaultWorkbenchTabsState,
+  inferWorkspaceView,
   type WorkbenchFocusArea,
   type WorkbenchPanelSnapshot,
   type WorkbenchPanelTarget,
   type WorkbenchTabDescriptor,
   type WorkbenchTabId,
   type WorkbenchTabsState,
+  type WorkspaceSurface,
+  type WorkspaceView,
 } from '../dock/rightDockState.js'
 import { arePathsEqual } from '../../../utils/pathUtils.js'
 import { isRecord } from '@codepilotx/shared/guards'
@@ -181,22 +184,40 @@ export function patchConversationUiState(
   sessionId: string,
   patch: Partial<Omit<ConversationUiState, 'schemaVersion'>>,
 ): void {
-  const current = validateConversationUiState(
-    loadConversationUiState(sessionId) ?? createDefaultConversationUiState(),
-  )
+  const raw = loadConversationUiStateRecord(sessionId)
+  const current = validateConversationUiState(raw ?? createDefaultConversationUiState())
+  const rawWorkbench = raw != null && isRecord(raw.workbench) ? raw.workbench : {}
+  const rawTabsById = isRecord(rawWorkbench.tabsById) ? rawWorkbench.tabsById : {}
+  const patchedWorkbench = patch.workbench
+  // 局部合并：本次不认识的顶层/工作区字段与未知 tab 记录原样保留，不因一次保存被删除。
   saveConversationUiState(sessionId, {
+    ...(raw ?? {}),
     ...current,
     ...patch,
     schemaVersion: 4,
-  })
+    workbench: {
+      ...rawWorkbench,
+      ...current.workbench,
+      ...(patchedWorkbench ?? {}),
+      tabsById: {
+        ...rawTabsById,
+        ...current.workbench.tabsById,
+        ...(patchedWorkbench?.tabsById ?? {}),
+      },
+    },
+  } as ConversationUiState)
 }
 
 export function loadConversationUiState(sessionId: string): ConversationUiState | null {
+  return loadConversationUiStateRecord(sessionId) as ConversationUiState | null
+}
+
+function loadConversationUiStateRecord(sessionId: string): Record<string, unknown> | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_PREFIX + sessionId)
     if (!raw) return null
     const parsed: unknown = JSON.parse(raw)
-    return isRecord(parsed) ? (parsed as ConversationUiState) : null
+    return isRecord(parsed) ? parsed : null
   } catch {
     return null
   }
@@ -415,9 +436,35 @@ function validateWorkbenchState(
     tabsById,
     right,
     bottom,
-    rightFullWidth: Boolean(value.rightFullWidth && right.open),
-    restoreRightFullWidthOnNextOpen: Boolean(value.restoreRightFullWidthOnNextOpen),
+    rightFullWidth: false,
+    restoreRightFullWidthOnNextOpen: false,
     focusArea,
+    workspaceView: validateWorkspaceView(value.workspaceView, right),
+  }
+}
+
+/**
+ * 缺失 workspaceView 时由旧 right.open 推导；旧完整视图恢复为分屏，
+ * 保留标签显隐与选中状态。
+ */
+function validateWorkspaceView(
+  value: unknown,
+  right: WorkbenchPanelSnapshot,
+): WorkspaceView {
+  const hasContent = right.tabIds.length > 0
+  const inferred = inferWorkspaceView(right.open)
+  const raw = isRecord(value) ? value : null
+  const surfaceFromStore = (candidate: unknown): WorkspaceSurface | null =>
+    candidate === 'chat' || candidate === 'content' ? candidate : null
+  const selectedSurface = surfaceFromStore(raw?.selectedSurface) ?? inferred.selectedSurface
+  const sidePanelSelectedSurface =
+    surfaceFromStore(raw?.sidePanelSelectedSurface) ?? selectedSurface
+  const tabsHidden = typeof raw?.tabsHidden === 'boolean' ? raw.tabsHidden : inferred.tabsHidden
+  return {
+    layoutMode: 'split',
+    tabsHidden: hasContent ? tabsHidden : true,
+    selectedSurface: hasContent && !tabsHidden ? selectedSurface : 'chat',
+    sidePanelSelectedSurface,
   }
 }
 

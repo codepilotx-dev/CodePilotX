@@ -66,6 +66,15 @@ type UseSidebarResizeCollapseConfirmInput = {
    *  `'right'`: drag left edge to resize, pointer left = wider.
    *  `'bottom'`: drag top edge to resize, pointer up = taller. */
   direction?: 'left' | 'right' | 'bottom'
+  /** 键盘方向键步长；默认 8px（底栏 10px），Shift 仍为 32/40。 */
+  keyboardStep?: number
+  /** 每次指针移动回调未夹紧的原始尺寸；停止/取消时回调 null。 */
+  onResizeRawSize?: (rawSize: number | null) => void
+  /**
+   * 提交前裁决：返回 false 表示调用方已自行处理本次结果（例如越界后隐藏内容），
+   * hook 不再写入尺寸并立即回到 idle。
+   */
+  shouldCommitResizeSize?: (rawSize: number) => boolean
 }
 
 export type UseSidebarResizeCollapseConfirmResult = {
@@ -142,9 +151,13 @@ export function useSidebarResizeCollapseConfirm({
   onSetWidth,
   collapseBehavior = DEFAULT_RESIZE_COLLAPSE_BEHAVIOR,
   direction = 'left',
+  keyboardStep,
+  onResizeRawSize,
+  shouldCommitResizeSize,
 }: UseSidebarResizeCollapseConfirmInput): UseSidebarResizeCollapseConfirmResult {
   const [resizing, setResizing] = useState(false)
   const startRef = useRef<ResizeStart>({ x: 0, width })
+  const lastRawWidthRef = useRef<number | null>(null)
   const [collapseConfirmTarget, setCollapseConfirmTarget] =
     useState<SidebarCollapseConfirmTarget | null>(null)
   const [collapseConfirmKey, setCollapseConfirmKey] = useState(0)
@@ -165,9 +178,13 @@ export function useSidebarResizeCollapseConfirm({
   const resizePhaseRef = useRef<ResizePhase>('idle')
   const onResizePhaseChangeRef = useRef(onResizePhaseChange)
   const onResizePreviewRef = useRef(onResizePreview)
+  const onResizeRawSizeRef = useRef(onResizeRawSize)
+  const shouldCommitResizeSizeRef = useRef(shouldCommitResizeSize)
 
   onResizePhaseChangeRef.current = onResizePhaseChange
   onResizePreviewRef.current = onResizePreview
+  onResizeRawSizeRef.current = onResizeRawSize
+  shouldCommitResizeSizeRef.current = shouldCommitResizeSize
 
   const setResizePhase = useCallback((phase: ResizePhase): void => {
     if (resizePhaseRef.current === phase) return
@@ -241,6 +258,8 @@ export function useSidebarResizeCollapseConfirm({
       clearPointerMoveFrame()
       previewWidthRef.current = null
       lastEmittedPreviewRef.current = null
+      lastRawWidthRef.current = null
+      onResizeRawSizeRef.current?.(null)
       setResizing(false)
       clearCollapseConfirm()
       document.body.classList.remove(
@@ -263,6 +282,14 @@ export function useSidebarResizeCollapseConfirm({
       }
 
       if (outcome !== 'commit' || finalWidth === null) {
+        pendingCommitWidthRef.current = null
+        onResizePreviewRef.current(null)
+        setResizePhase('idle')
+        return
+      }
+
+      const rawWidth = lastRawWidthRef.current
+      if (rawWidth !== null && shouldCommitResizeSizeRef.current?.(rawWidth) === false) {
         pendingCommitWidthRef.current = null
         onResizePreviewRef.current(null)
         setResizePhase('idle')
@@ -328,6 +355,8 @@ export function useSidebarResizeCollapseConfirm({
         direction === 'left'
           ? start.width + pointerPosition - start.x
           : start.width + start.x - pointerPosition
+      lastRawWidthRef.current = rawWidth
+      onResizeRawSizeRef.current?.(rawWidth)
       if (!collapseEnabled) {
         const nextWidth = Math.min(maxWidth, Math.max(minWidth, rawWidth))
         if (onResizePreview) emitPreview(nextWidth)
@@ -491,7 +520,11 @@ export function useSidebarResizeCollapseConfirm({
 
   function handleResizeKey(event: React.KeyboardEvent<HTMLDivElement>): void {
     if (collapsed) return
-    const step = direction === 'bottom' ? (event.shiftKey ? 40 : 10) : event.shiftKey ? 32 : 8
+    const step = event.shiftKey
+      ? direction === 'bottom'
+        ? 40
+        : 32
+      : (keyboardStep ?? (direction === 'bottom' ? 10 : 8))
     const decreaseKey =
       direction === 'left' ? 'ArrowLeft' : direction === 'right' ? 'ArrowRight' : 'ArrowDown'
     const increaseKey =

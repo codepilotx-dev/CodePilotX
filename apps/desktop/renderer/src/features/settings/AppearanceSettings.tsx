@@ -1024,50 +1024,6 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
           </div>
         </SettingsSection>
 
-        <SettingsSection title="界面布局">
-          <SettingsRow
-            autoSave
-            title="侧边栏"
-            description="选择新版图标栏与功能面板，或经典侧边栏布局"
-            control={
-              <SegmentedControl
-                ariaLabel="侧边栏"
-                options={[
-                  { value: 'modern', label: '新版' },
-                  { value: 'classic', label: '经典' },
-                ]}
-                value={desktopSettings.draft.values.sidebarLayout}
-                onChange={(sidebarLayout) => {
-                  desktopSettings.draft.setValue('sidebarLayout', sidebarLayout)
-                  void desktopSettings.draft.save().catch((error) => {
-                    reportError(error instanceof Error ? error.message : '侧边栏设置保存失败')
-                  })
-                }}
-              />
-            }
-          />
-          <SettingsRow
-            autoSave
-            title="页面宽度"
-            description="设置所有一级页面主内容区域的最大宽度"
-            control={
-              <SegmentedControl
-                ariaLabel="页面宽度"
-                options={[
-                  { value: 'default', label: '默认' },
-                  { value: 'narrow', label: '窄' },
-                  { value: 'wide', label: '宽' },
-                ]}
-                value={desktopSettings.draft.values.conversationWidth}
-                onChange={(conversationWidth) => {
-                  desktopSettings.draft.setValue('conversationWidth', conversationWidth)
-                  desktopSettings.draft.autoSave()
-                }}
-              />
-            }
-          />
-        </SettingsSection>
-
         <SettingsSection bare>
           <DisclosureController
             contentClassName="appearance-advanced-content"

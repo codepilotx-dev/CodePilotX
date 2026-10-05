@@ -156,6 +156,28 @@ export type WorkbenchPanelSnapshot = {
   tabIds: WorkbenchTabId[]
 }
 
+/** Persisted workspace layout mode. Chat-vs-content presentation lives in `tabsHidden`. */
+export type WorkspaceLayoutMode = 'split'
+
+/** Which surface of the workspace owns the viewport. `chat` is the main conversation. */
+export type WorkspaceSurface = 'chat' | 'content'
+
+/**
+ * The single source of truth for the right workspace presentation.
+ *
+ * `layoutMode` retains the persisted split mode; `tabsHidden` controls
+ * whether the workspace presents chat alone or chat alongside content.
+ */
+export type WorkspaceView = {
+  layoutMode: WorkspaceLayoutMode
+  tabsHidden: boolean
+  selectedSurface: WorkspaceSurface
+  sidePanelSelectedSurface: WorkspaceSurface
+}
+
+/** chat（内容隐藏）与 split（聊天和内容并排）。 */
+export type WorkspaceLayout = 'chat' | 'split'
+
 export type WorkbenchTabsState = {
   schemaVersion: 2
   tabsById: Partial<Record<WorkbenchTabId, WorkbenchTabDescriptor>>
@@ -166,6 +188,7 @@ export type WorkbenchTabsState = {
   rightFullWidth: boolean
   restoreRightFullWidthOnNextOpen: boolean
   focusArea: WorkbenchFocusArea
+  workspaceView?: WorkspaceView
 }
 
 /**
@@ -180,6 +203,8 @@ export type WorkbenchPanelAction =
       target: WorkbenchPanelTarget
       tab: WorkbenchTabDescriptor
       index?: number
+      /** `false` 保留当前显隐：仅用于会话恢复、Browser 投影等后台挂接。 */
+      reveal?: boolean
     }
   | {
       type: 'replaceTab'
@@ -241,8 +266,48 @@ export type WorkbenchPanelAction =
       target: WorkbenchPanelTarget
       responsive?: boolean
     }
-  | { type: 'toggleRightFullWidth' }
+  | { type: 'setWorkspaceLayout'; layout: WorkspaceLayout }
+  | { type: 'stepWorkspaceLayout' }
   | { type: 'focusPanel'; target: WorkbenchPanelTarget | 'main' }
+
+export const DEFAULT_WORKSPACE_VIEW: WorkspaceView = {
+  layoutMode: 'split',
+  tabsHidden: true,
+  selectedSurface: 'chat',
+  sidePanelSelectedSurface: 'content',
+}
+
+export function getWorkspaceLayout(view: WorkspaceView): WorkspaceLayout {
+  if (view.tabsHidden) return 'chat'
+  return 'split'
+}
+
+export function getWorkspaceView(state: WorkbenchTabsState): WorkspaceView {
+  return state.workspaceView ?? inferWorkspaceView(state.right.open)
+}
+
+/** 旧数据推导：关闭→chat，打开→split；旧全宽标记不再参与布局。 */
+export function inferWorkspaceView(open: boolean): WorkspaceView {
+  if (!open) {
+    return { ...DEFAULT_WORKSPACE_VIEW, tabsHidden: true, selectedSurface: 'chat' }
+  }
+  return {
+    ...DEFAULT_WORKSPACE_VIEW,
+    layoutMode: 'split',
+    tabsHidden: false,
+    selectedSurface: 'content',
+  }
+}
+
+export function getWorkbenchWorkspaceLayout(state: WorkbenchTabsState): WorkspaceLayout {
+  return getWorkspaceLayout(getWorkspaceView(state))
+}
+
+/** 在仅聊天与分屏之间切换。 */
+export function nextWorkspaceLayout(layout: WorkspaceLayout): WorkspaceLayout {
+  if (layout === 'split') return 'chat'
+  return 'split'
+}
 
 export function createDefaultWorkbenchPanelState(): WorkbenchTabsState {
   return {
@@ -255,6 +320,7 @@ export function createDefaultWorkbenchPanelState(): WorkbenchTabsState {
     rightFullWidth: false,
     restoreRightFullWidthOnNextOpen: false,
     focusArea: 'main',
+    workspaceView: DEFAULT_WORKSPACE_VIEW,
   }
 }
 
@@ -264,6 +330,76 @@ export function applyWorkbenchPanelAction(
   state: WorkbenchTabsState,
   action: WorkbenchPanelAction,
 ): WorkbenchTabsState {
+  return reduceWorkbenchPanelAction(state, action)
+}
+
+function workspaceFocusArea(view: WorkspaceView, fallback: WorkbenchFocusArea): WorkbenchFocusArea {
+  if (fallback === 'bottom-panel' || fallback === 'sidebar-panel') return fallback
+  if (getWorkspaceLayout(view) === 'chat') return 'main'
+  return view.selectedSurface === 'chat' ? 'main' : 'right-panel'
+}
+
+/**
+ * 唯一写入 workspaceView 的地方，同时把 `right.open` / `rightFullWidth` 更新为
+ * 兼容投影。只有显式布局动作会改写显隐：后台挂接（`reveal: false`）保持现状。
+ */
+function setWorkspaceView(
+  state: WorkbenchTabsState,
+  patch: Partial<WorkspaceView>,
+): WorkbenchTabsState {
+  const next: WorkspaceView = { ...getWorkspaceView(state), ...patch }
+  const layout = getWorkspaceLayout(next)
+  const open = layout !== 'chat'
+  const focusArea = workspaceFocusArea(next, state.focusArea)
+  if (
+    open === state.right.open &&
+    !state.rightFullWidth &&
+    !state.restoreRightFullWidthOnNextOpen &&
+    focusArea === state.focusArea &&
+    sameWorkspaceView(next, state.workspaceView)
+  ) {
+    return state
+  }
+  return {
+    ...state,
+    workspaceView: next,
+    right: { ...state.right, open },
+    rightFullWidth: false,
+    restoreRightFullWidthOnNextOpen: false,
+    focusArea,
+  }
+}
+
+function sameWorkspaceView(left: WorkspaceView, right: WorkspaceView | undefined): boolean {
+  return (
+    right != null &&
+    left.layoutMode === right.layoutMode &&
+    left.tabsHidden === right.tabsHidden &&
+    left.selectedSurface === right.selectedSurface &&
+    left.sidePanelSelectedSurface === right.sidePanelSelectedSurface
+  )
+}
+
+function reduceWorkbenchPanelAction(
+  state: WorkbenchTabsState,
+  action: WorkbenchPanelAction,
+): WorkbenchTabsState {
+  if (action.type === 'setWorkspaceLayout') {
+    return setWorkspaceView(state, {
+      layoutMode: 'split',
+      tabsHidden: action.layout === 'chat',
+      selectedSurface: action.layout === 'chat' ? 'chat' : 'content',
+    })
+  }
+
+  if (action.type === 'stepWorkspaceLayout') {
+    const layout = getWorkspaceLayout(getWorkspaceView(state))
+    return reduceWorkbenchPanelAction(state, {
+      type: 'setWorkspaceLayout',
+      layout: nextWorkspaceLayout(layout),
+    })
+  }
+
   if (action.type === 'focusPanel') {
     const targetPanel =
       action.target === 'main' ? null : (state[action.target] ?? createEmptyPanel())
@@ -271,28 +407,24 @@ export function applyWorkbenchPanelAction(
       action.target === 'main' || !targetPanel?.open || !targetPanel?.activeTabId
         ? 'main'
         : `${action.target}-panel`
-    return focusArea === state.focusArea ? state : { ...state, focusArea }
-  }
-
-  if (action.type === 'toggleRightFullWidth') {
-    if (!state.right.open) {
-      return {
-        ...state,
-        right: { ...openPanelWithFallback(state.right), open: true },
-        rightFullWidth: true,
-        restoreRightFullWidthOnNextOpen: false,
-        focusArea: 'right-panel',
-      }
-    }
+    const view = getWorkspaceView(state)
+    const selectedSurface: WorkspaceSurface =
+      focusArea === 'main' ? 'chat' : action.target === 'right' ? 'content' : view.selectedSurface
+    if (focusArea === state.focusArea && selectedSurface === view.selectedSurface) return state
     return {
-      ...state,
-      rightFullWidth: !state.rightFullWidth,
-      restoreRightFullWidthOnNextOpen: false,
-      focusArea: state.rightFullWidth ? 'main' : 'right-panel',
+      ...setWorkspaceView(state, { selectedSurface }),
+      focusArea,
     }
   }
 
   if (action.type === 'togglePanel') {
+    if (action.target === 'right') {
+      const layout = getWorkspaceLayout(getWorkspaceView(state))
+      return reduceWorkbenchPanelAction(state, {
+        type: 'setWorkspaceLayout',
+        layout: layout === 'chat' ? 'split' : 'chat',
+      })
+    }
     const targetPanel = state[action.target] ?? createEmptyPanel()
     return targetPanel.open
       ? closeWorkbenchPanel(state, action.target)
@@ -300,18 +432,16 @@ export function applyWorkbenchPanelAction(
   }
 
   if (action.type === 'closePanel') {
+    if (action.target === 'right') {
+      return reduceWorkbenchPanelAction(state, { type: 'setWorkspaceLayout', layout: 'chat' })
+    }
     const targetPanel = state[action.target] ?? createEmptyPanel()
     if (!targetPanel.open) return state
-    if (action.target === 'right' && action.responsive && state.rightFullWidth) {
-      return {
-        ...closeWorkbenchPanel(state, action.target),
-        restoreRightFullWidthOnNextOpen: true,
-      }
-    }
     return closeWorkbenchPanel(state, action.target)
   }
 
   if (action.type === 'openTab') {
+    const reveal = action.reveal !== false
     const existingTarget = findTabTarget(state, action.tab.id)
     if (existingTarget) {
       const existing = state.tabsById[action.tab.id]
@@ -331,16 +461,12 @@ export function applyWorkbenchPanelAction(
           ? { ...reopenedTab, preview: false }
           : reopenedTab
       const targetPanel = state[existingTarget] ?? createEmptyPanel()
-      return {
-        ...state,
-        tabsById: { ...state.tabsById, [tab.id]: tab },
-        [existingTarget]: {
-          ...targetPanel,
-          open: true,
-          activeTabId: tab.id,
-        },
-        focusArea: `${existingTarget}-panel`,
-      }
+      return revealPanelTab(
+        { ...state, tabsById: { ...state.tabsById, [tab.id]: tab } },
+        existingTarget,
+        { ...targetPanel, open: true, activeTabId: tab.id },
+        reveal,
+      )
     }
 
     let next = state
@@ -352,19 +478,18 @@ export function applyWorkbenchPanelAction(
     }
 
     const destPanel = next[action.target] ?? createEmptyPanel()
-    return {
-      ...next,
-      tabsById: {
-        ...next.tabsById,
-        [action.tab.id]: action.tab,
+    return revealPanelTab(
+      {
+        ...next,
+        tabsById: {
+          ...next.tabsById,
+          [action.tab.id]: action.tab,
+        },
       },
-      [action.target]: {
-        ...insertTab(destPanel, action.tab.id, action.index),
-        open: true,
-        activeTabId: action.tab.id,
-      },
-      focusArea: `${action.target}-panel`,
-    }
+      action.target,
+      { ...insertTab(destPanel, action.tab.id, action.index), open: true, activeTabId: action.tab.id },
+      reveal,
+    )
   }
 
   if (action.type === 'replaceTab') {
@@ -389,15 +514,12 @@ export function applyWorkbenchPanelAction(
   if (action.type === 'selectTab') {
     const panel = state[action.target] ?? createEmptyPanel()
     if (!panel.tabIds.includes(action.tabId)) return state
-    return {
-      ...state,
-      [action.target]: {
-        ...panel,
-        open: true,
-        activeTabId: action.tabId,
-      },
-      focusArea: `${action.target}-panel`,
-    }
+    return revealPanelTab(
+      state,
+      action.target,
+      { ...panel, open: true, activeTabId: action.tabId },
+      true,
+    )
   }
 
   if (action.type === 'closeTab') {
@@ -468,20 +590,17 @@ export function applyWorkbenchPanelAction(
     const targetPanel = state[action.target] ?? createEmptyPanel()
     const target = insertTab(targetPanel, action.tabId, action.index)
     const rightBecameEmpty = action.source === 'right' && source.tabIds.length === 0
-    return {
-      ...state,
-      [action.source]: source,
-      [action.target]: {
+    const moved = revealPanelTab(
+      { ...state, [action.source]: source },
+      action.target,
+      {
         ...target,
         open: true,
         activeTabId: action.tabId,
       },
-      rightFullWidth: rightBecameEmpty ? false : state.rightFullWidth,
-      restoreRightFullWidthOnNextOpen: rightBecameEmpty
-        ? false
-        : state.restoreRightFullWidthOnNextOpen,
-      focusArea: `${action.target}-panel`,
-    }
+      true,
+    )
+    return rightBecameEmpty ? collapseWorkspaceToChat(moved) : moved
   }
 
   if (action.type === 'reorderTab') {
@@ -501,16 +620,14 @@ export function applyWorkbenchPanelAction(
     const updatedSource = closeEmptyPanel(removeTab(sourcePanel, action.tabId))
     const floatingTabIds = Array.from(new Set([...(state.floatingTabIds ?? []), action.tabId]))
     const rightBecameEmpty = source === 'right' && updatedSource.tabIds.length === 0
-    return {
+    const popped = {
       ...state,
       [source]: updatedSource,
       floatingTabIds,
-      rightFullWidth: rightBecameEmpty ? false : state.rightFullWidth,
-      restoreRightFullWidthOnNextOpen: rightBecameEmpty
-        ? false
-        : state.restoreRightFullWidthOnNextOpen,
-      focusArea: state.focusArea === `${source}-panel` ? 'main' : state.focusArea,
+      ...(rightBecameEmpty ? { restoreRightFullWidthOnNextOpen: false } : {}),
+      focusArea: state.focusArea === `${source}-panel` ? ('main' as const) : state.focusArea,
     }
+    return rightBecameEmpty ? collapseWorkspaceToChat(popped) : popped
   }
 
   if (action.type === 'dockBackTab') {
@@ -520,16 +637,16 @@ export function applyWorkbenchPanelAction(
     const target = action.target ?? defaultTarget
     const targetPanel = state[target] ?? createEmptyPanel()
     const updatedTarget = insertTab(targetPanel, action.tabId)
-    return {
-      ...state,
-      floatingTabIds,
-      [target]: {
+    return revealPanelTab(
+      { ...state, floatingTabIds },
+      target,
+      {
         ...updatedTarget,
         open: true,
         activeTabId: action.tabId,
       },
-      focusArea: `${target}-panel`,
-    }
+      true,
+    )
   }
 
   return state
@@ -545,18 +662,41 @@ function createEmptyPanel(): WorkbenchPanelSnapshot {
   }
 }
 
+/**
+ * Registers the panel update and, for the right workspace, applies the reveal
+ * rules of `openTab`/`selectTab`: background restores (`reveal: false`) never
+ * reopen a hidden workspace or steal the content surface.
+ */
+function revealPanelTab(
+  state: WorkbenchTabsState,
+  target: WorkbenchPanelTarget,
+  panel: WorkbenchPanelSnapshot,
+  reveal: boolean,
+): WorkbenchTabsState {
+  const next = { ...state, [target]: panel }
+  if (target !== 'right') {
+    return { ...next, focusArea: `${target}-panel` }
+  }
+  if (!reveal) return next
+  return setWorkspaceView(next, { tabsHidden: false, selectedSurface: 'content' })
+}
+
+/** 最后一个真实内容标签消失：回到主 Chat，但保留已记住的布局模式。 */
+function collapseWorkspaceToChat(state: WorkbenchTabsState): WorkbenchTabsState {
+  return setWorkspaceView(
+    { ...state, right: { ...state.right, open: false, activeTabId: null, tabIds: [] } },
+    { tabsHidden: true, selectedSurface: 'chat' },
+  )
+}
+
 function openWorkbenchPanel(
   state: WorkbenchTabsState,
   target: WorkbenchPanelTarget,
 ): WorkbenchTabsState {
-  const restoringFullWidth = target === 'right' && state.restoreRightFullWidthOnNextOpen
   const targetPanel = state[target] ?? createEmptyPanel()
   return {
     ...state,
     [target]: { ...openPanelWithFallback(targetPanel), open: true },
-    rightFullWidth: restoringFullWidth ? true : state.rightFullWidth,
-    restoreRightFullWidthOnNextOpen:
-      target === 'right' ? false : state.restoreRightFullWidthOnNextOpen,
     focusArea: `${target}-panel`,
   }
 }
@@ -565,14 +705,10 @@ function closeWorkbenchPanel(
   state: WorkbenchTabsState,
   target: WorkbenchPanelTarget,
 ): WorkbenchTabsState {
-  const wasFullWidth = target === 'right' && state.rightFullWidth
   const targetPanel = state[target] ?? createEmptyPanel()
   return {
     ...state,
     [target]: { ...targetPanel, open: false },
-    rightFullWidth: wasFullWidth ? false : state.rightFullWidth,
-    restoreRightFullWidthOnNextOpen:
-      target === 'right' ? wasFullWidth : state.restoreRightFullWidthOnNextOpen,
     focusArea: state.focusArea === `${target}-panel` ? 'main' : state.focusArea,
   }
 }
@@ -645,14 +781,13 @@ function removeTabEverywhere(state: WorkbenchTabsState, tabId: WorkbenchTabId): 
   const rightClosed = state.right.open && !right.open
   const bottomClosed = state.bottom.open && !bottom.open
   const sidebarClosed = state.sidebar?.open && !sidebar?.open
-  return {
+  const next: WorkbenchTabsState = {
     ...state,
     tabsById,
     right,
     bottom,
     ...(sidebar !== undefined ? { sidebar } : {}),
     floatingTabIds,
-    rightFullWidth: rightClosed ? false : state.rightFullWidth,
     restoreRightFullWidthOnNextOpen: rightClosed ? false : state.restoreRightFullWidthOnNextOpen,
     focusArea:
       (rightClosed && state.focusArea === 'right-panel') ||
@@ -661,6 +796,8 @@ function removeTabEverywhere(state: WorkbenchTabsState, tabId: WorkbenchTabId): 
         ? 'main'
         : state.focusArea,
   }
+  // 右栏变空即回到主 Chat；工作区仍保留此前记住的布局模式。
+  return right.tabIds.length === 0 ? collapseWorkspaceToChat(next) : next
 }
 
 function closeEmptyPanel(panel: WorkbenchPanelSnapshot): WorkbenchPanelSnapshot {

@@ -1,7 +1,5 @@
 import type React from 'react'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { Maximize2, Minimize2 } from 'lucide-react'
 import type {
   DesktopBrowserState,
   DesktopDiffMarkerStyle,
@@ -13,8 +11,6 @@ import type {
   DesktopWorkspace,
 } from '../../../../shared/types.js'
 import type { ReviewTabUiState } from '../tabs/conversationUiState.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
 import { TabStripButtonProvider } from '../../../components/ui/TabStripButtonContext.js'
 import type {
   MarkdownFileViewMode,
@@ -43,12 +39,7 @@ import {
   WorkbenchPanelSurface,
 } from '../panels/WorkbenchPanelSurface.js'
 import type { FileDocumentLoadErrorPhase } from './RightDockPanels.js'
-import {
-  type ResizePhase,
-  SIDEBAR_COLLAPSE_HOLD_MS,
-  SIDEBAR_COLLAPSE_TARGET_SIZE,
-  useSidebarResizeCollapseConfirm,
-} from '../useSidebarResizeCollapseConfirm.js'
+import { type ResizePhase, useSidebarResizeCollapseConfirm } from '../useSidebarResizeCollapseConfirm.js'
 import { useWorkbenchPanelLiveResize } from '../panels/WorkbenchPanelPresence.js'
 
 type Props = {
@@ -75,7 +66,6 @@ type Props = {
   planContentByEventId: Readonly<Record<string, string>>
   width: number
   height?: number
-  rightFullWidth?: boolean
   workspace: DesktopWorkspace | null
   browserDraftKey: import('../../session/composer/composerTypes.js').ComposerDraftKey
   onBrowserStateChange: (state: DesktopBrowserState) => void
@@ -110,7 +100,9 @@ type Props = {
   onPinTab: (tabId: WorkbenchTabId) => void
   onPopOutTab?: (source: WorkbenchPanelTarget, tabId: WorkbenchTabId) => void
   onSetFileMarkdownViewMode: (tabId: WorkbenchTabId, mode: MarkdownFileViewMode) => void
-  onToggleRightFullWidth?: () => void
+  onResizeRawSize?: (rawSize: number | null) => void
+  onResizePreview?: (nextSize: number | null) => void
+  shouldCommitResizeSize?: (rawSize: number) => boolean
   onToggleReviewView: () => void
   sideChat: Omit<WorkbenchTabRenderContext['sideChat'], 'activeTabId'>
   onCreateSideChat: () => void
@@ -120,6 +112,9 @@ type Props = {
 }
 
 type FilePreviewTab = Extract<WorkbenchTabDescriptor, { kind: 'file-preview' }>
+
+/** 右工作区方向键步长；Home/End 与双击继续接现有默认/边界动作。 */
+export const RIGHT_DOCK_KEYBOARD_STEP = 10
 
 export type WorkbenchFileLoadErrorEvent = {
   error: Error
@@ -138,7 +133,6 @@ function useStableEvent<TArgs extends unknown[], TResult>(
 
 function WorkbenchPanelResizeController({
   target,
-  rightFullWidth,
   maxWidth,
   minWidth,
   maxHeight,
@@ -150,10 +144,12 @@ function WorkbenchPanelResizeController({
   onResetHeight,
   onSetWidth,
   onSetHeight,
+  onResizeRawSize,
+  onResizePreview,
+  shouldCommitResizeSize,
 }: Pick<
   Props,
   | 'target'
-  | 'rightFullWidth'
   | 'maxWidth'
   | 'minWidth'
   | 'maxHeight'
@@ -165,6 +161,9 @@ function WorkbenchPanelResizeController({
   | 'onResetHeight'
   | 'onSetWidth'
   | 'onSetHeight'
+  | 'onResizeRawSize'
+  | 'onResizePreview'
+  | 'shouldCommitResizeSize'
 >): React.ReactNode {
   const handleRef = useRef<HTMLDivElement>(null)
   const isBottom = target === 'bottom'
@@ -186,9 +185,10 @@ function WorkbenchPanelResizeController({
     [liveResize],
   )
 
+  const previewSize = liveResize?.previewSize
+  const resolvedPreview = isBottom ? previewSize : (onResizePreview ?? previewSize)
+
   const {
-    collapseConfirmKey,
-    collapseConfirmTarget,
     handleLostPointerCapture,
     handlePointerCancel,
     handlePointerMove,
@@ -197,63 +197,43 @@ function WorkbenchPanelResizeController({
     startResize,
   } = useSidebarResizeCollapseConfirm({
     collapsed: false,
-    collapseBehavior: isBottom
-      ? { kind: 'hold-target' }
-      : { kind: 'threshold', threshold: minSize / 2 },
-    collapseEnabled: !isBottom,
+    // 越界拖拽必须持续到 pointer up/cancel：阈值不再销毁 divider，内容显隐
+    // 由原始的指针尺寸在布局层判定，允许同一次拖动拉回。
+    collapseEnabled: false,
     direction: isBottom ? 'bottom' : 'right',
+    keyboardStep: isBottom ? undefined : RIGHT_DOCK_KEYBOARD_STEP,
     maxWidth: maxSize,
     minWidth: minSize,
     onCollapse: onClose,
     onResetSize: isBottom ? onResetHeight : onResetWidth,
     onResizePhaseChange: updateResizePhase,
-    onResizePreview: liveResize?.previewSize,
+    onResizePreview: resolvedPreview,
+    onResizeRawSize: isBottom ? undefined : onResizeRawSize,
+    shouldCommitResizeSize: isBottom ? undefined : shouldCommitResizeSize,
     onSetWidth: isBottom ? (onSetHeight ?? onSetWidth) : onSetWidth,
     width: size,
   })
 
-  if (!isBottom && rightFullWidth) return null
-
   return (
-    <>
-      <div
-        ref={handleRef}
-        aria-label={isBottom ? '调整底部面板高度' : '调整右侧面板宽度'}
-        aria-orientation={isBottom ? 'horizontal' : 'vertical'}
-        aria-valuemax={maxSize}
-        aria-valuemin={minSize}
-        aria-valuenow={size}
-        className={isBottom ? 'bottom-panel-resize-handle' : 'right-dock-resize-handle'}
-        role="separator"
-        tabIndex={0}
-        title={isBottom ? '拖拽调整高度，双击恢复默认高度' : '拖拽调整宽度，双击恢复默认宽度'}
-        onDoubleClick={isBottom ? onResetHeight : onResetWidth}
-        onKeyDown={handleResizeKey}
-        onLostPointerCapture={handleLostPointerCapture}
-        onPointerCancel={handlePointerCancel}
-        onPointerDown={startResize}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-      />
-      {collapseConfirmTarget && typeof document !== 'undefined'
-        ? createPortal(
-            <div
-              key={collapseConfirmKey}
-              aria-hidden="true"
-              className="sidebar-collapse-confirm-target"
-              style={
-                {
-                  '--sidebar-collapse-target-ms': `${SIDEBAR_COLLAPSE_HOLD_MS}ms`,
-                  '--sidebar-collapse-target-size': `${SIDEBAR_COLLAPSE_TARGET_SIZE}px`,
-                  left: `${collapseConfirmTarget.x}px`,
-                  top: `${collapseConfirmTarget.y}px`,
-                } as React.CSSProperties
-              }
-            />,
-            document.body,
-          )
-        : null}
-    </>
+    <div
+      ref={handleRef}
+      aria-label={isBottom ? '调整底部面板高度' : '调整右侧面板宽度'}
+      aria-orientation={isBottom ? 'horizontal' : 'vertical'}
+      aria-valuemax={maxSize}
+      aria-valuemin={minSize}
+      aria-valuenow={size}
+      className={isBottom ? 'bottom-panel-resize-handle' : 'right-dock-resize-handle'}
+      role="separator"
+      tabIndex={0}
+      title={isBottom ? '拖拽调整高度，双击恢复默认高度' : '拖拽调整宽度，双击恢复默认宽度'}
+      onDoubleClick={isBottom ? onResetHeight : onResetWidth}
+      onKeyDown={handleResizeKey}
+      onLostPointerCapture={handleLostPointerCapture}
+      onPointerCancel={handlePointerCancel}
+      onPointerDown={startResize}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+    />
   )
 }
 
@@ -281,7 +261,6 @@ export function WorkbenchPanel({
   planContentByEventId,
   width,
   height,
-  rightFullWidth = false,
   workspace,
   browserDraftKey,
   onBrowserStateChange,
@@ -309,7 +288,9 @@ export function WorkbenchPanel({
   onReorderTab,
   onPinTab,
   onSetFileMarkdownViewMode,
-  onToggleRightFullWidth,
+  onResizeRawSize,
+  onResizePreview,
+  shouldCommitResizeSize,
   onToggleReviewView,
   sideChat,
   onCreateSideChat,
@@ -458,7 +439,6 @@ export function WorkbenchPanel({
   return (
     <WorkbenchDockFrame
       ref={panelRef}
-      fullWidth={target === 'right' && rightFullWidth}
       open={state.open}
       target={target}
       targetWidth={
@@ -470,7 +450,6 @@ export function WorkbenchPanel({
     >
       <WorkbenchPanelResizeController
         target={target}
-        rightFullWidth={rightFullWidth}
         maxWidth={maxWidth}
         minWidth={minWidth}
         maxHeight={maxHeight}
@@ -482,48 +461,33 @@ export function WorkbenchPanel({
         onResetHeight={onResetHeight}
         onSetWidth={onSetWidth}
         onSetHeight={onSetHeight}
+        onResizePreview={onResizePreview}
+        onResizeRawSize={onResizeRawSize}
+        shouldCommitResizeSize={shouldCommitResizeSize}
       />
       <WorkbenchPanelSurface
         target={target}
         header={
-          <>
-            <TabStripButtonProvider>
-              <WorkbenchTabStrip
-                state={state}
-                tabsById={tabsById}
-                target={target}
-                terminalDisplayPath={terminalDisplayPath}
-                onClosePanel={target === 'bottom' ? stableOnClose : undefined}
-                onCloseOtherTabs={onCloseOtherTabs}
-                onCloseTab={onCloseTab}
-                onCloseTabsToRight={onCloseTabsToRight}
-                onMoveTab={onMoveTab}
-                onPopOutTab={onPopOutTab}
-                onOpenTab={stableOnOpenTab}
-                onCreateSideChat={onCreateSideChat}
-                sideChatAvailable={sideChat.available}
-                onPinTab={onPinTab}
-                onReorderTab={onReorderTab}
-                onSelectTab={onSelectTab}
-              />
-            </TabStripButtonProvider>
-            {target === 'right' && onToggleRightFullWidth ? (
-              <IconButton
-                aria-pressed={rightFullWidth}
-                className="right-dock-full-width"
-                color="ghostSecondary"
-                size="toolbar"
-                title={rightFullWidth ? '恢复右侧面板宽度' : '展开右侧面板'}
-                onClick={onToggleRightFullWidth}
-              >
-                {rightFullWidth ? (
-                  <Minimize2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                ) : (
-                  <Maximize2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                )}
-              </IconButton>
-            ) : null}
-          </>
+          <TabStripButtonProvider>
+            <WorkbenchTabStrip
+              state={state}
+              tabsById={tabsById}
+              target={target}
+              terminalDisplayPath={terminalDisplayPath}
+              onClosePanel={target === 'bottom' ? stableOnClose : undefined}
+              onCloseOtherTabs={onCloseOtherTabs}
+              onCloseTab={onCloseTab}
+              onCloseTabsToRight={onCloseTabsToRight}
+              onMoveTab={onMoveTab}
+              onPopOutTab={onPopOutTab}
+              onOpenTab={stableOnOpenTab}
+              onCreateSideChat={onCreateSideChat}
+              sideChatAvailable={sideChat.available}
+              onPinTab={onPinTab}
+              onReorderTab={onReorderTab}
+              onSelectTab={onSelectTab}
+            />
+          </TabStripButtonProvider>
         }
       >
         <MemoizedWorkbenchPanelContent

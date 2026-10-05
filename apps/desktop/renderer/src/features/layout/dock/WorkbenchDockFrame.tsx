@@ -6,7 +6,6 @@ import type { WorkbenchPanelTarget } from './rightDockState.js'
 export interface WorkbenchDockFrameProps {
   target: WorkbenchPanelTarget
   open: boolean
-  fullWidth: boolean
   targetWidth: MotionValue<number> | number | string
   visibleWidth: MotionValue<number> | number | string
   children: React.ReactNode
@@ -21,7 +20,7 @@ export interface WorkbenchDockFrameProps {
  */
 export const WorkbenchDockFrame = forwardRef<HTMLElement, WorkbenchDockFrameProps>(
   function WorkbenchDockFrame(
-    { target, open, fullWidth, targetWidth, visibleWidth, children, className },
+    { target, open, targetWidth, visibleWidth, children, className },
     ref,
   ): React.ReactNode {
     return (
@@ -37,17 +36,16 @@ export const WorkbenchDockFrame = forwardRef<HTMLElement, WorkbenchDockFrameProp
           .filter(Boolean)
           .join(' ')}
         data-app-shell-focus-area={`${target}-panel`}
-        data-workbench-panel-full-width={fullWidth || undefined}
         data-workbench-panel-open={open || undefined}
         data-workbench-panel-target={target}
         style={{
-          width: target === 'right' && !fullWidth ? visibleWidth : '100%',
+          width: target === 'right' ? visibleWidth : '100%',
         }}
       >
         <motion.div
           className="workbench-dock-frame__target"
           style={{
-            width: target === 'right' && !fullWidth ? targetWidth : '100%',
+            width: target === 'right' ? targetWidth : '100%',
           }}
         >
           {children}
