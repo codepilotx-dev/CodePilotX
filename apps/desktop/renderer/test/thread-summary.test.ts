@@ -5,6 +5,7 @@ import {
   deriveThreadSummaryState,
   resolveThreadSummaryDisplayMode,
   resolveThreadSummaryDisplayModeUpdate,
+  resolveThreadSummaryShiftOffset,
   toggleThreadSummaryPreference,
   transitionThreadSummaryMode,
 } from '../src/features/session/summary/threadSummaryState.js'
@@ -16,22 +17,30 @@ import {
 
 describe('thread summary state', () => {
   test('resolves the exact responsive boundaries', () => {
-    expect(THREAD_SUMMARY_PANEL_WIDTH).toBe(260)
-    expect(resolveThreadSummaryDisplayMode(959)).toBe('overlay')
-    expect(resolveThreadSummaryDisplayMode(960)).toBe('shift')
+    expect(THREAD_SUMMARY_PANEL_WIDTH).toBe(300)
+    expect(resolveThreadSummaryDisplayMode(1095)).toBe('overlay')
+    expect(resolveThreadSummaryDisplayMode(1096)).toBe('shift')
     expect(resolveThreadSummaryDisplayMode(1535)).toBe('shift')
     expect(resolveThreadSummaryDisplayMode(1536)).toBe('gutter')
     expect(resolveThreadSummaryDisplayMode(Number.NaN)).toBe('overlay')
   })
 
+  test('resolves the shift offset according to display mode and pinning', () => {
+    expect(resolveThreadSummaryShiftOffset({ displayMode: 'shift', isPinned: true })).toBe(-154)
+    expect(resolveThreadSummaryShiftOffset({ displayMode: 'gutter', isPinned: true })).toBe(0)
+    expect(resolveThreadSummaryShiftOffset({ displayMode: 'overlay', isPinned: true })).toBe(0)
+    expect(resolveThreadSummaryShiftOffset({ displayMode: 'shift', isPinned: false })).toBe(0)
+  })
+
   test('reserves inline space only for a pinned summary outside overlay mode', () => {
-    const inlineState = deriveThreadSummaryState(960, {
+    const inlineState = deriveThreadSummaryState(1096, {
       isPinned: true,
       isPopoverOpen: false,
     })
     expect(inlineState).toMatchObject({
       displayMode: 'shift',
       shouldShowInline: true,
+      shiftOffset: -154,
     })
     expect(inlineState).not.toHaveProperty('contentShift')
 
@@ -43,23 +52,26 @@ describe('thread summary state', () => {
     ).toMatchObject({
       displayMode: 'gutter',
       shouldShowInline: true,
+      shiftOffset: 0,
     })
     expect(
-      deriveThreadSummaryState(960, {
+      deriveThreadSummaryState(1096, {
         isPinned: false,
         isPopoverOpen: false,
       }),
     ).toMatchObject({
       shouldShowInline: false,
+      shiftOffset: 0,
     })
     expect(
-      deriveThreadSummaryState(959, {
+      deriveThreadSummaryState(1095, {
         isPinned: true,
         isPopoverOpen: false,
       }),
     ).toMatchObject({
       displayMode: 'overlay',
       shouldShowInline: false,
+      shiftOffset: 0,
     })
   })
 

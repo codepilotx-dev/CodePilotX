@@ -477,7 +477,8 @@ describe('Codex CPX design system token contract', () => {
       '.composer-stack[data-composer-layout="multiline"][data-composer-radius-variant="default"]',
     )
     expectSourceNotContains(composer, 'calc(var(--cpx-sys-radius-xl) * 2)')
-    expect(conversation.match(/border-radius: var\(--cpx-sys-radius-2xl\);/g)).toHaveLength(2)
+    expect(conversation.match(/border-radius: var\(--cpx-sys-radius-2xl\);/g)).toHaveLength(1)
+    expectSourceContains(conversation, 'border-radius: var(--user-message-bubble-radius);')
     expectSourceNotContains(conversation, 'var(--cpx-sys-radius-optical-scale)')
     expectSourceContains(conversation, 'corner-shape: var(--cpx-sys-corner-shape);')
     expectSourceContains(summary, 'border-radius: var(--cpx-sys-radius-prominent);')
@@ -505,10 +506,10 @@ describe('Codex CPX design system token contract', () => {
 
     expect(summary.match(/--thread-summary-inline-width:/g)).toHaveLength(1)
     expect(summary).toMatch(
-      /\.workflow-page__main,\s*\.thread-summary-popover\s*\{[\s\S]*?--thread-summary-inline-width: calc\(var\(--cpx-sys-space-1\) \* 65\);/,
+      /\.workflow-page__main,\s*\.thread-summary-popover\s*\{[\s\S]*?--thread-summary-inline-width: calc\(var\(--cpx-sys-space-1\) \* 75\);/,
     )
-    expect(summary).toMatch(
-      /\.workflow-page__main\[data-thread-summary-inline=['"]true['"]\][\s\S]*?padding-inline-end: calc\([\s\S]*?var\(--thread-summary-inline-width\)/,
+    expect(summary).not.toMatch(
+      /\.workflow-page__main\[data-thread-summary-inline=['"]true['"]\][\s\S]*?padding-inline-end:/,
     )
     expect(summary).toMatch(
       /\.thread-summary-inline\s*\{[\s\S]*?width: var\(--thread-summary-inline-width\);/,

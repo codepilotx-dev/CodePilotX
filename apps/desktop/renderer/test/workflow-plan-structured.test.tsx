@@ -141,4 +141,24 @@ describe('WorkflowPlanCard structured plans', () => {
     const completed = renderCard(structuredPlan())
     expect(completed).toContain('在右侧打开计划')
   })
+
+  test('计划生成完成后展示复制、导出与底部展开操作，流式期间隐藏', () => {
+    const completed = renderCard(structuredPlan())
+    expect(completed).toContain('复制计划')
+    expect(completed).toContain('导出计划')
+    expect(completed).toContain('展开计划')
+
+    const streaming = renderToStaticMarkup(
+      <WorkflowPlanCard
+        eventId="turn-3:plan"
+        summary="# 正在写的计划"
+        streaming
+        isDocked={false}
+        onOpenInRightDock={() => undefined}
+      />,
+    )
+    expect(streaming).not.toContain('复制计划')
+    expect(streaming).not.toContain('导出计划')
+    expect(streaming).not.toContain('展开计划')
+  })
 })
