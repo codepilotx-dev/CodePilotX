@@ -1,4 +1,12 @@
 export const enUS: Record<string, string> = {
+  视觉样式: 'Visual style',
+  界面布局: 'Interface layout',
+  模式: 'Mode',
+  高级: 'Advanced',
+  'UI 字体样式': 'UI font style',
+  差异预览: 'Diff preview',
+  重置高级设置: 'Reset advanced settings',
+  '部分高级设置重置失败，请重试': 'Some advanced settings could not be reset. Please try again.',
   默认: 'Default',
   蓝色: 'Blue',
   绿色: 'Green',

@@ -29,6 +29,7 @@ type ThemeFontPickerProps = {
   family: string | null
   face: DesktopThemeFontFace | null
   kind: FontPickerKind
+  controls?: 'family' | 'style' | 'both'
   onCommit: (family: string | null, face: DesktopThemeFontFace | null) => void
 }
 
@@ -104,6 +105,7 @@ export function ThemeFontPicker({
   family,
   face,
   kind,
+  controls = 'both',
   onCommit,
 }: ThemeFontPickerProps): React.ReactNode {
   const [bridgeAvailable] = useState(
@@ -127,7 +129,7 @@ export function ThemeFontPicker({
         }
       })
     }
-  }, [bridgeAvailable, fontsState])
+  }, [bridgeAvailable, fontsState, family])
 
   const handleOpenChange = useCallback(
     (open: boolean): void => {
@@ -148,6 +150,18 @@ export function ThemeFontPicker({
   )
 
   if (!bridgeAvailable || fontsState === 'unavailable') {
+    if (controls === 'style') {
+      return (
+        <SettingsDropdown
+          ariaLabel={`${ariaLabel}字体样式`}
+          disabled
+          onChange={() => undefined}
+          options={buildStyleOptions({ faces: [], currentFace: face })}
+          value={selectedStyleValue({ faces: [], currentFace: face })}
+          width={100}
+        />
+      )
+    }
     return (
       <FontInput
         ariaLabel={ariaLabel}
@@ -189,36 +203,38 @@ export function ThemeFontPicker({
 
   return (
     <div aria-busy={fontsState === 'loading'} className="appearance-theme-font-row">
-      <SettingsDropdown
-        ariaLabel={`${ariaLabel}字体家族`}
-        options={familyOptions}
-        searchPlaceholder="搜索字体…"
-        searchable
-        triggerClassName="appearance-font-family"
-        value={currentFamilyValue}
-        width={240}
-        maxWidth="min(320px, calc(100vw - 16px))"
-        onChange={(familyValue) => {
-          if (fontsState !== 'ready') return
-          if (familyValue === family) {
-            // Re-selecting the current family keeps the stored face.
-            onCommit(family, face)
-            return
-          }
-          const patch = fontPatchForSelection({
-            familyValue,
-            faceValue: DEFAULT_FACE_VALUE,
-            familyFaces: facesOfFamily(faces, familyValue),
-            currentFace: null,
-          })
-          onCommit(patch.family, patch.face)
-        }}
-        onOpenChange={handleOpenChange}
-      />
-      {family != null ? (
+      {controls !== 'style' ? (
+        <SettingsDropdown
+          ariaLabel={`${ariaLabel}字体家族`}
+          options={familyOptions}
+          searchPlaceholder="搜索字体…"
+          searchable
+          triggerClassName="appearance-font-family"
+          value={currentFamilyValue}
+          width={240}
+          maxWidth="min(320px, calc(100vw - 16px))"
+          onChange={(familyValue) => {
+            if (fontsState !== 'ready') return
+            if (familyValue === family) {
+              // Re-selecting the current family keeps the stored face.
+              onCommit(family, face)
+              return
+            }
+            const patch = fontPatchForSelection({
+              familyValue,
+              faceValue: DEFAULT_FACE_VALUE,
+              familyFaces: facesOfFamily(faces, familyValue),
+              currentFace: null,
+            })
+            onCommit(patch.family, patch.face)
+          }}
+          onOpenChange={handleOpenChange}
+        />
+      ) : null}
+      {controls !== 'family' && (family != null || controls === 'style') ? (
         <SettingsDropdown
           ariaLabel={`${ariaLabel}字体样式`}
-          disabled={fontsState === 'ready' && selectedFamilyFaces.length <= 1}
+          disabled={family == null || (fontsState === 'ready' && selectedFamilyFaces.length <= 1)}
           options={buildStyleOptions({
             faces: selectedFamilyFaces,
             currentFace: face,
@@ -231,7 +247,7 @@ export function ThemeFontPicker({
           width={100}
           onOpenChange={handleOpenChange}
           onChange={(faceValue) => {
-            if (fontsState !== 'ready') return
+            if (fontsState !== 'ready' || family == null) return
             const patch = fontPatchForSelection({
               familyValue: family,
               faceValue,

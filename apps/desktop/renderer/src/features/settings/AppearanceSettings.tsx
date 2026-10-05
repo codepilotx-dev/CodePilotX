@@ -7,6 +7,9 @@ import {
 
 import { AnchoredPopover } from '../../components/ui/AnchoredPopover.js'
 import { Input } from '../../components/ui/Input.js'
+import { Button } from '../../components/ui/Button.js'
+import { DisclosureController } from '../../components/ui/DisclosureController.js'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Select, type SelectOption } from '../../components/ui/Select.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import type {
@@ -17,6 +20,8 @@ import type {
   DesktopThemeSettings,
   DesktopThemeVariant,
 } from '../../../shared/types.js'
+import { defaultDesktopStoredSettings } from '../../../shared/settingsSchema.js'
+import { resetAdvancedDesktopThemeSettings } from '../../../shared/theme.js'
 import { ReviewDiffReadOnlySplit } from '../review/diff/ReviewDiffSurface.js'
 import { getThemesForVariant } from '../syntax/theme.js'
 import { useDesktopTheme } from '../theme/themeContext.js'
@@ -42,6 +47,7 @@ type Props = {
 type ThemeSettingsUpdater = (current: DesktopThemeSettings) => DesktopThemeSettings
 
 const VARIANTS = ['light', 'dark'] as const
+const DEFAULT_DIFF_MARKER_STYLE = defaultDesktopStoredSettings().diffMarkerStyle
 const HEX_COLOR = /^#[0-9a-f]{6}$/i
 const ACCENT_PRESET_OPTIONS: Array<{ value: DesktopAccentPreset; label: string }> = [
   { value: 'default', label: '默认' },
@@ -584,11 +590,13 @@ function ThemePreview({
 }
 
 function VariantThemeEditor({
+  section,
   variant,
   settings,
   onUpdate,
   onError,
 }: {
+  section: 'visual' | 'advanced'
   variant: DesktopThemeVariant
   settings: DesktopThemeSettings
   onUpdate: (updater: ThemeSettingsUpdater) => void
@@ -621,6 +629,7 @@ function VariantThemeEditor({
   })
 
   useEffect(() => {
+    if (section !== 'visual') return
     let cancelled = false
     setThemeSeedsReady(false)
     void Promise.allSettled(
@@ -656,7 +665,7 @@ function VariantThemeEditor({
     return () => {
       cancelled = true
     }
-  }, [themes, variant])
+  }, [themes, variant, section])
 
   const codeThemeOptions = useMemo(
     () =>
@@ -717,111 +726,123 @@ function VariantThemeEditor({
   }
 
   return (
-    <article aria-busy={!themeSeedsReady} className="appearance-theme-editor settings-card">
+    <article
+      aria-busy={section === 'visual' && !themeSeedsReady}
+      className="appearance-theme-editor settings-card"
+      data-section={section}
+    >
       <SettingsRow
         title={`${variantLabel}主题`}
         control={
-          <SettingsDropdown
-            ariaLabel={`${variantLabel}代码主题`}
-            options={codeThemeOptions}
-            showSelectedIndicator
-            value={codeThemeId}
-            variant="theme"
-            width={180}
-            onChange={(nextId) => {
-              const nextCodeThemeId = nextId as DesktopThemeSettings['codeThemeIds'][typeof variant]
-              void Promise.resolve(loadChromeThemeSeed(nextCodeThemeId, variant))
-                .then((seed) => {
-                  onUpdate((current) => {
-                    const currentTheme = current.chromeThemes[variant]
-                    return {
-                      ...current,
-                      codeThemeIds: {
-                        ...current.codeThemeIds,
-                        [variant]: nextCodeThemeId,
-                      },
-                      chromeThemes: {
-                        ...current.chromeThemes,
-                        [variant]: mergeChromeThemeSeed(currentTheme, seed),
-                      },
-                    }
+          section === 'visual' ? (
+            <SettingsDropdown
+              ariaLabel={`${variantLabel}代码主题`}
+              options={codeThemeOptions}
+              showSelectedIndicator
+              value={codeThemeId}
+              variant="theme"
+              width={180}
+              onChange={(nextId) => {
+                const nextCodeThemeId =
+                  nextId as DesktopThemeSettings['codeThemeIds'][typeof variant]
+                void Promise.resolve(loadChromeThemeSeed(nextCodeThemeId, variant))
+                  .then((seed) => {
+                    onUpdate((current) => {
+                      const currentTheme = current.chromeThemes[variant]
+                      return {
+                        ...current,
+                        codeThemeIds: {
+                          ...current.codeThemeIds,
+                          [variant]: nextCodeThemeId,
+                        },
+                        chromeThemes: {
+                          ...current.chromeThemes,
+                          [variant]: mergeChromeThemeSeed(currentTheme, seed),
+                        },
+                      }
+                    })
                   })
-                })
-                .catch((error) => {
-                  onError(error instanceof Error ? error.message : '无法加载代码主题')
-                })
-            }}
-          />
+                  .catch((error) => {
+                    onError(error instanceof Error ? error.message : '无法加载代码主题')
+                  })
+              }}
+            />
+          ) : undefined
         }
       />
 
       <div className="appearance-theme-editor-rows">
-        <SettingsRow
-          title="强调色"
-          size="compact"
-          control={
-            <div className="appearance-accent-control">
-              <Select
-                ariaLabel={t(`${variantLabel}强调色预设`)}
-                options={accentOptions}
-                showSelectedIndicator
-                triggerClassName="appearance-accent-select"
-                value={accentPreset}
-                width={180}
-                onValueChange={(preset) =>
-                  onUpdate((current) => ({
-                    ...current,
-                    chromeThemes: {
-                      ...current.chromeThemes,
-                      [variant]: applyChromeThemeAccentPreset(
-                        current.chromeThemes[variant],
-                        preset,
-                        variant,
-                        themeSeeds[current.codeThemeIds[variant]]?.accent,
-                      ),
-                    },
-                  }))
-                }
-              />
-              {accentPreset === 'custom' ? (
+        {section === 'visual' ? (
+          <>
+            <SettingsRow
+              title="强调色"
+              size="compact"
+              control={
+                <div className="appearance-accent-control">
+                  <Select
+                    ariaLabel={t(`${variantLabel}强调色预设`)}
+                    options={accentOptions}
+                    showSelectedIndicator
+                    triggerClassName="appearance-accent-select"
+                    value={accentPreset}
+                    width={180}
+                    onValueChange={(preset) =>
+                      onUpdate((current) => ({
+                        ...current,
+                        chromeThemes: {
+                          ...current.chromeThemes,
+                          [variant]: applyChromeThemeAccentPreset(
+                            current.chromeThemes[variant],
+                            preset,
+                            variant,
+                            themeSeeds[current.codeThemeIds[variant]]?.accent,
+                          ),
+                        },
+                      }))
+                    }
+                  />
+                  {accentPreset === 'custom' ? (
+                    <ColorControl
+                      ariaLabel={`${variantLabel}强调色`}
+                      value={chromeTheme.accent}
+                      onCommit={(accent) => updateChromeTheme({ accent, accentPreset: 'custom' })}
+                    />
+                  ) : null}
+                </div>
+              }
+            />
+            <SettingsRow
+              title="背景"
+              size="compact"
+              control={
                 <ColorControl
-                  ariaLabel={`${variantLabel}强调色`}
-                  value={chromeTheme.accent}
-                  onCommit={(accent) => updateChromeTheme({ accent, accentPreset: 'custom' })}
+                  ariaLabel={`${variantLabel}背景色`}
+                  value={chromeTheme.surface}
+                  onCommit={(surface) => updateChromeTheme({ surface })}
                 />
-              ) : null}
-            </div>
-          }
-        />
-        <SettingsRow
-          title="背景"
-          size="compact"
-          control={
-            <ColorControl
-              ariaLabel={`${variantLabel}背景色`}
-              value={chromeTheme.surface}
-              onCommit={(surface) => updateChromeTheme({ surface })}
+              }
             />
-          }
-        />
-        <SettingsRow
-          title="前景"
-          size="compact"
-          control={
-            <ColorControl
-              ariaLabel={`${variantLabel}前景色`}
-              value={chromeTheme.ink}
-              onCommit={(ink) => updateChromeTheme({ ink })}
+            <SettingsRow
+              title="前景"
+              size="compact"
+              control={
+                <ColorControl
+                  ariaLabel={`${variantLabel}前景色`}
+                  value={chromeTheme.ink}
+                  onCommit={(ink) => updateChromeTheme({ ink })}
+                />
+              }
             />
-          }
-        />
+          </>
+        ) : null}
         <SettingsRow
-          title="UI 字体"
+          title={section === 'visual' ? 'UI 字体' : 'UI 字体样式'}
           size="compact"
           control={
             <ThemeFontPicker
               ariaLabel={`${variantLabel}界面字体`}
               kind="ui"
+              controls={section === 'visual' ? 'family' : 'style'}
               placeholder="ui-sans-serif, system-ui, sans-serif"
               face={chromeTheme.fonts.uiFace ?? null}
               family={chromeTheme.fonts.ui}
@@ -829,47 +850,51 @@ function VariantThemeEditor({
             />
           }
         />
-        <SettingsRow
-          title="代码字体"
-          size="compact"
-          control={
-            <ThemeFontPicker
-              ariaLabel={`${variantLabel}代码字体`}
-              kind="code"
-              placeholder="ui-monospace, SFMono-Regular, Consolas, monospace"
-              face={chromeTheme.fonts.codeFace ?? null}
-              family={chromeTheme.fonts.code}
-              onCommit={(code, codeFace) => updateFonts({ code, codeFace })}
+        {section === 'advanced' ? (
+          <>
+            <SettingsRow
+              title="代码字体"
+              size="compact"
+              control={
+                <ThemeFontPicker
+                  ariaLabel={`${variantLabel}代码字体`}
+                  kind="code"
+                  placeholder="ui-monospace, SFMono-Regular, Consolas, monospace"
+                  face={chromeTheme.fonts.codeFace ?? null}
+                  family={chromeTheme.fonts.code}
+                  onCommit={(code, codeFace) => updateFonts({ code, codeFace })}
+                />
+              }
             />
-          }
-        />
-        <SettingsRow
-          title="对比度"
-          size="compact"
-          control={
-            <label className="appearance-contrast-control">
-              <input
-                aria-label={`${variantLabel}对比度`}
-                max={100}
-                min={0}
-                style={
-                  {
-                    '--appearance-slider-accent': chromeTheme.accent,
-                    '--appearance-slider-surface': chromeTheme.surface,
-                  } as React.CSSProperties
-                }
-                type="range"
-                value={chromeTheme.contrast}
-                onChange={(event) =>
-                  updateChromeTheme({
-                    contrast: Number.parseInt(event.target.value, 10),
-                  })
-                }
-              />
-              <output>{chromeTheme.contrast}</output>
-            </label>
-          }
-        />
+            <SettingsRow
+              title="对比度"
+              size="compact"
+              control={
+                <label className="appearance-contrast-control">
+                  <input
+                    aria-label={`${variantLabel}对比度`}
+                    max={100}
+                    min={0}
+                    style={
+                      {
+                        '--appearance-slider-accent': chromeTheme.accent,
+                        '--appearance-slider-surface': chromeTheme.surface,
+                      } as React.CSSProperties
+                    }
+                    type="range"
+                    value={chromeTheme.contrast}
+                    onChange={(event) =>
+                      updateChromeTheme({
+                        contrast: Number.parseInt(event.target.value, 10),
+                      })
+                    }
+                  />
+                  <output>{chromeTheme.contrast}</output>
+                </label>
+              }
+            />
+          </>
+        ) : null}
       </div>
     </article>
   )
@@ -878,8 +903,14 @@ function VariantThemeEditor({
 export function AppearanceSettings({ onError }: Props): React.ReactNode {
   const theme = useDesktopTheme()
   const desktopSettings = useDesktopSettings()
+  const { t } = useLocale()
+  const [resetting, setResetting] = useState(false)
+  const [resetFailed, setResetFailed] = useState(false)
   const { settings, resolvedVariant } = theme.draft
   const visibleVariants = settings.mode === 'system' ? VARIANTS : ([resolvedVariant] as const)
+  const hasAdvancedChanges =
+    JSON.stringify(resetAdvancedDesktopThemeSettings(settings)) !== JSON.stringify(settings) ||
+    desktopSettings.draft.values.diffMarkerStyle !== DEFAULT_DIFF_MARKER_STYLE
 
   const reportError = onError ?? (() => undefined)
 
@@ -898,76 +929,91 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
     desktopSettings.draft.autoSave()
   }
 
+  const resetAdvancedSettings = async (): Promise<void> => {
+    setResetting(true)
+    desktopSettings.draft.setValue('diffMarkerStyle', DEFAULT_DIFF_MARKER_STYLE)
+    const results = await Promise.allSettled([
+      theme.draft.updateAndAutoSave(resetAdvancedDesktopThemeSettings),
+      desktopSettings.draft.save(),
+    ])
+    const failed = results.some((result) => result.status === 'rejected')
+    setResetFailed(failed)
+    setResetting(false)
+    if (failed) {
+      reportError(t('部分高级设置重置失败，请重试'))
+    }
+  }
+
   return (
     <SettingsContentArea>
       <div className="settings-content-inner appearance-settings">
         <div className="settings-page-header">
-          <h2 className="settings-page-title">外观</h2>
+          <h2 className="settings-page-title">{t('外观')}</h2>
         </div>
 
-        <SettingsSection bare title="主题">
-          <div
-            aria-label="外观模式"
-            className="appearance-mode-gallery"
-            role="radiogroup"
-            onKeyDown={(event) => {
-              const keyOffsets: Partial<Record<string, number>> = {
-                ArrowLeft: -1,
-                ArrowUp: -1,
-                ArrowRight: 1,
-                ArrowDown: 1,
-              }
-              const currentIndex = THEME_MODE_OPTIONS.findIndex(
-                (option) => option.value === settings.mode,
-              )
-              let nextIndex = currentIndex
-              if (event.key === 'Home') nextIndex = 0
-              else if (event.key === 'End') {
-                nextIndex = THEME_MODE_OPTIONS.length - 1
-              } else if (keyOffsets[event.key]) {
-                nextIndex =
-                  (currentIndex + (keyOffsets[event.key] ?? 0) + THEME_MODE_OPTIONS.length) %
-                  THEME_MODE_OPTIONS.length
-              } else {
-                return
-              }
+        <SettingsSection bare title="视觉样式">
+          <div className="settings-card">
+            <SettingsRow
+              title="模式"
+              control={
+                <div
+                  aria-label="外观模式"
+                  className="appearance-mode-gallery"
+                  role="radiogroup"
+                  onKeyDown={(event) => {
+                    const keyOffsets: Partial<Record<string, number>> = {
+                      ArrowLeft: -1,
+                      ArrowUp: -1,
+                      ArrowRight: 1,
+                      ArrowDown: 1,
+                    }
+                    const currentIndex = THEME_MODE_OPTIONS.findIndex(
+                      (option) => option.value === settings.mode,
+                    )
+                    let nextIndex = currentIndex
+                    if (event.key === 'Home') nextIndex = 0
+                    else if (event.key === 'End') {
+                      nextIndex = THEME_MODE_OPTIONS.length - 1
+                    } else if (keyOffsets[event.key]) {
+                      nextIndex =
+                        (currentIndex + (keyOffsets[event.key] ?? 0) + THEME_MODE_OPTIONS.length) %
+                        THEME_MODE_OPTIONS.length
+                    } else {
+                      return
+                    }
 
-              event.preventDefault()
-              const nextMode = THEME_MODE_OPTIONS[nextIndex]?.value
-              if (!nextMode) return
-              const nextInput = event.currentTarget.querySelector<HTMLInputElement>(
-                `input[value="${nextMode}"]`,
-              )
-              nextInput?.focus()
-              nextInput?.click()
-            }}
-          >
-            {THEME_MODE_OPTIONS.map((option) => (
-              <ThemeModeCard
-                key={option.value}
-                label={option.label}
-                mode={option.value}
-                selected={settings.mode === option.value}
-                onSelect={() => {
-                  saveThemeSettings((current) => ({
-                    ...current,
-                    mode: option.value,
-                  }))
-                }}
-              />
-            ))}
+                    event.preventDefault()
+                    const nextMode = THEME_MODE_OPTIONS[nextIndex]?.value
+                    if (!nextMode) return
+                    const nextInput = event.currentTarget.querySelector<HTMLInputElement>(
+                      `input[value="${nextMode}"]`,
+                    )
+                    nextInput?.focus()
+                    nextInput?.click()
+                  }}
+                >
+                  {THEME_MODE_OPTIONS.map((option) => (
+                    <ThemeModeCard
+                      key={option.value}
+                      label={option.label}
+                      mode={option.value}
+                      selected={settings.mode === option.value}
+                      onSelect={() => {
+                        saveThemeSettings((current) => ({
+                          ...current,
+                          mode: option.value,
+                        }))
+                      }}
+                    />
+                  ))}
+                </div>
+              }
+            />
           </div>
-
-          <ThemePreview
-            codeThemeId={settings.codeThemeIds[resolvedVariant]}
-            markerStyle={desktopSettings.draft.values.diffMarkerStyle}
-            theme={settings.chromeThemes[resolvedVariant]}
-            variant={resolvedVariant}
-          />
-
           <div className="appearance-theme-editors">
             {visibleVariants.map((variant) => (
               <VariantThemeEditor
+                section="visual"
                 key={variant}
                 settings={settings}
                 variant={variant}
@@ -978,7 +1024,7 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
           </div>
         </SettingsSection>
 
-        <SettingsSection title="界面设置">
+        <SettingsSection title="界面布局">
           <SettingsRow
             autoSave
             title="侧边栏"
@@ -1000,8 +1046,6 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
               />
             }
           />
-        </SettingsSection>
-        <SettingsSection title="偏好设置">
           <SettingsRow
             autoSave
             title="页面宽度"
@@ -1022,99 +1066,165 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
               />
             }
           />
-          <SettingsRow
-            autoSave
-            title="使用指针光标"
-            description="悬停按钮、菜单等交互元素时显示手形指针"
-            control={
-              <ToggleSwitch
-                ariaLabel="使用指针光标"
-                checked={settings.pointerCursorEnabled}
-                onChange={(pointerCursorEnabled) => updateThemeSettings({ pointerCursorEnabled })}
-              />
-            }
-          />
-          <SettingsRow
-            autoSave
-            title="减少动态效果"
-            description="跟随系统，或始终开启、关闭界面动画"
-            control={
-              <SegmentedControl
-                ariaLabel="减少动态效果选项"
-                options={[
-                  { value: 'system', label: '系统' },
-                  { value: 'on', label: '开启' },
-                  { value: 'off', label: '关闭' },
-                ]}
-                value={settings.reduceMotion}
-                onChange={(reduceMotion) => updateThemeSettings({ reduceMotion })}
-              />
-            }
-          />
-          <SettingsRow
-            title="界面字号"
-            control={
-              <NumberInput
-                ariaLabel="界面字号"
-                max={16}
-                min={11}
-                value={settings.fontSizes.ui}
-                onChange={(ui) =>
-                  saveThemeSettings((current) => ({
-                    ...current,
-                    fontSizes: { ...current.fontSizes, ui },
-                  }))
+        </SettingsSection>
+
+        <SettingsSection bare>
+          <DisclosureController
+            contentClassName="appearance-advanced-content"
+            renderTrigger={({ expanded, contentId, toggle }) => (
+              <SettingsSection.Header
+                title={
+                  <button
+                    aria-controls={contentId}
+                    aria-expanded={expanded}
+                    className="appearance-advanced-trigger"
+                    onClick={toggle}
+                    type="button"
+                  >
+                    {t('高级')}
+                    {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  </button>
+                }
+                actions={
+                  hasAdvancedChanges || resetting || resetFailed ? (
+                    <Button
+                      color="ghostTertiary"
+                      disabled={resetting || theme.draft.saving || desktopSettings.draft.saving}
+                      loading={resetting}
+                      onClick={() => {
+                        void resetAdvancedSettings()
+                      }}
+                      size="compact"
+                    >
+                      {t('重置高级设置')}
+                    </Button>
+                  ) : undefined
                 }
               />
-            }
-          />
-          <SettingsRow
-            title="代码字号"
-            control={
-              <NumberInput
-                ariaLabel="代码字号"
-                max={24}
-                min={8}
-                value={settings.fontSizes.code}
-                onChange={(code) =>
-                  saveThemeSettings((current) => ({
-                    ...current,
-                    fontSizes: { ...current.fontSizes, code },
-                  }))
+            )}
+          >
+            <div className="settings-card">
+              <SettingsRow
+                title="界面字号"
+                control={
+                  <NumberInput
+                    ariaLabel="界面字号"
+                    max={16}
+                    min={11}
+                    value={settings.fontSizes.ui}
+                    onChange={(ui) =>
+                      saveThemeSettings((current) => ({
+                        ...current,
+                        fontSizes: { ...current.fontSizes, ui },
+                      }))
+                    }
+                  />
                 }
               />
-            }
-          />
-          <SettingsRow
-            autoSave
-            title="差异标记"
-            description="使用彩色背景，或在更改行显示 + / - 符号"
-            control={
-              <SegmentedControl
-                ariaLabel="差异标记选项"
-                options={[
-                  { value: 'color', label: '颜色' },
-                  { value: 'symbol', label: '+/-' },
-                ]}
-                value={desktopSettings.draft.values.diffMarkerStyle}
-                onChange={updateDiffMarkerStyle}
+              <SettingsRow
+                title="代码字号"
+                control={
+                  <NumberInput
+                    ariaLabel="代码字号"
+                    max={24}
+                    min={8}
+                    value={settings.fontSizes.code}
+                    onChange={(code) =>
+                      saveThemeSettings((current) => ({
+                        ...current,
+                        fontSizes: { ...current.fontSizes, code },
+                      }))
+                    }
+                  />
+                }
               />
-            }
-          />
-          {navigator.platform.toLowerCase().includes('mac') ? (
-            <SettingsRow
-              autoSave
-              title="字体平滑"
-              description="在 macOS 上优化浅色文字边缘"
-              control={
-                <ToggleSwitch
-                  ariaLabel="字体平滑"
-                  checked={settings.fontSmoothingEnabled}
-                  onChange={(fontSmoothingEnabled) => updateThemeSettings({ fontSmoothingEnabled })}
+            </div>
+            <div className="appearance-theme-editors">
+              {visibleVariants.map((variant) => (
+                <VariantThemeEditor
+                  section="advanced"
+                  key={variant}
+                  settings={settings}
+                  variant={variant}
+                  onError={reportError}
+                  onUpdate={saveThemeSettings}
                 />
-              }
-            />
-          ) : null}
+              ))}
+            </div>
+            <div className="settings-card">
+              <SettingsRow
+                autoSave
+                title="减少动态效果"
+                description="跟随系统，或始终开启、关闭界面动画"
+                control={
+                  <SegmentedControl
+                    ariaLabel="减少动态效果选项"
+                    options={[
+                      { value: 'system', label: '系统' },
+                      { value: 'on', label: '开启' },
+                      { value: 'off', label: '关闭' },
+                    ]}
+                    value={settings.reduceMotion}
+                    onChange={(reduceMotion) => updateThemeSettings({ reduceMotion })}
+                  />
+                }
+              />
+              <SettingsRow
+                autoSave
+                title="使用指针光标"
+                description="悬停按钮、菜单等交互元素时显示手形指针"
+                control={
+                  <ToggleSwitch
+                    ariaLabel="使用指针光标"
+                    checked={settings.pointerCursorEnabled}
+                    onChange={(pointerCursorEnabled) =>
+                      updateThemeSettings({ pointerCursorEnabled })
+                    }
+                  />
+                }
+              />
+              <SettingsRow
+                autoSave
+                title="差异标记"
+                description="使用彩色背景，或在更改行显示 + / - 符号"
+                control={
+                  <SegmentedControl
+                    ariaLabel="差异标记选项"
+                    options={[
+                      { value: 'color', label: '颜色' },
+                      { value: 'symbol', label: '+/-' },
+                    ]}
+                    value={desktopSettings.draft.values.diffMarkerStyle}
+                    onChange={updateDiffMarkerStyle}
+                  />
+                }
+              />
+              {navigator.platform.toLowerCase().includes('mac') ? (
+                <SettingsRow
+                  autoSave
+                  title="字体平滑"
+                  description="在 macOS 上优化浅色文字边缘"
+                  control={
+                    <ToggleSwitch
+                      ariaLabel="字体平滑"
+                      checked={settings.fontSmoothingEnabled}
+                      onChange={(fontSmoothingEnabled) =>
+                        updateThemeSettings({ fontSmoothingEnabled })
+                      }
+                    />
+                  }
+                />
+              ) : null}
+            </div>
+            <SettingsSection bare title="差异预览">
+              <ThemePreview
+                codeThemeId={settings.codeThemeIds[resolvedVariant]}
+                markerStyle={desktopSettings.draft.values.diffMarkerStyle}
+                theme={settings.chromeThemes[resolvedVariant]}
+                variant={resolvedVariant}
+              />
+            </SettingsSection>
+          </DisclosureController>
         </SettingsSection>
       </div>
     </SettingsContentArea>
