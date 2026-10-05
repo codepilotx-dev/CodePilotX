@@ -11,6 +11,8 @@
 }
 
 .conversation-page {
+  --page-content-max-width: 48rem;
+  --conversation-shift-offset: 0px;
   --conversation-rail-inline-start: var(--cpx-sys-space-2);
   --conversation-rail-width: var(--cpx-sys-space-8);
   --conversation-rail-gap: var(--cpx-sys-space-2);
@@ -26,6 +28,16 @@
   --conversation-grouped-item-gap: 4px;
   --thread-resource-row-padding-x: 12px;
   background: var(--cpx-sys-color-surface-canvas);
+
+  &[data-conversation-width='narrow'],
+  .desktop-main-route[data-page-width='narrow'] & {
+    --page-content-max-width: var(--cpx-sys-layout-reading-max-width);
+  }
+
+  &[data-conversation-width='wide'],
+  .desktop-main-route[data-page-width='wide'] & {
+    --page-content-max-width: var(--cpx-sys-layout-wide-max-width);
+  }
 }
 
 .conversation-page .chat-session-header {
@@ -47,8 +59,41 @@
   background: transparent;
 }
 
+.conversation-page .workflow-page__main {
+  --conversation-shift-offset: 0px;
+
+  &[data-thread-summary-inline='true'][data-thread-summary-mode='shift'] {
+    --conversation-shift-offset: -154px;
+  }
+}
+
+.conversation-page[data-conversation-width='wide'] .workflow-page__main {
+  --conversation-shift-offset: 0px;
+}
+
+.conversation-page .session-timeline-main,
+.conversation-page .workflow-page__composer-inner {
+  transform: translateX(var(--conversation-shift-offset, 0px));
+  transition: transform var(--cpx-sys-motion-panel) var(--cpx-sys-ease-standard);
+}
+
+.conversation-page .thread-scroll-layout {
+  scrollbar-width: thin;
+  scrollbar-color: var(--cpx-sys-color-border-subtle) transparent;
+}
+
 .conversation-page .thread-scroll-layout__footer {
-  padding: 0 0 var(--cpx-sys-space-4);
+  padding: 0 var(--cpx-sys-space-4) var(--cpx-sys-space-3);
+
+  &::before {
+    inset: calc(0px - var(--thread-scroll-footer-fade-height)) 0 0;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      color-mix(in srgb, var(--cpx-sys-color-surface-canvas) 85%, transparent) 40%,
+      var(--cpx-sys-color-surface-canvas) 100%
+    );
+  }
 }
 
 .conversation-page .session-timeline-container {
@@ -486,22 +531,41 @@
 }
 
 .canonical-user-message {
+  --user-message-bubble-padding-y: 10px;
+  --user-message-bubble-radius: calc(var(--cpx-sys-space-1) * 5.5);
   display: grid;
   justify-items: end;
   gap: var(--cpx-sys-space-1);
   width: 100%;
   min-width: 0;
 
+  .thread-attachment-rows {
+    justify-items: end;
+    width: 100%;
+  }
+
+  .attachment-image-tile {
+    width: auto;
+    max-width: 160px;
+    height: 80px;
+
+    &__image {
+      object-fit: contain;
+      max-width: 160px;
+      height: 80px;
+    }
+  }
+
   &__bubble {
     display: grid;
     gap: var(--cpx-sys-space-2);
     width: fit-content;
     min-width: 0;
-    max-width: 77%;
-    padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
+    max-width: 70%;
+    padding: var(--user-message-bubble-padding-y) var(--cpx-sys-space-4);
     overflow: hidden;
     border: 0;
-    border-radius: var(--cpx-sys-radius-2xl);
+    border-radius: var(--user-message-bubble-radius);
     background: var(--cpx-sys-color-message-user-bg);
     color: var(--cpx-sys-color-fg-primary);
     font: var(--cpx-sys-type-reading);
@@ -672,12 +736,14 @@
   &--assistant {
     justify-content: flex-start;
     margin-top: var(--cpx-sys-space-1);
-    opacity: 1;
+    opacity: 0;
   }
 }
 
 .canonical-user-message:hover .canonical-message-actions,
 .canonical-user-message:focus-within .canonical-message-actions,
+.canonical-turn:hover .canonical-message-actions--assistant,
+.canonical-turn:focus-within .canonical-message-actions--assistant,
 .canonical-text-item:hover .canonical-message-actions,
 .canonical-text-item:focus-within .canonical-message-actions {
   opacity: 1;

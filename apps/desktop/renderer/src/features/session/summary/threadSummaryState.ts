@@ -1,8 +1,8 @@
 import * as React from 'react'
 
-export const THREAD_SUMMARY_PANEL_WIDTH = 260
+export const THREAD_SUMMARY_PANEL_WIDTH = 300
 export const THREAD_SUMMARY_PANEL_GAP = 16
-export const THREAD_SUMMARY_OVERLAY_MAX_WIDTH = 959
+export const THREAD_SUMMARY_OVERLAY_MAX_WIDTH = 1095
 export const THREAD_SUMMARY_SHIFT_MAX_WIDTH = 1535
 
 export type ThreadSummaryDisplayMode = 'overlay' | 'shift' | 'gutter'
@@ -15,6 +15,7 @@ export type ThreadSummaryPreferenceState = {
 export type ThreadSummaryState = ThreadSummaryPreferenceState & {
   displayMode: ThreadSummaryDisplayMode
   shouldShowInline: boolean
+  shiftOffset: number
 }
 
 const DEFAULT_PREFERENCE: ThreadSummaryPreferenceState = {
@@ -41,11 +42,27 @@ function subscribePreference(listener: () => void): () => void {
   return () => preferenceListeners.delete(listener)
 }
 
-export function resolveThreadSummaryDisplayMode(containerWidth: number): ThreadSummaryDisplayMode {
+export function resolveThreadSummaryDisplayMode(
+  containerWidth: number,
+  panelWidth: number = THREAD_SUMMARY_PANEL_WIDTH,
+): ThreadSummaryDisplayMode {
   const width = Number.isFinite(containerWidth) && containerWidth > 0 ? containerWidth : 0
-  if (width <= THREAD_SUMMARY_OVERLAY_MAX_WIDTH) return 'overlay'
-  if (width <= THREAD_SUMMARY_SHIFT_MAX_WIDTH) return 'shift'
+  const g = (width - 736) / 2
+  const r = panelWidth - 300
+  if (g < 180 + r / 2) return 'overlay'
+  if (g < 400 + r) return 'shift'
   return 'gutter'
+}
+
+export function resolveThreadSummaryShiftOffset(params: {
+  displayMode: ThreadSummaryDisplayMode
+  isPinned: boolean
+  panelWidth?: number
+}): number {
+  const panelWidth = params.panelWidth ?? THREAD_SUMMARY_PANEL_WIDTH
+  return params.isPinned && params.displayMode === 'shift'
+    ? -(308 + panelWidth - 300) / 2
+    : 0
 }
 
 export function resolveThreadSummaryDisplayModeUpdate(
@@ -73,6 +90,7 @@ function deriveThreadSummaryStateForMode(
     displayMode,
     isPopoverOpen: displayMode === 'overlay' ? preference.isPopoverOpen : false,
     shouldShowInline: preference.isPinned && displayMode !== 'overlay',
+    shiftOffset: resolveThreadSummaryShiftOffset({ displayMode, isPinned: preference.isPinned }),
   }
 }
 
