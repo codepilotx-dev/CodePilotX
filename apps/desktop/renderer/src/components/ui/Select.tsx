@@ -4,6 +4,7 @@ import * as Popover from '@radix-ui/react-popover'
 import * as RadixSelect from '@radix-ui/react-select'
 import { Check, ChevronDown } from 'lucide-react'
 import { cx } from '../../utils/cx.js'
+import { useFloatingFocusModality } from '../../utils/floatingFocus.js'
 import { SearchInput } from './SearchInput.js'
 import { buildPopoverSizingStyle, type PopoverSize } from './popoverSizing.js'
 
@@ -92,6 +93,7 @@ function BasicSelect<T extends string>({
 }: SelectProps<T>): React.ReactNode {
   const selectedOption = options.find((option) => option.value === value)
   const radixValue = value === '' ? EMPTY_VALUE : value
+  const focusModality = useFloatingFocusModality()
 
   return (
     <RadixSelect.Root
@@ -112,6 +114,7 @@ function BasicSelect<T extends string>({
         )}
         data-theme-component="dropdown-trigger"
         data-variant={variant}
+        {...focusModality.triggerInteractionProps}
       >
         <span className="ui-select-value settings-dropdown-value">
           {selectedOption?.icon}
@@ -134,6 +137,7 @@ function BasicSelect<T extends string>({
           collisionPadding={6}
           data-theme-component="dropdown-surface"
           data-variant={variant}
+          onCloseAutoFocus={focusModality.suppressFocusRingOnClose}
           position="popper"
           sideOffset={4}
           style={buildPopoverSizingStyle({
@@ -203,6 +207,7 @@ function SearchableSelect<T extends string>({
   const query = searchValue ?? localSearchValue
   const remoteSearch = searchValue !== undefined || onSearchChange !== undefined
   const normalizedQuery = query.trim().toLocaleLowerCase()
+  const focusModality = useFloatingFocusModality()
   const visibleOptions =
     remoteSearch || !normalizedQuery
       ? options
@@ -235,7 +240,7 @@ function SearchableSelect<T extends string>({
     if (option.disabled) return
     onValueChange(option.value)
     changeOpen(false)
-    requestAnimationFrame(() => triggerRef.current?.focus())
+    focusModality.refocusTrigger(triggerRef.current)
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>): void {
@@ -244,7 +249,7 @@ function SearchableSelect<T extends string>({
       if (query) updateSearch('')
       else {
         changeOpen(false)
-        requestAnimationFrame(() => triggerRef.current?.focus())
+        focusModality.refocusTrigger(triggerRef.current)
       }
       return
     }
@@ -288,7 +293,7 @@ function SearchableSelect<T extends string>({
 
   return (
     <Popover.Root open={open} onOpenChange={changeOpen}>
-      <Popover.Trigger asChild>
+      <Popover.Trigger asChild {...focusModality.triggerInteractionProps}>
         <button
           ref={triggerRef}
           aria-label={ariaLabel}
@@ -322,7 +327,10 @@ function SearchableSelect<T extends string>({
           collisionPadding={6}
           data-theme-component="dropdown-surface"
           data-variant={variant}
-          onCloseAutoFocus={() => updateSearch('')}
+          onCloseAutoFocus={(event) => {
+            updateSearch('')
+            focusModality.suppressFocusRingOnClose(event)
+          }}
           sideOffset={4}
           style={buildPopoverSizingStyle({
             width: width ?? 'auto',

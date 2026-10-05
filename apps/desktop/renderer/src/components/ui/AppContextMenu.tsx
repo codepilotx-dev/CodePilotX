@@ -2,6 +2,7 @@ import { useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import * as ContextMenu from '@radix-ui/react-context-menu'
 import { ChevronRight } from 'lucide-react'
 import type { DesktopEditAction } from '@codepilotx/shared/desktop-edit-ipc'
+import { useFloatingFocusModality } from '../../utils/floatingFocus.js'
 import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from './iconTokens.js'
 import { buildPopoverSizingStyle, type PopoverSizingProps } from './popoverSizing.js'
 import { type CapturedEditCommandContext, useEditCommands } from './EditCommandProvider.js'
@@ -53,6 +54,7 @@ export function AppContextMenu({
   includeEditActions = true,
 }: AppContextMenuProps): ReactNode {
   const editCommands = useEditCommands()
+  const focusModality = useFloatingFocusModality()
   const [editContext, setEditContext] = useState<CapturedEditCommandContext | null>(null)
   const editActions = useMemo(
     () =>
@@ -85,7 +87,11 @@ export function AppContextMenu({
         onOpenChange?.(open)
       }}
     >
-      <ContextMenu.Trigger asChild onContextMenu={handleContextMenu}>
+      <ContextMenu.Trigger
+        asChild
+        onContextMenu={handleContextMenu}
+        {...focusModality.triggerInteractionProps}
+      >
         {trigger}
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
@@ -94,7 +100,10 @@ export function AppContextMenu({
           collisionPadding={6}
           data-size={size}
           data-variant={variant}
-          onCloseAutoFocus={() => setEditContext(null)}
+          onCloseAutoFocus={(event) => {
+            setEditContext(null)
+            focusModality.suppressFocusRingOnClose(event)
+          }}
           style={buildPopoverSizingStyle({ width, maxWidth })}
         >
           {mergedActions.map((action, index) => renderAction(action, index))}

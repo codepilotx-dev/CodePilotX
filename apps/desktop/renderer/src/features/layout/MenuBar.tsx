@@ -23,6 +23,7 @@ import {
   type PopoverSizingProps,
 } from '../../components/ui/popoverSizing.js'
 import { cx } from '../../utils/cx.js'
+import { useFloatingFocusModality } from '../../utils/floatingFocus.js'
 import { useEditCommands } from '../../components/ui/EditCommandProvider.js'
 
 export type FileMenuAction =
@@ -170,12 +171,15 @@ function AppMenu({
   width,
   maxWidth,
 }: AppMenuProps): React.ReactNode {
+  const focusModality = useFloatingFocusModality()
   return (
     <Menubar.Menu value={value}>
       <Menubar.Trigger
         data-theme-component="dropdown-trigger"
         className="menubar-trigger"
+        {...focusModality.triggerInteractionProps}
         onPointerDown={(event) => {
+          focusModality.triggerInteractionProps.onPointerDown()
           if (
             event.currentTarget.dataset.state === 'open' &&
             event.button === 0 &&
@@ -196,6 +200,7 @@ function AppMenu({
           className={['popover-surface', 'menubar-content', contentClassName].join(' ')}
           collisionPadding={6}
           data-edit-command-preserve-target
+          onCloseAutoFocus={focusModality.suppressFocusRingOnClose}
           sideOffset={4}
           style={buildPopoverSizingStyle({ width, maxWidth })}
         >

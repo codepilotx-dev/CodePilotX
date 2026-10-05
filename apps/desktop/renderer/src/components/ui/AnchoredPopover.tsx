@@ -1,6 +1,7 @@
 import type React from 'react'
 import * as RadixPopover from '@radix-ui/react-popover'
 import { cx } from '../../utils/cx.js'
+import { useFloatingFocusModality } from '../../utils/floatingFocus.js'
 import { buildPopoverSizingStyle, type PopoverSizingProps } from './popoverSizing.js'
 
 export type AnchoredPopoverProps = PopoverSizingProps & {
@@ -40,6 +41,7 @@ export function AnchoredPopover({
   trigger,
   width,
 }: AnchoredPopoverProps): React.ReactNode {
+  const focusModality = useFloatingFocusModality()
   return (
     <RadixPopover.Root
       defaultOpen={defaultOpen}
@@ -47,10 +49,15 @@ export function AnchoredPopover({
       open={open}
       onOpenChange={onOpenChange}
     >
-      <RadixPopover.Trigger asChild>{trigger}</RadixPopover.Trigger>
+      <RadixPopover.Trigger asChild {...focusModality.triggerInteractionProps}>
+        {trigger}
+      </RadixPopover.Trigger>
       <RadixPopover.Portal>
         <RadixPopover.Content
-          onCloseAutoFocus={onCloseAutoFocus}
+          onCloseAutoFocus={(event) => {
+            onCloseAutoFocus?.(event)
+            if (!event.defaultPrevented) focusModality.suppressFocusRingOnClose(event)
+          }}
           aria-label={contentLabel}
           align={align}
           className={cx('popover-surface', 'popover', 'tw:text-app-text', className)}
