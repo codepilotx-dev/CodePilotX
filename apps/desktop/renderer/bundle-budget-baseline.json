@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
-  "acceptedAt": "2026-08-29",
-  "acceptedReason": "全部主窗口一级页面随启动加载",
+  "acceptedAt": "2026-10-05",
+  "acceptedReason": "对齐 Codex 桌面会话视图视觉结构与计划展开交互规范",
   "metrics": {
-    "entryCssRawBytes": 764044,
-    "newInteractiveCssRawBytes": 764044
+    "entryCssRawBytes": 804041,
+    "newInteractiveCssRawBytes": 804041
   }
 }
