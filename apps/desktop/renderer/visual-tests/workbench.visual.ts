@@ -2683,8 +2683,8 @@ test('pinned session icon and overflowing title motion keep the sidebar fade con
   await expect(pinnedRow).not.toHaveClass(/sidebar-row--session/)
   await expect(pinnedRow).toHaveCSS('padding-left', '8px')
   await expect(ordinaryRow).toHaveClass(/sidebar-row--session/)
-  await expect(ordinaryRow).toHaveCSS('padding-left', '32px')
-  await expect(ordinaryRow.locator('.sidebar-row-leading')).toHaveCount(0)
+  await expect(ordinaryRow).toHaveCSS('padding-left', '8px')
+  await expect(ordinaryRow.locator('.sidebar-row-leading-spacer')).toHaveCount(1)
   const projectRow = page.locator('.sidebar-project-header').first()
   const showMore = projectRow.locator('xpath=..').locator('.sidebar-show-more-actions')
   const [projectMainBox, ordinaryMainBox, showMoreMainBox, ordinaryTitleBox, showMoreTextBox] =
@@ -3041,7 +3041,7 @@ test('pinned session icon and overflowing title motion keep the sidebar fade con
     .first()
   await expect(recentRow).toHaveClass(/sidebar-row--session/)
   await expect(recentRow).toHaveCSS('padding-left', '8px')
-  await expect(recentRow.locator('.sidebar-row-leading')).toHaveCount(0)
+  await expect(recentRow.locator('.sidebar-row-leading-spacer')).toHaveCount(1)
 })
 
 test('sidebar session reorder displaces live and persists after remount', async ({ page }) => {

@@ -188,7 +188,7 @@ const sidebarActions = [Pin, Archive]
         h(IconButton, {
           className: 'sidebar-session-action-button',
           iconSize: 'md',
-          size: 'iconMd',
+          size: 'compact',
           color: 'ghostSecondary',
           title: '行尾操作',
           children: h(Icon, { size: APP_ICON_SIZE }),
