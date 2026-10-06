@@ -7,6 +7,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- [desktop/renderer] 侧边栏行无图标时统一使用首列占位槽（spacer）对齐，展开与折叠显示行补齐占位槽，确保会话与项目列表文本垂直基线一致。
+- [desktop/renderer] 侧边栏会话与项目行悬浮操作按钮统一使用 24px（compact）尺寸，与常态下时钟、分叉及未读标记等 24px 状态指示器几何中心与边界精确对齐。
+
 ### Changed
 
 - [desktop] 合并 UI-Design 外观重建与 Tailwind 样式迁移，保留 dev 的日程文件访问范围与 MCP 交互逻辑。
