@@ -5,7 +5,7 @@ import * as AlertDialog from '@radix-ui/react-alert-dialog'
 import * as Dialog from '@radix-ui/react-dialog'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './iconTokens.js'
 import { Button } from './Button.js'
-import { IconButton } from './IconButton.js'
+
 import { useDialogFocusRestore } from './useDialogFocusRestore.js'
 
 type ConfirmationInput = {
@@ -71,14 +71,14 @@ export function ConfirmationDialog({
               </h2>
             </AlertDialog.Title>
             <AlertDialog.Cancel asChild>
-              <IconButton
+              <Button isIconOnly
                 className="tw:shrink-0"
                 color="ghostSecondary"
                 size="toolbar"
                 title="关闭对话框"
               >
                 <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              </IconButton>
+              </Button>
             </AlertDialog.Cancel>
           </header>
           <AlertDialog.Description asChild>
@@ -173,14 +173,14 @@ export function InputDialog({
                 </h2>
               </Dialog.Title>
               <Dialog.Close asChild>
-                <IconButton
+                <Button isIconOnly
                   className="tw:shrink-0"
                   color="ghostSecondary"
                   size="toolbar"
                   title="关闭对话框"
                 >
                   <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                </IconButton>
+                </Button>
               </Dialog.Close>
             </header>
             <Dialog.Description asChild>

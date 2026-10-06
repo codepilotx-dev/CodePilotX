@@ -10,7 +10,7 @@ import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 import { enterTween, exitTween, motionTransition } from '../features/motion/motionTransitions.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
 import { Button } from './ui/Button.js'
-import { IconButton } from './ui/IconButton.js'
+
 import { Toast, ToastDivider } from './ui/Toast.js'
 
 const HIDE_DELAY_MS = 2_000
@@ -104,7 +104,7 @@ export function PageZoomCapsule(): React.ReactNode {
           <Toast>
             <output aria-live="polite" className="tw:contents">
               <strong>{state.percent}%</strong>
-              <IconButton
+              <Button isIconOnly
                 color="ghostSecondary"
                 disabled={!state.canZoomOut}
                 onClick={() => changeZoom('out')}
@@ -112,8 +112,8 @@ export function PageZoomCapsule(): React.ReactNode {
                 title="缩小页面"
               >
                 <Minus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              </IconButton>
-              <IconButton
+              </Button>
+              <Button isIconOnly
                 color="ghostSecondary"
                 disabled={!state.canZoomIn}
                 onClick={() => changeZoom('in')}
@@ -121,7 +121,7 @@ export function PageZoomCapsule(): React.ReactNode {
                 title="放大页面"
               >
                 <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              </IconButton>
+              </Button>
               <ToastDivider />
               <Button
                 color="ghostSecondary"

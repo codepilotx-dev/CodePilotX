@@ -5,7 +5,7 @@ import { useSharedAutomationController } from '../../automation/AutomationContro
 import { formatAutomationTime, runStatusLabel } from '../../automation/automationModel.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
 import { Button } from '../../../components/ui/Button.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
@@ -88,7 +88,7 @@ export function SidebarScheduledPane(): ReactNode {
             return (
               <section key={task.id} className="sidebar-scheduled-task">
                 <div className="sidebar-scheduled-task-heading tw:flex tw:min-w-0 tw:items-center">
-                  <IconButton
+                  <Button isIconOnly
                     title={`${t('执行记录')}：${task.name}`}
                     aria-expanded={open}
                     aria-label={`${t('执行记录')}：${task.name}`}
@@ -108,7 +108,7 @@ export function SidebarScheduledPane(): ReactNode {
                     ) : (
                       <ChevronRight size={APP_ICON_SIZE} />
                     )}
-                  </IconButton>
+                  </Button>
                   <SidebarRow
                     asChild
                     layout="flex"

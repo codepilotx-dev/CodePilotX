@@ -222,7 +222,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
         open={menuOpen}
         side={compact ? 'right' : 'top'}
         align="end"
-        width={200}
+        width="sm"
         maxWidth="calc(100vw - 16px)"
         trigger={
           <SidebarRow

@@ -3,7 +3,7 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { Split, LoaderCircle, X } from 'lucide-react'
 
 import { Button } from '../../../../components/ui/Button.js'
-import { IconButton } from '../../../../components/ui/IconButton.js'
+
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../../components/ui/iconTokens.js'
 import { useDialogFocusRestore } from '../../../../components/ui/useDialogFocusRestore.js'
 import type {
@@ -56,14 +56,14 @@ export function ConversationForkDialog({
               <h2 className="tw:m-0 tw:type-title-md tw:text-app-text">在新聊天中继续</h2>
             </Dialog.Title>
             <Dialog.Close asChild>
-              <IconButton
+              <Button isIconOnly
                 className="tw:shrink-0"
                 color="ghostSecondary"
                 size="toolbar"
                 title="关闭对话框"
               >
                 <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              </IconButton>
+              </Button>
             </Dialog.Close>
           </header>
 

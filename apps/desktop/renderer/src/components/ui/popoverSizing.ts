@@ -12,7 +12,10 @@ type PopoverSizingStyle = React.CSSProperties & {
   '--popover-max-width'?: string
 }
 
+const POPOVER_PRESET_WIDTHS = { sm: '220px', md: '280px', lg: '360px' } as const
+
 export function formatPopoverSize(size: PopoverSize): string {
+  if (size === 'sm' || size === 'md' || size === 'lg') return POPOVER_PRESET_WIDTHS[size]
   return typeof size === 'number' ? `${size}px` : size
 }
 

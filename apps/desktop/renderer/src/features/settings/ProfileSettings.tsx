@@ -10,7 +10,7 @@ import type {
 } from '../../../shared/types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { Button } from '../../components/ui/Button.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { RemoteImage } from '../../components/ui/RemoteImage.js'
 import { SkeletonBlock, SkeletonRegion } from '../../components/ui/Skeleton.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
@@ -162,7 +162,7 @@ export function ProfileSettings(): React.ReactNode {
                   </div>
                   {user ? (
                     <Popover.Trigger asChild>
-                      <IconButton
+                      <Button isIconOnly
                         className="profile-avatar-badge tw:absolute tw:-right-1.5 tw:-bottom-0.5 tw:w-7.5 tw:inline-flex tw:items-center tw:justify-center tw:rounded-pill tw:border-[3px] tw:border-app-canvas tw:bg-app-raised tw:text-app-text tw:text-[length:var(--cpx-sys-space-5)] tw:cursor-pointer tw:shadow-none tw:focus-visible:outline-solid tw:focus-visible:outline-1 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
                         color="ghostSecondary"
                         onClick={openStatusEditor}
@@ -171,7 +171,7 @@ export function ProfileSettings(): React.ReactNode {
                         type="button"
                       >
                         {statusEmojiGlyph(currentStatus?.emoji)}
-                      </IconButton>
+                      </Button>
                     </Popover.Trigger>
                   ) : null}
                 </div>
@@ -367,9 +367,9 @@ export function ProfileSettings(): React.ReactNode {
           <div className="profile-status-popover-header tw:flex tw:items-center tw:justify-between tw:border-b tw:border-b-app-border tw:p-3">
             <strong>设置 GitHub 状态</strong>
             <Popover.Close asChild>
-              <IconButton color="ghostSecondary" size="toolbar" title="关闭状态设置" type="button">
+              <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭状态设置" type="button">
                 ×
-              </IconButton>
+              </Button>
             </Popover.Close>
           </div>
           <div className="profile-status-field tw:block tw:p-3 tw:[&>span]:mb-2 tw:[&>span]:block tw:[&>span]:text-app-text tw:[&>span]:type-row-title tw:[&>div]:grid tw:[&>div]:grid-cols-[160px_minmax(0,1fr)] tw:[&>div]:gap-2 tw:[&_input]:rounded-md tw:[&_input]:border tw:[&_input]:border-app-border tw:[&_input]:bg-app-canvas tw:[&_input]:px-2 tw:[&_input]:py-1 tw:[&_input]:text-app-text tw:[&_input]:type-body">

@@ -17,7 +17,7 @@ import {
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
 } from '../../components/ui/iconTokens.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+import { Button } from '../../components/ui/Button.js'
 import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
@@ -335,7 +335,7 @@ export function MenuBar({
     >
       <div className="menubar-titlebar tw:flex tw:h-chrome tw:w-full tw:items-center tw:justify-between tw:gap-2 tw:pl-2">
         <div className="menubar-left tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-1 tw:overflow-visible">
-          <IconButton
+          <Button isIconOnly
             data-app-shell-sidebar-trigger
             onClick={onToggleSidebar}
             color="ghost"
@@ -347,8 +347,8 @@ export function MenuBar({
             ) : (
               <PanelLeftClose size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             )}
-          </IconButton>
-          <IconButton
+          </Button>
+          <Button isIconOnly
             disabled={!canNavigateBack}
             color="ghost"
             onClick={() => onViewMenuAction('back')}
@@ -356,8 +356,8 @@ export function MenuBar({
             title="后退"
           >
             <ChevronLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
-          <IconButton
+          </Button>
+          <Button isIconOnly
             disabled={!canNavigateForward}
             color="ghost"
             onClick={() => onViewMenuAction('forward')}
@@ -365,7 +365,7 @@ export function MenuBar({
             title="前进"
           >
             <ChevronRight size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
+          </Button>
 
           <Menubar.Root
             aria-label="应用菜单"

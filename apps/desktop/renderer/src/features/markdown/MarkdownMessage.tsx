@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import type { DesktopExternalOpenTarget } from '../../../shared/types.js'
 import { AppContextMenu, type AppContextMenuAction } from '../../components/ui/AppContextMenu.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+import { Button } from '../../components/ui/Button.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { OpenTargetIcon } from '../../components/ui/openTargetIcon.js'
 import { desktopClient, desktopClipboard } from '../../services/desktop-client/index.js'
@@ -659,7 +659,7 @@ function MarkdownTable({
   return (
     <figure className={cx('md-table-block', context.allowWideBlocks && 'md-wide-block')}>
       <div className="md-table-actions">
-        <IconButton
+        <Button isIconOnly
           className={cx('md-table-copy', copied && 'is-copied')}
           color="ghostSecondary"
           size="toolbar"
@@ -672,7 +672,7 @@ function MarkdownTable({
           ) : (
             <Copy aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           )}
-        </IconButton>
+        </Button>
       </div>
       <div className="md-table-scroll" tabIndex={0}>
         <table>

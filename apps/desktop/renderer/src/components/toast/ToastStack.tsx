@@ -5,7 +5,7 @@ import { CheckCheck } from 'lucide-react'
 import { toastStore, calculateCardTransform, type ToastItem } from './toastState.js'
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
 import { Button } from '../ui/Button.js'
-import { IconButton } from '../ui/IconButton.js'
+
 import { Toast } from '../ui/Toast.js'
 
 export function ToastStack(): React.ReactNode {
@@ -247,7 +247,7 @@ function ToastCardWrapper({
           ) : null}
 
           {toast.showCloseButton !== false ? (
-            <IconButton
+            <Button isIconOnly
               color="ghostSecondary"
               size="compact"
               title={isError ? '关闭错误提示' : '关闭'}
@@ -256,7 +256,7 @@ function ToastCardWrapper({
               type="button"
             >
               ×
-            </IconButton>
+            </Button>
           ) : null}
         </div>
       </Toast>

@@ -5,7 +5,7 @@ import { ChevronLeft, KeyRound, Link2, ShieldCheck, X } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useId, useMemo, useState } from 'react'
 import type { DesktopModelProviderSummary } from '../../../../shared/types.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+import { Button } from '../../../components/ui/Button.js'
 import { providerManagementStore } from '../../provider-management/index.js'
 import { ApiKeyEditorDialog, type ApiKeyEditorValue } from '../ApiKeyEditorDialog.js'
 import { BillingCredentialConnection } from './BillingCredentialConnection.js'
@@ -97,14 +97,14 @@ export function ProviderConnectionDialog({
           <header className="settings-management-dialog-header model-center-key-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:p-5">
             <div className="settings-management-dialog-heading model-center-key-dialog-heading tw:flex tw:min-w-0 tw:items-start tw:gap-3">
               {selected ? (
-                <IconButton
+                <Button isIconOnly
                   color="ghostSecondary"
                   onClick={() => setSelectedId(null)}
                   size="toolbar"
                   title="返回连接方式"
                 >
                   <ChevronLeft size={APP_ICON_SIZE} aria-hidden />
-                </IconButton>
+                </Button>
               ) : (
                 <span className="model-center-key-dialog-icon tw:inline-flex tw:size-9 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:bg-app-editor tw:text-app-text-soft tw:[&_svg]:size-icon-lg">
                   <Link2 size={APP_ICON_SIZE} aria-hidden />
@@ -137,9 +137,9 @@ export function ProviderConnectionDialog({
               </div>
             </div>
             <Dialog.Close asChild>
-              <IconButton color="ghostSecondary" size="toolbar" title="关闭">
+              <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭">
                 <X size={APP_ICON_SIZE} aria-hidden />
-              </IconButton>
+              </Button>
             </Dialog.Close>
           </header>
 

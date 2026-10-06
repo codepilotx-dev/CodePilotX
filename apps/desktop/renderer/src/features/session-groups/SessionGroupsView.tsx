@@ -25,7 +25,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { RpcResult } from '@codepilotx/agent-protocol'
 import { Button } from '../../components/ui/Button.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import { Select, type SelectOption } from '../../components/ui/Select.js'
 import { Spinner } from '../../components/ui/Spinner.js'
@@ -405,7 +405,7 @@ export function SessionGroupsView(): React.ReactNode {
                         </span>
                       </Link>
                       <div className="session-group-member-card__actions">
-                        <IconButton
+                        <Button isIconOnly
                           aria-label={`移出会话：${member.title || member.threadId}`}
                           color="ghostSecondary"
                           size="toolbar"
@@ -413,7 +413,7 @@ export function SessionGroupsView(): React.ReactNode {
                           onClick={() => void removeSession(member.threadId)}
                         >
                           <UserMinus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                        </IconButton>
+                        </Button>
                       </div>
                     </article>
                   ))}

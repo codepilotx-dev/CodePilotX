@@ -2,7 +2,7 @@ import React from 'react'
 import { Check, Copy } from 'lucide-react'
 
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+import { Button } from '../../../components/ui/Button.js'
 import { Tooltip } from '../../../components/ui/Tooltip.js'
 import { desktopClipboard } from '../../../services/desktop-client/index.js'
 
@@ -22,7 +22,7 @@ export function CopyButton({
   const [copied, setCopied] = React.useState(false)
   return (
     <Tooltip content={copied ? '已复制' : ariaLabel}>
-      <IconButton
+      <Button isIconOnly
         aria-label={copied ? `${ariaLabel}：已复制` : ariaLabel}
         className={className}
         color="ghostSecondary"
@@ -41,7 +41,7 @@ export function CopyButton({
         ) : (
           <Copy aria-hidden="true" size={APP_ICON_SIZE} />
         )}
-      </IconButton>
+      </Button>
     </Tooltip>
   )
 }

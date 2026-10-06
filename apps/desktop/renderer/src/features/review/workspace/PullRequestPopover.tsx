@@ -3,7 +3,7 @@ import { formatReviewCount } from '../diff/reviewFormat.js'
 import { ArrowUpRight, ChevronDown, ExternalLink, GitFork, X } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+
 import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
@@ -134,7 +134,7 @@ export function PullRequestPopover({
             -{formatPanelNumber(deletions)}
           </em>
         </span>
-        <IconButton
+        <Button isIconOnly
           iconSize="sm"
           className="review-popover-close"
           color="ghostSecondary"
@@ -144,7 +144,7 @@ export function PullRequestPopover({
           onClick={onClose}
         >
           <X size={APP_ICON_SIZES.sm} />
-        </IconButton>
+        </Button>
       </header>
 
       <label className="review-popover-field tw:flex tw:flex-col tw:gap-1 tw:text-app-text-soft tw:type-body-sm">

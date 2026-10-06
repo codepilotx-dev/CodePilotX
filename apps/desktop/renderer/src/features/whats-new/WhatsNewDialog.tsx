@@ -4,7 +4,7 @@ import type React from 'react'
 import type { RpcResult } from '@codepilotx/agent-protocol'
 import { ExternalLink, RefreshCw, Sparkles, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { MarkdownMessage } from '../markdown/MarkdownMessage.js'
@@ -105,14 +105,14 @@ export function WhatsNewDialog({
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
-              <IconButton
+              <Button isIconOnly
                 color="ghostSecondary"
                 ref={closeButtonRef}
                 size="toolbar"
                 title="关闭新特性"
               >
                 <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              </IconButton>
+              </Button>
             </Dialog.Close>
           </header>
 

@@ -1,7 +1,7 @@
 import type React from 'react'
 import { PanelBottom, PanelRight } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+import { Button } from '../../../components/ui/Button.js'
 import type { WorkbenchPanelSnapshot, WorkspaceLayout } from './rightDockState.js'
 
 export type WorkspaceShellControlsProps = {
@@ -60,7 +60,7 @@ export function WorkspaceShellControls({
     <div className="workspace-shell-controls">
       <div aria-hidden="true" className="workspace-shell-controls__divider" />
       {showBottomPanel ? (
-        <IconButton
+        <Button isIconOnly
           aria-label={terminalVisible ? '隐藏底部面板' : '打开底部面板'}
           aria-pressed={terminalVisible}
           className="workspace-shell-control-button"
@@ -77,10 +77,10 @@ export function WorkspaceShellControls({
           onClick={onToggleTerminal}
         >
           <BottomPanelToggleIcon open={terminalVisible} />
-        </IconButton>
+        </Button>
       ) : null}
       {showRightPanel ? (
-        <IconButton
+        <Button isIconOnly
           aria-label={
             creatingEmptyWorkspace
               ? `${workspaceControl.label} (Ctrl+Shift+B)`
@@ -101,7 +101,7 @@ export function WorkspaceShellControls({
           onClick={creatingEmptyWorkspace ? onCreateWorkspaceTab : onStepWorkspaceLayout}
         >
           <RightPanelToggleIcon open={creatingEmptyWorkspace ? false : workspaceControl.pressed} />
-        </IconButton>
+        </Button>
       ) : null}
     </div>
   )

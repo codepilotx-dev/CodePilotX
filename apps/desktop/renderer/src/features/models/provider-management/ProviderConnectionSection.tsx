@@ -21,7 +21,7 @@ import type {
 } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
 import { Dropdown } from '../../../components/ui/Dropdown.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+
 import { Input } from '../../../components/ui/Input.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 import {
@@ -401,7 +401,7 @@ function ApiKeyRowItem({
   return (
     <article className="model-center-key-row tw:grid tw:min-w-0 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-3 tw:px-4 tw:py-3 tw:transition-[background-color,opacity] tw:duration-state tw:ease-standard tw:hover:bg-app-hover tw:data-[disabled=true]:opacity-62 tw:[&+&]:border-t tw:[&+&]:border-t-app-border-subtle tw:@max-[900px]:grid-cols-[auto_minmax(0,1fr)] tw:@max-[720px]:grid-cols-1 tw:@max-[720px]:items-stretch tw:@max-[720px]:p-4" data-disabled={!keyItem.enabled || undefined}>
       <div className="model-center-key-order tw:grid tw:gap-1 tw:[&_button]:h-[30px] tw:[&_button]:min-h-[30px] tw:[&_button]:w-[30px] tw:[&_button]:min-w-[30px] tw:[&_svg]:size-icon-sm tw:@max-[720px]:flex">
-        <IconButton
+        <Button isIconOnly
           color="ghostSecondary"
           disabled={busy || index <= 0}
           onClick={() => onMove(-1)}
@@ -409,8 +409,8 @@ function ApiKeyRowItem({
           title={`上移 ${keyItem.label}`}
         >
           <ArrowUp size={APP_ICON_SIZES.sm} aria-hidden />
-        </IconButton>
-        <IconButton
+        </Button>
+        <Button isIconOnly
           color="ghostSecondary"
           disabled={busy || last}
           onClick={() => onMove(1)}
@@ -418,7 +418,7 @@ function ApiKeyRowItem({
           title={`下移 ${keyItem.label}`}
         >
           <ArrowDown size={APP_ICON_SIZES.sm} aria-hidden />
-        </IconButton>
+        </Button>
       </div>
 
       <div className="model-center-key-main tw:grid tw:min-w-0 tw:gap-2">
@@ -457,14 +457,14 @@ function ApiKeyRowItem({
           align="end"
           className="popover-menu--flex"
           trigger={
-            <IconButton
+            <Button isIconOnly
               color="ghostSecondary"
               disabled={busy}
               size="iconMd"
               title={`操作 ${keyItem.label}`}
             >
               <MoreHorizontal size={APP_ICON_SIZES.sm} aria-hidden />
-            </IconButton>
+            </Button>
           }
           width={180}
         >

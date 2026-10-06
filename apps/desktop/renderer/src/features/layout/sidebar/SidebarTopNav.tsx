@@ -20,7 +20,7 @@ import type { SidebarProductMode } from '../../../../shared/types.js'
 import type { AppView } from '../../../uiTypes.js'
 import { newSessionPath } from '../../session/newSessionSurface.js'
 import type { NewSessionSurface } from '../../session/newSessionSurface.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+
 import { Tooltip } from '../../../components/ui/Tooltip.js'
 import { PopoverRadioGroup, PopoverRadioItem } from '../../../components/ui/PopoverItem.js'
 import * as Popover from '@radix-ui/react-popover'
@@ -275,7 +275,7 @@ export function SidebarHeader({
         maxWidth="calc(100vw - 24px)"
         open={modeMenuOpen}
         side="bottom"
-        width={232}
+        width="sm"
         trigger={
           <button
             aria-label={`${t('切换工作模式，当前为')} ${activeMode.label}`}
@@ -306,7 +306,7 @@ export function SidebarHeader({
       </PopoverMenu>
       {showActions ? (
         <div className="sidebar-header-actions tw:ml-2 tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:pr-2">
-          <IconButton
+          <Button isIconOnly
             aria-haspopup="dialog"
             className="sidebar-search-button tw:order-1 tw:text-app-text-meta"
             color="ghost"
@@ -316,7 +316,7 @@ export function SidebarHeader({
             title={t('搜索任务')}
           >
             <Search size={APP_ICON_SIZE} />
-          </IconButton>
+          </Button>
           <Popover.Root
             open={
               !sidebarActivityCoachmarkDismissed &&
@@ -330,7 +330,7 @@ export function SidebarHeader({
             <Popover.Anchor asChild>
               <div className="tw:inline-flex">
                 <Tooltip content={timelineToggleTitle} side="bottom">
-                  <IconButton
+                  <Button isIconOnly
                     aria-label={timelineToggleLabel}
                     aria-keyshortcuts="Control+Alt+U"
                     aria-pressed={sidebarTimelineEnabled}
@@ -358,7 +358,7 @@ export function SidebarHeader({
                         />
                       )}
                     </Bell>
-                  </IconButton>
+                  </Button>
                 </Tooltip>
               </div>
             </Popover.Anchor>
@@ -372,7 +372,7 @@ export function SidebarHeader({
                 <div className="tw:flex tw:flex-col tw:gap-2">
                   <div className="tw:flex tw:items-start tw:justify-between tw:gap-3">
                     <span className="tw:type-row-title tw:text-app-text">{t('查看活动')}</span>
-                    <IconButton
+                    <Button isIconOnly
                       aria-label={t('关闭')}
                       title={t('关闭')}
                       color="ghost"
@@ -380,7 +380,7 @@ export function SidebarHeader({
                       onClick={() => setSidebarActivityCoachmarkDismissed(true)}
                     >
                       <X size={APP_ICON_SIZES.sm} />
-                    </IconButton>
+                    </Button>
                   </div>
                   <p className="tw:m-0 tw:type-body-sm tw:text-app-text">
                     {t('查看未读、进行中或待回复的聊天')}

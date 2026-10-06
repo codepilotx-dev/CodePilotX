@@ -6,7 +6,7 @@ import {
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
 } from '../../../components/ui/iconTokens.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+import { Button } from '../../../components/ui/Button.js'
 import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
 import type {
   WorkbenchPanelSnapshot,
@@ -143,7 +143,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                     className="tw:flex tw:items-center tw:gap-0.5"
                     onClick={(event) => event.stopPropagation()}
                   >
-                    <IconButton
+                    <Button isIconOnly
                       aria-label="移到右侧栏"
                       color="ghostSecondary"
                       size="toolbar"
@@ -151,8 +151,8 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                       onClick={() => onMoveTab('sidebar', 'right', tab.id)}
                     >
                       <MoveRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                    </IconButton>
-                    <IconButton
+                    </Button>
+                    <Button isIconOnly
                       aria-label="移到底部面板"
                       color="ghostSecondary"
                       size="toolbar"
@@ -160,8 +160,8 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                       onClick={() => onMoveTab('sidebar', 'bottom', tab.id)}
                     >
                       <MoveDown size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                    </IconButton>
-                    <IconButton
+                    </Button>
+                    <Button isIconOnly
                       aria-label="关闭视图"
                       color="ghostSecondary"
                       size="toolbar"
@@ -169,7 +169,7 @@ export const SidebarDockedPanes = memo(function SidebarDockedPanes({
                       onClick={() => onCloseTab(tab.id)}
                     >
                       <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                    </IconButton>
+                    </Button>
                   </div>
                 </div>
               }

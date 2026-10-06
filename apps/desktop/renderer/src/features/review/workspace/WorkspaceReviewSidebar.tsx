@@ -50,7 +50,7 @@ import {
   APP_ICON_SIZES,
 } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+
 import {
   PopoverCheckboxItem,
   PopoverItem,
@@ -173,7 +173,7 @@ const ReviewDiffExpansionToggle = React.memo(function ReviewDiffExpansionToggle(
   const allCollapsed = allPaths.length > 0 && allPaths.every((path) => !store.getSnapshot(path))
   return (
     <Tooltip content={allCollapsed ? '展开全部差异' : '折叠全部差异'}>
-      <IconButton
+      <Button isIconOnly
         color="ghostSecondary"
         size="toolbar"
         title={allCollapsed ? '展开全部差异' : '折叠全部差异'}
@@ -184,7 +184,7 @@ const ReviewDiffExpansionToggle = React.memo(function ReviewDiffExpansionToggle(
         ) : (
           <ListChevronsDownUp size={APP_ICON_SIZE} />
         )}
-      </IconButton>
+      </Button>
     </Tooltip>
   )
 })
@@ -2275,9 +2275,9 @@ function WorkspaceReviewSidebarImpl({
             sideOffset={4}
             width={220}
             trigger={
-              <IconButton color="ghostSecondary" size="toolbar" title="更多">
+              <Button isIconOnly color="ghostSecondary" size="toolbar" title="更多">
                 <Ellipsis size={APP_ICON_SIZE} />
-              </IconButton>
+              </Button>
             }
             onOpenChange={setMoreMenuOpen}
           >
@@ -2373,7 +2373,7 @@ function WorkspaceReviewSidebarImpl({
             onSetAllExpanded={setAllDiffsExpanded}
           />
           <Tooltip content="搜索文件">
-            <IconButton
+            <Button isIconOnly
               iconSize="sm"
               className="review-sidebar-search-action tw:@max-[560px]:hidden"
               color="ghostSecondary"
@@ -2382,10 +2382,10 @@ function WorkspaceReviewSidebarImpl({
               onClick={() => fileSearchInputRef.current?.focus()}
             >
               <Search size={APP_ICON_SIZES.sm} />
-            </IconButton>
+            </Button>
           </Tooltip>
           <Tooltip content={reviewView === 'inline' ? '切换到分离视图' : '切换到统一差异视图'}>
-            <IconButton
+            <Button isIconOnly
               color={reviewView === 'inline' ? 'ghostSecondary' : 'ghostActive'}
               size="toolbar"
               title={reviewView === 'inline' ? '切换到拆分差异视图' : '切换到统一差异视图'}
@@ -2396,10 +2396,10 @@ function WorkspaceReviewSidebarImpl({
               ) : (
                 <Rows2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               )}
-            </IconButton>
+            </Button>
           </Tooltip>
           <Tooltip content={hideFileList ? '显示文件' : '隐藏文件'}>
-            <IconButton
+            <Button isIconOnly
               ref={fileTreeToggleRef}
               aria-pressed={!hideFileList}
               color={!hideFileList ? 'ghostActive' : 'ghostSecondary'}
@@ -2408,7 +2408,7 @@ function WorkspaceReviewSidebarImpl({
               onClick={() => setHideFileList((value) => !value)}
             >
               <Briefcase size={APP_ICON_SIZE} />
-            </IconButton>
+            </Button>
           </Tooltip>
           <Tooltip content="提交或推送">
             <Button

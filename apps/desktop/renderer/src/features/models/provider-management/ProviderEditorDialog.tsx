@@ -20,7 +20,7 @@ import type {
   DesktopProviderModelDefinition,
 } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+
 import { Input } from '../../../components/ui/Input.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
@@ -460,9 +460,9 @@ export function ProviderEditorDialog({
               </div>
             </div>
             <Dialog.Close asChild>
-              <IconButton color="ghostSecondary" size="toolbar" title="关闭">
+              <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭">
                 <X size={APP_ICON_SIZE} aria-hidden />
-              </IconButton>
+              </Button>
             </Dialog.Close>
           </header>
 
@@ -839,9 +839,9 @@ const ProviderModelCard = memo(function ProviderModelCard({
             onChange={(enabled) => onChange({ ...model, enabled })}
           />
           {canRemove ? (
-            <IconButton color="danger" size="toolbar" title="移除模型" onClick={onRemove}>
+            <Button isIconOnly color="danger" size="toolbar" title="移除模型" onClick={onRemove}>
               <Trash2 aria-hidden size={APP_ICON_SIZE} />
-            </IconButton>
+            </Button>
           ) : null}
         </div>
       </div>

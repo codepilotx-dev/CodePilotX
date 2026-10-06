@@ -40,7 +40,7 @@ import {
   threadSummaryArtifactPreviewKind,
 } from './threadSummaryViewModel.js'
 import type { Attachment, LocalContextReference } from '@codepilotx/shared/thread'
-import { IconButton } from '../../../components/ui/IconButton.js'
+import { Button } from '../../../components/ui/Button.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 
@@ -766,9 +766,9 @@ function ThreadSummarySourcesPanel({
               <span className="tw:text-app-text-meta tw:type-caption">{sources.length}</span>
             </div>
             <Dialog.Close asChild>
-              <IconButton color="ghostSecondary" size="toolbar" title="关闭来源面板">
+              <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭来源面板">
                 <X aria-hidden="true" size={APP_ICON_SIZE} />
-              </IconButton>
+              </Button>
             </Dialog.Close>
           </header>
           <Dialog.Description className="tw:m-0 tw:text-app-text-meta tw:type-body-sm">

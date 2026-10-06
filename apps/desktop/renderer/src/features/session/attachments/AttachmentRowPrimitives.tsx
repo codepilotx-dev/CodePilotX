@@ -1,6 +1,6 @@
 import { FileText, Image, ImageOff, X } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { IconButton } from '../../../components/ui/IconButton.js'
+import { Button } from '../../../components/ui/Button.js'
 import { cx } from '../../../utils/cx.js'
 import {
   APP_ICON_SIZE,
@@ -218,7 +218,7 @@ function AttachmentRemoveButton({
   onRemove: () => void
 }): React.ReactNode {
   return (
-    <IconButton
+    <Button isIconOnly
       className={ATTACHMENT_REMOVE_CLASS}
       color="ghostSecondary"
       onClick={(event) => {
@@ -229,6 +229,6 @@ function AttachmentRemoveButton({
       title={`移除 ${name}`}
     >
       <X aria-hidden="true" size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-    </IconButton>
+    </Button>
   )
 }

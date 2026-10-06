@@ -10,7 +10,7 @@ import type {
   SaveDesktopMcpServerOptions,
 } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+
 import { Input } from '../../../components/ui/Input.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
@@ -330,14 +330,14 @@ export function McpEditorDialog({
               </Button>
             </span>
             <Dialog.Close asChild>
-              <IconButton
+              <Button isIconOnly
                 color="ghostSecondary"
                 ref={closeRef}
                 size="toolbar"
                 title="关闭 MCP 编辑器"
               >
                 <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              </IconButton>
+              </Button>
             </Dialog.Close>
           </header>
 
@@ -810,7 +810,7 @@ function ValueListField({
                 )
               }
             />
-            <IconButton
+            <Button isIconOnly
               aria-label={`删除${label} ${index + 1}`}
               disabled={rows.length === 1 && !row.value}
               color="ghostSecondary"
@@ -823,7 +823,7 @@ function ValueListField({
                 size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
-            </IconButton>
+            </Button>
           </div>
         ))}
         <Button
@@ -879,7 +879,7 @@ function MapListField({
                 onChange(updateMapRow(rows, row.id, { value: event.target.value }))
               }
             />
-            <IconButton
+            <Button isIconOnly
               aria-label={`删除${label} ${index + 1}`}
               className="tw:max-[640px]:col-start-2 tw:max-[640px]:row-start-1"
               disabled={rows.length === 1 && !row.key && !row.value}
@@ -893,7 +893,7 @@ function MapListField({
                 size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
-            </IconButton>
+            </Button>
           </div>
         ))}
         <Button
@@ -941,7 +941,7 @@ function ToolApprovalListField({
                 onChange={(value) => onChange(updateMapRow(rows, row.id, { value }))}
               />
             </div>
-            <IconButton
+            <Button isIconOnly
               className="tw:max-[640px]:col-start-2 tw:max-[640px]:row-start-1"
               disabled={rows.length === 1 && !row.key}
               color="ghostSecondary"
@@ -954,7 +954,7 @@ function ToolApprovalListField({
                 size={APP_ICON_SIZES.sm}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
-            </IconButton>
+            </Button>
           </div>
         ))}
         <Button

@@ -6,7 +6,7 @@ import type { LocalEnvironmentActionMetadata, ManagedWorktree } from '@codepilot
 import { GlobalErrorModal } from '../../../components/GlobalErrorModal.js'
 import { Spinner } from '../../../components/ui/Spinner.js'
 import { Button } from '../../../components/ui/Button.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 import {
@@ -381,14 +381,14 @@ export function ConversationEnvironmentControls({
                 </Dialog.Description>
               </div>
               <Dialog.Close asChild>
-                <IconButton
+                <Button isIconOnly
                   color="ghostSecondary"
                   disabled={busy}
                   size="toolbar"
                   title="关闭移交对话框"
                 >
                   <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                </IconButton>
+                </Button>
               </Dialog.Close>
             </header>
 

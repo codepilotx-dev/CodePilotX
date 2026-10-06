@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import React, { useContext, useEffect, useRef, useState } from 'react'
 import { Check, Copy, Pencil } from 'lucide-react'
-import { IconButton } from '../../components/ui/IconButton.js'
+import { Button } from '../../components/ui/Button.js'
 
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { cx } from '../../utils/cx.js'
@@ -250,7 +250,7 @@ export function CodeBlock({
       ) : null}
       <span className="md-code-actions tw:flex tw:items-center">
         {onChangeCode && !isEditingCode ? (
-          <IconButton
+          <Button isIconOnly
             color="ghostSecondary"
             size="toolbar"
             title="编辑代码"
@@ -261,9 +261,9 @@ export function CodeBlock({
             }}
           >
             <Pencil aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
+          </Button>
         ) : null}
-        <IconButton
+        <Button isIconOnly
           className={cx(
             'md-code-action md-code-copy',
             copied && 'is-copied',
@@ -281,7 +281,7 @@ export function CodeBlock({
           ) : (
             <Copy aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           )}
-        </IconButton>
+        </Button>
       </span>
       {collapsible ? (
         <details className="md-code-disclosure">

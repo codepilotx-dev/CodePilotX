@@ -76,7 +76,7 @@ export function AppContextMenu({
   layout,
   size = '1',
   variant = 'soft',
-  width = 'auto',
+  width = 'sm',
   maxWidth,
   onOpenChange,
   includeEditActions = true,
@@ -202,7 +202,7 @@ function renderAction(
               className={`app-context-menu-content app-context-menu-sub-content sidebar-context-menu-content app-context-menu--${action.layout}`}
               collisionPadding={6}
               sideOffset={4}
-              style={buildPopoverSizingStyle({ width: 'auto' })}
+              style={buildPopoverSizingStyle({ width: 'sm' })}
             >
               {action.children.map((child, childKey) =>
                 renderAction(child, childKey, action.layout),

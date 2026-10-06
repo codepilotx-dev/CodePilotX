@@ -18,7 +18,6 @@ import {
   Square,
 } from 'lucide-react'
 import { Button, type ButtonSize } from '../src/components/ui/Button.js'
-import { IconButton } from '../src/components/ui/IconButton.js'
 import { Spinner } from '../src/components/ui/Spinner.js'
 import {
   APP_ICON_SIZE,
@@ -83,7 +82,8 @@ const overrides = Object.entries(APP_ICON_SIZES)
     expected(
       pixels,
       renderToString(
-        h(IconButton, {
+        h(Button, {
+          isIconOnly: true,
           iconSize: iconSize as keyof typeof APP_ICON_SIZES,
           size: 'toolbar',
           color: 'primary',
@@ -103,7 +103,8 @@ const send = [ArrowUp, Square, Activity]
         h(
           'div',
           { className: 'composer' },
-          h(IconButton, {
+          h(Button, {
+            isIconOnly: true,
             iconSize: 'lg',
             size: 'composer',
             color: 'primary',
@@ -156,7 +157,8 @@ const compound = expected(
 const forward = expected(
   16,
   renderToString(
-    h(IconButton, {
+    h(Button, {
+      isIconOnly: true,
       size: 'toolbar',
       color: 'ghost',
       title: '前进',
@@ -185,7 +187,8 @@ const sidebarActions = [Pin, Archive]
     expected(
       16,
       renderToString(
-        h(IconButton, {
+        h(Button, {
+          isIconOnly: true,
           className: 'sidebar-session-action-button',
           iconSize: 'md',
           size: 'compact',
@@ -204,7 +207,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1200, height: 900 } })
   await page.setContent(`<html data-reduce-motion="on"><head><style>${css}</style></head><body>
     <section id="buttons">${buttons}${states}${overrides}${send}${compound}${forward}</section>
-    <div style="position:relative;height:32px;width:280px"><aside class="desktop-sidebar" style="--sidebar-current-width:280px">${expected(16, `<span class="sidebar-indicator">${sidebarStatus}</span>`)}${expected(16, nav)}${sidebarActions}${expected(20, renderToString(h(IconButton, { iconSize: 'lg', size: 'toolbar', color: 'ghost', title: '显式尺寸', children: h(Plus) })))}</aside></div>
+    <div style="position:relative;height:32px;width:280px"><aside class="desktop-sidebar" style="--sidebar-current-width:280px">${expected(16, `<span class="sidebar-indicator">${sidebarStatus}</span>`)}${expected(16, nav)}${sidebarActions}${expected(20, renderToString(h(Button, { isIconOnly: true, iconSize: 'lg', size: 'toolbar', color: 'ghost', title: '显式尺寸', children: h(Plus) })))}</aside></div>
     <div class="popover-menu popover-menu--grid">
       ${['', 'rich'].map((kind) => `<div class="popover-item ${kind}"><span class="popover-item-leading"><span class="popover-item-icon" data-expected-icon-size="16">${icon}</span></span><span class="popover-item-label">菜单</span><span class="popover-item-trailing" data-expected-icon-size="12">${arrow}</span></div>`).join('')}
     </div>

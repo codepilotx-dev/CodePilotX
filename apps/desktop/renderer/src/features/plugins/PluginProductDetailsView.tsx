@@ -3,7 +3,7 @@ import type React from 'react'
 import { ArrowRight, ExternalLink, MoreHorizontal, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '../../components/ui/Button.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
@@ -96,13 +96,13 @@ export function PluginProductDetailsView({
               onOpenChange={setMoreOpen}
               width={180}
               trigger={
-                <IconButton color="ghostSecondary" size="toolbar" title="更多插件操作">
+                <Button isIconOnly color="ghostSecondary" size="toolbar" title="更多插件操作">
                   <MoreHorizontal
                     aria-hidden="true"
                     size={APP_ICON_SIZE}
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                   />
-                </IconButton>
+                </Button>
               }
             >
               <PopoverItem

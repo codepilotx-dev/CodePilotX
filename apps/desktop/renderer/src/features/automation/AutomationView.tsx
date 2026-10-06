@@ -23,7 +23,7 @@ import type { Automation, AutomationRun } from '@codepilotx/shared/automation'
 import type { CalendarOccurrence } from '@codepilotx/shared/calendar'
 import type { ScheduledTask, ScheduledTaskDefinition } from '@codepilotx/shared/scheduled-task'
 import { Button } from '../../components/ui/Button.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
@@ -1048,14 +1048,14 @@ function AutomationRow({
         width="12rem"
         onOpenChange={onMenuOpenChange}
         trigger={
-          <IconButton
+          <Button isIconOnly
             className="automation-row-menu tw:justify-self-center tw:opacity-0 tw:group-hover:opacity-100 tw:group-focus-within:opacity-100 tw:focus-visible:opacity-100"
             color="ghostSecondary"
             size="toolbar"
             title={`${automation.name} 操作`}
           >
             <MoreHorizontal aria-hidden="true" size={APP_ICON_SIZE} />
-          </IconButton>
+          </Button>
         }
       >
         <PopoverItem icon={<Play size={APP_ICON_SIZE} />} onClick={onRun}>

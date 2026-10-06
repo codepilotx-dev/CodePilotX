@@ -9,7 +9,7 @@ import type {
   ModelProviderID,
 } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { Input } from '../../components/ui/Input.js'
 import { SettingsDropdown } from '../settings/SettingsDropdown.js'
 import { useDialogFocusRestore } from '../../components/ui/useDialogFocusRestore.js'
@@ -222,9 +222,9 @@ export function ApiKeyEditorDialog({
               </div>
             </div>
             <Dialog.Close asChild>
-              <IconButton color="ghostSecondary" size="toolbar" title="关闭">
+              <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭">
                 <X size={APP_ICON_SIZE} aria-hidden />
-              </IconButton>
+              </Button>
             </Dialog.Close>
           </header>
           <ApiKeyEditorForm

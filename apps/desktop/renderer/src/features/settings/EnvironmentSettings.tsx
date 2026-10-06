@@ -17,7 +17,7 @@ import type {
   DesktopWorkspace,
 } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import {
   APP_ICON_SIZE,
@@ -624,7 +624,7 @@ function EnvironmentDetail({
                   >
                     {sourceStatusLabel(source.status)}
                   </span>
-                  <IconButton
+                  <Button isIconOnly
                     color="ghostSecondary"
                     disabled={busy !== null || source.status !== 'available'}
                     size="toolbar"
@@ -633,8 +633,8 @@ function EnvironmentDetail({
                     onClick={() => void previewSource(source)}
                   >
                     <Eye size={APP_ICON_SIZE} />
-                  </IconButton>
-                  <IconButton
+                  </Button>
+                  <Button isIconOnly
                     color="ghostSecondary"
                     disabled={
                       busy !== null ||
@@ -653,8 +653,8 @@ function EnvironmentDetail({
                     }}
                   >
                     <RefreshCw size={APP_ICON_SIZE} />
-                  </IconButton>
-                  <IconButton
+                  </Button>
+                  <Button isIconOnly
                     color="ghostSecondary"
                     disabled={busy !== null}
                     size="toolbar"
@@ -671,7 +671,7 @@ function EnvironmentDetail({
                     }
                   >
                     <Trash2 size={APP_ICON_SIZE} />
-                  </IconButton>
+                  </Button>
                 </div>
               ))}
             </div>
@@ -681,7 +681,7 @@ function EnvironmentDetail({
             <div className="environment-source-preview">
               <header>
                 <strong>{preview.source.name}</strong>
-                <IconButton
+                <Button isIconOnly
                   color="ghostSecondary"
                   size="toolbar"
                   title="关闭来源预览"
@@ -689,7 +689,7 @@ function EnvironmentDetail({
                   onClick={() => setPreview(null)}
                 >
                   <X size={APP_ICON_SIZE} />
-                </IconButton>
+                </Button>
               </header>
               {preview.encoding === 'base64' ? (
                 <img

@@ -66,7 +66,7 @@ import type {
   ModelProviderID,
 } from '../../../../shared/types.js'
 import type { ModelPreset } from '../../../modelPresets.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+import { Button } from '../../../components/ui/Button.js'
 import { MetaChip } from '../../../components/ui/MetaChip.js'
 import { SessionFollowUpDock } from '../SessionFollowUpDock.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
@@ -1411,7 +1411,7 @@ export function ComposerCard({
 
         <div className={TOOLBAR_CLASS}>
           <div className={TOOLBAR_LEFT_CLASS}>
-            <IconButton
+            <Button isIconOnly
               active={buttonContextOpen}
               aria-expanded={buttonContextOpen}
               color={buttonContextOpen ? 'ghostActive' : 'ghostSecondary'}
@@ -1425,7 +1425,7 @@ export function ComposerCard({
               }}
             >
               <Plus size={APP_ICON_SIZE} />
-            </IconButton>
+            </Button>
             <Select.Root
               open={openDropdown === 'permission'}
               value={permissionMode}
@@ -1742,7 +1742,7 @@ export function ComposerCard({
               onThinkingPreviewChange={setThinkingPreviewMode}
             />
 
-            <IconButton
+            <Button isIconOnly
               aria-label={submitting ? '正在发送' : isRunning && !canSubmit ? '停止' : '发送'}
               className={cx('send-button', submitting && 'is-submitting')}
               color="primary"
@@ -1760,7 +1760,7 @@ export function ComposerCard({
               ) : (
                 <ArrowUp size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
               )}
-            </IconButton>
+            </Button>
           </div>
         </div>
         <ComposerStatusOverlay

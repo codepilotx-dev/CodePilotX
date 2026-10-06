@@ -10,7 +10,7 @@ import type {
 } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
@@ -616,7 +616,7 @@ export function PluginsSettingsPage({
               value={query}
               onChange={setQuery}
             />
-            <IconButton
+            <Button isIconOnly
               color="ghostSecondary"
               size="toolbar"
               title={`刷新${tabLabel(tab)}`}
@@ -627,7 +627,7 @@ export function PluginsSettingsPage({
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
-            </IconButton>
+            </Button>
             {tab === 'mcps' ? (
               <Button
                 color="primary"

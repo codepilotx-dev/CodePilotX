@@ -11,7 +11,7 @@ import type {
 } from '../../../../shared/types.js'
 import type { SessionListItem } from '../../../uiTypes.js'
 import { Button } from '../../../components/ui/Button.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+
 import {
   PopoverCheckboxItem,
   PopoverItem,
@@ -873,7 +873,7 @@ function SidebarBodyContent({
                             onOrganizationChange={onOrganizationChange}
                             onSortChange={onProjectSortChange}
                           />
-                          <IconButton
+                          <Button isIconOnly
                             color="ghostSecondary"
                             onClick={onChooseWorkspace}
                             iconSize="md"
@@ -881,7 +881,7 @@ function SidebarBodyContent({
                             title="添加项目"
                           >
                             <Plus size={APP_ICON_SIZE} />
-                          </IconButton>
+                          </Button>
                         </SidebarSectionActions>
                       }
                       disclosureStore={disclosureStore}
@@ -941,7 +941,7 @@ function SidebarBodyContent({
                       onOrganizationChange={onOrganizationChange}
                       onSortChange={onSessionSortChange}
                     />
-                    <IconButton
+                    <Button isIconOnly
                       color="ghostSecondary"
                       onClick={() => onCreateSession(null)}
                       iconSize="md"
@@ -949,7 +949,7 @@ function SidebarBodyContent({
                       title="新建无项目任务"
                     >
                       <SquarePen size={APP_ICON_SIZE} />
-                    </IconButton>
+                    </Button>
                   </SidebarSectionActions>
                 }
                 disclosureStore={disclosureStore}
@@ -1109,7 +1109,7 @@ function Timeline({
     <div className="tw:flex tw:items-center tw:gap-1">
       <TimelinePriorityMenu {...options} />
       {showPriority && options.hasReadActivity ? (
-        <IconButton
+        <Button isIconOnly
           aria-label="清除已读聊天"
           title="清除已读聊天"
           color="ghostSecondary"
@@ -1117,7 +1117,7 @@ function Timeline({
           onClick={options.onClearReadActivity}
         >
           <RefreshCw size={APP_ICON_SIZE} />
-        </IconButton>
+        </Button>
       ) : null}
     </div>
   )
@@ -1182,17 +1182,17 @@ function TimelinePriorityMenu(options: ActivityMenuProps): React.ReactNode {
       open={menuOpen}
       side="bottom"
       sideOffset={4}
-      width={208}
+      width="sm"
       onOpenChange={setMenuOpen}
       trigger={
-        <IconButton
+        <Button isIconOnly
           aria-label="活动视图选项"
           title="活动视图选项"
           color="ghostSecondary"
           size="compact"
         >
           <Ellipsis size={APP_ICON_SIZE} />
-        </IconButton>
+        </Button>
       }
     >
       <PopoverLabel>显示</PopoverLabel>
@@ -1349,11 +1349,11 @@ function SidebarOrganizeMenu({
       side="bottom"
       sideOffset={4}
       trigger={
-        <IconButton color="ghostSecondary" iconSize="md" size="compact" title="整理侧栏">
+        <Button isIconOnly color="ghostSecondary" iconSize="md" size="compact" title="整理侧栏">
           <Ellipsis size={APP_ICON_SIZE} />
-        </IconButton>
+        </Button>
       }
-      width={208}
+      width="sm"
       onOpenChange={setOpen}
     >
       <DropdownActions actions={[
@@ -1389,11 +1389,11 @@ function SidebarPinnedSortMenu({
       side="bottom"
       sideOffset={4}
       trigger={
-        <IconButton color="ghostSecondary" iconSize="md" size="compact" title="置顶排序">
+        <Button isIconOnly color="ghostSecondary" iconSize="md" size="compact" title="置顶排序">
           <Ellipsis size={APP_ICON_SIZE} />
-        </IconButton>
+        </Button>
       }
-      width={208}
+      width="sm"
       onOpenChange={setOpen}
     >
       <PopoverRadioGroup
@@ -1689,11 +1689,11 @@ function SidebarCustomSection({
               side="bottom"
               sideOffset={4}
               trigger={
-                <IconButton color="ghostSecondary" iconSize="md" size="compact" title="分组操作">
+                <Button isIconOnly color="ghostSecondary" iconSize="md" size="compact" title="分组操作">
                   <Ellipsis size={APP_ICON_SIZE} />
-                </IconButton>
+                </Button>
               }
-              width={208}
+              width="sm"
               onOpenChange={setMenuOpen}
             >
               <PopoverLabel className="popover-sidebar-organize-heading tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label">排序方式</PopoverLabel>

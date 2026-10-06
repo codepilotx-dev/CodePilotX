@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type React from 'react'
 import { ChevronDown, ChevronRight, FolderOpen } from 'lucide-react'
 import type { DesktopExternalOpenTarget, DesktopWorkspace } from '../../../../shared/types.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+import { Button } from '../../../components/ui/Button.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -137,7 +137,7 @@ export function FileBreadcrumbToolbar({
           />
         ) : null}
         {readonly ? <small>只读</small> : null}
-        <IconButton
+        <Button isIconOnly
           ref={treeToggleRef}
           aria-pressed={treeVisible}
           className="file-breadcrumb-toolbar__action"
@@ -149,9 +149,9 @@ export function FileBreadcrumbToolbar({
           onClick={onToggleTree}
         >
           <FolderOpen aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-        </IconButton>
+        </Button>
         <div className="file-breadcrumb-toolbar__open-group">
-          <IconButton
+          <Button isIconOnly
             color="ghostSecondary"
             size="toolbar"
             className="file-breadcrumb-toolbar__open"
@@ -172,7 +172,7 @@ export function FileBreadcrumbToolbar({
                 targetId={preferredOpenTarget.id}
               />
             ) : null}
-          </IconButton>
+          </Button>
           <PopoverMenu
             align="end"
             className="file-breadcrumb-open-popover popover-menu--grid"
@@ -181,7 +181,7 @@ export function FileBreadcrumbToolbar({
             sideOffset={4}
             width={220}
             trigger={
-              <IconButton
+              <Button isIconOnly
                 className="file-breadcrumb-toolbar__open-menu"
                 color="ghostSecondary"
                 disabled={!absolutePath || openTargets.length === 0}
@@ -194,7 +194,7 @@ export function FileBreadcrumbToolbar({
                   size={APP_ICON_SIZES.sm}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
-              </IconButton>
+              </Button>
             }
             onOpenChange={setOpenTargetMenu}
           >

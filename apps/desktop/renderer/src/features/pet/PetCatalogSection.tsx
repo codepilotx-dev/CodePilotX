@@ -3,7 +3,7 @@ import type { PetCatalogItem, PetCatalogResult, PetDescriptor } from '@codepilot
 import { Download, PawPrint, RefreshCw, SearchX } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { RemoteImage } from '../../components/ui/RemoteImage.js'
@@ -175,7 +175,7 @@ export function PetCatalogSection({
         />
       </WorkspaceHeaderItem>
       <WorkspaceHeaderItem align="end" id="pets.refresh" order={100} slot="right">
-        <IconButton
+        <Button isIconOnly
           aria-busy={loading}
           color="ghostSecondary"
           disabled={loading}
@@ -184,7 +184,7 @@ export function PetCatalogSection({
           title="刷新社区宠物目录"
         >
           <RefreshCw aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-        </IconButton>
+        </Button>
       </WorkspaceHeaderItem>
 
       <section aria-label="社区宠物目录" className="pet-catalog-browser tw:min-w-0">

@@ -14,7 +14,7 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../../components/ui/Button.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import {
   PopoverLabel,
   PopoverRadioGroup,
@@ -441,7 +441,7 @@ export function PluginsView(): React.ReactNode {
       {target?.kind === 'plugin' ? null : (
         <WorkspaceHeaderItem align="end" id="plugins.actions" order={100} slot="right">
           <div className="plugins-header-actions tw:flex tw:min-w-0 tw:items-center tw:gap-2">
-            <IconButton
+            <Button isIconOnly
               aria-busy={activeLoading}
               color="ghostSecondary"
               disabled={activeLoading}
@@ -461,8 +461,8 @@ export function PluginsView(): React.ReactNode {
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
-            </IconButton>
-            <IconButton
+            </Button>
+            <Button isIconOnly
               color="ghostSecondary"
               onClick={() => navigate('/settings/plugins')}
               size="toolbar"
@@ -473,7 +473,7 @@ export function PluginsView(): React.ReactNode {
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
-            </IconButton>
+            </Button>
           </div>
         </WorkspaceHeaderItem>
       )}
@@ -611,9 +611,9 @@ function CatalogStatusMenu(props: CatalogStatusMenuProps): React.ReactNode {
       onOpenChange={props.onOpenChange}
       open={props.open}
       trigger={
-        <IconButton color="secondary" size="toolbar" title="筛选目录">
+        <Button isIconOnly color="secondary" size="toolbar" title="筛选目录">
           <ListFilter aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-        </IconButton>
+        </Button>
       }
       width="14rem"
     >
@@ -671,14 +671,14 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
             已安装
           </h2>
           <span className="plugins-sr-status tw:sr-only">共 {props.installed.length} 个插件</span>
-          <IconButton
+          <Button isIconOnly
             color="ghostSecondary"
             onClick={props.manage}
             size="toolbar"
             title="管理插件设置"
           >
             <Settings aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
+          </Button>
         </header>
         <ul className="plugins-included-overview__list tw:m-0 tw:flex tw:h-11 tw:min-w-0 tw:list-none tw:flex-nowrap tw:gap-1 tw:overflow-hidden tw:p-0">
           {props.installed.length === 0 ? (

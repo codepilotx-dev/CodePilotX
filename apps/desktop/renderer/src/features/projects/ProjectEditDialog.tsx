@@ -8,7 +8,7 @@ import type {
   ProjectAppearance,
 } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { useDialogFocusRestore } from '../../components/ui/useDialogFocusRestore.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { cx } from '../../utils/cx.js'
@@ -186,7 +186,7 @@ export function ProjectEditDialog({
           <header className="project-edit-header tw:flex tw:items-center tw:justify-between tw:gap-4">
             <Dialog.Title className="tw:m-0 tw:type-title-lg tw:text-app-text">编辑项目</Dialog.Title>
             <Dialog.Close asChild>
-              <IconButton
+              <Button isIconOnly
                 className="project-edit-close"
                 color="ghostSecondary"
                 disabled={busy}
@@ -195,7 +195,7 @@ export function ProjectEditDialog({
                 title="关闭编辑项目"
               >
                 <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              </IconButton>
+              </Button>
             </Dialog.Close>
           </header>
 
@@ -258,7 +258,7 @@ export function ProjectEditDialog({
                         </span>
                       ) : null}
                       {draftFolders.length > 1 && folder.role !== 'primary' ? (
-                        <IconButton
+                        <Button isIconOnly
                           className="project-edit-folder-action tw:w-[1.875rem]"
                           color="ghostSecondary"
                           disabled={busy}
@@ -268,10 +268,10 @@ export function ProjectEditDialog({
                           onClick={() => setPrimary(folder.id)}
                         >
                           <Star size={APP_ICON_SIZE} />
-                        </IconButton>
+                        </Button>
                       ) : null}
                       {folder.availability === 'missing' ? (
-                        <IconButton
+                        <Button isIconOnly
                           className="project-edit-folder-action tw:w-[1.875rem]"
                           color="ghostSecondary"
                           disabled={busy}
@@ -281,9 +281,9 @@ export function ProjectEditDialog({
                           onClick={() => void reselectFolder(folder)}
                         >
                           <RefreshCw size={APP_ICON_SIZE} />
-                        </IconButton>
+                        </Button>
                       ) : null}
-                      <IconButton
+                      <Button isIconOnly
                         className="project-edit-folder-action tw:w-[1.875rem]"
                         color="ghostSecondary"
                         disabled={busy}
@@ -293,7 +293,7 @@ export function ProjectEditDialog({
                         onClick={() => removeFolder(folder)}
                       >
                         <X size={APP_ICON_SIZE} />
-                      </IconButton>
+                      </Button>
                     </div>
                   ))}
                   <button

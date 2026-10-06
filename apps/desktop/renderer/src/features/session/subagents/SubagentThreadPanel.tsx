@@ -30,7 +30,7 @@ import {
   APP_ICON_SIZES,
 } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { approvalToRequest } from '../../../services/agentThreadAdapter.js'
 import {
@@ -184,7 +184,7 @@ export function SubagentThreadPanel({
       <header className="subagent-thread-panel__header tw:flex tw:min-h-[58px] tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-3">
         <div className="subagent-thread-panel__identity tw:flex tw:min-w-0 tw:items-center tw:gap-3">
           {onBackToParent ? (
-            <IconButton
+            <Button isIconOnly
               className="subagent-thread-panel__back tw:flex-none"
               color="ghostSecondary"
               size="toolbar"
@@ -192,7 +192,7 @@ export function SubagentThreadPanel({
               onClick={onBackToParent}
             >
               <ArrowLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </IconButton>
+            </Button>
           ) : null}
           <span
             className="subagent-thread-panel__avatar tw:inline-flex tw:size-[30px] tw:flex-none tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text"
@@ -209,7 +209,7 @@ export function SubagentThreadPanel({
         <div className="subagent-thread-panel__run-actions tw:flex tw:items-center tw:gap-1">
           <StatusBadge status={run.status} />
           {capabilities.canApplyWorktree && callbacks.onApplyWorktree ? (
-            <IconButton
+            <Button isIconOnly
               aria-label="应用子智能体变更"
               color="ghostSecondary"
               size="toolbar"
@@ -217,10 +217,10 @@ export function SubagentThreadPanel({
               onClick={() => callbacks.onApplyWorktree?.(task, run)}
             >
               <Check size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </IconButton>
+            </Button>
           ) : null}
           {capabilities.canDiscardWorktree && callbacks.onDiscardWorktree ? (
-            <IconButton
+            <Button isIconOnly
               aria-label="丢弃子智能体工作树"
               color="danger"
               size="toolbar"
@@ -228,10 +228,10 @@ export function SubagentThreadPanel({
               onClick={() => callbacks.onDiscardWorktree?.(task, run)}
             >
               <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </IconButton>
+            </Button>
           ) : null}
           {capabilities.canRestoreWorkspace && callbacks.onRestoreWorkspace ? (
-            <IconButton
+            <Button isIconOnly
               aria-label="恢复子智能体共享变更"
               color="ghostSecondary"
               size="toolbar"
@@ -239,10 +239,10 @@ export function SubagentThreadPanel({
               onClick={() => callbacks.onRestoreWorkspace?.(task, run)}
             >
               <RotateCcw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </IconButton>
+            </Button>
           ) : null}
           {canRetry ? (
-            <IconButton
+            <Button isIconOnly
               aria-label="重试子智能体"
               color="ghostSecondary"
               size="toolbar"
@@ -250,10 +250,10 @@ export function SubagentThreadPanel({
               onClick={() => callbacks.onRetry?.(task, run)}
             >
               <RotateCcw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </IconButton>
+            </Button>
           ) : null}
           {canStop ? (
-            <IconButton
+            <Button isIconOnly
               aria-label="停止子智能体"
               color="danger"
               size="toolbar"
@@ -261,7 +261,7 @@ export function SubagentThreadPanel({
               onClick={() => callbacks.onStop?.(task, run)}
             >
               <Square size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </IconButton>
+            </Button>
           ) : null}
         </div>
       </header>

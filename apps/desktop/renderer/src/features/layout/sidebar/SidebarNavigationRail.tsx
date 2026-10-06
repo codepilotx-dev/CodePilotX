@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Ellipsis, Home } from 'lucide-react'
-import { IconButton } from '../../../components/ui/IconButton.js'
+import { Button } from '../../../components/ui/Button.js'
 import { Tooltip } from '../../../components/ui/Tooltip.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
@@ -104,7 +104,7 @@ export function SidebarNavigationRail({
         setTooltipId((current) => (open ? id : current === id ? null : current))
       }
     >
-      <IconButton
+      <Button isIconOnly
         title={t(label)}
         nativeTitle={false}
         aria-label={t(label)}
@@ -121,7 +121,7 @@ export function SidebarNavigationRail({
         onPointerLeave={pane ? (event) => shell.onRailItemLeave(event) : undefined}
       >
         {icon}
-      </IconButton>
+      </Button>
     </Tooltip>
   )
 
@@ -164,11 +164,11 @@ export function SidebarNavigationRail({
             align="start"
             open={moreOpen}
             side="right"
-            width={200}
+            width="sm"
             maxWidth="calc(100vw - 16px)"
             onOpenChange={setMoreOpen}
             trigger={
-              <IconButton
+              <Button isIconOnly
                 ref={moreTriggerRef}
                 title={t('更多')}
                 nativeTitle={false}
@@ -179,7 +179,7 @@ export function SidebarNavigationRail({
                 size="icon"
               >
                 <Ellipsis size={APP_ICON_SIZE} />
-              </IconButton>
+              </Button>
             }
           >
             {moreItems.map((item) => (

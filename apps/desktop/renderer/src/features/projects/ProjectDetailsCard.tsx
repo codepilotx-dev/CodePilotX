@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { FolderOpen, MessageSquare, Pin, PinOff, Settings } from 'lucide-react'
 import type { DesktopWorkspace, ProjectAppearance } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import { cx } from '../../utils/cx.js'
 import { ProjectAppearanceGlyph } from './projectAppearance.js'
@@ -82,7 +82,7 @@ export function ProjectDetailsCard({
         >
           {project.name}
         </strong>
-        <IconButton
+        <Button isIconOnly
           iconSize="sm"
           className="sidebar-project-hover-card-pin tw:inline-flex tw:flex-none tw:items-center tw:justify-center tw:justify-self-end"
           color={isPinned ? 'ghostActive' : 'ghostSecondary'}
@@ -94,7 +94,7 @@ export function ProjectDetailsCard({
           }}
         >
           {isPinned ? <PinOff size={APP_ICON_SIZES.sm} /> : <Pin size={APP_ICON_SIZES.sm} />}
-        </IconButton>
+        </Button>
       </SidebarHoverCardHeader>
       <SidebarHoverCardRow className="sidebar-project-hover-card-stats tw:text-app-text-meta tw:type-caption">
         <MessageSquare aria-hidden="true" className="tw:size-icon-sm tw:text-app-text-meta" size={APP_ICON_SIZE} />

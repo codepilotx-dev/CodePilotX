@@ -2,7 +2,7 @@ import { forwardRef, useCallback, useRef } from 'react'
 import type React from 'react'
 import { Search, X } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from './iconTokens.js'
-import { IconButton } from './IconButton.js'
+import { Button } from './Button.js'
 import { cx } from '../../utils/cx.js'
 
 export type SearchInputVariant = 'standard' | 'compact' | 'embedded'
@@ -143,7 +143,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
         value={value}
       />
       {value ? (
-        <IconButton
+        <Button isIconOnly
           aria-label={clearLabel}
           className="search-input-clear"
           color="ghostSecondary"
@@ -152,7 +152,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
           title={clearLabel}
         >
           <X size={APP_ICON_SIZES.sm} />
-        </IconButton>
+        </Button>
       ) : null}
     </div>
   )

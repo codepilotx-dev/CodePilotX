@@ -4,7 +4,7 @@ import type { PetInstallPreview } from '@codepilotx/agent-protocol'
 import { PawPrint, RefreshCw, Trash2 } from 'lucide-react'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { Button } from '../../components/ui/Button.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { Input } from '../../components/ui/Input.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
@@ -132,7 +132,7 @@ export function PetSettings({ onError, onNotice }: Props): React.ReactNode {
                   value={settings.selectedPetId ?? ''}
                   width={220}
                 />
-                <IconButton
+                <Button isIconOnly
                   color="ghostSecondary"
                   disabled={busy}
                   onClick={() => void refreshPets()}
@@ -140,8 +140,8 @@ export function PetSettings({ onError, onNotice }: Props): React.ReactNode {
                   title="刷新宠物"
                 >
                   <RefreshCw size={APP_ICON_SIZE} />
-                </IconButton>
-                <IconButton
+                </Button>
+                <Button isIconOnly
                   color="ghostSecondary"
                   disabled={busy || !settings.selectedPetId}
                   onClick={() => void remove()}
@@ -149,7 +149,7 @@ export function PetSettings({ onError, onNotice }: Props): React.ReactNode {
                   title="删除当前宠物"
                 >
                   <Trash2 size={APP_ICON_SIZES.sm} />
-                </IconButton>
+                </Button>
               </div>
             }
           />

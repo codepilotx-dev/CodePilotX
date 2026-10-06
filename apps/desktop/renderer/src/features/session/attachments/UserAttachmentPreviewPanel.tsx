@@ -14,7 +14,7 @@ import {
   type WheelEvent as ReactWheelEvent,
 } from 'react'
 import { Button } from '../../../components/ui/Button.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { desktopClient, desktopClipboard } from '../../../services/desktop-client/index.js'
 import { resolveLanguageFromPath } from '../../syntax/index.js'
@@ -328,7 +328,7 @@ function ImageAttachmentPreview({ value }: { value: LoadedUserAttachment }): Rea
   return (
     <section style={panelStyle}>
       <AttachmentToolbar value={value}>
-        <IconButton
+        <Button isIconOnly
           color="ghostSecondary"
           disabled={scale <= MIN_IMAGE_SCALE}
           onClick={() => changeScale(1 / IMAGE_SCALE_STEP)}
@@ -336,12 +336,12 @@ function ImageAttachmentPreview({ value }: { value: LoadedUserAttachment }): Rea
           title="缩小"
         >
           <Minus size={APP_ICON_SIZE} />
-        </IconButton>
+        </Button>
         <small style={zoomStyle}>{Math.round(scale * 100)}%</small>
-        <IconButton color="ghostSecondary" onClick={fitImage} size="toolbar" title="适应窗口">
+        <Button isIconOnly color="ghostSecondary" onClick={fitImage} size="toolbar" title="适应窗口">
           <Maximize2 size={APP_ICON_SIZE} />
-        </IconButton>
-        <IconButton
+        </Button>
+        <Button isIconOnly
           color="ghostSecondary"
           disabled={scale >= MAX_IMAGE_SCALE}
           onClick={() => changeScale(IMAGE_SCALE_STEP)}
@@ -349,10 +349,10 @@ function ImageAttachmentPreview({ value }: { value: LoadedUserAttachment }): Rea
           title="放大"
         >
           <Plus size={APP_ICON_SIZE} />
-        </IconButton>
-        <IconButton color="ghostSecondary" onClick={handleDownload} size="toolbar" title="下载">
+        </Button>
+        <Button isIconOnly color="ghostSecondary" onClick={handleDownload} size="toolbar" title="下载">
           <Download size={APP_ICON_SIZE} />
-        </IconButton>
+        </Button>
       </AttachmentToolbar>
       <div onWheel={handleWheel} ref={viewportRef} style={imageViewportStyle}>
         <img
@@ -429,7 +429,7 @@ function TextAttachmentPreview({ value }: { value: LoadedUserAttachment }): Reac
             value={markdownSource ? 'source' : 'preview'}
           />
         ) : null}
-        <IconButton
+        <Button isIconOnly
           color="ghostSecondary"
           onClick={() => {
             setMessage('')
@@ -442,8 +442,8 @@ function TextAttachmentPreview({ value }: { value: LoadedUserAttachment }): Reac
           title="复制"
         >
           <Copy size={APP_ICON_SIZE} />
-        </IconButton>
-        <IconButton
+        </Button>
+        <Button isIconOnly
           color="ghostSecondary"
           onClick={() => {
             setMessage('')
@@ -456,7 +456,7 @@ function TextAttachmentPreview({ value }: { value: LoadedUserAttachment }): Reac
           title="下载"
         >
           <Download size={APP_ICON_SIZE} />
-        </IconButton>
+        </Button>
       </AttachmentToolbar>
       {formatted.jsonInvalid ? <div style={noticeStyle}>JSON 无法格式化，已显示原文。</div> : null}
       <div style={editorFrameStyle}>

@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import { ExternalLink, MoveDown, MoveRight, PanelLeft, Pin, Plus, X } from 'lucide-react'
 import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+import { Button } from '../../../components/ui/Button.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -274,7 +274,7 @@ export function WorkbenchTabStrip({
                           {tabTitle}
                         </span>
                       </button>
-                      <IconButton
+                      <Button isIconOnly
                         className={cx(
                           'right-dock-tab-close tw:relative tw:z-local tw:ml-1 tw:inline-flex tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text-meta tw:transition-[background-color,color,opacity] tw:duration-feedback tw:ease-standard tw:group-hover:opacity-100 tw:group-hover:pointer-events-auto tw:group-focus-within:opacity-100 tw:group-focus-within:pointer-events-auto tw:focus-visible:pointer-events-auto tw:focus-visible:bg-app-hover tw:focus-visible:text-app-text tw:focus-visible:opacity-100 tw:focus-visible:outline-app-accent/72',
                           active
@@ -295,7 +295,7 @@ export function WorkbenchTabStrip({
                         }}
                       >
                         <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                      </IconButton>
+                      </Button>
                     </div>
                   }
                   width="auto"
@@ -304,7 +304,7 @@ export function WorkbenchTabStrip({
             )
           })}
           {target === 'bottom' ? (
-            <IconButton
+            <Button isIconOnly
               className="right-dock-add-button tw:hover:shadow-none tw:focus-visible:outline-app-accent/72"
               color="ghostSecondary"
               size="toolbar"
@@ -312,7 +312,7 @@ export function WorkbenchTabStrip({
               onClick={onCreateTerminal}
             >
               <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            </IconButton>
+            </Button>
           ) : state.tabIds.length > 0 ? (
             <PopoverMenu
               align="end"
@@ -324,14 +324,14 @@ export function WorkbenchTabStrip({
               sideOffset={4}
               width={220}
               trigger={
-                <IconButton
+                <Button isIconOnly
                   className="right-dock-add-button tw:hover:shadow-none tw:focus-visible:outline-app-accent/72"
                   color="ghostSecondary"
                   size="toolbar"
                   title="添加标签"
                 >
                   <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                </IconButton>
+                </Button>
               }
               onOpenChange={setMenuOpen}
             >
@@ -392,7 +392,7 @@ export function WorkbenchTabStrip({
         </div>
       </div>
       {target === 'bottom' && onClosePanel ? (
-        <IconButton
+        <Button isIconOnly
           className="bottom-panel-close tw:ml-1 tw:focus-visible:outline-app-accent/72"
           color="ghostSecondary"
           size="toolbar"
@@ -400,7 +400,7 @@ export function WorkbenchTabStrip({
           onClick={onClosePanel}
         >
           <X size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-        </IconButton>
+        </Button>
       ) : null}
     </div>
   )

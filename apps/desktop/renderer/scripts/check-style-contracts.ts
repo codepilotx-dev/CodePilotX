@@ -434,10 +434,10 @@ for (const file of featureTokenScriptFiles) {
       `interactive-row is not allowed outside the reviewed menu/nav/summary files: ${path}`,
     )
   }
-  if (/<Button\b[^>]*\baria-(?:pressed|selected)\s*=/s.test(source)) {
+  if (/<Button\b(?![^>]*\bisIconOnly)[^>]*\baria-(?:pressed|selected)\s*=/s.test(source)) {
     errors.push(`Button must not represent persistent pressed/selected state: ${path}`)
   }
-  if (/PopoverRadioGroup/.test(source) && /trigger=\{?\s*<Button\b/s.test(source)) {
+  if (/PopoverRadioGroup/.test(source) && /trigger=\{?\s*<Button\b(?![^>]*\bisIconOnly)/s.test(source)) {
     errors.push(`Popover radio-group trigger must not use Button: ${path}`)
   }
 }

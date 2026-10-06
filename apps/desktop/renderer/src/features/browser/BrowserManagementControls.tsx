@@ -13,7 +13,7 @@ import type {
   DesktopBrowserVisit,
 } from '@codepilotx/shared/desktop-browser-ipc'
 import { Button } from '../../components/ui/Button.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
 import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { Checkbox } from '../../components/ui/Checkbox.js'
@@ -249,7 +249,7 @@ export function BrowserManagementControls({
           <span aria-live="polite">
             {findResult.activeMatchOrdinal}/{findResult.matches}
           </span>
-          <IconButton
+          <Button isIconOnly
             color="ghostSecondary"
             size="toolbar"
             title="上一项"
@@ -257,8 +257,8 @@ export function BrowserManagementControls({
             onClick={() => void find(query, false, true)}
           >
             <ChevronUp size={APP_ICON_SIZE} />
-          </IconButton>
-          <IconButton
+          </Button>
+          <Button isIconOnly
             color="ghostSecondary"
             size="toolbar"
             title="下一项"
@@ -266,10 +266,10 @@ export function BrowserManagementControls({
             onClick={() => void find(query, true, true)}
           >
             <ChevronDown size={APP_ICON_SIZE} />
-          </IconButton>
-          <IconButton color="ghostSecondary" size="toolbar" title="关闭查找" onClick={closeFind}>
+          </Button>
+          <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭查找" onClick={closeFind}>
             <X size={APP_ICON_SIZE} />
-          </IconButton>
+          </Button>
         </form>
       ) : null}
       {deviceOpen ? (
@@ -334,7 +334,7 @@ export function BrowserManagementControls({
               应用
             </Button>
           </form>
-          <IconButton
+          <Button isIconOnly
             color="ghostSecondary"
             size="toolbar"
             title="切换横竖屏"
@@ -349,8 +349,8 @@ export function BrowserManagementControls({
             }
           >
             <RotateCw size={APP_ICON_SIZE} />
-          </IconButton>
-          <IconButton
+          </Button>
+          <Button isIconOnly
             color="ghostSecondary"
             size="toolbar"
             title="关闭设备工具栏"
@@ -360,7 +360,7 @@ export function BrowserManagementControls({
             }}
           >
             <X size={APP_ICON_SIZE} />
-          </IconButton>
+          </Button>
         </div>
       ) : null}
       {message && view === null ? (
@@ -382,14 +382,14 @@ export function BrowserManagementControls({
         onOpenChange={setMenuOpen}
         align="end"
         trigger={
-          <IconButton
+          <Button isIconOnly
             className="browser-more-trigger"
             color="ghostSecondary"
             size="toolbar"
             title="浏览器更多操作"
           >
             <MoreHorizontal size={APP_ICON_SIZE} />
-          </IconButton>
+          </Button>
         }
       >
         <PopoverItem disabled={!utilities} shortcut="Ctrl+F" onClick={() => setFindOpen(true)}>
@@ -413,7 +413,7 @@ export function BrowserManagementControls({
           aria-label="网页缩放"
         >
           <span className="tw:flex-1">缩放</span>
-          <IconButton
+          <Button isIconOnly
             color="ghostSecondary"
             size="toolbar"
             title="缩小网页"
@@ -421,7 +421,7 @@ export function BrowserManagementControls({
             onClick={() => void run({ action: 'zoom', direction: 'out' })}
           >
             <Minus size={APP_ICON_SIZE} />
-          </IconButton>
+          </Button>
           <button
             className="browser-zoom-reset tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-inherit tw:type-body tw:hover:bg-app-hover tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
             disabled={!utilities || busy}
@@ -430,7 +430,7 @@ export function BrowserManagementControls({
           >
             {Math.round((state.zoomFactor ?? 1) * 100)}%
           </button>
-          <IconButton
+          <Button isIconOnly
             color="ghostSecondary"
             size="toolbar"
             title="放大网页"
@@ -438,7 +438,7 @@ export function BrowserManagementControls({
             onClick={() => void run({ action: 'zoom', direction: 'in' })}
           >
             <Plus size={APP_ICON_SIZE} />
-          </IconButton>
+          </Button>
         </div>
         <PopoverItem
           disabled={!utilities}
@@ -490,7 +490,7 @@ export function BrowserManagementControls({
               <Dialog.Title className="tw:m-0 tw:type-title-sm">{
                 view === 'history' ? '浏览历史' : view === 'downloads' ? '下载' : '清除浏览数据'
               }</Dialog.Title>
-              <IconButton
+              <Button isIconOnly
                 color="ghostSecondary"
                 size="toolbar"
                 title="关闭"
@@ -498,7 +498,7 @@ export function BrowserManagementControls({
                 onClick={() => setView(null)}
               >
                 <X size={APP_ICON_SIZE} />
-              </IconButton>
+              </Button>
             </header>
             <Dialog.Description className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">
               {view === 'history'

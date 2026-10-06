@@ -4,7 +4,7 @@ import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import type { DesktopInstalledSkill } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { readRuntimeSkill } from './skillClientAdapter.js'
 import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
@@ -112,9 +112,9 @@ export function SkillDetailsDialog({
               </Dialog.Description>
             </span>
             <Dialog.Close asChild>
-              <IconButton color="ghostSecondary" ref={closeRef} size="toolbar" title="关闭技能详情">
+              <Button isIconOnly color="ghostSecondary" ref={closeRef} size="toolbar" title="关闭技能详情">
                 <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              </IconButton>
+              </Button>
             </Dialog.Close>
           </header>
 

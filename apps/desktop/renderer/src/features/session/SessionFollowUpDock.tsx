@@ -6,7 +6,7 @@ import {
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
 } from '../../components/ui/iconTokens.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { Button } from '../../components/ui/Button.js'
 import { cx } from '../../utils/cx.js'
 import type {
@@ -133,7 +133,7 @@ export function SessionFollowUpDock({
               <div aria-label="队列操作" className={ACTIONS_CLASS}>
                 {isEditing ? (
                   <>
-                    <IconButton
+                    <Button isIconOnly
                       aria-label="保存编辑"
                       className="session-follow-up-action"
                       color="ghostSecondary"
@@ -143,8 +143,8 @@ export function SessionFollowUpDock({
                       title="保存编辑"
                     >
                       <Check size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                    </IconButton>
-                    <IconButton
+                    </Button>
+                    <Button isIconOnly
                       aria-label="取消编辑"
                       className="session-follow-up-action"
                       color="ghostSecondary"
@@ -153,11 +153,11 @@ export function SessionFollowUpDock({
                       title="取消编辑"
                     >
                       <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                    </IconButton>
+                    </Button>
                   </>
                 ) : (
                   <>
-                    <IconButton
+                    <Button isIconOnly
                       aria-label="移除排队消息"
                       className="session-follow-up-action"
                       color="ghostSecondary"
@@ -166,8 +166,8 @@ export function SessionFollowUpDock({
                       title="移除"
                     >
                       <Trash2 size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                    </IconButton>
-                    <IconButton
+                    </Button>
+                    <Button isIconOnly
                       aria-label="编辑排队消息"
                       className="session-follow-up-action"
                       color="ghostSecondary"
@@ -179,7 +179,7 @@ export function SessionFollowUpDock({
                         size={APP_ICON_SIZES.sm}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
                       />
-                    </IconButton>
+                    </Button>
                   </>
                 )}
               </div>

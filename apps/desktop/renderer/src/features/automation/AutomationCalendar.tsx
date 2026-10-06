@@ -10,7 +10,7 @@ import {
   formatDateValue,
   parseDateValue,
 } from '../../components/ui/DatePicker.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { Spinner } from '../../components/ui/Spinner.js'
 import { cx } from '../../utils/cx.js'
 import {
@@ -279,7 +279,7 @@ export function AutomationCalendar({
                 sideOffset={6}
               >
                 <div className="automation-calendar__year-nav tw:flex tw:items-center tw:justify-between tw:gap-2">
-                  <IconButton
+                  <Button isIconOnly
                     size="iconSm"
                     color="ghost"
                     title="上一年"
@@ -287,11 +287,11 @@ export function AutomationCalendar({
                     onClick={() => setPickerYear((y) => y - 1)}
                   >
                     <ChevronLeft size={APP_ICON_SIZES.sm} />
-                  </IconButton>
+                  </Button>
                   <span className="automation-calendar__year-label tw:type-label tw:text-app-text">
                     {pickerYear}年
                   </span>
-                  <IconButton
+                  <Button isIconOnly
                     size="iconSm"
                     color="ghost"
                     title="下一年"
@@ -299,7 +299,7 @@ export function AutomationCalendar({
                     onClick={() => setPickerYear((y) => y + 1)}
                   >
                     <ChevronRight size={APP_ICON_SIZES.sm} />
-                  </IconButton>
+                  </Button>
                 </div>
                 <div className="automation-calendar__month-grid tw:grid tw:grid-cols-3 tw:gap-2">
                   {MONTH_LABELS.map((name, index) => {
@@ -415,7 +415,7 @@ export function AutomationCalendar({
           ) : null}
         </div>
         <div className="automation-calendar__nav tw:flex tw:shrink-0 tw:items-end tw:gap-1">
-          <IconButton
+          <Button isIconOnly
             size="compact"
             color="ghost"
             title="上个月"
@@ -423,11 +423,11 @@ export function AutomationCalendar({
             onClick={() => handleMonthChange(-1)}
           >
             <ChevronLeft size={APP_ICON_SIZES.sm} />
-          </IconButton>
+          </Button>
           <Button size="compact" color="secondary" onClick={handleToday}>
             今天
           </Button>
-          <IconButton
+          <Button isIconOnly
             size="compact"
             color="ghost"
             title="下个月"
@@ -435,7 +435,7 @@ export function AutomationCalendar({
             onClick={() => handleMonthChange(1)}
           >
             <ChevronRight size={APP_ICON_SIZES.sm} />
-          </IconButton>
+          </Button>
         </div>
       </div>
 
@@ -581,7 +581,7 @@ export function AutomationCalendar({
                 </div>
                 <div className="automation-calendar__agenda-actions tw:invisible tw:flex tw:shrink-0 tw:items-center tw:gap-1 tw:opacity-0 tw:transition-opacity tw:duration-feedback tw:ease-standard tw:group-hover:visible tw:group-hover:opacity-100 tw:group-focus-visible:visible tw:group-focus-visible:opacity-100">
                   {occurrence.source.kind === 'automation' && onRunOccurrence ? (
-                    <IconButton
+                    <Button isIconOnly
                       size="iconSm"
                       color="ghost"
                       title="立即运行"
@@ -592,10 +592,10 @@ export function AutomationCalendar({
                       }}
                     >
                       <Play size={APP_ICON_SIZES.sm} />
-                    </IconButton>
+                    </Button>
                   ) : null}
                   {occurrence.threadId && onOpenThread ? (
-                    <IconButton
+                    <Button isIconOnly
                       size="iconSm"
                       color="ghost"
                       title="查看会话"
@@ -606,7 +606,7 @@ export function AutomationCalendar({
                       }}
                     >
                       <MessageSquare size={APP_ICON_SIZES.sm} />
-                    </IconButton>
+                    </Button>
                   ) : null}
                 </div>
               </div>

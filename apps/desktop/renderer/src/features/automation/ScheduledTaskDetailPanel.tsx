@@ -5,7 +5,7 @@ import type { AutomationSchedule, AutomationWeekday } from '@codepilotx/shared/a
 import type { ScheduledTask, ScheduledTaskDefinition } from '@codepilotx/shared/scheduled-task'
 import type { DesktopSessionListItem, DesktopWorkspace } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { Input } from '../../components/ui/Input.js'
 import { Select } from '../../components/ui/Select.js'
 import { Textarea } from '../../components/ui/Textarea.js'
@@ -611,7 +611,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
               </Button>
             ) : null}
             {editable ? (
-              <IconButton
+              <Button isIconOnly
                 color="danger"
                 size="toolbar"
                 title="删除计划任务"
@@ -626,7 +626,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
                 }
               >
                 <Trash2 aria-hidden="true" size={APP_ICON_SIZE} />
-              </IconButton>
+              </Button>
             ) : null}
           </>
         ) : (

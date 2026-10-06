@@ -45,7 +45,7 @@ import {
 } from '../../../services/desktop-client/index.js'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
@@ -747,7 +747,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
           aria-label="文件查看操作"
         >
           <Tooltip content={isCollapsed ? '展开文件差异' : '折叠文件差异'}>
-            <IconButton
+            <Button isIconOnly
               aria-controls={diffBodyId}
               aria-expanded={!isCollapsed}
               className="review-file-toggle"
@@ -764,10 +764,10 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
                 )}
                 size={REVIEW_FILE_ACTION_ICON_SIZE}
               />
-            </IconButton>
+            </Button>
           </Tooltip>
           <Tooltip content="打开文件">
-            <IconButton
+            <Button isIconOnly
               aria-disabled={!workspacePath}
               className="review-file-open"
               color="ghostSecondary"
@@ -781,7 +781,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
               }}
             >
               <ExternalLink size={REVIEW_FILE_ACTION_ICON_SIZE} />
-            </IconButton>
+            </Button>
           </Tooltip>
         </div>
         <div
@@ -793,7 +793,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
           aria-label="文件 Git 操作"
         >
           <Tooltip content={file.isUntracked ? '删除未跟踪文件' : '还原文件'}>
-            <IconButton
+            <Button isIconOnly
               aria-disabled={pending}
               color="ghostSecondary"
               size="iconMd"
@@ -808,11 +808,11 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
               ) : (
                 <Undo2 size={REVIEW_FILE_ACTION_ICON_SIZE} />
               )}
-            </IconButton>
+            </Button>
           </Tooltip>
           {scope === 'unstaged' ? (
             <Tooltip content="暂存文件">
-              <IconButton
+              <Button isIconOnly
                 aria-disabled={pending}
                 color="ghostSecondary"
                 size="iconMd"
@@ -823,11 +823,11 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
                 }}
               >
                 <Plus size={REVIEW_FILE_ACTION_ICON_SIZE} />
-              </IconButton>
+              </Button>
             </Tooltip>
           ) : (
             <Tooltip content="取消暂存文件">
-              <IconButton
+              <Button isIconOnly
                 aria-disabled={pending}
                 color="ghostSecondary"
                 size="iconMd"
@@ -838,7 +838,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
                 }}
               >
                 <Minus size={REVIEW_FILE_ACTION_ICON_SIZE} />
-              </IconButton>
+              </Button>
             </Tooltip>
           )}
         </div>

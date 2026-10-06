@@ -24,7 +24,7 @@ import {
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
 } from '../../../components/ui/iconTokens.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+import { Button } from '../../../components/ui/Button.js'
 import type { DesktopPermissionRequest, DesktopSessionStatus } from '../../../../shared/types.js'
 import { useQuickChatContext } from '../QuickChatContext.js'
 import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
@@ -1031,12 +1031,12 @@ export function ConversationPage(): React.ReactNode {
           open={sessionMenuOpen}
           width={220}
           trigger={
-            <IconButton color="ghostSecondary" size="toolbar" title="更多会话操作">
+            <Button isIconOnly color="ghostSecondary" size="toolbar" title="更多会话操作">
               <MoreHorizontal
                 size={WORKSPACE_HEADER_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
-            </IconButton>
+            </Button>
           }
           onOpenChange={setSessionMenuOpen}
         >
@@ -1211,7 +1211,7 @@ export function ConversationPage(): React.ReactNode {
       </ThreadSummaryErrorBoundary>
     )
     const summaryToggle = (
-      <IconButton
+      <Button isIconOnly
         color={
           threadSummary.displayMode === 'overlay'
             ? threadSummary.isPopoverOpen
@@ -1239,7 +1239,7 @@ export function ConversationPage(): React.ReactNode {
         onClick={threadSummary.displayMode === 'overlay' ? undefined : threadSummary.toggle}
       >
         <LayoutList size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-      </IconButton>
+      </Button>
     )
 
     return (

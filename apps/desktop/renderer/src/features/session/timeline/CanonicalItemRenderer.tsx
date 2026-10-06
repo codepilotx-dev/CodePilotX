@@ -41,7 +41,7 @@ import {
   APP_ICON_SIZES,
 } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+
 import { Tooltip } from '../../../components/ui/Tooltip.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import {
@@ -418,7 +418,7 @@ export function CanonicalUserInput({
       <div className="canonical-message-actions" aria-label="用户消息操作">
         <CopyButton text={displayText} />
         <Tooltip content="修改并重新发送">
-          <IconButton
+          <Button isIconOnly
             aria-label="修改并重新发送"
             color="ghostSecondary"
             size="toolbar"
@@ -426,7 +426,7 @@ export function CanonicalUserInput({
             onClick={startEditing}
           >
             <Pencil aria-hidden="true" size={APP_ICON_SIZE} />
-          </IconButton>
+          </Button>
         </Tooltip>
       </div>
     </article>
@@ -602,7 +602,7 @@ function TextItemView({
           <CopyButton text={item.text} />
           {item.placement === 'result' && item.status === 'completed' && onForkFromMessage ? (
             <Tooltip content="在新聊天中继续">
-              <IconButton
+              <Button isIconOnly
                 aria-label="在新聊天中继续"
                 color="ghostSecondary"
                 size="toolbar"
@@ -617,7 +617,7 @@ function TextItemView({
                   size={APP_ICON_SIZE}
                   strokeWidth={APP_ICON_STROKE_WIDTH}
                 />
-              </IconButton>
+              </Button>
             </Tooltip>
           ) : null}
         </div>

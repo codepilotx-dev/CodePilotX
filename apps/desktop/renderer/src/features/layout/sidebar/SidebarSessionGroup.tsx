@@ -26,7 +26,7 @@ import {
   type SessionListItem,
 } from '../../../uiTypes.js'
 import { Button } from '../../../components/ui/Button.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+
 import { Spinner } from '../../../components/ui/Spinner.js'
 import { SkeletonBlock } from '../../../components/ui/Skeleton.js'
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
@@ -486,7 +486,7 @@ function SidebarSessionGroupComponent({
             ) : showActions ? (
               <div className="sidebar-session-actions tw:flex tw:w-full tw:items-center tw:justify-end tw:gap-1">
                 {session.pinnedAt ? (
-                  <IconButton
+                  <Button isIconOnly
                     className="sidebar-session-action-button"
                     color="ghostSecondary"
                     iconSize="md"
@@ -495,9 +495,9 @@ function SidebarSessionGroupComponent({
                     title="取消置顶"
                   >
                     <PinOff size={APP_ICON_SIZE} />
-                  </IconButton>
+                  </Button>
                 ) : (
-                  <IconButton
+                  <Button isIconOnly
                     className="sidebar-session-action-button"
                     color="ghostSecondary"
                     iconSize="md"
@@ -506,9 +506,9 @@ function SidebarSessionGroupComponent({
                     title="置顶"
                   >
                     <Pin size={APP_ICON_SIZE} />
-                  </IconButton>
+                  </Button>
                 )}
-                <IconButton
+                <Button isIconOnly
                   className="sidebar-session-action-button"
                   color="ghostSecondary"
                   iconSize="md"
@@ -517,7 +517,7 @@ function SidebarSessionGroupComponent({
                   title="归档"
                 >
                   <Archive size={APP_ICON_SIZE} />
-                </IconButton>
+                </Button>
               </div>
             ) : indicatorState === 'needs-input' ? (
               <SidebarStatusPill kind={waitingForInput ? 'input' : 'approval'} />
@@ -577,7 +577,7 @@ function SidebarSessionGroupComponent({
         key={session.id}
         actions={getSessionContextMenuActions(session)}
         layout="grid"
-        width={240}
+        width="md"
         trigger={row}
       />
     )

@@ -13,7 +13,7 @@ import {
 } from '../../components/ui/iconTokens.js'
 import { Button } from '../../components/ui/Button.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { cx } from '../../utils/cx.js'
 import { BrowserManagementControls } from './BrowserManagementControls.js'
 
@@ -154,7 +154,7 @@ export function DesktopBrowserPanel({
     <section className="right-dock-browser" aria-label="内置浏览器">
       <div className="browser-commandbar tw:grid tw:min-h-10 tw:min-w-0 tw:shrink-0 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:border-b tw:border-app-border-subtle tw:bg-app-panel tw:p-2 tw:@max-[440px]:gap-1 tw:@max-[440px]:px-1">
         <div className="browser-navigation tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:justify-self-start tw:gap-2 tw:@max-[440px]:gap-0">
-          <IconButton
+          <Button isIconOnly
             color="ghostSecondary"
             disabled={!state.canGoBack}
             size="toolbar"
@@ -162,8 +162,8 @@ export function DesktopBrowserPanel({
             onClick={() => void runBrowserAction(client.goBackBrowser)}
           >
             <ArrowLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
-          <IconButton
+          </Button>
+          <Button isIconOnly
             color="ghostSecondary"
             disabled={!state.canGoForward}
             size="toolbar"
@@ -171,8 +171,8 @@ export function DesktopBrowserPanel({
             onClick={() => void runBrowserAction(client.goForwardBrowser)}
           >
             <ArrowRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
-          <IconButton
+          </Button>
+          <Button isIconOnly
             className="tw:@max-[440px]:hidden"
             color="ghostSecondary"
             size="toolbar"
@@ -182,7 +182,7 @@ export function DesktopBrowserPanel({
             }
           >
             <RefreshCw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
+          </Button>
         </div>
         <form
           className="browser-address-form tw:relative tw:flex tw:w-full tw:min-w-0 tw:items-center tw:justify-self-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0"
@@ -232,7 +232,7 @@ export function DesktopBrowserPanel({
               Agent 操作中
             </span>
           ) : null}
-          <IconButton
+          <Button isIconOnly
             color="ghostSecondary"
             size="toolbar"
             title={annotation.active ? '退出批注' : '选择网页目标并添加批注'}
@@ -242,8 +242,8 @@ export function DesktopBrowserPanel({
             onClick={annotation.toggle}
           >
             <MessageSquarePlus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
-          <IconButton
+          </Button>
+          <Button isIconOnly
             className="tw:@max-[440px]:hidden"
             color="ghostSecondary"
             size="toolbar"
@@ -251,7 +251,7 @@ export function DesktopBrowserPanel({
             onClick={onNewTab}
           >
             <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
+          </Button>
           <BrowserManagementControls
             client={client}
             state={state}

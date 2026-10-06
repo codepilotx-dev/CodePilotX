@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { DesktopWorkspace } from '../../../shared/types.js'
 import type { SessionListItem } from '../../uiTypes.js'
 import { AnchoredPopover } from '../../components/ui/AnchoredPopover.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+import { Button } from '../../components/ui/Button.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
 import {
@@ -110,7 +110,7 @@ function ProjectDetailsTrigger({
           triggerRef.current?.focus()
         }}
         trigger={
-          <IconButton
+          <Button isIconOnly
             ref={triggerRef}
             className="chat-session-project-details tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center"
             color="ghostSecondary"
@@ -118,7 +118,7 @@ function ProjectDetailsTrigger({
             title={`项目详情：${managedProject.name}`}
           >
             <ProjectAppearanceGlyph size={APP_ICON_SIZE} appearance={appearance} />
-          </IconButton>
+          </Button>
         }
       >
         <ProjectDetailsCard

@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { X } from 'lucide-react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Button } from '../../components/ui/Button.js'
-import { IconButton } from '../../components/ui/IconButton.js'
+
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { useDialogFocusRestore } from '../../components/ui/useDialogFocusRestore.js'
 
@@ -71,9 +71,9 @@ export function SessionGroupEditorDialog({
                 </Dialog.Description>
               </div>
               <Dialog.Close asChild disabled={saving}>
-                <IconButton color="ghostSecondary" size="toolbar" title="关闭对话框">
+                <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭对话框">
                   <X aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                </IconButton>
+                </Button>
               </Dialog.Close>
             </header>
 

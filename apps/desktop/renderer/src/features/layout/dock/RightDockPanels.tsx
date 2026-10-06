@@ -17,7 +17,7 @@ import {
 } from 'motion/react'
 import type { DesktopFileEntry, DesktopWorkspace } from '../../../../shared/types.js'
 import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
+import { Button } from '../../../components/ui/Button.js'
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
 import { MarkdownMessage } from '../../markdown/index.js'
 import { resolveLanguageFromPath } from '../../syntax/index.js'
@@ -226,7 +226,7 @@ export function RightDockFilesPanel({
           </div>
           <div className="file-breadcrumb-toolbar__actions">
             {workspacePath ? (
-              <IconButton
+              <Button isIconOnly
                 className="file-breadcrumb-toolbar__action"
                 color="ghostSecondary"
                 size="toolbar"
@@ -247,9 +247,9 @@ export function RightDockFilesPanel({
                     strokeWidth={APP_ICON_STROKE_WIDTH}
                   />
                 )}
-              </IconButton>
+              </Button>
             ) : null}
-            <IconButton
+            <Button isIconOnly
               ref={treeToggleRef}
               aria-pressed={treeVisible}
               className="file-breadcrumb-toolbar__action"
@@ -264,7 +264,7 @@ export function RightDockFilesPanel({
                 size={APP_ICON_SIZE}
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
-            </IconButton>
+            </Button>
           </div>
         </header>
         <motion.div

@@ -1,7 +1,7 @@
 import type React from 'react'
 import { Activity, Mic, Square } from 'lucide-react'
 import { useEffect } from 'react'
-import { IconButton } from '../../../components/ui/IconButton.js'
+import { Button } from '../../../components/ui/Button.js'
 import { cx } from '../../../utils/cx.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import type { ComposerEditorHandle } from './ComposerEditor.js'
@@ -53,7 +53,7 @@ export function ComposerDictationControl({
           <span>{dictationStatusText(dictation.phase, dictation.elapsedMs, dictation.error)}</span>
         </span>
       ) : null}
-      <IconButton
+      <Button isIconOnly
         aria-label={dictation.phase === 'recording' ? '停止语音输入' : '语音输入'}
         aria-pressed={dictation.phase === 'recording'}
         className={`composer-mic-button${dictation.phase === 'recording' ? ' is-recording' : ''}`}
@@ -76,7 +76,7 @@ export function ComposerDictationControl({
         ) : (
           <Mic size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         )}
-      </IconButton>
+      </Button>
     </>
   )
 }
