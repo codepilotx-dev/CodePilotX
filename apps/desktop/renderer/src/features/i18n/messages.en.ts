@@ -193,6 +193,8 @@ export const enUS: Record<string, string> = {
   '新的活动视图——集中查看进行中、待处理和未读会话。':
     'The new activity view brings together active, pending, and unread chats.',
   知道了: 'Got it',
+  '你想让我们在 ': 'What would you like us to build in ',
+  ' 中构建什么?': '?',
   '要在 ': 'What should we build in ',
   '我们应该在 ': 'What should we do in ',
   ' 内开发什么？': '?',

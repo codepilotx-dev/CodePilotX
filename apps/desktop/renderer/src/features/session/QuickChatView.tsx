@@ -8,28 +8,13 @@ import {
   usePrefersReducedMotion,
 } from '../../hooks/usePrefersReducedMotion.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
-import {
-  createNewSessionSuggestionState,
-  removeGeneratedSuggestionStarter,
-  selectNewSessionSuggestionCategory,
-  showContextualNewSessionSuggestions,
-  showNewSessionSuggestionTemplates,
-  syncNewSessionSuggestionState,
-} from './newSessionSuggestionState.js'
-import type {
-  NewSessionSuggestionCategory,
-  NewSessionSuggestionTask,
-  NewSessionTaskSuggestion,
-} from './newSessionSuggestions.js'
 import { normalizeNewSessionSurfaceSearch, parseNewSessionSurface } from './newSessionSurface.js'
 import { DesktopComposer } from './composer/DesktopComposer.js'
 import { useQuickChatContext } from './QuickChatContext.js'
-import { useContextualTaskSuggestions } from './useContextualTaskSuggestions.js'
 import { enterTween, exitTween, motionTransition } from '../motion/motionTransitions.js'
 import { WorkingNewSessionView } from './WorkingNewSessionView.js'
 import { ChatNewSessionView } from './ChatNewSessionView.js'
 import { CodingHeadingTransition } from './CodingHeadingTransition.js'
-import { NewSessionSuggestions } from './NewSessionSuggestionPanel.js'
 import { ProjectSwitcherPopover } from './composer/ProjectSwitcherPopover.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
 
@@ -70,31 +55,22 @@ export function QuickChatView(): React.ReactNode {
 
 function CodingQuickChatView(): React.ReactNode {
   const { t } = useLocale()
-  const reducedMotion = usePrefersReducedMotion()
   const {
     branchName,
     composerProps,
-    composerDraft,
     gitStatus,
-    recentTasks,
     recentWorkspaces,
     workspaceName,
     workspacePath,
-    onAppendComposerText,
     onChooseWorkspace,
     onCloneGithub,
     onClearWorkspace,
     onOpenWorkspace,
   } = useQuickChatContext()
   const [projectMenuOpen, setProjectMenuOpen] = useState(false)
-  const [observedComposerValue, setObservedComposerValue] = useState(composerDraft?.value ?? '')
-  const [suggestionState, setSuggestionState] = useState(() =>
-    createNewSessionSuggestionState(composerDraft?.value ?? ''),
-  )
   const pageRef = useRef<HTMLDivElement | null>(null)
   const whaleMarkRef = useRef<HTMLButtonElement | null>(null)
   const whaleMarkAnimationRef = useRef<Animation | null>(null)
-  const programmaticValueRef = useRef<string | null>(null)
   const currentWorkspace = useMemo<DesktopWorkspace | null>(() => {
     if (!workspaceName || !workspacePath) return null
     return (
@@ -105,126 +81,6 @@ function CodingQuickChatView(): React.ReactNode {
       }
     )
   }, [branchName, recentWorkspaces, workspaceName, workspacePath])
-  const { suggestions, markInteracted } = useContextualTaskSuggestions({
-    active: suggestionState.kind === 'root' && observedComposerValue.trim().length === 0,
-    workspaceName,
-    workspacePath,
-    branchName,
-    gitStatus,
-    recentTasks,
-  })
-
-  const composerDraftValue = composerDraft?.value
-
-  useEffect(() => {
-    if (composerDraftValue === undefined) return
-    setObservedComposerValue(composerDraftValue)
-    if (programmaticValueRef.current === composerDraftValue) {
-      programmaticValueRef.current = null
-      return
-    }
-    setSuggestionState((current) => syncNewSessionSuggestionState(current, composerDraftValue))
-  }, [composerDraftValue])
-
-  const focusComposer = useCallback(() => {
-    if (composerDraft?.focus) {
-      composerDraft.focus()
-      return
-    }
-    const editor = pageRef.current?.querySelector<HTMLElement>("textarea, [contenteditable='true']")
-    editor?.focus()
-  }, [composerDraft])
-
-  const replaceComposerValue = useCallback(
-    (value: string) => {
-      programmaticValueRef.current = value
-      setObservedComposerValue(value)
-      if (composerDraft) {
-        composerDraft.replace(value)
-      } else if (observedComposerValue.length === 0) {
-        onAppendComposerText(value)
-      }
-      requestAnimationFrame(focusComposer)
-    },
-    [composerDraft, focusComposer, observedComposerValue, onAppendComposerText],
-  )
-
-  const handleSelectCategory = useCallback(
-    (category: NewSessionSuggestionCategory) => {
-      markInteracted()
-      setSuggestionState(selectNewSessionSuggestionCategory(category.id))
-      replaceComposerValue(category.starter)
-    },
-    [markInteracted, replaceComposerValue],
-  )
-
-  const handleSelectSuggestion = useCallback(
-    (suggestion: NewSessionTaskSuggestion) => {
-      markInteracted()
-      setSuggestionState({ kind: 'hidden', reason: 'custom-input' })
-      replaceComposerValue(suggestion.prompt)
-    },
-    [markInteracted, replaceComposerValue],
-  )
-
-  const handleSelectTask = useCallback(
-    (category: NewSessionSuggestionCategory, task: NewSessionSuggestionTask) => {
-      markInteracted()
-      if (!composerDraft && observedComposerValue === category.starter) {
-        const completion = task.prompt.startsWith(category.starter)
-          ? task.prompt.slice(category.starter.length)
-          : task.prompt
-        programmaticValueRef.current = task.prompt
-        setObservedComposerValue(task.prompt)
-        onAppendComposerText(completion)
-        requestAnimationFrame(focusComposer)
-        return
-      }
-      replaceComposerValue(task.prompt)
-    },
-    [
-      composerDraft,
-      focusComposer,
-      markInteracted,
-      observedComposerValue,
-      onAppendComposerText,
-      replaceComposerValue,
-    ],
-  )
-
-  const handleShowAll = useCallback(
-    (category: NewSessionSuggestionCategory) => {
-      markInteracted()
-      const nextValue = removeGeneratedSuggestionStarter(observedComposerValue, category.starter)
-      setSuggestionState(showNewSessionSuggestionTemplates())
-      if (nextValue !== observedComposerValue) replaceComposerValue(nextValue)
-    },
-    [markInteracted, observedComposerValue, replaceComposerValue],
-  )
-
-  const handleShowSuggestions = useCallback(() => {
-    markInteracted()
-    setSuggestionState(showContextualNewSessionSuggestions())
-  }, [markInteracted])
-
-  const handleComposerInputCapture = useCallback(
-    (event: React.FormEvent<HTMLDivElement>) => {
-      const target = event.target
-      let value: string | null = null
-      if (target instanceof HTMLTextAreaElement || target instanceof HTMLInputElement) {
-        value = target.value
-      } else if (target instanceof HTMLElement && target.isContentEditable) {
-        value = target.textContent ?? ''
-      }
-      if (value === null) return
-      markInteracted()
-      programmaticValueRef.current = null
-      setObservedComposerValue(value)
-      setSuggestionState((current) => syncNewSessionSuggestionState(current, value))
-    },
-    [markInteracted],
-  )
-
   const handleWhaleMarkClick = useCallback(() => {
     const mark = whaleMarkRef.current
     if (!mark || getEffectiveReducedMotion()) return
@@ -256,7 +112,7 @@ function CodingQuickChatView(): React.ReactNode {
     : 'no-project'
   const headingContent = headingUsesProject ? (
     <>
-      {t(hasGitWorkspace ? '要在 ' : '我们应该在 ')}
+      {t('你想让我们在 ')}
       <ProjectSwitcherPopover
         align="center"
         className="popover-project quick-chat-project-popover"
@@ -295,7 +151,7 @@ function CodingQuickChatView(): React.ReactNode {
           setProjectMenuOpen(false)
         }}
       />
-      {t(hasGitWorkspace ? ' 内开发什么？' : ' 中做些什么？')}
+      {t(' 中构建什么?')}
     </>
   ) : (
     t('我们该构建什么？')
@@ -308,9 +164,8 @@ function CodingQuickChatView(): React.ReactNode {
     >
       <main
         className="quick-chat-view coding-chat-view tw:flex tw:h-full tw:max-w-none tw:w-full tw:min-h-full tw:flex-col tw:items-stretch tw:justify-end tw:overflow-x-hidden tw:overflow-y-auto tw:px-8 tw:pb-4 tw:text-app-text tw:[scrollbar-gutter:stable]"
-        onInputCapture={handleComposerInputCapture}
       >
-        <section className="quick-chat-hero-region tw:m-auto tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-center tw:justify-end tw:gap-5">
+        <section className="quick-chat-hero-region tw:m-auto tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-center tw:justify-center tw:gap-5">
           <div className="quick-chat-hero tw:flex tw:w-[var(--quick-chat-surface-width)] tw:max-w-full tw:flex-col tw:items-center tw:gap-6 tw:text-center tw:text-app-text tw:type-display">
             <button
               ref={whaleMarkRef}
@@ -324,27 +179,6 @@ function CodingQuickChatView(): React.ReactNode {
               {headingContent}
             </CodingHeadingTransition>
           </div>
-          <AnimatePresence initial={false}>
-            {suggestionState.kind === 'root' ||
-            suggestionState.kind === 'templates' ||
-            suggestionState.kind === 'category' ? (
-              <NewSessionPresence
-                key={`suggestions-${suggestionState.kind}${suggestionState.kind === 'category' ? `-${suggestionState.categoryId}` : ''}`}
-                kind="panel"
-                reducedMotion={reducedMotion}
-              >
-                <NewSessionSuggestions
-                  state={suggestionState}
-                  suggestions={suggestions}
-                  onSelectSuggestion={handleSelectSuggestion}
-                  onSelectCategory={handleSelectCategory}
-                  onSelectTask={handleSelectTask}
-                  onShowAll={handleShowAll}
-                  onShowSuggestions={handleShowSuggestions}
-                />
-              </NewSessionPresence>
-            ) : null}
-          </AnimatePresence>
         </section>
 
         <section className="quick-chat-composer-region tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-center tw:justify-end tw:gap-3">
