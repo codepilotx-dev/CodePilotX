@@ -120,7 +120,7 @@ describe('任务命令面板模型', () => {
       workspaceName: 'CodePilotX',
       visualState: 'needs-input',
     })
-    expect(tasks[1]?.visualState).toBe('unread')
+    expect(tasks[1]?.visualState).toBe('running')
   })
 
   test('只在面板打开时解析当前可见任务编号', () => {

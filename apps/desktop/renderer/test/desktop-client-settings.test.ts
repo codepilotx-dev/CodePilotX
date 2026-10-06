@@ -2091,8 +2091,15 @@ test('日程会话显示过滤经过桌面 bridge 保存并在新 client 中读�
   const client = createDesktopClient(environment)
   expect((await client.getDesktopSettings()).sidebarShowScheduledSessions).toBe(true)
   for (const sidebarShowScheduledSessions of [false, true]) {
-    await client.saveDesktopSettings({ ...stored, sidebarShowScheduledSessions })
+    await client.saveDesktopSettings({
+      ...stored,
+      sidebarShowScheduledSessions,
+      sidebarActivityShowScheduled: !sidebarShowScheduledSessions,
+    })
     const reopened = createDesktopClient(environment)
+    expect((await reopened.getDesktopSettings()).sidebarActivityShowScheduled).toBe(
+      !sidebarShowScheduledSessions,
+    )
     expect((await reopened.getDesktopSettings()).sidebarShowScheduledSessions).toBe(
       sidebarShowScheduledSessions,
     )

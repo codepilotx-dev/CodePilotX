@@ -54,6 +54,7 @@ import {
 } from '../src/features/layout/sidebar/SidebarSessionGroup.js'
 import {
   buildSidebarTimelineModel,
+  reconcileSidebarActivitySnapshot,
   buildSidebarPinnedItems,
   buildProjectSessionBuckets,
   buildSidebarViewModel,
@@ -385,9 +386,9 @@ describe('sidebar shell modes', () => {
     expect(canShowSidebarTooltip('collapsed', false)).toBe(true)
     expect(canShowSidebarTooltip('preview', false)).toBe(false)
 
-    expect(isPointInTriangle({ x: 60, y: 10 }, { x: 52, y: 10 }, { x: 62, y: 0 }, { x: 62, y: 100 })).toBe(
-      true,
-    )
+    expect(
+      isPointInTriangle({ x: 60, y: 10 }, { x: 52, y: 10 }, { x: 62, y: 0 }, { x: 62, y: 100 }),
+    ).toBe(true)
     expect(
       isPointInTriangle({ x: 200, y: 10 }, { x: 52, y: 10 }, { x: 62, y: 0 }, { x: 62, y: 100 }),
     ).toBe(false)
@@ -500,7 +501,7 @@ describe('sidebar shell modes', () => {
     )
     // 右工作区不再到阈值就销毁 divider：拖动全程保留，隐藏/完整视图在布局层判定。
     expectSourceNotContains(rightDockSource, 'SIDEBAR_COLLAPSE_HOLD_MS')
-    expectSourceNotContains(rightDockSource, "threshold: minSize / 2")
+    expectSourceNotContains(rightDockSource, 'threshold: minSize / 2')
     expectSourceContains(rightDockSource, 'collapseEnabled: false')
     expectSourceContains(rightDockSource, 'onResizeRawSize: isBottom ? undefined : onResizeRawSize')
     expectSourceContains(
@@ -526,9 +527,6 @@ describe('sidebar shell modes', () => {
       'tw:w-[calc(var(--sidebar-current-width)-var(--sidebar-rail-width))]',
     )
   })
-
-
-
 
   test('prioritizes local handlers, transient panels, and settings return', () => {
     const base = {
@@ -923,7 +921,7 @@ describe('sidebar view model', () => {
         { ...sessions[0]!, status: 'running', unreadAt: '2026-07-18T00:00:00Z' },
         new Set(),
       ),
-    ).toBe('unread')
+    ).toBe('running')
   })
 
   test('uses a dynamic read status action for every session', () => {
@@ -1450,7 +1448,7 @@ describe('侧栏时间线投影', () => {
     expect(sidebarAttentionUnreadSessions(attention).map((s) => s.id)).toEqual(['unread'])
   })
 
-  test('安全批量归档只选择完成未读且没有计划待审批的关注任务', () => {
+  test('批量归档覆盖显示的优先事项，等待与运行项由停止流程处理', () => {
     const sessions = [
       timelineSession('unread', 'completed', '2026-08-01T00:00:00.000Z', {
         unreadAt: '2026-08-01T00:00:00.000Z',
@@ -1466,7 +1464,136 @@ describe('侧栏时间线投影', () => {
       }),
     ]
     const attention = focus(sessions).attentionSessions
-    expect(sidebarArchivableAttentionSessions(attention).map((s) => s.id)).toEqual(['unread'])
+    expect(sidebarArchivableAttentionSessions(attention).map((s) => s.id)).toEqual([
+      'question',
+      'plan-approval',
+      'permission',
+      'unread',
+      'running',
+    ])
+  })
+
+  test('活动列表保留已读项与分组时间，追加新活动，删除归档和失效项', () => {
+    const unread = timelineSession('unread', 'completed', '2026-08-01T01:00:00.000Z', {
+      unreadAt: '2026-08-01T01:00:00.000Z',
+    })
+    const running = timelineSession('running', 'running', '2026-08-01T03:00:00.000Z')
+    const recent = timelineSession('recent', 'idle', '2026-07-31T01:00:00.000Z')
+    const initial = reconcileSidebarActivitySnapshot(null, [running, unread, recent])
+    expect(initial.priorityIds).toEqual(['unread', 'running'])
+    const read = { ...unread, unreadAt: null }
+    const changed = [
+      read,
+      { ...running, latestTurnStatus: 'completed' as const },
+      { ...recent, lastMessageAt: '2026-08-01T04:00:00.000Z' },
+      timelineSession('new', 'waiting-question'),
+    ]
+    const retained = reconcileSidebarActivitySnapshot(initial, changed)
+    expect(retained.priorityIds).toEqual(['unread', 'running', 'new'])
+    const model = buildSidebarTimelineModel({
+      now: NOW,
+      sessions: changed,
+      showPinned: false,
+      snapshot: retained,
+    })
+    expect(model.prioritySessions.map((s) => s.id)).toEqual(['unread', 'running', 'new'])
+    expect(model.dateSections[0]?.id).toBe('day-1')
+    const cleared = reconcileSidebarActivitySnapshot(retained, changed, true)
+    expect(cleared.priorityIds).toEqual(['new'])
+    const refreshed = buildSidebarTimelineModel({
+      now: NOW,
+      sessions: changed,
+      showPinned: false,
+      snapshot: cleared,
+    })
+    expect(refreshed.dateSections[0]?.id).toBe('day-0')
+    expect(
+      reconcileSidebarActivitySnapshot(retained, [
+        { ...read, archivedAt: '2026-08-01T04:00:00.000Z' },
+      ]).priorityIds,
+    ).toEqual([])
+    expect(reconcileSidebarActivitySnapshot(null, changed).priorityIds).toEqual(['new'])
+  })
+
+  test('关闭优先事项后按日期展示并与置顶去重，筛选仅保留可见优先事项', () => {
+    const pinned = timelineSession('pinned', 'waiting-question', '2026-08-01T01:00:00.000Z', {
+      pinnedAt: '2026-08-01T01:00:00.000Z',
+    })
+    const chat = timelineSession('chat', 'running', '2026-08-01T02:00:00.000Z', {
+      creationSurface: 'chat',
+    })
+    const sessions = [pinned, chat]
+    const model = buildSidebarTimelineModel({
+      now: NOW,
+      sessions,
+      showPinned: true,
+      showPriority: false,
+      snapshot: reconcileSidebarActivitySnapshot(null, sessions),
+    })
+    expect(model.prioritySessions).toEqual([])
+    expect(model.pinnedSessions.map((s) => s.id)).toEqual(['pinned'])
+    expect(model.dateSections.flatMap((section) => section.sessions.map((s) => s.id))).toEqual([
+      'chat',
+    ])
+    const filtered = filterSidebarActivitySessions(sessions, { showChat: false })
+    expect(
+      buildSidebarTimelineModel({ now: NOW, sessions: filtered, showPinned: true })
+        .prioritySessions,
+    ).toEqual([])
+  })
+
+  test('待回复按同级时间排列，未读优先于运行中', () => {
+    const model = focus([
+      timelineSession('run', 'running', '2026-08-01T05:00:00.000Z'),
+      timelineSession('unread', 'idle', '2026-08-01T01:00:00.000Z', {
+        unreadAt: '2026-08-01T01:00:00.000Z',
+      }),
+      timelineSession('question', 'waiting-question', '2026-08-01T03:00:00.000Z'),
+      timelineSession('plan', 'completed', '2026-08-01T04:00:00.000Z', {
+        pendingPlanApproval: true,
+      }),
+    ])
+    expect(model.prioritySessions.map((s) => s.id)).toEqual(['plan', 'question', 'unread', 'run'])
+  })
+
+  test('停止失败的聊天不归档，其余优先事项继续归档', async () => {
+    const { archiveSidebarActivity } =
+      await import('../src/features/layout/sidebar/sidebarActivityActions.js')
+    const stopped: string[] = []
+    let archived: readonly SessionListItem[] = []
+    const failed = await archiveSidebarActivity(
+      [
+        timelineSession('run', 'running'),
+        timelineSession('fail', 'waiting-permission'),
+        timelineSession('read', 'completed'),
+      ],
+      async (id) => {
+        stopped.push(id)
+        if (id === 'fail') throw new Error('stop failed')
+      },
+      async (items) => {
+        archived = items
+        return true
+      },
+    )
+    expect(stopped).toEqual(['run', 'fail'])
+    expect(failed).toBe(1)
+    expect(archived.map((s) => s.id)).toEqual(['run', 'read'])
+  })
+
+  test('助手摘要跳过用户和空消息，合并换行并限制长度', async () => {
+    const { latestAssistantPreview } =
+      await import('../src/features/layout/sidebar/useSidebarActivityPreview.js')
+    expect(
+      latestAssistantPreview([
+        { role: 'assistant', text: '上一条' },
+        { role: 'assistant', text: '最新\n 回复' },
+        { role: 'user', text: '新的问题' },
+        { role: 'assistant', text: '  ' },
+      ]),
+    ).toBe('最新 回复')
+    expect(latestAssistantPreview([{ role: 'assistant', text: 'a'.repeat(200) }])?.length).toBe(180)
+    expect(latestAssistantPreview([{ role: 'user', text: '问题' }])).toBeNull()
   })
 
   test('今天和昨天标签正确', () => {

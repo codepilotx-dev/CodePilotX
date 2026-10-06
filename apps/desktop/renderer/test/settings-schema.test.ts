@@ -442,13 +442,13 @@ describe('侧边栏设置归一化', () => {
       },
     ])
   })
-  test('在默认设置中时间线默认关闭且优先级未勾选', () => {
+  test('在默认设置中时间线默认关闭且优先事项开启', () => {
     const settings = normalizeDesktopStoredSettings({})
     expect(settings.sidebarTimelineEnabled).toBe(false)
-    expect(settings.sidebarTimelinePriorityEnabled).toBe(false)
+    expect(settings.sidebarTimelinePriorityEnabled).toBe(true)
   })
 
-  test('旧设置缺字段时默认关闭，非法值回退关闭', () => {
+  test('时间线非法值回退关闭，优先事项非法值回退开启', () => {
     expect(normalizeDesktopStoredSettings({}).sidebarTimelineEnabled).toBe(false)
     expect(
       normalizeDesktopStoredSettings({
@@ -464,12 +464,12 @@ describe('侧边栏设置归一化', () => {
       normalizeDesktopStoredSettings({
         sidebarTimelinePriorityEnabled: 'yes',
       }).sidebarTimelinePriorityEnabled,
-    ).toBe(false)
+    ).toBe(true)
     expect(
       normalizeDesktopStoredSettings({
         sidebarTimelinePriorityEnabled: 1,
       }).sidebarTimelinePriorityEnabled,
-    ).toBe(false)
+    ).toBe(true)
   })
 
   test('旧优先级筛选开关迁移为时间线开启且优先级勾选', () => {
@@ -524,7 +524,7 @@ describe('侧边栏设置归一化', () => {
       ...createSidebarStateResetPatch(settings),
     }
     expect(reset.sidebarTimelineEnabled).toBe(false)
-    expect(reset.sidebarTimelinePriorityEnabled).toBe(false)
+    expect(reset.sidebarTimelinePriorityEnabled).toBe(true)
     expect(reset.sidebarActivityCoachmarkDismissed).toBe(true)
   })
 })
@@ -621,4 +621,19 @@ test('日程会话显示默认开启、保留关闭状态并随侧栏重置恢�
   const settings = normalizeDesktopStoredSettings({ sidebarShowScheduledSessions: false })
   expect(normalizeDesktopStoredSettings(settings).sidebarShowScheduledSessions).toBe(false)
   expect(createSidebarStateResetPatch(settings).sidebarShowScheduledSessions).toBe(true)
+})
+
+test('活动日程筛选默认关闭，独立于普通侧栏并保留显式偏好', () => {
+  const defaults = normalizeDesktopStoredSettings({})
+  expect(defaults.sidebarActivityShowScheduled).toBe(false)
+  expect(defaults.sidebarShowScheduledSessions).toBe(true)
+  const saved = normalizeDesktopStoredSettings({
+    sidebarTimelinePriorityEnabled: false,
+    sidebarActivityShowScheduled: true,
+    sidebarShowScheduledSessions: false,
+  })
+  expect(saved.sidebarTimelinePriorityEnabled).toBe(false)
+  expect(saved.sidebarActivityShowScheduled).toBe(true)
+  expect(saved.sidebarShowScheduledSessions).toBe(false)
+  expect(createSidebarStateResetPatch(saved).sidebarActivityShowScheduled).toBe(false)
 })

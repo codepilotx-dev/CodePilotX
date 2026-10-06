@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { ChevronDown, Ellipsis, Plus, SquarePen, X } from 'lucide-react'
+import { ChevronDown, Ellipsis, Plus, RefreshCw, SquarePen, X } from 'lucide-react'
 import { AnimatePresence, motion, Reorder, useIsPresent } from 'motion/react'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import type {
@@ -31,6 +31,7 @@ import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.
 import { fastTween, motionTransition, standardTween } from '../../motion/motionTransitions.js'
 import { SidebarEmptyRow } from './SidebarRow.js'
 import { SidebarHoverCardProvider } from './SidebarHoverCard.js'
+import { DropdownActions } from '../../../components/ui/DropdownActions.js'
 import { SidebarProjectGroup } from './SidebarProjectGroup.js'
 import { SidebarReorderItem } from './SidebarReorderItem.js'
 import { getSidebarSessionDisplayGroups, SidebarSessionGroup } from './SidebarSessionGroup.js'
@@ -99,6 +100,16 @@ type Props = {
   activeSessionId: string | null
   disclosureStore: KeyedDisclosureStore
   organization: DesktopSidebarOrganization
+  showProjectsInRecents?: boolean
+  onShowProjectsInRecentsChange?: (value: boolean) => void
+  showActivityPriority?: boolean
+  onShowActivityPriorityChange?: (value: boolean) => void
+  showActivityScheduled?: boolean
+  onShowActivityScheduledChange?: (value: boolean) => void
+  showActivitySources?: boolean
+  hasReadActivity?: boolean
+  onClearReadActivity?: () => void
+  onRestoreActivityDefaults?: () => void
   timeline?: SidebarTimelineModel | null
   showTimelinePinned: boolean
   showActivityWork: boolean
@@ -152,7 +163,7 @@ type Props = {
   customSections: SidebarCustomSectionModel[]
   pinnedSort: 'manual' | 'updated'
   onPinnedSortChange: (sort: 'manual' | 'updated') => void
-  onCreateSection: () => void
+  onCreateSection: (itemKeys?: string[]) => void
   onRenameSection: (sectionId: string, title: string) => void
   onDeleteSection: (sectionId: string) => void
   onSetSectionCollapsed: (sectionId: string, collapsed: boolean) => void
@@ -179,7 +190,17 @@ function SidebarBodyContent({
   activeSessionId,
   disclosureStore,
   organization,
+  showProjectsInRecents = false,
+  onShowProjectsInRecentsChange,
   timeline,
+  showActivityPriority = true,
+  onShowActivityPriorityChange,
+  showActivityScheduled = false,
+  onShowActivityScheduledChange,
+  showActivitySources = true,
+  hasReadActivity = false,
+  onClearReadActivity,
+  onRestoreActivityDefaults,
   showTimelinePinned,
   showActivityWork,
   showActivityChat,
@@ -516,7 +537,10 @@ function SidebarBodyContent({
   function renderProjectGroup(project: DesktopWorkspace, dropIndex?: number): React.ReactNode {
     return (
       <SidebarProjectGroup
-        currentSectionId={null}
+        currentSectionId={customSections.find((section) => section.entries.some((entry) => entry.key === sidebarPinnedProjectKey(project)))?.id ?? null}
+        onMoveProjectToSection={(target, sectionId) => onMoveItemsToSection([sidebarPinnedProjectKey(target)], sectionId)}
+        onMoveProjectToDefault={(target) => onMoveItemsToDefault([sidebarPinnedProjectKey(target)])}
+        onCreateSection={onCreateSection}
         customSections={customSectionOptions}
         dropIndex={dropIndex}
         onItemDragEnd={commitItemDrop}
@@ -715,6 +739,12 @@ function SidebarBodyContent({
           ) : null}
           {timeline ? (
             <Timeline
+              showPriority={showActivityPriority}
+              onShowPriorityChange={onShowActivityPriorityChange}
+              showSources={showActivitySources}
+              hasReadActivity={hasReadActivity}
+              onClearReadActivity={onClearReadActivity}
+              onRestoreDefaults={onRestoreActivityDefaults}
               activeSessionId={activeSessionId}
               hasArchivableAttention={hasArchivableAttention}
               hasUnreadAttention={hasUnreadAttention}
@@ -722,8 +752,8 @@ function SidebarBodyContent({
               pendingPermissionSessionIds={pendingPermissionSessionIds}
               showWork={showActivityWork}
               showChat={showActivityChat}
-              showScheduledSessions={showScheduledSessions}
-              onShowScheduledSessionsChange={onShowScheduledSessionsChange}
+              showScheduledSessions={showActivityScheduled}
+              onShowScheduledSessionsChange={onShowActivityScheduledChange ?? (() => undefined)}
               showPinned={showTimelinePinned}
               timeline={timeline}
               titleLoadingIds={titleLoadingIds}
@@ -905,6 +935,8 @@ function SidebarBodyContent({
                       showScheduledSessions={showScheduledSessions}
                       onShowScheduledSessionsChange={onShowScheduledSessionsChange}
                       organization={organization}
+                      showProjectsInRecents={showProjectsInRecents}
+                      onShowProjectsInRecentsChange={onShowProjectsInRecentsChange}
                       sort={sessionSort}
                       onOrganizationChange={onOrganizationChange}
                       onSortChange={onSessionSortChange}
@@ -968,64 +1000,63 @@ function SidebarBodyContent({
   )
 }
 
-function Timeline({
-  activeSessionId,
-  hasArchivableAttention,
-  hasUnreadAttention,
-  now,
-  pendingPermissionSessionIds,
-  showWork,
-  showChat,
-  showScheduledSessions,
-  onShowScheduledSessionsChange,
-  showPinned,
-  timeline,
-  titleLoadingIds,
-  sessionFallbackTitles,
-  onArchiveSessions,
-  onMarkAttentionRead,
-  onPinSession,
-  onRequestArchiveAttention,
-  onSelectSession,
-  onToggleSessionUnread,
-  onRenameSession,
-  onShowWorkChange,
-  onShowChatChange,
-  onShowPinnedChange,
-  onUnpinSession,
-}: {
-  activeSessionId: string | null
+type ActivityMenuProps = {
   hasArchivableAttention: boolean
   hasUnreadAttention: boolean
-  now: number
-  pendingPermissionSessionIds: ReadonlySet<string>
+  showPriority: boolean
+  onShowPriorityChange?: (value: boolean) => void
+  showSources: boolean
   showWork: boolean
   showChat: boolean
   showScheduledSessions: boolean
   onShowScheduledSessionsChange: (value: boolean) => void
   showPinned: boolean
+  onMarkAttentionRead: () => void
+  onRequestArchiveAttention: () => void
+  onShowWorkChange: (value: boolean) => void
+  onShowChatChange: (value: boolean) => void
+  onShowPinnedChange: (value: boolean) => void
+  hasReadActivity: boolean
+  onClearReadActivity?: () => void
+  onRestoreDefaults?: () => void
+}
+
+function Timeline({
+  activeSessionId,
+  now,
+  pendingPermissionSessionIds,
+  timeline,
+  titleLoadingIds,
+  sessionFallbackTitles,
+  onArchiveSessions,
+  onPinSession,
+  onSelectSession,
+  onToggleSessionUnread,
+  onRenameSession,
+  onUnpinSession,
+  ...options
+}: ActivityMenuProps & {
+  activeSessionId: string | null
+  now: number
+  pendingPermissionSessionIds: ReadonlySet<string>
   timeline: SidebarTimelineModel
   titleLoadingIds: ReadonlySet<string>
   sessionFallbackTitles: Record<string, string>
   onArchiveSessions: (sessions: readonly SessionListItem[]) => Promise<boolean>
-  onMarkAttentionRead: () => void
   onPinSession: (session: SessionListItem) => void
-  onRequestArchiveAttention: () => void
   onSelectSession: (session: SessionListItem) => void
   onToggleSessionUnread: (session: SessionListItem) => void
   onRenameSession: (sessionId: string, title: string) => Promise<boolean>
-  onShowWorkChange: (value: boolean) => void
-  onShowChatChange: (value: boolean) => void
-  onShowPinnedChange: (value: boolean) => void
   onUnpinSession: (session: SessionListItem) => void
 }): React.ReactNode {
+  const { showPriority, showWork, showChat, showPinned, showScheduledSessions } = options
   const [visibleLimit, setVisibleLimit] = useState(10)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
   const previousTotalRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     setVisibleLimit(10)
-  }, [showWork, showChat, showPinned, showScheduledSessions])
+  }, [showPriority, showWork, showChat, showPinned, showScheduledSessions])
 
   const sliced = useMemo(
     () => sliceSidebarTimelineModel(timeline, visibleLimit),
@@ -1074,106 +1105,41 @@ function Timeline({
     onUnpinSession,
   }
 
-  const isCompletelyEmpty = sliced.totalCount === 0
-
-  if (isCompletelyEmpty) {
-    return (
-      <div className="sidebar-timeline tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-2">
-        <FocusSectionGroup
-          action={
-            <TimelinePriorityMenu
-              hasArchivableAttention={hasArchivableAttention}
-              hasUnreadAttention={hasUnreadAttention}
-              showWork={showWork}
-              showChat={showChat}
-              showScheduledSessions={showScheduledSessions}
-              onShowScheduledSessionsChange={onShowScheduledSessionsChange}
-              showPinned={showPinned}
-              onMarkAttentionRead={onMarkAttentionRead}
-              onRequestArchiveAttention={onRequestArchiveAttention}
-              onShowWorkChange={onShowWorkChange}
-              onShowChatChange={onShowChatChange}
-              onShowPinnedChange={onShowPinnedChange}
-            />
-          }
-          emptyState="当前筛选下没有活动"
-          section={{
-            id: 'priority',
-            label: '优先级',
-            sessions: [],
-          }}
-          sort="preserve"
-          {...sharedSessionProps}
-        />
-      </div>
-    )
-  }
-
+  const actions = (
+    <div className="tw:flex tw:items-center tw:gap-1">
+      <TimelinePriorityMenu {...options} />
+      {showPriority && options.hasReadActivity ? (
+        <IconButton
+          aria-label="清除已读聊天"
+          title="清除已读聊天"
+          color="ghostSecondary"
+          size="compact"
+          onClick={options.onClearReadActivity}
+        >
+          <RefreshCw size={APP_ICON_SIZE} />
+        </IconButton>
+      ) : null}
+    </div>
+  )
+  const groups: SidebarFocusSection[] = [
+    ...(showPriority
+      ? [{ id: 'priority' as const, label: '优先事项', sessions: sliced.prioritySessions }]
+      : []),
+    ...(sliced.pinnedSessions.length
+      ? [{ id: 'pinned' as const, label: '置顶', sessions: sliced.pinnedSessions }]
+      : []),
+    ...sliced.dateSections,
+  ]
+  if (groups.length === 0) groups.push({ id: 'day-0', label: '今天', sessions: [] })
   return (
     <div className="sidebar-timeline tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-2">
-      {sliced.prioritySessions.length > 0 ? (
-        <FocusSectionGroup
-          action={
-            <TimelinePriorityMenu
-              hasArchivableAttention={hasArchivableAttention}
-              hasUnreadAttention={hasUnreadAttention}
-              showWork={showWork}
-              showChat={showChat}
-              showScheduledSessions={showScheduledSessions}
-              onShowScheduledSessionsChange={onShowScheduledSessionsChange}
-              showPinned={showPinned}
-              onMarkAttentionRead={onMarkAttentionRead}
-              onRequestArchiveAttention={onRequestArchiveAttention}
-              onShowWorkChange={onShowWorkChange}
-              onShowChatChange={onShowChatChange}
-              onShowPinnedChange={onShowPinnedChange}
-            />
-          }
-          section={{
-            id: 'priority',
-            label: '优先级',
-            sessions: sliced.prioritySessions,
-          }}
-          sort="preserve"
-          {...sharedSessionProps}
-        />
-      ) : (
-        <div className="sidebar-focus-section-header tw:sticky tw:top-1.5 tw:z-local tw:isolate tw:flex tw:h-[var(--sidebar-row-height)] tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-transparent tw:px-2 tw:group">
-          <h3 className="sidebar-focus-section-title tw:m-0 tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap tw:type-row-title tw:text-app-text-meta">
-            优先级
-          </h3>
-          <TimelinePriorityMenu
-            hasArchivableAttention={hasArchivableAttention}
-            hasUnreadAttention={hasUnreadAttention}
-            showWork={showWork}
-            showChat={showChat}
-            showScheduledSessions={showScheduledSessions}
-            onShowScheduledSessionsChange={onShowScheduledSessionsChange}
-            showPinned={showPinned}
-            onMarkAttentionRead={onMarkAttentionRead}
-            onRequestArchiveAttention={onRequestArchiveAttention}
-            onShowWorkChange={onShowWorkChange}
-            onShowChatChange={onShowChatChange}
-            onShowPinnedChange={onShowPinnedChange}
-          />
-        </div>
-      )}
-      {sliced.pinnedSessions.length > 0 ? (
-        <FocusSectionGroup
-          section={{
-            id: 'pinned',
-            label: '置顶',
-            sessions: sliced.pinnedSessions,
-          }}
-          sort="updated"
-          {...sharedSessionProps}
-        />
-      ) : null}
-      {sliced.dateSections.map((section) => (
+      {groups.map((section, index) => (
         <FocusSectionGroup
           key={section.id}
+          action={index === 0 ? actions : undefined}
+          emptyState={section.id === 'priority' ? '暂无需要关注的任务' : '当前筛选下没有活动'}
           section={section}
-          sort="updated"
+          sort="preserve"
           {...sharedSessionProps}
         />
       ))}
@@ -1184,68 +1150,66 @@ function Timeline({
   )
 }
 
-function TimelinePriorityMenu({
-  hasArchivableAttention,
-  hasUnreadAttention,
-  showWork,
-  showChat,
-  showScheduledSessions,
-  onShowScheduledSessionsChange,
-  showPinned,
-  onMarkAttentionRead,
-  onRequestArchiveAttention,
-  onShowWorkChange,
-  onShowChatChange,
-  onShowPinnedChange,
-}: {
-  hasArchivableAttention: boolean
-  hasUnreadAttention: boolean
-  showWork: boolean
-  showChat: boolean
-  showScheduledSessions: boolean
-  onShowScheduledSessionsChange: (value: boolean) => void
-  showPinned: boolean
-  onMarkAttentionRead: () => void
-  onRequestArchiveAttention: () => void
-  onShowWorkChange: (value: boolean) => void
-  onShowChatChange: (value: boolean) => void
-  onShowPinnedChange: (value: boolean) => void
-}): React.ReactNode {
+function TimelinePriorityMenu(options: ActivityMenuProps): React.ReactNode {
   const [menuOpen, setMenuOpen] = useState(false)
+  const {
+    showPriority,
+    showWork,
+    showChat,
+    showPinned,
+    showScheduledSessions,
+    showSources,
+    onShowPriorityChange,
+    onShowWorkChange,
+    onShowChatChange,
+    onShowPinnedChange,
+    onShowScheduledSessionsChange,
+    onRestoreDefaults,
+    hasUnreadAttention,
+    onMarkAttentionRead,
+    hasArchivableAttention,
+    onRequestArchiveAttention,
+  } = options
+  const customized =
+    !showPriority ||
+    showPinned ||
+    showScheduledSessions ||
+    (showSources && (!showWork || !showChat))
   return (
     <PopoverMenu
       align="start"
       className="sidebar-timeline-menu popover-menu--flex"
-      avoidCollisions={false}
       open={menuOpen}
       side="bottom"
       sideOffset={4}
-      width={192}
+      width={208}
+      onOpenChange={setMenuOpen}
       trigger={
         <IconButton
-          aria-label="优先级显示选项"
-          iconSize="md"
-          className="sidebar-timeline-menu-button tw:flex-none tw:opacity-0 tw:pointer-events-none tw:focus-visible:opacity-100 tw:focus-visible:pointer-events-auto tw:data-[state=open]:opacity-100 tw:data-[state=open]:pointer-events-auto tw:group-hover:opacity-100 tw:group-hover:pointer-events-auto tw:group-has-[:focus-visible]:opacity-100 tw:group-has-[:focus-visible]:pointer-events-auto"
+          aria-label="活动视图选项"
+          title="活动视图选项"
           color="ghostSecondary"
           size="compact"
-          title="优先级显示选项"
         >
           <Ellipsis size={APP_ICON_SIZE} />
         </IconButton>
       }
-      onOpenChange={setMenuOpen}
     >
       <PopoverLabel>显示</PopoverLabel>
-      <PopoverCheckboxItem
-        checked={showWork && showChat}
-        keepOpen
-        onCheckedChange={(checked) => {
-          onShowWorkChange(checked)
-          onShowChatChange(checked)
-        }}
-      >
+      {customized ? <PopoverItem onClick={onRestoreDefaults}>恢复默认设置</PopoverItem> : null}
+      <PopoverCheckboxItem checked={showPriority} keepOpen onCheckedChange={onShowPriorityChange}>
         优先事项部分
       </PopoverCheckboxItem>
+      {showSources ? (
+        <>
+          <PopoverCheckboxItem checked={showWork} keepOpen onCheckedChange={onShowWorkChange}>
+            工作
+          </PopoverCheckboxItem>
+          <PopoverCheckboxItem checked={showChat} keepOpen onCheckedChange={onShowChatChange}>
+            聊天
+          </PopoverCheckboxItem>
+        </>
+      ) : null}
       <PopoverCheckboxItem checked={showPinned} keepOpen onCheckedChange={onShowPinnedChange}>
         置顶
       </PopoverCheckboxItem>
@@ -1254,7 +1218,7 @@ function TimelinePriorityMenu({
         keepOpen
         onCheckedChange={onShowScheduledSessionsChange}
       >
-        显示日程会话
+        定时任务
       </PopoverCheckboxItem>
       <PopoverSeparator />
       <PopoverItem disabled={!hasUnreadAttention} onClick={onMarkAttentionRead}>
@@ -1319,7 +1283,7 @@ function FocusSectionGroup({
               now={now}
               pagination="all"
               pendingPermissionSessionIds={pendingPermissionSessionIds}
-              presentation="workspace-meta"
+              presentation="activity"
               sort={sort}
               titleLoadingIds={titleLoadingIds}
               sessionFallbackTitles={sessionFallbackTitles}
@@ -1358,18 +1322,22 @@ function SidebarOrganizeMenu({
   showScheduledSessions,
   onShowScheduledSessionsChange,
   organization,
+  showProjectsInRecents = false,
+  onShowProjectsInRecentsChange,
   sort,
   onOrganizationChange,
   onSortChange,
   onCreateSection,
 }: {
   organization: DesktopSidebarOrganization
+  showProjectsInRecents?: boolean
+  onShowProjectsInRecentsChange?: (value: boolean) => void
   showScheduledSessions: boolean
   onShowScheduledSessionsChange: (value: boolean) => void
   sort: DesktopSidebarSort
   onOrganizationChange: (organization: DesktopSidebarOrganization) => void
   onSortChange: (sort: DesktopSidebarSort) => void
-  onCreateSection: () => void
+  onCreateSection: (itemKeys?: string[]) => void
 }): React.ReactNode {
   const [open, setOpen] = useState(false)
   return (
@@ -1388,43 +1356,19 @@ function SidebarOrganizeMenu({
       width={208}
       onOpenChange={setOpen}
     >
-      <PopoverLabel className="popover-sidebar-organize-heading tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label">整理</PopoverLabel>
-      <PopoverRadioGroup
-        value={organization}
-        onValueChange={(value) => onOrganizationChange(value as DesktopSidebarOrganization)}
-      >
-        <PopoverRadioItem value="projects">按项目</PopoverRadioItem>
-        <PopoverRadioItem value="flat">在一个列表中</PopoverRadioItem>
-      </PopoverRadioGroup>
-      <PopoverLabel className="popover-sidebar-organize-heading tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label">排序方式</PopoverLabel>
-      <PopoverRadioGroup
-        value={sort}
-        onValueChange={(value) => onSortChange(value as DesktopSidebarSort)}
-      >
-        {SIDEBAR_SORT_OPTIONS.map((option) => (
-          <PopoverRadioItem key={option.value} value={option.value}>
-            {option.label}
-          </PopoverRadioItem>
-        ))}
-      </PopoverRadioGroup>
-      <PopoverLabel className="popover-sidebar-organize-heading tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label">过滤</PopoverLabel>
-      <PopoverCheckboxItem
-        checked={showScheduledSessions}
-        keepOpen
-        onCheckedChange={onShowScheduledSessionsChange}
-      >
-        显示日程会话
-      </PopoverCheckboxItem>
-      <PopoverSeparator />
-      <PopoverItem
-        icon={<Plus size={APP_ICON_SIZE} />}
-        onClick={() => {
-          setOpen(false)
-          onCreateSection()
-        }}
-      >
-        新建分组
-      </PopoverItem>
+      <DropdownActions actions={[
+        { kind: 'sub', label: '整理侧边栏', layout: 'grid', children: [
+          { kind: 'item', label: '分项目显示', checked: organization === 'projects', onSelect: () => onOrganizationChange('projects') },
+          { kind: 'item', label: '合并显示', checked: organization === 'flat', onSelect: () => onOrganizationChange('flat') },
+        ] },
+        { kind: 'sub', label: '聊天排序方式', layout: 'grid', children: SIDEBAR_SORT_OPTIONS.map((option) => ({ kind: 'item', label: option.label, checked: sort === option.value || (sort === 'priority' && option.value === 'updated'), onSelect: () => onSortChange(option.value) })) },
+      ]} />
+      {organization === 'projects' && onShowProjectsInRecentsChange ? <>
+        <PopoverSeparator /><PopoverLabel>显示</PopoverLabel>
+        <PopoverCheckboxItem checked={showProjectsInRecents} onCheckedChange={onShowProjectsInRecentsChange}>项目</PopoverCheckboxItem>
+      </> : null}
+      <PopoverCheckboxItem checked={showScheduledSessions} keepOpen onCheckedChange={onShowScheduledSessionsChange}>显示日程会话</PopoverCheckboxItem>
+      {onShowProjectsInRecentsChange ? <><PopoverSeparator /><PopoverItem icon={<Plus size={APP_ICON_SIZE} />} onClick={() => { setOpen(false); onCreateSection() }}>新建分区</PopoverItem></> : null}
     </PopoverMenu>
   )
 }
@@ -1452,13 +1396,12 @@ function SidebarPinnedSortMenu({
       width={208}
       onOpenChange={setOpen}
     >
-      <PopoverLabel className="popover-sidebar-organize-heading tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label">排序方式</PopoverLabel>
       <PopoverRadioGroup
         value={sort}
         onValueChange={(value) => onSortChange(value as 'manual' | 'updated')}
       >
-        <PopoverRadioItem value="manual">手动排序</PopoverRadioItem>
         <PopoverRadioItem value="updated">最近更新</PopoverRadioItem>
+        <PopoverRadioItem value="manual">手动排序</PopoverRadioItem>
       </PopoverRadioGroup>
     </PopoverMenu>
   )

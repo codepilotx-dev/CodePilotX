@@ -75,7 +75,7 @@ export function agentThreadListItemToDesktop(
   project?: Project | null,
 ): DesktopSessionListItem {
   const workspace = threadWorkspaceToDesktopWorkspace(thread.workspace, project)
-  const standalone = thread.workspace.kind === 'projectless'
+  const standalone = thread.projectID === null
   const planModeActive = thread.settings.taskMode === 'plan'
   return {
     id: thread.id,
@@ -157,7 +157,7 @@ export function agentThreadSnapshotToDesktop(
           : 'default'
   const latestInput = snapshot.inputs.at(-1) ?? null
   const workspace = threadWorkspaceToDesktopWorkspace(snapshot.thread.workspace, project)
-  const standalone = snapshot.thread.workspace.kind === 'projectless'
+  const standalone = snapshot.thread.projectID === null
   const planModeActive = snapshot.thread.settings.taskMode === 'plan'
   const events = snapshotEvents(snapshot)
   const latestMessage = events
@@ -1204,11 +1204,13 @@ function threadWorkspaceToDesktopWorkspace(
   if (workspace.kind === 'projectless') {
     return {
       path: workspace.cwd,
-      name: '无项目会话',
+      name: project?.name ?? '无项目会话',
+      ...(project ? { projectId: project.id } : {}),
       branchName: null,
     }
   }
-  return projectToDesktopWorkspace(project, workspace.projectID)
+  const current = projectToDesktopWorkspace(project, workspace.projectID)
+  return { ...current, path: workspace.cwd, ...(project ? {} : { name: '无项目会话', isStandalone: true, projectId: undefined }) }
 }
 
 function record(value: unknown): Record<string, any> {

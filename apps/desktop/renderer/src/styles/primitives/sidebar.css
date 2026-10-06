@@ -229,9 +229,20 @@
     transform: none;
   }
 
-  /* --- Session approval chip (color-mix surface) --------------------- */
-  .sidebar-session-approval {
-    background: color-mix(in srgb, var(--cpx-sys-color-success) 14%, transparent);
+  .sidebar-status-pill-progress {
+    animation-name: sidebar-status-pill-countdown;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
+  }
+
+  @keyframes sidebar-status-pill-countdown {
+    from {
+      transform: scaleX(1);
+    }
+
+    to {
+      transform: scaleX(0);
+    }
   }
 
   /*

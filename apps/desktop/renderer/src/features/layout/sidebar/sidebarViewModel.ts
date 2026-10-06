@@ -78,6 +78,8 @@ export function buildSidebarTimelineModel(input: {
   now: number
   sessions: readonly SessionListItem[]
   showPinned: boolean
+  showPriority?: boolean
+  snapshot?: SidebarActivitySnapshot
 }): SidebarTimelineModel {
   const attention: SessionListItem[] = []
   const attentionRankById = new Map<string, number>()
@@ -85,17 +87,21 @@ export function buildSidebarTimelineModel(input: {
   const dayBuckets = new Map<number, SessionListItem[]>()
 
   for (const session of input.sessions) {
+    if (session.archivedAt) continue
     const priorityRank = sidebarTimelinePriorityRank(session)
-    if (priorityRank != null) {
+    if (
+      input.showPriority !== false &&
+      (priorityRank != null || input.snapshot?.priorityIds.includes(session.id))
+    ) {
       attention.push(session)
-      attentionRankById.set(session.id, priorityRank)
+      attentionRankById.set(session.id, priorityRank ?? 3)
       continue
     }
     if (input.showPinned && session.pinnedAt != null) {
       pinned.push(session)
       continue
     }
-    const activityMs = sessionRecencyMs(session)
+    const activityMs = input.snapshot?.recencyById.get(session.id) ?? sessionRecencyMs(session)
     if (activityMs <= 0) {
       // 时间无效的普通任务不进入时间线
       continue
@@ -130,14 +136,65 @@ export function buildSidebarTimelineModel(input: {
     dateSections.push({
       id: `day-${offset}`,
       label: labelForDayOffset(offset, dayDate),
-      sessions: sortSessionsByRecency(sessions),
+      sessions: [...sessions].sort(
+        (a, b) =>
+          (input.snapshot?.recencyById.get(b.id) ?? sessionRecencyMs(b)) -
+          (input.snapshot?.recencyById.get(a.id) ?? sessionRecencyMs(a)),
+      ),
     })
   }
   return {
-    attentionSessions: sortPrioritySessions(attention, attentionRankById),
+    attentionSessions: priorityOrder(attention),
     pinnedSessions: sortSessionsByRecency(pinned),
-    prioritySessions: sortPrioritySessions(prioritySessions, attentionRankById),
+    prioritySessions: priorityOrder(prioritySessions),
     dateSections,
+  }
+  function priorityOrder(items: SessionListItem[]): SessionListItem[] {
+    if (!input.snapshot) return sortPrioritySessions(items, attentionRankById)
+    const positions = new Map(input.snapshot.priorityIds.map((id, index) => [id, index]))
+    return [...items].sort(
+      (a, b) => (positions.get(a.id) ?? Infinity) - (positions.get(b.id) ?? Infinity),
+    )
+  }
+}
+
+export type SidebarActivitySnapshot = {
+  priorityIds: string[]
+  recencyById: ReadonlyMap<string, number>
+}
+
+/** 保留本次活动视图的顺序与时间；状态仍由实时会话投影提供。 */
+export function reconcileSidebarActivitySnapshot(
+  previous: SidebarActivitySnapshot | null,
+  sessions: readonly SessionListItem[],
+  clearRead = false,
+): SidebarActivitySnapshot {
+  const visible = sessions.filter((session) => !session.archivedAt)
+  const ids = new Set(visible.map((session) => session.id))
+  const activeIds = new Set(
+    visible
+      .filter((session) => sidebarTimelinePriorityRank(session) != null)
+      .map((session) => session.id),
+  )
+  const priorityIds =
+    previous?.priorityIds.filter((id) => ids.has(id) && (!clearRead || activeIds.has(id))) ?? []
+  const retained = new Set(priorityIds)
+  const ranked = visible.filter(
+    (session) => sidebarTimelinePriorityRank(session) != null && !retained.has(session.id),
+  )
+  const ranks = new Map(
+    ranked.map((session) => [session.id, sidebarTimelinePriorityRank(session)!]),
+  )
+  priorityIds.push(...sortPrioritySessions(ranked, ranks).map((session) => session.id))
+  return {
+    priorityIds,
+    recencyById: new Map(
+      visible.map((session) => [
+        session.id,
+        (!clearRead ? previous?.recencyById.get(session.id) : undefined) ??
+          sessionRecencyMs(session),
+      ]),
+    ),
   }
 }
 
@@ -148,7 +205,7 @@ export function sidebarAttentionUnreadSessions(
   return sessions.filter((session) => session.unreadAt != null)
 }
 
-/** 安全批量归档集合：仅“已完成但未读”的关注任务，排除等待用户操作或计划审批的任务。 */
+/** 活动视图的来源筛选。 */
 export function filterSidebarActivitySessions(
   sessions: readonly SessionListItem[],
   filters: {
@@ -177,7 +234,7 @@ export function deriveSidebarActivityIndicatorState(
   for (const session of sessions) {
     if (session.archivedAt) continue
     const rank = sidebarTimelinePriorityRank(session)
-    if (rank === 0 || rank === 1 || rank === 3) {
+    if (rank === 0 || rank === 1) {
       return 'attention'
     }
     if (rank === 2) {
@@ -277,9 +334,7 @@ export function clampTimelineVisibleLimit({
 export function sidebarArchivableAttentionSessions(
   sessions: readonly SessionListItem[],
 ): SessionListItem[] {
-  return sessions.filter(
-    (session) => session.latestTurnStatus === 'completed' && session.pendingPlanApproval !== true,
-  )
+  return sessions.filter((session) => !session.archivedAt)
 }
 
 export function sidebarTimelinePriorityRank(session: SessionListItem): number | null {
@@ -290,17 +345,15 @@ export function sidebarTimelinePriorityRank(session: SessionListItem): number | 
     return 0
   }
   if (session.pendingPlanApproval === true) {
-    return 1
+    return 0
   }
+  if (session.unreadAt != null) return 1
   if (
     session.latestTurnStatus === 'running' ||
     session.latestTurnStatus === 'waiting-subagents' ||
     session.latestTurnStatus === 'queued'
   ) {
     return 2
-  }
-  if (session.unreadAt != null) {
-    return 3
   }
   return null
 }
@@ -334,6 +387,7 @@ function sortPrioritySessions(
 export function buildSidebarViewModel({
   manualOrderByScope = {},
   organization = 'projects',
+  showProjectsInRecents = false,
   showScheduledSessions = true,
   customSections = [],
   pendingPermissionSessionIds,
@@ -344,6 +398,7 @@ export function buildSidebarViewModel({
 }: {
   manualOrderByScope?: Readonly<Record<string, readonly string[]>>
   organization?: DesktopSidebarOrganization
+  showProjectsInRecents?: boolean
   showScheduledSessions?: boolean
   customSections?: readonly SidebarCustomSection[]
   pendingPermissionSessionIds: ReadonlySet<string>
@@ -409,7 +464,7 @@ export function buildSidebarViewModel({
       ? unpinnedSessions.filter(
           (session) => session.standalone || !pinnedProjectKeys.has(sessionProjectKey(session)),
         )
-      : standaloneSessions
+      : showProjectsInRecents ? unpinnedSessions.filter((session) => session.standalone || !pinnedProjectKeys.has(sessionProjectKey(session))) : standaloneSessions
   const projectWorkspaces = sortProjectsForSidebar(
     allProjects.filter(
       (project) => !pinnedProjectKeys.has(projectKey(project)) && !claimedKeys.has(sidebarPinnedProjectKey(project)),
@@ -680,11 +735,16 @@ export function deriveSidebarSessionVisualState(
   session: SessionListItem,
   pendingPermissionSessionIds: ReadonlySet<string>,
 ): SidebarSessionVisualState {
-  if (session.status === 'waiting' || pendingPermissionSessionIds.has(session.id)) {
+  if (
+    session.status === 'waiting' ||
+    pendingPermissionSessionIds.has(session.id) ||
+    session.latestTurnStatus === 'waiting-question' ||
+    session.latestTurnStatus === 'waiting-permission'
+  ) {
     return 'needs-input'
   }
-  if (session.unreadAt) return 'unread'
   if (session.status === 'running') return 'running'
+  if (session.unreadAt) return 'unread'
   return 'idle'
 }
 
@@ -693,10 +753,11 @@ function mergeProjectWorkspaces(
   sessions: readonly SessionListItem[],
   removedWorkspaces: readonly DesktopRemovedWorkspace[],
 ): DesktopWorkspace[] {
-  const removedPaths = new Set(removedWorkspaces.map((item) => normalizePath(item.path)))
+  const removedPaths = new Set(removedWorkspaces.filter((item) => !item.projectId && item.path).map((item) => normalizePath(item.path)))
+  const removedProjectIds = new Set(removedWorkspaces.flatMap((item) => item.projectId ? [item.projectId] : []))
   const byProject = new Map<string, DesktopWorkspace>()
   for (const workspace of recentWorkspaces) {
-    if (!removedPaths.has(normalizePath(workspace.path))) {
+    if (!removedPaths.has(normalizePath(workspace.path)) && !removedProjectIds.has(workspace.projectId ?? '')) {
       byProject.set(projectKey(workspace), workspace)
     }
   }
@@ -704,6 +765,7 @@ function mergeProjectWorkspaces(
     if (
       session.standalone ||
       removedPaths.has(normalizePath(session.workspacePath)) ||
+      removedProjectIds.has(session.projectId ?? '') ||
       byProject.has(sessionProjectKey(session))
     ) {
       continue

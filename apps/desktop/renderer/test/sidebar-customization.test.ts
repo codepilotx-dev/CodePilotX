@@ -302,3 +302,13 @@ describe('自定义信息保留式迁移', () => {
     expect(duplicated.destinationOrder).toEqual(['plugins', 'unknown', 'automations', 'sessionGroups'])
   })
 })
+
+
+test('最近区显示项目聊天开关保留置顶和分区归属', () => {
+  const project = { projectId: 'alpha', path: 'C:\\alpha', name: 'Alpha' }
+  const items = ['a', 'b', 'c'].map((id) => ({ ...session(id), projectId: 'alpha', standalone: false }))
+  const input = { sessions: items, recentWorkspaces: [project], removedWorkspaces: [], sessionPins: { b: '2026-10-06' }, pendingPermissionSessionIds: new Set<string>(), customSections: [{ id: 'work', title: 'Work', itemKeys: ['session:c'], sort: 'manual' as const, collapsed: false }] }
+  expect(buildSidebarViewModel(input).recentSessions).toEqual([])
+  expect(buildSidebarViewModel({ ...input, showProjectsInRecents: true }).recentSessions.map((entry) => entry.id)).toEqual(['a'])
+  expect(normalizeSidebarCustomization({ showProjectsInRecents: true }).showProjectsInRecents).toBe(true)
+})

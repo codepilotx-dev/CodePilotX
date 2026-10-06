@@ -185,6 +185,7 @@ export const enUS: Record<string, string> = {
   主要导航: 'Main navigation',
   关闭活动视图: 'Close activity view',
   查看活动: 'View activity',
+  '查看未读、进行中或待回复的聊天': 'See chats that are unread, active, or awaiting a response',
   '切换工作模式，当前为': 'Switch work mode, current:',
   '构建、调试并发布': 'Build, debug, and ship',
   '写作、分析和协作': 'Write, analyze, and collaborate',

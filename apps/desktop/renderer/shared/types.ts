@@ -846,6 +846,7 @@ export type DesktopSidebarOrganization = 'projects' | 'flat'
 export type DesktopSidebarSort = 'priority' | 'updated' | 'manual'
 
 export type DesktopRemovedWorkspace = {
+  projectId?: string
   path: string
   name: string
   removedAt: string
@@ -1002,6 +1003,7 @@ export type DesktopStoredSettings = {
   sidebarTimelinePriorityEnabled: boolean
   sidebarActivityShowWork?: boolean
   sidebarActivityShowChat?: boolean
+  sidebarActivityShowScheduled?: boolean
   sidebarShowScheduledSessions?: boolean
   sidebarActivityShowPinned?: boolean
   sidebarActivityCoachmarkDismissed?: boolean
@@ -1030,6 +1032,7 @@ export type SidebarCustomization = {
   sections: SidebarCustomSection[]
   sectionOrder: string[]
   pinnedSort: 'manual' | 'updated'
+  showProjectsInRecents?: boolean
   destinationOrder: string[]
   hiddenDestinationIds: string[]
 }
@@ -1829,7 +1832,9 @@ export type DesktopApi = {
     name: string
     expectedVersion: number
   }): Promise<DesktopWorkspace>
-  removeProject(projectId: string): Promise<{ archivedThreadCount: number }>
+  editProject(input: { projectId: string; name: string; paths: string[]; expectedVersion: number }): Promise<DesktopWorkspace>
+  restoreProject(projectId: string, removalOperationId: string): Promise<DesktopWorkspace>
+  removeProject(projectId: string): Promise<{ archivedThreadCount: number; removalOperationId?: string; undoExpiresAt?: number }>
   addProjectFolder(projectId: string, path: string): Promise<DesktopWorkspace>
   removeProjectFolder(projectId: string, folderId: string): Promise<DesktopWorkspace>
   setPrimaryProjectFolder(projectId: string, folderId: string): Promise<DesktopWorkspace>
@@ -1863,6 +1868,7 @@ export type DesktopApi = {
   ): Promise<DesktopProjectSourceReadResult>
   removeProjectSource(projectId: string, sourceId: string): Promise<boolean>
   chooseProjectFolder(): Promise<string | null>
+  chooseProjectFolders(): Promise<string[]>
   chooseWorkspace(): Promise<DesktopWorkspace | null>
   openWorkspace(workspacePath: string, projectId?: string): Promise<DesktopWorkspace>
   getWorkspaceContext(workspacePath: string, projectId?: string): Promise<DesktopWorkspace>

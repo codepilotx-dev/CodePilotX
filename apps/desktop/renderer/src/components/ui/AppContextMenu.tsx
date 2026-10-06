@@ -1,6 +1,6 @@
 import { useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import * as ContextMenu from '@radix-ui/react-context-menu'
-import { ChevronRight } from 'lucide-react'
+import { Check, ChevronRight } from 'lucide-react'
 import type { DesktopEditAction } from '@codepilotx/shared/desktop-edit-ipc'
 import { cx } from '../../utils/cx.js'
 import { useFloatingFocusModality } from '../../utils/floatingFocus.js'
@@ -20,6 +20,7 @@ export type AppContextMenuAction =
       shortcut?: string
       color?: AppContextMenuItemColor
       disabled?: boolean
+      checked?: boolean
       onSelect: () => void
     }
   | { kind: 'separator' }
@@ -248,6 +249,7 @@ function renderAction(
               CONTEXT_TRAILING_LAYOUT_CLASSNAMES[layout],
             )}
           >
+            {action.checked ? <Check size={APP_ICON_SIZES.sm} /> : null}
             {action.shortcut ? (
               <span className="app-context-menu-shortcut sidebar-context-menu-shortcut">
                 {action.shortcut}

@@ -33,6 +33,7 @@ import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.
 import { useHeightTransition } from '../../../hooks/useHeightTransition.js'
 import { sortSessionsForSidebar } from '../../session/state/sessionSorting.js'
 import { SidebarRow } from './SidebarRow.js'
+import { SidebarStatusPill } from './SidebarStatusPill.js'
 import { SidebarReorderItem } from './SidebarReorderItem.js'
 import { useEverOpened } from '../../../hooks/usePresenceRetention.js'
 import { cx } from '../../../utils/cx.js'
@@ -44,6 +45,7 @@ import type { DesktopSidebarSort } from '../../../../shared/types.js'
 import { deriveSidebarSessionVisualState } from './sidebarViewModel.js'
 import { desktopClient, desktopClipboard } from '../../../services/desktop-client/index.js'
 import { InputDialog } from '../../../components/ui/ConfirmationDialog.js'
+import { useSidebarActivityPreview } from './useSidebarActivityPreview.js'
 
 const SidebarSessionHoverCard = lazy(async () => {
   const module = await import('./SidebarSessionHoverCard.js')
@@ -66,7 +68,7 @@ type Props = {
   /** 'preserve' 表示调用方已排好序，不再重排（时间线优先任务组使用） */
   sort?: DesktopSidebarSort | 'preserve'
   manualOrderByScope?: Record<string, string[]>
-  presentation?: 'compact' | 'workspace-meta'
+  presentation?: 'compact' | 'workspace-meta' | 'activity'
   /** 标准区域会话行统一右缩进；时间线与“最近”分组沿用 8px gutter。 */
   sessionIndent?: 'content' | 'gutter'
   pagination?: 'incremental' | 'all'
@@ -347,9 +349,12 @@ function SidebarSessionGroupComponent({
   function renderSessionRow(session: SessionListItem, rowIndex: number): React.ReactNode {
     const regeneratingTitle = titleLoadingIds.has(session.id)
     const visualState = deriveSidebarSessionVisualState(session, pendingPermissionSessionIds)
-    const awaitingApproval = visualState === 'needs-input'
-    const waitingLabel =
-      session.latestTurnStatus === 'waiting-question' ? '需要用户输入' : '等待审批'
+    const waitingForInput =
+      visualState === 'needs-input' &&
+      !pendingPermissionSessionIds.has(session.id) &&
+      session.latestTurnStatus === 'waiting-question'
+    const hideInputPill = waitingForInput && session.id === activeSessionId
+    const indicatorState = hideInputPill ? (session.unreadAt ? 'unread' : 'idle') : visualState
     const showActions = hoveredSessionId === session.id || focusedSessionId === session.id
     const showIndicators = !showActions && confirmArchiveSessionId !== session.id
     const metaClassName = cx(
@@ -359,11 +364,11 @@ function SidebarSessionGroupComponent({
       'tw:justify-end',
       'tw:w-auto',
       'tw:min-w-0 tw:gap-1',
-      awaitingApproval && 'sidebar-session-meta--approval',
+      indicatorState === 'needs-input' && 'sidebar-session-meta--approval',
       confirmArchiveSessionId === session.id && 'confirming-archive',
     )
     // 双行（标题 + 工作区）行高由两行内容决定，时间线行沿用 48px 基准。
-    const rowHeightClass = presentation === 'workspace-meta' ? 'tw:[--sidebar-row-height:48px]' : null
+    const rowHeightClass = presentation !== 'compact' ? 'tw:[--sidebar-row-height:48px]' : null
     const sessionButton = (
       <button
         aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
@@ -384,7 +389,7 @@ function SidebarSessionGroupComponent({
         <span
           className={cx(
             'sidebar-session-button-lines tw:flex tw:min-w-0 tw:flex-1 tw:flex-col tw:items-stretch tw:justify-center',
-            presentation === 'workspace-meta' && 'sidebar-session-button-lines--meta tw:gap-1',
+            presentation !== 'compact' && 'sidebar-session-button-lines--meta tw:gap-1',
           )}
         >
           {regeneratingTitle ? (
@@ -402,6 +407,7 @@ function SidebarSessionGroupComponent({
             </SidebarSessionTitle>
           )}
           {presentation === 'workspace-meta' ? <SidebarSessionSubtitle session={session} /> : null}
+          {presentation === 'activity' ? <SidebarActivitySubtitle session={session} /> : null}
         </span>
       </button>
     )
@@ -426,10 +432,7 @@ function SidebarSessionGroupComponent({
       <SidebarRow
         active={session.id === activeSessionId}
         asChild
-        className={cx(
-          'sidebar-session-row tw:[&>.sidebar-row-trailing]:w-auto',
-          rowHeightClass,
-        )}
+        className={cx('sidebar-session-row tw:[&>.sidebar-row-trailing]:w-auto', rowHeightClass)}
         data-sidebar-session-id={session.id}
         indent={showConversationIcon || sessionIndent === 'gutter' ? 'none' : 'session'}
         layout="grid"
@@ -516,27 +519,27 @@ function SidebarSessionGroupComponent({
                   <Archive size={APP_ICON_SIZE} />
                 </IconButton>
               </div>
-            ) : awaitingApproval ? (
-              <span
-                className="sidebar-session-approval tw:inline-flex tw:flex-none tw:items-center tw:rounded-full tw:px-2 tw:py-0.5 tw:text-app-success tw:type-label tw:whitespace-nowrap"
-                title={waitingLabel}
-              >
-                {waitingLabel}
-              </span>
-            ) : visualState === 'unread' || visualState === 'running' ? (
+            ) : indicatorState === 'needs-input' ? (
+              <SidebarStatusPill kind={waitingForInput ? 'input' : 'approval'} />
+            ) : indicatorState === 'unread' || indicatorState === 'running' ? (
               <span className="sidebar-indicator tw:inline-flex tw:size-6 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:[&>svg]:size-icon-md">
-                {visualState === 'unread' ? (
-                  <span
-                    aria-label="未读"
-                    className="sidebar-unread-dot tw:size-1.5 tw:flex-none tw:rounded-full tw:bg-app-accent"
-                  />
-                ) : visualState === 'running' ? (
-                  <Spinner
-                    className="sidebar-session-spinner tw:text-app-text-soft"
-                    label="加载中"
-                    size="medium"
-                  />
-                ) : null}
+                <span className="sidebar-status-icon tw:inline-flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center">
+                  {indicatorState === 'unread' ? (
+                    <span
+                      aria-label="未读"
+                      className="sidebar-unread-dot tw:size-2 tw:flex-none tw:rounded-full tw:bg-app-accent"
+                    />
+                  ) : indicatorState === 'running' ? (
+                    <Spinner
+                      className={cx(
+                        'sidebar-session-spinner tw:text-app-text/70',
+                        reducedMotion && 'tw:animate-none',
+                      )}
+                      label="处理中"
+                      size="medium"
+                    />
+                  ) : null}
+                </span>
               </span>
             ) : null}
           </div>
@@ -619,31 +622,45 @@ function SidebarSessionGroupComponent({
       {pagination !== 'all' ? (
         <>
           {hasOverflow ? (
-            <div className={cx(
-              'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-2 tw:rounded-md tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-control tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard',
-              sessionIndent === 'gutter' && !showConversationIcon
-                ? 'tw:grid-cols-[minmax(0,1fr)_auto]'
-                : 'tw:grid-cols-[var(--sidebar-row-columns)]',
-            )}>
+            <div
+              className={cx(
+                'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-2 tw:rounded-md tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-control tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard',
+                sessionIndent === 'gutter' && !showConversationIcon
+                  ? 'tw:grid-cols-[minmax(0,1fr)_auto]'
+                  : 'tw:grid-cols-[var(--sidebar-row-columns)]',
+              )}
+            >
               {sessionIndent !== 'gutter' || showConversationIcon ? (
                 <span
                   aria-hidden="true"
                   className="sidebar-row-leading sidebar-row-leading-spacer tw:flex tw:size-6 tw:w-6 tw:min-w-6 tw:shrink-0 tw:grow-0 tw:basis-6 tw:items-center tw:justify-center"
                 />
               ) : null}
-              <div className={cx('sidebar-row-main', 'tw:min-w-0', 'tw:flex', 'tw:items-center', 'tw:gap-4')}>
+              <div
+                className={cx(
+                  'sidebar-row-main',
+                  'tw:min-w-0',
+                  'tw:flex',
+                  'tw:items-center',
+                  'tw:gap-4',
+                )}
+              >
                 {canShowMore ? (
                   <Button
                     aria-expanded={canCollapse}
                     className="tw:w-auto sidebar-show-more-button tw:min-w-0 tw:border-0 tw:whitespace-nowrap tw:[--button-padding-inline:0] tw:[font:inherit]"
                     color="ghostTertiary"
                     onClick={() =>
-                      setVisibleLimit((current) => Math.min(current + initialLimit, sessions.length))
+                      setVisibleLimit((current) =>
+                        Math.min(current + initialLimit, sessions.length),
+                      )
                     }
                     size="compact"
                     type="button"
                   >
-                    <span className="tw:block tw:overflow-hidden tw:whitespace-nowrap">展开显示</span>
+                    <span className="tw:block tw:overflow-hidden tw:whitespace-nowrap">
+                      展开显示
+                    </span>
                   </Button>
                 ) : null}
                 {canCollapse ? (
@@ -654,7 +671,9 @@ function SidebarSessionGroupComponent({
                     size="compact"
                     type="button"
                   >
-                    <span className="tw:block tw:overflow-hidden tw:whitespace-nowrap">折叠显示</span>
+                    <span className="tw:block tw:overflow-hidden tw:whitespace-nowrap">
+                      折叠显示
+                    </span>
                   </Button>
                 ) : null}
               </div>
@@ -711,7 +730,7 @@ function SidebarSessionTitle({
 }: {
   active: boolean
   children: React.ReactNode
-  presentation: 'compact' | 'workspace-meta'
+  presentation: 'compact' | 'workspace-meta' | 'activity'
   reducedMotion: boolean
 }): React.ReactNode {
   const viewportRef = useRef<HTMLSpanElement>(null)
@@ -758,7 +777,7 @@ function SidebarSessionTitle({
       aria-live="polite"
       className={cx(
         'sidebar-session-title tw:block tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text',
-        presentation === 'workspace-meta'
+        presentation !== 'compact'
           ? 'tw:flex-none tw:type-body'
           : 'tw:grow tw:shrink tw:basis-auto tw:type-row-title',
       )}
@@ -804,6 +823,17 @@ function SidebarSessionSubtitle({ session }: { session: SessionListItem }): Reac
   return <SidebarSessionWorkspaceMeta session={session} />
 }
 
+function SidebarActivitySubtitle({ session }: { session: SessionListItem }): React.ReactNode {
+  const preview = useSidebarActivityPreview(session)
+  return preview ? (
+    <span className="tw:block tw:min-w-0 tw:truncate tw:type-caption tw:text-app-text-meta">
+      {preview}
+    </span>
+  ) : (
+    <SidebarSessionWorkspaceMeta session={session} />
+  )
+}
+
 function SidebarSessionWorkspaceMeta({ session }: { session: SessionListItem }): React.ReactNode {
   if (session.standalone) {
     return (
@@ -833,10 +863,7 @@ function SidebarSessionWorkspaceMeta({ session }: { session: SessionListItem }):
   }
   return (
     <span className="sidebar-session-workspace-meta tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-caption">
-      <Folder
-        className="sidebar-session-workspace-meta__icon tw:flex-none"
-        size={APP_ICON_SIZE}
-      />
+      <Folder className="sidebar-session-workspace-meta__icon tw:flex-none" size={APP_ICON_SIZE} />
       <span className="sidebar-session-workspace-meta__name tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap">
         {session.workspaceName}
       </span>

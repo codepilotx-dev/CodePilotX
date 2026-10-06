@@ -12,6 +12,7 @@ import {
   MessagesSquare,
   Search,
   SquarePen,
+  X,
 } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
@@ -237,10 +238,12 @@ export const SIDEBAR_PRODUCT_MODE_META: Record<
 export function SidebarHeader({
   showActions = true,
   hasUnread = false,
+  unreadActivityCount = 0,
   onOpenCommandMenu,
 }: {
   showActions?: boolean
   hasUnread?: boolean
+  unreadActivityCount?: number
   onOpenCommandMenu: () => void
 }): React.ReactNode {
   const [modeMenuOpen, setModeMenuOpen] = useState(false)
@@ -279,7 +282,9 @@ export function SidebarHeader({
             className="sidebar-product-mode-trigger tw:inline-flex tw:h-8 tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-xl tw:border-transparent tw:bg-transparent tw:px-2 tw:text-left tw:text-app-text tw:type-row-title tw:whitespace-nowrap tw:hover:bg-app-hover tw:data-[state=open]:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus tw:[&>svg]:shrink-0 tw:[&>svg]:text-app-text-meta"
             type="button"
           >
-            <span className="sidebar-product-mode-label tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap">{activeMode.label}</span>
+            <span className="sidebar-product-mode-label tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap">
+              {activeMode.label}
+            </span>
             <ChevronDown aria-hidden="true" size={APP_ICON_SIZES.sm} />
           </button>
         }
@@ -313,7 +318,11 @@ export function SidebarHeader({
             <Search size={APP_ICON_SIZE} />
           </IconButton>
           <Popover.Root
-            open={!sidebarActivityCoachmarkDismissed && !sidebarTimelineEnabled}
+            open={
+              !sidebarActivityCoachmarkDismissed &&
+              !sidebarTimelineEnabled &&
+              unreadActivityCount >= 2
+            }
             onOpenChange={(open) => {
               if (!open) setSidebarActivityCoachmarkDismissed(true)
             }}
@@ -355,23 +364,27 @@ export function SidebarHeader({
             </Popover.Anchor>
             <Popover.Portal>
               <Popover.Content
-                align="end"
-                side="bottom"
-                sideOffset={8}
+                align="start"
+                side="right"
+                sideOffset={12}
                 className="popover-surface sidebar-activity-coachmark tw:z-50 tw:w-64 tw:border tw:border-app-border tw:p-3.5 tw:outline-none"
               >
-                <div className="tw:flex tw:flex-col tw:gap-2.5">
-                  <p className="tw:type-caption tw:text-app-text">
-                    {t('新的活动视图——集中查看进行中、待处理和未读会话。')}
-                  </p>
-                  <div className="tw:flex tw:justify-end">
-                    <Button
+                <div className="tw:flex tw:flex-col tw:gap-2">
+                  <div className="tw:flex tw:items-start tw:justify-between tw:gap-3">
+                    <span className="tw:type-row-title tw:text-app-text">{t('查看活动')}</span>
+                    <IconButton
+                      aria-label={t('关闭')}
+                      title={t('关闭')}
+                      color="ghost"
                       size="compact"
                       onClick={() => setSidebarActivityCoachmarkDismissed(true)}
                     >
-                      {t('知道了')}
-                    </Button>
+                      <X size={APP_ICON_SIZES.sm} />
+                    </IconButton>
                   </div>
+                  <p className="tw:m-0 tw:type-body-sm tw:text-app-text">
+                    {t('查看未读、进行中或待回复的聊天')}
+                  </p>
                 </div>
                 <Popover.Arrow className="tw:fill-app-raised" />
               </Popover.Content>

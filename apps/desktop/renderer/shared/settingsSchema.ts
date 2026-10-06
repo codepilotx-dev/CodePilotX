@@ -223,10 +223,11 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     sidebarProjectSort: 'priority',
     sidebarSort: 'priority',
     sidebarTimelineEnabled: false,
-    sidebarTimelinePriorityEnabled: false,
+    sidebarTimelinePriorityEnabled: true,
     sidebarActivityShowWork: true,
     sidebarActivityShowChat: true,
     sidebarShowScheduledSessions: true,
+    sidebarActivityShowScheduled: false,
     sidebarActivityShowPinned: false,
     sidebarActivityCoachmarkDismissed: false,
     sidebarManualOrder: {},
@@ -515,6 +516,7 @@ export function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSet
       typeof parsed.sidebarShowScheduledSessions === 'boolean'
         ? parsed.sidebarShowScheduledSessions
         : defaults.sidebarShowScheduledSessions,
+    sidebarActivityShowScheduled: parsed.sidebarActivityShowScheduled === true,
     sidebarActivityShowPinned:
       typeof parsed.sidebarActivityShowPinned === 'boolean'
         ? parsed.sidebarActivityShowPinned
@@ -577,10 +579,11 @@ export function createSidebarStateResetPatch(
     sidebarProjectSort: 'priority',
     sidebarSort: 'priority',
     sidebarTimelineEnabled: false,
-    sidebarTimelinePriorityEnabled: false,
+    sidebarTimelinePriorityEnabled: true,
     sidebarActivityShowWork: true,
     sidebarActivityShowChat: true,
     sidebarShowScheduledSessions: true,
+    sidebarActivityShowScheduled: false,
     sidebarActivityShowPinned: false,
     sidebarActivityCoachmarkDismissed: settings.sidebarActivityCoachmarkDismissed ?? false,
     sidebarManualOrder: {},
@@ -786,6 +789,7 @@ export function normalizeRemovedWorkspaces(
     .flatMap((item) => {
       if (!item || typeof item !== 'object') return []
       const record = item as {
+        projectId?: unknown
         path?: unknown
         name?: unknown
         removedAt?: unknown
@@ -795,6 +799,7 @@ export function normalizeRemovedWorkspaces(
       return [
         {
           path: record.path,
+          ...(typeof record.projectId === 'string' ? { projectId: record.projectId } : {}),
           name: record.name,
           removedAt:
             typeof record.removedAt === 'string' ? record.removedAt : new Date().toISOString(),
@@ -903,6 +908,7 @@ export function normalizeSidebarCustomization(
     sections,
     sectionOrder,
     pinnedSort,
+    showProjectsInRecents: raw.showProjectsInRecents === true,
     destinationOrder,
     hiddenDestinationIds,
   }

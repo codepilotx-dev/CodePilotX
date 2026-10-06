@@ -103,6 +103,7 @@ export type UseDesktopSettingsResult = {
   sidebarActivityShowWork: boolean
   sidebarActivityShowChat: boolean
   sidebarShowScheduledSessions: boolean
+  sidebarActivityShowScheduled: boolean
   sidebarActivityShowPinned: boolean
   sidebarActivityCoachmarkDismissed: boolean
   sidebarManualOrder: Record<string, string[]>
@@ -171,6 +172,7 @@ export type UseDesktopSettingsResult = {
   setSidebarActivityShowWork: (value: boolean | ((current: boolean) => boolean)) => void
   setSidebarActivityShowChat: (value: boolean | ((current: boolean) => boolean)) => void
   setSidebarShowScheduledSessions: (value: boolean | ((current: boolean) => boolean)) => void
+  setSidebarActivityShowScheduled: (value: boolean | ((current: boolean) => boolean)) => void
   setSidebarActivityShowPinned: (value: boolean | ((current: boolean) => boolean)) => void
   setSidebarActivityCoachmarkDismissed: (value: boolean | ((current: boolean) => boolean)) => void
   setSidebarManualOrder: (
@@ -458,7 +460,7 @@ function useDesktopSettingsState(
     initial.sidebarTimelineEnabled ?? false,
   )
   const [sidebarTimelinePriorityEnabled, setSidebarTimelinePriorityEnabled] = useState<boolean>(
-    initial.sidebarTimelinePriorityEnabled ?? false,
+    initial.sidebarTimelinePriorityEnabled ?? true,
   )
   const [sidebarActivityShowWork, setSidebarActivityShowWork] = useState<boolean>(
     initial.sidebarActivityShowWork ?? true,
@@ -468,6 +470,9 @@ function useDesktopSettingsState(
   )
   const [sidebarShowScheduledSessions, setSidebarShowScheduledSessions] = useState<boolean>(
     initial.sidebarShowScheduledSessions ?? true,
+  )
+  const [sidebarActivityShowScheduled, setSidebarActivityShowScheduled] = useState<boolean>(
+    initial.sidebarActivityShowScheduled ?? false,
   )
   const [sidebarActivityShowPinned, setSidebarActivityShowPinned] = useState<boolean>(
     initial.sidebarActivityShowPinned ?? false,
@@ -601,6 +606,7 @@ function useDesktopSettingsState(
         setSidebarActivityShowWork(settings.sidebarActivityShowWork ?? true)
         setSidebarActivityShowChat(settings.sidebarActivityShowChat ?? true)
         setSidebarShowScheduledSessions(settings.sidebarShowScheduledSessions ?? true)
+        setSidebarActivityShowScheduled(settings.sidebarActivityShowScheduled ?? false)
         setSidebarActivityShowPinned(settings.sidebarActivityShowPinned ?? false)
         setSidebarActivityCoachmarkDismissed(settings.sidebarActivityCoachmarkDismissed ?? false)
         setSidebarManualOrder(settings.sidebarManualOrder)
@@ -694,6 +700,7 @@ function useDesktopSettingsState(
       sidebarActivityShowWork,
       sidebarActivityShowChat,
       sidebarShowScheduledSessions,
+      sidebarActivityShowScheduled,
       sidebarActivityShowPinned,
       sidebarActivityCoachmarkDismissed,
       sidebarManualOrder,
@@ -773,6 +780,7 @@ function useDesktopSettingsState(
       sidebarActivityShowWork,
       sidebarActivityShowChat,
       sidebarShowScheduledSessions,
+      sidebarActivityShowScheduled,
       sidebarActivityShowPinned,
       sidebarActivityCoachmarkDismissed,
       sidebarManualOrder,
@@ -893,6 +901,7 @@ function useDesktopSettingsState(
     setSidebarActivityShowWork(snapshot.sidebarActivityShowWork ?? true)
     setSidebarActivityShowChat(snapshot.sidebarActivityShowChat ?? true)
     setSidebarShowScheduledSessions(snapshot.sidebarShowScheduledSessions ?? true)
+    setSidebarActivityShowScheduled(snapshot.sidebarActivityShowScheduled ?? false)
     setSidebarActivityShowPinned(snapshot.sidebarActivityShowPinned ?? false)
     setSidebarActivityCoachmarkDismissed(snapshot.sidebarActivityCoachmarkDismissed ?? false)
     setSidebarManualOrder(snapshot.sidebarManualOrder)
@@ -1096,6 +1105,7 @@ function useDesktopSettingsState(
     sidebarActivityShowWork,
     sidebarActivityShowChat,
     sidebarShowScheduledSessions,
+    sidebarActivityShowScheduled,
     sidebarActivityShowPinned,
     sidebarActivityCoachmarkDismissed,
     sidebarManualOrder,
@@ -1158,6 +1168,7 @@ function useDesktopSettingsState(
     setSidebarActivityShowWork,
     setSidebarActivityShowChat,
     setSidebarShowScheduledSessions,
+    setSidebarActivityShowScheduled,
     setSidebarActivityShowPinned,
     setSidebarActivityCoachmarkDismissed,
     setSidebarManualOrder,

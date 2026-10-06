@@ -4,6 +4,8 @@ import {
   Archive,
   FolderOpen,
   MoreHorizontal,
+  List,
+  Plus,
   Pin,
   PinOff,
   Settings2,
@@ -20,7 +22,8 @@ import {
   type KeyedDisclosureStore,
   useDisclosureExpanded,
 } from '../../../components/ui/keyedDisclosureStore.js'
-import { PopoverItem } from '../../../components/ui/PopoverItem.js'
+import { DropdownActions } from '../../../components/ui/DropdownActions.js'
+import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { SidebarRow } from './SidebarRow.js'
 import { SidebarSessionGroup } from './SidebarSessionGroup.js'
@@ -53,6 +56,9 @@ type Props = {
   onItemDragStart?: (sessionId: string) => void
   onItemDragEnd?: () => void
   currentSectionId?: string | null
+  onMoveProjectToSection?: (project: DesktopWorkspace, sectionId: string) => void
+  onMoveProjectToDefault?: (project: DesktopWorkspace) => void
+  onCreateSection?: (itemKeys?: string[]) => void
   customSections?: readonly { id: string; title: string }[]
   onMoveToSection?: (sessionId: string, sectionId: string) => void
   onMoveToDefault?: (sessionId: string) => void
@@ -88,6 +94,9 @@ function SidebarProjectGroupComponent({
   onItemDragStart,
   onItemDragEnd,
   currentSectionId = null,
+  onMoveProjectToSection,
+  onMoveProjectToDefault,
+  onCreateSection,
   customSections = [],
   onMoveToSection,
   onMoveToDefault,
@@ -119,6 +128,7 @@ function SidebarProjectGroupComponent({
 }: Props): React.ReactNode {
   const [hovered, setHovered] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [confirmArchiveOpen, setConfirmArchiveOpen] = useState(false)
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false)
   const [managerOpen, setManagerOpen] = useState(false)
   const [managedProject, setManagedProject] = useState(project)
@@ -149,7 +159,7 @@ function SidebarProjectGroupComponent({
 
   function archiveAll(): void {
     setProcessingAction('archive')
-    void onArchiveSessions(countedProjectSessions).finally(() => setProcessingAction(null))
+    void onArchiveSessions(countedProjectSessions).then((success) => { if (success) setConfirmArchiveOpen(false) }).finally(() => setProcessingAction(null))
   }
 
   function togglePinned(): void {
@@ -161,43 +171,23 @@ function SidebarProjectGroupComponent({
   }
 
   function contextActions(): ContextMenuAction[] {
+    const folders = managedProject.folders ?? (managedProject.path ? [{ path: managedProject.path }] : [])
     return [
-      {
-        kind: 'item',
-        label: isPinned ? '取消置顶项目' : '置顶项目',
-        icon: isPinned ? <PinOff size={APP_ICON_SIZE} /> : <Pin size={APP_ICON_SIZE} />,
-        onSelect: togglePinned,
-      },
-      {
-        kind: 'item',
-        label: '在资源管理器中打开',
-        icon: <FolderOpen size={APP_ICON_SIZE} />,
-        disabled: isUnavailable,
-        onSelect: () => {
-          void desktopClient.openPathWithDefaultTarget(managedProject.path)
-        },
-      },
-      {
-        kind: 'item',
-        label: '编辑项目',
-        icon: <Settings2 size={APP_ICON_SIZE} />,
-        onSelect: () => setManagerOpen(true),
-      },
+      { kind: 'item', label: isPinned ? '取消置顶' : '置顶', icon: isPinned ? <PinOff size={APP_ICON_SIZE} /> : <Pin size={APP_ICON_SIZE} />, onSelect: togglePinned },
+      { kind: 'item', label: '编辑', icon: <Settings2 size={APP_ICON_SIZE} />, onSelect: () => setManagerOpen(true) },
       { kind: 'separator' },
-      {
-        kind: 'item',
-        label: '归档任务',
-        icon: <Archive size={APP_ICON_SIZE} />,
-        disabled: countedProjectSessions.length === 0 || processingAction !== null,
-        onSelect: archiveAll,
-      },
-      {
-        kind: 'item',
-        label: '移除',
-        icon: <X size={APP_ICON_SIZE} />,
-        color: 'red',
-        onSelect: () => setConfirmRemoveOpen(true),
-      },
+      { kind: 'sub', label: '分区', icon: <List size={APP_ICON_SIZE} />, layout: 'grid', children: [
+        ...customSections.map((section): ContextMenuAction => ({ kind: 'item', label: section.title, checked: currentSectionId === section.id,
+          onSelect: () => currentSectionId === section.id ? onMoveProjectToDefault?.(managedProject) : onMoveProjectToSection?.(managedProject, section.id) })),
+        ...(customSections.length ? [{ kind: 'separator' as const }] : []),
+        { kind: 'item', label: '新建分区…', icon: <Plus size={APP_ICON_SIZE} />, onSelect: () => onCreateSection?.([`project:${projectKey}`]) },
+      ] },
+      ...(folders.length === 1 ? [{ kind: 'item' as const, label: '在资源管理器中打开', icon: <FolderOpen size={APP_ICON_SIZE} />, disabled: isUnavailable,
+        onSelect: () => { void desktopClient.openPathWithDefaultTarget(folders[0]!.path) } }] : []),
+      { kind: 'separator' },
+      { kind: 'item', label: '归档聊天', icon: <Archive size={APP_ICON_SIZE} />, disabled: countedProjectSessions.length === 0 || processingAction !== null, onSelect: () => setConfirmArchiveOpen(true) },
+      { kind: 'separator' },
+      { kind: 'item', label: '移除项目', icon: <X size={APP_ICON_SIZE} />, onSelect: () => setConfirmRemoveOpen(true) },
     ]
   }
 
@@ -279,42 +269,7 @@ function SidebarProjectGroupComponent({
                     }
                     onOpenChange={setMenuOpen}
                   >
-                    <PopoverItem
-                      icon={
-                        isPinned ? <PinOff size={APP_ICON_SIZE} /> : <Pin size={APP_ICON_SIZE} />
-                      }
-                      onClick={togglePinned}
-                    >
-                      {isPinned ? '取消置顶项目' : '置顶项目'}
-                    </PopoverItem>
-                    <PopoverItem
-                      disabled={isUnavailable}
-                      icon={<FolderOpen size={APP_ICON_SIZE} />}
-                      onClick={() => {
-                        void desktopClient.openPathWithDefaultTarget(managedProject.path)
-                      }}
-                    >
-                      在资源管理器中打开
-                    </PopoverItem>
-                    <PopoverItem
-                      icon={<Settings2 size={APP_ICON_SIZE} />}
-                      onClick={() => setManagerOpen(true)}
-                    >
-                      编辑项目
-                    </PopoverItem>
-                    <PopoverItem
-                      disabled={countedProjectSessions.length === 0 || processingAction !== null}
-                      icon={<Archive size={APP_ICON_SIZE} />}
-                      onClick={archiveAll}
-                    >
-                      {processingAction === 'archive' ? '归档中…' : '归档任务'}
-                    </PopoverItem>
-                    <PopoverItem
-                      icon={<X size={APP_ICON_SIZE} />}
-                      onClick={() => setConfirmRemoveOpen(true)}
-                    >
-                      移除
-                    </PopoverItem>
+                    <DropdownActions actions={contextActions()} />
                   </PopoverMenu>
                   <IconButton
                     aria-label="新建对话"
@@ -335,7 +290,9 @@ function SidebarProjectGroupComponent({
                     role="img"
                     aria-label="项目内有未读会话"
                   >
-                    <span className="sidebar-unread-dot tw:size-1.5 tw:flex-none tw:rounded-full tw:bg-app-accent" />
+                    <span className="sidebar-status-icon tw:inline-flex tw:size-5 tw:shrink-0 tw:items-center tw:justify-center">
+                      <span className="sidebar-unread-dot tw:size-2 tw:flex-none tw:rounded-full tw:bg-app-accent" />
+                    </span>
                   </span>
                 ) : null}
               </>
@@ -362,6 +319,10 @@ function SidebarProjectGroupComponent({
         }
       />
 
+      <ConfirmationDialog open={confirmArchiveOpen} title={`归档 ${countedProjectSessions.length} 个聊天？`}
+        description="这会归档项目中的聊天，停止正在进行的工作，并移除这些聊天的定时任务。聊天可稍后从归档中恢复，定时任务不会恢复。"
+        actionLabel={processingAction ? '归档中…' : '归档聊天'} actionDisabled={processingAction !== null}
+        onCancel={() => { if (!processingAction) setConfirmArchiveOpen(false) }} onAction={archiveAll} />
       <DisclosureContent
         className="sidebar-project-sessions-disclosure"
         contentClassName="sidebar-project-sessions-disclosure__content tw:pt-0.5"

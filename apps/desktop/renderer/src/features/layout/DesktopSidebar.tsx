@@ -1,3 +1,4 @@
+import { sortSessionsByRecency } from '../session/state/sessionSorting.js'
 import { mergeCatalogProjects } from './sidebar/useSidebarProjectCatalog.js'
 import type React from 'react'
 import { useLocation } from 'react-router-dom'
@@ -9,6 +10,8 @@ import type {
 } from '../../../shared/types.js'
 import type { AppView, SessionListItem } from '../../uiTypes.js'
 import { SidebarBody } from './sidebar/SidebarBody.js'
+import { useSidebarActivity } from './sidebar/useSidebarActivity.js'
+import { archiveSidebarActivity, sessionNeedsStop } from './sidebar/sidebarActivityActions.js'
 import { SidebarDockedPanes } from './sidebar/SidebarDockedPanes.js'
 import { SidebarEmptyRow } from './sidebar/SidebarRow.js'
 import type { DesktopFileEntry } from '../../../shared/types.js'
@@ -23,7 +26,8 @@ import {
   buildSidebarViewModel,
   buildSidebarTimelineModel,
   filterSidebarActivitySessions,
-  hasSidebarUnreadSessions,
+  deriveSidebarActivityIndicatorState,
+  sidebarTimelinePriorityRank,
   sidebarArchivableAttentionSessions,
   sidebarAttentionUnreadSessions,
   sidebarProjectKey,
@@ -60,6 +64,10 @@ import {
 } from './sidebar/sidebarCustomization.js'
 import type { SidebarCustomization } from '../../../shared/types.js'
 
+import { notifyProjectRestored, subscribeProjectRemovals } from '../projects/projectCatalogEvents.js'
+import { Toast, ToastDivider } from '../../components/ui/Toast.js'
+import { Button } from '../../components/ui/Button.js'
+import { InputDialog } from '../../components/ui/ConfirmationDialog.js'
 import type { SidebarPane } from './sidebar/sidebarNavigation.js'
 
 type Props = {
@@ -163,6 +171,11 @@ export function DesktopSidebar({
     sidebarSort,
     setSidebarSort,
     sidebarTimelineEnabled,
+    sidebarProductMode,
+    sidebarTimelinePriorityEnabled,
+    setSidebarTimelinePriorityEnabled,
+    sidebarActivityShowScheduled,
+    setSidebarActivityShowScheduled,
     sidebarActivityShowWork,
     setSidebarActivityShowWork,
     sidebarActivityShowChat,
@@ -223,7 +236,8 @@ export function DesktopSidebar({
       buildSidebarViewModel({
         manualOrderByScope: sidebarManualOrder,
         organization: sidebarOrganization,
-        showScheduledSessions: sidebarShowScheduledSessions,
+        showProjectsInRecents: sidebarCustomization.showProjectsInRecents ?? false,
+        showScheduledSessions: pane === 'activity' ? sidebarActivityShowScheduled : sidebarShowScheduledSessions,
         pendingPermissionSessionIds,
         recentWorkspaces: mergedProjects,
         removedWorkspaces,
@@ -239,6 +253,7 @@ export function DesktopSidebar({
       sidebarManualOrder,
       sidebarOrganization,
       sidebarShowScheduledSessions,
+      sidebarActivityShowScheduled,
       sidebarCustomization,
       sidebarSessionPins,
       pane,
@@ -246,39 +261,75 @@ export function DesktopSidebar({
   )
 
   const [archiveAttentionOpen, setArchiveAttentionOpen] = useState(false)
+  const [archiveAttentionTargets, setArchiveAttentionTargets] = useState<SessionListItem[]>([])
   const [archivingAttention, setArchivingAttention] = useState(false)
   const archiveAttentionDialogMounted = useEverOpened(archiveAttentionOpen)
 
+  const activitySessions = useMemo(
+    () =>
+      sessions
+        .filter((session) => !session.archivedAt)
+        .map((session) => ({ ...session, pinnedAt: sidebarSessionPins[session.id] ?? null })),
+    [sessions, sidebarSessionPins],
+  )
   const activityFilteredSessions = useMemo(
     () =>
-      filterSidebarActivitySessions(viewModel.visibleSessions, {
-        showWork: sidebarActivityShowWork,
-        showChat: sidebarActivityShowChat,
-      }),
-    [sidebarActivityShowChat, sidebarActivityShowWork, viewModel.visibleSessions],
+      filterSidebarActivitySessions(
+        activitySessions.filter(
+          (session) => sidebarActivityShowScheduled || !session.isScheduledSession,
+        ),
+        {
+          showWork: sidebarProductMode === 'coding' || sidebarActivityShowWork,
+          showChat: sidebarProductMode !== 'coding' && sidebarActivityShowChat,
+        },
+      ),
+    [
+      activitySessions,
+      sidebarProductMode,
+      sidebarActivityShowScheduled,
+      sidebarActivityShowChat,
+      sidebarActivityShowWork,
+    ],
   )
 
-  // 始终构建时间线投影，使铃铛在时间线关闭时也能获得关注状态
+  const activity = useSidebarActivity(
+    activitySessions,
+    pane === 'activity' ? sidebarProductMode : null,
+  )
   const timelineModel = useMemo(
     () =>
       buildSidebarTimelineModel({
         now: relativeNow,
         sessions: activityFilteredSessions,
         showPinned: sidebarActivityShowPinned,
+        showPriority: sidebarTimelinePriorityEnabled,
+        snapshot: activity.snapshot,
       }),
-    [activityFilteredSessions, relativeNow, sidebarActivityShowPinned],
+    [
+      activityFilteredSessions,
+      relativeNow,
+      sidebarActivityShowPinned,
+      sidebarTimelinePriorityEnabled,
+      activity.snapshot,
+    ],
   )
   const timeline = pane === 'activity' ? timelineModel : null
   const hasUnread = useMemo(
-    () => hasSidebarUnreadSessions(viewModel.visibleSessions),
-    [viewModel.visibleSessions],
+    () => deriveSidebarActivityIndicatorState(activityFilteredSessions) === 'attention',
+    [activityFilteredSessions],
+  )
+  const unreadActivityCount = activityFilteredSessions.filter(
+    (session) => session.unreadAt != null,
+  ).length
+  const hasReadActivity = timelineModel.prioritySessions.some(
+    (session) => sidebarTimelinePriorityRank(session) === null,
   )
   const attentionUnreadSessions = useMemo(
-    () => sidebarAttentionUnreadSessions(timelineModel.attentionSessions),
+    () => sidebarAttentionUnreadSessions(timelineModel.prioritySessions),
     [timelineModel],
   )
   const archivableAttentionSessions = useMemo(
-    () => sidebarArchivableAttentionSessions(timelineModel.attentionSessions),
+    () => sidebarArchivableAttentionSessions(timelineModel.prioritySessions),
     [timelineModel],
   )
   const sidebarScrollModeKey = getSidebarScrollModeKey({
@@ -305,19 +356,29 @@ export function DesktopSidebar({
 
   const requestArchiveAttention = useCallback((): void => {
     if (archivableAttentionSessions.length === 0) return
+    setArchiveAttentionTargets(archivableAttentionSessions)
     setArchiveAttentionOpen(true)
-  }, [archivableAttentionSessions.length])
+  }, [archivableAttentionSessions])
 
   const confirmArchiveAttention = useCallback(async (): Promise<void> => {
     if (archivingAttention) return
     setArchivingAttention(true)
     try {
-      await archiveSessions(archivableAttentionSessions)
+      const latestById = new Map(activitySessions.map((session) => [session.id, session]))
+      const targets = archiveAttentionTargets.flatMap((session) =>
+        latestById.has(session.id) ? [latestById.get(session.id)!] : [],
+      )
+      const failed = await archiveSidebarActivity(
+        targets,
+        (id) => desktopClient.interruptSession(id),
+        archiveSessions,
+      )
+      if (failed > 0) onReport(`${failed} 个聊天停止失败，未归档。`)
     } finally {
       setArchivingAttention(false)
       setArchiveAttentionOpen(false)
     }
-  }, [archivableAttentionSessions, archivingAttention, archiveSessions])
+  }, [activitySessions, archiveAttentionTargets, archivingAttention, archiveSessions, onReport])
 
   function isActiveView(view: AppView): boolean {
     if (view === 'new') return location.pathname === '/new'
@@ -472,10 +533,56 @@ export function DesktopSidebar({
     [setSidebarCustomization],
   )
 
-  const createCustomSection = useCallback((): void => {
-    const id = `section-${crypto.randomUUID().slice(0, 8)}`
-    updateSidebarCustomization((current) => addSidebarSection(current, id))
-  }, [updateSidebarCustomization])
+  function changeChatSort(sort: 'manual' | 'updated' | 'priority'): void {
+    if (sort === 'manual' && (sidebarSort !== 'manual' || sidebarProjectSort !== 'manual')) {
+      setSidebarManualOrder((current) => {
+        const next = { ...current, recent: sortSessionsByRecency(viewModel.recentSessions).map((session) => session.id) }
+        for (const [key, bucket] of viewModel.projectSessionBuckets) next[`project:${key}`] = sortSessionsByRecency(bucket.displaySessions).map((session) => session.id)
+        return next
+      })
+    }
+    setSidebarSort(sort)
+    setSidebarProjectSort(sort)
+  }
+
+  const [projectUndo, setProjectUndo] = useState<{ expiresAt: number; restore: () => Promise<void> } | null>(null)
+  const [restoringProject, setRestoringProject] = useState(false)
+  useEffect(() => subscribeProjectRemovals(({ project, removalOperationId, undoExpiresAt }) => {
+    const key = sidebarPinnedProjectKey(project)
+    const assignments = captureSidebarAssignments(sidebarCustomizationRef.current, [key])
+    const orders = Object.entries(sidebarManualOrder).flatMap(([scope, keys]) => {
+      const index = keys.indexOf(scope === 'projects' ? sidebarProjectKey(project) : key)
+      return index < 0 ? [] : [{ scope, index, key: scope === 'projects' ? sidebarProjectKey(project) : key }]
+    })
+    const selected = Boolean(workspace && (project.projectId ? workspace.projectId === project.projectId : workspace.path === project.path))
+    setProjectUndo({ expiresAt: undoExpiresAt, restore: async () => {
+      const restored = await desktopClient.restoreProject(project.projectId!, removalOperationId)
+      const workspaceToRestore = { ...restored, pinnedAt: project.pinnedAt }
+      updateSidebarCustomization((current) => restoreFailedArchiveAssignments(current, [key], assignments))
+      setSidebarManualOrder((current) => {
+        const next = { ...current }
+        for (const entry of orders) {
+          const keys = [...(next[entry.scope] ?? [])]
+          if (!keys.includes(entry.key)) keys.splice(Math.min(entry.index, keys.length), 0, entry.key)
+          next[entry.scope] = keys
+        }
+        return next
+      })
+      notifyProjectRestored(workspaceToRestore, selected)
+    } })
+  }), [sidebarManualOrder, workspace, setSidebarManualOrder, updateSidebarCustomization])
+  useEffect(() => {
+    if (!projectUndo) return
+    const timer = setTimeout(() => setProjectUndo(null), Math.max(0, projectUndo.expiresAt - Date.now()))
+    return () => clearTimeout(timer)
+  }, [projectUndo])
+
+  const [pendingSectionKeys, setPendingSectionKeys] = useState<string[] | null>(null)
+  const [sectionTitle, setSectionTitle] = useState('')
+  const createCustomSection = useCallback((itemKeys: string[] = []): void => {
+    setSectionTitle('')
+    setPendingSectionKeys(itemKeys)
+  }, [])
 
   /** 拖入自定义分组：移除置顶与旧归属，按插入位置写入目标分组。 */
   const moveItemsToDestination = useCallback(
@@ -595,9 +702,25 @@ export function DesktopSidebar({
 
   return (
     <div className="sidebar-layout tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:py-2">
+      {projectUndo ? <div className="tw:fixed tw:bottom-4 tw:left-1/2 tw:z-50 tw:-translate-x-1/2">
+        <Toast role="status" aria-live="polite">项目已移除<ToastDivider /><Button color="ghostSecondary" size="compact" disabled={restoringProject} onClick={() => {
+          setRestoringProject(true)
+          void projectUndo.restore().then(() => setProjectUndo(null)).catch((error) => onReport(error instanceof Error ? error.message : String(error))).finally(() => setRestoringProject(false))
+        }}>撤销</Button></Toast>
+      </div> : null}
+      <InputDialog open={pendingSectionKeys !== null} title="新建分区" description="将聊天和项目放入分区，按你的习惯整理侧边栏。" actionLabel="创建分区"
+        input={{ value: sectionTitle, onChange: setSectionTitle, maxLength: 120 }} onCancel={() => setPendingSectionKeys(null)}
+        onAction={() => {
+          if (!sectionTitle.trim()) return
+          const id = `section-${crypto.randomUUID()}`
+          updateSidebarCustomization((current) => addSidebarSection(current, id, sectionTitle.trim()))
+          if (pendingSectionKeys?.length) moveItemsToDestination(pendingSectionKeys, id)
+          setPendingSectionKeys(null)
+        }} />
       <SidebarHeader
         showActions={active}
         hasUnread={hasUnread}
+        unreadActivityCount={unreadActivityCount}
         onOpenCommandMenu={onOpenCommandMenu}
       />
       <SidebarNewTaskNav
@@ -623,6 +746,21 @@ export function DesktopSidebar({
         disclosureStore={sidebarDisclosureState.store}
         organization={sidebarOrganization}
         timeline={timeline}
+        showActivityPriority={sidebarTimelinePriorityEnabled}
+        onShowActivityPriorityChange={setSidebarTimelinePriorityEnabled}
+        showActivityScheduled={sidebarActivityShowScheduled}
+        onShowActivityScheduledChange={setSidebarActivityShowScheduled}
+        showActivitySources={sidebarProductMode !== 'coding'}
+        hasReadActivity={hasReadActivity}
+        onClearReadActivity={activity.clearRead}
+        onRestoreActivityDefaults={() => {
+          setSidebarTimelinePriorityEnabled(true)
+          setSidebarActivityShowWork(true)
+          setSidebarActivityShowChat(true)
+          setSidebarActivityShowPinned(false)
+          setSidebarActivityShowScheduled(false)
+          activity.clearRead()
+        }}
         showTimelinePinned={sidebarActivityShowPinned}
         showActivityWork={sidebarActivityShowWork}
         showActivityChat={sidebarActivityShowChat}
@@ -650,7 +788,10 @@ export function DesktopSidebar({
         onPinWorkspace={onPinWorkspace}
         onRemoveWorkspace={(target) => {
           removeCatalogProject(target)
-          removePinnedManualOrder([sidebarPinnedProjectKey(target)])
+          const key = sidebarPinnedProjectKey(target)
+          removePinnedManualOrder([key])
+          updateSidebarCustomization((current) => removeItemsFromSections(current, [key]))
+          setSidebarManualOrder((current) => ({ ...current, projects: (current.projects ?? []).filter((value) => value !== sidebarProjectKey(target)) }))
           onRemoveWorkspace(target)
         }}
         onSelectSession={onSelectSession}
@@ -704,9 +845,11 @@ export function DesktopSidebar({
         onMoveSessionToDefault={(sessionId) =>
           releaseItemsToDefault([`session:${sessionId}`])
         }
+        showProjectsInRecents={sidebarCustomization.showProjectsInRecents ?? false}
+        onShowProjectsInRecentsChange={(showProjectsInRecents) => updateSidebarCustomization((current) => ({ ...current, showProjectsInRecents }))}
         onOrganizationChange={setSidebarOrganization}
-        onProjectSortChange={setSidebarProjectSort}
-        onSessionSortChange={setSidebarSort}
+        onProjectSortChange={changeChatSort}
+        onSessionSortChange={changeChatSort}
         hasUnreadAttention={attentionUnreadSessions.length > 0}
         hasArchivableAttention={archivableAttentionSessions.length > 0}
         onMarkAttentionRead={() => void markAttentionRead()}
@@ -730,10 +873,12 @@ export function DesktopSidebar({
         <Suspense fallback={null}>
           <ConfirmationDialog
             actionDisabled={archivingAttention}
-            actionLabel={archivingAttention ? '归档中…' : '归档任务'}
-            description={`将归档 ${archivableAttentionSessions.length} 个已完成的任务；等待问题、权限或计划审批的任务不会被归档。`}
+            actionLabel={archivingAttention ? '归档中…' : archiveAttentionTargets.some(sessionNeedsStop) ? '停止并归档' : '归档聊天'}
+            description={archiveAttentionTargets.some(sessionNeedsStop)
+              ? `将停止并归档 ${archiveAttentionTargets.length} 个优先事项聊天。你可以稍后恢复聊天；最近的聊天不会被归档。`
+              : `将归档 ${archiveAttentionTargets.length} 个优先事项聊天；最近的聊天不会被归档。`}
             open={archiveAttentionOpen}
-            title="归档需要关注的任务？"
+            title={archiveAttentionTargets.some(sessionNeedsStop) ? '停止并归档聊天？' : '归档聊天？'}
             tone="danger"
             onAction={() => void confirmArchiveAttention()}
             onCancel={() => setArchiveAttentionOpen(false)}
