@@ -648,7 +648,7 @@ function SidebarSessionGroupComponent({
                 {canShowMore ? (
                   <Button
                     aria-expanded={canCollapse}
-                    className="tw:w-auto sidebar-show-more-button tw:min-w-0 tw:border-0 tw:whitespace-nowrap tw:[--button-padding-inline:0] tw:[font:inherit]"
+                    className="tw:w-auto sidebar-show-more-button tw:first:-ml-2 tw:min-w-0 tw:border-0 tw:whitespace-nowrap tw:[font:inherit]"
                     color="ghostTertiary"
                     onClick={() =>
                       setVisibleLimit((current) =>
@@ -665,7 +665,7 @@ function SidebarSessionGroupComponent({
                 ) : null}
                 {canCollapse ? (
                   <Button
-                    className="tw:w-auto sidebar-show-more-button tw:min-w-0 tw:border-0 tw:whitespace-nowrap tw:[--button-padding-inline:0] tw:[font:inherit]"
+                    className="tw:w-auto sidebar-show-more-button tw:first:-ml-2 tw:min-w-0 tw:border-0 tw:whitespace-nowrap tw:[font:inherit]"
                     color="ghostTertiary"
                     onClick={() => setVisibleLimit(initialLimit)}
                     size="compact"

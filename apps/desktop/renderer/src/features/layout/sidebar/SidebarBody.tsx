@@ -93,7 +93,7 @@ const SHOW_MORE_ACTIONS_CLASS =
   'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-2 tw:grid-cols-[var(--sidebar-row-columns)] tw:rounded-md tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-control tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard'
 const SHOW_MORE_ROW_CLASS = 'sidebar-row-main tw:min-w-0 tw:flex tw:items-center tw:gap-4'
 const SHOW_MORE_BUTTON_CLASS =
-  'tw:w-auto sidebar-show-more-button tw:min-w-0 tw:border-0 tw:whitespace-nowrap tw:[--button-padding-inline:0] tw:[font:inherit]'
+  'tw:w-auto sidebar-show-more-button tw:first:-ml-2 tw:min-w-0 tw:border-0 tw:whitespace-nowrap tw:[font:inherit]'
 const SHOW_MORE_LABEL_CLASS = 'tw:block tw:overflow-hidden tw:whitespace-nowrap'
 
 type Props = {
@@ -1265,15 +1265,14 @@ function FocusSectionGroup({
   onUnpinSession: (session: SessionListItem) => void
 }): React.ReactNode {
   return (
-    <section className="sidebar-section sidebar-focus-section tw:grid">
-      <div className="sidebar-focus-section-header tw:sticky tw:top-1.5 tw:z-local tw:isolate tw:flex tw:h-[var(--sidebar-row-height)] tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-transparent tw:px-2 tw:group">
-        <h3 className="sidebar-focus-section-title tw:m-0 tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap tw:type-row-title tw:text-app-text-meta">
-          {section.label}
-        </h3>
-        {action}
+    <section className="sidebar-section tw:grid">
+      <div className={SECTION_HEADER_CLASS}>
+        <h2 className={SECTION_TITLE_CLASS}>
+          <span className={SECTION_LABEL_CLASS}>{section.label}</span>
+        </h2>
+        <div className={SECTION_TRAILING_CLASS}>{action}</div>
       </div>
-      <div className="sidebar-focus-section-clip-window tw:min-w-0">
-        <div className="sidebar-focus-section-clip-content tw:min-w-0">
+      <div className={SECTION_CONTENT_CLASS}>
           {section.sessions.length === 0 && emptyState != null ? (
             <SidebarEmptyRow>{emptyState}</SidebarEmptyRow>
           ) : (
@@ -1296,7 +1295,6 @@ function FocusSectionGroup({
               onUnpinSession={onUnpinSession}
             />
           )}
-        </div>
       </div>
     </section>
   )
