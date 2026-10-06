@@ -9,6 +9,24 @@
 
 ### Changed
 
+- [desktop/renderer] 桌面样式入口统一到 `styles/tailwind.css`：系统 token 与全局 reset 转为原生 CSS（`design-system/tokens.css`、`design-system/codex-semantic-tokens.css`、`base.css`），保留原有 cascade layer 顺序，迁移期继续由 `styles/index.scss` 加载未转换的 SCSS；样式契约检查支持原生 `@import`/Tailwind 指令与并存入口，Stylelint 配置同步覆盖新路径。
+
+- [desktop/renderer] 补齐 Tailwind 设计令牌映射：新增表面、前景、边框、交互状态、状态族、Diff、图表与语法颜色，语义圆角、raised/prominent 阴影、模糊、语义 z-index、页面与面板宽度、标题栏高度与动效缓动映射，并为基础动效补回 `pulse`/`spin`；新增 `tw:type-*` 排版角色与 `tw:type-weight-*` 字重角色替代 `u-type-*`，`transition-*` 默认时长改用 `--cpx-sys-motion-state`，不再回退到 0s。
+
+- [desktop/renderer] 基础组件全面迁移到 Tailwind：Button/IconButton（14 尺寸档、13 配色档、圆角、图标槽与全部交互状态改为模块级静态映射）、复选框/单选组/分段控件/开关、输入框/文本域/搜索框、Select 与菜单行/上下文菜单、日期选择器、Popover/Dropdown/Tooltip/Modal 浮层与对话框，全部删除对应 SCSS；伪元素、`color-mix` 表面、`-webkit-app-region`、forced-colors 关键字与需要被 `getComputedStyle` 读取的值集中到 `styles/primitives/*.css`，`.popover-surface` 等仍被多个 feature 直接消费的共享基座按原样保留。
+
+- [desktop/renderer] 页面骨架迁移到 Tailwind：菜单栏/标题栏/窗口控制区、侧栏（行、导航、分组、悬浮卡、拖放）、工作台与工作区工具栏、右侧工作区与底部面板、标签栏、一级页面布局、项目详情卡片全部改为 `tw:` 类；标题栏保持 36px、透明 Window Controls Overlay 与拖拽区域，拖拽几何与虚拟列表容器沿用运行时变量。
+
+- [desktop/renderer] 聊天与 Review 迁移到 Tailwind：输入区（输入面、工具条、权限/计划芯片、模型与推理菜单、斜杠命令、附件托盘、消息队列 Dock、状态浮层）、会话正文与时间线、审批与提问卡片、置顶摘要、子代理面板、Review 侧栏与 diff、提交与 PR 浮层；ProseMirror、CodeMirror、xterm 等第三方生成 DOM 的样式按所属 feature 保留在 `styles/primitives/*.css`。
+
+- [desktop/renderer] 其余桌面界面迁移到 Tailwind：设置页全部页面（含外观主题色板、用量与成本图表、快捷键、个人资料热力图）、模型中心与模型引导、插件市场、自动化与日历、浏览器面板、终端外壳、宠物目录与浮层、更新提示、404/错误页，以及辅助窗口容器。
+
+- [desktop/renderer] 样式契约与工具链同步改造：契约脚本改为支持原生 `@import` 与 Tailwind 指令、按「谁现在持有这条规则」扫描样式，新增 `tw:` 前缀守卫、`type-*` 与 `tw:type-weight-*` 组合守卫、全源动效（scroll-mask/`will-change`）守卫；浏览器检查脚本改为经 Vite 编译真实 `tailwind.css` 入口（迁移期叠加尚未迁移的 SCSS），Stylelint 覆盖新路径与新残留文件。
+
+- [desktop/renderer] 修复迁移中暴露的既有样式缺陷：多处引用不存在的 Tailwind 类名（`bg-app-surface`、`text-app-text-primary`、`border-border`、`fill-popover` 等）导致样式静默失效、变体前缀顺序错误（`hover:tw:`）不生成规则、`transition-*` 因缺少默认时长而完全不生效、`outline-none` 与 `focus-visible:outline-2` 同用时焦点环被吃掉、`type-*` 角色与 `tw:type-weight-*` 组合时字重被 `font:` 简写重置、侧栏置顶行多出 16px 缩进造成标题提前截断。
+
+- [desktop/renderer] 完成 Tailwind 迁移收尾：删除全部业务 SCSS 与迁移期聚合入口，Sass 依赖、Vite SCSS 配置与 `*.scss` 模块类型声明一并移除，测试 fixture 中引用已删除 SCSS 文件的路径改指迁移后的 CSS 落点；残留 CSS 仅为 token、reset、动画、启动遮罩与第三方/生成 DOM 样式，样式检查、Stylelint 与浏览器检查脚本不再依赖 Sass 编译。
+
 - [desktop] 移除工作区内容全宽与完整视图入口，聊天和内容仅支持并排分屏或隐藏标签页；拖拽拉宽遵守分屏尺寸上限，旧全宽状态恢复为分屏并保留标签、显隐和宽度记忆。
 
 - [desktop] 移除页面宽度的默认/窄/宽手动档位：外观设置与会话工具栏不再提供宽度切换，布局也不再读取该设置；`conversationWidth` 存储字段与往返保存保留，仅作为兼容数据不再影响渲染。会话页与新建聊天页统一改为 736px 正文上限（其他一级页面继续使用 1009px 默认宽度），消息、输入框、审批与状态卡片共用同一对齐规则和左侧 48px、右侧 16px 安全边距。
@@ -36,6 +54,10 @@
 - [desktop] 侧栏设置改为保留式迁移：新增可选 `desktop.sidebarCustomization`（version 1），旧 classic 值仍可读取但运行时统一新布局，宽度、收起状态、置顶记录与手动顺序全部保留，缺失字段补默认值；更高版本原样保留并禁止降级写入，未知条目键不删除，移除基于 `sidebarStateVersion` 的自动清空迁移路径。
 
 - [desktop/renderer] 对齐 Codex 桌面会话视图视觉结构与计划展开交互规范：会话正文采用 48rem 最大宽度（保留 narrow/wide 切换），右侧常驻摘要面板调整为 300px 宽度并在固定且处于 shift 模式时向左平移 154px，同时平移动画覆盖正文与输入框；会话滚动条改为系统细滚动条并在底部添加渐隐遮罩；用户气泡调整为 70% 最大宽度、22px 圆角与 10px 16px 内边距，附件及本地上下文引用右对齐，图片附件保持 160px×80px 宽高比；助手操作栏默认隐藏并在消息或轮次悬停/聚焦时显式展示；计划卡片正文限高调整为 320px 并带底部渐隐遮罩，支持展开/收起切换与持久化状态，并在生成完成后提供复制与 PLAN.md 导出下载操作。
+
+- [desktop/renderer] 将 DatePicker 外观迁移到 Tailwind utility：触发器、日历弹层、月份导航、星期表头与日期格子（选中/今日/禁用/非本月）全部改用 `tw:` 语义色、`type-*` 排版角色与 `tw:py-control-block`/`tw:px-control-inline`/`tw:gap-control-gap` 命名间距令牌；日期文字色按 `disabled > selected > outside > base` 优先级静态映射以保持原 SCSS 层叠结果，`data-outside`/`aria-selected`、ARIA、键盘与焦点行为不变；删除 `styles/components/date-picker.scss`，新增 `styles/primitives/date-picker.css` 保留 forced-colors 下选中日的系统高亮。
+
+- [desktop/renderer] 收尾同步契约测试到 Tailwind 迁移落点：`codex-style-contracts`、`non-color-token-contracts` 以及自动化日历/用户消息测试中原先直读已删除 SCSS 的样式事实断言，改读组件 TSX utility 或迁移后的 `styles/**/*.css`（primitives、components、features）；`&--process` 嵌套、`font-body` 映射、`.thread-summary-inline` 宽度等规则换成等价的新落点断言，ARIA、语义类名与数据属性等行为契约保持不变，测试套件恢复全绿。
 
 ### Added
 
@@ -319,6 +341,8 @@
 - [agent/desktop/renderer] 精简模型目录转发层与未使用依赖，折叠后卸载会话重内容并移除工具卡片独立计时器，同时修复无效懒加载，使 Renderer 首屏 gzip JS 减少约 62 KiB。
 
 ### Fixed
+
+- [desktop/renderer] 修复点击导航轨「插件」即整页崩溃的问题：侧栏插件面板渲染在 DesktopLayout 内部而非路由 Outlet 之下，`useDesktopLayoutOutletContext()` 读不到 outlet context，面板挂载即抛出 `Cannot destructure property 'workspacePath'` 并落入错误页；`workspacePath` 现由 DesktopLayout 直接以 props 传入侧栏插件面板。
 
 - [desktop] 修复右工作区在隐藏状态仍按上次分屏宽度占位的问题：面板宿主保留挂载后，缩放窗口或拖动左侧边栏触发的尺寸提交会把实时宽度写回已提交的分屏宽度，而隐藏的宿主没有动画再收敛到 0，导致聊天区域右侧出现一片与右栏等宽的空白。实时尺寸现在按折叠态收敛到 0，隐藏面板不再占位，重新显示时仍由面板自身的入场动画接管宽度。
 
