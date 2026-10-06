@@ -115,7 +115,12 @@ export type WorkbenchTabDescriptor =
     }
   | UserAttachmentPreviewTab
   | SkillPreviewTab
-  | { id: 'terminal'; kind: 'terminal' }
+  | {
+      id: `terminal:${string}` | 'terminal'
+      kind: 'terminal'
+      terminalId?: string
+      title?: string
+    }
   | {
       id: `side-task:${string}`
       kind: 'side-task'
@@ -331,11 +336,47 @@ export function createDefaultWorkbenchPanelState(): WorkbenchTabsState {
 
 export const createDefaultWorkbenchTabsState = createDefaultWorkbenchPanelState
 
+export function normalizeWorkbenchTabsState(state: WorkbenchTabsState): WorkbenchTabsState {
+  const invalidBottomIds = state.bottom.tabIds.filter(
+    (id) => state.tabsById[id] && state.tabsById[id]?.kind !== 'terminal',
+  )
+  if (invalidBottomIds.length === 0) return state
+
+  const newBottomTabIds = state.bottom.tabIds.filter(
+    (id) => state.tabsById[id]?.kind === 'terminal',
+  )
+  const newRightTabIds = [...state.right.tabIds]
+  for (const id of invalidBottomIds) {
+    if (!newRightTabIds.includes(id)) {
+      newRightTabIds.push(id)
+    }
+  }
+
+  const bottomActive =
+    state.bottom.activeTabId && newBottomTabIds.includes(state.bottom.activeTabId)
+      ? state.bottom.activeTabId
+      : (newBottomTabIds[0] ?? null)
+
+  return {
+    ...state,
+    right: {
+      ...state.right,
+      tabIds: newRightTabIds,
+    },
+    bottom: {
+      ...state.bottom,
+      tabIds: newBottomTabIds,
+      open: newBottomTabIds.length > 0 ? state.bottom.open : false,
+      activeTabId: bottomActive,
+    },
+  }
+}
+
 export function applyWorkbenchPanelAction(
   state: WorkbenchTabsState,
   action: WorkbenchPanelAction,
 ): WorkbenchTabsState {
-  return reduceWorkbenchPanelAction(state, action)
+  return normalizeWorkbenchTabsState(reduceWorkbenchPanelAction(state, action))
 }
 
 function workspaceFocusArea(view: WorkspaceView, fallback: WorkbenchFocusArea): WorkbenchFocusArea {
@@ -482,7 +523,9 @@ function reduceWorkbenchPanelAction(
       }
     }
 
-    const destPanel = next[action.target] ?? createEmptyPanel()
+    const effectiveTarget: WorkbenchPanelTarget =
+      action.target === 'bottom' && action.tab.kind !== 'terminal' ? 'right' : action.target
+    const destPanel = next[effectiveTarget] ?? createEmptyPanel()
     return revealPanelTab(
       {
         ...next,
@@ -491,7 +534,7 @@ function reduceWorkbenchPanelAction(
           [action.tab.id]: action.tab,
         },
       },
-      action.target,
+      effectiveTarget,
       { ...insertTab(destPanel, action.tab.id, action.index), open: true, activeTabId: action.tab.id },
       reveal,
     )
@@ -581,6 +624,9 @@ function reduceWorkbenchPanelAction(
   }
 
   if (action.type === 'moveTab') {
+    if (action.target === 'bottom' && state.tabsById[action.tabId]?.kind !== 'terminal') {
+      return state
+    }
     const sourcePanel = state[action.source] ?? createEmptyPanel()
     if (!sourcePanel.tabIds.includes(action.tabId)) return state
     if (action.source === action.target) {

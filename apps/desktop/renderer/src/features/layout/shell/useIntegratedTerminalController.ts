@@ -17,8 +17,20 @@ export function resolveIntegratedTerminalToggleAction(
   available = true,
 ): IntegratedTerminalToggleAction {
   if (!threadId || !available) return 'unavailable'
-  if (state.right.tabIds.includes('terminal')) return 'move-to-bottom'
-  if (state.bottom.open && state.bottom.activeTabId === 'terminal') return 'hide-bottom'
+  const hasTerminalInRight = state.right.tabIds.some(
+    (id) =>
+      id === 'terminal' ||
+      id.startsWith('terminal:') ||
+      state.tabsById[id]?.kind === 'terminal',
+  )
+  if (hasTerminalInRight) return 'move-to-bottom'
+  const isTerminalActiveInBottom =
+    state.bottom.open &&
+    state.bottom.activeTabId != null &&
+    (state.bottom.activeTabId === 'terminal' ||
+      state.bottom.activeTabId.startsWith('terminal:') ||
+      state.tabsById[state.bottom.activeTabId]?.kind === 'terminal')
+  if (isTerminalActiveInBottom) return 'hide-bottom'
   return 'open-bottom'
 }
 
@@ -28,6 +40,7 @@ export function useIntegratedTerminalController({
   openPanelTab,
   movePanelTab,
   togglePanel,
+  enabled = true,
 }: {
   threadId: string | null
   state: WorkbenchTabsState
@@ -39,55 +52,95 @@ export function useIntegratedTerminalController({
     index?: number,
   ) => void
   togglePanel: (target: WorkbenchPanelTarget) => void
+  enabled?: boolean
 }) {
-  const [terminalAvailable, setTerminalAvailable] = useState(false)
+  const [terminalClientAvailable, setTerminalClientAvailable] = useState(false)
+  const effectiveThreadId = threadId || 'home'
 
   useEffect(() => {
     let disposed = false
     void loadDesktopTerminalClient()
       .then((client) => {
-        if (!disposed) setTerminalAvailable(client.available)
+        if (!disposed) setTerminalClientAvailable(client.available)
       })
       .catch(() => {
-        if (!disposed) setTerminalAvailable(false)
+        if (!disposed) setTerminalClientAvailable(false)
       })
     return () => {
       disposed = true
     }
   }, [])
 
+  const terminalAvailable = terminalClientAvailable && enabled
+
   const openIntegratedTerminal = useCallback((): void => {
-    if (!threadId || !terminalAvailable) return
-    if (state.right.tabIds.includes('terminal')) {
-      movePanelTab('right', 'bottom', 'terminal')
+    if (!effectiveThreadId || !terminalAvailable) return
+    const rightTerminalId = state.right.tabIds.find(
+      (id) =>
+        id === 'terminal' ||
+        id.startsWith('terminal:') ||
+        state.tabsById[id]?.kind === 'terminal',
+    )
+    if (rightTerminalId) {
+      movePanelTab('right', 'bottom', rightTerminalId)
+    } else if (state.bottom.tabIds.length > 0) {
+      if (!state.bottom.open) {
+        togglePanel('bottom')
+      }
     } else {
-      openPanelTab('bottom', { id: 'terminal', kind: 'terminal' })
+      openPanelTab('bottom', {
+        id: 'terminal:1',
+        kind: 'terminal',
+        terminalId: '1',
+        title: '终端 1',
+      })
     }
-    focusTerminalAfterLayout(threadId)
-  }, [movePanelTab, openPanelTab, state.right.tabIds, terminalAvailable, threadId])
+    focusTerminalAfterLayout(effectiveThreadId)
+  }, [
+    effectiveThreadId,
+    movePanelTab,
+    openPanelTab,
+    state.bottom.open,
+    state.bottom.tabIds.length,
+    state.right.tabIds,
+    state.tabsById,
+    terminalAvailable,
+    togglePanel,
+  ])
 
   const toggleIntegratedTerminal = useCallback((): void => {
-    const action = resolveIntegratedTerminalToggleAction(threadId, state, terminalAvailable)
+    const action = resolveIntegratedTerminalToggleAction(effectiveThreadId, state, terminalAvailable)
     if (action === 'unavailable') return
     if (action === 'hide-bottom') {
       togglePanel('bottom')
       return
     }
     openIntegratedTerminal()
-  }, [openIntegratedTerminal, state, terminalAvailable, threadId, togglePanel])
+  }, [effectiveThreadId, openIntegratedTerminal, state, terminalAvailable, togglePanel])
 
   useEffect(() => {
     const onOpen = (event: Event): void => {
       const requestedThreadId = (event as CustomEvent<{ threadId?: string }>).detail?.threadId
-      if (requestedThreadId === threadId) openIntegratedTerminal()
+      if (
+        requestedThreadId === threadId ||
+        requestedThreadId === effectiveThreadId ||
+        (!requestedThreadId && !threadId)
+      ) {
+        openIntegratedTerminal()
+      }
     }
     window.addEventListener(OPEN_TERMINAL_EVENT, onOpen)
     return () => window.removeEventListener(OPEN_TERMINAL_EVENT, onOpen)
-  }, [openIntegratedTerminal, threadId])
+  }, [effectiveThreadId, openIntegratedTerminal, threadId])
 
   return {
-    terminalAvailable: threadId !== null && terminalAvailable,
-    terminalVisible: state.bottom.open && state.bottom.activeTabId === 'terminal',
+    terminalAvailable,
+    terminalVisible:
+      state.bottom.open &&
+      state.bottom.activeTabId != null &&
+      (state.bottom.activeTabId === 'terminal' ||
+        state.bottom.activeTabId.startsWith('terminal:') ||
+        state.tabsById[state.bottom.activeTabId]?.kind === 'terminal'),
     openIntegratedTerminal,
     toggleIntegratedTerminal,
   }
@@ -98,11 +151,11 @@ export function isTerminalKeyboardTarget(target: EventTarget | null): boolean {
 }
 
 function focusTerminalAfterLayout(threadId: string | null): void {
-  if (!threadId) return
+  const targetId = threadId || 'home'
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       const terminal = document.querySelector<HTMLElement>(
-        `[data-terminal-keyboard-capture][data-thread-id="${CSS.escape(threadId)}"] .xterm-helper-textarea`,
+        `[data-terminal-keyboard-capture][data-thread-id="${CSS.escape(targetId)}"] .xterm-helper-textarea`,
       )
       terminal?.focus()
     })

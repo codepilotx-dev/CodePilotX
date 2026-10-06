@@ -136,9 +136,6 @@ import { CommandMenuDialog } from '../../search/CommandMenuDialog.js'
 import { DesktopComposer } from '../../session/composer/DesktopComposer.js'
 import { buildCommandMenuTasks } from '../../search/commandMenuModel.js'
 import { GlobalErrorModal } from '../../../components/GlobalErrorModal.js'
-import { Button } from '../../../components/ui/Button.js'
-import { IconButton } from '../../../components/ui/IconButton.js'
-import { Toast, ToastDivider } from '../../../components/ui/Toast.js'
 import { toastStore } from '../../../components/toast/toastState.js'
 import { toUserErrorMessage } from '../../../utils/errors.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
@@ -528,14 +525,6 @@ export function DesktopLayout(): React.ReactNode {
     localRouterMode: effectiveLocalRouterMode,
   } = session
   const isBrowserMockSession = sessionId?.startsWith('browser-mock-') === true
-  const { terminalAvailable, terminalVisible, toggleIntegratedTerminal } =
-    useIntegratedTerminalController({
-      threadId: sessionId,
-      state: workbenchPanelState,
-      openPanelTab,
-      movePanelTab,
-      togglePanel,
-    })
   const localRouterAvailable = !sessionId || isBrowserMockSession
 
   const {
@@ -552,6 +541,19 @@ export function DesktopLayout(): React.ReactNode {
     handleSettingsTabChange,
     handleSettingsBack,
   } = useWorkbenchRouteController()
+  const isHomeOrConversationRoute = isQuickChatPage || isConversationRoute
+  const effectiveRightDockVisible = isHomeOrConversationRoute && rightDockVisible
+  const effectiveBottomPanelVisible = isHomeOrConversationRoute && bottomPanelVisible
+
+  const { terminalAvailable, terminalVisible, toggleIntegratedTerminal } =
+    useIntegratedTerminalController({
+      threadId: sessionId,
+      state: workbenchPanelState,
+      openPanelTab,
+      movePanelTab,
+      togglePanel,
+      enabled: isHomeOrConversationRoute,
+    })
   const toggleSidebarCollapsed = useCallback((): void => {
     if (activeSidebarPane === null) {
       navigate(QUICK_CHAT_PATH)
@@ -1342,6 +1344,7 @@ export function DesktopLayout(): React.ReactNode {
   })
 
   const prevSessionIdRef = useRef<string | null>(null)
+  const hasInitializedSessionSwitchRef = useRef(false)
   const attachmentPreviewTabRef = useRef<UserAttachmentPreviewTab | null>(null)
   const [reviewTabState, setReviewTabState] = useState<ReviewTabUiState>(
     createDefaultReviewTabUiState,
@@ -1385,14 +1388,18 @@ export function DesktopLayout(): React.ReactNode {
       }
     }
 
-    if (prevId && prevId !== currentId) {
-      patchConversationUiState(prevId, {
+    const prevKey = prevId ?? '__home__'
+    const currentKey = currentId ?? '__home__'
+
+    if (hasInitializedSessionSwitchRef.current && prevKey !== currentKey) {
+      patchConversationUiState(prevKey, {
         workbench: uiSnapshotRef.current.workbench,
         sideChatInput: '',
         sideChatAttachments: [],
         review: uiSnapshotRef.current.review,
       })
     }
+    hasInitializedSessionSwitchRef.current = true
 
     if (
       currentId &&
@@ -1430,34 +1437,28 @@ export function DesktopLayout(): React.ReactNode {
         : state
     }
 
-    if (currentId) {
-      const saved = loadConversationUiState(currentId)
-      if (saved) {
-        const fileScopes = currentWorkspace
-          ? currentWorkspace.folders && currentWorkspace.folders.length > 0
-            ? currentWorkspace.folders.map((folder) => ({
+    const saved = loadConversationUiState(currentKey)
+    if (saved) {
+      const fileScopes = currentWorkspace
+        ? currentWorkspace.folders && currentWorkspace.folders.length > 0
+          ? currentWorkspace.folders.map((folder) => ({
+              projectId: currentWorkspace.projectId,
+              folderId: folder.id,
+              workspacePath: folder.path,
+            }))
+          : [
+              {
                 projectId: currentWorkspace.projectId,
-                folderId: folder.id,
-                workspacePath: folder.path,
-              }))
-            : [
-                {
-                  projectId: currentWorkspace.projectId,
-                  folderId: currentWorkspace.primaryFolderId,
-                  workspacePath: currentWorkspace.path,
-                },
-              ]
-          : undefined
-        const validated = validateConversationUiState(saved, { fileScopes })
-        setWorkbenchPanelState(restoreAttachmentPreview(validated.workbench))
-        setReviewTabState(validated.review)
-      } else {
-        /* No saved state — force defaults */
-        setWorkbenchPanelState(restoreAttachmentPreview(createDefaultWorkbenchTabsState()))
-        setReviewTabState(createDefaultReviewTabUiState())
-      }
+                folderId: currentWorkspace.primaryFolderId,
+                workspacePath: currentWorkspace.path,
+              },
+            ]
+        : undefined
+      const validated = validateConversationUiState(saved, { fileScopes })
+      setWorkbenchPanelState(restoreAttachmentPreview(validated.workbench))
+      setReviewTabState(validated.review)
     } else {
-      /* Quick-chat — force defaults */
+      /* No saved state — force defaults */
       setWorkbenchPanelState(restoreAttachmentPreview(createDefaultWorkbenchTabsState()))
       setReviewTabState(createDefaultReviewTabUiState())
     }
@@ -1505,15 +1506,13 @@ export function DesktopLayout(): React.ReactNode {
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
-      const currentSessionId = sessionId
-      if (currentSessionId) {
-        patchConversationUiState(currentSessionId, {
-          workbench: uiSnapshotRef.current.workbench,
-          sideChatInput: '',
-          sideChatAttachments: [],
-          review: uiSnapshotRef.current.review,
-        })
-      }
+      const currentSessionId = sessionId ?? '__home__'
+      patchConversationUiState(currentSessionId, {
+        workbench: uiSnapshotRef.current.workbench,
+        sideChatInput: '',
+        sideChatAttachments: [],
+        review: uiSnapshotRef.current.review,
+      })
       if (hasDirtyFileDocuments()) {
         void saveAllFileDocuments()
         event.preventDefault()
@@ -1534,6 +1533,7 @@ export function DesktopLayout(): React.ReactNode {
         !event.altKey &&
         (commandMenuOpen || !hasOpenDialog())
       if (
+        isHomeOrConversationRoute &&
         commandShortcutAllowed &&
         !event.shiftKey &&
         !event.altKey &&
@@ -1563,6 +1563,7 @@ export function DesktopLayout(): React.ReactNode {
           setCommandMenuOpen(true)
         }
       } else if (
+        isHomeOrConversationRoute &&
         commandShortcutAllowed &&
         !event.shiftKey &&
         key === 'p' &&
@@ -1571,10 +1572,10 @@ export function DesktopLayout(): React.ReactNode {
         event.preventDefault()
         setCommandMenuOpen(false)
         handleOpenFilesDock()
-      } else if (event.shiftKey && !event.altKey && key === 'g') {
+      } else if (isHomeOrConversationRoute && event.shiftKey && !event.altKey && key === 'g') {
         event.preventDefault()
         handleOpenReview()
-      } else if (!event.shiftKey && event.altKey && key === 's') {
+      } else if (isHomeOrConversationRoute && !event.shiftKey && event.altKey && key === 's') {
         event.preventDefault()
         handleOpenSideChat()
       } else if (
@@ -1598,6 +1599,7 @@ export function DesktopLayout(): React.ReactNode {
     handleOpenFilesDock,
     handleOpenReview,
     handleOpenSideChat,
+    isHomeOrConversationRoute,
     toggleIntegratedTerminal,
   ])
 
@@ -1660,10 +1662,10 @@ export function DesktopLayout(): React.ReactNode {
     newChat: handleCreateSession,
     openFolder: handleChooseWorkspace,
     toggleSidebar: toggleSidebarCollapsed,
-    togglePanel,
-    stepWorkspaceLayout,
-    openFiles: handleOpenFilesDock,
-    openBrowser: handleOpenBrowser,
+    togglePanel: isHomeOrConversationRoute ? togglePanel : () => undefined,
+    stepWorkspaceLayout: isHomeOrConversationRoute ? stepWorkspaceLayout : () => undefined,
+    openFiles: isHomeOrConversationRoute ? handleOpenFilesDock : () => undefined,
+    openBrowser: isHomeOrConversationRoute ? handleOpenBrowser : () => undefined,
     reloadBrowser: handleReloadBrowser,
     navigateBack,
     navigateForward,
@@ -2063,6 +2065,7 @@ export function DesktopLayout(): React.ReactNode {
   const settingsSidebarContent = (
     <SettingsSidebarContent
       activeTab={settingsActiveTab}
+      workspacePath={currentWorkspace?.path ?? null}
       onBack={handleSettingsBack}
       onTabChange={(tab) => {
         sidebarShell.pin()
@@ -2451,13 +2454,13 @@ export function DesktopLayout(): React.ReactNode {
   const rightDockPlanEventId = useMemo(() => {
     for (const target of ['right', 'bottom'] as const) {
       const panel = workbenchPanelState[target]
-      if (target === 'right' && !rightDockVisible) continue
+      if (target === 'right' && !effectiveRightDockVisible) continue
       if (!panel.open || !panel.activeTabId) continue
       const tab = workbenchPanelState.tabsById[panel.activeTabId]
       if (tab?.kind === 'plan') return tab.eventId
     }
     return null
-  }, [rightDockVisible, workbenchPanelState])
+  }, [effectiveRightDockVisible, workbenchPanelState])
 
   const handledFileLoadErrorsRef = useRef(new WeakSet<Error>())
   const handleFileLoadError = useCallback(
@@ -2755,6 +2758,35 @@ export function DesktopLayout(): React.ReactNode {
     [workbenchPanelState.tabsById],
   )
 
+  const handleCreateTerminal = useCallback((): void => {
+    const bottomTabIds = workbenchPanelState.bottom.tabIds
+    let maxIndex = 0
+    for (const tabId of bottomTabIds) {
+      const tab = workbenchPanelState.tabsById[tabId]
+      if (tab?.kind === 'terminal') {
+        const idNum = tab.terminalId ? parseInt(tab.terminalId, 10) : NaN
+        if (!isNaN(idNum) && idNum > maxIndex) {
+          maxIndex = idNum
+        }
+        const titleMatch = tab.title?.match(/^终端\s*(\d+)$/)
+        if (titleMatch) {
+          const num = parseInt(titleMatch[1], 10)
+          if (!isNaN(num) && num > maxIndex) {
+            maxIndex = num
+          }
+        }
+      }
+    }
+    const nextIndex = maxIndex + 1
+    const newTabId: WorkbenchTabId = `terminal:${nextIndex}` as const
+    openPanelTab('bottom', {
+      id: newTabId,
+      kind: 'terminal',
+      terminalId: String(nextIndex),
+      title: `终端 ${nextIndex}`,
+    })
+  }, [openPanelTab, workbenchPanelState.bottom.tabIds, workbenchPanelState.tabsById])
+
   const renderWorkbenchPanel = (target: WorkbenchPanelTarget): React.ReactNode => {
     const state = target === 'right' ? rightDockState : bottomPanelState
     if (target === 'bottom' && !state.open) {
@@ -2765,6 +2797,7 @@ export function DesktopLayout(): React.ReactNode {
         target={target}
         state={state}
         tabsById={workbenchPanelState.tabsById}
+        onCreateTerminal={target === 'bottom' ? handleCreateTerminal : undefined}
         browserAvailability={{
           status: browserAvailability,
           ...(browserAvailability === 'unavailable'
@@ -2813,6 +2846,14 @@ export function DesktopLayout(): React.ReactNode {
               return
             }
             await closeBrowserIfIncluded([tabId])
+            if (tab?.kind === 'terminal') {
+              const termId =
+                tab.terminalId ??
+                (tab.id.startsWith('terminal:') ? tab.id.slice('terminal:'.length) : tab.id)
+              void loadDesktopTerminalClient().then((client) => {
+                void client.closeTerminal({ terminalId: termId, reason: 'user-close' }).catch(() => undefined)
+              })
+            }
             closePanelTab(target, tabId)
           })
         }}
@@ -2821,6 +2862,17 @@ export function DesktopLayout(): React.ReactNode {
           void saveTabsBeforeClose(closing).then(async (saved) => {
             if (!saved) return
             await closeBrowserIfIncluded(closing)
+            for (const closingId of closing) {
+              const tab = workbenchPanelState.tabsById[closingId]
+              if (tab?.kind === 'terminal') {
+                const termId =
+                  tab.terminalId ??
+                  (tab.id.startsWith('terminal:') ? tab.id.slice('terminal:'.length) : tab.id)
+                void loadDesktopTerminalClient().then((client) => {
+                  void client.closeTerminal({ terminalId: termId, reason: 'user-close' }).catch(() => undefined)
+                })
+              }
+            }
             closeOtherTabs(target, tabId)
           })
         }}
@@ -2830,6 +2882,17 @@ export function DesktopLayout(): React.ReactNode {
           void saveTabsBeforeClose(closing).then(async (saved) => {
             if (!saved) return
             await closeBrowserIfIncluded(closing)
+            for (const closingId of closing) {
+              const tab = workbenchPanelState.tabsById[closingId]
+              if (tab?.kind === 'terminal') {
+                const termId =
+                  tab.terminalId ??
+                  (tab.id.startsWith('terminal:') ? tab.id.slice('terminal:'.length) : tab.id)
+                void loadDesktopTerminalClient().then((client) => {
+                  void client.closeTerminal({ terminalId: termId, reason: 'user-close' }).catch(() => undefined)
+                })
+              }
+            }
             closeTabsToRight(target, tabId)
           })
         }}
@@ -3020,6 +3083,7 @@ export function DesktopLayout(): React.ReactNode {
               }
             : { status: 'available' },
         threadId: sessionId,
+        cwd: currentWorkspace?.path ?? null,
         onDisplayPathChange: () => undefined,
       },
     }),
@@ -3321,9 +3385,11 @@ export function DesktopLayout(): React.ReactNode {
               value: input,
               replace: setInput,
             },
-            bottomPanelVisible,
+            bottomPanelVisible: effectiveBottomPanelVisible,
             layoutResizeActive: rightResizePhase !== 'idle',
-            onToggleBottomPanel: toggleBottomPanelVisible,
+            onToggleBottomPanel: isHomeOrConversationRoute
+              ? toggleBottomPanelVisible
+              : () => undefined,
             rightDockPlanEventId,
           }}
         >
@@ -3343,7 +3409,7 @@ export function DesktopLayout(): React.ReactNode {
               workspaceHeader={
                 <DesktopWorkspaceHeader
                   divider={isConversationRoute}
-                  rightDockOpen={rightDockVisible}
+                  rightDockOpen={effectiveRightDockVisible}
                   shellControls={
                     <WorkspaceShellControls
                       canCreateWorkspaceTab={browserAvailability === 'available'}
@@ -3353,8 +3419,8 @@ export function DesktopLayout(): React.ReactNode {
                       terminalAvailable={terminalAvailable}
                       terminalVisible={terminalVisible}
                       workspaceLayout={workspaceLayout}
-                      showBottomPanel={isQuickChatPage || isConversationRoute}
-                      showRightPanel={isQuickChatPage || isConversationRoute}
+                      showBottomPanel={isHomeOrConversationRoute}
+                      showRightPanel={isHomeOrConversationRoute}
                       onCreateWorkspaceTab={handleOpenBrowser}
                       onStepWorkspaceLayout={stepWorkspaceLayout}
                       onToggleTerminal={toggleIntegratedTerminal}
@@ -3389,7 +3455,7 @@ export function DesktopLayout(): React.ReactNode {
                   minSize={rightDockMinWidth}
                   size={rightPanelCommittedSize}
                   target="right"
-                  visible={rightDockVisible}
+                  visible={effectiveRightDockVisible}
                   onResizePhaseChange={setRightResizePhase}
                 >
                   {rightDockNode}
@@ -3403,7 +3469,7 @@ export function DesktopLayout(): React.ReactNode {
                   minSize={bottomPanelMinHeight}
                   size={bottomPanelHeight}
                   target="bottom"
-                  visible={bottomPanelVisible}
+                  visible={effectiveBottomPanelVisible}
                 >
                   {bottomPanelNode}
                 </WorkbenchPanelPresence>
@@ -3411,8 +3477,8 @@ export function DesktopLayout(): React.ReactNode {
               primarySidebarVisible={
                 workbenchLayoutState?.visibility.primarySidebar ?? !sidebarCollapsed
               }
-              auxiliaryPanelVisible={rightDockVisible}
-              bottomPanelVisible={bottomPanelVisible}
+              auxiliaryPanelVisible={effectiveRightDockVisible}
+              bottomPanelVisible={effectiveBottomPanelVisible}
               workspaceLayout={workspaceLayout}
               resizeActive={rightResizePhase !== 'idle'}
             />

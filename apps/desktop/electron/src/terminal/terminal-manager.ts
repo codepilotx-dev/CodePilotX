@@ -63,7 +63,7 @@ export class TerminalManager {
   readonly #mirrorSink: TerminalOutputMirrorSink | undefined
   readonly #onEvent: (event: DesktopTerminalEvent) => void
   readonly #environment: NodeJS.ProcessEnv
-  readonly #byThread = new Map<string, TerminalSession>()
+  readonly #byThread = new Map<string, Set<TerminalSession>>()
   readonly #byTerminal = new Map<string, TerminalSession>()
   readonly #threadLocks = new Map<string, Promise<void>>()
   #lifecycleGeneration = 0
@@ -87,12 +87,35 @@ export class TerminalManager {
 
   async ensure(input: EnsureDesktopTerminalInput): Promise<DesktopTerminalSnapshot> {
     validateThreadId(input.threadId)
+    if (input.terminalId) validateThreadId(input.terminalId)
     validateTerminalSize(input.cols, input.rows)
-    return this.#withThreadLock(input.threadId, async () => {
+    const lockKey = input.terminalId ?? input.threadId
+    return this.#withThreadLock(lockKey, async () => {
       const generation = this.#activeGeneration()
-      const context = await this.#contextResolver.resolve(input.threadId)
+      const context = input.cwd
+        ? {
+            threadId: input.threadId,
+            bindingId: `local:${lockKey}`,
+            contextVersion: '1',
+            workspaceKind: 'project' as const,
+            target: { kind: 'local' as const, cwd: input.cwd },
+          }
+        : input.threadId === 'home'
+          ? {
+              threadId: 'home',
+              bindingId: `local:${lockKey}`,
+              contextVersion: '1',
+              workspaceKind: 'project' as const,
+              target: {
+                kind: 'local' as const,
+                cwd: process.env.USERPROFILE || process.env.HOME || process.cwd(),
+              },
+            }
+          : await this.#contextResolver.resolve(input.threadId)
       this.#assertActiveGeneration(generation)
-      const existing = this.#byThread.get(input.threadId)
+      const existing = input.terminalId
+        ? this.#byTerminal.get(input.terminalId)
+        : this.#byThread.get(input.threadId)?.values().next().value
       if (existing) {
         if (existing.hasContext(context)) return existing.snapshot()
         existing.markContextChanged(true)
@@ -129,7 +152,7 @@ export class TerminalManager {
       ) {
         throw new TerminalError('TERMINAL_CONTEXT_STALE', '终端 Action 上下文无效')
       }
-      const existing = this.#byThread.get(input.threadId)
+      const existing = this.#byThread.get(input.threadId)?.values().next().value
       if (existing) {
         await existing.close('workspace-delete')
         this.#delete(existing)
@@ -153,7 +176,7 @@ export class TerminalManager {
     environment: Record<string, string>,
   ): DesktopTerminalSnapshot {
     const profile = this.#profiles.resolve(input.profileId)
-    const terminalId = randomUUID()
+    const terminalId = input.terminalId ?? randomUUID()
     const instanceId = randomUUID()
     try {
       const baseOptions: IPtyForkOptions = {
@@ -178,7 +201,12 @@ export class TerminalManager {
         mirrorSink: this.#mirrorSink,
         onEvent: this.#onEvent,
       })
-      this.#byThread.set(input.threadId, session)
+      let threadSessions = this.#byThread.get(input.threadId)
+      if (!threadSessions) {
+        threadSessions = new Set()
+        this.#byThread.set(input.threadId, threadSessions)
+      }
+      threadSessions.add(session)
       this.#byTerminal.set(terminalId, session)
       return session.snapshot()
     } catch (error) {
@@ -214,12 +242,18 @@ export class TerminalManager {
 
   async close(
     terminalId: string,
-    instanceId: string,
-    reason: 'user-close' | 'task-close' | 'workspace-delete',
+    instanceId?: string,
+    reason: 'user-close' | 'task-close' | 'workspace-delete' = 'user-close',
   ): Promise<DesktopTerminalSnapshot> {
-    const session = this.#requireSession(terminalId, instanceId)
+    const session = instanceId
+      ? this.#requireSession(terminalId, instanceId)
+      : this.#byTerminal.get(terminalId)
+    if (!session) throw new TerminalError('TERMINAL_NOT_FOUND', '集成终端不存在')
     return this.#withThreadLock(session.context.threadId, async () => {
-      const current = this.#requireSession(terminalId, instanceId)
+      const current = instanceId
+        ? this.#requireSession(terminalId, instanceId)
+        : this.#byTerminal.get(terminalId)
+      if (!current) throw new TerminalError('TERMINAL_NOT_FOUND', '集成终端不存在')
       await current.close(reason)
       const snapshot = current.snapshot()
       this.#delete(current)
@@ -233,10 +267,12 @@ export class TerminalManager {
   ): Promise<{ closed: boolean }> {
     validateThreadId(threadId)
     return this.#withThreadLock(threadId, async () => {
-      const session = this.#byThread.get(threadId)
-      if (!session) return { closed: false }
-      await session.close(reason)
-      this.#delete(session)
+      const sessions = this.#byThread.get(threadId)
+      if (!sessions || sessions.size === 0) return { closed: false }
+      for (const session of [...sessions]) {
+        await session.close(reason)
+        this.#delete(session)
+      }
       return { closed: true }
     })
   }
@@ -296,8 +332,12 @@ export class TerminalManager {
 
   #delete(session: TerminalSession): void {
     this.#byTerminal.delete(session.terminalId)
-    if (this.#byThread.get(session.context.threadId) === session) {
-      this.#byThread.delete(session.context.threadId)
+    const threadSessions = this.#byThread.get(session.context.threadId)
+    if (threadSessions) {
+      threadSessions.delete(session)
+      if (threadSessions.size === 0) {
+        this.#byThread.delete(session.context.threadId)
+      }
     }
   }
 }

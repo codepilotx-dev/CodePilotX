@@ -25,6 +25,8 @@ import { errorMessageOf as errorMessage } from '@codepilotx/shared/errors'
 
 export type TerminalPanelProps = {
   threadId: string
+  terminalId?: string
+  cwd?: string | null
   onDisplayPathChange?: (displayPath: string | null) => void
 }
 
@@ -49,6 +51,8 @@ function loadTerminalClientResource(): Promise<
 
 export function TerminalPanel({
   threadId,
+  terminalId,
+  cwd,
   onDisplayPathChange,
 }: TerminalPanelProps): React.ReactNode {
   const terminalClient = use(loadTerminalClientResource())
@@ -195,16 +199,20 @@ export function TerminalPanel({
     const onOpenTerminal = (event: Event): void => {
       const detail = (event as CustomEvent<OpenTerminalEventDetail>).detail
       if (detail?.threadId !== threadId || !detail.snapshot) return
+      if (terminalId && detail.snapshot.terminalId !== terminalId) return
       adoptSnapshot(detail.snapshot)
     }
     window.addEventListener(OPEN_TERMINAL_EVENT, onOpenTerminal)
 
     const unsubscribe = terminalClient.onTerminalEvent((event) => {
-      if (!snapshotReady) {
-        queuedEvents.push(event)
+      const eventTerminalId = event.type === 'output' ? event.chunk.terminalId : event.terminalId
+      if (snapshotRef.current) {
+        if (eventTerminalId !== snapshotRef.current.terminalId) return
+        consumeEvent(event)
         return
       }
-      consumeEvent(event)
+      if (terminalId && eventTerminalId !== terminalId) return
+      queuedEvents.push(event)
     })
 
     const inputDisposable = terminal.onData((data) => {
@@ -281,6 +289,8 @@ export function TerminalPanel({
         fitAddon.fit()
         const snapshot = await terminalClient.ensureTerminal({
           threadId,
+          terminalId,
+          cwd: cwd ?? undefined,
           profileId,
           cols: Math.max(2, terminal.cols),
           rows: Math.max(1, terminal.rows),
@@ -327,7 +337,7 @@ export function TerminalPanel({
       outputStateRef.current = createTerminalOutputState()
       displayPathCallbackRef.current?.(null)
     }
-  }, [applyUpdate, flushAck, profileId, restartVersion, threadId])
+  }, [applyUpdate, cwd, flushAck, profileId, restartVersion, terminalId, threadId])
 
   const handleRestart = useCallback(async (): Promise<void> => {
     const snapshot = snapshotRef.current
@@ -351,6 +361,7 @@ export function TerminalPanel({
       className="integrated-terminal tw:flex tw:h-full tw:w-full tw:min-h-0 tw:min-w-0 tw:flex-auto tw:flex-col"
       data-terminal-keyboard-capture
       data-thread-id={threadId}
+      data-terminal-id={terminalId}
     >
       {truncated ? (
         <div

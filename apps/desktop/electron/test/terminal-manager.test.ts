@@ -46,6 +46,45 @@ describe('终端管理器', () => {
     expect(factory.spawns[0]?.options.env).not.toHaveProperty('CODEPILOTX_PORT')
   })
 
+  test('支持同一 threadId 打开多个独立终端并按 terminalId 隔离', async () => {
+    const factory = new FakePtyFactory()
+    const manager = new TerminalManager({
+      contextResolver: { resolve: async (threadId) => context(threadId) },
+      profiles: windowsPowerShellProfile(),
+      ptyFactory: factory,
+      processTreeKiller: { kill: async () => undefined },
+      onEvent: () => undefined,
+    })
+
+    const term1 = await manager.ensure({
+      threadId: 'thread-1',
+      terminalId: 'term-1',
+      cwd: 'C:\\custom-cwd-1',
+      profileId: null,
+      cols: 80,
+      rows: 24,
+    })
+    const term2 = await manager.ensure({
+      threadId: 'thread-1',
+      terminalId: 'term-2',
+      cwd: 'C:\\custom-cwd-2',
+      profileId: null,
+      cols: 80,
+      rows: 24,
+    })
+
+    expect(term1.terminalId).toBe('term-1')
+    expect(term2.terminalId).toBe('term-2')
+    expect(term1.terminalId).not.toBe(term2.terminalId)
+    expect(factory.spawns).toHaveLength(2)
+    expect(factory.spawns[0]?.options.cwd).toBe('C:\\custom-cwd-1')
+    expect(factory.spawns[1]?.options.cwd).toBe('C:\\custom-cwd-2')
+
+    // closeThread closes both
+    const closeResult = await manager.closeThread('thread-1', 'user-close')
+    expect(closeResult.closed).toBe(true)
+  })
+
   test('按实例隔离输入、resize 和关闭，关闭时停止进程', async () => {
     const factory = new FakePtyFactory()
     const killed: number[] = []

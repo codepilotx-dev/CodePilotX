@@ -38,6 +38,7 @@ export type WorkbenchTabStripProps = {
   onCloseTabsToRight: (tabId: WorkbenchTabId) => void
   onOpenTab: (tab: WorkbenchTabDescriptor) => void
   onCreateSideChat: () => void
+  onCreateTerminal?: () => void
   sideChatAvailable: boolean
   onSelectTab: (tabId: WorkbenchTabId) => void
   onMoveTab: (
@@ -62,6 +63,7 @@ export function WorkbenchTabStrip({
   onCloseTabsToRight,
   onOpenTab,
   onCreateSideChat,
+  onCreateTerminal,
   sideChatAvailable,
   onSelectTab,
   onMoveTab,
@@ -225,6 +227,8 @@ export function WorkbenchTabStrip({
                         event.preventDefault()
                         const payload = readTabDragPayload(event)
                         if (!payload) return
+                        const sourceTab = tabsById[payload.tabId]
+                        if (target === 'bottom' && sourceTab?.kind !== 'terminal') return
                         if (payload.source === target) {
                           onReorderTab(target, payload.tabId, index)
                         } else {
@@ -299,7 +303,17 @@ export function WorkbenchTabStrip({
               </Fragment>
             )
           })}
-          {state.tabIds.length > 0 ? (
+          {target === 'bottom' ? (
+            <IconButton
+              className="right-dock-add-button tw:hover:shadow-none tw:focus-visible:outline-app-accent/72"
+              color="ghostSecondary"
+              size="toolbar"
+              title="新建终端"
+              onClick={onCreateTerminal}
+            >
+              <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            </IconButton>
+          ) : state.tabIds.length > 0 ? (
             <PopoverMenu
               align="end"
               avoidCollisions={false}
@@ -369,6 +383,8 @@ export function WorkbenchTabStrip({
               event.preventDefault()
               const payload = readTabDragPayload(event)
               if (payload && payload.source !== target) {
+                const sourceTab = tabsById[payload.tabId]
+                if (target === 'bottom' && sourceTab?.kind !== 'terminal') return
                 onMoveTab(payload.source, target, payload.tabId)
               }
             }}

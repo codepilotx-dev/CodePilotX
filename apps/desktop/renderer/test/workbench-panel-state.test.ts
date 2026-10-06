@@ -360,7 +360,7 @@ describe('workbench dynamic tab state', () => {
       }),
     )
     const terminalTab = markup.indexOf('data-panel-tab="terminal"')
-    const addButton = markup.indexOf('aria-label="添加标签"')
+    const addButton = markup.indexOf('aria-label="新建终端"')
     const spacer = markup.indexOf('right-dock-tab-empty')
     const closePanel = markup.indexOf('title="关闭底部面板"')
 
@@ -386,13 +386,13 @@ describe('workbench dynamic tab state', () => {
   })
 
   test('reopening a singleton activates its existing host', () => {
-    let state = open(createDefaultWorkbenchTabsState(), review, 'bottom')
+    let state = open(createDefaultWorkbenchTabsState(), review, 'sidebar')
     state = open(state, review, 'right')
 
-    expect(state.bottom.tabIds).toEqual(['review'])
-    expect(state.bottom.activeTabId).toBe('review')
+    expect(state.sidebar.tabIds).toEqual(['review'])
+    expect(state.sidebar.activeTabId).toBe('review')
     expect(state.right.tabIds).toEqual([])
-    expect(state.focusArea).toBe('bottom-panel')
+    expect(state.focusArea).toBe('sidebar-panel')
   })
 
   test('closing a panel preserves tabs for the next open', () => {
@@ -687,7 +687,7 @@ describe('workbench dynamic tab state', () => {
     state = applyWorkbenchPanelAction(state, {
       type: 'moveTab',
       source: 'right',
-      target: 'bottom',
+      target: 'sidebar',
       tabId: 'review',
     })
     state = applyWorkbenchPanelAction(state, {
@@ -698,9 +698,9 @@ describe('workbench dynamic tab state', () => {
     })
 
     expect(state.right.tabIds).toEqual(['browser:fixture'])
-    expect(state.bottom.tabIds).toEqual(['review'])
+    expect(state.sidebar.tabIds).toEqual(['review'])
     expect(
-      [...state.right.tabIds, ...state.bottom.tabIds].filter((id) => id === 'review'),
+      [...state.right.tabIds, ...state.sidebar.tabIds].filter((id) => id === 'review'),
     ).toHaveLength(1)
   })
 
@@ -1122,13 +1122,13 @@ describe('workbench dynamic tab state', () => {
         id: 'file-browser',
         kind: 'file-browser',
       },
-      'bottom',
+      'sidebar',
     )
 
-    expect(state.bottom.tabIds).toEqual(['file-browser'])
+    expect(state.sidebar.tabIds).toEqual(['file-browser'])
     expect(state.right.tabIds).toEqual([])
 
-    // Reopen with directoryPath — should stay in bottom panel
+    // Reopen with directoryPath — should stay in sidebar panel
     state = open(state, {
       id: 'file-browser',
       kind: 'file-browser',
@@ -1136,12 +1136,34 @@ describe('workbench dynamic tab state', () => {
       revealToken: 42,
     })
 
-    expect(state.bottom.tabIds).toEqual(['file-browser'])
+    expect(state.sidebar.tabIds).toEqual(['file-browser'])
     expect(state.right.tabIds).toEqual([])
     expect(state.tabsById['file-browser']).toMatchObject({
       directoryPath: 'src/components',
       revealToken: 42,
     })
+  })
+
+  test('底部面板仅允许终端标签，非终端标签自动重定向至右侧或拒绝移入', () => {
+    // 尝试在底部打开 review 标签，应自动纠正至右侧
+    let state = open(createDefaultWorkbenchTabsState(), review, 'bottom')
+    expect(state.bottom.tabIds).toEqual([])
+    expect(state.right.tabIds).toEqual(['review'])
+
+    // 尝试将 review 移动至底部，应被拒绝
+    state = applyWorkbenchPanelAction(state, {
+      type: 'moveTab',
+      source: 'right',
+      target: 'bottom',
+      tabId: 'review',
+    })
+    expect(state.bottom.tabIds).toEqual([])
+    expect(state.right.tabIds).toEqual(['review'])
+
+    // 终端标签允许在底部打开
+    const terminal = { id: 'terminal:1', kind: 'terminal' as const, terminalId: '1', title: '终端 1' }
+    state = open(state, terminal, 'bottom')
+    expect(state.bottom.tabIds).toEqual(['terminal:1'])
   })
 
   test('validates valid relative directory paths from persisted file-browser state', () => {

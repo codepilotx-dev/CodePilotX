@@ -61,6 +61,8 @@ export type DesktopTerminalEvent =
 
 export interface EnsureDesktopTerminalInput {
   threadId: string
+  terminalId?: string
+  cwd?: string
   profileId: string | null
   cols: number
   rows: number
@@ -87,7 +89,7 @@ export interface ResizeDesktopTerminalInput {
 
 export interface CloseDesktopTerminalInput {
   terminalId: string
-  instanceId: string
+  instanceId?: string
   reason: 'user-close' | 'task-close' | 'workspace-delete'
 }
 

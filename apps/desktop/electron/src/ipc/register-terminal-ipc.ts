@@ -79,11 +79,16 @@ export function registerTerminalIpc(dependencies: TerminalIpcDependencies): void
 }
 
 function requireEnsureInput(value: unknown): EnsureDesktopTerminalInput {
+  if (!isRecord(value)) invalidInput()
+  const allowedKeys = new Set(['threadId', 'profileId', 'cols', 'rows', 'terminalId', 'cwd'])
   if (
-    !isExactRecord(value, ['threadId', 'profileId', 'cols', 'rows']) ||
+    !Object.keys(value).every((key) => allowedKeys.has(key)) ||
     !isIdentifier(value.threadId)
-  )
+  ) {
     invalidInput()
+  }
+  if (value.terminalId !== undefined && !isIdentifier(value.terminalId)) invalidInput()
+  if (value.cwd !== undefined && (typeof value.cwd !== 'string' || !value.cwd.trim())) invalidInput()
   if (!(value.profileId === null || isIdentifier(value.profileId))) invalidInput()
   if (!isTerminalSize(value.cols, value.rows)) invalidInput()
   return value as unknown as EnsureDesktopTerminalInput
@@ -139,12 +144,12 @@ function requireAckInput(value: unknown): AckDesktopTerminalOutputInput {
 }
 
 function requireCloseInput(value: unknown): CloseDesktopTerminalInput {
-  if (
-    !isExactRecord(value, ['terminalId', 'instanceId', 'reason']) ||
-    !isIdentifier(value.terminalId) ||
-    !isIdentifier(value.instanceId) ||
-    !['user-close', 'task-close', 'workspace-delete'].includes(String(value.reason))
-  )
+  if (!isRecord(value)) invalidInput()
+  const allowedKeys = new Set(['terminalId', 'instanceId', 'reason'])
+  if (!Object.keys(value).every((key) => allowedKeys.has(key))) invalidInput()
+  if (!isIdentifier(value.terminalId)) invalidInput()
+  if (value.instanceId !== undefined && !isIdentifier(value.instanceId)) invalidInput()
+  if (!['user-close', 'task-close', 'workspace-delete'].includes(String(value.reason)))
     invalidInput()
   return value as unknown as CloseDesktopTerminalInput
 }

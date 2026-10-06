@@ -23,7 +23,7 @@ export const BUILTIN_COMPOSITE_VIEWS: Record<WorkbenchTabKind, CompositeViewDefi
     kind: 'file-browser',
     title: '打开文件',
     defaultLocation: 'right',
-    allowedLocations: ['sidebar', 'right', 'bottom', 'floating'],
+    allowedLocations: ['sidebar', 'right', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: true,
@@ -37,7 +37,7 @@ export const BUILTIN_COMPOSITE_VIEWS: Record<WorkbenchTabKind, CompositeViewDefi
     allowedLocations: ['sidebar', 'right', 'bottom', 'floating'],
     canMove: true,
     canClose: true,
-    isSingleton: true,
+    isSingleton: false,
     canFloat: true,
   },
   review: {
@@ -45,7 +45,7 @@ export const BUILTIN_COMPOSITE_VIEWS: Record<WorkbenchTabKind, CompositeViewDefi
     kind: 'review',
     title: '审查',
     defaultLocation: 'right',
-    allowedLocations: ['sidebar', 'right', 'bottom', 'floating'],
+    allowedLocations: ['sidebar', 'right', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: true,
@@ -56,7 +56,7 @@ export const BUILTIN_COMPOSITE_VIEWS: Record<WorkbenchTabKind, CompositeViewDefi
     kind: 'browser',
     title: '浏览器',
     defaultLocation: 'right',
-    allowedLocations: ['right', 'bottom'],
+    allowedLocations: ['right'],
     canMove: true,
     canClose: true,
     isSingleton: false,
@@ -67,7 +67,7 @@ export const BUILTIN_COMPOSITE_VIEWS: Record<WorkbenchTabKind, CompositeViewDefi
     kind: 'file-preview',
     title: '文件预览',
     defaultLocation: 'right',
-    allowedLocations: ['right', 'bottom', 'floating'],
+    allowedLocations: ['right', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: false,
@@ -78,7 +78,7 @@ export const BUILTIN_COMPOSITE_VIEWS: Record<WorkbenchTabKind, CompositeViewDefi
     kind: 'plan',
     title: '计划',
     defaultLocation: 'right',
-    allowedLocations: ['sidebar', 'right', 'bottom', 'floating'],
+    allowedLocations: ['sidebar', 'right', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: false,
@@ -89,7 +89,7 @@ export const BUILTIN_COMPOSITE_VIEWS: Record<WorkbenchTabKind, CompositeViewDefi
     kind: 'side-chat',
     title: '副会话',
     defaultLocation: 'right',
-    allowedLocations: ['right', 'bottom', 'floating'],
+    allowedLocations: ['right', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: false,
@@ -100,7 +100,7 @@ export const BUILTIN_COMPOSITE_VIEWS: Record<WorkbenchTabKind, CompositeViewDefi
     kind: 'side-task',
     title: '后台任务',
     defaultLocation: 'right',
-    allowedLocations: ['sidebar', 'right', 'bottom', 'floating'],
+    allowedLocations: ['sidebar', 'right', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: false,
@@ -111,7 +111,7 @@ export const BUILTIN_COMPOSITE_VIEWS: Record<WorkbenchTabKind, CompositeViewDefi
     kind: 'skill-preview',
     title: '技能预览',
     defaultLocation: 'right',
-    allowedLocations: ['right', 'bottom', 'floating'],
+    allowedLocations: ['right', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: false,
@@ -122,7 +122,7 @@ export const BUILTIN_COMPOSITE_VIEWS: Record<WorkbenchTabKind, CompositeViewDefi
     kind: 'attachment-preview',
     title: '附件预览',
     defaultLocation: 'right',
-    allowedLocations: ['right', 'bottom', 'floating'],
+    allowedLocations: ['right', 'floating'],
     canMove: true,
     canClose: true,
     isSingleton: true,
@@ -134,8 +134,9 @@ export const BUILTIN_COMPOSITE_VIEWS: Record<WorkbenchTabKind, CompositeViewDefi
  * 校验指定视图是否允许停靠至目标位置
  */
 export function isViewAllowedAtLocation(kind: WorkbenchTabKind, location: ViewLocation): boolean {
+  if (location === 'bottom') return kind === 'terminal'
   const definition = BUILTIN_COMPOSITE_VIEWS[kind]
-  if (!definition) return location === 'right' || location === 'bottom'
+  if (!definition) return location === 'right'
   return definition.allowedLocations.includes(location)
 }
 

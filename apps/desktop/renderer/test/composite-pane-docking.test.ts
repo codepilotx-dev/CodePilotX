@@ -27,15 +27,15 @@ describe('composite views registry and rules', () => {
     expect(isViewAllowedAtLocation('terminal', 'right')).toBe(true)
     expect(isViewAllowedAtLocation('terminal', 'bottom')).toBe(true)
 
-    // file-browser can dock in sidebar, right, and bottom
+    // file-browser can dock in sidebar and right, but bottom only allows terminal
     expect(isViewAllowedAtLocation('file-browser', 'sidebar')).toBe(true)
     expect(isViewAllowedAtLocation('file-browser', 'right')).toBe(true)
-    expect(isViewAllowedAtLocation('file-browser', 'bottom')).toBe(true)
+    expect(isViewAllowedAtLocation('file-browser', 'bottom')).toBe(false)
 
-    // browser is restricted to right and bottom
+    // browser is restricted to right (cannot dock in sidebar or bottom)
     expect(isViewAllowedAtLocation('browser', 'sidebar')).toBe(false)
     expect(isViewAllowedAtLocation('browser', 'right')).toBe(true)
-    expect(isViewAllowedAtLocation('browser', 'bottom')).toBe(true)
+    expect(isViewAllowedAtLocation('browser', 'bottom')).toBe(false)
   })
 
   test('generates available move targets excluding current location', () => {

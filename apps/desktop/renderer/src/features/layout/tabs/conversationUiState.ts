@@ -422,8 +422,14 @@ function validateWorkbenchState(
 
   const rawRight = readPanel(value.right)
   const rawBottom = readPanel(value.bottom)
-  const ownership = resolveTabOwnership(rawRight, rawBottom)
-  const right = validatePanel(rawRight, 'right', ownership, tabsById)
+  const ownership = resolveTabOwnership(rawRight, rawBottom, tabsById)
+  const rightTabIds = [...rawRight.tabIds]
+  for (const id of rawBottom.tabIds) {
+    if (tabsById[id as WorkbenchTabId]?.kind !== 'terminal' && !rightTabIds.includes(id)) {
+      rightTabIds.push(id)
+    }
+  }
+  const right = validatePanel({ ...rawRight, tabIds: rightTabIds }, 'right', ownership, tabsById)
   const bottom = validatePanel(rawBottom, 'bottom', ownership, tabsById)
   const referencedIds = new Set([...right.tabIds, ...bottom.tabIds])
   for (const tabId of Object.keys(tabsById) as WorkbenchTabId[]) {
@@ -487,11 +493,17 @@ function readPanel(value: unknown): RawPanel {
   }
 }
 
-function resolveTabOwnership(right: RawPanel, bottom: RawPanel): Map<string, WorkbenchPanelTarget> {
+function resolveTabOwnership(
+  right: RawPanel,
+  bottom: RawPanel,
+  tabsById: WorkbenchTabsState['tabsById'],
+): Map<string, WorkbenchPanelTarget> {
   const ownership = new Map<string, WorkbenchPanelTarget>()
   for (const id of right.tabIds) ownership.set(id, 'right')
   for (const id of bottom.tabIds) {
-    if (!ownership.has(id) || (bottom.activeTabId === id && right.activeTabId !== id)) {
+    if (tabsById[id as WorkbenchTabId]?.kind !== 'terminal') {
+      ownership.set(id, 'right')
+    } else if (!ownership.has(id) || (bottom.activeTabId === id && right.activeTabId !== id)) {
       ownership.set(id, 'bottom')
     }
   }
@@ -542,9 +554,13 @@ function validateTabDescriptor(
     }
   }
   // Side chats are process-local and must never be restored from localStorage.
-  if (tab.kind === 'side-chat' || tab.kind === 'attachment-preview') return null
-  if (tab.id === 'terminal' && tab.kind === 'terminal') {
-    return { id: 'terminal', kind: 'terminal' }
+  if (tab.kind === 'terminal' && typeof tab.id === 'string') {
+    return {
+      id: tab.id as `terminal:${string}` | 'terminal',
+      kind: 'terminal',
+      ...(typeof tab.terminalId === 'string' ? { terminalId: tab.terminalId } : {}),
+      ...(typeof tab.title === 'string' ? { title: tab.title } : {}),
+    }
   }
   if (
     tab.kind === 'file-preview' &&

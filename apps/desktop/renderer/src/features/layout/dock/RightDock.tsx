@@ -106,6 +106,7 @@ type Props = {
   onToggleReviewView: () => void
   sideChat: Omit<WorkbenchTabRenderContext['sideChat'], 'activeTabId'>
   onCreateSideChat: () => void
+  onCreateTerminal?: () => void
   activeSideTaskId: string | null
   subagentAvailability: WorkbenchTabAvailability
   sideTaskContent?: React.ReactNode
@@ -298,6 +299,7 @@ export function WorkbenchPanel({
   onToggleReviewView,
   sideChat,
   onCreateSideChat,
+  onCreateTerminal,
   activeSideTaskId,
   subagentAvailability,
   sideTaskContent,
@@ -398,6 +400,7 @@ export function WorkbenchPanel({
               }
             : { status: 'available' },
         threadId: sessionId,
+        cwd: workspace?.path ?? null,
         onDisplayPathChange: handleTerminalDisplayPathChange,
       },
     }),
@@ -486,6 +489,7 @@ export function WorkbenchPanel({
               onPopOutTab={onPopOutTab}
               onOpenTab={stableOnOpenTab}
               onCreateSideChat={onCreateSideChat}
+              onCreateTerminal={onCreateTerminal}
               sideChatAvailable={sideChat.available}
               onPinTab={onPinTab}
               onReorderTab={onReorderTab}
@@ -555,6 +559,10 @@ const MemoizedWorkbenchPanelContent = memo(function WorkbenchPanelContent({
             </div>
           )
         })
+      ) : target === 'bottom' ? (
+        <div className="bottom-panel-empty tw:flex tw:h-full tw:w-full tw:items-center tw:justify-center tw:p-4 tw:type-caption tw:text-app-text-meta">
+          <span>暂无打开的终端</span>
+        </div>
       ) : (
         <WorkbenchLauncher
           onCreateSideChat={onCreateSideChat}

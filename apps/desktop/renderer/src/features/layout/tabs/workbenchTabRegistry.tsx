@@ -199,6 +199,7 @@ export type WorkbenchTabRenderContext = {
   terminal: {
     availability: WorkbenchTabAvailability
     threadId: string | null
+    cwd?: string | null
     onDisplayPathChange: (displayPath: string | null) => void
   }
 }
@@ -416,8 +417,8 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     launcherShortcut: null,
     lifecycle: 'keep-alive-hidden',
     getAvailability: (context) => context.terminal.availability,
-    getTitle: () => '终端',
-    render: (_tab, context) => {
+    getTitle: (tab) => (tab.kind === 'terminal' && tab.title ? tab.title : '终端'),
+    render: (tab, context) => {
       if (context.terminal.availability.status === 'loading') {
         return <WorkbenchPanelLoading label="正在连接集成终端…" />
       }
@@ -431,18 +432,19 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           />
         )
       }
-      return context.terminal.threadId ? (
-        deferred(
-          <TerminalPanel
-            threadId={context.terminal.threadId}
-            onDisplayPathChange={context.terminal.onDisplayPathChange}
-          />,
-        )
-      ) : (
-        <WorkbenchPanelEmpty
-          title="请先创建任务"
-          description="集成终端会绑定到当前任务的工作目录。"
-        />
+      const terminalTab = tab.kind === 'terminal' ? tab : null
+      const effectiveThreadId = context.terminal.threadId || 'home'
+      const terminalId =
+        terminalTab?.terminalId ??
+        (tab.id.startsWith('terminal:') ? tab.id.slice('terminal:'.length) : tab.id)
+      return deferred(
+        <TerminalPanel
+          key={tab.id}
+          threadId={effectiveThreadId}
+          terminalId={terminalId}
+          cwd={context.terminal.cwd}
+          onDisplayPathChange={context.terminal.onDisplayPathChange}
+        />,
       )
     },
   },
@@ -485,8 +487,14 @@ export function getWorkbenchTabDisplayTitle(
   tab: WorkbenchTabDescriptor,
   terminalDisplayPath: string | null,
 ): string {
-  if (tab.kind === 'terminal' && terminalDisplayPath?.trim()) {
-    return terminalDisplayPath
+  if (tab.kind === 'terminal') {
+    if (tab.title) {
+      return tab.title
+    }
+    if (terminalDisplayPath?.trim()) {
+      return terminalDisplayPath
+    }
+    return '终端'
   }
   return getWorkbenchTabDefinition(tab).getTitle(tab)
 }
@@ -516,7 +524,7 @@ export function createLauncherTab(kind: WorkbenchTabKind): WorkbenchTabDescripto
     return { id: 'file-browser', kind: 'file-browser' }
   }
   if (kind === 'side-chat') return null
-  if (kind === 'terminal') return { id: 'terminal', kind: 'terminal' }
+  if (kind === 'terminal') return { id: 'terminal', kind: 'terminal', title: '终端 1' }
   return null
 }
 
