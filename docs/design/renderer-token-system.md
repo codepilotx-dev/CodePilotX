@@ -145,41 +145,46 @@ Composer 必须将首页工具条结构、实际输入布局和圆角角色分�
 
 全局层级固定为 `local < sticky < dock < composer < modal < popover < tooltip < toast`。`-1..5` 只允许在明确 stacking context 内表达局部兄弟顺序；其他值必须使用系统层级 Token。
 
+## Tailwind 消费方式
+
+组件与页面外观写在 TSX 的 `tw:` utility 里，Token 通过 `src/styles/tailwind.css` 的 `@theme` / `@theme inline` 映射消费。
+
+- 引用运行时变量（浅色/深色/自定义主题会改变的值）写在 `@theme inline`，例如 `--color-app-panel: var(--cpx-sys-color-surface-panel)`，让 utility 直接用 `var(--cpx-sys-color-*)`，而不是复制一份静态值。
+- 静态值（如 `--spacing: 0.25rem`）写在普通 `@theme`；`--*: initial` 先清空 Tailwind 默认调色板，使 `--cpx-sys-*` 成为唯一真源。
+- 排版用 `@utility type-*` 消费完整字体角色（`tw:type-title-md`、`tw:type-caption` 等），不在页面里逐条拼字号与字重。
+- 颜色、圆角、阴影、模糊、语义层级、面板尺寸、图标尺寸与动效时长都有对应映射：`tw:bg-app-*`、`tw:rounded-control`、`tw:shadow-md`、`tw:z-popover`、`tw:max-w-conversation`、`tw:size-icon-md`、`tw:duration-state`。
+- 普通间距沿用 4px 刻度：`--cpx-sys-space-N` 对应 `tw:gap-N` / `tw:px-N`。不在刻度上的控件几何用命名间距条目，例如 `--spacing-control-block: var(--cpx-comp-input-padding-block)` → `tw:py-control-block`。
+- 每个 utility 与变体都必须带 `tw:` 前缀，且前缀在最前（`tw:hover:bg-app-hover`、`tw:data-[expanded=false]:grid-rows-[0fr]`）。漏写时 Tailwind 不报错也不生成规则，契约检查会直接失败。
+- 无法用 utility 表达的规则（伪元素、`color-mix` 计算的表面、需要被 `transitionend`/`getComputedStyle`/测试读取的属性、第三方生成 DOM）写入 `src/styles/primitives/<name>.css`，由 `src/styles/tailwind.css` 加载到 `primitives` 层，并在文件头注释说明原因。
+
 ## 自动契约与例外
 
-`scripts/check-style-contracts.ts` 的 `featureTokenContract` 扫描 Feature/lazy SCSS、TS/TSX inline style 和 Tailwind arbitrary value，并验证例外重复与 stale 状态。
+`scripts/check-style-contracts.ts` 的 `featureTokenContract` 扫描 `src/styles/features`、`src/styles/lazy` 下的残留 CSS、TS/TSX inline style 和 Tailwind arbitrary value，并验证例外重复与 stale 状态。同一脚本还校验 `tw:` 前缀、`type-*` 与 `tw:type-weight-*` 的组合、全源动效契约、单一样式入口图（`src/styles/tailwind.css`）与 `@layer` 顺序。Renderer 已不再编译 Sass：所有样式都是原生 CSS。
 
 例外必须同时包含文件、属性、精确值和具体原因。可接受场景包括 Diff 行号的 `ch` 对齐、运行时拖拽边界、图表坐标、动态色板对比描边和第三方内部尺寸。不能因为迁移困难、希望保留任意历史像素或检查失败而新增例外。
 
 ## 示例
 
-```scss
-.feature-toolbar {
-  gap: var(--cpx-sys-space-2);
-  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
-  border-radius: var(--cpx-sys-radius-control);
-  transition: opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
-  z-index: var(--cpx-sys-z-sticky);
-}
+```tsx
+<div
+  className={cx(
+    'feature-toolbar tw:flex tw:items-center tw:gap-2 tw:px-3 tw:py-2 tw:rounded-control tw:z-sticky',
+    'tw:transition-opacity tw:duration-state tw:ease-standard',
+  )}
+>
+  <h2 className="feature-title tw:type-title-sm tw:text-app-text">{title}</h2>
+  <p className="feature-description tw:type-body-sm tw:text-app-text-soft">{description}</p>
+  <span className="feature-meta tw:type-caption tw:text-app-text-meta">{count}</span>
+</div>
+```
 
-.feature-title {
-  color: var(--cpx-sys-color-fg-primary);
-  font: var(--cpx-sys-type-heading-sm);
-}
+```css
+/* 只在 utility 表达不了时使用：运行时几何、第三方 DOM、伪元素。 */
+@layer primitives {
+  .feature-empty-state {
+    --empty-state-padding: clamp(var(--cpx-sys-space-3), 4vh, var(--cpx-sys-space-6));
 
-.feature-description {
-  color: var(--cpx-sys-color-fg-secondary);
-  font: var(--cpx-sys-type-body-sm);
-}
-
-.feature-meta {
-  color: var(--cpx-sys-color-fg-tertiary);
-  font: var(--cpx-sys-type-caption);
-}
-
-.responsive-empty-state {
-  --empty-state-padding: clamp(var(--cpx-sys-space-3), 4vh, var(--cpx-sys-space-6));
-
-  padding: var(--empty-state-padding);
+    padding: var(--empty-state-padding);
+  }
 }
 ```

@@ -85,25 +85,24 @@ Hover、selected、active 是交互阶段，不是业务状态；使用统一的
 
 同一容器最多使用一个业务 tone，且必须同时提供文字、图标或标签线索。状态卡片的标准组合是：
 
-```scss
-.connection-state[data-tone='warning'] {
-  color: var(--cpx-sys-color-warning-fg);
-  border: 1px solid var(--cpx-sys-color-warning-subtle-border);
-  background: var(--cpx-sys-color-warning-subtle-bg);
-}
+```tsx
+<div
+  className="connection-state tw:rounded-md tw:border tw:border-app-warning-border tw:bg-app-warning-subtle tw:text-app-warning-fg"
+  data-tone="warning"
+/>
 ```
 
 错误示例：
 
-```scss
-/* feature 越权消费组件内部颜色 */
-background: var(--cpx-comp-input-bg);
+```tsx
+// feature 越权消费组件内部颜色
+'bg-[var(--cpx-comp-input-bg)]'
 
-/* 无主题语义、不能适配明暗模式 */
-color: #3d8f72;
+// 无主题语义、不能适配明暗模式
+'tw:text-[#3d8f72]'
 
-/* 在调用点发明另一套状态强度 */
-background: color-mix(in srgb, var(--cpx-sys-color-warning) 9%, var(--cpx-sys-color-surface-panel));
+// 在调用点发明另一套状态强度（设计系统里没有对应语义色）
+'tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-warning)_9%,var(--cpx-sys-color-surface-panel))]'
 ```
 
 ## 例外与自动检查
@@ -113,6 +112,7 @@ background: color-mix(in srgb, var(--cpx-sys-color-warning) 9%, var(--cpx-sys-co
 - 禁止引用颜色类 `--cpx-comp-*`；尺寸、圆角等非颜色组件契约不受此规则影响。
 - 禁止十六进制、RGB、HSL 等裸颜色。
 - 禁止在 feature 中混合两个系统语义颜色，或用局部颜色变量自行派生新色阶。
+- TSX 通过 `tw:bg-app-*` / `tw:text-app-*` / `tw:border-app-*` 消费语义颜色；命名不在 `tailwind.css` 的 `@theme inline` 里时，说明该语义色还没有映射，应先补映射，而不是在调用点写任意值。
 - 色盘、图表数据色和第三方终端等确实无法由单个语义角色表达的算法，必须在 `style-contracts.json` 记录精确的文件与 token、字面值或局部变量，并写明原因。
 - 每个例外必须被真实代码使用；代码迁移后未删除的 stale 例外会导致检查失败。禁止文件级通配、数量基线和“为了通过检查”批量刷新例外。
 

@@ -23,7 +23,9 @@
 
 ## 体验与回归
 
-- 使用 `styles/design-system/tokens.scss` 及现有 feature/component SCSS 层。
+- 组件与页面外观写在 TSX 的 `tw:` utility 中，消费 `styles/tailwind.css` 里的 `--cpx-sys-*` 映射；Renderer 不再编译 Sass，禁止新增 `.scss`。
+- 例外情况写入 `styles/primitives/*.css`（伪元素、运行时几何、第三方生成 DOM、`color-mix` 表面），样式入口是 `styles/tailwind.css`。
+- 排版用 `tw:type-*` 角色；`tw:type-weight-*` 只能单独使用，不能与 `tw:type-*` 同元素。
 - UI 修改时按相关性验证桌面窗口尺寸、快捷键、键盘焦点、主题、reduced-motion、popover 定位和会话恢复。
 - 设置修改时必须验证本地更新，以及经过 service boundary 的持久化往返。
 - 必须保持 Review、Conversation 和 workbench 面板的 lazy chunk 可解析。
