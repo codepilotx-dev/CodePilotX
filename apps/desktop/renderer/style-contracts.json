@@ -107,6 +107,7 @@
   },
   "interactionContract": {
     "interactiveRowAllowedFiles": [
+      "src/components/ui/DropdownActions.tsx",
       "src/components/ui/PopoverItem.tsx",
       "src/components/ui/SearchablePopoverContent.tsx",
       "src/features/session/summary/ThreadSummaryPanel.tsx"

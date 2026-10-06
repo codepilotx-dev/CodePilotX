@@ -73,28 +73,6 @@
     height: 0;
   }
 
-  .global-error-toast,
-  .archive-session-toast {
-    position: fixed;
-    top: calc(var(--application-menubar-height) + var(--cpx-sys-space-2));
-    left: 50%;
-    z-index: var(--cpx-sys-z-toast);
-    transform: translateX(-50%);
-  }
-
-  .global-error-toast {
-    max-height: min(70vh, 520px);
-  }
-
-  .global-error-toast-scroll-area {
-    max-height: calc(min(70vh, 520px) - var(--cpx-sys-space-3));
-  }
-
-  .global-error-toast-scroll-content {
-    min-width: 0;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-  }
 
   /* --- Permission code scroll --- */
   .permission-code-scroll-content code {

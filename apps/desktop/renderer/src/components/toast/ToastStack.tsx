@@ -6,6 +6,7 @@ import { toastStore, calculateCardTransform, type ToastItem } from './toastState
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
 import { Button } from '../ui/Button.js'
 import { IconButton } from '../ui/IconButton.js'
+import { Toast } from '../ui/Toast.js'
 
 export function ToastStack(): React.ReactNode {
   const state = useSyncExternalStore(toastStore.subscribe, toastStore.getState, toastStore.getState)
@@ -15,18 +16,18 @@ export function ToastStack(): React.ReactNode {
   const containerRef = useRef<HTMLDivElement>(null)
 
   const isExpanded = state.isHovered && state.toasts.length > 1
-  const heightArray = state.toasts.map((t) => heights[t.id] ?? 44)
+  const heightArray = state.toasts.map((t) => heights[t.id] ?? 40)
 
   let totalExpandedHeight = 0
   for (let i = 0; i < state.toasts.length; i++) {
-    totalExpandedHeight += (heightArray[i] ?? 44) + (i < state.toasts.length - 1 ? 8 : 0)
+    totalExpandedHeight += (heightArray[i] ?? 40) + (i < state.toasts.length - 1 ? 8 : 0)
   }
 
   // 折叠状态下高度：顶部卡片高度 + 24px 露出余量
-  const collapsedHeight = (heightArray[0] ?? 44) + 24
+  const collapsedHeight = (heightArray[0] ?? 40) + 24
 
   const topToastId = state.toasts[0]?.id
-  const topToastHeight = topToastId ? (heights[topToastId] ?? 44) : 44
+  const topToastHeight = topToastId ? (heights[topToastId] ?? 40) : 40
 
   if (state.toasts.length === 0) {
     return null
@@ -62,15 +63,7 @@ export function ToastStack(): React.ReactNode {
               animate={{ opacity: 1, scale: 1 }}
               exit={reducedMotion ? undefined : { opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.15 }}
-              className="toast-stack-badge-btn tw:pointer-events-auto tw:h-10 tw:min-w-10 tw:px-2.5 tw:rounded-xl tw:border tw:border-app-border-subtle tw:flex tw:items-center tw:justify-center tw:cursor-pointer tw:select-none tw:hover:border-app-border tw:hover:bg-app-hover tw:transition-colors tw:[-webkit-app-region:no-drag] tw:before:absolute tw:before:-left-2 tw:before:top-0 tw:before:w-2 tw:before:h-full tw:before:content-['']"
-              style={{
-                background: 'var(--cpx-comp-surface-floating, var(--cpx-sys-color-surface-raised, #ffffff))',
-                boxShadow: isExpanded
-                  ? '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)'
-                  : '0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04)',
-                isolation: 'isolate',
-                backgroundClip: 'padding-box',
-              }}
+              className="toast-stack-badge-btn tw:pointer-events-auto tw:h-10 tw:min-w-10 tw:px-2.5 tw:rounded-[var(--cpx-sys-radius-xl)] tw:border tw:border-app-border-subtle tw:bg-app-glass tw:backdrop-blur-[18px] tw:shadow-lg tw:flex tw:items-center tw:justify-center tw:cursor-pointer tw:select-none tw:hover:border-app-border tw:hover:bg-app-hover tw:transition-colors tw:[-webkit-app-region:no-drag] tw:before:absolute tw:before:-left-2 tw:before:top-0 tw:before:w-2 tw:before:h-full tw:before:content-['']"
               onClick={(e) => {
                 e.stopPropagation()
                 toastStore.dismissAll()
@@ -219,20 +212,12 @@ function ToastCardWrapper({
           : { duration: 0.22, ease: [0.16, 1, 0.3, 1] }
       }
     >
-      <div
+      <Toast
         role={isError ? 'alert' : 'status'}
         aria-live={isError ? 'assertive' : 'polite'}
-        className="toast-card tw:w-full tw:min-h-10 tw:flex tw:items-center tw:justify-between tw:gap-2 tw:rounded-xl tw:border tw:border-app-border-subtle tw:px-3 tw:py-2 tw:type-body tw:text-app-text tw:[-webkit-app-region:no-drag]"
-        style={{
-          background: 'var(--cpx-comp-surface-floating, var(--cpx-sys-color-surface-raised, #ffffff))',
-          boxShadow: isExpanded
-            ? '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)'
-            : '0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04)',
-          isolation: 'isolate',
-          backgroundClip: 'padding-box',
-        }}
+        className="toast-card tw:w-full tw:justify-between tw:max-h-[min(70vh,520px)]"
       >
-        <div className="toast-content tw:flex-1 tw:min-w-0 tw:text-left tw:type-body tw:text-app-text tw:whitespace-pre-wrap tw:break-words">
+        <div className="toast-content tw:flex-1 tw:min-w-0 tw:max-h-[calc(min(70vh,520px)-12px)] tw:overflow-y-auto tw:text-left tw:whitespace-pre-wrap tw:break-words [overflow-wrap:anywhere]">
           {toast.message}
         </div>
 
@@ -265,7 +250,8 @@ function ToastCardWrapper({
             <IconButton
               color="ghostSecondary"
               size="compact"
-              title="关闭"
+              title={isError ? '关闭错误提示' : '关闭'}
+              aria-label={isError ? '关闭错误提示' : '关闭'}
               onClick={() => toastStore.dismiss(toast.id)}
               type="button"
             >
@@ -273,7 +259,7 @@ function ToastCardWrapper({
             </IconButton>
           ) : null}
         </div>
-      </div>
+      </Toast>
     </motion.div>
   )
 }
