@@ -1,5 +1,6 @@
 import type React from 'react'
 import type { WorkspaceLayout } from '../dock/rightDockState.js'
+import { ToastStack } from '../../../components/toast/ToastStack.js'
 
 export interface WorkbenchShellViewProps {
   menuBar: React.ReactNode
@@ -54,6 +55,7 @@ export function WorkbenchShellView({
       >
         {primarySidebar}
         <section className="desktop-main tw:relative tw:flex tw:min-h-0 tw:w-full tw:min-w-0 tw:flex-1 tw:items-stretch tw:justify-start tw:overflow-hidden tw:border-l tw:border-app-border tw:bg-app-main">
+          <ToastStack />
           <div className="desktop-main-stage tw:flex tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-start tw:overflow-hidden tw:bg-app-main">
             <div
               className="desktop-workspace tw:@container/desktop-workspace tw:relative tw:flex tw:h-full tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-col tw:overflow-hidden tw:bg-app-main"

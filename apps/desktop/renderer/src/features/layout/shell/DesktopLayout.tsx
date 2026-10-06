@@ -1,3 +1,6 @@
+import { captureSidebarAssignments, restoreFailedArchiveAssignments } from '../sidebar/sidebarCustomization.js'
+import { DEFAULT_SIDEBAR_CUSTOMIZATION } from '../../../../shared/settingsSchema.js'
+import { subscribeProjectRestores } from '../../projects/projectCatalogEvents.js'
 import { mergeBrowserWorkbench } from '../../browser/browserWorkbenchState.js'
 import { mergeComposerAttachments } from '../../session/composer/composerAttachmentSelection.js'
 import { ConversationProjectDetails } from '../../projects/ConversationProjectDetails.js'
@@ -136,6 +139,7 @@ import { GlobalErrorModal } from '../../../components/GlobalErrorModal.js'
 import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { Toast, ToastDivider } from '../../../components/ui/Toast.js'
+import { toastStore } from '../../../components/toast/toastState.js'
 import { toUserErrorMessage } from '../../../utils/errors.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import type { ThreadArtifactPreviewInput } from '../../session/attachments/attachmentPreviewDescriptor.js'
@@ -310,6 +314,8 @@ export function DesktopLayout(): React.ReactNode {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
   const [archiveNoticeVisible, setArchiveNoticeVisible] = useState(false)
+  const [archiveUndo, setArchiveUndo] = useState<(() => Promise<void>) | null>(null)
+  const [undoingArchive, setUndoingArchive] = useState(false)
   const [commandMenuOpen, setCommandMenuOpen] = useState(false)
   const [isWindowMaximized, setIsWindowMaximized] = useState(false)
   const [gitWorkflowMode, setGitWorkflowMode] = useState<GitWorkflowMode | null>(null)
@@ -1738,6 +1744,8 @@ export function DesktopLayout(): React.ReactNode {
   )
   const handleArchiveSessions = useCallback(
     async (targetSessionIds: readonly string[]) => {
+      const capturedAssignments = captureSidebarAssignments(settings.values.sidebarCustomization ?? DEFAULT_SIDEBAR_CUSTOMIZATION, targetSessionIds.map((id) => `session:${id}`))
+      const capturedPins = { ...sidebarSessionPins }
       const result = await archiveSessions(targetSessionIds)
       if (result.succeededSessionIds.length > 0) {
         try {
@@ -1751,6 +1759,20 @@ export function DesktopLayout(): React.ReactNode {
           setErrorMessage(error instanceof Error ? error.message : String(error))
         }
         setArchiveNoticeVisible(true)
+        const archivedIdsForUndo = [...result.succeededSessionIds]
+        setArchiveUndo(() => async () => {
+          const results = await Promise.all(archivedIdsForUndo.map(async (id) => ({ id, result: await session.updateSessionMetadata(id, { archivedAt: null }) })))
+          const restoredIds = results.filter((entry) => entry.result !== null).map((entry) => entry.id)
+          settings.setSidebarCustomization((current) => restoreFailedArchiveAssignments(current ?? DEFAULT_SIDEBAR_CUSTOMIZATION, restoredIds.map((id) => `session:${id}`), capturedAssignments))
+          setSidebarSessionPins((current) => {
+            const next = { ...current }
+            for (const id of restoredIds) if (capturedPins[id] && !next[id]) next[id] = capturedPins[id]!
+            return next
+          })
+          if (restoredIds.length !== archivedIdsForUndo.length) { setErrorMessage(`已恢复 ${restoredIds.length} 个聊天，部分恢复失败。`); return }
+          setArchiveNoticeVisible(false)
+          setArchiveUndo(null)
+        })
         const archivedIds = new Set(result.succeededSessionIds)
         setSidebarSessionPins((current) =>
           Object.fromEntries(
@@ -1781,6 +1803,9 @@ export function DesktopLayout(): React.ReactNode {
     },
     [
       archiveSessions,
+      session.updateSessionMetadata,
+      settings,
+      sidebarSessionPins,
       navigate,
       refreshWorkspace,
       routedSessionId,
@@ -1857,13 +1882,24 @@ export function DesktopLayout(): React.ReactNode {
       [sessionId]: activeSessionFallbackTitle,
     }
   }, [activeSessionFallbackTitle, sessionFallbackTitles, sessionId])
+  useEffect(() => subscribeProjectRestores((project, selected) => {
+    setRemovedWorkspaces((current) => {
+      const next = current.filter((entry) => project.projectId && entry.projectId ? entry.projectId !== project.projectId : entry.path !== project.path)
+      settings.syncExternalSettingsPatch({ removedWorkspaces: next })
+      return next
+    })
+    setRecentWorkspaces((current) => [...current.filter((entry) => project.projectId ? entry.projectId !== project.projectId : entry.path !== project.path), project])
+    if (selected && !currentWorkspace) setWorkspaceState(project)
+  }), [currentWorkspace, settings, setRecentWorkspaces, setWorkspaceState])
+
   const handleRemoveWorkspace = useCallback(
     (target: DesktopWorkspace): void => {
       // Record removal so the project doesn't reappear from sessions
       setRemovedWorkspaces((current) => {
-        const next = current.filter((r) => r.path !== target.path)
+        const next = current.filter((r) => target.projectId && r.projectId ? r.projectId !== target.projectId : r.path !== target.path)
         next.push({
           path: target.path,
+          projectId: target.projectId,
           name: target.name,
           removedAt: new Date().toISOString(),
         })
@@ -1871,7 +1907,7 @@ export function DesktopLayout(): React.ReactNode {
         return next
       })
       setRecentWorkspaces((current) =>
-        current.filter((workspaceItem) => workspaceItem.path !== target.path),
+        current.filter((workspaceItem) => target.projectId ? workspaceItem.projectId !== target.projectId : workspaceItem.path !== target.path),
       )
       setUnavailableWorkspacePaths((current) => {
         if (!current.has(target.path)) return current
@@ -1879,7 +1915,7 @@ export function DesktopLayout(): React.ReactNode {
         next.delete(target.path)
         return next
       })
-      if (currentWorkspace?.path !== target.path) return
+      if (target.projectId ? currentWorkspace?.projectId !== target.projectId : currentWorkspace?.path !== target.path) return
       setWorkspaceState(null)
       setDiffState(NO_WORKSPACE_DIFF)
       setSelectedFile(null)
@@ -3148,6 +3184,11 @@ export function DesktopLayout(): React.ReactNode {
         ) : null}
         {archiveNoticeVisible ? (
           <ArchiveConversationNotice
+            undoing={undoingArchive}
+            onUndo={archiveUndo ? () => {
+              setUndoingArchive(true)
+              void archiveUndo().catch((error) => setErrorMessage(error instanceof Error ? error.message : String(error))).finally(() => setUndoingArchive(false))
+            } : undefined}
             onClose={() => setArchiveNoticeVisible(false)}
             onOpenSettings={() => {
               setArchiveNoticeVisible(false)
@@ -3389,28 +3430,54 @@ export function DesktopLayout(): React.ReactNode {
 }
 
 function ArchiveConversationNotice({
+  onUndo,
+  undoing,
   onClose,
   onOpenSettings,
 }: {
   onClose: () => void
   onOpenSettings: () => void
-}): React.ReactNode {
-  return (
-    <Toast aria-live="polite" className="archive-session-toast" role="status">
-      <span>查看已归档的聊天：</span>
-      <ToastDivider />
-      <Button color="ghostSecondary" size="toolbarLabel" onClick={onOpenSettings} type="button">
-        设置
-      </Button>
-      <IconButton
-        color="ghostSecondary"
-        size="toolbar"
-        title="关闭归档提示"
-        onClick={onClose}
-        type="button"
-      >
-        ×
-      </IconButton>
-    </Toast>
-  )
+  onUndo?: () => void
+  undoing?: boolean
+}): null {
+  const onCloseRef = useRef(onClose)
+  const onUndoRef = useRef(onUndo)
+  const onOpenSettingsRef = useRef(onOpenSettings)
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+    onUndoRef.current = onUndo
+    onOpenSettingsRef.current = onOpenSettings
+  }, [onClose, onUndo, onOpenSettings])
+
+  useEffect(() => {
+    const id = toastStore.show({
+      id: 'archive-conversation-notice',
+      tone: 'status',
+      message: '聊天已归档',
+      action: onUndo
+        ? {
+            label: '撤销',
+            disabled: undoing,
+            onClick: () => {
+              onUndoRef.current?.()
+            },
+          }
+        : undefined,
+      secondaryAction: {
+        label: '设置',
+        onClick: () => {
+          onOpenSettingsRef.current()
+        },
+      },
+      onDismiss: () => {
+        onCloseRef.current()
+      },
+    })
+    return () => {
+      toastStore.dismiss(id)
+    }
+  }, [onUndo !== undefined, undoing])
+
+  return null
 }
