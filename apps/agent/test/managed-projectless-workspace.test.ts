@@ -102,13 +102,39 @@ describe('ManagedProjectlessWorkspaceService', () => {
       })
       expect(duplicate.id).toBe(first.id)
       const project = db.createProject({ primaryPath: root, name: 'Empty' })
-      db.editProject({ projectID: project.id, paths: [], name: 'Empty', expectedVersion: project.updatedAt })
+      db.editProject({
+        projectID: project.id,
+        paths: [],
+        name: 'Empty',
+        expectedVersion: project.updatedAt,
+      })
+      const failedOperation = crypto.randomUUID()
+      await expect(
+        threads.create({
+          operationID: failedOperation,
+          workspace: { kind: 'project', projectID: project.id },
+          bindExecution: () => {
+            throw new Error('binding failed')
+          },
+        }),
+      ).rejects.toThrow('binding failed')
+      expect(db.threadForCreateOperation(failedOperation)).toBeNull()
       const emptyOperation = crypto.randomUUID()
-      const emptyThread = await threads.create({ operationID: emptyOperation, workspace: { kind: 'project', projectID: project.id } })
+      const emptyThread = await threads.create({
+        operationID: emptyOperation,
+        workspace: { kind: 'project', projectID: project.id },
+      })
       expect(db.threadWorkspace(emptyThread.id)?.kind).toBe('projectless')
       expect(db.projectMembership(emptyThread.id)).toBe(project.id)
       expect(basename((await resolver.resolve(emptyThread.id)).cwd)).toBe('work')
-      expect((await threads.create({ operationID: emptyOperation, workspace: { kind: 'project', projectID: project.id } })).id).toBe(emptyThread.id)
+      expect(
+        (
+          await threads.create({
+            operationID: emptyOperation,
+            workspace: { kind: 'project', projectID: project.id },
+          })
+        ).id,
+      ).toBe(emptyThread.id)
 
       await expect(
         threads.create({ operationID, workspace: { kind: 'projectless', prompt: 'Different' } }),
@@ -172,5 +198,16 @@ describe('ManagedProjectlessWorkspaceService', () => {
       'secondary',
     ])
     expect(resolved.instructionSources).toEqual([join(primary, 'AGENTS.md')])
+    const descriptor = db.threadWorkspace()
+    const snapshot = { ...descriptor, runtimeWorkspaceRoots: resolved.runtimeWorkspaceRoots }
+    const changed = new ThreadWorkspaceResolver(
+      {
+        ...db,
+        threadWorkspace: () => snapshot,
+        getProject: () => ({ ...db.getProject(), primaryFolderId: 'secondary' }),
+      } as never,
+      null as never,
+    )
+    expect((await changed.resolve('thread')).workspaceRoot).toBe(resolve(primary))
   })
 })

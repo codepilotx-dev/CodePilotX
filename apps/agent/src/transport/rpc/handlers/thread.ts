@@ -1,3 +1,4 @@
+import { Effect } from 'effect'
 import type { RpcMethod } from '@codepilotx/agent-protocol'
 import type { RpcRouter } from '../RpcRouter'
 import {
@@ -279,6 +280,8 @@ export const threadHandlers = {
         if (archived === true) {
           await runtime.dependencies.automation.removeThreadSchedules(threadId)
           await runtime.dependencies.scheduledTasks?.removeThreadSchedules(threadId)
+          const paused = db.pauseQueue(threadId, 'interrupted')
+          if (paused) await Effect.runPromise(runtime.dependencies.hub.publish(paused))
           const active = db.activeTurn(threadId)
           if (active) await threads.stop(threadId, active.id)
         }

@@ -181,24 +181,63 @@ describe('RPC v4 Router', () => {
     const calls: string[] = []
     let fail = false
     const { db, initialize, call } = await fixture({
-      automation: { removeThreadSchedules: async () => { calls.push('automation') } } as never,
-      scheduledTasks: { removeThreadSchedules: async () => { calls.push('scheduled') } } as never,
-      threads: { stop: async () => { calls.push('stop'); if (fail) throw new Error('stop failed') } } as never,
-      history: { patch: async () => { calls.push('archive'); return new ThreadProjection(db).list({ limit: 1 })[0] } } as never,
+      automation: {
+        removeThreadSchedules: async () => {
+          calls.push('automation')
+        },
+      } as never,
+      scheduledTasks: {
+        removeThreadSchedules: async () => {
+          calls.push('scheduled')
+        },
+      } as never,
+      threads: {
+        stop: async () => {
+          calls.push('stop')
+          if (fail) throw new Error('stop failed')
+        },
+      } as never,
+      history: {
+        patch: async () => {
+          calls.push('archive')
+          return new ThreadProjection(db).list({ limit: 1 })[0]
+        },
+      } as never,
     })
     try {
       const root = db.createProject({ primaryPath: process.cwd() })
       const thread = db.createThread({ workspace: { kind: 'project', projectID: root.id } })
-      db.sqlite.query("INSERT INTO turns (id, thread_id, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, status, created_at) VALUES (?, ?, 'chat', 'workspace-write', 'never', 'user', '{}', 'running', ?)").run('turn:archive', thread.id, Date.now())
+      db.sqlite
+        .query(
+          "INSERT INTO turns (id, thread_id, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, status, strategy, created_at, updated_at) VALUES (?, ?, 'chat', 'workspace-write', 'never', 'user', '{}', 'running', 'start', ?, ?)",
+        )
+        .run('turn:archive', thread.id, Date.now(), Date.now())
+      db.sqlite
+        .query(
+          "INSERT INTO turns (id, thread_id, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, status, strategy, created_at, updated_at) SELECT 'turn:queued', thread_id, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, 'queued', 'queue', created_at + 1, updated_at FROM turns WHERE id = 'turn:archive'",
+        )
+        .run()
       await initialize()
-      await call('thread/update', { threadId: thread.id, patch: { archived: true } })
+      const archived = await call('thread/update', {
+        threadId: thread.id,
+        operationId: fail ? 'archive:failed' : 'archive:ok',
+        patch: { archived: true },
+      })
+      expect(archived.error).toBeUndefined()
       expect(calls).toEqual(['automation', 'scheduled', 'stop', 'archive'])
+      expect(db.queueStateMeta(thread.id)?.pauseReason).toBe('interrupted')
       calls.length = 0
       fail = true
-      const failed = await call('thread/update', { threadId: thread.id, patch: { archived: true } })
+      const failed = await call('thread/update', {
+        threadId: thread.id,
+        operationId: fail ? 'archive:failed' : 'archive:ok',
+        patch: { archived: true },
+      })
       expect(failed.error).toBeDefined()
       expect(calls).toEqual(['automation', 'scheduled', 'stop'])
-    } finally { db.close() }
+    } finally {
+      db.close()
+    }
   })
 
   test('/rpc 仅从认证来源派生 transport authority', () => {

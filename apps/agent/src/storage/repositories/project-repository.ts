@@ -68,75 +68,161 @@ const pathContains = (parent: string, candidate: string) => {
 }
 
 export abstract class ProjectRepositoryDatabase extends CredentialRepositoryDatabase {
+  projectMembershipAvailable(): boolean {
+    return Boolean(
+      this.sqlite
+        .query(
+          "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'thread_project_memberships'",
+        )
+        .get(),
+    )
+  }
+
   projectMembershipSql(alias: 't' = 't'): string {
-    const available = this.sqlite.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'thread_project_memberships'").get()
-    return available ? `CASE WHEN EXISTS (SELECT 1 FROM thread_project_memberships m WHERE m.thread_id = ${alias}.id) THEN (SELECT m.project_id FROM thread_project_memberships m WHERE m.thread_id = ${alias}.id) ELSE ${alias}.project_id END` : `${alias}.project_id`
+    const available = this.projectMembershipAvailable()
+    return available
+      ? `CASE WHEN EXISTS (SELECT 1 FROM thread_project_memberships m WHERE m.thread_id = ${alias}.id) THEN (SELECT m.project_id FROM thread_project_memberships m WHERE m.thread_id = ${alias}.id) ELSE ${alias}.project_id END`
+      : `${alias}.project_id`
   }
 
   projectMembership(threadID: string): string | null {
-    const row = this.sqlite.query(`SELECT ${this.projectMembershipSql()} AS project_id FROM threads t WHERE t.id = ?`).get(threadID) as { project_id: string | null } | null
+    const row = this.sqlite
+      .query(`SELECT ${this.projectMembershipSql()} AS project_id FROM threads t WHERE t.id = ?`)
+      .get(threadID) as { project_id: string | null } | null
     return row?.project_id ?? null
   }
 
   saveRemovalCheckpoint(operationID: string, result: unknown) {
-    this.profileSqlite.query('UPDATE project_operations SET result = ?, updated_at = ? WHERE operation_id = ? AND status = ?').run(stringify(result), now(), operationID, 'pending')
+    this.profileSqlite
+      .query(
+        'UPDATE project_operations SET result = ?, updated_at = ? WHERE operation_id = ? AND status = ?',
+      )
+      .run(stringify(result), now(), operationID, 'pending')
   }
 
-  setProjectMembership(threadID: string, projectID: string | null, removalOperationID: string | null = null) {
+  setProjectMembership(
+    threadID: string,
+    projectID: string | null,
+    removalOperationID: string | null = null,
+  ) {
     if (projectID) this.requireProject(projectID)
-    this.sqlite.query(`INSERT INTO thread_project_memberships (thread_id, project_id, removal_operation_id, updated_at)
+    this.sqlite
+      .query(
+        `INSERT INTO thread_project_memberships (thread_id, project_id, removal_operation_id, updated_at)
       VALUES (?, ?, ?, ?) ON CONFLICT(thread_id) DO UPDATE SET project_id = excluded.project_id,
-      removal_operation_id = excluded.removal_operation_id, updated_at = excluded.updated_at`).run(threadID, projectID, removalOperationID, now())
-    return this.insertEvent(threadID, null, 'thread/updated', { threadId: threadID, patch: {}, updatedAt: now() })
+      removal_operation_id = excluded.removal_operation_id, updated_at = excluded.updated_at`,
+      )
+      .run(threadID, projectID, removalOperationID, now())
+    return this.insertEvent(threadID, null, 'thread/updated', {
+      threadId: threadID,
+      patch: {},
+      updatedAt: now(),
+    })
   }
 
   detachProjectThreads(projectID: string, operationID: string) {
     return this.transaction(() => {
-      const rows = this.sqlite.query(`SELECT t.id FROM threads t LEFT JOIN thread_project_memberships m ON m.thread_id = t.id
-        WHERE CASE WHEN m.thread_id IS NULL THEN t.project_id ELSE m.project_id END = ?`).all(projectID) as Array<{ id: string }>
+      const rows = this.sqlite
+        .query(
+          `SELECT t.id FROM threads t LEFT JOIN thread_project_memberships m ON m.thread_id = t.id
+        WHERE CASE WHEN m.thread_id IS NULL THEN t.project_id ELSE m.project_id END = ?`,
+        )
+        .all(projectID) as Array<{ id: string }>
       return rows.map((row) => this.setProjectMembership(row.id, null, operationID))
     })
   }
 
   restoreProjectThreads(projectID: string, operationID: string) {
     return this.transaction(() => {
-      const rows = this.sqlite.query('SELECT thread_id FROM thread_project_memberships WHERE project_id IS NULL AND removal_operation_id = ?').all(operationID) as Array<{ thread_id: string }>
+      const rows = this.sqlite
+        .query(
+          'SELECT thread_id FROM thread_project_memberships WHERE project_id IS NULL AND removal_operation_id = ?',
+        )
+        .all(operationID) as Array<{ thread_id: string }>
       return rows.map((row) => this.setProjectMembership(row.thread_id, projectID))
     })
   }
 
-  editProject(input: { projectID: string; name: string; paths: string[]; expectedVersion: number }) {
+  editProject(input: {
+    projectID: string
+    name: string
+    paths: string[]
+    expectedVersion: number
+  }) {
     return this.profileSqlite.transaction(() => {
       const project = this.requireProject(input.projectID)
-      if (project.updatedAt !== input.expectedVersion) throw new AgentError('VERSION_CONFLICT', '项目已被其他操作更新', 409)
+      if (project.updatedAt !== input.expectedVersion)
+        throw new AgentError('VERSION_CONFLICT', '项目已被其他操作更新', 409)
       if (!input.name.trim()) throw new AgentError('INVALID_REQUEST', '项目名称不能为空', 400)
       for (const [index, path] of input.paths.entries()) {
-        if (input.paths.slice(index + 1).some((other) => pathContains(path, other) || pathContains(other, path))) throw new AgentError('INVALID_REQUEST', '项目目录不能互相包含', 400)
+        if (
+          input.paths
+            .slice(index + 1)
+            .some((other) => pathContains(path, other) || pathContains(other, path))
+        )
+          throw new AgentError('INVALID_REQUEST', '项目目录不能互相包含', 400)
       }
       const keys = new Set(input.paths.map(projectPathKey))
       const timestamp = now()
       // Keep folder identities (and their file references) for paths that remain.
       for (const folder of project.folders) {
         if (keys.has(projectPathKey(folder.path))) continue
-        this.profileSqlite.query("DELETE FROM project_sources WHERE project_id = ? AND folder_id = ? AND storage_kind = 'workspace-file'").run(input.projectID, folder.id)
-        this.profileSqlite.query('DELETE FROM project_folders WHERE id = ? AND project_id = ?').run(folder.id, input.projectID)
+        this.profileSqlite
+          .query(
+            "DELETE FROM project_sources WHERE project_id = ? AND folder_id = ? AND storage_kind = 'workspace-file'",
+          )
+          .run(input.projectID, folder.id)
+        this.profileSqlite
+          .query('DELETE FROM project_folders WHERE id = ? AND project_id = ?')
+          .run(folder.id, input.projectID)
       }
-      this.profileSqlite.query("UPDATE project_folders SET role = 'secondary' WHERE project_id = ?").run(input.projectID)
+      this.profileSqlite
+        .query("UPDATE project_folders SET role = 'secondary' WHERE project_id = ?")
+        .run(input.projectID)
       input.paths.forEach((path, order) => {
-        const retained = project.folders.find((folder) => projectPathKey(folder.path) === projectPathKey(path))
-        if (retained) this.profileSqlite.query('UPDATE project_folders SET role = ?, sort_order = ?, updated_at = ? WHERE id = ?').run(order === 0 ? 'primary' : 'secondary', order, timestamp, retained.id)
-        else this.profileSqlite.query('INSERT INTO project_folders (id, project_id, path, path_key, role, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(crypto.randomUUID(), input.projectID, path, projectPathKey(path), order === 0 ? 'primary' : 'secondary', order, timestamp, timestamp)
+        const retained = project.folders.find(
+          (folder) => projectPathKey(folder.path) === projectPathKey(path),
+        )
+        if (retained)
+          this.profileSqlite
+            .query(
+              'UPDATE project_folders SET role = ?, sort_order = ?, updated_at = ? WHERE id = ?',
+            )
+            .run(order === 0 ? 'primary' : 'secondary', order, timestamp, retained.id)
+        else
+          this.profileSqlite
+            .query(
+              'INSERT INTO project_folders (id, project_id, path, path_key, role, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            )
+            .run(
+              crypto.randomUUID(),
+              input.projectID,
+              path,
+              projectPathKey(path),
+              order === 0 ? 'primary' : 'secondary',
+              order,
+              timestamp,
+              timestamp,
+            )
       })
-      return this.updateProject({ projectID: input.projectID, name: input.name, expectedVersion: input.expectedVersion })
+      return this.updateProject({
+        projectID: input.projectID,
+        name: input.name,
+        expectedVersion: input.expectedVersion,
+      })
     })()
   }
 
   hideProject(projectID: string, removedAt: number) {
-    this.profileSqlite.query('UPDATE projects SET removed_at = ?, updated_at = ? WHERE id = ?').run(removedAt, removedAt, projectID)
+    this.profileSqlite
+      .query('UPDATE projects SET removed_at = ?, updated_at = ? WHERE id = ?')
+      .run(removedAt, removedAt, projectID)
   }
 
   restoreProjectRecord(projectID: string) {
-    this.profileSqlite.query('UPDATE projects SET removed_at = NULL, updated_at = ? WHERE id = ?').run(now(), projectID)
+    this.profileSqlite
+      .query('UPDATE projects SET removed_at = NULL, updated_at = ? WHERE id = ?')
+      .run(now(), projectID)
     return this.requireProject(projectID)
   }
 

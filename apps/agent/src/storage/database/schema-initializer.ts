@@ -1534,7 +1534,12 @@ class SchemaInitializer {
                 this.sqlite.exec('ALTER TABLE inputs ADD COLUMN skills TEXT')
             },
             51: () => this.sqlite.exec(BROWSER_DATA_SCHEMA.join(';')),
-            53: () => this.sqlite.exec(FINAL_SCHEMA.find((statement) => statement.startsWith('CREATE TABLE thread_project_memberships '))!),
+            53: () =>
+              this.sqlite.exec(
+                FINAL_SCHEMA.find((statement) =>
+                  statement.startsWith('CREATE TABLE thread_project_memberships '),
+                )!.replace('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'),
+              ),
             52: () =>
               this.sqlite.exec(
                 FINAL_SCHEMA.filter((statement) =>

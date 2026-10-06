@@ -38,6 +38,8 @@ export function filterAdvertisedCapabilities(db: AgentDatabase): ReadonlyArray<P
         db.repositories.interactions.interactionTableAvailable('mcp_elicitations')) &&
       (capability !== 'approval.retry.v1' ||
         db.repositories.interactions.interactionTableAvailable('approval_reviews')) &&
+      ((capability !== 'project.edit.v1' && capability !== 'project.restore.v1') ||
+        db.projectMembershipAvailable()) &&
       (capability !== 'thread.creation-surface.v1' || creationSurface) &&
       (capability !== 'plan.approval.v1' || db.repositories.planApprovals.available()) &&
       (capability !== 'thread.goal.v1' ||

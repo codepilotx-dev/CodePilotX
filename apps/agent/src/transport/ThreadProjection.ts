@@ -1133,7 +1133,7 @@ export class ThreadProjection {
     ]
     const values: Array<string | number | null> = []
     if (params.projectID !== undefined) {
-      where.push('${this.db.projectMembershipSql()} = ?')
+      where.push(`${this.db.projectMembershipSql()} = ?`)
       values.push(params.projectID)
     }
     if (params.archived !== undefined) {
