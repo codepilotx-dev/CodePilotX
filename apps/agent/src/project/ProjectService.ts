@@ -200,7 +200,7 @@ export class ProjectService {
     })()
   }
 
-  async remove(input: { projectID: string; operationID: string }) {
+  async remove(input: { projectID: string; operationID: string }): Promise<ProjectRemovalResult> {
     const operation = this.db.beginProjectOperation({ operationID: input.operationID, method: 'project/remove', requestHash: requestHash({ projectID: input.projectID }), projectID: input.projectID })
     if (operation.status === 'completed') return operation.result as ProjectRemovalResult
     const project = this.db.getProject(input.projectID)
