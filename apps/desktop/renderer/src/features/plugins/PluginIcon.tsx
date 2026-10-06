@@ -1,4 +1,5 @@
 import type React from 'react'
+import { useContext } from 'react'
 import {
   Eye,
   FileSpreadsheet,
@@ -18,6 +19,8 @@ import minimaxLogo from '../../assets/plugin-icons/minimax.png'
 import presentationsLogo from '../../assets/plugin-icons/presentations.png'
 import spreadsheetsLogo from '../../assets/plugin-icons/spreadsheets.png'
 import taskPlanningLogo from '../../assets/plugin-icons/task-planning.png'
+import { DesktopThemeContext } from '../theme/themeContext.js'
+import { cx } from '../../utils/cx.js'
 
 type Props = {
   name: PluginIconName
@@ -30,6 +33,13 @@ type KnownPluginLogo = {
   source: string
   darkSource?: string
 }
+
+/* 插件 Logo 槽位：铺满父级图标框，内部图片等比缩放。 */
+const PLUGIN_LOGO_CLASS =
+  'plugin-logo tw:relative tw:inline-flex tw:size-full tw:shrink-0 tw:items-center tw:justify-center'
+
+/* Logo 图片：吃满槽位；暗色主题下 light / dark 两张图互斥显示。 */
+const PLUGIN_LOGO_IMAGE_CLASS = 'plugin-logo__image tw:size-full tw:shrink-0 tw:object-contain'
 
 const KNOWN_PLUGIN_LOGOS: Partial<Record<PluginIconName, KnownPluginLogo>> = {
   browser: { source: browserLogo },
@@ -48,6 +58,8 @@ export function PluginIcon({
   logoDarkSource,
   logoSource,
 }: Props): React.ReactNode {
+  // 主题变体沿用全局 dark-theme 标记；无 Provider 时按浅色渲染。
+  const darkTheme = useContext(DesktopThemeContext)?.resolvedVariant === 'dark'
   const knownLogo = KNOWN_PLUGIN_LOGOS[name]
   const source = logoSource ?? knownLogo?.source
   const darkSource = logoDarkSource ?? knownLogo?.darkSource
@@ -56,11 +68,23 @@ export function PluginIcon({
     return (
       <span
         aria-hidden="true"
-        className={`plugin-logo${darkSource ? ' plugin-logo--themed' : ''} ${className ?? ''}`.trim()}
+        className={cx(darkSource && 'plugin-logo--themed', PLUGIN_LOGO_CLASS, className)}
       >
-        <img alt="" className="plugin-logo__image plugin-logo__image--light" src={source} />
+        <img
+          alt=""
+          className={cx(PLUGIN_LOGO_IMAGE_CLASS, 'plugin-logo__image--light', darkTheme && 'tw:hidden')}
+          src={source}
+        />
         {darkSource ? (
-          <img alt="" className="plugin-logo__image plugin-logo__image--dark" src={darkSource} />
+          <img
+            alt=""
+            className={cx(
+              PLUGIN_LOGO_IMAGE_CLASS,
+              'plugin-logo__image--dark',
+              darkTheme ? 'tw:block' : 'tw:hidden',
+            )}
+            src={darkSource}
+          />
         ) : null}
       </span>
     )

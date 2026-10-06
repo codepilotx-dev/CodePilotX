@@ -107,7 +107,7 @@ type MenuItemProps = {
 function MenuItem({ children, disabled, shortcut, onSelect }: MenuItemProps): React.ReactNode {
   return (
     <Menubar.Item
-      className="menubar-item"
+      className="menubar-item tw:outline-none"
       disabled={disabled}
       onSelect={(event) => {
         if (disabled) {
@@ -117,15 +117,15 @@ function MenuItem({ children, disabled, shortcut, onSelect }: MenuItemProps): Re
         onSelect()
       }}
     >
-      <span className={cx('menubar-item-label', 'u-min-w-0', 'u-truncate')}>{children}</span>
-      <span className="menubar-item-trailing">
+      <span className={cx('menubar-item-label', 'tw:min-w-0', 'tw:truncate')}>{children}</span>
+      <span className="menubar-item-trailing tw:min-w-0 tw:justify-self-end tw:text-app-text-meta tw:type-caption">
         {shortcut ? (
           <span
             className={cx(
               'menubar-shortcut',
-              disabled ? 'u-text-disabled' : 'u-text-meta',
-              'u-type-caption',
-              'u-nowrap',
+              disabled ? 'tw:text-app-text-disabled' : 'tw:text-app-text-meta',
+              'tw:type-caption',
+              'tw:whitespace-nowrap',
             )}
           >
             {shortcut}
@@ -137,7 +137,7 @@ function MenuItem({ children, disabled, shortcut, onSelect }: MenuItemProps): Re
 }
 
 function MenuSeparator(): React.ReactNode {
-  return <Menubar.Separator className="menubar-separator" />
+  return <Menubar.Separator className="menubar-separator tw:my-1 tw:h-px tw:bg-app-border" />
 }
 
 type AppMenuProps = {
@@ -174,7 +174,7 @@ function AppMenu({
     <Menubar.Menu value={value}>
       <Menubar.Trigger
         data-theme-component="dropdown-trigger"
-        className="menubar-trigger"
+        className="menubar-trigger tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-control tw:whitespace-nowrap tw:outline-none"
         {...focusModality.triggerInteractionProps}
         onPointerDown={(event) => {
           focusModality.triggerInteractionProps.onPointerDown()
@@ -195,7 +195,13 @@ function AppMenu({
         <Menubar.Content
           data-theme-component="dropdown-surface"
           align="start"
-          className={['popover-surface', 'menubar-content', contentClassName].join(' ')}
+          className={cx(
+            'popover-surface menubar-content tw:flex tw:flex-col tw:gap-1 tw:p-1',
+            // Radix 浮动层用 CSS 变量下发可用高度与变换原点，回退链无法用刻度表达。
+            'tw:origin-[var(--radix-menubar-content-transform-origin,top_left)]',
+            'tw:max-h-[min(calc(100vh_-_96px),var(--radix-menubar-content-available-height,calc(100vh_-_96px)))]',
+            contentClassName,
+          )}
           collisionPadding={6}
           data-edit-command-preserve-target
           onCloseAutoFocus={focusModality.suppressFocusRingOnClose}
@@ -322,13 +328,13 @@ export function MenuBar({
 
   return (
     <div
-      className="app-menubar"
+      className="app-menubar tw:h-full tw:w-full tw:bg-app-titlebar tw:select-none"
       data-edit-command-preserve-target
       onBlur={handleMenuBarBlur}
       onKeyDown={handleMenuBarKeyDown}
     >
-      <div className="menubar-titlebar">
-        <div className="menubar-left">
+      <div className="menubar-titlebar tw:flex tw:h-chrome tw:w-full tw:items-center tw:justify-between tw:gap-2 tw:pl-2">
+        <div className="menubar-left tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-1 tw:overflow-visible">
           <IconButton
             data-app-shell-sidebar-trigger
             onClick={onToggleSidebar}
@@ -363,7 +369,7 @@ export function MenuBar({
 
           <Menubar.Root
             aria-label="应用菜单"
-            className="menubar-root"
+            className="menubar-root tw:flex tw:min-w-0 tw:flex-none tw:items-center tw:outline-none tw:select-none"
             loop
             onValueChange={handleMenuValueChange}
             value={openMenu}
@@ -748,11 +754,13 @@ export function WindowControls({
   onToggleMaximize,
   onClose,
 }: WindowControlsProps): React.ReactNode {
+  const controlClassName =
+    'window-control-button tw:flex tw:h-full tw:w-[46px] tw:items-center tw:justify-center tw:text-app-text-meta tw:[&_svg]:size-3'
   return (
-    <div className="window-controls">
+    <div className="window-controls tw:hidden tw:h-full tw:items-center tw:gap-1">
       <button
         aria-label="最小化"
-        className="window-control-button"
+        className={cx(controlClassName, 'tw:hover:bg-app-hover')}
         onClick={onMinimize}
         title="最小化"
         type="button"
@@ -761,14 +769,14 @@ export function WindowControls({
       </button>
       <button
         aria-label={isMaximized ? '还原' : '最大化'}
-        className="window-control-button"
+        className={cx(controlClassName, 'tw:hover:bg-app-hover')}
         onClick={onToggleMaximize}
         title={isMaximized ? '还原' : '最大化'}
         type="button"
       >
         {isMaximized ? (
           <Copy
-            className="window-restore-icon"
+            className="window-restore-icon tw:-scale-x-100"
             size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
@@ -778,7 +786,7 @@ export function WindowControls({
       </button>
       <button
         aria-label="关闭"
-        className="window-control-button close"
+        className={cx(controlClassName, 'close tw:hover:bg-app-danger tw:hover:text-app-text')}
         onClick={onClose}
         title="关闭"
         type="button"

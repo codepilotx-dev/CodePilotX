@@ -177,11 +177,11 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
         <div className="tw:grid tw:gap-2 tw:p-3">
           {worktrees.length ? (
             worktrees.map((worktree) => (
-              <article className="settings-card tw:grid tw:gap-2 tw:p-3" key={worktree.id}>
+              <article className="settings-card tw:grid tw:gap-2 tw:p-3 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none" key={worktree.id}>
                 <div className="tw:flex tw:items-center tw:justify-between tw:gap-3">
                   <div>
                     <strong>{worktree.branchName ?? 'Detached worktree'}</strong>
-                    <div className="u-type-caption tw:text-app-text-soft">
+                    <div className="tw:type-caption tw:text-app-text-soft">
                       {worktree.status} · setup {worktree.setupStatus}
                     </div>
                   </div>
@@ -240,7 +240,7 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
                         恢复
                       </Button>
                     ) : worktree.status === 'restore-conflict' ? (
-                      <span className="u-type-caption tw:text-app-danger">
+                      <span className="tw:type-caption tw:text-app-danger">
                         恢复冲突，已保留工作树和快照，请手动处理
                       </span>
                     ) : (
@@ -272,7 +272,7 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
         >
           {operation.warnings.length ? (
             <ul
-              className="u-type-caption tw:grid tw:gap-1 tw:px-3 tw:pt-3 tw:text-app-text-soft"
+              className="tw:type-caption tw:grid tw:gap-1 tw:px-3 tw:pt-3 tw:text-app-text-soft"
               role="status"
             >
               {operation.warnings.map((warning) => (
@@ -280,7 +280,7 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
               ))}
             </ul>
           ) : null}
-          <pre className="u-type-code tw:max-h-64 tw:overflow-auto tw:whitespace-pre-wrap tw:p-3">
+          <pre className="tw:type-code tw:max-h-64 tw:overflow-auto tw:whitespace-pre-wrap tw:p-3">
             {output || '等待输出…'}
           </pre>
         </SettingsSection>

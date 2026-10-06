@@ -19,7 +19,11 @@ type Props = {
  */
 export function ContextUsagePanel({ contextUsage }: Props): React.ReactNode {
   if (!contextUsage) {
-    return <div className="context-usage-panel-empty">暂无上下文统计</div>
+    return (
+      <div className="context-usage-panel-empty tw:text-app-text-meta tw:type-secondary">
+        暂无上下文统计
+      </div>
+    )
   }
 
   const usedPercent = Math.min(100, Math.max(0, contextUsage.usedPercent ?? 0))
@@ -31,16 +35,20 @@ export function ContextUsagePanel({ contextUsage }: Props): React.ReactNode {
   )} (${formatPercentValue(usedPercent / 100)})`
 
   return (
-    <div className="context-usage-panel">
-      <div className="context-usage-panel-header">
-        <span className="context-usage-panel-title">上下文容量</span>
-        <span className="context-usage-panel-total">{totalLabel}</span>
+    <div className="context-usage-panel tw:block">
+      <div className="context-usage-panel-header tw:mb-2 tw:flex tw:items-center tw:gap-3">
+        <span className="context-usage-panel-title tw:shrink-0 tw:text-app-text tw:type-row-title">
+          上下文容量
+        </span>
+        <span className="context-usage-panel-total tw:ml-auto tw:min-w-0 tw:text-right tw:text-app-text-meta">
+          {totalLabel}
+        </span>
       </div>
-      <div className="context-usage-panel-track">
+      <div className="context-usage-panel-track tw:flex tw:h-2 tw:overflow-hidden tw:rounded-indicator tw:bg-app-border">
         {segments.length > 0 ? (
           segments.map((segment, index) => (
             <span
-              className="context-usage-panel-segment"
+              className="context-usage-panel-segment tw:h-full tw:shrink-0"
               key={segment.source}
               style={{
                 width: formatPercentValue(segment.percent),
@@ -50,21 +58,27 @@ export function ContextUsagePanel({ contextUsage }: Props): React.ReactNode {
           ))
         ) : (
           // 旧会话没有分类数据时退化成单色占用条。
-          <span className="context-usage-panel-fill" style={{ width: `${usedPercent}%` }} />
+          <span
+            className="context-usage-panel-fill tw:h-full tw:shrink-0 tw:bg-app-accent"
+            style={{ width: `${usedPercent}%` }}
+          />
         )}
       </div>
       {segments.length > 0 ? (
-        <div className="context-usage-panel-rows">
+        <div className="context-usage-panel-rows tw:mt-3 tw:grid tw:gap-2">
           {segments.map((segment, index) => (
-            <div className="context-usage-panel-row" key={segment.source}>
+            <div
+              className="context-usage-panel-row tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-secondary"
+              key={segment.source}
+            >
               <span
-                className="context-usage-panel-dot"
+                className="context-usage-panel-dot tw:size-2 tw:shrink-0 tw:rounded-2xs tw:border tw:border-app-border"
                 style={{ background: contextUsageSegmentColor(index) }}
               />
-              <span className="context-usage-panel-label">
+              <span className="context-usage-panel-label tw:min-w-0 tw:flex-1 tw:truncate">
                 {CONTEXT_USAGE_BREAKDOWN_LABELS[segment.source]}
               </span>
-              <span className="context-usage-panel-value">
+              <span className="context-usage-panel-value tw:ml-auto tw:shrink-0 tw:text-right tw:text-app-text">
                 {formatPercentValue(segment.percent)}
               </span>
             </div>
@@ -72,12 +86,20 @@ export function ContextUsagePanel({ contextUsage }: Props): React.ReactNode {
         </div>
       ) : null}
       {cacheHitRate ? (
-        <div className="context-usage-panel-row context-usage-panel-divider">
-          <span className="context-usage-panel-label">平均缓存命中率</span>
-          <span className="context-usage-panel-value">{cacheHitRate}</span>
+        <div className="context-usage-panel-row context-usage-panel-divider tw:mt-2 tw:flex tw:items-center tw:gap-2 tw:border-t tw:border-app-border tw:pt-3 tw:text-app-text-meta tw:type-secondary">
+          <span className="context-usage-panel-label tw:min-w-0 tw:flex-1 tw:truncate">
+            平均缓存命中率
+          </span>
+          <span className="context-usage-panel-value tw:ml-auto tw:shrink-0 tw:text-right tw:text-app-text">
+            {cacheHitRate}
+          </span>
         </div>
       ) : null}
-      {detail ? <div className="context-usage-panel-detail">{detail}</div> : null}
+      {detail ? (
+        <div className="context-usage-panel-detail tw:mt-2 tw:text-app-text-meta tw:type-caption">
+          {detail}
+        </div>
+      ) : null}
     </div>
   )
 }

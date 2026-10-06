@@ -112,7 +112,7 @@ function ProjectDetailsTrigger({
         trigger={
           <IconButton
             ref={triggerRef}
-            className="chat-session-project-details"
+            className="chat-session-project-details tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center"
             color="ghostSecondary"
             size="toolbar"
             title={`项目详情：${managedProject.name}`}

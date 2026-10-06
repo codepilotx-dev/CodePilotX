@@ -4,6 +4,7 @@ import { GitFork, Play, RefreshCw, X } from 'lucide-react'
 import type { LocalEnvironmentActionMetadata, ManagedWorktree } from '@codepilotx/agent-protocol'
 
 import { GlobalErrorModal } from '../../../components/GlobalErrorModal.js'
+import { Spinner } from '../../../components/ui/Spinner.js'
 import { Button } from '../../../components/ui/Button.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
@@ -373,9 +374,9 @@ export function ConversationEnvironmentControls({
             <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
               <div className="tw:grid tw:gap-1">
                 <Dialog.Title asChild>
-                  <h2 className="tw:m-0 u-type-title-md tw:text-app-text">移交当前任务</h2>
+                  <h2 className="tw:m-0 tw:type-title-md tw:text-app-text">移交当前任务</h2>
                 </Dialog.Title>
-                <Dialog.Description className="tw:m-0 u-type-body-sm tw:text-app-text-soft">
+                <Dialog.Description className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">
                   移交会停止并归档当前任务，再把修改和界面状态迁移到目标环境。
                 </Dialog.Description>
               </div>
@@ -396,18 +397,18 @@ export function ConversationEnvironmentControls({
                 className="tw:grid tw:min-h-24 tw:place-content-center tw:gap-2 tw:text-center"
                 role="status"
               >
-                <span className="ui-button-spinner tw:mx-auto" aria-hidden="true" />
-                <strong className="u-type-control tw:text-app-text">
+                <Spinner className="tw:mx-auto" size="medium" />
+                <strong className="tw:type-control tw:text-app-text">
                   {stepLabel[handoff.step]}
                 </strong>
-                <span className="u-type-caption tw:text-app-text-soft">
+                <span className="tw:type-caption tw:text-app-text-soft">
                   {completedHandoffStepCount(handoff)}/{HANDOFF_PROGRESS_STEPS.length}
                 </span>
               </div>
             ) : (
               <div className="tw:grid tw:gap-2">
                 {!gitAvailable ? (
-                  <p className="tw:m-0 u-type-body-sm tw:text-app-text-soft">仅 Git 项目可用。</p>
+                  <p className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">仅 Git 项目可用。</p>
                 ) : null}
                 <Button
                   color="secondary"

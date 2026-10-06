@@ -495,7 +495,7 @@ function AutomationViewContent(): React.ReactNode {
             ? '查看计划任务与自动化的历史执行状态与运行结果。'
             : '规划任务、安排执行，并在同一日历查看运行结果。'
         }
-        bodyClassName="automation-view"
+        bodyClassName="automation-view tw:min-h-120 tw:max-[48rem]:min-h-128 tw:text-app-text"
         search={
           <SearchInput
             aria-label={tab === 'runs' ? '搜索执行记录' : '搜索已安排任务'}
@@ -530,15 +530,18 @@ function AutomationViewContent(): React.ReactNode {
             }
           />
         ) : calendar.supported !== false ? (
-          <div className="automation-page-stage">
+          <div className="automation-page-stage tw:grid tw:flex-auto tw:min-w-0 tw:grid-cols-[minmax(0,1fr)]">
             <main
-              className="automation-page-content"
+              className="automation-page-content tw:flex tw:min-h-0 tw:min-w-0 tw:flex-col"
               id="automation-calendar-panel"
               role="tabpanel"
               aria-labelledby="automation-calendar-tab"
             >
               {calendar.initialLoading ? (
-                <SkeletonRegion className="automation-loading" label="正在载入任务日历">
+                <SkeletonRegion
+                  className="automation-loading tw:grid tw:content-start tw:gap-3 tw:p-4 tw:[&>*]:min-h-8"
+                  label="正在载入任务日历"
+                >
                   <SkeletonBlock />
                   <SkeletonBlock />
                   <SkeletonBlock />
@@ -584,15 +587,18 @@ function AutomationViewContent(): React.ReactNode {
             </main>
           </div>
         ) : (
-          <div className="automation-page-stage">
+          <div className="automation-page-stage tw:grid tw:flex-auto tw:min-w-0 tw:grid-cols-[minmax(0,1fr)]">
             <main
-              className="automation-page-content"
+              className="automation-page-content tw:flex tw:min-h-0 tw:min-w-0 tw:flex-col"
               id={`automation-${controller.filter}-panel`}
               role="tabpanel"
               aria-labelledby={`automation-${controller.filter}-tab`}
             >
               {controller.loading ? (
-                <SkeletonRegion className="automation-loading" label="正在载入自动化">
+                <SkeletonRegion
+                  className="automation-loading tw:grid tw:content-start tw:gap-3 tw:p-4 tw:[&>*]:min-h-8"
+                  label="正在载入自动化"
+                >
                   <SkeletonBlock />
                   <SkeletonBlock />
                   <SkeletonBlock />
@@ -601,7 +607,10 @@ function AutomationViewContent(): React.ReactNode {
                 <>
                   {showInitialEmpty ? <AutomationEmptyState /> : null}
                   {controller.filteredAutomations.length ? (
-                    <ul className="automation-list" aria-label="自动化列表">
+                    <ul
+                      className="automation-list tw:m-0 tw:list-none tw:p-0"
+                      aria-label="自动化列表"
+                    >
                       {controller.filteredAutomations.map((item) => (
                         <AutomationRow
                           key={item.id}
@@ -629,7 +638,10 @@ function AutomationViewContent(): React.ReactNode {
                   {!showInitialEmpty &&
                   !controller.filteredAutomations.length &&
                   !visibleSuggestions.length ? (
-                    <div className="automation-filter-empty" role="status">
+                    <div
+                      className="automation-filter-empty tw:grid tw:min-h-[calc(var(--cpx-sys-space-8)*7)] tw:place-content-center tw:justify-items-center tw:gap-3 tw:p-8 tw:text-center tw:type-body-sm tw:text-app-text-meta"
+                      role="status"
+                    >
                       <span>未找到已安排任务</span>
                       <Button
                         color="secondary"
@@ -655,14 +667,14 @@ function AutomationViewContent(): React.ReactNode {
         <Popover.Portal>
           <div>
             <div
-              className="ui-dialog-backdrop permission-modal-backdrop automation-calendar__focus-backdrop"
+              className="ui-dialog-backdrop permission-modal-backdrop automation-calendar__focus-backdrop tw:pointer-events-auto tw:p-0 tw:animate-none tw:transition-none tw:backdrop-blur-none tw:forced-colors:bg-transparent"
               data-state="open"
               aria-hidden="true"
               onClick={() => closeDetail(true)}
             />
             <Popover.Content
               ref={surfaceRef}
-              className="popover-surface ui-dialog-surface automation-focus-shell"
+              className="popover-surface ui-dialog-surface automation-focus-shell tw:z-modal tw:grid tw:min-w-0 tw:w-[min(25rem,calc(100vw-var(--cpx-sys-space-8)))] tw:max-w-[min(25rem,calc(100vw-var(--cpx-sys-space-8)))] tw:max-h-[min(35rem,calc(100vh-60px),var(--radix-popover-content-available-height))] tw:overflow-hidden tw:rounded-floating tw:animate-none tw:transition-none tw:backdrop-blur-none tw:text-app-text tw:forced-colors:border tw:forced-colors:border-[CanvasText]"
               side="bottom"
               align="start"
               sideOffset={0}
@@ -693,7 +705,7 @@ function AutomationViewContent(): React.ReactNode {
                 restoreFocus()
               }}
             >
-              <div className="automation-focus-dialog">
+              <div className="automation-focus-dialog tw:grid tw:min-h-0 tw:min-w-0 tw:max-h-[min(35rem,calc(100vh-60px),var(--radix-popover-content-available-height))] tw:grid-cols-[minmax(0,1fr)]">
                 {(creating || controller.selected) && controller.draft ? (
                   <AutomationDetailPanel
                     creating={creating}
@@ -840,65 +852,94 @@ function AutomationRunsList({
   }, [sortedRuns, needle, automationNameMap])
 
   return (
-    <div className="automation-page-stage">
+    <div className="automation-page-stage tw:grid tw:flex-auto tw:min-w-0 tw:grid-cols-[minmax(0,1fr)]">
       <main
-        className="automation-page-content"
+        className="automation-page-content tw:flex tw:min-h-0 tw:min-w-0 tw:flex-col"
         id="automation-runs-panel"
         role="tabpanel"
         aria-labelledby="automation-runs-tab"
       >
         {loading && !runs.length ? (
-          <SkeletonRegion className="automation-loading" label="正在载入执行记录">
+          <SkeletonRegion
+            className="automation-loading tw:grid tw:content-start tw:gap-3 tw:p-4 tw:[&>*]:min-h-8"
+            label="正在载入执行记录"
+          >
             <SkeletonBlock />
             <SkeletonBlock />
             <SkeletonBlock />
           </SkeletonRegion>
         ) : !sortedRuns.length ? (
-          <div className="automation-empty-state" role="status">
+          <div
+            className="automation-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*6)] tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft"
+            role="status"
+          >
             <CalendarClock size={APP_ICON_SIZES.lg} aria-hidden="true" />
-            <h2>暂无执行记录</h2>
-            <p>任务在计划时间或手动触发运行后，执行记录会显示在这里。</p>
+            <h2 className="tw:m-0 tw:type-title-sm tw:text-app-text">暂无执行记录</h2>
+            <p className="tw:m-0 tw:type-body">任务在计划时间或手动触发运行后，执行记录会显示在这里。</p>
           </div>
         ) : !filteredRuns.length ? (
-          <div className="automation-filter-empty" role="status">
+          <div
+            className="automation-filter-empty tw:grid tw:min-h-[calc(var(--cpx-sys-space-8)*7)] tw:place-content-center tw:justify-items-center tw:gap-3 tw:p-8 tw:text-center tw:type-body-sm tw:text-app-text-meta"
+            role="status"
+          >
             <span>未找到匹配的执行记录</span>
             <Button color="secondary" size="compact" onClick={onClearQuery}>
               清除搜索
             </Button>
           </div>
         ) : (
-          <div className="automation-runs-page-container">
-            <ol className="automation-runs-page-list" aria-label="执行记录列表">
+          <div className="automation-runs-page-container tw:flex tw:w-full tw:max-w-[56rem] tw:box-border tw:flex-col tw:px-6 tw:py-4">
+            <ol
+              className="automation-runs-page-list tw:m-0 tw:flex tw:list-none tw:flex-col tw:gap-2 tw:p-0"
+              aria-label="执行记录列表"
+            >
               {filteredRuns.map((run) => {
                 const taskName = automationNameMap.get(run.automationId) ?? '已安排任务'
                 const time = formatAutomationTime(run.completedAt ?? run.startedAt ?? run.createdAt)
                 const hasThread = Boolean(run.threadId)
                 return (
-                  <li key={run.id} className="automation-runs-page-item" data-status={run.status}>
+                  <li
+                    key={run.id}
+                    className="automation-runs-page-item tw:group tw:list-none"
+                    data-status={run.status}
+                  >
                     <button
                       type="button"
-                      className="automation-runs-page-button"
+                      className="automation-runs-page-button tw:flex tw:w-full tw:cursor-pointer tw:items-center tw:justify-between tw:gap-4 tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-3 tw:text-left tw:text-app-text tw:transition-[background-color,border-color] tw:duration-feedback tw:ease-standard tw:enabled:hover:border-app-border-subtle tw:enabled:hover:bg-app-hover tw:disabled:cursor-default tw:disabled:opacity-85"
                       disabled={!hasThread}
                       onClick={() => {
                         if (run.threadId) onOpenThread(run.threadId)
                       }}
                     >
-                      <div className="automation-runs-page-info">
-                        <div className="automation-runs-page-topline">
-                          <span className="automation-run-status" data-status={run.status}>
-                            <span className="automation-status-dot" aria-hidden="true" />
+                      <div className="automation-runs-page-info tw:flex tw:min-w-0 tw:flex-1 tw:items-center">
+                        <div className="automation-runs-page-topline tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-3">
+                          <span
+                            className="automation-run-status tw:inline-flex tw:items-center tw:gap-2 tw:type-label"
+                            data-status={run.status}
+                          >
+                            <span
+                              className="automation-status-dot tw:size-2 tw:shrink-0 tw:rounded-full tw:bg-app-info tw:group-data-[status=completed]:bg-app-success tw:group-data-[status=failed]:bg-app-danger tw:group-data-[status=interrupted]:bg-app-danger"
+                              aria-hidden="true"
+                            />
                             <span>{runStatusLabel(run.status)}</span>
                           </span>
-                          <strong className="automation-runs-page-name">{taskName}</strong>
-                          <span className="automation-runs-page-trigger">
+                          <strong className="automation-runs-page-name tw:max-w-80 tw:truncate tw:type-label tw:text-app-text">
+                            {taskName}
+                          </strong>
+                          <span className="automation-runs-page-trigger tw:whitespace-nowrap tw:rounded-container tw:bg-app-underlay tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-meta">
                             {runTriggerLabel(run.trigger)}
                           </span>
                         </div>
                       </div>
-                      <div className="automation-runs-page-meta">
-                        <time className="automation-runs-page-time">{time}</time>
+                      <div className="automation-runs-page-meta tw:flex tw:shrink-0 tw:items-center tw:gap-3">
+                        <time className="automation-runs-page-time tw:whitespace-nowrap tw:type-caption tw:text-app-text-meta">
+                          {time}
+                        </time>
                         {hasThread ? (
-                          <span className="automation-runs-page-link" aria-label="查看对话">
+                          <span
+                            className="automation-runs-page-link tw:flex tw:items-center tw:text-app-text-meta tw:group-hover:text-app-accent-fg"
+                            aria-label="查看对话"
+                          >
                             <ArrowUpRight size={APP_ICON_SIZES.sm} aria-hidden="true" />
                           </span>
                         ) : null}
@@ -951,11 +992,22 @@ function AutomationRow({
         ? 'completed'
         : 'active'
   return (
-    <li data-selected={selected || undefined} data-status={rowStatus}>
-      <button className="automation-row" type="button" onClick={onSelect}>
-        <span className="automation-row-icon" aria-hidden="true">
+    <li
+      className="tw:group tw:relative tw:grid tw:grid-cols-[minmax(0,1fr)_var(--cpx-sys-space-8)] tw:items-center tw:rounded-container tw:transition-[background,opacity] tw:duration-feedback tw:ease-standard tw:hover:bg-app-hover tw:focus-within:bg-app-hover tw:data-[selected=true]:bg-app-selected tw:data-[status=paused]:not-data-[selected=true]:opacity-60 tw:data-[status=paused]:hover:opacity-100 tw:data-[status=paused]:focus-within:opacity-100"
+      data-selected={selected || undefined}
+      data-status={rowStatus}
+    >
+      <button
+        className="automation-row tw:grid tw:w-full tw:min-w-0 tw:cursor-pointer tw:grid-cols-[var(--cpx-sys-space-5)_minmax(0,1fr)_9rem] tw:items-center tw:gap-2 tw:border-0 tw:bg-transparent tw:p-2 tw:text-left tw:text-inherit tw:focus-visible:outline-none tw:max-[48rem]:grid-cols-[var(--cpx-sys-space-5)_minmax(0,1fr)]"
+        type="button"
+        onClick={onSelect}
+      >
+        <span
+          className="automation-row-icon tw:flex tw:items-center tw:justify-center tw:text-app-text-soft"
+          aria-hidden="true"
+        >
           {activeRun ? (
-            <LoaderCircle size={APP_ICON_SIZE} />
+            <LoaderCircle className="tw:animate-spin" size={APP_ICON_SIZE} />
           ) : automation.status === 'paused' ? (
             <Pause size={APP_ICON_SIZE} />
           ) : completed ? (
@@ -964,18 +1016,23 @@ function AutomationRow({
             <Play size={APP_ICON_SIZE} />
           )}
         </span>
-        <span className="automation-row-content">
-          <span className="automation-row-title">
-            <strong>{automation.name}</strong>
-            {unread ? <span className="automation-unread" aria-label="有未读运行结果" /> : null}
+        <span className="automation-row-content tw:grid tw:min-w-0 tw:gap-1">
+          <span className="automation-row-title tw:flex tw:items-center tw:gap-2 tw:type-row-title">
+            <strong className="tw:truncate">{automation.name}</strong>
+            {unread ? (
+              <span
+                className="automation-unread tw:size-2 tw:shrink-0 tw:rounded-full tw:bg-app-info"
+                aria-label="有未读运行结果"
+              />
+            ) : null}
           </span>
-          <span className="automation-row-summary">
+          <span className="automation-row-summary tw:truncate tw:type-body-sm tw:text-app-text-soft">
             {automationScheduleSummary(automation.schedule)}
             <span aria-hidden="true"> · </span>
             {targetLabel}
           </span>
         </span>
-        <span className="automation-row-status">
+        <span className="automation-row-status tw:shrink-0 tw:truncate tw:text-right tw:type-caption tw:text-app-text-meta tw:group-hover:opacity-0 tw:group-focus-within:opacity-0 tw:max-[48rem]:hidden">
           {activeRun
             ? '正在运行'
             : automation.status === 'paused'
@@ -992,7 +1049,7 @@ function AutomationRow({
         onOpenChange={onMenuOpenChange}
         trigger={
           <IconButton
-            className="automation-row-menu"
+            className="automation-row-menu tw:justify-self-center tw:opacity-0 tw:group-hover:opacity-100 tw:group-focus-within:opacity-100 tw:focus-visible:opacity-100"
             color="ghostSecondary"
             size="toolbar"
             title={`${automation.name} 操作`}
@@ -1026,10 +1083,13 @@ function AutomationRow({
 
 function AutomationEmptyState(): React.ReactNode {
   return (
-    <div className="automation-empty-state" role="status">
+    <div
+      className="automation-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*6)] tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft"
+      role="status"
+    >
       <CalendarClock size={APP_ICON_SIZES.lg} aria-hidden="true" />
-      <h2>暂无已安排任务</h2>
-      <p>创建任务后，它们会按状态显示在这里。</p>
+      <h2 className="tw:m-0 tw:type-title-sm tw:text-app-text">暂无已安排任务</h2>
+      <p className="tw:m-0 tw:type-body">创建任务后，它们会按状态显示在这里。</p>
     </div>
   )
 }
@@ -1044,13 +1104,30 @@ function AutomationSuggestions({
   onCreate: (template: AutomationTemplateId) => void
 }): React.ReactNode {
   return (
-    <section className="automation-suggestions" data-divided={divided || undefined}>
-      <h2>建议</h2>
-      <ul aria-label="自动化建议">
+    <section
+      className="automation-suggestions tw:border-t tw:border-app-border-subtle tw:pt-3 tw:data-[divided=true]:mt-3"
+      data-divided={divided || undefined}
+    >
+      <h2 className="tw:m-0 tw:type-title-sm tw:text-app-text">建议</h2>
+      <ul
+        className="tw:m-0 tw:grid tw:list-none tw:gap-1.25 tw:px-0 tw:pt-2 tw:pb-0"
+        aria-label="自动化建议"
+      >
         {suggestions.map((item) => (
-          <li key={item.id} data-tone={item.tone}>
-            <button type="button" onClick={() => onCreate(item.id)}>
-              <span className="automation-suggestion-icon" aria-hidden="true">
+          <li
+            className="tw:group tw:rounded-container tw:p-1.25 tw:hover:bg-app-hover tw:focus-within:bg-app-hover"
+            key={item.id}
+            data-tone={item.tone}
+          >
+            <button
+              className="tw:grid tw:w-full tw:cursor-pointer tw:grid-cols-[var(--cpx-sys-space-5)_minmax(0,1fr)] tw:items-start tw:gap-3 tw:border-0 tw:bg-transparent tw:text-left tw:text-app-text"
+              type="button"
+              onClick={() => onCreate(item.id)}
+            >
+              <span
+                className="automation-suggestion-icon tw:flex tw:items-center tw:justify-center tw:pt-1 tw:group-data-[tone=info]:text-app-info-fg tw:group-data-[tone=skill]:text-app-skill-fg tw:group-data-[tone=success]:text-app-success-fg"
+                aria-hidden="true"
+              >
                 {item.id === 'daily-brief' ? (
                   <AlarmClock size={APP_ICON_SIZE} />
                 ) : item.id === 'weekly-review' ? (
@@ -1059,12 +1136,16 @@ function AutomationSuggestions({
                   <FileSearch size={APP_ICON_SIZE} />
                 )}
               </span>
-              <span className="automation-suggestion-content">
-                <span className="automation-suggestion-title">
-                  <strong>{item.name}</strong>
-                  <span>{automationScheduleSummary(item.schedule)}</span>
+              <span className="automation-suggestion-content tw:grid tw:min-w-0 tw:gap-1">
+                <span className="automation-suggestion-title tw:flex tw:min-w-0 tw:items-baseline tw:gap-2">
+                  <strong className="tw:type-label">{item.name}</strong>
+                  <span className="tw:type-body-sm tw:text-app-text-soft">
+                    {automationScheduleSummary(item.schedule)}
+                  </span>
                 </span>
-                <small>{item.description}</small>
+                <small className="tw:truncate tw:type-body-sm tw:text-app-text-soft">
+                  {item.description}
+                </small>
               </span>
             </button>
           </li>
@@ -1084,9 +1165,12 @@ function StatePanel({
   action?: React.ReactNode
 }): React.ReactNode {
   return (
-    <div className="automation-state" role="status">
-      <h2>{title}</h2>
-      <p>{description}</p>
+    <div
+      className="automation-state tw:grid tw:min-h-0 tw:place-content-center tw:justify-items-center tw:gap-3 tw:p-8 tw:text-center"
+      role="status"
+    >
+      <h2 className="tw:m-0 tw:type-title-sm tw:text-app-text">{title}</h2>
+      <p className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">{description}</p>
       {action}
     </div>
   )

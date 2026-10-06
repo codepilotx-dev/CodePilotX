@@ -167,7 +167,7 @@ export function GithubRepositoryModal({
           className="ui-dialog-surface ui-dialog-surface--centered permission-modal github-repository-modal"
           onCloseAutoFocus={onCloseAutoFocus}
         >
-          <header className={cx('u-flex', 'u-items-center', 'u-justify-between', 'u-gap-3')}>
+          <header className={cx('tw:flex', 'tw:items-center', 'tw:justify-between', 'tw:gap-3')}>
             <Dialog.Title asChild>
               <h2>从 GitHub 克隆项目</h2>
             </Dialog.Title>
@@ -190,13 +190,13 @@ export function GithubRepositoryModal({
                       : '在系统浏览器中授权后，可列出并克隆私有仓库。'}
                 </p>
                 {login?.mode === 'device' && login.state === 'awaiting_auth' && login.userCode ? (
-                  <div className="github-device-code-card compact">
+                  <div className="github-device-code-card compact tw:flex tw:items-center tw:justify-between tw:gap-4 tw:bg-app-raised tw:[&_p]:mt-2 tw:[&_p]:mb-0 tw:[&_p]:text-app-text-soft tw:[&_p]:type-body-sm tw:[&_p]:leading-[var(--cpx-sys-line-height-tight)] tw:mt-3 tw:rounded-md tw:border tw:border-app-border-subtle tw:p-3">
                     <div>
-                      <div className="github-device-code-label">GitHub 设备验证码</div>
-                      <div className="github-device-code-value">{login.userCode}</div>
+                      <div className="github-device-code-label tw:mb-1 tw:text-app-text-soft tw:text-[length:var(--cpx-sys-font-size-xs)]">GitHub 设备验证码</div>
+                      <div className="github-device-code-value tw:font-mono tw:text-[length:var(--cpx-sys-font-size-3xl)] tw:type-weight-heading tw:tracking-[0.08em] tw:text-app-text">{login.userCode}</div>
                       <p>在 GitHub 设备登录页面输入这个验证码，不是 OAuth Client ID。</p>
                     </div>
-                    <div className="github-device-code-actions">
+                    <div className="github-device-code-actions tw:flex tw:shrink-0 tw:items-center tw:gap-2">
                       <Button color="secondary" onClick={() => void copyGithubCode()} type="button">
                         复制验证码
                       </Button>
@@ -211,7 +211,7 @@ export function GithubRepositoryModal({
                   </div>
                 ) : null}
               </div>
-              <div className="settings-inline-actions">
+              <div className="settings-inline-actions tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:max-[900px]:justify-start">
                 <Button
                   color="primary"
                   disabled={loading}
@@ -243,13 +243,13 @@ export function GithubRepositoryModal({
                 variant="standard"
               />
               <div className="github-repository-list-scroll-area">
-                <div className={cx('github-repository-list-scroll-content', 'u-min-w-0', 'u-grid')}>
+                <div className={cx('github-repository-list-scroll-content', 'tw:min-w-0', 'tw:grid')}>
                   {loading ? (
-                    <div className={cx('github-repository-empty', 'u-p-5', 'u-text-center')}>
+                    <div className={cx('github-repository-empty', 'tw:p-5', 'tw:text-center')}>
                       正在加载仓库...
                     </div>
                   ) : filteredRepositories.length === 0 ? (
-                    <div className={cx('github-repository-empty', 'u-p-5', 'u-text-center')}>
+                    <div className={cx('github-repository-empty', 'tw:p-5', 'tw:text-center')}>
                       没有匹配仓库
                     </div>
                   ) : (
@@ -259,10 +259,10 @@ export function GithubRepositoryModal({
                           <div
                             className={cx(
                               'github-repository-title',
-                              'u-min-w-0',
-                              'u-flex',
-                              'u-items-center',
-                              'u-gap-2',
+                              'tw:min-w-0',
+                              'tw:flex',
+                              'tw:items-center',
+                              'tw:gap-2',
                             )}
                           >
                             {repository.private ? (
@@ -298,10 +298,10 @@ export function GithubRepositoryModal({
           <div
             className={cx(
               'permission-modal-actions',
-              'u-flex',
-              'u-items-center',
-              'u-justify-between',
-              'u-gap-3',
+              'tw:flex',
+              'tw:items-center',
+              'tw:justify-between',
+              'tw:gap-3',
             )}
           >
             <Dialog.Close asChild>

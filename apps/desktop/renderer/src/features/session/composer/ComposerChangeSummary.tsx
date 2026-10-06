@@ -151,7 +151,10 @@ export function ComposerChangeSummary({
             : ''
 
   return (
-    <div className="composer-change-summary" ref={summaryRef}>
+    <div
+      className="composer-change-summary tw:relative tw:flex tw:w-full tw:max-w-full tw:items-center tw:justify-center tw:self-center tw:gap-2 tw:box-border tw:rounded-xl tw:pointer-events-auto"
+      ref={summaryRef}
+    >
       <AnimatePresence initial={false} mode="wait">
         {executionPlan && planExpanded ? (
           <ComposerPlanPreviewPresence
@@ -177,17 +180,21 @@ export function ComposerChangeSummary({
         ) : null}
       </AnimatePresence>
       <motion.div
-        className="composer-change-summary__bar-shell"
+        className="composer-change-summary__bar-shell tw:flex tw:w-fit tw:min-w-0 tw:max-w-full tw:flex-[0_1_auto]"
         layout="position"
         transition={motionTransition(reducedMotion, standardTween)}
       >
-        <div aria-label="任务变更摘要" className="composer-change-summary__bar" role="group">
+        <div
+          aria-label="任务变更摘要"
+          className="composer-change-summary__bar tw:relative tw:inline-flex tw:z-1 tw:h-8 tw:min-h-8 tw:w-auto tw:min-w-0 tw:max-w-full tw:flex-[1_1_auto] tw:items-center tw:justify-center tw:gap-0 tw:box-border tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:p-0 tw:text-app-text-meta tw:type-body-sm tw:shadow-sm"
+          role="group"
+        >
           {executionPlan ? (
             <button
               type="button"
               aria-controls={planPanelId}
               aria-expanded={planExpanded}
-              className="composer-change-summary__plan"
+              className="composer-change-summary__plan tw:inline-flex tw:h-full tw:min-h-0 tw:min-w-0 tw:flex-none tw:items-center tw:gap-2 tw:rounded-none tw:border-0 tw:bg-transparent tw:py-0 tw:ps-4 tw:pe-0 tw:only:ps-4 tw:only:pe-4 tw:text-inherit tw:whitespace-nowrap tw:enabled:hover:bg-transparent tw:enabled:hover:text-app-text tw:enabled:hover:shadow-none tw:aria-expanded:bg-transparent tw:aria-expanded:text-app-text tw:aria-expanded:shadow-none"
               ref={planButtonRef}
               onBlur={schedulePreviewClose}
               onFocus={() => openPlanPreview(executionPlan.id)}
@@ -199,7 +206,10 @@ export function ComposerChangeSummary({
             </button>
           ) : null}
           {executionPlan && changedFileCount > 0 ? (
-            <span aria-hidden="true" className="composer-change-summary__separator">
+            <span
+              aria-hidden="true"
+              className="composer-change-summary__separator tw:mx-2 tw:flex-none tw:text-app-text-meta"
+            >
               ·
             </span>
           ) : null}
@@ -213,7 +223,7 @@ export function ComposerChangeSummary({
                   ? `打开审阅面板，${changedFileCount} 个文件已更改，新增 ${formattedAdditions} 行，删除 ${formattedDeletions} 行`
                   : `打开审阅面板，${changedFileCount} 个文件已更改，增删行数统计暂不可用`
               }
-              className="composer-change-summary__changes"
+              className="composer-change-summary__changes tw:inline-flex tw:h-full tw:min-h-0 tw:min-w-0 tw:flex-[1_1_auto] tw:items-center tw:gap-2 tw:overflow-hidden tw:rounded-none tw:border-0 tw:bg-transparent tw:py-0 tw:ps-0 tw:pe-4 tw:text-ellipsis tw:text-inherit tw:whitespace-nowrap tw:only:ps-4 tw:only:pe-4 tw:enabled:hover:bg-transparent tw:enabled:hover:text-app-text tw:enabled:hover:shadow-none tw:aria-expanded:bg-transparent tw:aria-expanded:text-app-text tw:aria-expanded:shadow-none"
               ref={changesButtonRef}
               onBlur={schedulePreviewClose}
               onClick={openReview}
@@ -223,9 +233,12 @@ export function ComposerChangeSummary({
             >
               {changedFileCount} 个文件已更改
               {diffStatsAvailable ? (
-                <span aria-hidden="true" className="composer-change-summary__diff">
-                  <strong>+{formattedAdditions}</strong>
-                  <em>-{formattedDeletions}</em>
+                <span
+                  aria-hidden="true"
+                  className="composer-change-summary__diff tw:inline-flex tw:flex-none tw:items-center tw:gap-1 tw:tabular-nums"
+                >
+                  <strong className="tw:text-app-success tw:type-weight-label">+{formattedAdditions}</strong>
+                  <em className="tw:text-app-danger tw:not-italic">-{formattedDeletions}</em>
                 </span>
               ) : null}
             </button>
@@ -273,7 +286,7 @@ function ComposerChangedFilesPreviewPresence({
       animate={surfaceMotion.animate}
       aria-hidden={!isPresent ? true : undefined}
       aria-label="修改文件"
-      className="composer-change-summary__files-preview"
+      className="composer-change-summary__files-preview tw:absolute tw:inset-0 tw:pointer-events-none tw:data-[presence=present]:[&_.composer-change-summary__files-card]:pointer-events-auto"
       data-presence={isPresent ? 'present' : 'exiting'}
       exit={{
         ...surfaceMotion.exit,
@@ -298,8 +311,11 @@ function ComposerChangedFilesPreviewPresence({
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
     >
-      <div className="composer-change-summary__files-card">
-        <div className="composer-change-summary__files-list" role="list">
+      <div className="composer-change-summary__files-card tw:absolute tw:z-0 tw:bottom-[calc(100%+var(--cpx-sys-space-1))] tw:left-1/2 tw:w-max tw:min-w-[min(16rem,100%)] tw:max-w-[min(20rem,100%)] tw:-translate-x-1/2 tw:overflow-hidden tw:rounded-none tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-1 tw:text-app-text tw:pointer-events-none tw:shadow-none tw:[backdrop-filter:none]">
+        <div
+          className="composer-change-summary__files-list tw:grid tw:w-full tw:max-h-72 tw:gap-2 tw:overflow-y-auto tw:[scrollbar-gutter:stable] tw:[&>[role=listitem]]:w-full tw:[&>[role=listitem]]:min-w-0"
+          role="list"
+        >
           {files.map((file) => {
             const statsAvailable = file.additions !== null && file.deletions !== null
             const fileName = basenameOf(file.path)
@@ -316,11 +332,20 @@ function ComposerChangedFilesPreviewPresence({
                   type="button"
                   onClick={() => onOpenFile(file.path)}
                 >
-                  <span className="composer-change-summary__file-name">{fileName}</span>
+                  <span className="composer-change-summary__file-name tw:flex-[1_1_auto] tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-start">
+                    {fileName}
+                  </span>
                   {statsAvailable ? (
-                    <span aria-hidden="true" className="composer-change-summary__file-diff">
-                      <strong>+{formatSummaryNumber(file.additions ?? 0)}</strong>
-                      <em>-{formatSummaryNumber(file.deletions ?? 0)}</em>
+                    <span
+                      aria-hidden="true"
+                      className="composer-change-summary__file-diff tw:inline-flex tw:flex-none tw:ms-auto tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption tw:tabular-nums"
+                    >
+                      <strong className="tw:text-app-success tw:type-weight-label">
+                        +{formatSummaryNumber(file.additions ?? 0)}
+                      </strong>
+                      <em className="tw:text-app-danger tw:not-italic">
+                        -{formatSummaryNumber(file.deletions ?? 0)}
+                      </em>
                     </span>
                   ) : null}
                 </button>
@@ -354,7 +379,7 @@ function ComposerPlanPreviewPresence({
       animate={surfaceMotion.animate}
       aria-hidden={!isPresent ? true : undefined}
       aria-label="执行计划"
-      className="composer-change-summary__plan-preview"
+      className="composer-change-summary__plan-preview tw:absolute tw:inset-0 tw:pointer-events-none tw:data-[presence=present]:[&_.execution-plan-card]:pointer-events-auto"
       data-presence={isPresent ? 'present' : 'exiting'}
       exit={{
         ...surfaceMotion.exit,
@@ -406,7 +431,7 @@ function ComposerReturnToBottomPresence({
       ref={presenceRef}
       animate={{ opacity: 1, scale: 1 }}
       aria-hidden={!interactive ? true : undefined}
-      className="composer-change-summary__return-presence"
+      className="composer-change-summary__return-presence tw:flex tw:h-8 tw:w-8 tw:min-w-8 tw:flex-[0_0_32px] tw:items-center tw:justify-center tw:origin-center"
       exit={{
         opacity: 0,
         scale: 0.72,
@@ -499,14 +524,14 @@ function ExecutionPlanStatusIcon({
   return (
     <span
       aria-label={`${lifecycleLabel}，已完成 ${completedSteps} / ${totalSteps} 步`}
-      className={`composer-change-summary__plan-icon${
+      className={`composer-change-summary__plan-icon tw:inline-flex tw:flex-none tw:items-center${
         status === 'failed'
-          ? ' composer-change-summary__plan-icon--error'
+          ? ' composer-change-summary__plan-icon--error tw:text-app-danger'
           : status === 'streaming'
-            ? ' composer-change-summary__plan-icon--running'
+            ? ' composer-change-summary__plan-icon--running tw:text-app-accent-fg tw:[&>svg]:animate-[composer-change-summary-spin_var(--cpx-sys-motion-loading)_var(--cpx-sys-ease-linear)_infinite]'
             : status === 'completed'
-              ? ' composer-change-summary__plan-icon--completed'
-              : ''
+              ? ' composer-change-summary__plan-icon--completed tw:text-app-success'
+              : ' tw:text-app-accent-fg'
       }`}
       data-progress={status === 'failed' ? undefined : progress}
       role="img"
@@ -520,13 +545,13 @@ function ExecutionPlanStatusIcon({
       ) : (
         <svg
           aria-hidden="true"
-          className="composer-change-summary__plan-progress-ring"
+          className="composer-change-summary__plan-progress-ring tw:block tw:-rotate-90 tw:overflow-visible"
           height={APP_ICON_SIZE}
           viewBox="0 0 20 20"
           width={APP_ICON_SIZE}
         >
           <circle
-            className="composer-change-summary__plan-progress-track"
+            className="composer-change-summary__plan-progress-track tw:stroke-app-border-subtle"
             cx="10"
             cy="10"
             fill="none"
@@ -535,7 +560,7 @@ function ExecutionPlanStatusIcon({
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
           <circle
-            className="composer-change-summary__plan-progress-value"
+            className="composer-change-summary__plan-progress-value tw:stroke-current tw:transition-[stroke-dashoffset] tw:duration-enter tw:ease-standard tw:[stroke-linecap:round]"
             cx="10"
             cy="10"
             fill="none"

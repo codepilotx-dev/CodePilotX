@@ -4,7 +4,6 @@ import type { ComposerDraftKey } from '../session/composer/composerTypes.js'
 import { composerDraftStore } from '../session/composer/composerDraftStore.js'
 import { deleteBrowserAnnotation } from './browserAnnotationDraft.js'
 import { Button } from '../../components/ui/Button.js'
-import '../../styles/lazy/browser-annotations.scss'
 
 export function BrowserAnnotationCard({
   annotation,
@@ -27,9 +26,15 @@ export function BrowserAnnotationCard({
     setBody(editedBody ?? annotation.body)
   }, [annotation.body, editedBody])
   return (
-    <article className="browser-annotation-card">
-      {source ? <img src={source} alt="批注截图" /> : null}
-      <div>
+    <article className="browser-annotation-card tw:flex tw:gap-2 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-2 tw:type-body-sm tw:text-app-text">
+      {source ? (
+        <img
+          className="tw:size-20 tw:shrink-0 tw:self-start tw:rounded-sm tw:object-contain"
+          src={source}
+          alt="批注截图"
+        />
+      ) : null}
+      <div className="tw:min-w-0 tw:flex-1">
         <strong>
           {annotation.anchors.map((anchor) => anchor.name || anchor.tagName || '区域').join(' · ')}
         </strong>
@@ -37,6 +42,7 @@ export function BrowserAnnotationCard({
           <div>
             <textarea
               aria-label="编辑批注反馈"
+              className="tw:my-1 tw:block tw:w-full tw:resize-y tw:rounded-sm tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-1 tw:text-inherit tw:type-body tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:focus-visible:outline-none"
               value={body}
               onChange={(event) => {
                 setBody(event.target.value)
@@ -65,11 +71,13 @@ export function BrowserAnnotationCard({
             </Button>
           </div>
         ) : (
-          <p>{annotation.body}</p>
+          <p className="tw:my-1 tw:whitespace-pre-wrap tw:wrap-anywhere">{annotation.body}</p>
         )}
         <details>
-          <summary>定位和样式详情</summary>
-          <pre>{JSON.stringify(annotation.anchors, null, 2)}</pre>
+          <summary className="tw:cursor-pointer tw:text-app-text-soft">定位和样式详情</summary>
+          <pre className="tw:my-1 tw:whitespace-pre-wrap tw:wrap-anywhere">
+            {JSON.stringify(annotation.anchors, null, 2)}
+          </pre>
         </details>
         {onEdit && !editing ? (
           <Button
@@ -98,7 +106,10 @@ export function BrowserAnnotationDraftCards({ draftKey }: { draftKey: ComposerDr
   const draft = composerDraftStore.get(draftKey)
   if (!draft.browserAnnotations?.length) return null
   return (
-    <div className="browser-annotation-cards" aria-label="待发送的网页批注">
+    <div
+      className="browser-annotation-cards tw:flex tw:max-h-80 tw:flex-col tw:gap-2 tw:overflow-auto tw:p-2"
+      aria-label="待发送的网页批注"
+    >
       {draft.browserAnnotations.map((annotation) => (
         <BrowserAnnotationCard
           key={annotation.id}

@@ -102,6 +102,7 @@ import {
   type ReviewSummarySnapshot,
 } from '../source/reviewAgentClient.js'
 import { errorMessageOf } from '@codepilotx/shared/errors'
+import { cx } from '../../../utils/cx.js'
 
 export { errorMessageOf }
 
@@ -159,6 +160,12 @@ export const REVIEW_FILE_TREE_PANEL_MAX_WIDTH = 520
 export const REVIEW_FILE_TREE_PANEL_KEYBOARD_STEP = 24
 export const REVIEW_DIFF_PREVIEW_MIN_WIDTH = 260
 export const REVIEW_FILE_ACTION_ICON_SIZE = APP_ICON_SIZE
+/*
+ * Complete static class list for both file action groups: the semantic hooks
+ * stay in the DOM, and the reveal is driven by the file header row group.
+ */
+const FILE_ACTIONS_CLASS =
+  'tw:inline-flex tw:flex-none tw:items-center tw:gap-1 tw:opacity-0 tw:pointer-events-none tw:transition-opacity tw:duration-feedback tw:ease-standard tw:group-hover/file-header:opacity-100 tw:group-hover/file-header:pointer-events-auto tw:group-focus-within/file-header:opacity-100 tw:group-focus-within/file-header:pointer-events-auto'
 export const ListChevronsDownUp = createLucideIcon('list-chevrons-down-up', [
   ['path', { d: 'M3 5h8', key: '18g2rq' }],
   ['path', { d: 'M3 12h8', key: '1xfjp6' }],
@@ -399,14 +406,14 @@ export const ReviewDiffPreview = React.memo(
 
     return (
       <section
-        className="review-diff-preview"
+        className="review-diff-preview tw:relative tw:flex tw:flex-1 tw:min-w-0 tw:min-h-0 tw:max-h-none tw:flex-col tw:border-r-0 tw:bg-app-editor tw:overflow-hidden tw:[contain:size_layout_paint]"
         aria-label="工作区 diff"
         data-slot="review-diff-list"
       >
-        <div className="review-diff-preview-content">
+        <div className="review-diff-preview-content tw:flex tw:flex-auto tw:min-w-0 tw:min-h-0 tw:flex-col">
           <ScrollArea
-            className="review-diff-scroll"
-            contentClassName="review-diff-scroll-content"
+            className="review-diff-scroll tw:flex-auto tw:min-h-0"
+            contentClassName="review-diff-scroll-content tw:flex tw:h-full tw:min-h-full tw:flex-col"
             viewportRef={viewportRef}
             onScroll={(event) => onScroll(event.currentTarget.scrollTop)}
           >
@@ -559,7 +566,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
   } else if (!renderBody) {
     diffBody = (
       <div
-        className="review-diff-lazy-placeholder"
+        className="review-diff-lazy-placeholder tw:pointer-events-none"
         aria-hidden="true"
         style={{ height: previewHeight }}
       />
@@ -568,7 +575,9 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
     diffBody = (
       <div
         className={
-          largeWorkspaceMode ? 'review-diff-virtual-body fill-space' : 'review-diff-virtual-body'
+          largeWorkspaceMode
+            ? 'review-diff-virtual-body fill-space tw:flex tw:flex-1 tw:flex-col tw:min-h-0'
+            : 'review-diff-virtual-body tw:flex tw:flex-none tw:flex-col tw:min-h-0'
         }
         style={
           !largeWorkspaceMode
@@ -597,19 +606,28 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
     )
   } else if (fileLoadState.status === 'loading') {
     diffBody = (
-      <div className="review-empty-state review-file-load-state" role="status">
+      <div
+        className="review-empty-state review-file-load-state tw:flex tw:min-h-16 tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-6 tw:text-app-text-meta tw:type-body-sm"
+        role="status"
+      >
         {reviewFileLoadMessage(fileLoadState, summaryLoadState)}
       </div>
     )
   } else if (fileLoadState.status === 'idle') {
     diffBody = (
-      <div className="review-empty-state review-file-load-state" role="status">
+      <div
+        className="review-empty-state review-file-load-state tw:flex tw:min-h-16 tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-6 tw:text-app-text-meta tw:type-body-sm"
+        role="status"
+      >
         {reviewFileLoadMessage(fileLoadState, summaryLoadState)}
       </div>
     )
   } else if (fileLoadState.status === 'error') {
     diffBody = (
-      <div className="review-empty-state review-file-load-state" role="alert">
+      <div
+        className="review-empty-state review-file-load-state tw:flex tw:min-h-16 tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-6 tw:text-app-text-meta tw:type-body-sm"
+        role="alert"
+      >
         <span>{fileLoadState.message}</span>
         <Button size="compact" type="button" onClick={() => onRetryFile(file.path)}>
           重试
@@ -618,7 +636,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
     )
   } else if (!hasContent) {
     diffBody = (
-      <div className="review-empty-state">
+      <div className="review-empty-state tw:px-4 tw:py-6 tw:text-app-text-meta tw:type-body-sm">
         {file.isUntracked
           ? '未跟踪文件暂不展示 hunk 预览，可直接暂存或删除。'
           : '此文件没有可用的 hunk 预览。'}
@@ -667,11 +685,11 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
   return (
     <section
       className={
-        virtualize && largeWorkspaceMode
-          ? 'review-diff-file-preview virtualized fill-space'
-          : virtualize
-            ? 'review-diff-file-preview virtualized'
-            : 'review-diff-file-preview'
+        !virtualize
+          ? 'review-diff-file-preview tw:flex-none tw:min-w-0'
+          : largeWorkspaceMode
+            ? 'review-diff-file-preview virtualized fill-space tw:flex-[1_0_auto] tw:h-full tw:min-w-0 tw:flex tw:flex-col tw:min-h-0'
+            : 'review-diff-file-preview virtualized tw:flex-none tw:min-w-0 tw:flex tw:flex-col tw:min-h-0'
       }
       ref={sectionRef}
       aria-label={`${file.path} diff`}
@@ -679,37 +697,52 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
       data-slot="review-diff-file"
     >
       <div
-        className={
-          active ? 'review-file-row active preview-header' : 'review-file-row preview-header'
-        }
+        className={cx(
+          'review-file-row preview-header tw:group/file-header tw:sticky tw:top-0 tw:z-local tw:m-0 tw:flex tw:h-10 tw:min-h-10 tw:flex-none tw:items-center tw:gap-0 tw:rounded-none tw:border-0 tw:border-b tw:border-b-app-border-subtle tw:px-4 tw:py-1 tw:text-left tw:text-app-text-soft tw:type-body-sm tw:transition-[color,background-color] tw:duration-feedback tw:ease-standard tw:hover:text-app-text',
+          active && 'active tw:text-app-text',
+        )}
       >
         <button
           aria-controls={diffBodyId}
           aria-expanded={!isCollapsed}
-          className="review-file-summary"
+          className="review-file-summary tw:flex tw:flex-auto tw:min-w-0 tw:items-center tw:gap-0 tw:self-stretch tw:appearance-none tw:rounded-sm tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:outline-none tw:cursor-pointer tw:hover:text-app-text tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)]"
           type="button"
           onClick={() => onDiffExpandedChange(file.path, !isExpanded)}
         >
           <FileTypeIcon
             associationMode="extension-only"
             aria-hidden="true"
-            className="review-file-icon"
+            className="review-file-icon tw:size-icon tw:min-w-4 tw:mr-2 tw:shrink-0"
             path={file.path}
             size={APP_ICON_SIZE}
           />
-          <span className="review-file-path" title={file.path}>
-            <span className="review-file-path__content">
-              <span className="review-file-path__directory">{displayPath.directory}</span>
-              <span className="review-file-path__name">{displayPath.fileName}</span>
+          <span
+            className="review-file-path tw:min-w-0 tw:flex-[0_1_auto] tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-meta tw:type-body-sm tw:[direction:rtl] tw:text-start"
+            title={file.path}
+          >
+            <span className="review-file-path__content tw:[direction:ltr] tw:[unicode-bidi:plaintext]">
+              <span className="review-file-path__directory tw:text-app-text-meta">
+                {displayPath.directory}
+              </span>
+              <span className="review-file-path__name tw:text-app-text">
+                {displayPath.fileName}
+              </span>
             </span>
           </span>
-          <span className="review-file-counts">
-            <strong>+{formatPanelNumber(file.additions)}</strong>
-            <em>-{formatPanelNumber(file.deletions)}</em>
+          <span className="review-file-counts tw:inline-flex tw:flex-none tw:items-center tw:gap-2 tw:ml-1">
+            <strong className="tw:text-app-success tw:type-weight-label">
+              +{formatPanelNumber(file.additions)}
+            </strong>
+            <em className="tw:text-app-danger tw:not-italic tw:type-weight-label">
+              -{formatPanelNumber(file.deletions)}
+            </em>
           </span>
         </button>
         <div
-          className="review-file-actions review-file-actions-primary"
+          className={cx(
+            'review-file-actions review-file-actions-primary tw:ml-1',
+            FILE_ACTIONS_CLASS,
+          )}
           role="group"
           aria-label="文件查看操作"
         >
@@ -724,7 +757,13 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
               title={isCollapsed ? '展开文件差异' : '折叠文件差异'}
               onClick={() => onDiffExpandedChange(file.path, !isExpanded)}
             >
-              <ChevronRight size={REVIEW_FILE_ACTION_ICON_SIZE} />
+              <ChevronRight
+                className={cx(
+                  'tw:transition-transform tw:duration-state tw:ease-standard',
+                  !isCollapsed && 'tw:rotate-90',
+                )}
+                size={REVIEW_FILE_ACTION_ICON_SIZE}
+              />
             </IconButton>
           </Tooltip>
           <Tooltip content="打开文件">
@@ -746,7 +785,10 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
           </Tooltip>
         </div>
         <div
-          className="review-file-actions review-file-actions-secondary"
+          className={cx(
+            'review-file-actions review-file-actions-secondary tw:ml-auto',
+            FILE_ACTIONS_CLASS,
+          )}
           role="group"
           aria-label="文件 Git 操作"
         >
@@ -801,7 +843,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
           )}
         </div>
       </div>
-      <div className="review-diff-file-body" id={diffBodyId}>
+      <div className="review-diff-file-body tw:contents" id={diffBodyId}>
         {diffBody}
       </div>
     </section>
@@ -861,7 +903,7 @@ export function ReviewVirtualDiffRows({
     >
       <VList
         bufferSize={64}
-        className="review-diff-vlist"
+        className="review-diff-vlist tw:flex-1 tw:min-h-0 tw:overflow-x-hidden"
         data={flattenedRows}
         itemSize={20}
         style={{ width: '100%', height: '100%' }}
@@ -1163,31 +1205,37 @@ export function ReviewProjectEmptyState({
 }): React.ReactNode {
   if (source.kind === 'unstaged') {
     return (
-      <div className="review-project-empty-state">
-        <div className="review-project-empty-state__copy">
-          <strong>无未暂存更改</strong>
-          <span>代码更改将在此处显示</span>
+      <div className="review-project-empty-state tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-center tw:justify-center tw:px-3 tw:py-6 tw:text-center">
+        <div className="review-project-empty-state__copy tw:flex tw:flex-col tw:items-center tw:gap-2">
+          <strong className="tw:text-app-text tw:type-title-sm">无未暂存更改</strong>
+          <span className="tw:text-app-text-soft tw:type-body-sm">代码更改将在此处显示</span>
         </div>
       </div>
     )
   }
   if (source.kind === 'staged') {
     return (
-      <div className="review-project-empty-state">
-        <div className="review-project-empty-state__copy">
-          <strong>无暂存更改</strong>
-          <span>接受编辑内容并暂存</span>
+      <div className="review-project-empty-state tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-center tw:justify-center tw:px-3 tw:py-6 tw:text-center">
+        <div className="review-project-empty-state__copy tw:flex tw:flex-col tw:items-center tw:gap-2">
+          <strong className="tw:text-app-text tw:type-title-sm">无暂存更改</strong>
+          <span className="tw:text-app-text-soft tw:type-body-sm">接受编辑内容并暂存</span>
         </div>
       </div>
     )
   }
   return (
-    <div className="review-project-empty-state">
-      <div className="review-project-empty-state__content">
-        <FileDiff size={APP_ICON_SIZES.lg} aria-hidden="true" />
-        <div className="review-project-empty-state__copy">
-          <strong>尚无文件更改</strong>
-          <span>此项目中的更改将显示在此处。</span>
+    <div className="review-project-empty-state tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-center tw:justify-center tw:px-3 tw:py-6 tw:text-center">
+      <div className="review-project-empty-state__content tw:flex tw:w-full tw:max-w-[576px] tw:flex-col tw:items-center tw:gap-3">
+        <FileDiff
+          className="tw:size-icon-lg tw:text-app-text-meta tw:[stroke-width:var(--cpx-sys-icon-stroke-width)]"
+          size={APP_ICON_SIZES.lg}
+          aria-hidden="true"
+        />
+        <div className="review-project-empty-state__copy tw:flex tw:flex-col tw:items-center tw:gap-2">
+          <strong className="tw:text-app-text tw:type-title-sm">尚无文件更改</strong>
+          <span className="tw:text-app-text-soft tw:type-body-sm">
+            此项目中的更改将显示在此处。
+          </span>
         </div>
       </div>
     </div>

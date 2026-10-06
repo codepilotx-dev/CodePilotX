@@ -222,7 +222,11 @@ function WorkbenchPanelResizeController({
       aria-valuemax={maxSize}
       aria-valuemin={minSize}
       aria-valuenow={size}
-      className={isBottom ? 'bottom-panel-resize-handle' : 'right-dock-resize-handle'}
+      className={
+        isBottom
+          ? 'bottom-panel-resize-handle tw:absolute tw:z-local tw:-top-1.25 tw:right-0 tw:left-0 tw:h-3 tw:cursor-row-resize tw:touch-none tw:select-none'
+          : 'right-dock-resize-handle tw:absolute tw:z-local tw:top-0 tw:bottom-0 tw:left-0 tw:w-4 tw:cursor-col-resize tw:touch-none tw:select-none tw:focus-visible:outline-app-accent/72'
+      }
       role="separator"
       tabIndex={0}
       title={isBottom ? '拖拽调整高度，双击恢复默认高度' : '拖拽调整宽度，双击恢复默认宽度'}

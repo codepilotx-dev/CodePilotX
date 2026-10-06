@@ -10,7 +10,6 @@ import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import { PetCatalogSection } from './PetCatalogSection.js'
 import { usePetSettingsController } from './usePetSettingsController.js'
-import '../../styles/lazy/pet-catalog.scss'
 
 export function PetCatalogPage(): React.ReactNode {
   const navigate = useNavigate()
@@ -45,7 +44,7 @@ export function PetCatalogPage(): React.ReactNode {
         </Button>
       </WorkspaceHeaderItem>
       <PrimaryPageLayout
-        className="pet-catalog-primary-page"
+        className="pet-catalog-primary-page tw:@container/pet-catalog-page"
         description="浏览并一键安装 awesome-codex-pet 社区中的桌面伙伴。"
         title="宠物商店"
       >

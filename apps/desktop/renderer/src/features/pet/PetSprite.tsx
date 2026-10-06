@@ -61,7 +61,7 @@ export function PetSprite({
   return (
     <div
       aria-label={`宠物动画：${effectiveAnimation}`}
-      className="pet-sprite"
+      className="pet-sprite tw:bg-no-repeat tw:[image-rendering:auto]"
       role="img"
       style={{
         width,

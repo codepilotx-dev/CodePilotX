@@ -20,12 +20,11 @@ export function ScrollArea({
   ...rest
 }: ScrollAreaProps): React.ReactNode {
   const rootClassName = cx(
-    'scroll-area',
-    'u-overflow-hidden',
-    direction === 'x' ? 'u-overflow-x-auto' : 'u-overflow-y-auto',
+    'scroll-area tw:relative tw:overflow-hidden',
+    direction === 'x' ? 'tw:overflow-x-auto' : 'tw:overflow-y-auto',
     className,
   )
-  const contentClass = cx('scroll-area__content', 'u-w-full', 'u-min-w-0', contentClassName)
+  const contentClass = cx('scroll-area__content tw:w-full tw:min-w-0', contentClassName)
 
   return (
     <div

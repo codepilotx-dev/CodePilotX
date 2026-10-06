@@ -1,4 +1,5 @@
 import { ModelSwitchDivider } from './ModelSwitchDivider.js'
+import { cx } from '../../../utils/cx.js'
 import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import React from 'react'
 import { ChevronRight, CircleAlert, LoaderCircle, RotateCcw, type LucideIcon } from 'lucide-react'
@@ -190,8 +191,14 @@ export function CanonicalProcessGroup({
           data-at-start={edge.atStart}
           data-scrollable={edge.scrollable}
         >
-          <div className="cpx-agent-activity__list" ref={itemsRef}>
-            <div className="cpx-agent-activity__list-content" ref={itemsContentRef}>
+          <div
+              className="cpx-agent-activity__list tw:max-h-56 tw:overflow-x-hidden tw:overflow-y-auto tw:[overflow-anchor:none] tw:[scrollbar-gutter:stable]"
+              ref={itemsRef}
+            >
+            <div
+                className="cpx-agent-activity__list-content tw:relative tw:grid tw:gap-[var(--conversation-grouped-item-gap,var(--cpx-sys-space-1))] tw:ml-2 tw:pl-3"
+                ref={itemsContentRef}
+              >
               {children}
             </div>
           </div>
@@ -365,12 +372,15 @@ export function CanonicalTurnActivity({
 
   const summaryContent = (
     <>
-      <span>{summary.label}</span>
+      <span className="tw:min-w-0 tw:truncate">{summary.label}</span>
       {disclosureEnabled ? (
         <ChevronRight
           size={APP_ICON_SIZES.sm}
           aria-hidden="true"
-          className="canonical-turn-activity__chevron"
+          className={cx(
+            'canonical-turn-activity__chevron tw:size-icon-sm tw:flex-none tw:transition-transform tw:duration-disclosure tw:ease-disclosure',
+            expanded ? 'tw:rotate-90' : 'tw:rotate-0',
+          )}
         />
       ) : null}
     </>
@@ -388,16 +398,24 @@ export function CanonicalTurnActivity({
           aria-controls={contentId}
           aria-expanded={expanded}
           aria-label={`${expanded ? '收起' : '展开'}处理过程：${summary.label}`}
-          className="canonical-turn-activity__summary"
+          className={cx(
+            'canonical-turn-activity__summary tw:inline-flex tw:min-h-8 tw:w-fit tw:max-w-full tw:items-center tw:gap-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit',
+            'tw:cursor-pointer tw:transition-colors tw:duration-state tw:ease-out tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus',
+          )}
           onClick={() => onExpandedChange(!expanded)}
           type="button"
         >
           {summaryContent}
         </button>
       ) : (
-        <div className="canonical-turn-activity__summary">{summaryContent}</div>
+        <div className="canonical-turn-activity__summary tw:inline-flex tw:min-h-8 tw:w-fit tw:max-w-full tw:items-center tw:gap-2 tw:p-0 tw:text-left tw:text-inherit">
+          {summaryContent}
+        </div>
       )}
-      <div aria-hidden="true" className="canonical-turn-activity__divider" />
+      <div
+        aria-hidden="true"
+        className="canonical-turn-activity__divider tw:w-full tw:border-t tw:border-app-border-subtle"
+      />
       <DisclosureContent
         contentClassName="canonical-turn-activity__content"
         expanded={contentVisible}
@@ -561,13 +579,20 @@ function CanonicalThreadViewComponent({
 
   if (error && turns.length === 0) {
     return (
-      <div className="canonical-thread-state canonical-thread-state--error" role="alert">
+      <div
+        className="canonical-thread-state canonical-thread-state--error tw:mx-auto tw:flex tw:min-h-40 tw:w-[min(var(--page-content-max-width),var(--session-content-w))] tw:items-center tw:justify-center tw:gap-2 tw:p-6 tw:text-app-text-soft tw:type-body-sm"
+        role="alert"
+      >
         <CircleAlert size={APP_ICON_SIZES.sm} aria-hidden="true" />
-        <span>
+        <span className="tw:grid">
           <strong>无法加载会话</strong>
-          <small>{error}</small>
+          <small className="tw:max-w-[520px] tw:wrap-anywhere">{error}</small>
         </span>
-        <button type="button" onClick={() => void onReload()}>
+        <button
+          className="tw:inline-flex tw:min-h-[34px] tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-control tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-3 tw:py-2 tw:text-app-text"
+          type="button"
+          onClick={() => void onReload()}
+        >
           <RotateCcw size={APP_ICON_SIZES.sm} aria-hidden="true" />
           重试
         </button>
@@ -577,13 +602,14 @@ function CanonicalThreadViewComponent({
 
   return (
     <div
-      className="canonical-thread-view"
+      className="canonical-thread-view tw:w-full tw:min-w-0"
       data-canonical-thread-id={threadId}
       data-canonical-turn-count={turns.length}
     >
       {hasOlder ? (
-        <div className="canonical-history-control">
+        <div className="canonical-history-control tw:mx-auto tw:mt-3 tw:mb-1 tw:flex tw:w-[min(var(--page-content-max-width),var(--session-content-w))] tw:justify-center">
           <button
+            className="tw:inline-flex tw:min-h-8 tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-control tw:border-0 tw:bg-transparent tw:px-3 tw:py-1 tw:text-app-text-soft tw:type-body-sm tw:transition-colors tw:duration-state tw:ease-out tw:hover:bg-app-hover tw:hover:text-app-text tw:disabled:cursor-wait tw:disabled:opacity-65"
             type="button"
             disabled={loadingOlder}
             onClick={() => void loadOlderPreservingAnchor()}
@@ -902,12 +928,15 @@ function CanonicalBlocker({
 }): React.ReactNode {
   if (blocker.kind === 'question') return renderItem(blocker.question)
   return (
-    <article className="canonical-blocker-card" data-state={blocker.approval.status}>
-      <header>
-        <CircleAlert size={APP_ICON_SIZES.sm} aria-hidden="true" />
+    <article
+      className="canonical-blocker-card tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-3 tw:shadow-none"
+      data-state={blocker.approval.status}
+    >
+      <header className="tw:flex tw:items-start tw:gap-2">
+        <CircleAlert className="tw:flex-none tw:text-app-accent-fg" size={APP_ICON_SIZES.lg} aria-hidden="true" />
         <strong>{blocker.approval.tool} 需要授权</strong>
       </header>
-      <p>{blocker.approval.reason}</p>
+      <p className="tw:m-0 tw:text-app-text-soft">{blocker.approval.reason}</p>
     </article>
   )
 }

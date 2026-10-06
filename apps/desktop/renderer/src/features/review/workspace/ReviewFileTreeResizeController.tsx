@@ -230,7 +230,7 @@ export function ReviewFileTreeResizeController({
         aria-valuemax={REVIEW_FILE_TREE_PANEL_MAX_WIDTH}
         aria-valuemin={REVIEW_FILE_TREE_PANEL_MIN_WIDTH}
         aria-valuenow={width}
-        className="review-file-tree-resize-handle"
+        className="review-file-tree-resize-handle tw:relative tw:z-1 tw:w-2 tw:flex-none tw:-mr-1 tw:-ml-1 tw:cursor-col-resize tw:touch-none tw:select-none tw:outline-none"
         data-resize-handle="true"
         ref={handleRef}
         role="separator"

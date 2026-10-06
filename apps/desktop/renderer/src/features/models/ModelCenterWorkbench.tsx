@@ -610,7 +610,7 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
         title="刷新供应商信息"
       >
         {!refreshingProviderData ? <RefreshCw size={APP_ICON_SIZE} aria-hidden /> : null}
-        <span className="model-center-header-action-label">刷新</span>
+        <span className="model-center-header-action-label tw:max-[479px]:hidden">刷新</span>
       </Button>
 
       {canEditProviderConfig(selectedProvider, deepSeekProtocolSupported) ? (
@@ -623,12 +623,12 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
             }}
           >
             <Pencil size={APP_ICON_SIZE} aria-hidden />
-            <span className="model-center-header-action-label">编辑 Provider</span>
+            <span className="model-center-header-action-label tw:max-[479px]:hidden">编辑 Provider</span>
           </Button>
           {selectedProvider?.providerKind === 'custom' ? (
             <Button color="danger" onClick={() => void deleteCustomProvider()}>
               <Trash2 size={APP_ICON_SIZE} aria-hidden />
-              <span className="model-center-header-action-label">删除 Provider</span>
+              <span className="model-center-header-action-label tw:max-[479px]:hidden">删除 Provider</span>
             </Button>
           ) : null}
         </>
@@ -643,7 +643,7 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
           title="测试当前连接"
         >
           <Cable size={APP_ICON_SIZE} aria-hidden />
-          <span className="model-center-header-action-label">测试连接</span>
+          <span className="model-center-header-action-label tw:max-[479px]:hidden">测试连接</span>
         </Button>
       ) : null}
 
@@ -655,18 +655,22 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
           onClick={() => void fetchModels()}
           title="刷新模型目录"
         >
-          <RefreshCw size={APP_ICON_SIZE} aria-hidden className={busy ? 'spin' : undefined} />
-          <span className="model-center-header-action-label">刷新目录</span>
+          <RefreshCw
+            size={APP_ICON_SIZE}
+            aria-hidden
+            className={busy ? 'tw:animate-spin' : undefined}
+          />
+          <span className="model-center-header-action-label tw:max-[479px]:hidden">刷新目录</span>
         </Button>
       ) : null}
     </>
   ) : null
 
   return (
-    <div className="model-center-shell">
+    <div className="model-center-shell tw:@container tw:mx-auto tw:min-w-0 tw:w-[min(calc(var(--page-content-max-width)_+_var(--cpx-sys-space-5)_*_2),100%)] tw:max-w-[calc(var(--page-content-max-width)_+_var(--cpx-sys-space-5)_*_2)] tw:p-5">
       {showingProviderDetail && selectedProvider ? (
         <WorkspaceHeaderItem align="start" id="models.navigation" order={0} slot="left">
-          <div className="plugins-detail-breadcrumb model-center-detail-breadcrumb">
+          <div className="plugins-detail-breadcrumb model-center-detail-breadcrumb tw:mb-1 tw:inline-flex tw:min-w-0 tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-caption">
             <Button
               color="ghostSecondary"
               onClick={showProviderCatalog}
@@ -677,25 +681,27 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
             </Button>
             <ChevronRight
               aria-hidden="true"
-              className="model-center-breadcrumb-separator"
+              className="model-center-breadcrumb-separator tw:shrink-0 tw:text-app-text-meta tw:opacity-60"
               size={APP_ICON_SIZES.sm}
               strokeWidth={APP_ICON_STROKE_WIDTH}
             />
-            <span className="model-center-breadcrumb-current">{selectedProvider.displayName}</span>
+            <span className="model-center-breadcrumb-current tw:overflow-hidden tw:text-app-text tw:text-ellipsis tw:whitespace-nowrap">
+              {selectedProvider.displayName}
+            </span>
           </div>
         </WorkspaceHeaderItem>
       ) : null}
 
       {!showingProviderDetail ? (
-        <div className="settings-page-header">
-          <h2 className="settings-page-title">供应商</h2>
-          <p className="settings-page-desc">管理模型服务、账户连接、凭据与可用模型。</p>
+        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
+          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">供应商</h2>
+          <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">管理模型服务、账户连接、凭据与可用模型。</p>
         </div>
       ) : null}
 
       {!showingProviderDetail ? (
         <WorkspaceHeaderItem align="end" id="models.actions" order={100} slot="right">
-          <div className="model-center-header-actions">
+          <div className="model-center-header-actions tw:inline-flex tw:shrink-0 tw:flex-wrap tw:items-center tw:justify-end tw:gap-3">
             {!showInitialSkeleton ? (
               <>
                 <Button
@@ -705,7 +711,9 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
                   onClick={() => void refreshProviderData()}
                 >
                   {!refreshingProviderData ? <RefreshCw size={APP_ICON_SIZE} aria-hidden /> : null}
-                  <span className="model-center-header-action-label">刷新</span>
+                  <span className="model-center-header-action-label tw:max-[479px]:hidden">
+                    刷新
+                  </span>
                 </Button>
                 <Button
                   color="primary"
@@ -715,7 +723,9 @@ export function ModelCenterWorkbench({ onError, onNotice }: Props): React.ReactN
                   }}
                 >
                   <Plus size={APP_ICON_SIZE} aria-hidden />
-                  <span className="model-center-header-action-label">新增自定义 Provider</span>
+                  <span className="model-center-header-action-label tw:max-[479px]:hidden">
+                    新增自定义 Provider
+                  </span>
                 </Button>
               </>
             ) : null}
@@ -909,32 +919,38 @@ function ModelCenterInitialSkeleton({
 }: ModelCenterInitialSkeletonProps): React.ReactNode {
   if (view === 'detail') {
     return (
-      <SkeletonRegion className="model-center-initial-skeleton" label="正在加载 Provider 详情">
-        <header className="model-center-skeleton-provider-header">
-          <SkeletonBlock className="model-center-skeleton-back" />
-          <SkeletonBlock className="model-center-skeleton-provider-logo" />
-          <div>
-            <SkeletonBlock className="model-center-skeleton-provider-title" />
-            <SkeletonBlock className="model-center-skeleton-provider-copy" />
+      <SkeletonRegion
+        className="model-center-initial-skeleton tw:grid tw:min-w-0 tw:gap-3"
+        label="正在加载 Provider 详情"
+      >
+        <header className="model-center-skeleton-provider-header tw:flex tw:min-h-10 tw:min-w-0 tw:items-center tw:gap-3">
+          <SkeletonBlock className="model-center-skeleton-back tw:size-9 tw:rounded-md" />
+          <SkeletonBlock className="model-center-skeleton-provider-logo tw:size-10 tw:rounded-md" />
+          <div className="tw:grid tw:min-w-0 tw:flex-1 tw:gap-2">
+            <SkeletonBlock className="model-center-skeleton-provider-title tw:h-[18px] tw:w-[min(150px,72%)]" />
+            <SkeletonBlock className="model-center-skeleton-provider-copy tw:h-3.5 tw:w-[min(210px,88%)]" />
           </div>
         </header>
-        <div className="model-center-skeleton-tabs">
-          <SkeletonBlock className="model-center-skeleton-tab" />
-          <SkeletonBlock className="model-center-skeleton-tab" />
+        <div className="model-center-skeleton-tabs tw:flex tw:gap-5 tw:border-b tw:border-b-app-border-subtle tw:px-1">
+          <SkeletonBlock className="model-center-skeleton-tab tw:h-10 tw:w-14 tw:rounded-md" />
+          <SkeletonBlock className="model-center-skeleton-tab tw:h-10 tw:w-14 tw:rounded-md" />
         </div>
         {section === 'models' ? (
           <>
-            <SkeletonBlock className="model-center-skeleton-search" />
-            <div className="model-center-skeleton-model-grid">
+            <SkeletonBlock className="model-center-skeleton-search tw:h-9 tw:w-[min(360px,100%)] tw:rounded-md" />
+            <div className="model-center-skeleton-model-grid tw:grid tw:min-w-0 tw:grid-cols-2 tw:gap-4 tw:@max-[900px]:grid-cols-1">
               {Array.from({ length: 6 }, (_, index) => (
-                <SkeletonBlock className="model-center-skeleton-model-card" key={index} />
+                <SkeletonBlock
+                  className="model-center-skeleton-model-card tw:min-h-[116px] tw:rounded-lg"
+                  key={index}
+                />
               ))}
             </div>
           </>
         ) : (
-          <div className="model-center-skeleton-detail-sections">
-            <SkeletonBlock />
-            <SkeletonBlock />
+          <div className="model-center-skeleton-detail-sections tw:grid tw:gap-4">
+            <SkeletonBlock className="tw:min-h-[154px] tw:rounded-xl" />
+            <SkeletonBlock className="tw:min-h-[154px] tw:rounded-xl" />
           </div>
         )}
       </SkeletonRegion>
@@ -942,24 +958,30 @@ function ModelCenterInitialSkeleton({
   }
 
   return (
-    <SkeletonRegion className="model-center-initial-skeleton" label="正在加载 Provider 目录">
-      <div className="model-center-heading model-center-skeleton-heading">
-        <SkeletonBlock className="model-center-skeleton-page-title" />
-        <SkeletonBlock className="model-center-skeleton-page-copy" />
+    <SkeletonRegion
+      className="model-center-initial-skeleton tw:grid tw:min-w-0 tw:gap-3"
+      label="正在加载 Provider 目录"
+    >
+      <div className="model-center-heading model-center-skeleton-heading tw:grid tw:gap-2">
+        <SkeletonBlock className="model-center-skeleton-page-title tw:h-7 tw:w-[min(190px,52%)] tw:rounded-md" />
+        <SkeletonBlock className="model-center-skeleton-page-copy tw:h-[18px] tw:w-[min(460px,78%)] tw:rounded-md" />
       </div>
-      <div className="model-center-catalog-toolbar">
-        <SkeletonBlock className="model-center-skeleton-search" />
-        <SkeletonBlock className="model-center-skeleton-count" />
+      <div className="model-center-catalog-toolbar tw:flex tw:min-w-0 tw:items-center tw:justify-start tw:gap-3 tw:@max-[900px]:items-stretch">
+        <SkeletonBlock className="model-center-skeleton-search tw:h-9 tw:w-[min(360px,100%)] tw:rounded-md" />
+        <SkeletonBlock className="model-center-skeleton-count tw:h-6 tw:w-[46px] tw:rounded-full" />
       </div>
-      <div className="model-center-skeleton-provider-grid">
+      <div className="model-center-skeleton-provider-grid tw:grid tw:min-w-0 tw:grid-cols-2 tw:gap-4 tw:@max-[900px]:grid-cols-1">
         {Array.from({ length: 6 }, (_, index) => (
-          <div className="model-center-skeleton-provider-card" key={index}>
-            <SkeletonBlock className="model-center-skeleton-logo" />
-            <div>
-              <SkeletonBlock className="model-center-skeleton-name" />
-              <SkeletonBlock className="model-center-skeleton-meta" />
+          <div
+            className="model-center-skeleton-provider-card tw:grid tw:min-h-[78px] tw:min-w-0 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-3 tw:rounded-lg tw:border tw:border-app-border-subtle tw:p-4"
+            key={index}
+          >
+            <SkeletonBlock className="model-center-skeleton-logo tw:size-9 tw:rounded-md" />
+            <div className="tw:grid tw:min-w-0 tw:gap-2">
+              <SkeletonBlock className="model-center-skeleton-name tw:h-[18px] tw:w-[min(150px,72%)]" />
+              <SkeletonBlock className="model-center-skeleton-meta tw:h-3.5 tw:w-[min(210px,88%)]" />
             </div>
-            <SkeletonBlock className="model-center-skeleton-status" />
+            <SkeletonBlock className="model-center-skeleton-status tw:h-3.5 tw:w-16" />
           </div>
         ))}
       </div>

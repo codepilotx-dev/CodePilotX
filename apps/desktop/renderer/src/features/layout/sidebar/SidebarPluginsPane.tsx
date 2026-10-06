@@ -7,7 +7,6 @@ import { Input } from '../../../components/ui/Input.js'
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { useLocale } from '../../i18n/LocaleProvider.js'
-import { useDesktopLayoutOutletContext } from '../shell/desktopLayoutOutletContext.js'
 import {
   PLUGIN_CATALOG_DESCRIPTORS,
   filterPluginCatalog,
@@ -35,10 +34,13 @@ const STATUS_FILTERS: ReadonlyArray<{ value: PluginStatusFilter; label: string }
  * 侧栏插件面板：复用现有插件目录与过滤函数，目录只加载一次，
  * 查询、分类、状态通过 URL 参数与 /plugins 页面共享。
  */
-export function SidebarPluginsPane(): React.ReactNode {
+export function SidebarPluginsPane({
+  workspacePath,
+}: {
+  workspacePath: string | null
+}): React.ReactNode {
   const { t } = useLocale()
   const navigate = useNavigate()
-  const { workspacePath } = useDesktopLayoutOutletContext()
   const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState(() => searchParams.get('q') ?? '')
   const tab: CatalogTab = searchParams.get('tab') === 'skills' ? 'skills' : 'plugins'
@@ -83,10 +85,10 @@ export function SidebarPluginsPane(): React.ReactNode {
 
   return (
     <div className="sidebar-plugins-pane tw:flex tw:h-full tw:min-h-0 tw:flex-col">
-      <div className="sidebar-pane-heading">
-        <h2>{t('插件')}</h2>
+      <div className="sidebar-pane-heading tw:flex tw:min-h-9 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
+        <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">{t('插件')}</h2>
       </div>
-      <div className="sidebar-pane-filters">
+      <div className="sidebar-pane-filters tw:flex tw:flex-col tw:gap-2 tw:p-2">
         <Input
           aria-label={t('搜索插件')}
           placeholder={t('搜索插件与技能')}
@@ -110,11 +112,11 @@ export function SidebarPluginsPane(): React.ReactNode {
           onChange={(next) => updateParams({ status: next })}
         />
       </div>
-      <ScrollArea className="sidebar-scheduled-scroll">
+      <ScrollArea className="sidebar-scheduled-scroll tw:min-h-0 tw:flex-1 tw:p-2">
         {loading ? (
           <SidebarEmptyRow role="status">{t('正在加载插件…')}</SidebarEmptyRow>
         ) : error ? (
-          <div className="sidebar-pane-error" role="status">
+          <div className="sidebar-pane-error tw:p-2 tw:text-app-text-soft tw:type-body-sm" role="status">
             {error}
           </div>
         ) : visibleItems.length === 0 ? (
@@ -123,9 +125,9 @@ export function SidebarPluginsPane(): React.ReactNode {
           visibleItems.map((item) => (
             <SidebarRow
               asChild
-              className="sidebar-nav-link"
+              className="sidebar-nav-link tw:type-row-title tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus"
               key={item.id}
-              labelClassName="sidebar-item-label u-min-w-0"
+              labelClassName="sidebar-item-label tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap"
               layout="flex"
               leading={<Blocks size={APP_ICON_SIZE} />}
             >
@@ -137,8 +139,8 @@ export function SidebarPluginsPane(): React.ReactNode {
                 }}
                 type="button"
               >
-                <span className="sidebar-plugin-name">{item.name}</span>
-                <span className="sidebar-plugin-status">{t(pluginStatusLabel(item))}</span>
+                <span className="sidebar-plugin-name tw:min-w-0 tw:flex-1 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">{item.name}</span>
+                <span className="sidebar-plugin-status tw:shrink-0 tw:text-app-text-meta tw:type-caption">{t(pluginStatusLabel(item))}</span>
               </button>
             </SidebarRow>
           ))

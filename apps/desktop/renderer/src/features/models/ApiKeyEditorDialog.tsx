@@ -14,6 +14,7 @@ import { Input } from '../../components/ui/Input.js'
 import { SettingsDropdown } from '../settings/SettingsDropdown.js'
 import { useDialogFocusRestore } from '../../components/ui/useDialogFocusRestore.js'
 import { useLastNonNull } from '../../hooks/usePresenceRetention.js'
+import { cx } from '../../utils/cx.js'
 
 export type ApiKeyEditorValue = {
   providerId: ModelProviderID
@@ -93,15 +94,15 @@ export function ApiKeyEditorForm({
 
   return (
     <form
-      className={['model-center-key-dialog-form', className].filter(Boolean).join(' ')}
+      className={cx('model-center-key-dialog-form tw:grid', className)}
       onSubmit={(event) => void handleSubmit(event)}
     >
-      <div className="settings-management-dialog-card model-center-key-dialog-fields">
+      <div className="settings-management-dialog-card model-center-key-dialog-fields tw:m-5 tw:gap-0">
         {!hideProvider ? (
-          <label className="settings-management-dialog-row model-center-field">
+          <label className="settings-management-dialog-row model-center-field tw:grid tw:min-w-0 tw:gap-2 tw:text-app-text tw:type-body tw:[&>span:first-child]:type-row-title tw:[&_input]:w-full">
             <span>Provider</span>
             {editing ? (
-              <div className="model-center-key-dialog-provider">
+              <div className="model-center-key-dialog-provider tw:flex tw:min-h-9 tw:items-center tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:text-app-text-soft">
                 {providerName ?? currentApiKey?.providerId}
               </div>
             ) : (
@@ -121,7 +122,7 @@ export function ApiKeyEditorForm({
             )}
           </label>
         ) : null}
-        <label className="settings-management-dialog-row model-center-field">
+        <label className="settings-management-dialog-row model-center-field tw:grid tw:min-w-0 tw:gap-2 tw:text-app-text tw:type-body tw:[&>span:first-child]:type-row-title tw:[&_input]:w-full">
           <span>名称</span>
           <Input
             autoFocus={autoFocusLabel}
@@ -131,7 +132,7 @@ export function ApiKeyEditorForm({
             onChange={(event) => setLabel(event.target.value)}
           />
         </label>
-        <label className="settings-management-dialog-row model-center-field">
+        <label className="settings-management-dialog-row model-center-field tw:grid tw:min-w-0 tw:gap-2 tw:text-app-text tw:type-body tw:[&>span:first-child]:type-row-title tw:[&_input]:w-full">
           <span>{editing ? '更换 Key（可选）' : 'API Key'}</span>
           <Input
             autoComplete="off"
@@ -140,11 +141,15 @@ export function ApiKeyEditorForm({
             value={secret}
             onChange={(event) => setSecret(event.target.value)}
           />
-          {editing ? <small>输入新 Key 后，健康状态会重置为“未测试”。</small> : null}
+          {editing ? (
+            <small className="tw:col-start-2 tw:max-[720px]:col-start-1">
+              输入新 Key 后，健康状态会重置为“未测试”。
+            </small>
+          ) : null}
         </label>
       </div>
 
-      <footer className="settings-management-dialog-footer model-center-key-dialog-actions">
+      <footer className="settings-management-dialog-footer model-center-key-dialog-actions tw:flex-wrap">
         {onCancel ? (
           <Button color="secondary" onClick={onCancel}>
             取消
@@ -193,20 +198,23 @@ export function ApiKeyEditorDialog({
         <Dialog.Content
           aria-describedby={descriptionId}
           aria-labelledby={titleId}
-          className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog model-center-key-dialog"
+          className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog model-center-key-dialog tw:w-[min(520px,calc(100vw_-_48px))] tw:max-h-[min(720px,calc(100vh_-_48px))] tw:overflow-x-hidden"
           data-dialog-size="credential"
           onCloseAutoFocus={onCloseAutoFocus}
         >
-          <header className="settings-management-dialog-header model-center-key-dialog-header">
-            <div className="settings-management-dialog-heading model-center-key-dialog-heading">
-              <span className="model-center-key-dialog-icon">
+          <header className="settings-management-dialog-header model-center-key-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:p-5">
+            <div className="settings-management-dialog-heading model-center-key-dialog-heading tw:flex tw:min-w-0 tw:items-start tw:gap-3">
+              <span className="model-center-key-dialog-icon tw:inline-flex tw:size-9 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:bg-app-editor tw:text-app-text-soft tw:[&_svg]:size-icon-lg">
                 <KeyRound size={APP_ICON_SIZE} aria-hidden />
               </span>
               <div>
-                <Dialog.Title id={titleId}>
+                <Dialog.Title id={titleId} className="tw:type-weight-label">
                   {editing ? '编辑 API Key' : '新增 API Key'}
                 </Dialog.Title>
-                <Dialog.Description id={descriptionId}>
+                <Dialog.Description
+                  id={descriptionId}
+                  className="tw:mt-1 tw:[line-height:var(--cpx-sys-line-height-tight)]"
+                >
                   {editing
                     ? '修改名称，或输入新 Key 完成安全更换。旧密钥不会回填。'
                     : '密钥保存后只显示名称和尾号，页面不会再次展示明文。'}

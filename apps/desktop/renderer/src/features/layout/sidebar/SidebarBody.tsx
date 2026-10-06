@@ -71,6 +71,30 @@ const PINNED_INITIAL_LIMIT = 10
 const PINNED_LIMIT_STEP = 10
 const CUSTOM_SECTION_INITIAL_LIMIT = 10
 
+/* 分组标题行：sticky 30px 头部、8px gutter、右侧 4.286em trailing 列。 */
+const SECTION_HEADER_CLASS =
+  'sidebar-section-header tw:sticky tw:top-0 tw:z-local tw:grid tw:min-h-[var(--sidebar-row-height)] tw:w-full tw:grid-cols-[minmax(0,1fr)_var(--sidebar-trailing-width)] tw:items-center tw:gap-x-2 tw:rounded-md tw:px-2 tw:select-none tw:focus-within:outline-none tw:group'
+const SECTION_TITLE_CLASS =
+  'sidebar-section-title tw:flex tw:min-w-0 tw:items-center tw:type-body tw:normal-case tw:text-app-text-meta'
+const SECTION_TOGGLE_CLASS =
+  'sidebar-section-toggle tw:grid tw:w-full tw:min-w-0 tw:grid-cols-[auto_minmax(0,1fr)] tw:items-center tw:gap-x-2 tw:cursor-pointer tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit'
+const SECTION_ACTIONS_CLASS =
+  'sidebar-section-actions tw:flex tw:w-full tw:items-center tw:justify-end tw:gap-1 tw:opacity-0 tw:pointer-events-none tw:transition-opacity tw:duration-feedback tw:ease-out tw:group-hover:opacity-100 tw:group-hover:pointer-events-auto tw:group-has-[:focus-visible]:opacity-100 tw:group-has-[:focus-visible]:pointer-events-auto tw:has-[[data-state=open]]:opacity-100 tw:has-[[data-state=open]]:pointer-events-auto'
+/* 展开/折叠箭头：随 aria-expanded 旋转，hover 时显现。 */
+const SECTION_CHEVRON_CLASS =
+  'sidebar-section-chevron tw:inline-flex tw:flex-none tw:items-center tw:text-app-text-meta tw:opacity-0 tw:pointer-events-none tw:group-hover:opacity-100 tw:[transition:opacity_var(--cpx-sys-motion-feedback)_var(--cpx-sys-ease-out),color_var(--cpx-sys-motion-feedback)_var(--cpx-sys-ease-out),transform_var(--cpx-sys-motion-disclosure)_var(--cpx-sys-ease-disclosure)]'
+const SECTION_LABEL_CLASS = 'sidebar-section-label tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap tw:text-app-text-meta'
+const SECTION_MAIN_CLASS = 'sidebar-section-main tw:flex tw:min-w-0 tw:items-center'
+const SECTION_TRAILING_CLASS = 'sidebar-section-trailing tw:flex tw:min-h-4 tw:min-w-0 tw:items-center tw:justify-end'
+const SECTION_CONTENT_CLASS = 'sidebar-section-content tw:grid tw:min-w-0 tw:gap-0.5 tw:overflow-hidden tw:pt-0'
+/* 更多/收起操作行：与分组行同一 gutter，1px 行间距。 */
+const SHOW_MORE_ACTIONS_CLASS =
+  'sidebar-show-more-actions tw:flex tw:w-full tw:min-h-7 tw:items-center tw:rounded-md tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-control tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard'
+const SHOW_MORE_ROW_CLASS = 'sidebar-row-main tw:min-w-0 tw:flex tw:items-center tw:gap-4'
+const SHOW_MORE_BUTTON_CLASS =
+  'tw:w-auto sidebar-show-more-button tw:min-w-0 tw:border-0 tw:whitespace-nowrap tw:[--button-padding-inline:0] tw:[font:inherit]'
+const SHOW_MORE_LABEL_CLASS = 'tw:block tw:overflow-hidden tw:whitespace-nowrap'
+
 type Props = {
   activeSessionId: string | null
   disclosureStore: KeyedDisclosureStore
@@ -580,7 +604,8 @@ function SidebarBodyContent({
       <SidebarReorderItem
         className={cx(
           'sidebar-project-sortable',
-          selectedKeys.includes(item.key) && 'sidebar-item--selected',
+          selectedKeys.includes(item.key) &&
+            'sidebar-item--selected tw:[&_.sidebar-row]:bg-app-selected',
         )}
         data-sidebar-drop-index={index}
         data-sidebar-pinned-item-key={item.key}
@@ -651,15 +676,18 @@ function SidebarBodyContent({
   return (
     <SidebarHoverCardProvider>
       <ScrollArea
-        className="sidebar-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
-        contentClassName="sidebar-scroll-content"
+        className="sidebar-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden tw:scroll-pb-2 tw:[mask-image:linear-gradient(to_bottom,transparent,currentColor_var(--cpx-sys-space-2),currentColor_calc(100%-var(--cpx-sys-space-6)),transparent)] tw:forced-colors:[mask-image:none] tw:forced-colors:[scrollbar-color:auto]"
+        contentClassName="sidebar-scroll-content tw:min-w-0 tw:pb-2"
         viewportRef={scrollViewportRef}
         onScroll={onScroll}
       >
         {scrollHeader}
         {/* 次级导航与时间线/任务主体之间的分组间距，不再占用整个滚动视口的外边距 */}
         <div
-          className={cx('sidebar-scroll-main', dropRejected && 'sidebar-drop-rejected')}
+          className={cx(
+            'sidebar-scroll-main tw:min-w-0 tw:pt-2',
+            dropRejected && 'sidebar-drop-rejected',
+          )}
           onClickCapture={handleSelectionClick}
           onKeyDown={(event) =>
             moveFocusOnArrowKey(event, '.sidebar-session-button, .sidebar-project-button')
@@ -668,7 +696,7 @@ function SidebarBodyContent({
           {drag.indicator ? (
             <div
               aria-hidden="true"
-              className="sidebar-drop-indicator"
+              className="sidebar-drop-indicator tw:pointer-events-none tw:fixed tw:z-tooltip tw:-mt-px tw:h-0.5 tw:rounded-full tw:bg-app-accent"
               style={{
                 top: drag.indicator.top,
                 left: drag.indicator.left,
@@ -705,7 +733,7 @@ function SidebarBodyContent({
             />
           ) : (
             <div
-              className="sidebar-standard-mode sidebar-section-group tw:flex tw:min-w-0 tw:flex-col"
+              className="sidebar-standard-mode sidebar-section-group tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-2"
               data-sidebar-drop-container="default"
             >
               <AnimatePresence initial={false}>
@@ -728,7 +756,7 @@ function SidebarBodyContent({
                         <Reorder.Group
                           as="div"
                           axis="y"
-                          className="sidebar-reorder-group"
+                          className="sidebar-reorder-group tw:min-w-0"
                           data-sidebar-drop-container="pinned"
                           values={pinnedItemValues}
                           onReorder={(nextOrder) => {
@@ -828,7 +856,7 @@ function SidebarBodyContent({
                           <Reorder.Group
                             as="div"
                             axis="y"
-                            className="sidebar-reorder-group"
+                            className="sidebar-reorder-group tw:min-w-0"
                             values={orderedProjects.map(sidebarProjectKey)}
                             onReorder={(nextOrder) => {
                               if (sameStringOrder(projectOrderRef.current, nextOrder)) return
@@ -1038,7 +1066,7 @@ function Timeline({
 
   if (isCompletelyEmpty) {
     return (
-      <div className="sidebar-timeline">
+      <div className="sidebar-timeline tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-2">
         <FocusSectionGroup
           action={
             <TimelinePriorityMenu
@@ -1070,7 +1098,7 @@ function Timeline({
   }
 
   return (
-    <div className="sidebar-timeline">
+    <div className="sidebar-timeline tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-2">
       {sliced.prioritySessions.length > 0 ? (
         <FocusSectionGroup
           action={
@@ -1098,8 +1126,10 @@ function Timeline({
           {...sharedSessionProps}
         />
       ) : (
-        <div className="sidebar-focus-section-header tw:flex tw:justify-between tw:items-center">
-          <h3 className="sidebar-focus-section-title">优先级</h3>
+        <div className="sidebar-focus-section-header tw:sticky tw:top-1.5 tw:z-local tw:isolate tw:flex tw:h-[var(--sidebar-row-height)] tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-transparent tw:px-2 tw:group">
+          <h3 className="sidebar-focus-section-title tw:m-0 tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap tw:type-row-title tw:text-app-text-meta">
+            优先级
+          </h3>
           <TimelinePriorityMenu
             hasArchivableAttention={hasArchivableAttention}
             hasUnreadAttention={hasUnreadAttention}
@@ -1182,7 +1212,7 @@ function TimelinePriorityMenu({
       trigger={
         <IconButton
           aria-label="优先级显示选项"
-          className="sidebar-timeline-menu-button"
+          className="sidebar-timeline-menu-button tw:flex-none tw:opacity-0 tw:pointer-events-none tw:focus-visible:opacity-100 tw:focus-visible:pointer-events-auto tw:data-[state=open]:opacity-100 tw:data-[state=open]:pointer-events-auto tw:group-hover:opacity-100 tw:group-hover:pointer-events-auto tw:group-has-[:focus-visible]:opacity-100 tw:group-has-[:focus-visible]:pointer-events-auto"
           color="ghostSecondary"
           size="toolbar"
           title="优先级显示选项"
@@ -1259,12 +1289,14 @@ function FocusSectionGroup({
 }): React.ReactNode {
   return (
     <section className="sidebar-section sidebar-focus-section tw:grid">
-      <div className="sidebar-focus-section-header">
-        <h3 className="sidebar-focus-section-title">{section.label}</h3>
+      <div className="sidebar-focus-section-header tw:sticky tw:top-1.5 tw:z-local tw:isolate tw:flex tw:h-[var(--sidebar-row-height)] tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:bg-transparent tw:px-2 tw:group">
+        <h3 className="sidebar-focus-section-title tw:m-0 tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap tw:type-row-title tw:text-app-text-meta">
+          {section.label}
+        </h3>
         {action}
       </div>
-      <div className="sidebar-focus-section-clip-window">
-        <div className="sidebar-focus-section-clip-content">
+      <div className="sidebar-focus-section-clip-window tw:min-w-0">
+        <div className="sidebar-focus-section-clip-content tw:min-w-0">
           {section.sessions.length === 0 && emptyState != null ? (
             <SidebarEmptyRow>{emptyState}</SidebarEmptyRow>
           ) : (
@@ -1343,7 +1375,7 @@ function SidebarOrganizeMenu({
       width={208}
       onOpenChange={setOpen}
     >
-      <PopoverLabel className="popover-sidebar-organize-heading">整理</PopoverLabel>
+      <PopoverLabel className="popover-sidebar-organize-heading tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label">整理</PopoverLabel>
       <PopoverRadioGroup
         value={organization}
         onValueChange={(value) => onOrganizationChange(value as DesktopSidebarOrganization)}
@@ -1351,7 +1383,7 @@ function SidebarOrganizeMenu({
         <PopoverRadioItem value="projects">按项目</PopoverRadioItem>
         <PopoverRadioItem value="flat">在一个列表中</PopoverRadioItem>
       </PopoverRadioGroup>
-      <PopoverLabel className="popover-sidebar-organize-heading">排序方式</PopoverLabel>
+      <PopoverLabel className="popover-sidebar-organize-heading tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label">排序方式</PopoverLabel>
       <PopoverRadioGroup
         value={sort}
         onValueChange={(value) => onSortChange(value as DesktopSidebarSort)}
@@ -1362,7 +1394,7 @@ function SidebarOrganizeMenu({
           </PopoverRadioItem>
         ))}
       </PopoverRadioGroup>
-      <PopoverLabel className="popover-sidebar-organize-heading">过滤</PopoverLabel>
+      <PopoverLabel className="popover-sidebar-organize-heading tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label">过滤</PopoverLabel>
       <PopoverCheckboxItem
         checked={showScheduledSessions}
         keepOpen
@@ -1407,7 +1439,7 @@ function SidebarPinnedSortMenu({
       width={208}
       onOpenChange={setOpen}
     >
-      <PopoverLabel className="popover-sidebar-organize-heading">排序方式</PopoverLabel>
+      <PopoverLabel className="popover-sidebar-organize-heading tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label">排序方式</PopoverLabel>
       <PopoverRadioGroup
         value={sort}
         onValueChange={(value) => onSortChange(value as 'manual' | 'updated')}
@@ -1420,7 +1452,7 @@ function SidebarPinnedSortMenu({
 }
 
 function SidebarSectionActions({ children }: { children: React.ReactNode }): React.ReactNode {
-  return <div className="sidebar-section-actions tw:flex tw:items-center">{children}</div>
+  return <div className={SECTION_ACTIONS_CLASS}>{children}</div>
 }
 
 function SidebarShowMoreActions({
@@ -1435,29 +1467,29 @@ function SidebarShowMoreActions({
   onShowMore: () => void
 }): React.ReactNode {
   return (
-    <div className="sidebar-show-more-actions">
-      <div className={cx('sidebar-row-main', 'u-min-w-0', 'u-flex', 'u-items-center')}>
+    <div className={SHOW_MORE_ACTIONS_CLASS}>
+      <div className={SHOW_MORE_ROW_CLASS}>
         {canShowMore ? (
           <Button
             aria-expanded={canCollapse}
-            className="u-w-auto sidebar-show-more-button"
+            className={SHOW_MORE_BUTTON_CLASS}
             color="ghostTertiary"
             onClick={onShowMore}
             size="compact"
             type="button"
           >
-            <span>展开显示</span>
+            <span className={SHOW_MORE_LABEL_CLASS}>展开显示</span>
           </Button>
         ) : null}
         {canCollapse ? (
           <Button
-            className="u-w-auto sidebar-show-more-button"
+            className={SHOW_MORE_BUTTON_CLASS}
             color="ghostTertiary"
             onClick={onCollapse}
             size="compact"
             type="button"
           >
-            <span>折叠显示</span>
+            <span className={SHOW_MORE_LABEL_CLASS}>折叠显示</span>
           </Button>
         ) : null}
       </div>
@@ -1465,11 +1497,11 @@ function SidebarShowMoreActions({
         aria-hidden="true"
         className={cx(
           'sidebar-row-trailing',
-          'u-min-w-0',
-          'u-flex',
-          'u-items-center',
-          'u-w-full',
-          'u-justify-end',
+          'tw:min-w-0',
+          'tw:flex',
+          'tw:items-center',
+          'tw:w-full',
+          'tw:justify-end',
         )}
       />
     </div>
@@ -1587,7 +1619,8 @@ function SidebarCustomSection({
         <SidebarReorderItem
           className={cx(
             'sidebar-project-sortable',
-            selectedKeys.includes(entry.key) && 'sidebar-item--selected',
+            selectedKeys.includes(entry.key) &&
+              'sidebar-item--selected tw:[&_.sidebar-row]:bg-app-selected',
           )}
           data-sidebar-drop-index={index}
           key={entry.key}
@@ -1602,8 +1635,9 @@ function SidebarCustomSection({
     return (
       <div
         className={cx(
-          'sidebar-custom-section-session',
-          selectedKeys.includes(entry.key) && 'sidebar-item--selected',
+          'sidebar-custom-section-session tw:min-w-0',
+          selectedKeys.includes(entry.key) &&
+            'sidebar-item--selected tw:[&_.sidebar-row]:bg-app-selected',
         )}
         data-sidebar-drop-index={index}
         key={entry.key}
@@ -1643,13 +1677,13 @@ function SidebarCustomSection({
       className="sidebar-section sidebar-section--custom tw:grid"
       data-sidebar-drop-container={`section:${section.id}`}
     >
-      <div className="sidebar-section-header">
-        <h2 className="sidebar-section-title">
+      <div className={SECTION_HEADER_CLASS}>
+        <h2 className={SECTION_TITLE_CLASS}>
           {renaming ? (
             <input
               aria-label="分组名称"
               autoFocus
-              className="sidebar-section-rename-input"
+              className="sidebar-section-rename-input tw:h-[var(--sidebar-row-height)] tw:w-full tw:min-w-0 tw:rounded-md tw:border tw:border-app-focus tw:bg-app-control tw:px-2 tw:text-app-text tw:type-body tw:outline-none"
               onBlur={() => {
                 onRename(section.id, renameValue)
                 setRenaming(false)
@@ -1669,21 +1703,24 @@ function SidebarCustomSection({
           ) : (
             <button
               aria-expanded={!section.collapsed}
-              className="sidebar-section-toggle"
+              className={SECTION_TOGGLE_CLASS}
               data-sidebar-section-id={section.id}
               type="button"
               onClick={() => onSetCollapsed(section.id, !section.collapsed)}
             >
-              <span className={cx('sidebar-section-label', 'u-min-w-0')}>{section.title}</span>
-              <span className="sidebar-section-main">
-                <span aria-hidden="true" className="sidebar-section-chevron">
+              <span className={cx(SECTION_LABEL_CLASS, 'tw:min-w-0')}>{section.title}</span>
+              <span className={SECTION_MAIN_CLASS}>
+                <span
+                  aria-hidden="true"
+                  className={cx(SECTION_CHEVRON_CLASS, section.collapsed && 'tw:-rotate-90')}
+                >
                   <ChevronDown size={APP_ICON_SIZES.sm} />
                 </span>
               </span>
             </button>
           )}
         </h2>
-        <div className="sidebar-section-trailing">
+        <div className={SECTION_TRAILING_CLASS}>
           <SidebarSectionActions>
             <PopoverMenu
               align="start"
@@ -1699,7 +1736,7 @@ function SidebarCustomSection({
               width={208}
               onOpenChange={setMenuOpen}
             >
-              <PopoverLabel className="popover-sidebar-organize-heading">排序方式</PopoverLabel>
+              <PopoverLabel className="popover-sidebar-organize-heading tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label">排序方式</PopoverLabel>
               <PopoverRadioGroup
                 value={section.sort}
                 onValueChange={(value) => onSetSort(section.id, value as 'manual' | 'updated')}
@@ -1726,7 +1763,7 @@ function SidebarCustomSection({
       </div>
       <DisclosureContent
         className="sidebar-section-disclosure"
-        contentClassName="sidebar-section-content tw:grid"
+        contentClassName={SECTION_CONTENT_CLASS}
         expanded={!section.collapsed}
         id={`sidebar-custom-section-${section.id}`}
         mountPolicy="always"
@@ -1737,7 +1774,7 @@ function SidebarCustomSection({
           <Reorder.Group
             as="div"
             axis="y"
-            className="sidebar-reorder-group"
+            className="sidebar-reorder-group tw:min-w-0"
             data-sidebar-drop-container={`section:${section.id}`}
             values={values}
             onReorder={(nextOrder) => {
@@ -1784,29 +1821,32 @@ function SidebarSection({
 
   return (
     <section className="sidebar-section tw:grid">
-      <div className="sidebar-section-header">
-        <h2 className="sidebar-section-title">
+      <div className={SECTION_HEADER_CLASS}>
+        <h2 className={SECTION_TITLE_CLASS}>
           <button
             aria-controls={contentId}
             aria-expanded={expanded}
-            className="sidebar-section-toggle"
+            className={SECTION_TOGGLE_CLASS}
             data-sidebar-section-id={sectionId}
             type="button"
             onClick={() => disclosureStore.setExpanded(disclosureKey, !expanded)}
           >
-            <span className={cx('sidebar-section-label', 'u-min-w-0')}>{title}</span>
-            <span className="sidebar-section-main">
-              <span aria-hidden="true" className="sidebar-section-chevron">
+            <span className={cx(SECTION_LABEL_CLASS, 'tw:min-w-0')}>{title}</span>
+            <span className={SECTION_MAIN_CLASS}>
+              <span
+                aria-hidden="true"
+                className={cx(SECTION_CHEVRON_CLASS, !expanded && 'tw:-rotate-90')}
+              >
                 <ChevronDown size={APP_ICON_SIZES.sm} />
               </span>
             </span>
           </button>
         </h2>
-        <div className="sidebar-section-trailing">{action}</div>
+        <div className={SECTION_TRAILING_CLASS}>{action}</div>
       </div>
       <DisclosureContent
         className="sidebar-section-disclosure"
-        contentClassName="sidebar-section-content tw:grid"
+        contentClassName={SECTION_CONTENT_CLASS}
         expanded={expanded}
         id={contentId}
         mountPolicy="always"

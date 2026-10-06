@@ -10,11 +10,7 @@ import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
  * Chat-scoped computer control indicator. It renders nothing unless this chat
  * owns the current control turn, so no standalone computer panel is needed.
  */
-export function ComputerControlChip({
-  threadId,
-}: {
-  threadId: string | null
-}): React.ReactNode {
+export function ComputerControlChip({ threadId }: { threadId: string | null }): React.ReactNode {
   const { state } = useComputerState()
   const [stopping, setStopping] = useState(false)
 
@@ -23,9 +19,9 @@ export function ComputerControlChip({
 
   return (
     <>
-      <span className="toolbar-divider" />
+      <span className="toolbar-divider tw:inline-block tw:h-3.5 tw:w-px tw:shrink-0 tw:bg-app-border-subtle" />
       <span
-        className="chip-button composer-plan-mode-chip active"
+        className="chip-button composer-plan-mode-chip active tw:relative tw:bg-app-selected tw:text-app-accent-fg tw:type-secondary tw:hover:bg-app-selected"
         title="当前聊天正在控制电脑；停止后需要新的对话回合才能继续"
       >
         <MonitorSmartphone aria-hidden="true" size={APP_ICON_SIZE} />

@@ -53,7 +53,7 @@ export function ConversationForkDialog({
         >
           <header className="tw:flex tw:items-start tw:justify-between tw:gap-4">
             <Dialog.Title asChild>
-              <h2 className="tw:m-0 u-type-title-md tw:text-app-text">在新聊天中继续</h2>
+              <h2 className="tw:m-0 tw:type-title-md tw:text-app-text">在新聊天中继续</h2>
             </Dialog.Title>
             <Dialog.Close asChild>
               <IconButton
@@ -79,7 +79,7 @@ export function ConversationForkDialog({
                 title="使用此工作树"
                 onClick={() => onSelectDestination({ kind: 'same-worktree' })}
               />
-              <p className="tw:m-0 tw:px-3 u-type-caption tw:text-app-text-soft">
+              <p className="tw:m-0 tw:px-3 tw:type-caption tw:text-app-text-soft">
                 两个聊天共享同一工作目录，后续文件修改互相可见。
               </p>
               <DestinationButton
@@ -89,11 +89,11 @@ export function ConversationForkDialog({
                 onClick={() => onSelectDestination({ kind: 'new-worktree' })}
               />
               {!canUseNewWorktree ? (
-                <p className="tw:m-0 tw:px-3 u-type-caption tw:text-app-text-soft">
+                <p className="tw:m-0 tw:px-3 tw:type-caption tw:text-app-text-soft">
                   当前任务不在 Git 工作区中，无法创建托管工作树。
                 </p>
               ) : sourceRunning ? (
-                <p className="tw:m-0 tw:px-3 u-type-caption tw:text-app-text-soft">
+                <p className="tw:m-0 tw:px-3 tw:type-caption tw:text-app-text-soft">
                   当前任务正在运行，将从当前 Git HEAD 创建，不复制未提交修改。
                 </p>
               ) : null}
@@ -134,7 +134,7 @@ function DestinationButton({
 }): React.ReactNode {
   return (
     <button
-      className="conversation-fork-dialog__destination"
+      className="conversation-fork-dialog__destination tw:flex tw:w-full tw:items-center tw:justify-start tw:gap-4 tw:rounded-container tw:border tw:border-app-border tw:bg-app-canvas tw:px-4 tw:py-3 tw:text-left tw:text-app-text tw:transition-[border-color,background-color] tw:duration-feedback tw:ease-out tw:hover:enabled:border-app-border-strong tw:hover:enabled:bg-app-hover tw:focus-visible:outline-offset-1"
       disabled={disabled}
       onClick={onClick}
       type="button"
@@ -146,8 +146,8 @@ function DestinationButton({
         strokeWidth={APP_ICON_STROKE_WIDTH}
       />
       <span className="tw:grid tw:min-w-0 tw:gap-1">
-        <strong className="u-type-control tw:text-app-text">{title}</strong>
-        <span className="u-type-caption tw:text-app-text-soft">{description}</span>
+        <strong className="tw:type-control tw:text-app-text">{title}</strong>
+        <span className="tw:type-caption tw:text-app-text-soft">{description}</span>
       </span>
     </button>
   )
@@ -161,7 +161,7 @@ function ForkProgress({
   const operation = progress?.operation
   return (
     <div className="tw:grid tw:min-h-28 tw:gap-3" aria-live="polite">
-      <div className="tw:flex tw:items-center tw:gap-2 u-type-body-sm tw:text-app-text">
+      <div className="tw:flex tw:items-center tw:gap-2 tw:type-body-sm tw:text-app-text">
         {operation?.status === 'running' ? (
           <LoaderCircle
             aria-hidden="true"
@@ -181,14 +181,14 @@ function ForkProgress({
         </pre>
       ) : null}
       {operation?.warnings.length ? (
-        <ul className="tw:m-0 tw:grid tw:gap-1 tw:pl-5 u-type-caption tw:text-app-text-soft">
+        <ul className="tw:m-0 tw:grid tw:gap-1 tw:pl-5 tw:type-caption tw:text-app-text-soft">
           {operation.warnings.map((warning) => (
             <li key={warning}>{warning}</li>
           ))}
         </ul>
       ) : null}
       {operation?.status === 'failed' ? (
-        <p className="tw:m-0 u-type-body-sm tw:text-app-text-soft" role="alert">
+        <p className="tw:m-0 tw:type-body-sm tw:text-app-text-soft" role="alert">
           {operation.errorCode ?? '分叉操作失败。'}
         </p>
       ) : null}

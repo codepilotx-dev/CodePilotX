@@ -2,7 +2,29 @@ import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../../components/ui/ic
 import React, { useState } from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import { Check } from 'lucide-react'
+import { cx } from '../../../utils/cx.js'
 import type { ThinkingOption } from './ThinkingLevelPopover.js'
+
+/*
+ * Reasoning popover. `.composer-reasoning-menu-item` keeps its font in
+ * `src/styles/primitives/composer.css`: the `.is-selected` state raises the
+ * weight, and a bold override cannot sit next to a `font` shorthand role.
+ */
+const MENU_CLASS = cx(
+  'composer-reasoning-menu-content tw:z-popover tw:w-35 tw:rounded-prominent tw:border tw:border-app-border-subtle',
+  'tw:bg-app-raised tw:p-1.5 tw:shadow-lg tw:outline-none tw:select-none',
+  'tw:animate-[composer-drop-in_var(--cpx-sys-motion-enter)_var(--cpx-sys-ease-standard)_both]',
+)
+const MENU_TITLE_CLASS =
+  'composer-reasoning-menu-title tw:px-2.5 tw:py-1 tw:uppercase tw:tracking-[0.04em] tw:text-app-text-meta'
+const MENU_LIST_CLASS = 'composer-reasoning-menu-list tw:flex tw:flex-col tw:gap-0.5'
+const MENU_ITEM_CLASS = cx(
+  'composer-reasoning-menu-item tw:flex tw:w-full tw:cursor-pointer tw:items-center tw:justify-between',
+  'tw:rounded-control tw:border-0 tw:bg-transparent tw:px-2.5 tw:py-1.5 tw:text-app-text',
+  'tw:transition-colors tw:duration-feedback tw:ease-standard tw:hover:bg-app-hover',
+)
+const MENU_ITEM_LABEL_CLASS = 'composer-reasoning-menu-item-label tw:truncate'
+const MENU_CHECK_CLASS = 'composer-reasoning-menu-check tw:shrink-0 tw:text-app-accent-fg'
 
 export type ReasoningMenuProps = {
   trigger: React.ReactElement
@@ -56,11 +78,11 @@ export function ReasoningMenu({
           align={align}
           side={side}
           sideOffset={sideOffset}
-          className="composer-reasoning-menu-content"
+          className={MENU_CLASS}
           onClick={(event) => event.stopPropagation()}
         >
-          <div className="composer-reasoning-menu-title">推理思考</div>
-          <div className="composer-reasoning-menu-list" role="menu">
+          <div className={MENU_TITLE_CLASS}>推理思考</div>
+          <div className={MENU_LIST_CLASS} role="menu">
             {thinkingOptions.map((option) => {
               const isSelected = option.value === effectiveCurrentMode
               return (
@@ -76,14 +98,14 @@ export function ReasoningMenu({
                   }}
                   onPointerEnter={() => onThinkingPreviewChange?.(option.value)}
                   onPointerLeave={() => onThinkingPreviewChange?.(null)}
-                  className={`composer-reasoning-menu-item${isSelected ? ' is-selected' : ''}`}
+                  className={cx(MENU_ITEM_CLASS, isSelected && 'is-selected')}
                 >
-                  <span className="composer-reasoning-menu-item-label">{option.label}</span>
+                  <span className={MENU_ITEM_LABEL_CLASS}>{option.label}</span>
                   {isSelected ? (
                     <Check
                       size={APP_ICON_SIZES.sm}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
-                      className="composer-reasoning-menu-check"
+                      className={MENU_CHECK_CLASS}
                     />
                   ) : null}
                 </button>

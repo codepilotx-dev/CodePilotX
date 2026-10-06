@@ -58,7 +58,9 @@ export function Dropdown({
           sideOffset={sideOffset}
           style={buildPopoverSizingStyle({ width, maxWidth })}
         >
-          <div className="popover-scroll-content tw:min-w-0 tw:overflow-y-auto">{children}</div>
+          <div className="popover-scroll-content tw:flex tw:min-w-0 tw:max-w-full tw:flex-col tw:gap-0.5 tw:p-1 tw:overflow-x-hidden tw:overflow-y-auto">
+            {children}
+          </div>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

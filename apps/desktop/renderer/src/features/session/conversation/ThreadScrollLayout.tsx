@@ -132,15 +132,22 @@ export function ThreadScrollLayout({
   return (
     <div
       ref={scrollRef}
-      className={['thread-scroll-layout', className].filter(Boolean).join(' ')}
+      className={[
+        'thread-scroll-layout tw:relative tw:flex tw:min-w-0 tw:min-h-0 tw:w-full tw:flex-1 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:[scrollbar-width:none] tw:[overflow-anchor:none] tw:[scroll-padding-block-end:var(--thread-scroll-padding-bottom)] ',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
       data-component="thread-scroll-layout"
     >
-      <div className="thread-scroll-layout__inner">
-        <div className="thread-scroll-layout__content">{children}</div>
+      <div className="thread-scroll-layout__inner tw:flex tw:min-w-0 tw:min-h-full tw:flex-col">
+        <div className="thread-scroll-layout__content tw:flex tw:min-w-0 tw:min-h-0 tw:flex-[1_0_auto] tw:flex-col">
+          {children}
+        </div>
         {footer ? (
           <footer
             ref={footerRef}
-            className="thread-scroll-layout__footer"
+            className="thread-scroll-layout__footer tw:sticky tw:bottom-0 tw:isolate tw:z-3 tw:flex tw:w-full tw:flex-none tw:justify-center tw:px-4 tw:pb-4 tw:pointer-events-none tw:[&>*]:pointer-events-auto"
             onFocusCapture={handleFooterFocusCapture}
             onBlurCapture={handleFooterBlurCapture}
           >

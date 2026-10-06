@@ -4,7 +4,6 @@ import { App } from './App.js'
 import { initializeRendererDataEpoch } from './services/desktop-client/data-epoch.js'
 import { installStartupSplashHandoff } from './startup/startupSplashHandoff.js'
 import './styles/tailwind.css'
-import './styles/index.scss'
 
 // 启动遮罩 handoff 在 startup/startupSplashHandoff.ts：静态 splash 在入口 JS
 // 与主 CSS 就绪前保持画面稳定，只有真实 ProseMirror 编辑器可输入或显式

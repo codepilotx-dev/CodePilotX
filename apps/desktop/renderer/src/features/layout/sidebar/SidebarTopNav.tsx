@@ -164,9 +164,12 @@ export function splitSidebarTopNavItems(items: readonly SidebarNavItem[]): {
 function SidebarNavItems({
   items,
   isActiveView,
+  plainActive = false,
 }: {
   items: readonly SidebarNavItem[]
   isActiveView: (view: AppView) => boolean
+  /** 固定“新建任务”入口不显示选中底色，只保留 aria-current。 */
+  plainActive?: boolean
 }): React.ReactNode {
   const { t } = useLocale()
   return (
@@ -175,11 +178,19 @@ function SidebarNavItems({
         const active = isActiveView(item.view)
         return (
           <SidebarRow
-            active={active}
+            active={active && !plainActive}
             asChild
-            className={cx('sidebar-nav-link', active ? 'active' : undefined)}
+            className={cx(
+              'sidebar-nav-link tw:type-row-title',
+              'tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus',
+              active ? 'active' : undefined,
+            )}
             key={item.view}
-            labelClassName={cx('sidebar-item-label', 'u-min-w-0')}
+            labelClassName={cx(
+              'sidebar-item-label',
+              'tw:min-w-0',
+              'tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap',
+            )}
             layout="flex"
             leading={item.icon}
           >
@@ -254,7 +265,7 @@ export function SidebarHeader({
   }
 
   return (
-    <header className="sidebar-header">
+    <header className="sidebar-header tw:mx-2 tw:my-0 tw:flex tw:min-h-13 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between">
       <PopoverMenu
         align="start"
         className="popover-menu--no-icons sidebar-product-mode-menu"
@@ -265,10 +276,10 @@ export function SidebarHeader({
         trigger={
           <button
             aria-label={`${t('切换工作模式，当前为')} ${activeMode.label}`}
-            className="sidebar-product-mode-trigger"
+            className="sidebar-product-mode-trigger tw:inline-flex tw:h-8 tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-xl tw:border-transparent tw:bg-transparent tw:px-2 tw:text-left tw:text-app-text tw:type-row-title tw:whitespace-nowrap tw:hover:bg-app-hover tw:data-[state=open]:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus tw:[&>svg]:shrink-0 tw:[&>svg]:text-app-text-meta"
             type="button"
           >
-            <span className="sidebar-product-mode-label">{activeMode.label}</span>
+            <span className="sidebar-product-mode-label tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap">{activeMode.label}</span>
             <ChevronDown aria-hidden="true" size={APP_ICON_SIZES.sm} />
           </button>
         }
@@ -289,10 +300,10 @@ export function SidebarHeader({
         </PopoverRadioGroup>
       </PopoverMenu>
       {showActions ? (
-        <div className="sidebar-header-actions">
+        <div className="sidebar-header-actions tw:ml-2 tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:pr-2">
           <IconButton
             aria-haspopup="dialog"
-            className="sidebar-search-button"
+            className="sidebar-search-button tw:order-1 tw:text-app-text-meta"
             color="ghost"
             size="icon"
             onClick={onOpenCommandMenu}
@@ -314,7 +325,7 @@ export function SidebarHeader({
                     aria-keyshortcuts="Control+Alt+U"
                     aria-pressed={sidebarTimelineEnabled}
                     active={sidebarTimelineEnabled}
-                    className="sidebar-timeline-toggle-button"
+                    className="sidebar-timeline-toggle-button tw:text-app-text-meta tw:data-[active=true]:bg-app-selected tw:data-[active=true]:text-app-text"
                     color="ghost"
                     size="icon"
                     onClick={() => {
@@ -345,10 +356,10 @@ export function SidebarHeader({
                 align="end"
                 side="bottom"
                 sideOffset={8}
-                className="popover-surface sidebar-activity-coachmark tw:z-50 tw:w-64 tw:border tw:border-border tw:p-3.5 tw:outline-none"
+                className="popover-surface sidebar-activity-coachmark tw:z-50 tw:w-64 tw:border tw:border-app-border tw:p-3.5 tw:outline-none"
               >
                 <div className="tw:flex tw:flex-col tw:gap-2.5">
-                  <p className="u-type-caption tw:text-foreground">
+                  <p className="tw:type-caption tw:text-app-text">
                     {t('新的活动视图——集中查看进行中、待处理和未读会话。')}
                   </p>
                   <div className="tw:flex tw:justify-end">
@@ -360,7 +371,7 @@ export function SidebarHeader({
                     </Button>
                   </div>
                 </div>
-                <Popover.Arrow className="tw:fill-popover" />
+                <Popover.Arrow className="tw:fill-app-raised" />
               </Popover.Content>
             </Popover.Portal>
           </Popover.Root>
@@ -385,7 +396,10 @@ export function SidebarTopNav({
     }),
   )
   return (
-    <nav className="sidebar-top-nav tw:flex tw:flex-col" aria-label={t('主要导航')}>
+    <nav
+      aria-label={t('主要导航')}
+      className="sidebar-top-nav tw:flex tw:flex-col tw:gap-0.5 tw:px-2"
+    >
       <SidebarNavItems items={scrollableItems} isActiveView={isActiveView} />
     </nav>
   )
@@ -418,12 +432,13 @@ export function SidebarNewTaskNav({
   return (
     <nav
       aria-label={t('新建对话')}
-      className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col"
+      className="sidebar-new-task-nav sidebar-top-nav tw:flex tw:flex-col tw:flex-none tw:gap-0.5 tw:border-b tw:border-b-transparent tw:px-2 tw:data-[scroll-overlap=true]:border-b-app-border-subtle"
       data-scroll-overlap={scrollOverlapping ? 'true' : 'false'}
     >
       <SidebarNavItems
         items={label ? fixedItems.map((item) => ({ ...item, label })) : fixedItems}
         isActiveView={isActiveView}
+        plainActive
       />
     </nav>
   )

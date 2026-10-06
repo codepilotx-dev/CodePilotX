@@ -40,21 +40,28 @@ export function WorkbenchShellView({
 }: WorkbenchShellViewProps): React.ReactNode {
   return (
     <div
-      className="app-shell tw:flex tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:text-app-text"
+      className="app-shell tw:flex tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:bg-app-underlay tw:text-app-text"
       data-primary-sidebar-visible={primarySidebarVisible}
       data-auxiliary-panel-visible={auxiliaryPanelVisible}
       data-bottom-panel-visible={bottomPanelVisible}
       data-resize-active={resizeActive}
       data-workspace-layout={workspaceLayout}
     >
-      <div className="desktop-menubar tw:shrink-0">{menuBar}</div>
-      <div className="app-body tw:flex tw:min-h-0 tw:flex-1 tw:overflow-hidden" ref={appBodyRef}>
+      <div className="desktop-menubar tw:h-chrome tw:shrink-0 tw:bg-app-titlebar">{menuBar}</div>
+      <div
+        className="app-body tw:relative tw:flex tw:min-h-0 tw:flex-1 tw:overflow-hidden tw:bg-app-underlay"
+        ref={appBodyRef}
+      >
         {primarySidebar}
-        <section className="desktop-main tw:flex tw:min-w-0 tw:flex-1 tw:overflow-hidden">
-          <div className="desktop-main-stage tw:min-w-0 tw:flex-1 tw:overflow-hidden">
-            <div className="desktop-workspace" ref={workspaceRef} style={workspaceStyle}>
+        <section className="desktop-main tw:relative tw:flex tw:min-h-0 tw:w-full tw:min-w-0 tw:flex-1 tw:items-stretch tw:justify-start tw:overflow-hidden tw:border-l tw:border-app-border tw:bg-app-main">
+          <div className="desktop-main-stage tw:flex tw:h-full tw:min-h-0 tw:w-full tw:min-w-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-start tw:overflow-hidden tw:bg-app-main">
+            <div
+              className="desktop-workspace tw:@container/desktop-workspace tw:relative tw:flex tw:h-full tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-col tw:overflow-hidden tw:bg-app-main"
+              ref={workspaceRef}
+              style={workspaceStyle}
+            >
               {workspaceHeader}
-              <div className="desktop-workspace__upper">
+              <div className="desktop-workspace__upper tw:relative tw:flex tw:h-0 tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-stretch">
                 {mainContent}
                 {auxiliaryPanel}
               </div>

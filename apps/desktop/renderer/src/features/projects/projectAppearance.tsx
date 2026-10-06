@@ -92,6 +92,26 @@ export const PROJECT_APPEARANCE_ICONS = Object.keys(
   PROJECT_ICON_COMPONENTS,
 ) as ProjectAppearanceIcon[]
 
+/*
+ * 项目颜色到前景色 utility 的静态映射。`default` 交给调用点的基础前景色，
+ * 因此映射到 `null`；`pink` 与 `--cpx-comp-terminal-ansi-bright-magenta`
+ * 一样指向 `--cpx-sys-color-skill`。
+ */
+export const PROJECT_APPEARANCE_COLOR_CLASS: Record<ProjectAppearanceColor, string | null> = {
+  default: null,
+  red: 'tw:text-app-chart-red',
+  orange: 'tw:text-app-chart-orange',
+  yellow: 'tw:text-app-chart-yellow',
+  green: 'tw:text-app-chart-green',
+  blue: 'tw:text-app-chart-blue',
+  purple: 'tw:text-app-chart-purple',
+  pink: 'tw:text-app-skill',
+}
+
+/* 项目外观标记的共享几何；颜色由 PROJECT_APPEARANCE_COLOR_CLASS 提供。 */
+export const PROJECT_APPEARANCE_MARKER_CLASS =
+  'project-appearance-marker tw:inline-flex tw:shrink-0 tw:grow-0 tw:items-center tw:justify-center'
+
 export function ProjectAppearanceGlyph({
   appearance = DEFAULT_PROJECT_APPEARANCE,
   className,
@@ -105,7 +125,12 @@ export function ProjectAppearanceGlyph({
   return (
     <span
       aria-hidden="true"
-      className={['project-appearance-glyph', className].filter(Boolean).join(' ')}
+      className={[
+        'project-appearance-glyph tw:inline-flex tw:items-center tw:justify-center',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
       data-project-color={appearance.color}
     >
       <Icon size={size} strokeWidth={APP_ICON_STROKE_WIDTH} />

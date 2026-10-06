@@ -591,10 +591,10 @@ export function PluginsSettingsPage({
 
   return (
     <SettingsContentArea className="plugins-settings-page">
-      <div className="settings-content-inner plugins-settings-content">
-        <header className="settings-page-header">
-          <h2 className="settings-page-title">插件</h2>
-          <p className="settings-page-desc">管理插件、技能和 MCP</p>
+      <div className="settings-content-inner plugins-settings-content tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+        <header className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
+          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">插件</h2>
+          <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">管理插件、技能和 MCP</p>
         </header>
 
         <div className="settings-management-toolbar plugins-settings-toolbar">
@@ -646,7 +646,7 @@ export function PluginsSettingsPage({
 
         {tabError ? (
           <div
-            className="u-type-body-sm tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:border tw:border-app-border tw:bg-app-panel tw:px-3 tw:py-2 tw:text-app-danger"
+            className="tw:type-body-sm tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:border tw:border-app-border tw:bg-app-panel tw:px-3 tw:py-2 tw:text-app-danger"
             role="alert"
           >
             <span>{tabError}</span>
@@ -656,7 +656,7 @@ export function PluginsSettingsPage({
           </div>
         ) : null}
         {tab === 'mcps' && mcpStatus ? (
-          <p className="u-type-body-sm tw:mt-0 tw:mb-4 tw:text-app-text-soft" role="status">
+          <p className="tw:type-body-sm tw:mt-0 tw:mb-4 tw:text-app-text-soft" role="status">
             {mcpStatus}
           </p>
         ) : null}
@@ -987,7 +987,7 @@ function mcpMetadata(server: DesktopMcpServerListItem): React.ReactNode {
 
 function AuthSourceBadge({ source }: { source: 'environment' | 'oauth' }): React.ReactNode {
   return (
-    <span className="u-type-caption tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
+    <span className="tw:type-caption tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
       {source === 'oauth' ? 'OAuth' : '环境凭据'}
     </span>
   )
@@ -1031,7 +1031,7 @@ function withoutRecordKey<T>(values: Record<string, T>, key: string): Record<str
 
 function DiagnosticContextBadge(): React.ReactNode {
   return (
-    <span className="u-type-caption tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
+    <span className="tw:type-caption tw:inline-flex tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text-soft">
       会话诊断
     </span>
   )
@@ -1050,7 +1050,7 @@ function StatusBadge({
       : state === 'failed' || state === 'needs_auth'
         ? 'tw:bg-app-danger/15 tw:text-app-danger'
         : 'tw:bg-app-panel tw:text-app-text-soft'
-  return <span className={`u-type-caption tw:inline-flex tw:px-2 tw:py-0.5 ${tone}`}>{label}</span>
+  return <span className={`tw:type-caption tw:inline-flex tw:px-2 tw:py-0.5 ${tone}`}>{label}</span>
 }
 
 function looksLikeMissingResource(error: unknown): boolean {

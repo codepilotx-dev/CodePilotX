@@ -409,7 +409,7 @@ export function ToolActivityHeader({
   onToggle: () => void
 }): React.ReactNode {
   return (
-    <div className="cpx-agent-activity__item-header cpx-agent-activity__item-header--tool">
+    <div className="cpx-agent-activity__item-header cpx-agent-activity__item-header--tool tw:relative tw:isolate">
       <button
         aria-controls={canExpand ? contentId : undefined}
         aria-expanded={canExpand ? expanded : undefined}

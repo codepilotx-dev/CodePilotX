@@ -14,6 +14,7 @@ import {
 import { Button } from '../../components/ui/Button.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { IconButton } from '../../components/ui/IconButton.js'
+import { cx } from '../../utils/cx.js'
 import { BrowserManagementControls } from './BrowserManagementControls.js'
 
 type Props = {
@@ -151,8 +152,8 @@ export function DesktopBrowserPanel({
 
   return (
     <section className="right-dock-browser" aria-label="内置浏览器">
-      <div className="browser-commandbar">
-        <div className="browser-navigation">
+      <div className="browser-commandbar tw:grid tw:min-h-10 tw:min-w-0 tw:shrink-0 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:border-b tw:border-app-border-subtle tw:bg-app-panel tw:p-2 tw:@max-[440px]:gap-1 tw:@max-[440px]:px-1">
+        <div className="browser-navigation tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:justify-self-start tw:gap-2 tw:@max-[440px]:gap-0">
           <IconButton
             color="ghostSecondary"
             disabled={!state.canGoBack}
@@ -172,6 +173,7 @@ export function DesktopBrowserPanel({
             <ArrowRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <IconButton
+            className="tw:@max-[440px]:hidden"
             color="ghostSecondary"
             size="toolbar"
             title={state.loading ? '停止加载' : '重新加载'}
@@ -183,7 +185,7 @@ export function DesktopBrowserPanel({
           </IconButton>
         </div>
         <form
-          className="browser-address-form"
+          className="browser-address-form tw:relative tw:flex tw:w-full tw:min-w-0 tw:items-center tw:justify-self-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0"
           title={addressStatus}
           onSubmit={(event) => {
             event.preventDefault()
@@ -192,16 +194,25 @@ export function DesktopBrowserPanel({
         >
           <input
             aria-label="浏览器地址"
+            className="tw:min-w-0 tw:flex-auto tw:rounded-md tw:border-0 tw:bg-transparent tw:px-4 tw:py-1 tw:text-center tw:text-app-text tw:type-body tw:outline-none tw:focus:bg-app-raised tw:focus:shadow-[var(--cpx-sys-focus-ring-inset)] tw:@max-[440px]:px-2 tw:@max-[440px]:text-left"
             placeholder="输入 URL"
             value={compactAddress}
             onBlur={() => setAddressFocused(false)}
             onChange={(event) => setAddress(event.target.value)}
             onFocus={() => setAddressFocused(true)}
           />
-          {state.loading ? <span className="browser-address-state">加载中</span> : null}
-          {state.error ? <span className="browser-address-error">!</span> : null}
+          {state.loading ? (
+            <span className="browser-address-state tw:absolute tw:top-1/2 tw:right-0.5 tw:-translate-y-1/2 tw:translate-x-full tw:whitespace-nowrap tw:type-caption tw:text-app-text-meta tw:@max-[440px]:hidden">
+              加载中
+            </span>
+          ) : null}
+          {state.error ? (
+            <span className="browser-address-error tw:absolute tw:top-1/2 tw:right-0.5 tw:inline-grid tw:size-4.5 tw:-translate-y-1/2 tw:translate-x-full tw:place-items-center tw:rounded-full tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-danger)_12%,transparent)] tw:whitespace-nowrap tw:type-caption tw:text-app-danger tw:@max-[440px]:hidden">
+              !
+            </span>
+          ) : null}
         </form>
-        <div className="browser-toolbar-actions">
+        <div className="browser-toolbar-actions tw:flex tw:min-w-0 tw:items-center tw:justify-self-end tw:gap-2 tw:@max-[440px]:gap-0">
           {state.controlThreadId ? (
             <Button
               color="secondary"
@@ -211,7 +222,16 @@ export function DesktopBrowserPanel({
               接管
             </Button>
           ) : null}
-          {state.busy ? <span className="browser-address-state">Agent 操作中</span> : null}
+          {state.busy ? (
+            <span
+              className={cx(
+                'browser-address-state tw:absolute tw:top-1/2 tw:right-0.5 tw:-translate-y-1/2 tw:translate-x-full tw:whitespace-nowrap tw:type-caption tw:text-app-text-meta',
+                state.controlThreadId && 'tw:@max-[440px]:hidden',
+              )}
+            >
+              Agent 操作中
+            </span>
+          ) : null}
           <IconButton
             color="ghostSecondary"
             size="toolbar"
@@ -223,7 +243,13 @@ export function DesktopBrowserPanel({
           >
             <MessageSquarePlus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
-          <IconButton color="ghostSecondary" size="toolbar" title="新标签页" onClick={onNewTab}>
+          <IconButton
+            className="tw:@max-[440px]:hidden"
+            color="ghostSecondary"
+            size="toolbar"
+            title="新标签页"
+            onClick={onNewTab}
+          >
             <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
           <BrowserManagementControls
@@ -237,7 +263,11 @@ export function DesktopBrowserPanel({
       </div>
       <div ref={setBarsHost} className="browser-utility-bars" />
       {annotation.active ? (
-        <div className="browser-annotation-tools" role="toolbar" aria-label="批注选择模式">
+        <div
+          className="browser-annotation-tools tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:border-b tw:border-app-border-subtle tw:p-2 tw:type-body-sm tw:text-app-text-soft"
+          role="toolbar"
+          aria-label="批注选择模式"
+        >
           <SegmentedControl
             value={annotation.mode}
             onChange={annotation.changeMode}
@@ -248,7 +278,7 @@ export function DesktopBrowserPanel({
               { value: 'region', label: '区域' },
             ]}
           />
-          <span>
+          <span className="tw:min-w-0 tw:flex-1">
             {annotation.invalid.length
               ? `${annotation.invalid.length} 条目标已失效，反馈仍可发送`
               : '选择目标后填写反馈；Shift 多选；Esc 取消或退出'}
@@ -259,15 +289,24 @@ export function DesktopBrowserPanel({
         </div>
       ) : null}
       {annotation.error ? (
-        <div className="browser-status-row" role="alert">
+        <div
+          className="browser-status-row tw:flex tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:px-4 tw:py-2 tw:type-caption tw:text-app-text-meta tw:@max-[440px]:items-start tw:@max-[440px]:px-2"
+          role="alert"
+        >
           {annotation.error}
         </div>
       ) : null}
 
       {state.error ? (
-        <div className="browser-status-row" role="alert">
-          <span>{state.error}</span>
+        <div
+          className="browser-status-row tw:flex tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:px-4 tw:py-2 tw:type-caption tw:text-app-text-meta tw:@max-[440px]:items-start tw:@max-[440px]:px-2"
+          role="alert"
+        >
+          <span className="tw:min-w-0 tw:truncate tw:@max-[440px]:whitespace-normal tw:@max-[440px]:wrap-anywhere">
+            {state.error}
+          </span>
           <Button
+            className="tw:shrink-0"
             color="secondary"
             disabled={!state.url && !address.trim()}
             type="button"
@@ -283,7 +322,7 @@ export function DesktopBrowserPanel({
       ) : null}
 
       <div
-        className="browser-viewport"
+        className="browser-viewport tw:relative tw:min-h-0 tw:min-w-0 tw:flex-auto tw:overflow-hidden tw:bg-app-canvas"
         ref={viewportRef}
         onPointerDown={() => {
           if (client.available) {
@@ -292,10 +331,10 @@ export function DesktopBrowserPanel({
         }}
       >
         {!state.url ? (
-          <div className="browser-empty-state">
+          <div className="browser-empty-state tw:grid tw:size-full tw:min-h-0 tw:min-w-0 tw:content-center tw:items-center tw:justify-center tw:justify-items-center tw:gap-[clamp(var(--cpx-sys-space-2),2vh,var(--cpx-sys-space-5))] tw:p-[clamp(var(--cpx-sys-space-3),4vh,var(--cpx-sys-space-6))] tw:text-center tw:text-app-text-meta">
             <Globe2 size={APP_ICON_SIZES.lg} strokeWidth={APP_ICON_STROKE_WIDTH} />
-            <strong>开始浏览</strong>
-            <span>输入 URL 以打开页面</span>
+            <strong className="tw:type-title-sm tw:text-app-text">开始浏览</strong>
+            <span className="tw:type-body-sm tw:text-app-text-soft">输入 URL 以打开页面</span>
           </div>
         ) : null}
       </div>

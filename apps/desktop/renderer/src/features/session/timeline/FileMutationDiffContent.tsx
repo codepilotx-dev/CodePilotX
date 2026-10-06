@@ -48,7 +48,10 @@ export function FileMutationDiffContent({
 }): React.ReactNode {
   if (!diff.renderable) {
     return (
-      <div className="canonical-file-mutation__message" role="status">
+      <div
+        className="canonical-file-mutation__message tw:flex tw:min-h-[72px] tw:items-center tw:justify-center tw:gap-2 tw:p-3 tw:text-app-text-soft"
+        role="status"
+      >
         本次差异过大，无法在时间线内展示
       </div>
     )
@@ -57,7 +60,10 @@ export function FileMutationDiffContent({
   const file = threadPatchDiffToDesktopFile(diff)
   if (!file.hunks.some((hunk) => hunk.lines.length > 0)) {
     return (
-      <div className="canonical-file-mutation__message" role="status">
+      <div
+        className="canonical-file-mutation__message tw:flex tw:min-h-[72px] tw:items-center tw:justify-center tw:gap-2 tw:p-3 tw:text-app-text-soft"
+        role="status"
+      >
         本次编辑未产生可显示的行变化
       </div>
     )
@@ -65,7 +71,7 @@ export function FileMutationDiffContent({
 
   if (shouldVirtualizeReviewFile(file)) {
     return (
-      <div className="canonical-file-mutation__virtual-diff">
+      <div className="canonical-file-mutation__virtual-diff tw:h-[420px] tw:min-h-[180px]">
         <ReviewVirtualDiffRows
           attachedComments={EMPTY_COMMENTS}
           diffMarkerStyle={diffMarkerStyle}

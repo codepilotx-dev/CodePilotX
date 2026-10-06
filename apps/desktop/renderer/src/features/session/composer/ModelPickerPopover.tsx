@@ -13,8 +13,170 @@ import {
   resolveThinkingOptions,
   type ThinkingOption,
 } from './ThinkingLevelPopover.js'
+import { cx } from '../../../utils/cx.js'
 import { ProviderLogo } from './providerLogos.js'
 import { ReasoningMenu } from './ReasoningMenu.js'
+
+/*
+ * Integrated model picker. `.composer-model-name` and `.composer-reasoning-menu-*`
+ * keep their font in `src/styles/primitives/composer.css` (the selected state
+ * raises the weight, which cannot be a utility next to the `font` shorthand
+ * roles), and the provider/model lists hide their scrollbar there too.
+ */
+const PANEL_CONTENT_CLASS = cx(
+  'composer-model-panel-content tw:z-popover tw:origin-bottom-right tw:overflow-hidden tw:rounded-prominent',
+  'tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-lg',
+  'tw:animate-[composer-panel-in_var(--cpx-sys-motion-enter)_var(--cpx-sys-ease-standard)_both]',
+)
+const PANEL_CLASS =
+  'composer-model-panel tw:flex tw:h-97.5 tw:w-99 tw:max-w-[calc(100vw-2rem)] tw:select-none tw:overflow-hidden'
+const PROVIDER_RAIL_CLASS = cx(
+  'composer-provider-rail tw:flex tw:h-full tw:w-14 tw:shrink-0 tw:flex-col tw:items-center tw:justify-between',
+  'tw:border-r tw:border-app-border-subtle tw:bg-transparent tw:px-1.5 tw:py-2.5',
+)
+const PROVIDER_LIST_CLASS =
+  'composer-provider-list tw:flex tw:w-full tw:flex-1 tw:flex-col tw:items-center tw:gap-2 tw:overflow-y-auto tw:py-0.5'
+const PROVIDER_BUTTON_CLASS = cx(
+  'composer-provider-btn tw:flex tw:size-9 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center',
+  'tw:rounded-control tw:border-0 tw:text-app-text-soft',
+  'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
+  'tw:hover:bg-app-hover tw:hover:text-app-text',
+)
+const PROVIDER_BUTTON_IDLE_CLASS = 'tw:bg-transparent'
+const PROVIDER_BUTTON_ACTIVE_CLASS =
+  'tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_8%,transparent)] tw:text-app-text'
+const HUB_TRIGGER_BUTTON_CLASS = cx(
+  'composer-hub-trigger-btn tw:flex tw:size-9 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center',
+  'tw:rounded-control tw:border-0 tw:text-app-text-soft',
+  'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
+  'tw:hover:bg-app-hover tw:hover:text-app-text',
+)
+const PROVIDER_LOGO_CLASS = cx(
+  'composer-provider-logo tw:inline-flex tw:size-4.5 tw:shrink-0 tw:items-center tw:justify-center tw:text-inherit',
+  'tw:[&>svg]:block tw:[&>svg]:size-full',
+)
+const PROVIDER_LOGO_IMAGE_CLASS = 'composer-provider-logo-image tw:[&>img]:object-contain'
+const HUB_TRIGGER_WRAP_CLASS = cx(
+  'composer-hub-trigger-wrap tw:mt-1 tw:flex tw:w-full tw:shrink-0 tw:flex-col tw:items-center',
+  'tw:border-t tw:border-app-border-subtle tw:pt-2',
+)
+const MODEL_RIGHT_CLASS = cx(
+  'composer-model-right tw:relative tw:flex tw:h-full tw:min-w-0 tw:flex-1 tw:flex-col tw:justify-between',
+  'tw:overflow-hidden tw:rounded-r-container tw:bg-app-raised tw:p-2.5',
+)
+const MODELS_HEADER_CLASS = cx(
+  'composer-models-header tw:relative tw:mb-2 tw:flex tw:h-9 tw:shrink-0 tw:items-center tw:justify-between tw:gap-2 tw:px-1',
+)
+const MODELS_HEADER_LEAD_CLASS =
+  'composer-models-header-lead tw:flex tw:shrink-0 tw:items-center tw:gap-1.5'
+const MODELS_HEADER_ACTIONS_CLASS =
+  'composer-models-header-actions tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:justify-end'
+const MODELS_TITLE_CLASS =
+  'composer-models-title tw:shrink-0 tw:tracking-[-0.01em] tw:text-app-text'
+const HUB_BACK_CLASS = cx(
+  'composer-hub-back tw:inline-flex tw:size-6 tw:cursor-pointer tw:items-center tw:justify-center',
+  'tw:rounded-sm tw:border-0 tw:bg-transparent tw:text-app-text-soft',
+  'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
+  'tw:hover:bg-app-hover tw:hover:text-app-text',
+)
+const SEARCH_TRIGGER_CLASS = cx(
+  'composer-search-trigger tw:flex tw:cursor-pointer tw:items-center tw:gap-1.5 tw:border-0 tw:bg-transparent',
+  'tw:text-app-text-meta tw:type-control',
+  'tw:transition-colors tw:duration-feedback tw:ease-standard tw:hover:text-app-text',
+)
+const SEARCH_BAR_CLASS =
+  'composer-search-bar tw:relative tw:flex tw:w-full tw:max-w-52.5 tw:items-center'
+const HUB_SEARCH_BAR_CLASS =
+  'composer-hub-search-bar tw:relative tw:flex tw:w-full tw:max-w-50 tw:items-center'
+const SEARCH_BAR_ICON_CLASS =
+  'composer-search-bar-icon tw:pointer-events-none tw:absolute tw:left-2.5 tw:text-app-text-meta'
+const SEARCH_INPUT_CLASS = cx(
+  'composer-search-input tw:h-7 tw:w-full tw:rounded-control tw:border tw:border-app-border-subtle',
+  'tw:bg-app-control tw:py-1 tw:ps-8 tw:pe-7 tw:text-app-text tw:type-secondary',
+  'tw:outline-none tw:transition-colors tw:duration-feedback tw:ease-standard tw:focus:border-app-focus',
+  'tw:placeholder:text-app-text-meta',
+)
+const HUB_SEARCH_INPUT_CLASS = cx(
+  'composer-hub-search-input tw:h-7 tw:w-full tw:rounded-control tw:border tw:border-app-border-subtle',
+  'tw:bg-app-control tw:py-1 tw:ps-8 tw:pe-2.5 tw:text-app-text tw:type-caption',
+  'tw:outline-none tw:transition-colors tw:duration-feedback tw:ease-standard tw:focus:border-app-focus',
+  'tw:placeholder:text-app-text-meta',
+)
+const SEARCH_CLEAR_CLASS = cx(
+  'composer-search-clear tw:absolute tw:right-1.5 tw:inline-flex tw:size-4 tw:cursor-pointer tw:items-center tw:justify-center',
+  'tw:rounded-full tw:border-0 tw:bg-transparent tw:text-app-text-meta',
+  'tw:hover:bg-app-hover tw:hover:text-app-text',
+)
+const PICKER_VIEW_CLASS =
+  'composer-picker-view tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:overflow-hidden'
+const MODELS_EMPTY_CLASS =
+  'composer-models-empty tw:px-3 tw:py-8 tw:text-center tw:text-app-text-meta tw:type-caption'
+const MODELS_LIST_CLASS =
+  'composer-models-list tw:flex tw:flex-1 tw:flex-col tw:gap-1 tw:overflow-y-auto tw:pr-0.5'
+const HUB_LIST_CLASS =
+  'composer-models-list composer-hub-list tw:flex tw:flex-1 tw:flex-col tw:gap-1.5 tw:overflow-y-auto tw:px-0.5'
+const MODEL_ROW_CLASS = cx(
+  'composer-model-row tw:group tw:flex tw:cursor-pointer tw:items-center tw:justify-between',
+  'tw:rounded-control tw:px-3 tw:py-2',
+  'tw:transition-colors tw:duration-feedback tw:ease-standard tw:hover:bg-app-hover',
+)
+const MODEL_ROW_SELECTED_CLASS =
+  'is-selected tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_6%,transparent)]'
+const MODEL_ROW_MAIN_CLASS =
+  'composer-model-row-main tw:flex tw:min-w-0 tw:items-center tw:gap-2.5 tw:pr-0.5'
+const MODEL_ROW_ICON_CLASS =
+  'composer-model-row-icon tw:size-icon-md tw:shrink-0 tw:transition-opacity tw:duration-feedback tw:ease-standard'
+const MODEL_ROW_ICON_IDLE_CLASS = 'tw:opacity-70 tw:group-hover:opacity-100'
+const MODEL_ROW_ICON_ACTIVE_CLASS = 'is-active tw:opacity-100'
+const MODEL_ROW_TRAILING_CLASS =
+  'composer-model-row-trailing tw:flex tw:shrink-0 tw:items-center tw:gap-2'
+const MODEL_DOT_CLASS = cx(
+  'composer-model-dot tw:flex tw:size-4.5 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-full',
+  'tw:transition-colors tw:duration-feedback tw:ease-standard',
+)
+const MODEL_DOT_IDLE_CLASS =
+  'tw:border-[1.5px] tw:border-app-border tw:group-hover:border-app-border-strong'
+const MODEL_DOT_SELECTED_CLASS = 'is-selected tw:bg-app-accent'
+const MODEL_DOT_INNER_CLASS =
+  'composer-model-dot-inner tw:size-1.5 tw:rounded-full tw:bg-app-on-accent'
+const EFFORT_PILL_CLASS = cx(
+  'composer-effort-pill tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-1 tw:rounded-compact tw:border-0',
+  'tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_10%,transparent)] tw:px-2 tw:py-0.5 tw:text-app-text tw:type-label',
+  'tw:transition-colors tw:duration-feedback tw:ease-standard',
+  'tw:hover:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_16%,transparent)]',
+)
+const HUB_ROW_CLASS = cx(
+  'composer-hub-row tw:flex tw:cursor-pointer tw:items-center tw:justify-between tw:gap-2.5',
+  'tw:rounded-control tw:border tw:border-app-border-subtle tw:bg-app-control tw:p-2',
+  'tw:transition-colors tw:duration-feedback tw:ease-standard tw:hover:bg-app-hover',
+)
+const HUB_ROW_MAIN_CLASS =
+  'composer-hub-row-main tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2.5'
+const HUB_ROW_LOGO_CLASS = cx(
+  'composer-hub-row-logo tw:flex tw:size-8 tw:shrink-0 tw:items-center tw:justify-center',
+  'tw:rounded-item tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text-soft',
+)
+const HUB_ROW_TEXT_CLASS = 'composer-hub-row-text tw:min-w-0 tw:flex-1'
+const HUB_ROW_TITLE_CLASS = 'composer-hub-row-title tw:flex tw:min-w-0 tw:items-center tw:gap-1.5'
+const HUB_ROW_NAME_CLASS =
+  'composer-hub-row-name tw:truncate tw:tracking-[-0.01em] tw:text-app-text'
+const HUB_ROW_DESC_CLASS =
+  'composer-hub-row-desc tw:mt-0.5 tw:truncate tw:text-app-text-soft tw:type-caption'
+const HUB_BADGE_CLASS = cx(
+  'composer-hub-badge tw:shrink-0 tw:rounded-indicator tw:px-1.5 tw:py-px tw:type-label',
+  'tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_10%,transparent)] tw:text-app-text-soft',
+)
+const HUB_ROW_ACTIONS_CLASS =
+  'composer-hub-row-actions tw:flex tw:shrink-0 tw:items-center tw:gap-1.5'
+const HUB_BADGE_CONNECTED_CLASS = cx(
+  'composer-hub-badge-connected tw:shrink-0 tw:rounded-compact tw:border tw:border-app-success-border',
+  'tw:bg-app-success-subtle tw:px-2 tw:py-0.5 tw:type-label tw:text-app-success',
+)
+const HUB_ACTION_BUTTON_CLASS = cx(
+  'composer-hub-action-btn tw:shrink-0 tw:cursor-pointer tw:rounded-compact tw:border tw:border-app-border-subtle',
+  'tw:bg-app-panel tw:px-2 tw:py-0.5 tw:text-app-text',
+  'tw:transition-colors tw:duration-feedback tw:ease-standard tw:hover:bg-app-hover',
+)
 
 export type ProviderModelOption = {
   providerID: ModelProviderID
@@ -271,12 +433,12 @@ export function ModelPickerPopover({
           align={align}
           side={side}
           sideOffset={sideOffset}
-          className="composer-model-panel-content"
+          className={PANEL_CONTENT_CLASS}
         >
-          <div className="composer-model-panel">
+          <div className={PANEL_CLASS}>
             {/* Left provider rail */}
-            <div className="composer-provider-rail">
-              <div className="composer-provider-list">
+            <div className={PROVIDER_RAIL_CLASS}>
+              <div className={PROVIDER_LIST_CLASS}>
                 {providerOptions.length > 0 ? (
                   providerOptions.map((provider) => {
                     const isActive = !isHubOpen && provider.providerID === activeProviderID
@@ -285,7 +447,10 @@ export function ModelPickerPopover({
                         key={provider.providerID}
                         type="button"
                         onClick={() => handleProviderSelect(provider.providerID)}
-                        className={`composer-provider-btn${isActive ? ' is-active' : ''}`}
+                        className={cx(
+                          PROVIDER_BUTTON_CLASS,
+                          isActive ? PROVIDER_BUTTON_ACTIVE_CLASS : PROVIDER_BUTTON_IDLE_CLASS,
+                        )}
                         title={provider.displayName || provider.providerID}
                       >
                         <ProviderLogo logoURL={provider.logoURL} />
@@ -295,7 +460,7 @@ export function ModelPickerPopover({
                 ) : (
                   <button
                     type="button"
-                    className="composer-provider-btn is-active"
+                    className={cx(PROVIDER_BUTTON_CLASS, PROVIDER_BUTTON_ACTIVE_CLASS)}
                     title={activeProviderID}
                   >
                     <ProviderLogo logoURL={providerLogoURL(activeProviderID)} />
@@ -303,11 +468,14 @@ export function ModelPickerPopover({
                 )}
               </div>
 
-              <div className="composer-hub-trigger-wrap">
+              <div className={HUB_TRIGGER_WRAP_CLASS}>
                 <button
                   type="button"
                   onClick={() => setIsHubOpen((previous) => !previous)}
-                  className={`composer-hub-trigger-btn${isHubOpen ? ' is-active' : ''}`}
+                  className={cx(
+                    HUB_TRIGGER_BUTTON_CLASS,
+                    isHubOpen ? PROVIDER_BUTTON_ACTIVE_CLASS : PROVIDER_BUTTON_IDLE_CLASS,
+                  )}
                   title="模型中心：发现并配置服务商"
                 >
                   <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -316,28 +484,28 @@ export function ModelPickerPopover({
             </div>
 
             {/* Right panel */}
-            <div className="composer-model-right">
+            <div className={MODEL_RIGHT_CLASS}>
               {isHubOpen ? (
                 /* View 2: Model Hub view */
-                <div className="composer-picker-view animate-dropdown">
-                  <div className="composer-models-header">
-                    <div className="composer-models-header-lead">
+                <div className={PICKER_VIEW_CLASS}>
+                  <div className={MODELS_HEADER_CLASS}>
+                    <div className={MODELS_HEADER_LEAD_CLASS}>
                       <button
                         type="button"
                         onClick={() => setIsHubOpen(false)}
-                        className="composer-hub-back"
+                        className={HUB_BACK_CLASS}
                         title="返回模型列表"
                       >
                         <ChevronLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                       </button>
-                      <span className="composer-models-title">模型中心</span>
+                      <span className={MODELS_TITLE_CLASS}>模型中心</span>
                     </div>
 
-                    <div className="composer-hub-search-bar">
+                    <div className={HUB_SEARCH_BAR_CLASS}>
                       <Search
                         size={APP_ICON_SIZE}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
-                        className="composer-search-bar-icon"
+                        className={SEARCH_BAR_ICON_CLASS}
                       />
                       <input
                         ref={hubSearchInputRef}
@@ -345,12 +513,12 @@ export function ModelPickerPopover({
                         placeholder="搜索服务商..."
                         value={hubFilterText}
                         onChange={(event) => setHubFilterText(event.target.value)}
-                        className="composer-hub-search-input"
+                        className={HUB_SEARCH_INPUT_CLASS}
                       />
                     </div>
                   </div>
 
-                  <div className="composer-models-list composer-hub-list">
+                  <div className={HUB_LIST_CLASS}>
                     {filteredHubProviders.length > 0 ? (
                       filteredHubProviders.map((provider) => {
                         const isConfigured = providerOptions.some(
@@ -359,26 +527,26 @@ export function ModelPickerPopover({
                         return (
                           <div
                             key={provider.id}
-                            className="composer-hub-row"
+                            className={HUB_ROW_CLASS}
                             onClick={() => {
                               if (isConfigured) handleHubSelect(provider.id)
                             }}
                           >
-                            <div className="composer-hub-row-main">
-                              <div className="composer-hub-row-logo">
+                            <div className={HUB_ROW_MAIN_CLASS}>
+                              <div className={HUB_ROW_LOGO_CLASS}>
                                 <ProviderLogo logoURL={providerLogoURL(provider.id)} />
                               </div>
-                              <div className="composer-hub-row-text">
-                                <div className="composer-hub-row-title">
-                                  <span className="composer-hub-row-name">{provider.name}</span>
-                                  <span className="composer-hub-badge">{provider.category}</span>
+                              <div className={HUB_ROW_TEXT_CLASS}>
+                                <div className={HUB_ROW_TITLE_CLASS}>
+                                  <span className={HUB_ROW_NAME_CLASS}>{provider.name}</span>
+                                  <span className={HUB_BADGE_CLASS}>{provider.category}</span>
                                 </div>
-                                <p className="composer-hub-row-desc">{provider.desc}</p>
+                                <p className={HUB_ROW_DESC_CLASS}>{provider.desc}</p>
                               </div>
                             </div>
-                            <div className="composer-hub-row-actions">
+                            <div className={HUB_ROW_ACTIONS_CLASS}>
                               {isConfigured ? (
-                                <span className="composer-hub-badge-connected">已配置</span>
+                                <span className={HUB_BADGE_CONNECTED_CLASS}>已配置</span>
                               ) : (
                                 <button
                                   type="button"
@@ -386,7 +554,7 @@ export function ModelPickerPopover({
                                     event.stopPropagation()
                                     handleHubSelect(provider.id)
                                   }}
-                                  className="composer-hub-action-btn"
+                                  className={HUB_ACTION_BUTTON_CLASS}
                                 >
                                   去配置
                                 </button>
@@ -396,25 +564,25 @@ export function ModelPickerPopover({
                         )
                       })
                     ) : (
-                      <div className="composer-models-empty">没有匹配的服务商</div>
+                      <div className={MODELS_EMPTY_CLASS}>没有匹配的服务商</div>
                     )}
                   </div>
                 </div>
               ) : (
                 /* View 1: Models Selection View */
-                <div className="composer-picker-view">
-                  <div className="composer-models-header">
-                    <span className="composer-models-title">
+                <div className={PICKER_VIEW_CLASS}>
+                  <div className={MODELS_HEADER_CLASS}>
+                    <span className={MODELS_TITLE_CLASS}>
                       {currentProvider.displayName || '模型列表'}
                     </span>
 
-                    <div className="composer-models-header-actions">
+                    <div className={MODELS_HEADER_ACTIONS_CLASS}>
                       {searchExpanded ? (
-                        <div className="composer-search-bar animate-search-in">
+                        <div className={SEARCH_BAR_CLASS}>
                           <Search
                             size={APP_ICON_SIZE}
                             strokeWidth={APP_ICON_STROKE_WIDTH}
-                            className="composer-search-bar-icon"
+                            className={SEARCH_BAR_ICON_CLASS}
                           />
                           <input
                             ref={searchInputRef}
@@ -427,7 +595,7 @@ export function ModelPickerPopover({
                               event.stopPropagation()
                               resetFilter()
                             }}
-                            className="composer-search-input"
+                            className={SEARCH_INPUT_CLASS}
                           />
                           <button
                             type="button"
@@ -435,7 +603,7 @@ export function ModelPickerPopover({
                               resetFilter()
                               searchInputRef.current?.blur()
                             }}
-                            className="composer-search-clear"
+                            className={SEARCH_CLEAR_CLASS}
                             title="清除并关闭"
                           >
                             <X size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -445,7 +613,7 @@ export function ModelPickerPopover({
                         <button
                           type="button"
                           onClick={() => setSearchExpanded(true)}
-                          className="composer-search-trigger"
+                          className={SEARCH_TRIGGER_CLASS}
                         >
                           <span>快速搜索</span>
                           <Search size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -454,7 +622,7 @@ export function ModelPickerPopover({
                     </div>
                   </div>
 
-                  <div className="composer-models-list">
+                  <div className={MODELS_LIST_CLASS}>
                     {filteredModels.length > 0 ? (
                       filteredModels.map((preset) => {
                         const isSelected = preset.id === selectedModelPreset
@@ -462,22 +630,25 @@ export function ModelPickerPopover({
                           <div
                             key={preset.id}
                             onClick={() => handleModelSelect(preset.id)}
-                            className={`composer-model-row${isSelected ? ' is-selected' : ''}`}
+                            className={cx(MODEL_ROW_CLASS, isSelected && MODEL_ROW_SELECTED_CLASS)}
                           >
-                            <div className="composer-model-row-main">
+                            <div className={MODEL_ROW_MAIN_CLASS}>
                               <span
-                                className={`composer-model-row-icon${
-                                  isSelected ? ' is-active' : ''
-                                }`}
+                                className={cx(
+                                  MODEL_ROW_ICON_CLASS,
+                                  isSelected
+                                    ? MODEL_ROW_ICON_ACTIVE_CLASS
+                                    : MODEL_ROW_ICON_IDLE_CLASS,
+                                )}
                               >
                                 <ProviderLogo logoURL={currentProvider.logoURL} />
                               </span>
-                              <span className="composer-model-name">
+                              <span className="composer-model-name tw:truncate tw:tracking-[-0.01em] tw:text-app-text">
                                 {preset.label || preset.id}
                               </span>
                             </div>
 
-                            <div className="composer-model-row-trailing">
+                            <div className={MODEL_ROW_TRAILING_CLASS}>
                               {isSelected && showThinkingOptions ? (
                                 <ReasoningMenu
                                   thinkingMode={thinkingMode}
@@ -492,7 +663,7 @@ export function ModelPickerPopover({
                                     <button
                                       type="button"
                                       onClick={(event) => event.stopPropagation()}
-                                      className="composer-effort-pill"
+                                      className={EFFORT_PILL_CLASS}
                                       title="选择推理思考强度"
                                       aria-label={`推理思考强度：${currentThinkingLabel}`}
                                     >
@@ -508,16 +679,19 @@ export function ModelPickerPopover({
 
                               <div
                                 aria-hidden="true"
-                                className={`composer-model-dot${isSelected ? ' is-selected' : ''}`}
+                                className={cx(
+                                  MODEL_DOT_CLASS,
+                                  isSelected ? MODEL_DOT_SELECTED_CLASS : MODEL_DOT_IDLE_CLASS,
+                                )}
                               >
-                                {isSelected ? <div className="composer-model-dot-inner" /> : null}
+                                {isSelected ? <div className={MODEL_DOT_INNER_CLASS} /> : null}
                               </div>
                             </div>
                           </div>
                         )
                       })
                     ) : (
-                      <div className="composer-models-empty">
+                      <div className={MODELS_EMPTY_CLASS}>
                         {filterText ? '没有匹配的模型' : '暂无可用的预设模型'}
                       </div>
                     )}

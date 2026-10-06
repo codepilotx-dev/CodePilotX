@@ -133,7 +133,7 @@ function ReviewFileTreePanelPresenceItem({
     <>
       <span
         aria-hidden={!isPresent ? true : undefined}
-        className="review-file-tree-resize-presence"
+        className="review-file-tree-resize-presence tw:contents"
         inert={!isPresent ? true : undefined}
       >
         {resizeHandle}
@@ -150,7 +150,7 @@ function ReviewFileTreePanelPresenceItem({
                 transition: motionTransition(reducedMotion, exitTween),
               }
         }
-        className="review-file-tree-panel"
+        className="review-file-tree-panel tw:relative tw:flex tw:w-[var(--review-file-tree-panel-w,340px)] tw:min-w-60 tw:min-h-0 tw:flex-none tw:flex-col tw:overflow-hidden tw:bg-app-panel tw:shadow-none tw:[contain:size_layout_paint]"
         data-presence={isPresent ? 'present' : 'exiting'}
         data-review-file-tree-presence={isPresent ? 'open' : 'exiting'}
         initial={skipEnterAnimation ? false : hiddenState}
@@ -165,7 +165,10 @@ function ReviewFileTreePanelPresenceItem({
         }}
         transition={motionTransition(reducedMotion, entryComplete ? instantTween : layoutTween)}
       >
-        <motion.div className="review-file-tree-panel-surface" style={{ width: liveWidthPixels }}>
+        <motion.div
+          className="review-file-tree-panel-surface tw:flex tw:h-full tw:min-w-0 tw:min-h-0 tw:flex-col"
+          style={{ width: liveWidthPixels }}
+        >
           {children}
         </motion.div>
       </motion.section>

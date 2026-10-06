@@ -111,7 +111,7 @@ export function SidebarNavigationRail({
         aria-current={selected ? 'page' : undefined}
         aria-controls={pane ? 'desktop-sidebar-pane' : undefined}
         active={selected}
-        className="sidebar-rail-button"
+        className="sidebar-rail-button tw:size-9 tw:min-w-9 tw:flex-none tw:rounded-md tw:data-[active=true]:bg-app-selected tw:data-[active=true]:text-app-text tw:[&>svg]:size-icon-lg"
         color="ghost"
         size="icon"
         onClick={onClick}
@@ -126,8 +126,11 @@ export function SidebarNavigationRail({
   )
 
   return (
-    <nav className="sidebar-navigation-rail" aria-label={t('应用导航')}>
-      <div className="sidebar-rail-destinations">
+    <nav
+      className="sidebar-navigation-rail tw:flex tw:h-full tw:flex-col tw:items-center tw:py-2"
+      aria-label={t('应用导航')}
+    >
+      <div className="sidebar-rail-destinations tw:flex tw:w-full tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:gap-1 tw:overflow-y-auto tw:mb-3">
         {button(
           'home',
           '首页',
@@ -171,7 +174,7 @@ export function SidebarNavigationRail({
                 nativeTitle={false}
                 aria-label={t('更多')}
                 active={moreOpen}
-                className="sidebar-rail-button"
+                className="sidebar-rail-button tw:size-9 tw:min-w-9 tw:flex-none tw:rounded-md tw:data-[active=true]:bg-app-selected tw:data-[active=true]:text-app-text tw:[&>svg]:size-icon-lg"
                 color="ghost"
                 size="icon"
               >
@@ -197,7 +200,7 @@ export function SidebarNavigationRail({
           </PopoverMenu>
         ) : null}
       </div>
-      <div className="sidebar-rail-bottom">
+      <div className="sidebar-rail-bottom tw:flex tw:w-full tw:flex-col tw:items-center tw:gap-1">
         <SidebarFooter
           compact
           onNavigate={onPinPanel}

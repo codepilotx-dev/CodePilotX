@@ -1,4 +1,3 @@
-import '../../styles/lazy/terminal.scss'
 
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
@@ -19,6 +18,7 @@ import {
   type TerminalOutputState,
   type TerminalOutputUpdate,
 } from './terminalOutputState.js'
+import '../../styles/lazy/terminal.css'
 import { OPEN_TERMINAL_EVENT, type OpenTerminalEventDetail } from './openTerminalEvent.js'
 import { readTerminalFont, readTerminalTheme } from './terminalTheme.js'
 import { errorMessageOf as errorMessage } from '@codepilotx/shared/errors'
@@ -348,24 +348,33 @@ export function TerminalPanel({
 
   return (
     <section
-      className="integrated-terminal"
+      className="integrated-terminal tw:flex tw:h-full tw:w-full tw:min-h-0 tw:min-w-0 tw:flex-auto tw:flex-col"
       data-terminal-keyboard-capture
       data-thread-id={threadId}
     >
       {truncated ? (
-        <div className="integrated-terminal__notice" role="status">
+        <div
+          className="integrated-terminal__notice tw:flex tw:min-h-7 tw:items-center tw:gap-1 tw:border-b tw:border-app-border tw:bg-app-panel tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-meta"
+          role="status"
+        >
           输出已截断，更早内容不可用。
         </div>
       ) : null}
       {status === 'exited' || status === 'failed' ? (
-        <div className="integrated-terminal__lifecycle" role="status">
+        <div
+          className="integrated-terminal__lifecycle tw:flex tw:min-h-10 tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border tw:bg-app-panel tw:px-2 tw:py-1 tw:type-caption tw:text-app-danger tw:shadow-none"
+          role="status"
+        >
           <span>{error || terminalStatusLabel(status, exitCode)}</span>
           <Button color="secondary" type="button" onClick={() => void handleRestart()}>
             重新启动
           </Button>
         </div>
       ) : null}
-      <div ref={hostRef} className="integrated-terminal__viewport" />
+      <div
+        ref={hostRef}
+        className="integrated-terminal__viewport tw:min-h-0 tw:min-w-0 tw:flex-1 tw:p-2"
+      />
     </section>
   )
 }

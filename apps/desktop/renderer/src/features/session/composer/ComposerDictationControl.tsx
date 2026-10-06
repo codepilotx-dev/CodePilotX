@@ -2,10 +2,16 @@ import type React from 'react'
 import { Activity, Mic, Square } from 'lucide-react'
 import { useEffect } from 'react'
 import { IconButton } from '../../../components/ui/IconButton.js'
+import { cx } from '../../../utils/cx.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import type { ComposerEditorHandle } from './ComposerEditor.js'
 import type { ComposerDraftKey } from './composerTypes.js'
 import { useComposerDictation } from './useComposerDictation.js'
+
+/* The dictation dot pulses through the recording state only; the mic glyph keeps
+   the shared loading spin below `prefers-reduced-motion`. */
+const DICTATION_DOT_CLASS = 'composer-dictation-dot tw:size-1.5 tw:rounded-pill tw:bg-current'
+const DICTATION_SPIN_CLASS = 'tw:animate-spin tw:motion-reduce:animate-none'
 
 type Props = {
   draftKey: ComposerDraftKey
@@ -36,10 +42,14 @@ export function ComposerDictationControl({
     <>
       {dictation.phase !== 'idle' || dictation.error ? (
         <span
-          className={`composer-dictation-status is-${dictation.phase}`}
+          className={cx(
+            'composer-dictation-status tw:mx-1 tw:mt-0 tw:mb-2 tw:flex tw:items-center tw:gap-2 tw:type-caption',
+            dictation.phase === 'error' ? 'tw:text-app-warning' : 'tw:text-app-text-soft',
+            `is-${dictation.phase}`,
+          )}
           role={dictation.phase === 'error' ? 'alert' : 'status'}
         >
-          <span aria-hidden="true" className="composer-dictation-dot" />
+          <span aria-hidden="true" className={DICTATION_DOT_CLASS} />
           <span>{dictationStatusText(dictation.phase, dictation.elapsedMs, dictation.error)}</span>
         </span>
       ) : null}
@@ -60,9 +70,9 @@ export function ComposerDictationControl({
         }
       >
         {dictation.phase === 'recording' ? (
-          <Square size={APP_ICON_SIZE} fill="currentColor" />
+          <Square className={DICTATION_SPIN_CLASS} size={APP_ICON_SIZE} fill="currentColor" />
         ) : dictation.phase === 'processing' ? (
-          <Activity aria-hidden="true" size={APP_ICON_SIZE} />
+          <Activity aria-hidden="true" className={DICTATION_SPIN_CLASS} size={APP_ICON_SIZE} />
         ) : (
           <Mic size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         )}

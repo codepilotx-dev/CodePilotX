@@ -108,9 +108,9 @@ export function GitSettings(): React.ReactNode {
 
   return (
     <SettingsContentArea className="">
-      <div className="settings-content-inner">
-        <div className="settings-page-header">
-          <h2 className="settings-page-title">Git</h2>
+      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
+          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">Git</h2>
         </div>
 
         <SettingsSection>
@@ -224,7 +224,7 @@ export function GitSettings(): React.ReactNode {
             title="提交指令"
             description="已添加到提交信息生成提示中"
             control={
-              <div className="settings-git-instruction-control">
+              <div className="settings-git-instruction-control tw:flex tw:flex-wrap tw:items-end tw:justify-end tw:gap-2 tw:[&_.settings-textarea]:min-w-0 tw:[&_.settings-textarea]:flex-[1_1_240px]">
                 <textarea
                   className="settings-textarea"
                   rows={4}
@@ -239,7 +239,7 @@ export function GitSettings(): React.ReactNode {
             title="拉取请求指令"
             description="已添加到 PR 标题/描述生成提示中"
             control={
-              <div className="settings-git-instruction-control">
+              <div className="settings-git-instruction-control tw:flex tw:flex-wrap tw:items-end tw:justify-end tw:gap-2 tw:[&_.settings-textarea]:min-w-0 tw:[&_.settings-textarea]:flex-[1_1_240px]">
                 <textarea
                   className="settings-textarea"
                   rows={4}
@@ -257,13 +257,13 @@ export function GitSettings(): React.ReactNode {
           description="登录后可在项目选择器中列出并克隆你有权限访问的 GitHub 仓库。"
         >
           {activeDeviceLogin ? (
-            <div className="github-device-code-card">
+            <div className="github-device-code-card tw:flex tw:items-center tw:justify-between tw:gap-4 tw:bg-app-raised tw:[&_p]:mt-2 tw:[&_p]:mb-0 tw:[&_p]:text-app-text-soft tw:[&_p]:type-body-sm tw:[&_p]:leading-[var(--cpx-sys-line-height-tight)] tw:border-b tw:border-b-app-border-subtle tw:p-4">
               <div>
-                <div className="github-device-code-label">GitHub 设备验证码</div>
-                <div className="github-device-code-value">{githubLogin.userCode}</div>
+                <div className="github-device-code-label tw:mb-1 tw:text-app-text-soft tw:text-[length:var(--cpx-sys-font-size-xs)]">GitHub 设备验证码</div>
+                <div className="github-device-code-value tw:font-mono tw:text-[length:var(--cpx-sys-font-size-3xl)] tw:type-weight-heading tw:tracking-[0.08em] tw:text-app-text">{githubLogin.userCode}</div>
                 <p>在 GitHub 打开的设备登录页面输入这个验证码，不是 OAuth Client ID。</p>
               </div>
-              <div className="github-device-code-actions">
+              <div className="github-device-code-actions tw:flex tw:shrink-0 tw:items-center tw:gap-2">
                 <Button color="secondary" onClick={() => void copyGithubCode()} type="button">
                   复制验证码
                 </Button>
@@ -283,7 +283,7 @@ export function GitSettings(): React.ReactNode {
                   '浏览器授权完成后，GitHub token 只会加密保存在本机。')
             }
             control={
-              <div className="settings-inline-actions">
+              <div className="settings-inline-actions tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:max-[900px]:justify-start">
                 <span className="settings-row-status">{githubStatusText}</span>
                 {githubAuth?.authenticated ? (
                   <Button

@@ -66,7 +66,9 @@ export function ConfirmationDialog({
         >
           <header className="confirmation-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-3">
             <AlertDialog.Title asChild>
-              <h2 className="tw:min-w-0 tw:flex-1">{title}</h2>
+              <h2 className="tw:m-0 tw:min-w-0 tw:flex-1 tw:text-app-text tw:type-title-sm tw:break-words tw:no-underline">
+                {title}
+              </h2>
             </AlertDialog.Title>
             <AlertDialog.Cancel asChild>
               <IconButton
@@ -80,12 +82,12 @@ export function ConfirmationDialog({
             </AlertDialog.Cancel>
           </header>
           <AlertDialog.Description asChild>
-            <div className="confirmation-dialog-description tw:m-0">
+            <div className="confirmation-dialog-description tw:m-0 tw:text-app-text-soft tw:type-body-sm">
               {description ?? '请确认是否继续。'}
             </div>
           </AlertDialog.Description>
           {suppression ? (
-            <label className="confirmation-dialog-suppression tw:flex tw:cursor-pointer tw:items-center tw:gap-2">
+            <label className="confirmation-dialog-suppression tw:flex tw:cursor-pointer tw:items-center tw:gap-2 tw:text-app-text-soft tw:type-body-sm">
               <input
                 checked={suppression.checked}
                 type="checkbox"
@@ -166,7 +168,9 @@ export function InputDialog({
           >
             <header className="confirmation-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-3">
               <Dialog.Title asChild>
-                <h2 className="tw:min-w-0 tw:flex-1">{title}</h2>
+                <h2 className="tw:m-0 tw:min-w-0 tw:flex-1 tw:text-app-text tw:type-title-sm tw:break-words tw:no-underline">
+                  {title}
+                </h2>
               </Dialog.Title>
               <Dialog.Close asChild>
                 <IconButton
@@ -180,11 +184,13 @@ export function InputDialog({
               </Dialog.Close>
             </header>
             <Dialog.Description asChild>
-              <p className="confirmation-dialog-description tw:m-0">{description}</p>
+              <p className="confirmation-dialog-description tw:m-0 tw:text-app-text-soft tw:type-body-sm">
+                {description}
+              </p>
             </Dialog.Description>
             <input
               aria-label={title}
-              className="confirmation-dialog-input tw:w-full tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:outline-none tw:transition-[border-color,box-shadow] tw:duration-[var(--cpx-sys-motion-enter)] tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
+              className="confirmation-dialog-input tw:w-full tw:border tw:border-app-border tw:bg-app-canvas tw:px-3 tw:py-2 tw:text-app-text tw:type-body tw:outline-none tw:transition-[border-color,box-shadow] tw:duration-[var(--cpx-sys-motion-enter)] tw:focus:border-app-accent tw:focus:ring-2 tw:focus:ring-app-accent"
               defaultValue={input.value}
               maxLength={input.maxLength}
               onInput={(event) => input.onChange(event.currentTarget.value)}

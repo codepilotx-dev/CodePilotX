@@ -47,7 +47,6 @@ import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 import { FileMutationDiffBody } from '../session/timeline/FileMutationDiffBody.js'
 import { SessionGroupEditorDialog } from './SessionGroupEditorDialog.js'
-import '../../styles/lazy/session-groups.scss'
 
 function formatGroupTime(timestamp?: number | string | null): string {
   if (!timestamp) return ''
@@ -151,7 +150,7 @@ export function SessionGroupsView(): React.ReactNode {
         value: session.id,
         label: session.title,
         detail: session.workspaceLabel,
-        icon: <MessageSquare className="session-group-select-icon" size={APP_ICON_SIZE} />,
+        icon: <MessageSquare className="session-group-select-icon tw:me-1" size={APP_ICON_SIZE} />,
       }))
   }, [availableSessions, memberThreadIds])
 
@@ -232,7 +231,10 @@ export function SessionGroupsView(): React.ReactNode {
     <>
       {groupId ? (
         <WorkspaceHeaderItem align="start" id="session-groups.back" order={0} slot="left">
-          <Link className="session-groups-back" to="/workflows">
+          <Link
+            className="session-groups-back tw:inline-flex tw:items-center tw:gap-2 tw:rounded-md tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-label tw:no-underline tw:hover:bg-app-hover tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
+            to="/workflows"
+          >
             <ArrowLeft aria-hidden="true" size={APP_ICON_SIZE} />
             <span>工作流</span>
           </Link>
@@ -266,9 +268,15 @@ export function SessionGroupsView(): React.ReactNode {
         onCancel={() => setDeleteDialogOpen(false)}
       />
       {groupId ? (
-        <main aria-live="polite" className="session-group-detail-page">
+        <main
+          aria-live="polite"
+          className="session-group-detail-page tw:@container tw:h-full tw:w-full tw:min-w-0 tw:min-h-0 tw:overflow-x-hidden tw:overflow-y-auto tw:p-5 tw:[scrollbar-gutter:stable]"
+        >
           {error ? (
-            <div className="session-group-detail-message" role="alert">
+            <div
+              className="session-group-detail-message tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*8)] tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-app-text-soft tw:type-body-sm"
+              role="alert"
+            >
               <AlertCircle size={APP_ICON_SIZE} />
               <h1>无法打开工作流</h1>
               <p>{error}</p>
@@ -284,23 +292,23 @@ export function SessionGroupsView(): React.ReactNode {
             </div>
           ) : null}
           {loading && !detail ? (
-            <div className="session-group-loading">
+            <div className="session-group-loading tw:flex tw:min-h-[40vh] tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:text-app-text-soft tw:type-body-sm">
               <Spinner size="medium" />
               <span>正在加载工作流…</span>
             </div>
           ) : null}
           {detail ? (
-            <div className="session-group-detail__inner">
-              <header className="session-group-detail__header">
-                <div className="session-group-detail__info">
-                  <span className="chip-semantic accent session-group-eyebrow">
+            <div className="session-group-detail__inner tw:mx-auto tw:flex tw:w-[min(var(--page-content-max-width),100%)] tw:flex-col">
+              <header className="session-group-detail__header tw:flex tw:items-start tw:justify-between tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:pb-6 tw:@max-[760px]:flex-col tw:@max-[760px]:items-stretch">
+                <div className="session-group-detail__info tw:flex tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:flex-col tw:gap-1 tw:[&>h1]:mt-1 tw:[&>h1]:text-app-text tw:[&>h1]:type-title-xl tw:[&>p]:m-0 tw:[&>p]:text-app-text-soft tw:[&>p]:type-body">
+                  <span className="chip-semantic accent session-group-eyebrow tw:self-start">
                     <Sparkles size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     共享上下文
                   </span>
                   <h1>{detail.group.name}</h1>
                   <p>{detail.group.description || '这个组暂未设置详细说明。'}</p>
                 </div>
-                <div className="session-group-actions">
+                <div className="session-group-actions tw:flex tw:items-center tw:gap-2 tw:@max-[760px]:flex-wrap">
                   <Button color="secondary" size="compact" onClick={openEditDialog}>
                     <Pencil size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                     <span>编辑</span>
@@ -316,24 +324,27 @@ export function SessionGroupsView(): React.ReactNode {
                 </div>
               </header>
 
-              <section className="session-group-section">
-                <div className="session-group-section__title-row">
+              <section className="session-group-section tw:border-b tw:border-b-app-border-subtle tw:py-6 tw:last:border-b-0">
+                <div className="session-group-section__title-row tw:mb-4 tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:[&>h3]:m-0 tw:[&>h3]:type-title-sm">
                   <BookOpen size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                   <h3>当前摘要</h3>
                 </div>
-                <div className="session-group-digest-card">
-                  <p className="session-group-digest">
+                <div className="session-group-digest-card tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:p-4">
+                  <p className="session-group-digest tw:m-0 tw:whitespace-pre-wrap tw:text-app-text tw:type-body">
                     {detail.digest ||
                       '完成组内第一个会话步骤后，这里会自动整理目标、决策和修复结论。'}
                   </p>
                 </div>
                 {detail.contextEntries.length ? (
-                  <div className="session-group-context-grid">
+                  <div className="session-group-context-grid tw:mt-4 tw:grid tw:grid-cols-[repeat(auto-fit,minmax(240px,1fr))] tw:gap-3">
                     {detail.contextEntries
                       .filter((entry) => entry.status === 'active')
                       .map((entry) => (
-                        <article className="session-group-context-card" key={entry.id}>
-                          <div className="session-group-context-card__header">
+                        <article
+                          className="session-group-context-card tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:px-4 tw:py-3 tw:[&>p]:mt-2 tw:[&>p]:text-app-text-soft tw:[&>p]:type-body-sm"
+                          key={entry.id}
+                        >
+                          <div className="session-group-context-card__header tw:flex tw:items-center tw:gap-2 tw:[&>strong]:text-app-text tw:[&>strong]:type-row-title">
                             <span className="chip-semantic accent">{entry.section}</span>
                             <strong>{entry.title}</strong>
                           </div>
@@ -344,14 +355,14 @@ export function SessionGroupsView(): React.ReactNode {
                 ) : null}
               </section>
 
-              <section className="session-group-section">
-                <div className="session-group-section__title-row">
+              <section className="session-group-section tw:border-b tw:border-b-app-border-subtle tw:py-6 tw:last:border-b-0">
+                <div className="session-group-section__title-row tw:mb-4 tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:[&>h3]:m-0 tw:[&>h3]:type-title-sm">
                   <Users size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                   <h3>成员任务</h3>
-                  <span className="session-group-section-count">{detail.members.length}</span>
+                  <span className="session-group-section-count tw:inline-flex tw:h-4.5 tw:min-w-4.5 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-control tw:px-1 tw:text-app-text-soft tw:type-label">{detail.members.length}</span>
                 </div>
-                <div className="session-group-member-add">
-                  <div className="session-group-member-select-wrap">
+                <div className="session-group-member-add tw:mb-4 tw:flex tw:items-center tw:gap-2 tw:@max-[760px]:flex-col tw:@max-[760px]:items-stretch">
+                  <div className="session-group-member-select-wrap tw:max-w-[380px] tw:flex-1 tw:@max-[760px]:w-full tw:@max-[760px]:max-w-none">
                     <Select
                       ariaLabel="选择已有任务"
                       emptyText="没有可添加的任务"
@@ -373,20 +384,23 @@ export function SessionGroupsView(): React.ReactNode {
                     <span>加入组</span>
                   </Button>
                 </div>
-                <div className="session-group-members">
+                <div className="session-group-members tw:grid tw:grid-cols-[repeat(auto-fill,minmax(260px,1fr))] tw:gap-2">
                   {detail.members.map((member) => (
-                    <article className="session-group-member-card" key={member.threadId}>
-                      <div className="session-group-member-card__icon">
+                    <article
+                      className="session-group-member-card tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:px-3 tw:py-2 tw:transition-[background-color,border-color] tw:duration-enter tw:ease-standard tw:hover:border-app-border tw:hover:bg-app-canvas"
+                      key={member.threadId}
+                    >
+                      <div className="session-group-member-card__icon tw:flex tw:items-center tw:text-app-text-meta">
                         <MessageSquare size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                       </div>
                       <Link
                         className="session-group-member-card__body"
                         to={`/threads/${encodeURIComponent(member.threadId)}`}
                       >
-                        <span className="session-group-member-card__title">
+                        <span className="session-group-member-card__title tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text tw:type-row-title">
                           {member.title || member.threadId}
                         </span>
-                        <span className="chip-semantic info session-group-member-card__chip">
+                        <span className="chip-semantic info session-group-member-card__chip tw:self-start tw:type-caption">
                           {member.workspaceLabel || '无项目'}
                         </span>
                       </Link>
@@ -404,25 +418,25 @@ export function SessionGroupsView(): React.ReactNode {
                     </article>
                   ))}
                   {detail.members.length === 0 ? (
-                    <p className="session-group-empty-subtle">
+                    <p className="session-group-empty-subtle tw:m-0 tw:py-4 tw:text-app-text-meta tw:type-body-sm">
                       当前工作流暂无成员任务，请在上方选择已有任务加入。
                     </p>
                   ) : null}
                 </div>
               </section>
 
-              <section className="session-group-section">
-                <div className="session-group-section__title-row">
+              <section className="session-group-section tw:border-b tw:border-b-app-border-subtle tw:py-6 tw:last:border-b-0">
+                <div className="session-group-section__title-row tw:mb-4 tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:[&>h3]:m-0 tw:[&>h3]:type-title-sm">
                   <History size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
                   <h3>步骤时间线</h3>
-                  <span className="session-group-section-count">{steps.length}</span>
+                  <span className="session-group-section-count tw:inline-flex tw:h-4.5 tw:min-w-4.5 tw:items-center tw:justify-center tw:rounded-full tw:bg-app-control tw:px-1 tw:text-app-text-soft tw:type-label">{steps.length}</span>
                 </div>
-                <div className="session-group-timeline">
+                <div className="session-group-timeline tw:flex tw:flex-col">
                   {steps.map((step) => (
                     <SessionGroupStepCard groupId={detail.group.id} key={step.id} step={step} />
                   ))}
                   {steps.length === 0 ? (
-                    <p className="session-group-empty-subtle">
+                    <p className="session-group-empty-subtle tw:m-0 tw:py-4 tw:text-app-text-meta tw:type-body-sm">
                       组内的新会话完成一步后，会自动在此记录决策、修改和验证结果。
                     </p>
                   ) : null}
@@ -445,9 +459,12 @@ export function SessionGroupsView(): React.ReactNode {
           }
           title="工作流"
         >
-          <main aria-live="polite" className="session-groups-index">
+          <main aria-live="polite" className="session-groups-index tw:flex tw:min-w-0 tw:min-h-0 tw:grow tw:shrink tw:basis-auto tw:flex-col">
             {error ? (
-              <div className="session-group-notice" role="alert">
+              <div
+                  className="session-group-notice tw:mb-4 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-4 tw:py-3 tw:text-app-danger-fg tw:type-body-sm"
+                  role="alert"
+                >
                 <AlertCircle size={APP_ICON_SIZE} />
                 <span>{error}</span>
                 <Button color="secondary" size="compact" onClick={() => void refresh()}>
@@ -457,38 +474,41 @@ export function SessionGroupsView(): React.ReactNode {
               </div>
             ) : null}
             {loading ? (
-              <div className="session-group-loading">
+              <div className="session-group-loading tw:flex tw:min-h-[40vh] tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:text-app-text-soft tw:type-body-sm">
                 <Spinner size="medium" />
                 <span>正在加载工作流…</span>
               </div>
             ) : null}
             {!loading && !error && filtered.length > 0 ? (
-              <div className="session-groups-table">
-                <div className="session-groups-table__header" aria-hidden="true">
+              <div className="session-groups-table tw:@container">
+                <div
+                  aria-hidden="true"
+                  className="session-groups-table__header tw:grid tw:grid-cols-[minmax(0,1fr)_minmax(120px,160px)_minmax(112px,auto)] tw:items-center tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:px-3 tw:py-2 tw:text-app-text-meta tw:type-caption tw:@max-[760px]:grid-cols-[minmax(0,1fr)_auto]"
+                >
                   <span>工作流</span>
                   <span>项目</span>
                   <span>最近更新</span>
                 </div>
-                <div className="session-groups-table__rows">
+                <div className="session-groups-table__rows tw:grid">
                   {filtered.map((group) => (
                     <Link
-                      className="session-group-row"
+                      className="session-group-row tw:min-w-0 tw:rounded-lg tw:p-3 tw:text-inherit tw:no-underline tw:hover:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
                       key={group.id}
                       to={`/workflows/${encodeURIComponent(group.id)}`}
                     >
-                      <span className="session-group-row__main">
+                      <span className="session-group-row__main tw:flex tw:min-w-0 tw:flex-col tw:gap-1 tw:[&>small]:overflow-hidden tw:[&>small]:text-ellipsis tw:[&>small]:whitespace-nowrap tw:[&>small]:text-app-text-soft tw:[&>small]:type-body-sm tw:[&>strong]:overflow-hidden tw:[&>strong]:text-ellipsis tw:[&>strong]:whitespace-nowrap tw:[&>strong]:text-app-text tw:[&>strong]:type-row-title">
                         <strong>{group.name}</strong>
                         <small>
                           {group.memberCount} 个任务
                           {group.description ? ` · ${group.description}` : ''}
                         </small>
                       </span>
-                      <span className="session-group-row__projects">
+                      <span className="session-group-row__projects tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption tw:@max-[760px]:hidden">
                         {group.projectLabels.length > 0
                           ? group.projectLabels.slice(0, 2).join('、')
                           : '无项目'}
                       </span>
-                      <span className="session-group-row__updated">
+                      <span className="session-group-row__updated tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption">
                         <span>{formatGroupTime(group.latestStepAt) || '暂无记录'}</span>
                         <ChevronRight aria-hidden="true" size={APP_ICON_SIZES.sm} />
                       </span>
@@ -498,7 +518,7 @@ export function SessionGroupsView(): React.ReactNode {
               </div>
             ) : null}
             {!loading && !error && groups.length === 0 ? (
-              <div className="session-groups-empty-state">
+              <div className="session-groups-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*8)] tw:grow tw:shrink tw:basis-auto tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-8 tw:text-center tw:text-app-text-meta tw:type-body-sm tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0">
                 <MessagesSquare
                   aria-hidden="true"
                   size={APP_ICON_SIZES.lg}
@@ -512,7 +532,7 @@ export function SessionGroupsView(): React.ReactNode {
               </div>
             ) : null}
             {!loading && !error && groups.length > 0 && filtered.length === 0 ? (
-              <div className="session-groups-empty-state">
+              <div className="session-groups-empty-state tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)*8)] tw:grow tw:shrink tw:basis-auto tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:px-4 tw:py-8 tw:text-center tw:text-app-text-meta tw:type-body-sm tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0">
                 <MessagesSquare
                   aria-hidden="true"
                   size={APP_ICON_SIZES.lg}
@@ -601,12 +621,19 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
               : '等待提问'
 
   return (
-    <article className="session-group-step" data-status={step.status}>
-      <div className="session-group-step__rail">
+    <article
+      className="session-group-step tw:relative tw:grid tw:grid-cols-[36px_minmax(0,1fr)]"
+      data-status={step.status}
+    >
+      <div className="session-group-step__rail tw:relative tw:flex tw:flex-col tw:items-center">
         <div
           className={cx(
-            'session-group-step__node',
-            isFailed ? 'is-danger' : isCompleted ? 'is-success' : 'is-accent',
+            'session-group-step__node tw:z-local tw:flex tw:size-6.5 tw:items-center tw:justify-center tw:rounded-full',
+            isFailed
+              ? 'is-danger tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:text-app-danger-fg'
+              : isCompleted
+                ? 'is-success tw:border tw:border-app-success-border tw:bg-app-success-subtle tw:text-app-success-fg'
+                : 'is-accent tw:border tw:border-app-accent-border tw:bg-app-accent-subtle tw:text-app-accent-fg',
           )}
         >
           {isFailed ? (
@@ -617,13 +644,13 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
             <Sparkles size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           )}
         </div>
-        <span className="session-group-step__seq">{step.sequence}</span>
+        <span className="session-group-step__seq tw:hidden">{step.sequence}</span>
       </div>
-      <div className="session-group-step__body">
-        <header className="session-group-step__header">
-          <div className="session-group-step__meta">
-            <div className="session-group-step__title-row">
-              <strong className="session-group-step__title">
+      <div className="session-group-step__body tw:min-w-0 tw:pb-6 tw:pl-3">
+        <header className="session-group-step__header tw:mb-2 tw:flex tw:items-start tw:justify-between tw:gap-3 tw:@max-[760px]:flex-col">
+          <div className="session-group-step__meta tw:flex tw:flex-col tw:gap-1">
+            <div className="session-group-step__title-row tw:flex tw:items-center tw:gap-2">
+              <strong className="session-group-step__title tw:text-app-text tw:type-row-title">
                 {step.sourceThreadTitle || '未命名步骤'}
               </strong>
               <span
@@ -635,7 +662,7 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
                 {statusLabel}
               </span>
             </div>
-            <div className="session-group-step__submeta">
+            <div className="session-group-step__submeta tw:flex tw:items-center tw:gap-1 tw:text-app-text-meta tw:type-caption">
               <span>{step.workspaceLabel || '默认工作区'}</span>
               <span>·</span>
               <span>Turn {step.sourceTurnId}</span>
@@ -643,23 +670,23 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
           </div>
           {step.sourceThreadId ? (
             <Link
-              className="session-group-step__link"
+              className="session-group-step__link tw:inline-flex tw:items-center tw:gap-1 tw:text-app-accent-fg tw:type-caption tw:no-underline tw:hover:underline"
               to={`/threads/${encodeURIComponent(step.sourceThreadId)}`}
             >
               <span>打开来源</span>
               <ArrowUpRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </Link>
           ) : (
-            <span className="session-group-step__link session-group-step__link--disabled">
+            <span className="session-group-step__link session-group-step__link--disabled tw:cursor-default tw:text-app-text-disabled">
               来源已删除
             </span>
           )}
         </header>
 
-        {step.summary ? <p className="session-group-step__summary">{step.summary}</p> : null}
+        {step.summary ? <p className="session-group-step__summary tw:mb-2 tw:mt-0 tw:whitespace-pre-wrap tw:text-app-text-soft tw:type-body-sm">{step.summary}</p> : null}
 
         {step.checkpoints.length ? (
-          <ol className="session-group-step__evidence">
+          <ol className="session-group-step__evidence tw:my-2 tw:flex tw:list-none tw:flex-col tw:gap-1 tw:p-0 tw:[&>li]:flex tw:[&>li]:items-baseline tw:[&>li]:gap-2 tw:[&>li]:text-app-text-meta tw:[&>li]:type-caption">
             {step.checkpoints.map((checkpoint) => {
               const checkpointLabel =
                 checkpoint.status === 'completed'
@@ -681,7 +708,7 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
                   >
                     {checkpointLabel}
                   </span>
-                  <span className="session-group-step__checkpoint-text">{checkpoint.summary}</span>
+                  <span className="session-group-step__checkpoint-text tw:flex-1">{checkpoint.summary}</span>
                 </li>
               )
             })}
@@ -689,26 +716,26 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
         ) : null}
 
         {step.validations.length ? (
-          <div className="session-group-step__validations">
+          <div className="session-group-step__validations tw:mt-2 tw:grid tw:gap-2">
             {step.validations.map((validation) => (
               <div
                 className={cx(
-                  'session-group-step__validation-item',
+                  'session-group-step__validation-item tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:px-3 tw:py-2 tw:[&>p]:mb-0 tw:[&>p]:mt-1 tw:[&>p]:text-app-text-soft tw:[&>p]:type-body-sm',
                   validation.status === 'passed'
-                    ? 'is-passed'
+                    ? 'is-passed tw:border-app-border-subtle'
                     : validation.status === 'failed'
-                      ? 'is-failed'
+                      ? 'is-failed tw:border-app-danger-border tw:bg-app-danger-subtle'
                       : 'is-skipped',
                 )}
                 key={`${validation.name}:${validation.summary}`}
               >
-                <div className="session-group-step__validation-header">
+                <div className="session-group-step__validation-header tw:flex tw:items-center tw:gap-1 tw:text-app-text tw:type-label tw:[&>strong]:type-weight-label">
                   {validation.status === 'passed' ? (
-                    <Check className="u-text-success" size={APP_ICON_SIZES.sm} />
+                    <Check className="tw:text-app-success" size={APP_ICON_SIZES.sm} />
                   ) : validation.status === 'failed' ? (
-                    <AlertCircle className="u-text-danger" size={APP_ICON_SIZES.sm} />
+                    <AlertCircle className="tw:text-app-danger" size={APP_ICON_SIZES.sm} />
                   ) : (
-                    <History className="u-text-meta" size={APP_ICON_SIZES.sm} />
+                    <History className="tw:text-app-text-meta" size={APP_ICON_SIZES.sm} />
                   )}
                   <strong>
                     {validation.status === 'passed'
@@ -726,8 +753,11 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
         ) : null}
 
         {step.failure ? (
-          <div className="session-group-step__failure" role="alert">
-            <div className="session-group-step__failure-title">
+          <div
+          className="session-group-step__failure tw:mt-2 tw:flex tw:flex-col tw:gap-1 tw:rounded-md tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:text-app-danger-fg tw:type-caption"
+          role="alert"
+        >
+            <div className="session-group-step__failure-title tw:flex tw:items-center tw:gap-1 tw:type-weight-label">
               <AlertCircle size={APP_ICON_SIZE} />
               <strong>失败阶段：{step.failure.stage}</strong>
             </div>
@@ -736,11 +766,11 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
         ) : null}
 
         {step.changedFiles.length ? (
-          <div className="session-group-step__diff-area">
+          <div className="session-group-step__diff-area tw:mt-2">
             <button
               aria-controls={diffId}
               aria-expanded={diffOpen}
-              className="session-group-diff-toggle"
+              className="session-group-diff-toggle tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-1 tw:rounded-md tw:border-0 tw:bg-app-control tw:px-2 tw:py-1 tw:text-app-accent-fg tw:type-label tw:transition-[background-color] tw:duration-enter tw:ease-standard tw:hover:bg-app-hover"
               type="button"
               onClick={() => void toggleDiff()}
             >
@@ -753,18 +783,18 @@ const SessionGroupStepCard = memo(function SessionGroupStepCard({
               )}
             </button>
             <DisclosureContent
-              contentClassName="session-group-step__diff"
+              contentClassName="session-group-step__diff tw:mt-2 tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle"
               expanded={diffOpen}
               id={diffId}
               mountPolicy="always"
             >
               <div
-                className="session-group-step__diff-resize"
+                className="session-group-step__diff-resize tw:transition-[height] tw:duration-disclosure tw:ease-disclosure"
                 ref={diffResize.ref}
                 style={diffResize.style}
               >
                 {diffLoading ? (
-                  <div className="session-group-diff-loading">正在加载 Diff…</div>
+                  <div className="session-group-diff-loading tw:p-4 tw:text-center tw:text-app-text-meta tw:type-caption">正在加载 Diff…</div>
                 ) : diff ? (
                   diffFiles.map((file) => (
                     <FileMutationDiffBody diff={file.diff} diffMarkerStyle="color" key={file.key} />

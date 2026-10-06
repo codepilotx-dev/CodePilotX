@@ -115,10 +115,10 @@ export function ConfigSettings(): React.ReactNode {
 
   return (
     <SettingsContentArea className="">
-      <div className="settings-content-inner">
-        <div className="settings-page-header">
-          <h2 className="settings-page-title">配置</h2>
-          <p className="settings-page-desc">配置审批策略和命令执行范围。</p>
+      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
+          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">配置</h2>
+          <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">配置审批策略和命令执行范围。</p>
         </div>
 
         <SettingsSection>
@@ -126,8 +126,8 @@ export function ConfigSettings(): React.ReactNode {
             title="智能体默认设置"
             description="配置权限预设、工具范围、Shell 风险处理和审批方式。"
           />
-          <div className="config-settings-source-toolbar">
-            <div className="config-settings-source-controls">
+          <div className="config-settings-source-toolbar tw:mb-3 tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-3 tw:max-[600px]:flex-col tw:max-[600px]:items-start">
+            <div className="config-settings-source-controls tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:max-[600px]:w-full tw:max-[600px]:flex-wrap">
               <SettingsDropdown
                 width={180}
                 ariaLabel="活动 Profile"
@@ -167,7 +167,7 @@ export function ConfigSettings(): React.ReactNode {
                 onChange={(value) => setConfigLayer(value as 'user' | 'profile' | 'project')}
               />
             </div>
-            <div className="config-settings-source-actions">
+            <div className="config-settings-source-actions tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:max-[600px]:w-full tw:max-[600px]:flex-wrap">
               <Button
                 color="secondary"
                 type="button"
@@ -454,10 +454,10 @@ export function ConfigSettings(): React.ReactNode {
           {promptPreview ? (
             <div
               aria-label="当前任务完整提示词"
-              className="config-settings-prompt-preview"
+              className="config-settings-prompt-preview tw:max-h-[min(32rem,60vh)] tw:overflow-auto tw:border-t-[0.5px] tw:border-t-app-border tw:p-4"
               role="region"
             >
-              <pre className="settings-code-block">{promptPreview}</pre>
+              <pre className="settings-code-block tw:m-0 tw:min-w-max tw:whitespace-pre tw:text-app-text-soft tw:type-code">{promptPreview}</pre>
             </div>
           ) : null}
         </SettingsSection>

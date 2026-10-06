@@ -72,6 +72,7 @@ import {
 import { isSchedulePlanTool, SchedulePlanCard } from './SchedulePlanCard.js'
 import { QuestionItemView } from './QuestionItemView.js'
 import { CopyButton } from './CopyButton.js'
+import { cx } from '../../../utils/cx.js'
 import { ResultCardView } from './ResultCardView.js'
 import { safeCitationUrl } from './citationUrl.js'
 
@@ -432,6 +433,13 @@ export function CanonicalUserInput({
   )
 }
 
+/**
+ * Disclosure summary row shared by the reasoning and question cards: 26px
+ * control row, icon/label/chevron grid and the standard hover/focus states.
+ */
+export const PROCESS_CARD_SUMMARY_CLASS =
+  'canonical-process-card__summary tw:grid tw:w-fit tw:max-w-full tw:min-h-[26px] tw:grid-cols-[var(--cpx-sys-icon-size-sm)_minmax(0,auto)_var(--cpx-sys-icon-size-sm)] tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-sm tw:border-0 tw:bg-transparent tw:p-0.5 tw:px-2 tw:text-left tw:text-inherit tw:transition-colors tw:duration-state tw:ease-out tw:hover:bg-app-hover tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus'
+
 export function CanonicalItemRenderer({
   disclosure,
   ...props
@@ -571,7 +579,12 @@ function TextItemView({
   if (!text.trim()) return null
   return (
     <article
-      className={`canonical-text-item canonical-text-item--${item.placement}`}
+      className={cx(
+        'canonical-text-item tw:min-w-0 tw:text-app-text tw:type-reading',
+        item.placement === 'process'
+          ? 'canonical-text-item--process tw:text-app-text-soft'
+          : 'canonical-text-item--result tw:w-full tw:bg-transparent tw:shadow-none',
+      )}
       data-streaming={item.status === 'streaming' ? 'true' : undefined}
     >
       <ConversationMarkdownErrorBoundary contentKey={`${item.id}:${text}`}>
@@ -647,19 +660,27 @@ function ReasoningItemView({
       <button
         aria-controls={contentId}
         aria-expanded={expanded}
-        className="canonical-process-card__summary"
+        className={cx(PROCESS_CARD_SUMMARY_CLASS, expanded && 'tw:text-app-text')}
         onClick={() => setExpanded(!expanded)}
         type="button"
       >
         {streaming ? (
-          <LoaderCircle size={APP_ICON_SIZES.sm} className="canonical-spin" aria-hidden="true" />
+          <LoaderCircle
+            size={APP_ICON_SIZES.sm}
+            className="canonical-spin"
+            strokeWidth={APP_ICON_STROKE_WIDTH}
+            aria-hidden="true"
+          />
         ) : (
-          <Check size={APP_ICON_SIZES.sm} aria-hidden="true" />
+          <Check size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} aria-hidden="true" />
         )}
         <span>{streaming ? '正在思考' : '思考过程'}</span>
         <ChevronDown
           size={APP_ICON_SIZES.sm}
-          className="canonical-process-card__chevron"
+          className={cx(
+            'canonical-process-card__chevron tw:transition-transform tw:duration-disclosure tw:ease-disclosure',
+            expanded && 'tw:rotate-180',
+          )}
           aria-hidden="true"
         />
       </button>
@@ -702,14 +723,17 @@ function ActivityItemView({
 
   return (
     <div
-      className="cpx-agent-activity__item"
+      className="cpx-agent-activity__item tw:min-w-0 tw:text-app-text-soft"
       data-expandable={canExpand ? 'true' : 'false'}
       data-expanded={expanded ? 'true' : 'false'}
     >
       <button
         aria-controls={canExpand ? contentId : undefined}
         aria-expanded={canExpand ? expanded : undefined}
-        className="cpx-agent-activity__item-header"
+        className={cx(
+          'cpx-agent-activity__item-header',
+          canExpand ? undefined : 'cpx-agent-activity__item-header--static',
+        )}
         disabled={!canExpand}
         onClick={() => setExpanded(!expanded)}
         type="button"
@@ -789,7 +813,7 @@ export function ToolItemView({
 
   return (
     <div
-      className="cpx-agent-activity__item"
+      className="cpx-agent-activity__item tw:min-w-0 tw:text-app-text-soft"
       data-expandable={view.canExpand ? 'true' : 'false'}
       data-expanded={expanded ? 'true' : 'false'}
       data-presentation={presentation}
@@ -911,10 +935,13 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
   const shellTag = resolveShellTag(item)
   return (
     <article
-      className={`canonical-command-shell md-code-surface${embedded ? ' canonical-command-shell--embedded' : ''}`}
+      className={cx(
+        'canonical-command-shell md-code-surface tw:mx-0 tw:my-2 tw:min-w-0',
+        embedded && 'canonical-command-shell--embedded tw:my-1',
+      )}
       data-state={item.state}
     >
-      <div className="canonical-command-shell__body">
+      <div className="canonical-command-shell__body tw:flex tw:min-w-0 tw:flex-col">
         <CodeBlock
           surface="embedded"
           collapsible
@@ -943,7 +970,7 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
           <ToolResultBlocksView item={item} threadId={threadId} />
         ) : null}
       </div>
-      <footer className="canonical-command-shell__footer">
+      <footer className="canonical-command-shell__footer tw:flex tw:min-h-6 tw:items-center tw:justify-end tw:border-t-0 tw:bg-transparent tw:px-3 tw:pt-0 tw:pb-2">
         <span className="canonical-command-shell__status">
           {item.state === 'completed' ? (
             <Check size={APP_ICON_SIZES.sm} aria-hidden="true" />
@@ -1114,7 +1141,7 @@ function CommandShellEmbeddedScroll({ children }: { children: React.ReactNode })
   const edge = useScrollEdgeState(scrollerRef, { contentRef })
   return (
     <div
-      className="canonical-command-shell__edge-fade"
+      className="canonical-command-shell__edge-fade tw:relative tw:min-w-0"
       data-at-end={edge.atEnd}
       data-at-start={edge.atStart}
       data-scrollable={edge.scrollable}
@@ -1243,7 +1270,7 @@ export function PatchSummaryView({
           ) : null}
         </span>
       </header>
-      <div className="canonical-patch-card__files">
+      <div className="canonical-patch-card__files tw:grid">
         {visibleFiles.map((file) => (
           <PatchFileButton file={file} key={file.path} onOpenReview={onOpenReview} />
         ))}
@@ -1297,7 +1324,10 @@ export function FileMutationItemView({
   const failed = item.state === 'error' || item.state === 'interrupted'
 
   return (
-    <div className="cpx-agent-activity__file-changes" data-state={item.state}>
+    <div
+      className="cpx-agent-activity__file-changes tw:grid tw:min-w-0 tw:text-app-text-soft"
+      data-state={item.state}
+    >
       {mutation.files.map((file, fileIndex) => {
         const disclosureId = `file-mutation:${item.id}:${fileIndex}`
         const canExpand =
@@ -1334,7 +1364,7 @@ export function FileMutationItemView({
               <span className="cpx-agent-activity__label" title={file.path}>
                 {fileMutationLabel(item.state, file.path, file.operation)}
               </span>
-              <span className="cpx-agent-activity__review-indicator">
+              <span className="cpx-agent-activity__review-indicator tw:inline-flex tw:flex-none tw:items-center tw:gap-2">
                 {file.additions !== null ? (
                   <small className="canonical-diff-add">+{file.additions}</small>
                 ) : null}
@@ -1358,7 +1388,7 @@ export function FileMutationItemView({
                 <span className="cpx-agent-activity__label" title={file.path}>
                   {fileMutationLabel(item.state, file.path, file.operation)}
                 </span>
-                <span className="cpx-agent-activity__review-indicator">
+                <span className="cpx-agent-activity__review-indicator tw:inline-flex tw:flex-none tw:items-center tw:gap-2">
                   {file.additions !== null ? (
                     <small className="canonical-diff-add">+{file.additions}</small>
                   ) : null}
@@ -1894,7 +1924,7 @@ export function LifecycleToolItemView({ item }: { item: ToolItem }): React.React
   const LifecycleIcon = display.icon
   const card = lifecycleResultCard(item)
   return (
-    <div className="canonical-lifecycle-entry">
+    <div className="canonical-lifecycle-entry tw:flex tw:min-w-0 tw:flex-col tw:gap-2">
       <div
         className="canonical-lifecycle-tool"
         data-state={item.state}

@@ -184,7 +184,7 @@ export function GitWorkflowModal({
           className="ui-dialog-surface ui-dialog-surface--centered permission-modal git-workflow-modal"
           onCloseAutoFocus={onCloseAutoFocus}
         >
-          <header className={cx('u-flex', 'u-items-center', 'u-justify-between', 'u-gap-3')}>
+          <header className={cx('tw:flex', 'tw:items-center', 'tw:justify-between', 'tw:gap-3')}>
             <Dialog.Title asChild>
               <h2>{title}</h2>
             </Dialog.Title>
@@ -195,7 +195,7 @@ export function GitWorkflowModal({
           </Dialog.Description>
           {localError ? <div className="git-workflow-error">{localError}</div> : null}
           {mode === 'branch' ? (
-            <div className={cx('git-workflow-form', 'u-grid', 'u-gap-3')}>
+            <div className={cx('git-workflow-form', 'tw:grid', 'tw:gap-3')}>
               <label>
                 <span>分支名称</span>
                 <input value={branchName} onChange={(event) => setBranchName(event.target.value)} />
@@ -203,7 +203,7 @@ export function GitWorkflowModal({
             </div>
           ) : null}
           {mode === 'commitPush' ? (
-            <div className={cx('git-workflow-form', 'u-grid', 'u-gap-3')}>
+            <div className={cx('git-workflow-form', 'tw:grid', 'tw:gap-3')}>
               <label>
                 <span>提交信息</span>
                 <textarea
@@ -260,7 +260,7 @@ export function GitWorkflowModal({
             </div>
           ) : null}
           {mode === 'pullRequest' ? (
-            <div className={cx('git-workflow-form', 'u-grid', 'u-gap-3')}>
+            <div className={cx('git-workflow-form', 'tw:grid', 'tw:gap-3')}>
               <label>
                 <span>标题</span>
                 <input value={prTitle} onChange={(event) => setPrTitle(event.target.value)} />
@@ -282,10 +282,10 @@ export function GitWorkflowModal({
           <div
             className={cx(
               'permission-modal-actions',
-              'u-flex',
-              'u-items-center',
-              'u-justify-between',
-              'u-gap-3',
+              'tw:flex',
+              'tw:items-center',
+              'tw:justify-between',
+              'tw:gap-3',
             )}
           >
             <Dialog.Close asChild>

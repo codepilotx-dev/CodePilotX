@@ -9,7 +9,6 @@ import { SETTINGS_ITEMS } from './settingsRegistry.js'
 import { NotFoundPage } from '../routing/NotFoundPage.js'
 import { useDesktopLayoutOutletContext } from '../layout/shell/desktopLayoutOutletContext.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
-import '../../styles/lazy/settings.scss'
 
 type Props = {
   activeTabOverride?: string

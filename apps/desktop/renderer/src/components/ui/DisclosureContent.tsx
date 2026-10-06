@@ -50,7 +50,10 @@ export function DisclosureContent({
     <div
       aria-hidden={!expanded}
       aria-labelledby={ariaLabelledBy}
-      className={joinClassNames('ui-disclosure-content', className)}
+      className={joinClassNames(
+        'ui-disclosure-content tw:grid tw:min-w-0 tw:grid-rows-[1fr] tw:transition-[grid-template-rows] tw:duration-disclosure tw:ease-disclosure tw:data-[expanded=false]:grid-rows-[0fr] tw:data-[expanded=false]:pointer-events-none',
+        className,
+      )}
       data-expanded={expanded ? 'true' : 'false'}
       data-mount-policy={mountPolicy}
       id={id}
@@ -60,9 +63,14 @@ export function DisclosureContent({
       }}
       role={role}
     >
-      <div className="ui-disclosure-content__clip">
+      <div className="ui-disclosure-content__clip tw:min-w-0 tw:min-h-0 tw:overflow-hidden">
         {renderContent ? (
-          <div className={joinClassNames('ui-disclosure-content__body', contentClassName)}>
+          <div
+            className={joinClassNames(
+              'ui-disclosure-content__body tw:min-w-0',
+              contentClassName,
+            )}
+          >
             {children}
           </div>
         ) : null}

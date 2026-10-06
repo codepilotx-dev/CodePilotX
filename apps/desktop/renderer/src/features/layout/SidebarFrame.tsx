@@ -14,6 +14,7 @@ import {
   type SidebarShellController,
 } from './sidebarShellState.js'
 import { SIDEBAR_RAIL_WIDTH } from './sidebar/sidebarNavigation.js'
+import { cx } from '../../utils/cx.js'
 
 export type SidebarContentKind = 'tasks' | 'settings'
 
@@ -162,12 +163,16 @@ export function SidebarFrame({
 
   return (
     <>
-      <div className="desktop-sidebar-rail-slot" data-sidebar-layout="modern">
+      <div
+        className="desktop-sidebar-rail-slot tw:absolute tw:inset-y-0 tw:left-0 tw:z-composer tw:w-[var(--sidebar-rail-width)] tw:bg-app-sidebar"
+        data-sidebar-layout="modern"
+        style={{ '--sidebar-rail-width': `${railWidth}px` } as React.CSSProperties}
+      >
         {rail}
       </div>
       <motion.div
         aria-hidden="true"
-        className="desktop-sidebar-spacer"
+        className="desktop-sidebar-spacer tw:w-0 tw:min-w-0 tw:flex-none"
         style={{ width: allocatedWidth }}
       />
       <motion.aside
@@ -184,13 +189,19 @@ export function SidebarFrame({
         onPointerLeave={floating ? shell.onPreviewPanelLeave : undefined}
         aria-label={labels.sidebar}
         aria-hidden={hidden || undefined}
-        className={[
-          'desktop-sidebar',
-          'tw:flex tw:h-full tw:shrink-0 tw:flex-col tw:overflow-hidden tw:text-app-text',
+        className={cx(
+          'desktop-sidebar tw:absolute tw:inset-y-0 tw:flex tw:h-full tw:flex-none tw:flex-col tw:overflow-hidden tw:select-none tw:type-body tw:text-app-text tw:antialiased tw:[text-rendering:optimizeLegibility]',
+          // Modern 布局：面板起点与宽度按图标栏宽度让位。
+          'tw:left-[var(--sidebar-rail-width)] tw:w-[calc(var(--sidebar-current-width)-var(--sidebar-rail-width))]',
           `is-${shell.mode}`,
-          floating ? 'is-floating' : '',
-          resizing ? 'is-resizing' : '',
-        ].join(' ')}
+          floating
+            ? 'is-floating tw:z-composer tw:rounded-xl tw:border-r tw:border-app-border tw:bg-app-raised tw:shadow-lg'
+            : 'tw:z-dock',
+          !floating && docked ? 'is-docked tw:bg-app-main' : undefined,
+          !floating && !docked ? 'tw:bg-app-sidebar' : undefined,
+          hidden ? 'is-collapsed tw:pointer-events-none' : undefined,
+          resizing ? 'is-resizing' : undefined,
+        )}
         animate={
           hidden
             ? {
@@ -226,7 +237,7 @@ export function SidebarFrame({
             aria-valuemax={maxWidth}
             aria-valuemin={minWidth}
             aria-valuenow={width}
-            className="sidebar-resizer"
+            className="sidebar-resizer tw:absolute tw:inset-y-0 tw:right-0 tw:z-local tw:w-1.5 tw:cursor-col-resize tw:touch-none tw:focus-visible:outline-none"
             onDoubleClick={handleResetWidth}
             onKeyDown={handleResizeKey}
             onLostPointerCapture={handleLostPointerCapture}
@@ -238,10 +249,13 @@ export function SidebarFrame({
             tabIndex={0}
           />
         ) : null}
-        <div className="icon-button sidebar-brand-floating">
+        <div className="icon-button sidebar-brand-floating tw:hidden tw:text-app-text-meta">
           <Bot size={APP_ICON_SIZE} />
         </div>
-        <History className="icon-button sidebar-history-watermark" size={APP_ICON_SIZE} />
+        <History
+          className="icon-button sidebar-history-watermark tw:hidden tw:text-app-text-meta"
+          size={APP_ICON_SIZE}
+        />
       </motion.aside>
     </>
   )

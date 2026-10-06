@@ -108,9 +108,10 @@ function NumberInput({
   }
 
   return (
-    <div className="appearance-number-input">
+    <div className="appearance-number-input tw:flex tw:items-center tw:gap-2">
       <Input
         aria-label={ariaLabel}
+        className="tw:w-16 tw:min-w-0 tw:rounded-md tw:border tw:border-app-border tw:bg-app-control tw:px-2 tw:text-right tw:text-app-text tw:type-body tw:shadow-none"
         max={max}
         min={min}
         size="compact"
@@ -126,7 +127,9 @@ function NumberInput({
           }
         }}
       />
-      <span aria-hidden="true">px</span>
+      <span aria-hidden="true" className="tw:text-app-text-soft tw:type-body-sm">
+        px
+      </span>
     </div>
   )
 }
@@ -155,10 +158,10 @@ function ColorControl({
   }
 
   return (
-    <div className="appearance-color-control">
+    <div className="appearance-color-control tw:flex tw:h-7 tw:w-24 tw:shrink-0 tw:items-center tw:gap-2 tw:rounded-pill tw:border tw:border-app-border tw:bg-transparent tw:px-2 tw:text-app-text tw:has-[:focus-visible]:outline-solid tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-1 tw:has-[:focus-visible]:outline-app-focus">
       <AnchoredPopover
         align="end"
-        className="appearance-color-popover"
+        className="appearance-color-popover tw:w-auto tw:p-1"
         contentLabel={`${ariaLabel}颜色选项`}
         contentRole="dialog"
         trigger={
@@ -186,7 +189,7 @@ function ColorControl({
       <input
         aria-label={ariaLabel}
         aria-invalid={!HEX_COLOR.test(draft) || undefined}
-        className="appearance-color-input"
+        className="appearance-color-input tw:min-w-0 tw:flex-1 tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:font-mono tw:text-[length:var(--cpx-sys-font-size-xs)] tw:tabular-nums tw:uppercase tw:outline-none"
         maxLength={7}
         spellCheck={false}
         type="text"
@@ -317,7 +320,7 @@ function ColorPalette({
           }}
         />
         <Slider.Root
-          className="appearance-color-axis-slider u-sr-only"
+          className="appearance-color-axis-slider tw:sr-only"
           max={100}
           min={0}
           value={[Math.round(saturation * 100)]}
@@ -337,7 +340,7 @@ function ColorPalette({
           />
         </Slider.Root>
         <Slider.Root
-          className="appearance-color-axis-slider u-sr-only"
+          className="appearance-color-axis-slider tw:sr-only"
           max={100}
           min={0}
           value={[Math.round(brightness * 100)]}
@@ -387,21 +390,27 @@ function ThemeModeCard({
 }) {
   return (
     <label
-      className="appearance-mode-card"
+      className="appearance-mode-card tw:group tw:flex tw:min-w-0 tw:flex-col tw:items-center tw:gap-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:cursor-pointer"
       data-mode={mode}
       data-state={selected ? 'checked' : 'unchecked'}
     >
       <input
         checked={selected}
+        className="tw:peer tw:absolute tw:inset-0 tw:z-2 tw:size-full tw:m-0 tw:cursor-pointer tw:border-0 tw:p-0 tw:opacity-0"
         name="appearance-theme"
         type="radio"
         value={mode}
         onChange={onSelect}
       />
-      <span aria-hidden="true" className="appearance-mode-visual">
+      <span
+        aria-hidden="true"
+        className="appearance-mode-visual tw:relative tw:box-border tw:block tw:aspect-4/3 tw:w-full tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:transition-[border-color] tw:duration-state tw:ease-standard tw:peer-focus-visible:outline-solid tw:peer-focus-visible:outline-2 tw:peer-focus-visible:outline-offset-2 tw:peer-focus-visible:outline-app-focus tw:group-data-[state=checked]:border-2 tw:group-data-[state=checked]:border-app-text tw:[&>svg]:block tw:[&>svg]:size-full"
+      >
         <ThemeModePreview mode={mode} />
       </span>
-      <span className="appearance-mode-label">{label}</span>
+      <span className="appearance-mode-label tw:block tw:max-w-full tw:truncate tw:text-center tw:type-body tw:group-data-[state=checked]:text-app-text">
+        {label}
+      </span>
     </label>
   )
 }
@@ -573,7 +582,7 @@ function ThemePreview({
   return (
     <div
       aria-label={`${variant === 'light' ? '浅色' : '深色'}主题差异预览`}
-      className="appearance-diff-preview"
+      className="appearance-diff-preview tw:mx-0 tw:mt-0 tw:mb-4 tw:block tw:overflow-hidden tw:rounded-lg tw:bg-app-editor"
       data-variant={variant}
       style={style}
     >
@@ -621,7 +630,7 @@ function VariantThemeEditor({
       icon: color ? (
         <span
           aria-hidden="true"
-          className="appearance-accent-dot"
+          className="appearance-accent-dot tw:size-3 tw:shrink-0 tw:rounded-pill tw:border tw:border-app-border-subtle"
           style={{ backgroundColor: color }}
         />
       ) : undefined,
@@ -677,7 +686,7 @@ function VariantThemeEditor({
           icon: (
             <span
               aria-hidden="true"
-              className="appearance-theme-seed"
+              className="appearance-theme-seed tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-accent-fg tw:type-label"
               style={
                 seed
                   ? {
@@ -728,7 +737,7 @@ function VariantThemeEditor({
   return (
     <article
       aria-busy={section === 'visual' && !themeSeedsReady}
-      className="appearance-theme-editor settings-card"
+      className="appearance-theme-editor settings-card tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none tw:[&>.settings-row]:min-h-12"
       data-section={section}
     >
       <SettingsRow
@@ -739,6 +748,7 @@ function VariantThemeEditor({
               ariaLabel={`${variantLabel}代码主题`}
               options={codeThemeOptions}
               showSelectedIndicator
+              triggerClassName="tw:w-45 tw:min-w-45 tw:max-[900px]:min-w-0"
               value={codeThemeId}
               variant="theme"
               width={180}
@@ -771,19 +781,19 @@ function VariantThemeEditor({
         }
       />
 
-      <div className="appearance-theme-editor-rows">
+      <div className="appearance-theme-editor-rows tw:[&>.settings-row]:px-4 tw:@max-[760px]:[&_.settings-row]:items-start tw:@max-[760px]:[&_.settings-row-control]:w-full tw:@max-[760px]:[&_.settings-row-control]:justify-start">
         {section === 'visual' ? (
           <>
             <SettingsRow
               title="强调色"
               size="compact"
               control={
-                <div className="appearance-accent-control">
+                <div className="appearance-accent-control tw:flex tw:items-center tw:gap-2">
                   <Select
                     ariaLabel={t(`${variantLabel}强调色预设`)}
                     options={accentOptions}
                     showSelectedIndicator
-                    triggerClassName="appearance-accent-select"
+                    triggerClassName="appearance-accent-select tw:h-7 tw:min-h-7 tw:w-auto tw:min-w-0 tw:max-w-[min(360px,48vw)] tw:rounded-pill"
                     value={accentPreset}
                     width={180}
                     onValueChange={(preset) =>
@@ -946,19 +956,19 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
 
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner appearance-settings">
-        <div className="settings-page-header">
-          <h2 className="settings-page-title">{t('外观')}</h2>
+      <div className="settings-content-inner appearance-settings tw:[&>.settings-section>.appearance-theme-editors]:mt-4 tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
+          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">{t('外观')}</h2>
         </div>
 
         <SettingsSection bare title="视觉样式">
-          <div className="settings-card">
+          <div className="settings-card tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none">
             <SettingsRow
               title="模式"
               control={
                 <div
                   aria-label="外观模式"
-                  className="appearance-mode-gallery"
+                  className="appearance-mode-gallery tw:grid tw:w-68 tw:max-w-full tw:grid-cols-3 tw:gap-3"
                   role="radiogroup"
                   onKeyDown={(event) => {
                     const keyOffsets: Partial<Record<string, number>> = {
@@ -1010,7 +1020,7 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
               }
             />
           </div>
-          <div className="appearance-theme-editors">
+          <div className="appearance-theme-editors tw:grid tw:gap-5">
             {visibleVariants.map((variant) => (
               <VariantThemeEditor
                 section="visual"
@@ -1026,14 +1036,14 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
 
         <SettingsSection bare>
           <DisclosureController
-            contentClassName="appearance-advanced-content"
+            contentClassName="appearance-advanced-content tw:flex tw:flex-col tw:gap-4"
             renderTrigger={({ expanded, contentId, toggle }) => (
               <SettingsSection.Header
                 title={
                   <button
                     aria-controls={contentId}
                     aria-expanded={expanded}
-                    className="appearance-advanced-trigger"
+                    className="appearance-advanced-trigger tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:hover:text-app-text tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
                     onClick={toggle}
                     type="button"
                   >
@@ -1059,7 +1069,7 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
               />
             )}
           >
-            <div className="settings-card">
+            <div className="settings-card tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none">
               <SettingsRow
                 title="界面字号"
                 control={
@@ -1095,7 +1105,7 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
                 }
               />
             </div>
-            <div className="appearance-theme-editors">
+            <div className="appearance-theme-editors tw:grid tw:gap-5">
               {visibleVariants.map((variant) => (
                 <VariantThemeEditor
                   section="advanced"
@@ -1107,7 +1117,7 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
                 />
               ))}
             </div>
-            <div className="settings-card">
+            <div className="settings-card tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none">
               <SettingsRow
                 autoSave
                 title="减少动态效果"

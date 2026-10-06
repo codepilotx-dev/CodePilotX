@@ -37,6 +37,18 @@ function stripModeFields(props: Record<string, unknown>): Record<string, unknown
   return rest
 }
 
+/*
+ * Appearance lives here as complete static class lists: the variant modifier
+ * class stays as a query hook, and never carries the Tailwind classes itself.
+ */
+const VARIANT_CLASSES: Record<SearchInputVariant, string> = {
+  standard:
+    'search-input--standard tw:py-control-block tw:px-control-inline tw:rounded-md tw:type-control',
+  compact: 'search-input--compact tw:py-1 tw:px-control-inline tw:rounded-md tw:type-control',
+  embedded:
+    'search-input--embedded tw:py-control-block tw:px-control-inline tw:rounded-none tw:border-0 tw:bg-transparent tw:type-body-sm',
+}
+
 export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(function SearchInput(
   {
     'aria-label': ariaLabel,
@@ -101,14 +113,28 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
     : {}
 
   return (
-    <div className={cx('search-input', `search-input--${variant}`, className)}>
-      <Search aria-hidden="true" className="search-input-icon" size={APP_ICON_SIZE} />
+    <div
+      className={cx(
+        'search-input tw:inline-flex tw:min-w-0 tw:items-center tw:gap-control-gap tw:border tw:border-app-border-subtle tw:bg-app-canvas',
+        'tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-standard',
+        'tw:hover:border-app-border-strong',
+        'tw:has-[:focus-visible]:border-app-focus tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-1 tw:has-[:focus-visible]:outline-app-focus',
+        'tw:has-[input:disabled]:cursor-default tw:has-[input:disabled]:bg-app-panel tw:has-[input:disabled]:outline-none tw:has-[input:disabled]:opacity-55',
+        VARIANT_CLASSES[variant],
+        className,
+      )}
+    >
+      <Search
+        aria-hidden="true"
+        className="search-input-icon tw:size-icon-md tw:shrink-0 tw:pointer-events-none tw:text-app-text"
+        size={APP_ICON_SIZE}
+      />
       <input
         {...safeInputProps}
         {...comboboxProps}
         ref={setRef}
         aria-label={ariaLabel}
-        className="search-input-field"
+        className="search-input-field tw:min-w-0 tw:flex-1 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text tw:shadow-none tw:outline-none tw:placeholder:text-app-text-meta tw:disabled:cursor-default tw:disabled:text-app-text-disabled"
         data-mode={isCombobox ? 'combobox' : isFilter ? 'filter' : undefined}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={handleKeyDown}

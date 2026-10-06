@@ -91,9 +91,13 @@ export function BranchSelectPopover({
           </span>
           <span className="popover-item-label">
             {currentBranchDetail && selected ? (
-              <span className="environment-branch-label">
-                <span title={option.value}>{option.value}</span>
-                <small>{currentBranchDetail}</small>
+              <span className="environment-branch-label tw:flex tw:min-w-0 tw:flex-col tw:gap-1">
+                <span className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap" title={option.value}>
+                  {option.value}
+                </span>
+                <small className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-soft tw:type-caption">
+                  {currentBranchDetail}
+                </small>
               </span>
             ) : (
               <span title={option.value}>{option.value}</span>

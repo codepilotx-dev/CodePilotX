@@ -687,7 +687,7 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
         turnScoped: true,
         files: [
           { path: 'apps/desktop/renderer/src/features/session/ConversationTurnNavRail.tsx' },
-          { path: 'apps/desktop/renderer/src/styles/features/timeline.scss' },
+          { path: 'apps/desktop/renderer/src/styles/primitives/conversation.css' },
           { path: 'apps/desktop/renderer/src/components/ui/Tooltip.tsx' },
         ],
       },
@@ -788,8 +788,8 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
         turnScoped: true,
         files: [
           { path: 'apps/desktop/renderer/shared/theme.ts' },
-          { path: 'apps/desktop/renderer/src/styles/features/_session-page.scss' },
-          { path: 'apps/desktop/renderer/src/styles/features/_session-workflow.scss' },
+          { path: 'apps/desktop/renderer/src/styles/features/primary-page.css' },
+          { path: 'apps/desktop/renderer/src/styles/primitives/session.css' },
         ],
       },
     })
@@ -868,7 +868,11 @@ export function createBrowserVisualFixture(): DesktopSessionSnapshot | null {
           turnScoped: true,
           files: [
             { path: 'apps/desktop/renderer/shared/theme.ts', additions: 18, deletions: 4 },
-            { path: 'apps/desktop/renderer/src/styles/index.scss', additions: 7, deletions: 2 },
+            {
+              path: 'apps/desktop/renderer/src/styles/tailwind.css',
+              additions: 7,
+              deletions: 2,
+            },
             {
               path: 'apps/desktop/renderer/src/features/session/attachments/AttachmentRows.tsx',
               additions: 146,

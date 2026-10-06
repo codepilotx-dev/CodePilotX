@@ -105,7 +105,7 @@ export function PullRequestPopover({
   return (
     <div
       aria-label="创建拉取请求"
-      className="popover-surface review-popover pr-popover"
+      className="popover-surface review-popover pr-popover tw:fixed tw:z-popover tw:flex tw:min-w-[min(288px,calc(100vw-16px))] tw:max-w-[var(--popover-max-width,min(384px,calc(100vw-16px)))] tw:flex-col tw:gap-2 tw:p-2 tw:border tw:border-app-border tw:rounded-xl tw:bg-app-raised tw:font-sans tw:shadow-lg"
       ref={panelRef}
       role="dialog"
       style={{
@@ -117,16 +117,22 @@ export function PullRequestPopover({
         top: position.top,
       }}
     >
-      <header className="review-popover-header">
-        <span className="review-popover-branch">
-          <span className="review-popover-branch-name">{branchLabel}</span>
+      <header className="review-popover-header tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:type-row-title">
+        <span className="review-popover-branch tw:inline-flex tw:items-center tw:gap-1 tw:text-app-text">
+          <span className="review-popover-branch-name tw:max-w-40 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">
+            {branchLabel}
+          </span>
           <ArrowUpRight size={APP_ICON_SIZE} />
           <span>{targetLabel}</span>
           <ChevronDown size={APP_ICON_SIZES.sm} />
         </span>
-        <span className="review-popover-counts">
-          <strong>+{formatPanelNumber(additions)}</strong>
-          <em>-{formatPanelNumber(deletions)}</em>
+        <span className="review-popover-counts tw:ml-auto tw:inline-flex tw:items-center tw:gap-1 tw:type-weight-label tw:tabular-nums">
+          <strong className="tw:text-app-success tw:type-weight-label">
+            +{formatPanelNumber(additions)}
+          </strong>
+          <em className="tw:text-app-danger tw:not-italic tw:type-weight-label">
+            -{formatPanelNumber(deletions)}
+          </em>
         </span>
         <IconButton
           iconSize="sm"
@@ -141,9 +147,10 @@ export function PullRequestPopover({
         </IconButton>
       </header>
 
-      <label className="review-popover-field">
-        <span>标题</span>
+      <label className="review-popover-field tw:flex tw:flex-col tw:gap-1 tw:text-app-text-soft tw:type-body-sm">
+        <span className="tw:type-weight-label">标题</span>
         <input
+          className="tw:w-full tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-control tw:resize-none"
           type="text"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
@@ -156,9 +163,10 @@ export function PullRequestPopover({
         />
       </label>
 
-      <label className="review-popover-field">
-        <span>描述（留空将自动生成）</span>
+      <label className="review-popover-field tw:flex tw:flex-col tw:gap-1 tw:text-app-text-soft tw:type-body-sm">
+        <span className="tw:type-weight-label">描述（留空将自动生成）</span>
         <textarea
+          className="tw:min-h-16 tw:w-full tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-control tw:resize-y"
           placeholder="描述（留空将自动生成）..."
           rows={4}
           value={body}
@@ -172,7 +180,7 @@ export function PullRequestPopover({
         />
       </label>
 
-      <label className="review-popover-check">
+      <label className="review-popover-check tw:flex tw:items-center tw:gap-2 tw:text-app-text-soft tw:type-control">
         <input
           checked={pushFirst}
           type="checkbox"
@@ -181,13 +189,13 @@ export function PullRequestPopover({
         <span>先推送当前分支</span>
       </label>
 
-      <div className="review-popover-actions">
+      <div className="review-popover-actions tw:flex tw:flex-col tw:gap-1 tw:border-t tw:border-app-border tw:pt-1">
         <Button
           color="primary"
           className="tw:w-full tw:justify-between"
           onClick={() => onCreateDraftPR(title, body, pushFirst)}
         >
-          <span className="review-popover-action-label">
+          <span className="review-popover-action-label tw:inline-flex tw:items-center tw:gap-2">
             <GitFork size={APP_ICON_SIZE} />
             创建草稿 PR
           </span>
@@ -198,13 +206,13 @@ export function PullRequestPopover({
           className="tw:w-full tw:justify-between"
           onClick={() => onCreatePR(title, body, pushFirst)}
         >
-          <span className="review-popover-action-label">
+          <span className="review-popover-action-label tw:inline-flex tw:items-center tw:gap-2">
             <GitFork size={APP_ICON_SIZE} />
             创建拉取请求
           </span>
         </Button>
         <Button color="primary" className="tw:w-full tw:justify-between" onClick={() => onOpenPR()}>
-          <span className="review-popover-action-label">
+          <span className="review-popover-action-label tw:inline-flex tw:items-center tw:gap-2">
             <ExternalLink size={APP_ICON_SIZE} />
             在浏览器中打开 PR
           </span>

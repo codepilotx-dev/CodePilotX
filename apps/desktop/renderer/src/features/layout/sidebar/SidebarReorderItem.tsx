@@ -99,7 +99,10 @@ export const SidebarReorderItem = forwardRef<HTMLElement, Props>(function Sideba
       {...itemProps}
       ref={ref as ForwardedRef<HTMLDivElement> & ForwardedRef<HTMLLIElement>}
       as={as}
-      className={cx('sidebar-reorder-item', className)}
+      className={cx(
+        'sidebar-reorder-item tw:relative tw:min-w-0 tw:cursor-grab tw:shadow-none tw:transition-shadow tw:duration-feedback tw:ease-standard tw:data-[dragging=true]:shadow-lg',
+        className,
+      )}
       animate={presenceMotion ? { opacity: 1 } : undefined}
       data-dragging={dragging || undefined}
       dragControls={controls}

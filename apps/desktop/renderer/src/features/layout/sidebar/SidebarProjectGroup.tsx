@@ -32,6 +32,8 @@ import { cx } from '../../../utils/cx.js'
 import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 import {
   DEFAULT_PROJECT_APPEARANCE,
+  PROJECT_APPEARANCE_COLOR_CLASS,
+  PROJECT_APPEARANCE_MARKER_CLASS,
   ProjectAppearanceGlyph,
 } from '../../projects/projectAppearance.js'
 import {
@@ -205,7 +207,7 @@ function SidebarProjectGroupComponent({
       aria-expanded={isExpanded}
       aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown ArrowRight"
       aria-label={`${managedProject.name}，${isExpanded ? '折叠项目任务' : '展开项目任务'}`}
-      className="sidebar-project-button"
+      className="sidebar-project-button tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2 tw:bg-transparent tw:p-0 tw:text-left tw:text-inherit tw:focus-visible:outline-none"
       data-current={isCurrent || undefined}
       data-sidebar-drop-index={dropIndex}
       data-sidebar-project-key={projectKey}
@@ -215,12 +217,14 @@ function SidebarProjectGroupComponent({
       type="button"
       onClick={() => disclosureStore.setExpanded(disclosureKey, !isExpanded)}
     >
-      <span className="sidebar-project-title-text">{managedProject.name}</span>
+      <span className="sidebar-project-title-text tw:min-w-0 tw:flex-1 tw:overflow-hidden tw:whitespace-nowrap tw:text-inherit tw:type-row-title">
+        {managedProject.name}
+      </span>
     </button>
   )
 
   return (
-    <section className={cx('sidebar-project', 'u-flex', 'u-flex-col', 'tw:flex tw:flex-col')}>
+    <section className={cx('sidebar-project', 'tw:flex', 'tw:flex-col', 'tw:flex tw:flex-col')}>
       <SidebarContextMenu
         actions={contextActions()}
         layout="grid"
@@ -228,16 +232,20 @@ function SidebarProjectGroupComponent({
         trigger={
           <SidebarRow
             className={cx(
-              'sidebar-project-header',
-              isUnavailable && 'sidebar-project-header--unavailable',
+              'sidebar-project-header tw:cursor-pointer tw:group tw:focus:outline-none tw:focus-visible:outline-none tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-0 tw:has-[:focus-visible]:outline-app-focus tw:[&>.sidebar-row-trailing]:relative tw:[&>.sidebar-row-trailing]:w-auto',
+              isUnavailable &&
+                'sidebar-project-header--unavailable tw:text-app-text-disabled tw:hover:bg-transparent tw:[&_.sidebar-item-icon]:text-app-text-disabled',
             )}
-            labelClassName="sidebar-project-name"
+            labelClassName="sidebar-project-name tw:flex tw:min-w-0 tw:items-center tw:text-inherit"
             layout="grid"
             leading={
               <ProjectAppearanceGlyph
                 size={APP_ICON_SIZE}
                 appearance={appearance}
-                className="project-appearance-marker"
+                className={cx(
+                  PROJECT_APPEARANCE_MARKER_CLASS,
+                  PROJECT_APPEARANCE_COLOR_CLASS[appearance.color] ?? 'tw:text-app-text-soft',
+                )}
               />
             }
             onMouseEnter={() => setHovered(true)}
@@ -245,7 +253,12 @@ function SidebarProjectGroupComponent({
             trailing={
               <>
                 <div
-                  className={cx('sidebar-project-actions', actionsVisible && 'is-visible')}
+                  className={cx(
+                    'sidebar-project-actions tw:relative tw:flex tw:min-h-6 tw:items-center tw:justify-end tw:gap-1 tw:transition-opacity tw:duration-feedback tw:ease-out tw:group-hover:opacity-100 tw:group-hover:pointer-events-auto tw:group-has-[:focus-visible]:opacity-100 tw:group-has-[:focus-visible]:pointer-events-auto tw:has-[[data-state=open]]:opacity-100 tw:has-[[data-state=open]]:pointer-events-auto',
+                    actionsVisible
+                      ? 'is-visible tw:opacity-100 tw:pointer-events-auto'
+                      : 'tw:opacity-0 tw:pointer-events-none',
+                  )}
                   onClick={(event) => event.stopPropagation()}
                 >
                   <PopoverMenu
@@ -318,11 +331,11 @@ function SidebarProjectGroupComponent({
                 </div>
                 {hasCollapsedUnread && !actionsVisible ? (
                   <span
-                    className="sidebar-project-unread sidebar-indicator"
+                    className="sidebar-project-unread sidebar-indicator tw:pointer-events-none tw:absolute tw:inset-y-0 tw:end-0 tw:my-auto tw:inline-flex tw:size-6 tw:flex-none tw:items-center tw:justify-center tw:text-app-text-meta tw:group-hover:hidden tw:group-has-[:focus-visible]:hidden tw:group-has-[[data-state=open]]:hidden"
                     role="img"
                     aria-label="项目内有未读会话"
                   >
-                    <span className="sidebar-unread-dot" />
+                    <span className="sidebar-unread-dot tw:size-1.5 tw:flex-none tw:rounded-full tw:bg-app-accent" />
                   </span>
                 ) : null}
               </>
@@ -351,7 +364,7 @@ function SidebarProjectGroupComponent({
 
       <DisclosureContent
         className="sidebar-project-sessions-disclosure"
-        contentClassName="sidebar-project-sessions-disclosure__content"
+        contentClassName="sidebar-project-sessions-disclosure__content tw:pt-0.5"
         expanded={projectSessions.length > 0 && isExpanded}
         id={projectSessionsId}
         mountPolicy="always"

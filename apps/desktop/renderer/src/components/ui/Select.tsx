@@ -39,6 +39,28 @@ export type SelectProps<T extends string = string> = {
 
 const EMPTY_VALUE = '__codepilotx_select_empty_value__'
 
+/*
+ * Trigger geometry migrated from `styles/components/input.scss` (`.ui-select-trigger`).
+ * `width` and `max-width` stay with `.settings-dropdown.settings-dropdown-trigger`
+ * plus the feature overrides that widen this trigger (`automation.scss`,
+ * `_settings-appearance.scss`); a `tw:` utility outranks those layers.
+ * Background, border-color, hover/open states and the focus-ring color remain on
+ * the `[data-theme-component='dropdown-trigger']` contract in `styles/popover.scss`.
+ */
+const SELECT_TRIGGER_CLASSNAME =
+  'ui-select-trigger settings-dropdown settings-dropdown-trigger tw:min-h-7 tw:min-w-0 tw:appearance-none tw:inline-flex tw:items-center tw:justify-between tw:gap-control-gap tw:border tw:rounded-control tw:px-row-inline tw:py-0 tw:text-left tw:type-control tw:cursor-pointer tw:outline-none tw:transition-[background-color,border-color,color,opacity] tw:duration-feedback tw:ease-out tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1'
+
+/* Content and scroll frame migrated from the `.ui-select-*` rules in
+ * `styles/components/input.scss`. Surface padding, border and shadow stay with
+ * `.settings-dropdown-content` / `.popover-surface` in `styles/popover.scss`.
+ * The scroll-area max height keeps the shared 320px popover budget minus the
+ * 12px frame inset. */
+const SELECT_CONTENT_CLASSNAME =
+  'popover-surface ui-select-content settings-dropdown-content tw:min-w-max tw:[--popover-max-height:min(320px,calc(100vh-96px))] tw:[--popover-overflow-y:hidden]'
+
+const SELECT_SCROLL_AREA_CLASSNAME =
+  'ui-select-scroll-area settings-dropdown-scroll-area tw:grid tw:max-h-[max(80px,calc(min(320px,calc(100vh_-_96px))_-_12px))] tw:overflow-x-hidden tw:overflow-y-auto'
+
 function optionSearchText(option: SelectOption): string {
   return [option.value, option.label, option.detail]
     .filter((part): part is string => typeof part === 'string')
@@ -56,12 +78,14 @@ function OptionContent({
   showSelectedIndicator: boolean
 }): React.ReactNode {
   return (
-    <div className="ui-select-item-inner settings-dropdown-item-inner">
+    <div className="ui-select-item-inner settings-dropdown-item-inner tw:flex tw:w-full tw:min-w-0 tw:items-center tw:gap-2">
       {option.icon}
-      <div className="ui-select-item-copy settings-dropdown-item-copy">
-        <span className="ui-select-item-label settings-dropdown-item-label">{option.label}</span>
+      <div className="ui-select-item-copy settings-dropdown-item-copy tw:grid tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:gap-1">
+        <span className="ui-select-item-label settings-dropdown-item-label tw:truncate tw:type-row-title">
+          {option.label}
+        </span>
         {option.detail ? (
-          <span className="ui-select-item-detail settings-dropdown-item-detail">
+          <span className="ui-select-item-detail settings-dropdown-item-detail tw:truncate tw:text-app-text-meta tw:type-caption">
             {option.detail}
           </span>
         ) : null}
@@ -69,7 +93,7 @@ function OptionContent({
       {showSelectedIndicator && selected ? (
         <Check
           aria-hidden="true"
-          className="ui-select-item-indicator settings-dropdown-item-indicator"
+          className="ui-select-item-indicator settings-dropdown-item-indicator tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:text-app-accent-fg"
           size={APP_ICON_SIZES.sm}
         />
       ) : null}
@@ -106,12 +130,7 @@ function BasicSelect<T extends string>({
     >
       <RadixSelect.Trigger
         aria-label={ariaLabel}
-        className={cx(
-          'ui-select-trigger',
-          'settings-dropdown',
-          'settings-dropdown-trigger',
-          triggerClassName,
-        )}
+        className={cx(SELECT_TRIGGER_CLASSNAME, triggerClassName)}
         data-theme-component="dropdown-trigger"
         data-variant={variant}
         {...focusModality.triggerInteractionProps}
@@ -126,14 +145,14 @@ function BasicSelect<T extends string>({
           <ChevronDown
             size={APP_ICON_SIZES.sm}
             aria-hidden="true"
-            className="ui-select-icon settings-dropdown-icon"
+            className="ui-select-icon settings-dropdown-icon tw:size-icon-sm tw:shrink-0 tw:text-app-text-meta"
           />
         </RadixSelect.Icon>
       </RadixSelect.Trigger>
       <RadixSelect.Portal>
         <RadixSelect.Content
           align="start"
-          className="popover-surface ui-select-content settings-dropdown-content"
+          className={SELECT_CONTENT_CLASSNAME}
           collisionPadding={6}
           data-theme-component="dropdown-surface"
           data-variant={variant}
@@ -145,8 +164,8 @@ function BasicSelect<T extends string>({
             maxWidth: maxWidth ?? 'min(360px, calc(100vw - 16px))',
           })}
         >
-          <RadixSelect.Viewport className="ui-select-scroll-area settings-dropdown-scroll-area">
-            <div className="ui-select-scroll-content settings-dropdown-scroll-content">
+          <RadixSelect.Viewport className={SELECT_SCROLL_AREA_CLASSNAME}>
+            <div className="ui-select-scroll-content settings-dropdown-scroll-content tw:grid tw:min-w-0">
               {options.length ? (
                 options.map((option) => (
                   <RadixSelect.Item
@@ -167,7 +186,9 @@ function BasicSelect<T extends string>({
                   </RadixSelect.Item>
                 ))
               ) : (
-                <div className="ui-select-empty settings-dropdown-empty">未找到匹配项</div>
+                <div className="ui-select-empty settings-dropdown-empty tw:p-2 tw:text-app-text-soft tw:type-caption">
+                  未找到匹配项
+                </div>
               )}
             </div>
           </RadixSelect.Viewport>
@@ -297,12 +318,7 @@ function SearchableSelect<T extends string>({
         <button
           ref={triggerRef}
           aria-label={ariaLabel}
-          className={cx(
-            'ui-select-trigger',
-            'settings-dropdown',
-            'settings-dropdown-trigger',
-            triggerClassName,
-          )}
+          className={cx(SELECT_TRIGGER_CLASSNAME, triggerClassName)}
           data-theme-component="dropdown-trigger"
           data-variant={variant}
           disabled={disabled}
@@ -315,7 +331,7 @@ function SearchableSelect<T extends string>({
           <ChevronDown
             size={APP_ICON_SIZES.sm}
             aria-hidden="true"
-            className="ui-select-icon settings-dropdown-icon"
+            className="ui-select-icon settings-dropdown-icon tw:size-icon-sm tw:shrink-0 tw:text-app-text-meta"
           />
         </button>
       </Popover.Trigger>
@@ -323,7 +339,7 @@ function SearchableSelect<T extends string>({
         <Popover.Content
           align="start"
           aria-label={ariaLabel}
-          className="popover-surface ui-select-content ui-select-content--searchable settings-dropdown-content settings-dropdown-content--searchable"
+          className="popover-surface ui-select-content ui-select-content--searchable settings-dropdown-content settings-dropdown-content--searchable tw:flex tw:min-h-0 tw:min-w-max tw:flex-col tw:[--popover-max-height:min(320px,calc(100vh-96px))] tw:[--popover-overflow-y:hidden]"
           collisionPadding={6}
           data-theme-component="dropdown-surface"
           data-variant={variant}
@@ -337,12 +353,12 @@ function SearchableSelect<T extends string>({
             maxWidth: maxWidth ?? 'min(360px, calc(100vw - 16px))',
           })}
         >
-          <div className="popover-search-region ui-select-search settings-dropdown-search">
+          <div className="popover-search-region ui-select-search settings-dropdown-search tw:flex-none tw:bg-transparent tw:p-1">
             <SearchInput
               ref={searchRef}
               activeDescendant={activeDescendant}
               aria-label={searchPlaceholder}
-              className="ui-select-search-input settings-dropdown-search-input"
+              className="ui-select-search-input settings-dropdown-search-input tw:w-full tw:max-w-full tw:min-h-7"
               controls={listboxId}
               expanded={open}
               mode="combobox"
@@ -354,13 +370,16 @@ function SearchableSelect<T extends string>({
             />
           </div>
           <div
-            className="ui-select-scroll-area settings-dropdown-scroll-area"
+            className="ui-select-scroll-area settings-dropdown-scroll-area tw:grid tw:min-h-0 tw:min-w-0 tw:max-h-none tw:grow tw:shrink tw:basis-auto tw:overflow-x-hidden tw:overflow-y-auto"
             id={listboxId}
             role="listbox"
           >
-            <div className="ui-select-scroll-content settings-dropdown-scroll-content">
+            <div className="ui-select-scroll-content settings-dropdown-scroll-content tw:grid tw:min-w-0">
               {loading ? (
-                <div className="ui-select-empty settings-dropdown-empty" role="status">
+                <div
+                  className="ui-select-empty settings-dropdown-empty tw:p-2 tw:text-app-text-soft tw:type-caption"
+                  role="status"
+                >
                   正在加载…
                 </div>
               ) : visibleOptions.length ? (
@@ -387,7 +406,9 @@ function SearchableSelect<T extends string>({
                   </button>
                 ))
               ) : (
-                <div className="ui-select-empty settings-dropdown-empty">{emptyText}</div>
+                <div className="ui-select-empty settings-dropdown-empty tw:p-2 tw:text-app-text-soft tw:type-caption">
+                  {emptyText}
+                </div>
               )}
             </div>
           </div>

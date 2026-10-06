@@ -188,14 +188,14 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
 
   return (
     <section
-      className="automation-detail"
+      className="automation-detail tw:grid tw:min-h-0 tw:min-w-0 tw:max-h-[min(35rem,calc(100vh-60px),var(--radix-popover-content-available-height))] tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[auto_minmax(0,1fr)_auto] tw:bg-transparent"
       aria-label={props.creating ? '创建任务' : '计划任务详情'}
     >
-      <header className="automation-detail-header">
-        <div className="automation-detail-title-group">
+      <header className="automation-detail-header tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)+var(--cpx-sys-space-3))] tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:p-3">
+        <div className="automation-detail-title-group tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2">
           {props.onBack ? (
             <Button
-              className="automation-detail-back-btn"
+              className="automation-detail-back-btn tw:shrink-0"
               color="ghostSecondary"
               size={props.exitPending === 'back' ? 'compact' : 'toolbar'}
               uniform={props.exitPending !== 'back'}
@@ -207,13 +207,18 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
               {props.exitPending === 'back' ? '再按一次返回' : null}
             </Button>
           ) : null}
-          <h2 title={props.creating ? '创建任务' : props.task?.name}>
+          <h2
+            className="tw:m-0 tw:min-w-0 tw:flex-1 tw:truncate tw:type-title-md tw:text-app-text"
+            title={props.creating ? '创建任务' : props.task?.name}
+          >
             {props.creating ? '创建任务' : props.task?.name}
           </h2>
         </div>
-        <div className="automation-detail-header-actions">
+        <div className="automation-detail-header-actions tw:flex tw:shrink-0 tw:items-center tw:gap-2">
           {!props.creating && props.task ? (
-            <span className="automation-status-pill">{calendarStatusLabel(props.task.status)}</span>
+            <span className="automation-status-pill tw:whitespace-nowrap tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-soft">
+              {calendarStatusLabel(props.task.status)}
+            </span>
           ) : null}
           <Button
             color="ghostSecondary"
@@ -230,8 +235,11 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
           </Button>
         </div>
       </header>
-      <div className="automation-detail-scroll">
-        <section className="automation-form" aria-label="计划任务设置">
+      <div className="automation-detail-scroll tw:min-h-0 tw:overflow-auto">
+        <section
+          className="automation-form tw:grid tw:gap-2 tw:p-3"
+          aria-label="计划任务设置"
+        >
           <Field label="名称">
             <Input
               readOnly={!editable}
@@ -258,9 +266,13 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
             </Field>
           ) : null}
           {!props.creating || scheduleMode === 'once' ? (
-            <div className="automation-field" role="group" aria-label="执行时间">
-              <span className="automation-field-label">执行时间</span>
-              <div className="automation-execution-inputs">
+            <div
+              className="automation-field tw:[&_.ui-select-trigger]:w-full tw:grid tw:min-w-0 tw:content-start tw:gap-1"
+              role="group"
+              aria-label="执行时间"
+            >
+              <span className="automation-field-label tw:type-control tw:text-app-text">执行时间</span>
+              <div className="automation-execution-inputs tw:grid tw:grid-cols-[minmax(0,1fr)_minmax(0,7.5rem)] tw:gap-2">
                 <Input
                   aria-label="执行日期"
                   readOnly={!editable}
@@ -279,9 +291,13 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
               </div>
             </div>
           ) : scheduleMode === 'daily' || scheduleMode === 'weekdays' ? (
-            <div className="automation-field" role="group" aria-label="执行时间">
-              <span className="automation-field-label">执行时间</span>
-              <div className="automation-execution-inputs">
+            <div
+              className="automation-field tw:[&_.ui-select-trigger]:w-full tw:grid tw:min-w-0 tw:content-start tw:gap-1"
+              role="group"
+              aria-label="执行时间"
+            >
+              <span className="automation-field-label tw:type-control tw:text-app-text">执行时间</span>
+              <div className="automation-execution-inputs tw:grid tw:grid-cols-[minmax(0,1fr)_minmax(0,7.5rem)] tw:gap-2">
                 <Input
                   aria-label="执行时刻"
                   readOnly={!editable}
@@ -293,7 +309,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
               </div>
             </div>
           ) : scheduleMode === 'weekly' ? (
-            <div className="automation-form-grid">
+            <div className="automation-form-grid tw:grid tw:grid-cols-[minmax(0,1fr)] tw:gap-2">
               <Field label="每周执行日">
                 <Select
                   ariaLabel="每周执行日"
@@ -302,9 +318,15 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
                   onValueChange={(v) => setWeeklyDay(v as AutomationWeekday)}
                 />
               </Field>
-              <div className="automation-field" role="group" aria-label="执行时间">
-                <span className="automation-field-label">执行时间</span>
-                <div className="automation-execution-inputs">
+              <div
+                className="automation-field tw:[&_.ui-select-trigger]:w-full tw:grid tw:min-w-0 tw:content-start tw:gap-1"
+                role="group"
+                aria-label="执行时间"
+              >
+                <span className="automation-field-label tw:type-control tw:text-app-text">
+                  执行时间
+                </span>
+                <div className="automation-execution-inputs tw:grid tw:grid-cols-[minmax(0,1fr)_minmax(0,7.5rem)] tw:gap-2">
                   <Input
                     aria-label="执行时刻"
                     readOnly={!editable}
@@ -338,7 +360,11 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
           {draft.kind === 'standalone' ? (
             <Field label="项目">
               <Select
-                triggerClassName={!editable ? 'automation-readonly-control' : undefined}
+                triggerClassName={
+                      !editable
+                        ? 'automation-readonly-control tw:disabled:cursor-default tw:disabled:text-app-text tw:disabled:opacity-100'
+                        : undefined
+                    }
                 ariaLabel="项目"
                 disabled={!editable}
                 searchable
@@ -350,7 +376,11 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
           ) : (
             <Field label="目标聊天">
               <Select
-                triggerClassName={!editable ? 'automation-readonly-control' : undefined}
+                triggerClassName={
+                      !editable
+                        ? 'automation-readonly-control tw:disabled:cursor-default tw:disabled:text-app-text tw:disabled:opacity-100'
+                        : undefined
+                    }
                 ariaLabel="目标聊天"
                 disabled={!editable}
                 searchable
@@ -362,7 +392,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
               />
             </Field>
           )}
-          <div className="automation-more-settings">
+          <div className="automation-more-settings tw:px-3 tw:py-2">
             <Button
               color="ghostTertiary"
               size="default"
@@ -372,11 +402,15 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
             >
               更多设置
             </Button>
-            <div id={settingsId} hidden={!settingsOpen}>
-              <div className="automation-form-grid">
+            <div id={settingsId} className="tw:mt-2" hidden={!settingsOpen}>
+              <div className="automation-form-grid tw:grid tw:grid-cols-[minmax(0,1fr)] tw:gap-2">
                 <Field label="运行方式">
                   <Select
-                    triggerClassName={!editable ? 'automation-readonly-control' : undefined}
+                    triggerClassName={
+                      !editable
+                        ? 'automation-readonly-control tw:disabled:cursor-default tw:disabled:text-app-text tw:disabled:opacity-100'
+                        : undefined
+                    }
                     ariaLabel="运行方式"
                     disabled={!editable}
                     value={draft.kind}
@@ -402,10 +436,14 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
                   />
                 </Field>
 
-                <div className="automation-form-grid">
+                <div className="automation-form-grid tw:grid tw:grid-cols-[minmax(0,1fr)] tw:gap-2">
                   <Field label="执行位置">
                     <Select
-                      triggerClassName={!editable ? 'automation-readonly-control' : undefined}
+                      triggerClassName={
+                      !editable
+                        ? 'automation-readonly-control tw:disabled:cursor-default tw:disabled:text-app-text tw:disabled:opacity-100'
+                        : undefined
+                    }
                       ariaLabel="执行位置"
                       disabled={!editable || draft.kind === 'thread'}
                       value={draft.execution?.kind ?? 'local'}
@@ -438,7 +476,11 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
                   ) : null}
                   <Field label="通知">
                     <Select
-                      triggerClassName={!editable ? 'automation-readonly-control' : undefined}
+                      triggerClassName={
+                      !editable
+                        ? 'automation-readonly-control tw:disabled:cursor-default tw:disabled:text-app-text tw:disabled:opacity-100'
+                        : undefined
+                    }
                       ariaLabel="通知策略"
                       disabled={!editable}
                       value={draft.notificationPolicy}
@@ -451,10 +493,14 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
                     />
                   </Field>
                 </div>
-                <div className="automation-form-grid">
+                <div className="automation-form-grid tw:grid tw:grid-cols-[minmax(0,1fr)] tw:gap-2">
                   <Field label="推理强度">
                     <Select
-                      triggerClassName={!editable ? 'automation-readonly-control' : undefined}
+                      triggerClassName={
+                      !editable
+                        ? 'automation-readonly-control tw:disabled:cursor-default tw:disabled:text-app-text tw:disabled:opacity-100'
+                        : undefined
+                    }
                       ariaLabel="推理强度"
                       disabled={!editable}
                       value={draft.reasoningEffort ?? ''}
@@ -470,7 +516,11 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
                   </Field>
                   <Field label="沙箱">
                     <Select
-                      triggerClassName={!editable ? 'automation-readonly-control' : undefined}
+                      triggerClassName={
+                      !editable
+                        ? 'automation-readonly-control tw:disabled:cursor-default tw:disabled:text-app-text tw:disabled:opacity-100'
+                        : undefined
+                    }
                       ariaLabel="沙箱权限"
                       disabled={!editable}
                       value={draft.permissionConfig.sandboxMode}
@@ -495,19 +545,26 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
             </div>
           </div>
           {draft.permissionConfig.sandboxMode === 'danger-full-access' ? (
-            <div className="automation-risk" role="note">
-              <AlertTriangle aria-hidden="true" size={APP_ICON_SIZE} />
+            <div
+              className="automation-risk tw:flex tw:items-start tw:gap-2 tw:rounded-container tw:border tw:border-app-warning-border tw:bg-app-warning-subtle tw:p-3 tw:type-body-sm tw:text-app-warning-fg"
+              role="note"
+            >
+              <AlertTriangle
+                className="tw:mt-1 tw:flex-none"
+                aria-hidden="true"
+                size={APP_ICON_SIZE}
+              />
               <span>任务会在无人值守时获得完全访问权限。</span>
             </div>
           ) : null}
           {error || (editable && !Number.isFinite(draft.scheduledFor)) ? (
-            <p className="automation-field-error" role="alert">
+            <p className="automation-field-error tw:m-0 tw:type-caption tw:text-app-danger-fg" role="alert">
               {error ?? '请选择执行时间。'}
             </p>
           ) : null}
         </section>
       </div>
-      <footer className="automation-form-actions automation-detail-footer">
+      <footer className="automation-form-actions automation-detail-footer tw:flex tw:min-h-8 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-app-border-subtle tw:px-3 tw:py-2">
         {!props.creating && props.task ? (
           <>
             {editable ? (
@@ -594,10 +651,12 @@ function Field({
   children: React.ReactNode
 }): React.ReactNode {
   return (
-    <label className="automation-field">
-      <span className="automation-field-label">{label}</span>
+    <label className="automation-field tw:[&_.ui-select-trigger]:w-full tw:grid tw:min-w-0 tw:content-start tw:gap-1">
+      <span className="automation-field-label tw:type-control tw:text-app-text">{label}</span>
       {children}
-      {hint ? <span className="automation-field-hint">{hint}</span> : null}
+      {hint ? (
+        <span className="automation-field-hint tw:type-caption tw:text-app-text-meta">{hint}</span>
+      ) : null}
     </label>
   )
 }

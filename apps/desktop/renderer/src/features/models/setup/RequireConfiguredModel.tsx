@@ -131,10 +131,10 @@ function ModelSetupGuideDialog({
         >
           <header className="tw:flex tw:flex-col tw:gap-1.5">
             <Dialog.Title asChild>
-              <h2 className="u-type-title-md tw:m-0 tw:text-app-text">先配置一个模型</h2>
+              <h2 className="tw:type-title-md tw:m-0 tw:text-app-text">先配置一个模型</h2>
             </Dialog.Title>
             <Dialog.Description asChild>
-              <p className="u-type-body-sm tw:m-0 tw:text-app-text-soft">
+              <p className="tw:type-body-sm tw:m-0 tw:text-app-text-soft">
                 配置模型后即可开始编写代码、分析项目或执行自动化任务。
               </p>
             </Dialog.Description>
@@ -187,7 +187,7 @@ export function SetupRecoveryState({
       data-startup-surface-ready="true"
     >
       <div className="tw:max-w-md">
-        <h1 className="u-type-title-md tw:m-0 tw:text-app-text">本地 Agent 暂时不可用</h1>
+        <h1 className="tw:type-title-md tw:m-0 tw:text-app-text">本地 Agent 暂时不可用</h1>
         <p className="tw:mt-2 tw:mb-0 tw:text-app-text-soft">
           {message || '无法读取供应商配置。请确认 Agent 已启动，然后重试。'}
         </p>

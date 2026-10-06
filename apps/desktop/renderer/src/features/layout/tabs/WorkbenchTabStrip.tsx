@@ -10,6 +10,7 @@ import {
 } from '../../../components/ui/iconTokens.js'
 import { PopoverRadioGroup, PopoverRadioItem } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
+import { cx } from '../../../utils/cx.js'
 import { canViewFloat, getAvailableMoveTargets } from '../dock/compositeViews.js'
 import type {
   WorkbenchPanelSnapshot,
@@ -120,11 +121,11 @@ export function WorkbenchTabStrip({
   }
 
   return (
-    <div className="right-dock-tabs-header">
-      <div className="right-dock-tabs-viewport">
+    <div className="right-dock-tabs-header tw:flex tw:min-w-0 tw:h-full tw:grow tw:shrink tw:basis-auto tw:items-center tw:overflow-hidden">
+      <div className="right-dock-tabs-viewport tw:relative tw:flex tw:min-w-0 tw:h-full tw:grow tw:shrink tw:basis-auto tw:items-center tw:overflow-x-auto tw:overflow-y-hidden tw:scroll-px-1">
         <div
           aria-label={target === 'right' ? '右侧面板标签' : '底部面板标签'}
-          className="right-dock-tab-list"
+          className="right-dock-tab-list tw:flex tw:h-full tw:w-max tw:min-w-full tw:grow-0 tw:shrink-0 tw:basis-auto tw:items-center tw:gap-1"
           role="tablist"
         >
           {state.tabIds.map((tabId, index) => {
@@ -201,7 +202,13 @@ export function WorkbenchTabStrip({
                   layout="grid"
                   trigger={
                     <div
-                      className={`right-dock-tab-wrap${active ? ' active' : ''}${hasDivider ? ' has-divider' : ''}`}
+                      className={cx(
+                        'right-dock-tab-wrap tw:group tw:relative tw:inline-flex tw:h-7 tw:min-w-22.5 tw:max-w-40 tw:items-center tw:overflow-visible tw:rounded-control tw:border-b-2 tw:border-b-transparent tw:px-2 tw:py-1 tw:shadow-none tw:transition-[background-color,border-color,color] tw:duration-state tw:ease-standard tw:[&.dragging]:opacity-50',
+                        active
+                          ? 'active tw:bg-app-selected tw:text-app-text'
+                          : 'tw:text-app-text-meta tw:hover:bg-app-hover tw:hover:text-app-text-soft tw:focus-within:bg-app-hover tw:focus-within:text-app-text-soft',
+                        hasDivider && 'has-divider',
+                      )}
                       data-panel-tab={tab.id}
                       draggable
                       onDragEnd={(event) => event.currentTarget.classList.remove('dragging')}
@@ -232,9 +239,11 @@ export function WorkbenchTabStrip({
                         }}
                         aria-controls={`workbench-panel-${target}-${domId(tab.id)}`}
                         aria-selected={active}
-                        className={`right-dock-tab${active ? ' active' : ''}${
-                          tab.kind === 'file-preview' && tab.preview ? ' preview' : ''
-                        }`}
+                        className={cx(
+                          'right-dock-tab tw:relative tw:inline-flex tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:items-center tw:gap-2 tw:overflow-hidden tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:whitespace-nowrap tw:type-label tw:focus-visible:outline-app-accent/72',
+                          active && 'active',
+                          tab.kind === 'file-preview' && tab.preview && 'preview tw:italic',
+                        )}
                         id={`workbench-tab-${target}-${domId(tab.id)}`}
                         role="tab"
                         tabIndex={active ? 0 : -1}
@@ -254,11 +263,20 @@ export function WorkbenchTabStrip({
                           onCloseTab(tab.id)
                         }}
                       >
-                        <span className="right-dock-tab-icon">{tabIcon}</span>
-                        <span className="right-dock-tab-title">{tabTitle}</span>
+                        <span className="right-dock-tab-icon tw:inline-flex tw:size-icon tw:items-center tw:justify-center tw:[&>svg]:size-icon">
+                          {tabIcon}
+                        </span>
+                        <span className="right-dock-tab-title tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">
+                          {tabTitle}
+                        </span>
                       </button>
                       <IconButton
-                        className="right-dock-tab-close"
+                        className={cx(
+                          'right-dock-tab-close tw:relative tw:z-local tw:ml-1 tw:inline-flex tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text-meta tw:transition-[background-color,color,opacity] tw:duration-feedback tw:ease-standard tw:group-hover:opacity-100 tw:group-hover:pointer-events-auto tw:group-focus-within:opacity-100 tw:group-focus-within:pointer-events-auto tw:focus-visible:pointer-events-auto tw:focus-visible:bg-app-hover tw:focus-visible:text-app-text tw:focus-visible:opacity-100 tw:focus-visible:outline-app-accent/72',
+                          active
+                            ? 'tw:pointer-events-auto tw:opacity-100'
+                            : 'tw:pointer-events-none tw:opacity-0',
+                        )}
                         color="ghost"
                         size="iconMd"
                         title={`关闭 ${tabTitle}`}
@@ -285,7 +303,7 @@ export function WorkbenchTabStrip({
             <PopoverMenu
               align="end"
               avoidCollisions={false}
-              className="popover-right-dock-add popover-menu--grid"
+              className="popover-right-dock-add popover-menu--grid tw:block"
               collisionPadding={6}
               open={menuOpen}
               side="bottom"
@@ -293,7 +311,7 @@ export function WorkbenchTabStrip({
               width={220}
               trigger={
                 <IconButton
-                  className="right-dock-add-button"
+                  className="right-dock-add-button tw:hover:shadow-none tw:focus-visible:outline-app-accent/72"
                   color="ghostSecondary"
                   size="toolbar"
                   title="添加标签"
@@ -345,7 +363,7 @@ export function WorkbenchTabStrip({
           ) : null}
           <span
             aria-hidden="true"
-            className="right-dock-tab-empty"
+            className="right-dock-tab-empty tw:h-full tw:min-w-3 tw:grow tw:shrink-0 tw:basis-3"
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault()
@@ -359,7 +377,7 @@ export function WorkbenchTabStrip({
       </div>
       {target === 'bottom' && onClosePanel ? (
         <IconButton
-          className="bottom-panel-close"
+          className="bottom-panel-close tw:ml-1 tw:focus-visible:outline-app-accent/72"
           color="ghostSecondary"
           size="toolbar"
           title="关闭底部面板"

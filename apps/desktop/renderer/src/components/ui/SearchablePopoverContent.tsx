@@ -133,6 +133,10 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
             'popover',
             'popover-menu--grid',
             'searchable-popover-content',
+            'tw:flex',
+            'tw:min-h-0',
+            'tw:flex-col',
+            'tw:[--popover-overflow-y:hidden]',
             'tw:text-app-text',
             className,
           )}
@@ -146,11 +150,12 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
           sideOffset={sideOffset}
           style={buildPopoverSizingStyle({ width, maxWidth })}
         >
-          <div className="popover-search-region">
+          <div className="popover-search-region tw:flex-none tw:bg-transparent tw:p-1">
             <SearchInput
               ref={searchRef}
               activeDescendant={activeDescendant}
               aria-label={searchLabel}
+              className="tw:w-full tw:max-w-full tw:min-h-7"
               controls={listboxId}
               expanded={open}
               mode="combobox"
@@ -169,6 +174,17 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
             className={cx(
               'popover-scroll-content',
               'searchable-popover-list-scroll',
+              'tw:flex',
+              'tw:min-w-0',
+              'tw:max-w-full',
+              'tw:flex-auto',
+              'tw:flex-col',
+              'tw:min-h-0',
+              'tw:gap-0.5',
+              'tw:p-1',
+              'tw:overflow-x-hidden',
+              'tw:overflow-y-auto',
+              'tw:overscroll-contain',
               listClassName,
             )}
             id={listboxId}
@@ -212,9 +228,14 @@ export function SearchablePopoverContent<Option extends SearchablePopoverOption>
             )}
           </div>
           {footer ? (
-            <div className="popover-footer-region">
-              <div aria-hidden="true" className="popover-divider" />
-              <div className="popover-scroll-content">{footer}</div>
+            <div className="popover-footer-region tw:flex-none">
+              <div
+                aria-hidden="true"
+                className="popover-divider tw:h-px tw:my-1 tw:bg-app-border"
+              />
+              <div className="popover-scroll-content tw:flex tw:min-w-0 tw:max-w-full tw:flex-col tw:gap-0.5 tw:p-1 tw:overflow-x-hidden">
+                {footer}
+              </div>
             </div>
           ) : null}
         </Popover.Content>

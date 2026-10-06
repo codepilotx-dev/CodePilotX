@@ -1,6 +1,7 @@
 import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import React from 'react'
 import { ChevronDown } from 'lucide-react'
+import { cx } from '../../../utils/cx.js'
 
 import { MarkdownMessage, type MarkdownMessageProps } from '../../markdown/index.js'
 import { ConversationMarkdownErrorBoundary } from './ConversationTurnErrorBoundary.js'
@@ -101,28 +102,29 @@ export function CollapsibleUserMarkdown({
   }, [collapsed, collapsedLineCount, text])
 
   return (
-    <div className="user-message-markdown">
+    <div className="user-message-markdown tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-end">
       <div
-        className="user-message-markdown__body"
+        className="user-message-markdown__body tw:relative tw:transition-[height] tw:duration-disclosure tw:ease-disclosure"
         ref={heightTransition.ref}
         style={heightTransition.style}
       >
         <div
-          className={
-            collapsed
-              ? 'user-message-markdown__viewport is-collapsed'
-              : 'user-message-markdown__viewport'
-          }
+          className={cx(
+            'user-message-markdown__viewport',
+            collapsed && 'is-collapsed',
+            'tw:w-full tw:min-w-0',
+            collapsed && 'tw:overflow-hidden',
+          )}
           id={contentId}
           ref={clippedViewportRef}
           style={collapsed ? { maxHeight: `${visibleLineCount}lh` } : undefined}
         >
           <div
-            className={
-              inlinePrefix
-                ? 'user-message-markdown__measurement has-inline-prefix'
-                : 'user-message-markdown__measurement'
-            }
+            className={cx(
+              'user-message-markdown__measurement',
+              inlinePrefix && 'has-inline-prefix',
+              'tw:w-full tw:min-w-0',
+            )}
             ref={setMeasurementElement}
           >
             {inlinePrefix}
@@ -138,7 +140,7 @@ export function CollapsibleUserMarkdown({
           </div>
         </div>
         {showsEllipsis ? (
-          <span aria-hidden="true" className="user-message-markdown__ellipsis">
+          <span aria-hidden="true" className="user-message-markdown__ellipsis tw:block">
             …
           </span>
         ) : null}
@@ -147,14 +149,21 @@ export function CollapsibleUserMarkdown({
         <button
           aria-controls={contentId}
           aria-expanded={collapseState === 'expanded'}
-          className="user-message-markdown__toggle"
+          className="user-message-markdown__toggle tw:mt-2 tw:inline-flex tw:cursor-pointer tw:self-start tw:items-center tw:gap-1 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:type-caption tw:outline-none tw:hover:text-app-text tw:focus-visible:rounded-md tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
           onClick={() => {
             setExpandedText((current) => (current === text ? null : text))
           }}
           type="button"
         >
           <span>{collapseState === 'expanded' ? '收起' : '展开全文'}</span>
-          <ChevronDown size={APP_ICON_SIZES.sm} aria-hidden="true" />
+          <ChevronDown
+            size={APP_ICON_SIZES.sm}
+            className={cx(
+              'tw:size-icon-sm tw:transition-transform tw:duration-[var(--cpx-sys-motion-micro)] tw:ease-standard',
+              collapseState === 'expanded' && 'tw:rotate-180',
+            )}
+            aria-hidden="true"
+          />
         </button>
       )}
     </div>

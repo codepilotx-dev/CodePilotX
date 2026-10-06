@@ -1,9 +1,13 @@
 import React from 'react'
 import { Check, ChevronDown, ListChecks, MessageCircleQuestion } from 'lucide-react'
 import type { Item, QuestionItem } from '@codepilotx/shared/thread'
-import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
-import type { ResolvedCanonicalItemDisclosure } from './CanonicalItemRenderer.js'
+import {
+  PROCESS_CARD_SUMMARY_CLASS,
+  type ResolvedCanonicalItemDisclosure,
+} from './CanonicalItemRenderer.js'
+import { cx } from '../../../utils/cx.js'
 
 /** A persisted question owns its tool's presentation, but never hides tool failures. */
 export function questionTimelineItems(
@@ -70,7 +74,7 @@ export function QuestionItemView({
       <button
         aria-controls={contentId}
         aria-expanded={expanded}
-        className="canonical-process-card__summary"
+        className={cx(PROCESS_CARD_SUMMARY_CLASS, expanded && 'tw:text-app-text')}
         onClick={() =>
           disclosure
             ? disclosure.onExpandedChange(disclosure.id, !expanded)
@@ -78,11 +82,18 @@ export function QuestionItemView({
         }
         type="button"
       >
-        <Check size={APP_ICON_SIZES.sm} aria-hidden="true" />
+        <Check
+          size={APP_ICON_SIZES.sm}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
+          aria-hidden="true"
+        />
         <span>{label}</span>
         <ChevronDown
           size={APP_ICON_SIZES.sm}
-          className="canonical-process-card__chevron"
+          className={cx(
+            'canonical-process-card__chevron tw:transition-transform tw:duration-disclosure tw:ease-disclosure',
+            expanded && 'tw:rotate-180',
+          )}
           aria-hidden="true"
         />
       </button>

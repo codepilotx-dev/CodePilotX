@@ -1,5 +1,6 @@
 import type React from 'react'
 import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { cx } from '../../../utils/cx.js'
 import { useWorkspaceHeaderContext } from './WorkspaceHeaderProvider.js'
 import {
   selectWorkspaceHeaderItems,
@@ -87,25 +88,41 @@ export function DesktopWorkspaceHeader({
 
   return (
     <header
-      className={['desktop-workspace-header', className].filter(Boolean).join(' ')}
+      className={cx(
+        'desktop-workspace-header tw:group tw:absolute tw:inset-x-0 tw:top-0 tw:z-dock tw:h-[var(--workspace-header-height)] tw:w-full tw:min-w-0 tw:pointer-events-none',
+        // `::before` 是 route 宽度的透明背板，仅在有分隔线时画 1px 下边框。
+        'tw:before:absolute tw:before:inset-y-0 tw:before:left-0 tw:before:-z-local tw:before:w-[var(--workspace-header-route-width)] tw:before:bg-transparent tw:before:content-[""]',
+        'tw:data-[divider]:before:border-b tw:data-[divider]:before:border-solid tw:data-[divider]:before:border-app-border-subtle',
+        'tw:forced-colors:data-[divider]:before:border-b-[color:CanvasText]',
+        className,
+      )}
       data-divider={divider || undefined}
       data-right-dock-open={rightDockOpen || undefined}
       aria-label="工作区工具栏"
       role="toolbar"
       style={style}
     >
-      <div className="desktop-workspace-header-route-band">
-        <div className="desktop-workspace-header-route-left" ref={leftRef}>
+      <div className="desktop-workspace-header-route-band tw:absolute tw:inset-y-0 tw:right-[var(--workspace-header-route-end-inset)] tw:left-0 tw:grid tw:h-full tw:min-w-0 tw:grid-cols-[minmax(0,1fr)_max-content] tw:pointer-events-none tw:@max-[47.9375rem]/desktop-workspace:grid-cols-[max-content_minmax(0,1fr)_max-content]">
+        <div
+          className="desktop-workspace-header-route-left tw:flex tw:h-full tw:min-w-0 tw:max-w-full tw:items-center tw:col-start-1 tw:w-max tw:justify-self-start tw:pl-2"
+          ref={leftRef}
+        >
           <HeaderSlot items={routeItems} slot="left" />
         </div>
-        <div className="desktop-workspace-header-center">
+        <div className="desktop-workspace-header-center tw:absolute tw:inset-0 tw:flex tw:h-full tw:min-w-0 tw:items-center tw:justify-center tw:overflow-hidden tw:px-[var(--workspace-header-center-padding)] tw:@max-[47.9375rem]/desktop-workspace:static tw:@max-[47.9375rem]/desktop-workspace:col-start-2 tw:@max-[47.9375rem]/desktop-workspace:px-2">
           <HeaderSlot items={routeItems} slot="center" />
         </div>
-        <div className="desktop-workspace-header-route-right" ref={rightRouteRef}>
+        <div
+          className="desktop-workspace-header-route-right tw:flex tw:h-full tw:min-w-0 tw:max-w-full tw:flex-none tw:items-center tw:col-start-2 tw:w-max tw:justify-end tw:group-data-[right-dock-open]:pr-2 tw:@max-[47.9375rem]/desktop-workspace:col-start-3"
+          ref={rightRouteRef}
+        >
           <HeaderSlot items={routeItems} slot="right" />
         </div>
       </div>
-      <div className="desktop-workspace-header-shell-controls" ref={shellControlsRef}>
+      <div
+        className="desktop-workspace-header-shell-controls tw:absolute tw:top-0 tw:right-0 tw:flex tw:h-full tw:items-center tw:pointer-events-auto"
+        ref={shellControlsRef}
+      >
         {shellControls}
       </div>
     </header>
@@ -124,9 +141,21 @@ function HeaderSlot({
     const alignedItems = slotItems.filter((item) => item.align === align)
     if (alignedItems.length === 0) return null
     return (
-      <div className="desktop-workspace-header-group" data-align={align} key={align}>
+      <div
+        className={cx(
+          'desktop-workspace-header-group tw:flex tw:h-full tw:min-w-0 tw:items-center tw:gap-1',
+          'tw:data-[align=center]:mx-auto tw:data-[align=center]:justify-center',
+          'tw:data-[align=end]:ml-auto tw:data-[align=end]:justify-end',
+          slot === 'center' && 'tw:@max-[47.9375rem]/desktop-workspace:max-w-full',
+        )}
+        data-align={align}
+        key={align}
+      >
         {alignedItems.map((item) => (
-          <div className="desktop-workspace-header-item" key={`${item.routeScope}:${item.id}`}>
+          <div
+            className="desktop-workspace-header-item tw:flex tw:h-full tw:min-w-0 tw:max-w-full tw:items-center tw:pointer-events-auto tw:text-app-text-soft tw:type-control"
+            key={`${item.routeScope}:${item.id}`}
+          >
             {item.node}
           </div>
         ))}

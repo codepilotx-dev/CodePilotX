@@ -17,6 +17,7 @@ import { CODEX_HIGHLIGHT_THEMES, resolveThemeId } from '../../syntax/theme.js'
 import type { SyntaxToken } from '../../syntax/types.js'
 import { useHighlightedCode } from '../../syntax/useHighlightedCode.js'
 import { useDesktopTheme } from '../../theme/themeContext.js'
+import { cx } from '../../../utils/cx.js'
 import {
   alignReviewDiffLines,
   buildReviewIntralineByLineId,
@@ -474,7 +475,7 @@ export function ReviewDiffLineNumber({
 }): React.ReactNode {
   return (
     <div
-      className="review-codex-diff__number"
+      className="review-codex-diff__number tw:group/line-number"
       data-column-number={lineNumber ?? ''}
       data-line-type={codexDiffLineType(cellTone)}
     >
@@ -742,7 +743,11 @@ export function ReviewHunkActions({
   ) => void
 }): React.ReactNode {
   return (
-    <div className="review-hunk-actions" role="toolbar" aria-label="Hunk 操作">
+    <div
+      className="review-hunk-actions tw:hidden tw:items-center tw:gap-2 tw:px-2 tw:py-1"
+      role="toolbar"
+      aria-label="Hunk 操作"
+    >
       {scope === 'unstaged' ? (
         <>
           <Button
@@ -806,7 +811,7 @@ export function LineCommentButton({
   return (
     <button
       aria-label="添加行内评论"
-      className="review-line-comment-button"
+      className="review-line-comment-button tw:absolute tw:top-0 tw:right-0 tw:z-4 tw:inline-flex tw:size-5 tw:min-w-5 tw:items-center tw:justify-center tw:rounded-md tw:bg-app-accent tw:text-app-canvas tw:opacity-0 tw:group-hover/line-number:opacity-100 tw:group-focus-within/line-number:opacity-100"
       disabled={disabled || !anchor}
       type="button"
       onClick={() => {
@@ -814,7 +819,7 @@ export function LineCommentButton({
         onCreateDraft({ ...anchor, body: '' })
       }}
     >
-      <MessageSquarePlus size={APP_ICON_SIZE} />
+      <MessageSquarePlus className="tw:size-icon-sm" size={APP_ICON_SIZE} />
     </button>
   )
 }
@@ -839,7 +844,7 @@ export function LineComments({
   const draftMatches = anchor && draft ? commentKey(anchor) === commentKey(draft) : false
   if (comments.length === 0 && !draftMatches) return null
   return (
-    <div className="review-line-comments">
+    <div className="review-line-comments tw:col-span-full tw:flex tw:flex-col tw:gap-2 tw:whitespace-normal">
       {comments.map((comment) => (
         <ReviewComment
           comment={comment}
@@ -871,14 +876,15 @@ function CommentDraftEditor({
 }): React.ReactNode {
   const [body, setBody] = React.useState(initialBody)
   return (
-    <div className="review-comment draft">
+    <div className="review-comment draft tw:flex tw:flex-col tw:gap-1 tw:p-2 tw:border tw:border-app-border-subtle tw:rounded-lg tw:bg-app-raised tw:text-app-text tw:type-reading tw:shadow-none">
       <textarea
         autoFocus
+        className="tw:w-full tw:min-h-[5.385em] tw:resize-y tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-reading"
         placeholder="写下这行的问题或修改建议"
         value={body}
         onChange={(event) => setBody(event.target.value)}
       />
-      <div className="review-comment-actions">
+      <div className="review-comment-actions tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption">
         <Button size="compact" type="button" onClick={onCancel}>
           取消
         </Button>
@@ -902,15 +908,23 @@ export function ReviewComment({
   onResolve: () => void
 }): React.ReactNode {
   return (
-    <div className={`review-comment ${comment.status} ${stale ? 'stale' : ''}`}>
-      <div className="review-comment-meta">
+    <div
+      className={cx(
+        'review-comment tw:flex tw:flex-col tw:gap-1 tw:p-2 tw:border tw:border-app-border-subtle tw:rounded-lg tw:bg-app-raised tw:text-app-text tw:type-reading tw:shadow-none',
+        comment.status === 'resolved' ? 'resolved tw:opacity-68' : 'open',
+        stale && 'stale tw:border-dashed',
+      )}
+    >
+      <div className="review-comment-meta tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption">
         <span>
           {comment.filePath}:{comment.lineNumber}
         </span>
         <span>{comment.side === 'left' ? '旧行' : '新行'}</span>
       </div>
-      <div className="review-comment-body">{comment.body}</div>
-      <div className="review-comment-actions">
+      <div className="review-comment-body tw:text-app-text tw:type-reading tw:whitespace-pre-wrap">
+        {comment.body}
+      </div>
+      <div className="review-comment-actions tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption">
         {comment.status === 'open' ? (
           <Button size="compact" type="button" onClick={onResolve}>
             <CheckCircle2 size={APP_ICON_SIZES.sm} />

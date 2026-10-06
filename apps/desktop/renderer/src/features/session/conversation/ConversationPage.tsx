@@ -861,14 +861,14 @@ export function ConversationPage(): React.ReactNode {
 
   const workspaceHeaderTitle = React.useMemo(() => {
     return (
-      <div className="chat-session-title">
+      <div className="chat-session-title tw:flex tw:min-w-0 tw:flex-[1_1_auto] tw:items-center tw:gap-2 tw:text-app-text tw:type-control">
         {projectDetailsTrigger}
         {isInlineEditing ? (
           <input
             autoFocus
             ref={handleInlineInputRef}
             aria-label="重命名对话"
-            className="chat-session-title__input"
+            className="chat-session-title__input tw:box-border tw:h-[26px] tw:w-full tw:min-w-30 tw:max-w-90 tw:flex-[0_1_360px] tw:rounded-sm tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:px-2 tw:py-0 tw:text-app-text tw:shadow-none tw:outline-none tw:[font:inherit] tw:focus-visible:border-app-focus tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:disabled:cursor-not-allowed tw:disabled:opacity-60"
             disabled={renamingSession}
             maxLength={160}
             type="text"
@@ -888,7 +888,11 @@ export function ConversationPage(): React.ReactNode {
             aria-busy={titleRegenerating}
             aria-label={canInlineEdit ? `重命名对话：${renderedSessionTitle}` : undefined}
             aria-live="polite"
-            className="chat-session-title__text"
+            className={
+              canInlineEdit
+                ? 'chat-session-title__text tw:inline-flex tw:min-w-0 tw:items-center tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:cursor-pointer tw:rounded-sm tw:hover:underline'
+                : 'chat-session-title__text tw:inline-flex tw:min-w-0 tw:items-center tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap'
+            }
             role={canInlineEdit ? 'button' : undefined}
             tabIndex={canInlineEdit ? 0 : undefined}
             title={renderedSessionTitle}
@@ -899,8 +903,8 @@ export function ConversationPage(): React.ReactNode {
               '加载对话中'
             ) : titleRegenerating ? (
               <>
-                <SkeletonBlock className="chat-session-title__skeleton" />
-                <span className="u-sr-only">正在更新会话标题</span>
+                <SkeletonBlock className="chat-session-title__skeleton tw:h-[1em] tw:w-[clamp(6rem,18vw,11.25rem)] tw:rounded-md" />
+                <span className="tw:sr-only">正在更新会话标题</span>
               </>
             ) : (
               renderedSessionTitle
@@ -1115,7 +1119,7 @@ export function ConversationPage(): React.ReactNode {
     )
 
     return (
-      <div className="chat-session-actions">
+      <div className="chat-session-actions tw:inline-flex tw:flex-none tw:items-center tw:gap-1 tw:whitespace-nowrap">
         {threadSummary.displayMode === 'overlay' ? (
           <ThreadSummaryPopover
             open={threadSummary.isPopoverOpen}
@@ -1276,8 +1280,8 @@ export function ConversationPage(): React.ReactNode {
       ref={workflowPageRef}
       className={
         activePermissionRequest
-          ? 'conversation-page workflow-page approval-active tw:relative tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-col tw:bg-app-canvas tw:text-app-text'
-          : 'conversation-page workflow-page tw:relative tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-col tw:bg-app-canvas tw:text-app-text'
+          ? 'conversation-page workflow-page approval-active tw:relative tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-col tw:overflow-hidden tw:bg-app-canvas tw:text-app-text'
+          : 'conversation-page workflow-page tw:relative tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-col tw:overflow-hidden tw:bg-app-canvas tw:text-app-text'
       }
     >
       <WorkspaceHeaderItem align="start" id="conversation.title" order={0} slot="left">
@@ -1331,21 +1335,21 @@ export function ConversationPage(): React.ReactNode {
           />
         </React.Suspense>
       ) : null}
-      <div className="workflow-page__body">
+      <div className="workflow-page__body tw:flex tw:w-full tw:min-h-0 tw:flex-1 tw:overflow-hidden">
         <main
           ref={workflowMainRef}
-          className="workflow-page__main"
+          className="workflow-page__main tw:relative tw:flex tw:min-w-0 tw:min-h-0 tw:flex-1 tw:flex-col tw:bg-transparent"
           data-thread-summary-inline={threadSummary.shouldShowInline || undefined}
           data-thread-summary-mode={threadSummary.displayMode}
         >
-          <div className="workflow-main-scroll-frame">
+          <div className="workflow-main-scroll-frame tw:relative tw:flex tw:min-w-0 tw:min-h-0 tw:flex-1 tw:overflow-hidden">
             <ConversationTurnNavRail
               items={turnNavItems}
               onNavigate={handleTurnNavigate}
               visibilityStore={visibilityStore}
             />
             <ThreadScrollLayout
-              className="workflow-main-scroll-area"
+              className="workflow-main-scroll-area tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:overflow-hidden"
               footer={composerFooter}
               footerRef={threadFooterRef}
               scrollRef={threadScrollRef}
@@ -1376,25 +1380,31 @@ export function ConversationPage(): React.ReactNode {
                 }}
                 trigger={
                   <div
-                    className="session-timeline-wrapper"
+                    className="session-timeline-wrapper tw:relative tw:mx-auto tw:flex tw:h-auto tw:w-full tw:min-h-0 tw:flex-[1_0_auto] tw:flex-col tw:[container-type:inline-size]"
                     onContextMenu={handleConversationContextMenu}
                   >
-                    <div className="session-timeline-main tw:min-w-0">
+                    <div className="session-timeline-main tw:flex tw:min-w-0 tw:min-h-0 tw:flex-[1_0_auto] tw:flex-col tw:overflow-visible">
                       {isThreadLoading ? (
                         <FullScreenWhaleLoading label="正在加载会话内容…" variant="contained" />
                       ) : (
-                        <div className="session-timeline-loaded-presence">
+                        <div className="session-timeline-loaded-presence tw:flex tw:w-full tw:min-h-0 tw:flex-[1_0_auto] tw:flex-col tw:animate-[session-timeline-fade-in_var(--cpx-sys-motion-panel)_var(--cpx-sys-ease-out)_both]">
                           {subagents.length ? (
-                            <div className="subagent-timeline-summary" aria-label="子智能体任务">
+                            <div
+                              className="subagent-timeline-summary tw:mx-auto tw:my-2 tw:flex tw:w-[min(760px,calc(100%-32px))] tw:flex-col tw:gap-1"
+                              aria-label="子智能体任务"
+                            >
                               {subagents.map(({ task, currentRun }) => (
                                 <button
                                   key={task.id}
                                   type="button"
                                   onClick={() => onOpenSubagent(task.id)}
+                                  className="tw:grid tw:min-h-[34px] tw:grid-cols-[18px_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-app-editor tw:px-3 tw:py-2 tw:text-left tw:text-app-text tw:cursor-pointer tw:hover:bg-app-hover"
                                 >
                                   <Bot size={APP_ICON_SIZE} />
-                                  <span>{task.displayName}</span>
-                                  <small>
+                                  <span className="tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">
+                                    {task.displayName}
+                                  </span>
+                                  <small className="tw:whitespace-nowrap tw:text-app-text-soft">
                                     {subagentStatusLabel(currentRun?.status ?? 'interrupted')}
                                   </small>
                                 </button>
@@ -1450,7 +1460,7 @@ function ComposerFooterPresence({
     <motion.div
       animate={{ opacity: 1, scale: 1, y: 0 }}
       aria-hidden={!isPresent ? true : undefined}
-      className="composer-lifecycle-presence"
+      className="composer-lifecycle-presence tw:flex tw:w-full tw:max-w-full tw:justify-center"
       data-presence={isPresent ? 'present' : 'exiting'}
       exit={{
         opacity: 0,
@@ -1481,7 +1491,7 @@ function ThreadSummaryInlinePresence({
     <motion.div
       animate={{ opacity: 1, x: 0 }}
       aria-hidden={!isPresent ? true : undefined}
-      className="thread-summary-inline"
+      className="thread-summary-inline tw:absolute tw:top-4 tw:bottom-4 tw:end-[var(--thread-summary-inline-edge)] tw:z-sticky tw:w-[var(--thread-summary-inline-width)] tw:min-h-0 tw:origin-right"
       data-presence={isPresent ? 'present' : 'exiting'}
       data-testid="thread-summary-inline"
       exit={{

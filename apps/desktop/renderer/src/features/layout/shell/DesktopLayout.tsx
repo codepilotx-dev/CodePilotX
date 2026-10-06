@@ -2055,7 +2055,7 @@ export function DesktopLayout(): React.ReactNode {
       ) : null}
       {pluginsSidebarMounted ? (
         <div className="sidebar-panel-content" hidden={displayedSidebarPane !== 'plugins'}>
-          <SidebarPluginsPane />
+          <SidebarPluginsPane workspacePath={currentWorkspace?.path ?? null} />
         </div>
       ) : null}
     </SidebarFrame>
@@ -2985,7 +2985,7 @@ export function DesktopLayout(): React.ReactNode {
       enabled={location.pathname === '/automations' || scheduledSidebarMounted}
     >
       <div
-        className="desktop-frame tw:min-h-0 tw:w-full tw:overflow-hidden tw:bg-app-canvas tw:text-app-text"
+        className="desktop-frame tw:flex tw:h-screen tw:min-h-0 tw:w-full tw:flex-col tw:overflow-hidden tw:bg-app-canvas tw:text-app-text"
         data-startup-surface-ready={location.pathname !== '/new' ? 'true' : undefined}
       >
         <a
@@ -2999,7 +2999,7 @@ export function DesktopLayout(): React.ReactNode {
         >
           跳到主要内容
         </a>
-        <span aria-atomic="true" aria-live="polite" className="u-sr-only">
+        <span aria-atomic="true" aria-live="polite" className="tw:sr-only">
           已进入{routeLabel}
         </span>
         {globalMessageModalMounted ? (
@@ -3256,13 +3256,16 @@ export function DesktopLayout(): React.ReactNode {
                 <div
                   aria-label="主要内容"
                   ref={mainRouteRef}
-                  className="desktop-main-route"
+                  className="desktop-main-route tw:flex tw:min-w-0 tw:min-h-0 tw:flex-auto tw:flex-col tw:overflow-hidden"
                   id="desktop-main-content"
                   tabIndex={-1}
                   role="region"
                 >
-                  <div aria-hidden="true" className="desktop-main-route__header-spacer" />
-                  <div className="desktop-main-route__body">
+                  <div
+                    aria-hidden="true"
+                    className="desktop-main-route__header-spacer tw:h-[var(--workspace-header-height)] tw:min-h-[var(--workspace-header-height)] tw:w-full tw:shrink-0 tw:grow-0 tw:basis-[var(--workspace-header-height)] tw:pointer-events-none"
+                  />
+                  <div className="desktop-main-route__body tw:flex tw:w-full tw:min-w-0 tw:min-h-0 tw:flex-auto tw:justify-center tw:overflow-hidden">
                     <Outlet context={outletContext} />
                   </div>
                 </div>

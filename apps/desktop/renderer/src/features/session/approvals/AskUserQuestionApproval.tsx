@@ -11,8 +11,14 @@ import {
 } from 'lucide-react'
 import type { DesktopPermissionRequest } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
-import { RequestCard, RequestMarker } from './RequestCard.js'
+import {
+  ASK_USER_QUESTION_NAV_BUTTON_CLASS,
+  ASK_USER_QUESTION_PAGINATION_NAV_BUTTON_CLASS,
+  RequestCard,
+  RequestMarker,
+} from './RequestCard.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
+import { cx } from '../../../utils/cx.js'
 import { useApprovalCapability } from './useQuestionSkipCapability.js'
 import {
   CUSTOM_OPTION_ID,
@@ -244,12 +250,22 @@ function QuestionAnswerFormInstance({
 
   if (!questions) {
     return (
-      <div ref={approvalRef} className="ask-user-question-approval" tabIndex={-1}>
-        <p className="ask-user-question-error">
+      <div
+      ref={approvalRef}
+      className="ask-user-question-approval tw:flex tw:w-full tw:flex-col tw:gap-3 tw:outline-none"
+      tabIndex={-1}
+    >
+        <p className="ask-user-question-error tw:mx-3 tw:my-0 tw:px-3 tw:py-2 tw:border tw:border-app-danger-border tw:rounded-lg tw:bg-app-danger-subtle tw:text-app-danger-fg tw:type-body-sm">
           无法解析 AskUserQuestion 的选项，请拒绝后让 CodePilotX 重新提问。
         </p>
-        <div className="inline-approval-footer inline-approval-footer-split">
-          <span className="inline-approval-footer-spacer" aria-hidden="true" />
+        <div
+          className={cx(
+            'inline-approval-footer inline-approval-footer-split tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:justify-between',
+            variant === 'question' &&
+              'tw:border-t tw:border-app-border-subtle tw:px-0 tw:pt-3 tw:pb-0',
+          )}
+        >
+          <span className="inline-approval-footer-spacer tw:flex-none" aria-hidden="true" />
           <Button color="danger" disabled={disabled} onClick={() => void reject()}>
             拒绝
             <CornerDownLeft size={APP_ICON_SIZE} />
@@ -471,7 +487,11 @@ function QuestionAnswerFormInstance({
   ]
 
   return (
-    <div ref={approvalRef} className="ask-user-question-approval" tabIndex={-1}>
+    <div
+      ref={approvalRef}
+      className="ask-user-question-approval tw:flex tw:w-full tw:flex-col tw:gap-3 tw:outline-none"
+      tabIndex={-1}
+    >
       <RequestCard
         variant={variant}
         title={currentQuestion.question}
@@ -479,12 +499,16 @@ function QuestionAnswerFormInstance({
         disabledReason={disabledReason}
         error={error}
         navigation={
-          <div className="ask-user-question-navigation">
+          <div className="ask-user-question-navigation tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption">
             {variant === 'question' || questionCount > 1 ? (
-              <div className="ask-user-question-pagination" role="group" aria-label="问题分页">
+              <div
+                className="ask-user-question-pagination tw:inline-flex tw:items-center tw:gap-1 tw:whitespace-nowrap"
+                role="group"
+                aria-label="问题分页"
+              >
                 <button
                   type="button"
-                  className="ask-user-question-nav-button"
+                  className={ASK_USER_QUESTION_PAGINATION_NAV_BUTTON_CLASS}
                   aria-label="上一题"
                   disabled={disabled || currentQuestionIndex === 0}
                   onClick={() => goToQuestion(-1)}
@@ -496,7 +520,7 @@ function QuestionAnswerFormInstance({
                 </span>
                 <button
                   type="button"
-                  className="ask-user-question-nav-button"
+                  className={ASK_USER_QUESTION_PAGINATION_NAV_BUTTON_CLASS}
                   aria-label="下一题"
                   disabled={disabled || isLastQuestion}
                   onClick={() => goToQuestion(1)}
@@ -507,7 +531,7 @@ function QuestionAnswerFormInstance({
             ) : null}
             <button
               type="button"
-              className="ask-user-question-nav-button"
+              className={ASK_USER_QUESTION_NAV_BUTTON_CLASS}
               aria-label={closeLabel}
               disabled={disabled || !onInterrupt}
               onClick={() => void interrupt()}
@@ -518,7 +542,7 @@ function QuestionAnswerFormInstance({
         }
       >
         <div
-          className="inline-approval-options"
+          className="inline-approval-options tw:grid tw:grid-cols-[minmax(0,1fr)] tw:items-end tw:gap-x-3 tw:gap-y-1"
           role={currentQuestion.multiSelect ? 'group' : 'radiogroup'}
         >
           {questionOptions.map((questionOption) => {
@@ -526,13 +550,15 @@ function QuestionAnswerFormInstance({
               const focused = state.focused === questionOption.id
               return (
                 <div
-                  className={[
-                    'inline-approval-option custom',
-                    focused ? 'focused' : '',
-                    state.custom.trim() ? 'filled' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
+                  className={cx(
+                    'inline-approval-option custom tw:col-start-1 tw:mt-1 tw:grid tw:w-full tw:grid-cols-[var(--cpx-sys-space-7)_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:bg-app-control tw:p-2 tw:text-left tw:text-app-text tw:type-body tw:cursor-text',
+                    variant === 'question' && 'tw:focus-within:border-app-accent',
+                    variant === 'question' && focused
+                      ? 'tw:border-app-accent'
+                      : 'tw:border-transparent',
+                    focused ? 'focused' : undefined,
+                    state.custom.trim() ? 'filled' : undefined,
+                  )}
                   key={questionOption.id}
                 >
                   <RequestMarker>
@@ -540,7 +566,7 @@ function QuestionAnswerFormInstance({
                   </RequestMarker>
                   <textarea
                     ref={customInputRef}
-                    className="ask-user-question-custom-input"
+                    className="ask-user-question-custom-input tw:block tw:w-full tw:min-w-0 tw:min-h-[1.5em] tw:max-h-[120px] tw:resize-none tw:overflow-y-auto tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:type-body tw:wrap-anywhere tw:outline-none tw:placeholder:text-app-text-meta"
                     aria-label="自定义回答"
                     placeholder={variant === 'plan' ? '请说明如何调整' : '输入你的回答'}
                     rows={1}
@@ -592,7 +618,7 @@ function QuestionAnswerFormInstance({
                       }))
                     }}
                   />
-                  <div className="inline-approval-split ask-user-question-actions">
+                  <div className="inline-approval-split ask-user-question-actions tw:flex tw:flex-none tw:items-center tw:justify-end tw:gap-1 tw:self-end">
                     {showSubmit ? (
                       <Button
                         color="primary"
@@ -646,13 +672,12 @@ function QuestionAnswerFormInstance({
             return (
               <button
                 aria-checked={selected}
-                className={[
-                  'inline-approval-option',
-                  selected ? 'selected' : '',
-                  focused ? 'focused' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
+                className={cx(
+                  'inline-approval-option tw:col-span-full tw:grid tw:w-full tw:grid-cols-[var(--cpx-sys-space-7)_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-body tw:focus-visible:shadow-[var(--cpx-sys-focus-ring)] tw:focus-visible:outline-none',
+                  variant === 'question' && !selected && 'tw:hover:bg-app-hover',
+                  selected ? 'selected tw:bg-app-selected' : 'tw:bg-transparent',
+                  focused ? 'focused' : undefined,
+                )}
                 key={questionOptionId(option)}
                 role={currentQuestion.multiSelect ? 'checkbox' : 'radio'}
                 type="button"
@@ -663,35 +688,46 @@ function QuestionAnswerFormInstance({
                 }}
               >
                 <RequestMarker>{index + 1}</RequestMarker>
-                <span className="ask-user-question-option-copy">
-                  <span className="inline-approval-option-label">
+                <span className="ask-user-question-option-copy tw:grid tw:min-w-0 tw:gap-1 tw:text-left">
+                  <span className="inline-approval-option-label tw:block tw:min-w-0 tw:type-row-title tw:wrap-anywhere">
                     {option.label}
                     {option.recommended ? (
-                      <span className="inline-approval-option-hint"> （推荐）</span>
+                      <span
+                        className={cx(
+                          'inline-approval-option-hint tw:type-caption',
+                          variant === 'question' ? 'tw:text-app-text-soft' : 'tw:text-app-text-meta',
+                        )}
+                      >
+                        {" （推荐）"}
+                      </span>
                     ) : null}
                   </span>
                   {option.description ? (
-                    <span className="ask-user-question-option-description">
+                    <span className="ask-user-question-option-description tw:block tw:text-app-text-soft tw:type-body-sm tw:whitespace-normal tw:wrap-anywhere">
                       {option.description}
                     </span>
                   ) : null}
                 </span>
                 {currentQuestion.multiSelect ? (
-                  <span className="inline-approval-option-trailing">
+                  <span className="inline-approval-option-trailing tw:inline-flex tw:flex-none tw:items-center tw:gap-2">
                     <span
-                      className={
+                      className={cx(
+                        'inline-approval-option-checkbox tw:inline-flex tw:size-5 tw:items-center tw:justify-center tw:rounded-md tw:border tw:border-app-border tw:text-app-canvas',
                         selected
-                          ? 'inline-approval-option-checkbox selected'
-                          : 'inline-approval-option-checkbox'
-                      }
+                          ? 'selected tw:border-app-text tw:bg-app-text'
+                          : 'tw:bg-transparent',
+                      )}
                       aria-hidden="true"
                     >
                       {selected ? <Check size={APP_ICON_SIZES.sm} /> : null}
                     </span>
                   </span>
                 ) : selected ? (
-                  <span className="inline-approval-option-trailing">
-                    <span className="inline-approval-option-arrows" aria-hidden="true">
+                  <span className="inline-approval-option-trailing tw:inline-flex tw:flex-none tw:items-center tw:gap-2">
+                    <span
+                        className="inline-approval-option-arrows tw:inline-flex tw:items-center tw:gap-1 tw:text-app-text-meta"
+                        aria-hidden="true"
+                      >
                       <ArrowRight size={APP_ICON_SIZE} />
                     </span>
                   </span>
@@ -701,7 +737,7 @@ function QuestionAnswerFormInstance({
           })}
         </div>
         {variant === 'question' && !supportsQuestionSkip ? (
-          <p className="ask-user-question-error" role="status">
+          <p className="ask-user-question-error tw:mx-3 tw:my-0 tw:px-3 tw:py-2 tw:border tw:border-app-danger-border tw:rounded-lg tw:bg-app-danger-subtle tw:text-app-danger-fg tw:type-body-sm" role="status">
             当前 Agent 尚未提供逐题跳过能力，请升级并重启 Agent。
           </p>
         ) : null}
