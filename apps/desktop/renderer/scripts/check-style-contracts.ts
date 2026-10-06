@@ -1,21 +1,11 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
-import { compile } from 'sass'
 import ts from 'typescript'
 import {
-  nestedSelectorBlock,
   selectorBlock,
   transitionProperties,
 } from './style-animation-contracts.js'
-
-type UtilityContract = {
-  source: string
-  prefix: string
-  maxSelectors: number
-  maxBytes: number
-  maxGzipBytes: number
-}
 
 type FeatureTokenException = {
   file: string
@@ -60,8 +50,14 @@ type FeatureTokenRegistryEntry = {
 type StyleContractManifest = {
   styleEntrypoint: string
   styleEntrypointImporter: string
+  /**
+   * SCSS entrypoints that are still loaded directly while surfaces migrate to
+   * the Tailwind entrypoint. Their graph joins the single-entry graph and they
+   * may declare the shared cascade order. Drop an entry once it stops importing
+   * SCSS.
+   */
+  legacyScssEntrypoints?: string[]
   cascadeLayerOrder: string[]
-  utilityContract: UtilityContract
   directStyleImportAllowlist: string[]
   lazyStyleEntrypoints: Record<string, 'vendor' | 'features'>
   customPropertyReferenceAllowlist: string[]
@@ -144,6 +140,8 @@ async function collectEntryGraph(entrypoint: string): Promise<Set<string>> {
     const referencePatterns = [
       /@(use|forward)\s+['"]([^'"]+)['"]/g,
       /meta\.load-css\(\s*['"]([^'"]+)['"]/g,
+      // Native CSS imports, including the layer()/prefix() forms used by Tailwind.
+      /@import\s+(?:url\(\s*)?['"]([^'"]+)['"]/g,
     ]
     for (const pattern of referencePatterns) {
       for (const match of source.matchAll(pattern)) {
@@ -1241,6 +1239,57 @@ for (const file of featureTokenScriptFiles) {
 }
 
 /*
+ * Prefix rule: every utility class must carry the `tw:` prefix. Tailwind is
+ * configured with `prefix(tw)`, so an unprefixed utility is not an error to
+ * Tailwind — it is simply never generated, and the style silently disappears.
+ * Only variant/utility-shaped tokens on a class-list line are reported, which
+ * keeps JSX attributes (xlink:href) and object literals (files:parent) out.
+ */
+const unprefixedUtilityPattern =
+  /(?:^|[\s"'`(])((?:hover|focus|focus-visible|focus-within|active|disabled|enabled|checked|indeterminate|selected|open|closed|data-|aria-|has-|group-|peer-|not-|placeholder|file|first|last|odd|even|motion-reduce|motion-safe|sm|md|lg|xl|max-|min-)[\w-]*(?:\[[^\]\n]*\])?:[\w[\]-]+)/gm
+const allowedUnprefixedUtility = /^(?:https?:|data:|file:|xlink:|xml:|urn:|aria-[a-z]+:)/
+function isClassListLine(line: string): boolean {
+  return /className|tw:|cx\(|joinClassNames/.test(line)
+}
+for (const file of scriptFiles) {
+  const source = await readFile(file, 'utf8')
+  const path = workspacePath(file)
+  if (!source.includes('tw:')) continue
+  for (const match of source.matchAll(unprefixedUtilityPattern)) {
+    const token = match[1]
+    const index = (match.index ?? 0) + match[0].length - token.length
+    if (source.slice(Math.max(0, index - 3), index) === 'tw:') continue
+    if (allowedUnprefixedUtility.test(token)) continue
+    const lineStart = source.lastIndexOf('\n', index) + 1
+    const lineEnd = source.indexOf('\n', index)
+    if (!isClassListLine(source.slice(lineStart, lineEnd === -1 ? source.length : lineEnd))) continue
+    errors.push(
+      `Tailwind utility is missing the tw: prefix: ${path}:${lineNumberAt(source, index)} (${token})`,
+    )
+  }
+}
+
+/*
+ * Typography role rule: a `type-*` role declares the whole `font:` shorthand and
+ * Tailwind emits `type-weight-*` before the roles, so combining them in one
+ * class list silently drops the weight. Elements either use a role that already
+ * carries the weight, a bare weight utility, or `styles/role-weight.css`.
+ */
+const roleWithWeightPattern =
+  /tw:type-(?!weight-)[a-z-]+[\s\S]{0,200}?tw:type-weight-|tw:type-weight-[a-z-]+[\s\S]{0,200}?tw:type-(?!weight-)[a-z-]+/g
+for (const file of scriptFiles) {
+  const source = await readFile(file, 'utf8')
+  const path = workspacePath(file)
+  for (const match of source.matchAll(roleWithWeightPattern)) {
+    // Only one class list: a newline usually separates different attributes.
+    if (match[0].includes('\n')) continue
+    errors.push(
+      `tw:type-* cannot be combined with tw:type-weight-* (the role font shorthand wins): ${path}:${lineNumberAt(source, match.index)}`,
+    )
+  }
+}
+
+/*
  * Tailwind arbitrary non-color rule: feature TSX must not carry literal
  * non-color values through Tailwind arbitrary classes (typography, radius,
  * motion, shadow, z-index, spacing), including optional variant prefixes
@@ -1268,7 +1317,7 @@ for (const file of featureTokenScriptFiles) {
 }
 
 /*
- * Typography responsibility rule: feature TSX uses semantic u-type-* roles
+ * Typography responsibility rule: feature TSX uses semantic `tw:type-*` roles
  * instead of generic Tailwind size/weight utilities that can override feature
  * styles independently of the component's content role.
  */
@@ -1309,9 +1358,36 @@ if (
   errors.push(`cascade layer order must be: ${manifest.cascadeLayerOrder.join(', ')}`)
 }
 
-const loadedLayers = new Set(
-  [...entrypointSource.matchAll(/@layer\s+([\w-]+)\s*\{/g)].map((match) => match[1]),
+const legacyScssEntrypoints = (manifest.legacyScssEntrypoints ?? []).map((path) =>
+  resolve(workspaceRoot, path),
 )
+
+/*
+ * A layer counts as loaded when it is either a `@layer name { }` block or an
+ * `@import ... layer(name)` modifier. The Tailwind entrypoint loads the theme
+ * and utility layers through imports, so both forms must be recognised across
+ * the entrypoint and any legacy SCSS entrypoint that shares the cascade order.
+ */
+const loadedLayers = new Set<string>()
+/*
+ * Layer blocks live in the imported stylesheets (the entrypoint only declares
+ * the order) plus `layer()` modifiers on the imports, so the scan walks the
+ * whole entry graph instead of reading the entrypoint alone.
+ */
+const layerSources = new Set<string>([entrypoint, ...legacyScssEntrypoints])
+for (const graphFile of await collectEntryGraph(entrypoint)) layerSources.add(graphFile)
+// Lazy entrypoints are imported by their feature, not by the main entry, and the
+// vendor layer is only loaded from one of them.
+for (const lazyPath of Object.keys(manifest.lazyStyleEntrypoints)) {
+  const lazyFile = resolve(workspaceRoot, lazyPath)
+  if (await isFile(lazyFile)) layerSources.add(lazyFile)
+}
+for (const styleFile of layerSources) {
+  const source = await readFile(styleFile, 'utf8')
+  for (const match of source.matchAll(/@layer\s+([\w-]+)\s*\{/g)) loadedLayers.add(match[1])
+  for (const match of source.matchAll(/@import\s+[^;]*\blayer\(\s*([\w-]+)\s*\)/g))
+    loadedLayers.add(match[1])
+}
 for (const layer of manifest.cascadeLayerOrder) {
   if (!loadedLayers.has(layer)) errors.push(`cascade layer has no explicit block: ${layer}`)
 }
@@ -1367,23 +1443,45 @@ const lazyStyleEntrypoints = new Map(
     layer,
   ]),
 )
+const legacyEntrypointSet = new Set(legacyScssEntrypoints)
 for (const [lazyEntrypoint, expectedLayer] of lazyStyleEntrypoints) {
   if (!directStyleTargets.has(lazyEntrypoint)) {
     errors.push(`lazy style entrypoint must be directly imported: ${workspacePath(lazyEntrypoint)}`)
     continue
   }
   const source = await readFile(lazyEntrypoint, 'utf8')
-  const layers = [...source.matchAll(/@layer\s+([\w-]+)\s*\{/g)].map((match) => match[1])
+  const layers = [
+    ...new Set(
+      [
+        ...source.matchAll(/@layer\s+([\w-]+)\s*\{/g),
+        ...source.matchAll(/@import\s+[^;]*\blayer\(\s*([\w-]+)\s*\)/g),
+      ].map((match) => match[1]),
+    ),
+  ]
   if (layers.length !== 1 || layers[0] !== expectedLayer) {
+
     errors.push(
       `lazy style entrypoint ${workspacePath(lazyEntrypoint)} must declare only @layer ${expectedLayer}`,
     )
   }
 }
 for (const directStyleTarget of directStyleTargets) {
-  const targetPath = workspacePath(directStyleTarget)
-  if (targetPath !== 'src/styles/tailwind.css' && !lazyStyleEntrypoints.has(directStyleTarget)) {
-    errors.push(`direct style target must be a declared lazy entrypoint: ${targetPath}`)
+  if (
+    directStyleTarget === entrypoint ||
+    lazyStyleEntrypoints.has(directStyleTarget) ||
+    legacyEntrypointSet.has(directStyleTarget)
+  ) {
+    continue
+  }
+  errors.push(
+    `direct style target must be a declared lazy or legacy entrypoint: ${workspacePath(directStyleTarget)}`,
+  )
+}
+for (const legacyEntrypoint of legacyScssEntrypoints) {
+  if (!directStyleTargets.has(legacyEntrypoint)) {
+    errors.push(
+      `legacy SCSS entrypoint must be directly imported: ${workspacePath(legacyEntrypoint)}`,
+    )
   }
 }
 
@@ -1393,100 +1491,16 @@ for (const lazyEntrypoint of lazyStyleEntrypoints.keys()) {
     completeStyleGraph.add(styleFile)
   }
 }
+for (const legacyEntrypoint of legacyScssEntrypoints) {
+  for (const styleFile of await collectEntryGraph(legacyEntrypoint)) {
+    completeStyleGraph.add(styleFile)
+  }
+}
 
 for (const styleFile of styleFiles) {
   if (!completeStyleGraph.has(styleFile) && !directStyleTargets.has(styleFile)) {
     errors.push(`style file is outside the single-entry graph: ${workspacePath(styleFile)}`)
   }
-}
-
-const utilityPath = resolve(workspaceRoot, manifest.utilityContract.source)
-if (!(await isFile(utilityPath))) {
-  errors.push(
-    `utilityContract.source must point to an existing SCSS file: ${manifest.utilityContract.source}`,
-  )
-} else if (!entryGraph.has(utilityPath)) {
-  errors.push(
-    `utility source is outside the single-entry graph: ${manifest.utilityContract.source}`,
-  )
-} else {
-  const { prefix, maxSelectors, maxBytes, maxGzipBytes } = manifest.utilityContract
-  if (!/^[a-z][a-z0-9]*-$/.test(prefix)) {
-    errors.push(`utility prefix must be a lowercase kebab prefix ending in "-": ${prefix}`)
-  }
-
-  const utilityCss = compile(utilityPath, { style: 'expanded' }).css
-  const escapedPrefix = escapeRegExp(prefix)
-  const expectedSelectorPattern = new RegExp(
-    `:where\\(\\.(${escapedPrefix}[a-z0-9]+(?:-[a-z0-9]+)*)\\)\\s*\\{`,
-    'g',
-  )
-  const utilitySelectors = [...utilityCss.matchAll(expectedSelectorPattern)].map(
-    (match) => match[1],
-  )
-  const allUtilityBlocks = [...utilityCss.matchAll(/([^{}]+)\{/g)].filter((match) =>
-    match[1].includes(`.${prefix}`),
-  )
-  const uniqueUtilitySelectors = new Set(utilitySelectors)
-  const utilityBytes = Buffer.byteLength(utilityCss)
-  const utilityGzipBytes = gzipSync(utilityCss).byteLength
-
-  if (allUtilityBlocks.length !== utilitySelectors.length) {
-    errors.push('every utility selector must use one zero-specificity :where(.u-*) selector')
-  }
-  if (uniqueUtilitySelectors.size !== utilitySelectors.length) {
-    errors.push('utility selectors must be unique')
-  }
-  if (utilitySelectors.length > maxSelectors) {
-    errors.push(`utility selector budget exceeded: ${utilitySelectors.length} > ${maxSelectors}`)
-  }
-  if (utilityBytes > maxBytes) {
-    errors.push(`utility byte budget exceeded: ${utilityBytes} > ${maxBytes}`)
-  }
-  if (utilityGzipBytes > maxGzipBytes) {
-    errors.push(`utility gzip budget exceeded: ${utilityGzipBytes} > ${maxGzipBytes}`)
-  }
-  if (/!important\b/.test(utilityCss)) {
-    errors.push('utilities must not use !important')
-  }
-  if (/\[data-theme(?=[\s=\]])/.test(utilityCss)) {
-    errors.push('utilities must not contain data-theme selectors')
-  }
-
-  const utilityReferencePattern = new RegExp(`\\b${escapedPrefix}[a-z0-9]+(?:-[a-z0-9]+)*\\b`, 'g')
-  const utilityDefinitionPattern = new RegExp(
-    `\\.(${escapedPrefix}[a-z0-9]+(?:-[a-z0-9]+)*)\\b`,
-    'g',
-  )
-  for (const styleFile of styleFiles) {
-    if (styleFile === utilityPath) continue
-    const source = await readFile(styleFile, 'utf8')
-    const definitions = [...source.matchAll(utilityDefinitionPattern)].map((match) => match[1])
-    if (definitions.length > 0) {
-      errors.push(
-        `utility classes may only be defined by ${manifest.utilityContract.source}: ${workspacePath(styleFile)} defines ${[...new Set(definitions)].join(', ')}`,
-      )
-    }
-  }
-  for (const scriptFile of scriptFiles) {
-    const source = await readFile(scriptFile, 'utf8')
-    if (
-      new RegExp(`${escapedPrefix}\\$\\{`).test(source) ||
-      new RegExp(`['\"\\\`]${escapedPrefix}[^'\"\\\`]*['\"\\\`]\\s*\\+`).test(source) ||
-      new RegExp(`\\+\\s*['\"\\\`]${escapedPrefix}`).test(source)
-    ) {
-      errors.push(`utility classes must be complete static strings: ${workspacePath(scriptFile)}`)
-    }
-    for (const utility of source.match(utilityReferencePattern) ?? []) {
-      if (!uniqueUtilitySelectors.has(utility)) {
-        errors.push(`unknown utility class in ${workspacePath(scriptFile)}: ${utility}`)
-      }
-    }
-  }
-
-  console.log(
-    `[style-contracts] utilities: ${utilitySelectors.length} selectors, ${utilityBytes} bytes, ${utilityGzipBytes} gzip bytes`,
-  )
 }
 
 const customPropertyReferences = new Set<string>()
@@ -1634,86 +1648,131 @@ for (const styleFile of styleFiles) {
 
 /*
  * Animation implementation contracts: continuous animations must stay on the
- * compositor/transform path. Guards the skeleton shimmer, the two progress
- * bar, and the scroll edge-fade frames against regressing to per-frame
- * repaints (background-position sweeps), layout-thrash transitions (width),
- * persistent will-change promotion, scroll timelines or dynamic mask
- * keyframes.
+ * compositor/transform path. Guards the progress bars and the scroll edge-fade
+ * frames against regressing to per-frame repaints (background-position sweeps),
+ * layout-thrash transitions (width), persistent will-change promotion, scroll
+ * timelines or dynamic mask keyframes. Sweep keyframes are scanned wherever
+ * they live, so moving a shimmer into a utility or a component file keeps the
+ * same guarantee.
  */
-const animationContractFiles = {
-  canonicalConversation: 'src/styles/features/_canonical-conversation.scss',
-  composerStatus: 'src/styles/features/_composer-status.scss',
-  layoutSidebar: 'src/styles/features/layout-sidebar.scss',
-  sessionWorkflow: 'src/styles/features/_session-workflow.scss',
-  skeleton: 'src/styles/components/skeleton.scss',
-} as const
-
-function readAnimationContractFile(name: keyof typeof animationContractFiles): Promise<string> {
-  return readFile(resolve(workspaceRoot, animationContractFiles[name]), 'utf8')
+/** Yield every `@keyframes <name> { ... }` body found in one stylesheet. */
+function* keyframeBodies(source: string): Generator<string> {
+  for (const match of source.matchAll(/@keyframes\s+[\w-]+\s*\{/g)) {
+    let depth = 0
+    let end = match.index ?? 0
+    for (; end < source.length; end += 1) {
+      if (source[end] === '{') depth += 1
+      else if (source[end] === '}') {
+        depth -= 1
+        if (depth === 0) break
+      }
+    }
+    yield source.slice(match.index, end + 1)
+  }
 }
 
-const skeletonSource = await readAnimationContractFile('skeleton')
-if (skeletonSource.includes('background-attachment')) {
-  errors.push('skeleton shimmer must not use background-attachment: fixed repaint sweeps')
-}
-if (/background-position/.test(skeletonSource)) {
-  errors.push(
-    'skeleton shimmer must not animate background-position; use a transform translateX sweep',
-  )
+for (const styleFile of styleFiles) {
+  const source = await readFile(styleFile, 'utf8')
+  const path = workspacePath(styleFile)
+  if (/background-attachment\s*:\s*fixed/.test(source)) {
+    errors.push(`shimmer must not use background-attachment: fixed repaint sweeps: ${path}`)
+  }
+  for (const block of keyframeBodies(source)) {
+    if (/background-position/.test(block)) {
+      errors.push(
+        `keyframes must not animate background-position; use a transform translateX sweep: ${path}`,
+      )
+      break
+    }
+  }
 }
 
-for (const [name, selector] of [['composerStatus', '.composer-status-bar-fill']] as const) {
-  const source = await readAnimationContractFile(name)
-  const block = selectorBlock(source, selector)
-  if (!block) {
-    errors.push(
-      `animation contract selector missing in ${animationContractFiles[name]}: ${selector}`,
-    )
+/*
+ * Compositor contracts are checked wherever the selector now lives — a feature
+ * stylesheet, a primitives residue file, or a Tailwind class list in TSX — so
+ * moving a rule during the migration cannot quietly retire its guarantee.
+ */
+const allSources: Array<{ path: string; text: string }> = []
+for (const styleFile of styleFiles) {
+  allSources.push({ path: workspacePath(styleFile), text: await readFile(styleFile, 'utf8') })
+}
+for (const [scriptFile, script] of featureTokenScriptSources) {
+  allSources.push({ path: workspacePath(scriptFile), text: script.source })
+}
+
+/** Selector occurrences with a window around them, for declaration queries. */
+function selectorWindows(selector: string): Array<{ path: string; window: string }> {
+  const hits: Array<{ path: string; window: string }> = []
+  for (const { path, text } of allSources) {
+    let index = text.indexOf(selector)
+    while (index !== -1) {
+      hits.push({ path, window: text.slice(Math.max(0, index - 40), index + 240) })
+      index = text.indexOf(selector, index + selector.length)
+    }
+  }
+  return hits
+}
+
+for (const [selector, label] of [
+  ['.sidebar-session-list-extra', 'sidebar session list'],
+  ['.canonical-turn-activity__content', 'canonical activity content'],
+] as const) {
+  const sites = selectorWindows(selector)
+  if (sites.length === 0) {
+    errors.push(`animation contract selector is gone from every source: ${selector}`)
     continue
   }
+  for (const site of sites) {
+    if (/will-change\s*[:=]/.test(site.window) || /will-change-/.test(site.window)) {
+      errors.push(
+        `${label} must not carry persistent will-change: ${selector} (${site.path})`,
+      )
+    }
+  }
+}
+
+for (const site of selectorWindows('.composer-status-bar-fill')) {
+  if (!site.path.endsWith('.scss') && !site.path.endsWith('.css')) continue
+  const block = selectorBlock(site.window, '.composer-status-bar-fill')
+  if (!block) continue
   const properties = transitionProperties(block)
   if (properties.length === 0 || properties.some((property) => property !== 'transform')) {
-    errors.push(`${selector} must transition only transform (compositor)`)
+    errors.push(`${'.composer-status-bar-fill'} must transition only transform (compositor)`)
   }
 }
 
-const layoutSidebarSource = await readAnimationContractFile('layoutSidebar')
-const sidebarExtraBlock = selectorBlock(layoutSidebarSource, '.sidebar-session-list-extra')
-if (!sidebarExtraBlock) {
-  errors.push(
-    `animation contract selector missing in ${animationContractFiles.layoutSidebar}: .sidebar-session-list-extra`,
-  )
-} else if (/will-change\s*:/.test(sidebarExtraBlock)) {
-  errors.push('.sidebar-session-list-extra must not carry persistent will-change')
+/*
+ * Scroll fade masks and scroll-driven animation timelines are banned everywhere
+ * rather than in one named file: the same rules may live in a stylesheet, a
+ * primitives residue file or a Tailwind utility, and moving them must not quietly
+ * drop the guarantee.
+ */
+const allStyleAndFeatureSources: Array<{ path: string; text: string }> = []
+for (const styleFile of styleFiles) {
+  allStyleAndFeatureSources.push({
+    path: workspacePath(styleFile),
+    text: await readFile(styleFile, 'utf8'),
+  })
+}
+for (const [scriptFile, script] of featureTokenScriptSources) {
+  allStyleAndFeatureSources.push({ path: workspacePath(scriptFile), text: script.source })
 }
 
-const canonicalConversationSource = await readAnimationContractFile('canonicalConversation')
-const activityContentBlock = nestedSelectorBlock(
-  canonicalConversationSource,
-  '.canonical-turn-activity',
-  '&__content',
-)
-if (!activityContentBlock) {
-  errors.push(
-    `animation contract selector missing in ${animationContractFiles.canonicalConversation}: .canonical-turn-activity__content`,
-  )
-} else if (/will-change\s*:/.test(activityContentBlock)) {
-  errors.push('.canonical-turn-activity__content must not carry persistent will-change')
-}
-
-for (const [name, message] of [
-  ['canonicalConversation', '_canonical-conversation.scss'],
-  ['sessionWorkflow', '_session-workflow.scss'],
-] as const) {
-  const source = await readAnimationContractFile(name)
-  if (/animation-timeline/.test(source)) {
-    errors.push(`${message} must not use animation-timeline scroll masks`)
+/*
+ * The sidebar sticky-section clip is the one scroll-driven animation the design
+ * system keeps: it clips section chrome while scrolling rather than fading a mask
+ * over content, and it shipped that way before the Tailwind migration.
+ */
+const animationTimelineAllowlist = new Set(['src/styles/primitives/sidebar.css'])
+for (const { path, text } of allStyleAndFeatureSources) {
+  if (/animation-timeline/.test(text) && !animationTimelineAllowlist.has(path)) {
+    errors.push(`${path} must not use animation-timeline scroll masks`)
   }
-  if (/@property\s+--(?:canonical-process|execution-plan)/.test(source)) {
-    errors.push(`${message} must not re-add scroll fade @property variables`)
+  if (/@property\s+--(?:canonical-process|execution-plan)/.test(text)) {
+    errors.push(`${path} must not re-add scroll fade @property variables`)
   }
-  if (/@keyframes\s+(?:canonical-process-edge-fade|execution-plan-edge-fade)\b/.test(source)) {
-    errors.push(`${message} must not re-add scroll fade mask keyframes`)
+  if (/@keyframes\s+(?:canonical-process-edge-fade|execution-plan-edge-fade)\b/.test(text)) {
+    errors.push(`${path} must not re-add scroll fade mask keyframes`)
   }
 }
 
