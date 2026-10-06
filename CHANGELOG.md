@@ -346,6 +346,8 @@
 
 - [desktop] 修复终端对宽色域 CSS 配色的解析，转为 xterm 可识别的 RGBA，并同步使用代码行高设置。
 
+- [desktop] 修复外观模式卡片在 Tailwind 迁移后遗漏相对定位的问题，将透明 radio 点击区域限制在各自卡片内，恢复鼠标切换系统／浅色／深色模式。
+
 - [desktop/renderer] 修复点击导航轨「插件」即整页崩溃的问题：侧栏插件面板渲染在 DesktopLayout 内部而非路由 Outlet 之下，`useDesktopLayoutOutletContext()` 读不到 outlet context，面板挂载即抛出 `Cannot destructure property 'workspacePath'` 并落入错误页；`workspacePath` 现由 DesktopLayout 直接以 props 传入侧栏插件面板。
 
 - [desktop] 修复右工作区在隐藏状态仍按上次分屏宽度占位的问题：面板宿主保留挂载后，缩放窗口或拖动左侧边栏触发的尺寸提交会把实时宽度写回已提交的分屏宽度，而隐藏的宿主没有动画再收敛到 0，导致聊天区域右侧出现一片与右栏等宽的空白。实时尺寸现在按折叠态收敛到 0，隐藏面板不再占位，重新显示时仍由面板自身的入场动画接管宽度。

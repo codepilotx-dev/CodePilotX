@@ -390,7 +390,7 @@ function ThemeModeCard({
 }) {
   return (
     <label
-      className="appearance-mode-card tw:group tw:flex tw:min-w-0 tw:flex-col tw:items-center tw:gap-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:cursor-pointer"
+      className="appearance-mode-card tw:group tw:relative tw:flex tw:min-w-0 tw:flex-col tw:items-center tw:gap-2 tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:cursor-pointer"
       data-mode={mode}
       data-state={selected ? 'checked' : 'unchecked'}
     >
