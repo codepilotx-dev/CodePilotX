@@ -2269,6 +2269,7 @@ export function DesktopLayout(): React.ReactNode {
         enableFullAccessPermissionMode={enableFullAccessPermissionMode ?? false}
         codingModel={codingModel}
         modelSelectionError={sideModelError}
+        onError={handleErrorMessage}
         onRetryModelSelection={() => {
           reloadSideChatModel(tab.id)
           void refreshProviderState()
