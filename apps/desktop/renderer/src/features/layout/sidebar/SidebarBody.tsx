@@ -1270,31 +1270,34 @@ function FocusSectionGroup({
         <h2 className={SECTION_TITLE_CLASS}>
           <span className={SECTION_LABEL_CLASS}>{section.label}</span>
         </h2>
-        <div className={SECTION_TRAILING_CLASS}>{action}</div>
+        <div className={SECTION_TRAILING_CLASS}>
+          <SidebarSectionActions>{action}</SidebarSectionActions>
+        </div>
       </div>
       <div className={SECTION_CONTENT_CLASS}>
-          {section.sessions.length === 0 && emptyState != null ? (
-            <SidebarEmptyRow>{emptyState}</SidebarEmptyRow>
-          ) : (
-            <SidebarSessionGroup
-              activeSessionId={activeSessionId}
-              groupKey={`focus:${section.id}`}
-              now={now}
-              pagination="all"
-              pendingPermissionSessionIds={pendingPermissionSessionIds}
-              presentation="activity"
-              sort={sort}
-              titleLoadingIds={titleLoadingIds}
-              sessionFallbackTitles={sessionFallbackTitles}
-              sessions={section.sessions}
-              onArchiveSessions={onArchiveSessions}
-              onPinSession={onPinSession}
-              onSelectSession={onSelectSession}
-              onToggleSessionUnread={onToggleSessionUnread}
-              onRenameSession={onRenameSession}
-              onUnpinSession={onUnpinSession}
-            />
-          )}
+        {section.sessions.length === 0 && emptyState != null ? (
+          <SidebarEmptyRow>{emptyState}</SidebarEmptyRow>
+        ) : (
+          <SidebarSessionGroup
+            activeSessionId={activeSessionId}
+            groupKey={`focus:${section.id}`}
+            now={now}
+            pagination="all"
+            sessionIndent="gutter"
+            pendingPermissionSessionIds={pendingPermissionSessionIds}
+            presentation="activity"
+            sort={sort}
+            titleLoadingIds={titleLoadingIds}
+            sessionFallbackTitles={sessionFallbackTitles}
+            sessions={section.sessions}
+            onArchiveSessions={onArchiveSessions}
+            onPinSession={onPinSession}
+            onSelectSession={onSelectSession}
+            onToggleSessionUnread={onToggleSessionUnread}
+            onRenameSession={onRenameSession}
+            onUnpinSession={onUnpinSession}
+          />
+        )}
       </div>
     </section>
   )

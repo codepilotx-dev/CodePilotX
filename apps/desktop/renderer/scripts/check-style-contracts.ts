@@ -1758,14 +1758,8 @@ for (const [scriptFile, script] of featureTokenScriptSources) {
   allStyleAndFeatureSources.push({ path: workspacePath(scriptFile), text: script.source })
 }
 
-/*
- * The sidebar sticky-section clip is the one scroll-driven animation the design
- * system keeps: it clips section chrome while scrolling rather than fading a mask
- * over content, and it shipped that way before the Tailwind migration.
- */
-const animationTimelineAllowlist = new Set(['src/styles/primitives/sidebar.css'])
 for (const { path, text } of allStyleAndFeatureSources) {
-  if (/animation-timeline/.test(text) && !animationTimelineAllowlist.has(path)) {
+  if (/animation-timeline/.test(text)) {
     errors.push(`${path} must not use animation-timeline scroll masks`)
   }
   if (/@property\s+--(?:canonical-process|execution-plan)/.test(text)) {

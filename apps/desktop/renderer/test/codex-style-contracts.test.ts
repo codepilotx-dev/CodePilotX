@@ -632,7 +632,7 @@ describe('Codex CPX design system token contract', () => {
     expectSourceNotContains(sidebar, '--cpx-comp-sidebar-bg')
     expectSourceNotContains(sidebar, '--cpx-comp-sidebar-border')
     expectSourceNotContains(sidebar, '--cpx-comp-sidebar-item-active-bg')
-    expectSourceContains(sidebar, '--cpx-sys-color-workbench-sidebar-bg')
+    expectSourceNotContains(sidebar, 'sidebar-sticky-section-clip')
     expectSourceContains(rightDock, '--cpx-sys-color-workbench-panel-bg')
     // 标题栏与工作区表面已改用映射到同一系统语义的 utility：MenuBar 取
     // titlebar 表面，工作台主体取 main 表面并保留左侧分隔边框。

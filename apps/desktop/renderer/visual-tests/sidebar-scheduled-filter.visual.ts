@@ -181,7 +181,7 @@ test('活动过滤全部会话后仍能从空状态重新开启显示', async ({
   const trigger = page.getByRole('button', { name: '优先级显示选项', exact: true }).first()
   const menu = page.locator('.sidebar-timeline-menu[data-state="open"]')
   await trigger
-    .locator('xpath=ancestor::*[contains(@class, "sidebar-focus-section-header")][1]')
+    .locator('xpath=ancestor::*[contains(@class, "sidebar-section-header")][1]')
     .hover()
   await trigger.click()
   await expectAnchored(page, menu, trigger)
@@ -189,7 +189,7 @@ test('活动过滤全部会话后仍能从空状态重新开启显示', async ({
   await expect(page.getByText('当前筛选下没有活动', { exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
   await trigger
-    .locator('xpath=ancestor::*[contains(@class, "sidebar-focus-section-header")][1]')
+    .locator('xpath=ancestor::*[contains(@class, "sidebar-section-header")][1]')
     .hover()
   await trigger.click()
   await expectAnchored(page, menu, trigger)

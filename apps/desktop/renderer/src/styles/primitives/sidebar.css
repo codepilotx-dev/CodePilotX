@@ -4,10 +4,7 @@
  *
  * Kept here on purpose:
  * - vendor pseudo-elements (`::-webkit-scrollbar*`, the `::before`/`::after`
- *   decorations of the sticky section header, the resizer and the collapse
- *   target);
- * - the scroll-timeline clip keyframes `sidebar-sticky-section-clip-*`, whose
- *   `animation-timeline` / `animation-range` pair has no utility equivalent;
+ *   decorations of the resizer and the collapse target);
  * - the sidebar density contract (`--sidebar-*`), i.e. runtime geometry that
  *   TSX utilities consume through `var()` and that
  *   `test/sidebar-origin-layout.browser.ts` reads back with getComputedStyle;
@@ -71,64 +68,6 @@
 
   .desktop-sidebar:has(.sidebar-reorder-item[data-dragging='true']) * {
     cursor: grabbing;
-  }
-
-  /* Sticky labels stay part of the opaque sidebar surface. */
-  .sidebar-focus-section-header::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background: var(--cpx-sys-color-workbench-sidebar-bg);
-    backdrop-filter: none;
-  }
-
-  @supports (animation-timeline: view(block)) {
-    .sidebar-focus-section {
-      view-timeline-name: --sidebar-sticky-section;
-      view-timeline-axis: block;
-      view-timeline-inset: 36px 0;
-      overflow: clip;
-    }
-
-    .sidebar-focus-section-clip-window,
-    .sidebar-focus-section-clip-content {
-      animation-duration: auto;
-      animation-timing-function: var(--cpx-sys-ease-linear);
-      animation-fill-mode: both;
-      animation-timeline: --sidebar-sticky-section;
-      animation-range: exit-crossing;
-    }
-
-    .sidebar-focus-section-clip-window {
-      margin-top: calc(-1 * var(--cpx-sys-space-1));
-      padding-top: var(--cpx-sys-space-1);
-      animation-name: sidebar-sticky-section-clip-window;
-      overflow: hidden;
-    }
-
-    .sidebar-focus-section-clip-content {
-      animation-name: sidebar-sticky-section-clip-content;
-    }
-  }
-
-  @keyframes sidebar-sticky-section-clip-window {
-    to {
-      transform: translateY(100%);
-    }
-  }
-
-  @keyframes sidebar-sticky-section-clip-content {
-    to {
-      transform: translateY(calc(-100% - 4px));
-    }
-  }
-
-  @media (forced-colors: active) {
-    .sidebar-focus-section-header::before {
-      display: none;
-    }
   }
 
   /* Styled scrollbars need vendor pseudo-elements. */
@@ -215,18 +154,8 @@
     transition: none;
   }
 
-  :root[data-reduce-motion='on']
-    :is(
-      .sidebar-collapse-confirm-target,
-      .sidebar-focus-section-clip-window,
-      .sidebar-focus-section-clip-content
-    ) {
+  :root[data-reduce-motion='on'] .sidebar-collapse-confirm-target {
     animation: none;
-  }
-
-  :root[data-reduce-motion='on']
-    :is(.sidebar-focus-section-clip-window, .sidebar-focus-section-clip-content) {
-    transform: none;
   }
 
   .sidebar-status-pill-progress {

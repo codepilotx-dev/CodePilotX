@@ -2480,14 +2480,14 @@ for (const mode of MODES) {
       await activityToggle.click()
     }
     const activityTimeline = page.locator('.sidebar-timeline')
-    const activityHeader = activityTimeline.locator('.sidebar-focus-section-header').first()
-    const activityTitle = activityHeader.locator('.sidebar-focus-section-title')
+    const activityHeader = activityTimeline.locator('.sidebar-section-header').first()
+    const activityTitle = activityHeader.locator('.sidebar-section-label')
     const activityRow = activityTimeline.locator('[data-sidebar-session-id="visual-rich"]')
     const activitySection = activityRow.locator(
-      'xpath=ancestor::section[contains(@class, "sidebar-focus-section")]',
+      'xpath=ancestor::section[contains(@class, "sidebar-section")]',
     )
-    const activitySectionHeader = activitySection.locator('.sidebar-focus-section-header')
-    const activityClipWindow = activitySection.locator('.sidebar-focus-section-clip-window')
+    const activitySectionHeader = activitySection.locator('.sidebar-section-header')
+    const activityContent = activitySection.locator('.sidebar-section-content')
     const activityWorkspaceName = activityRow.locator('.sidebar-session-workspace-meta__name')
     await expect(activityTimeline).toBeVisible()
     await expect(activityHeader).toBeVisible()
@@ -2634,7 +2634,7 @@ for (const mode of MODES) {
       }),
     ).toBe('none')
     expect(
-      await activityClipWindow.evaluate((element) => {
+      await activityContent.evaluate((element) => {
         const style = getComputedStyle(element)
         return style.maskImage || style.webkitMaskImage
       }),
