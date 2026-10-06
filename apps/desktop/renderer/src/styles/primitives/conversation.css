@@ -33,7 +33,10 @@
   /* ── Conversation geometry contract ── */
 
   .conversation-page {
+    --cpx-sys-layout-conversation-max-width: 48rem;
     --page-content-max-width: var(--cpx-sys-layout-conversation-max-width);
+    --thread-scroll-footer-fade-height: 48px;
+    --thread-scroll-content-bottom-gap: 24px;
     --conversation-shift-offset: 0px;
     --conversation-rail-inline-start: var(--cpx-sys-space-2);
     --conversation-rail-width: var(--cpx-sys-space-8);
@@ -98,6 +101,13 @@
     transition: transform var(--cpx-sys-motion-panel) var(--cpx-sys-ease-standard);
   }
 
+  .conversation-page .workflow-page__composer {
+    width: 100%;
+    max-width: 100%;
+    margin-inline: auto;
+    padding: 0;
+  }
+
   .conversation-page .workflow-page__composer-inner {
     width: min(var(--page-content-max-width), var(--session-content-w));
     min-width: 0;
@@ -126,13 +136,33 @@
     scrollbar-color: var(--cpx-sys-color-border-subtle) transparent;
   }
 
+  .conversation-page .thread-scroll-layout::-webkit-scrollbar {
+    display: block;
+    width: 6px;
+  }
+
+  .conversation-page .thread-scroll-layout::-webkit-scrollbar-thumb {
+    border-radius: var(--cpx-sys-radius-pill);
+    background: var(--cpx-sys-color-border-subtle);
+  }
+
+  .conversation-page .thread-scroll-layout::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
   /* Sticky footer fade: pseudo-element gradient, no utility equivalent. */
   .conversation-page .thread-scroll-layout__footer {
-    padding: 0 var(--cpx-sys-space-4) var(--cpx-sys-space-3);
+    position: sticky;
+    bottom: 0;
+    padding: 0 0 var(--cpx-sys-space-3);
   }
 
   .conversation-page .thread-scroll-layout__footer::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
     inset: calc(0px - var(--thread-scroll-footer-fade-height)) 0 0;
+    pointer-events: none;
     background: linear-gradient(
       to bottom,
       transparent 0%,
@@ -174,6 +204,7 @@
 
   .canonical-turn__user,
   .canonical-turn__process,
+  .canonical-turn__plan,
   .canonical-turn__result,
   .canonical-turn__post,
   .canonical-turn__blockers {

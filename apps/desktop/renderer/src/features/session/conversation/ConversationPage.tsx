@@ -1495,6 +1495,7 @@ export function ConversationPage(): React.ReactNode {
             <ThreadScrollLayout
               className="workflow-main-scroll-area tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:overflow-hidden"
               footer={composerFooter}
+              footerClassName="workflow-main-scroll-footer tw:px-0 tw:pb-3"
               footerRef={threadFooterRef}
               scrollRef={threadScrollRef}
             >

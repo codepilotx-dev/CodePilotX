@@ -1,5 +1,6 @@
 import React from 'react'
 
+import { cx } from '../../../utils/cx.js'
 import {
   distanceFromThreadBottom,
   scrollOffsetForThreadBottomDistance,
@@ -11,6 +12,7 @@ export type ThreadScrollLayoutProps = {
   scrollRef: React.RefObject<HTMLDivElement | null>
   footerRef: React.RefObject<HTMLElement | null>
   className?: string
+  footerClassName?: string
 }
 
 const THREAD_FOOTER_GAP_PX = 16
@@ -28,6 +30,7 @@ export function ThreadScrollLayout({
   scrollRef,
   footerRef,
   className,
+  footerClassName,
 }: ThreadScrollLayoutProps): React.ReactNode {
   const measuredInsetRef = React.useRef(THREAD_FOOTER_GAP_PX)
   const previousFooterHeightRef = React.useRef(0)
@@ -133,7 +136,7 @@ export function ThreadScrollLayout({
     <div
       ref={scrollRef}
       className={[
-        'thread-scroll-layout tw:relative tw:flex tw:min-w-0 tw:min-h-0 tw:w-full tw:flex-1 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:[scrollbar-width:none] tw:[overflow-anchor:none] tw:[scroll-padding-block-end:var(--thread-scroll-padding-bottom)] ',
+        'thread-scroll-layout tw:relative tw:flex tw:min-w-0 tw:min-h-0 tw:w-full tw:flex-1 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:[overflow-anchor:none] tw:[scroll-padding-block-end:var(--thread-scroll-padding-bottom)] ',
         className,
       ]
         .filter(Boolean)
@@ -147,7 +150,10 @@ export function ThreadScrollLayout({
         {footer ? (
           <footer
             ref={footerRef}
-            className="thread-scroll-layout__footer tw:sticky tw:bottom-0 tw:isolate tw:z-3 tw:flex tw:w-full tw:flex-none tw:justify-center tw:px-4 tw:pb-4 tw:pointer-events-none tw:[&>*]:pointer-events-auto"
+            className={cx(
+              'thread-scroll-layout__footer tw:sticky tw:bottom-0 tw:isolate tw:z-3 tw:flex tw:w-full tw:flex-none tw:justify-center tw:pointer-events-none tw:[&>*]:pointer-events-auto',
+              footerClassName ?? 'tw:px-4 tw:pb-4',
+            )}
             onFocusCapture={handleFooterFocusCapture}
             onBlurCapture={handleFooterBlurCapture}
           >

@@ -18,7 +18,7 @@ type ComposerFrameProps = {
  * page constrains `.composer` itself.
  */
 const FRAME_CLASS = cx(
-  'composer-frame tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:gap-2.5 tw:bg-transparent tw:p-0 tw:pointer-events-auto tw:shadow-none',
+  'composer-frame tw:flex tw:min-w-0 tw:flex-col tw:gap-2.5 tw:bg-transparent tw:p-0 tw:pointer-events-auto tw:shadow-none',
   'tw:[container-type:inline-size] tw:transition-[height] tw:duration-panel tw:ease-standard',
   'tw:[&>.composer-stack]:w-full tw:[&>.composer-stack]:max-w-none',
   'tw:[&>.composer-stack>.composer]:w-full tw:[&>.composer-stack>.composer]:max-w-none',
@@ -28,8 +28,13 @@ export const ComposerFrame = forwardRef<HTMLDivElement, ComposerFrameProps>(func
   { children, className, style },
   ref,
 ) {
+  const hasWidthClass = className?.includes('tw:w-') || className?.includes('tw:w-[')
   return (
-    <div ref={ref} className={cx(FRAME_CLASS, className)} style={style}>
+    <div
+      ref={ref}
+      className={cx(FRAME_CLASS, !hasWidthClass && 'tw:w-full', className)}
+      style={style}
+    >
       {children}
     </div>
   )
