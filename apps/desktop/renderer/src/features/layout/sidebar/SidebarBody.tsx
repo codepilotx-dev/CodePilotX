@@ -419,6 +419,7 @@ function SidebarBodyContent({
     if (!row) return
     const sessionId = row.dataset.sidebarSessionId
     const projectKeyValue = row.dataset.sidebarProjectKey
+    if (projectKeyValue && !event.shiftKey && !event.ctrlKey && !event.metaKey) return
     const key = sessionId
       ? `session:${sessionId}`
       : projectKeyValue
@@ -605,7 +606,9 @@ function SidebarBodyContent({
         className={cx(
           'sidebar-project-sortable',
           selectedKeys.includes(item.key) &&
-            'sidebar-item--selected tw:[&_.sidebar-row]:bg-app-selected',
+            (item.kind === 'project'
+              ? 'sidebar-item--selected tw:[&_.sidebar-project-header]:bg-app-selected'
+              : 'sidebar-item--selected tw:[&_.sidebar-session-row]:bg-app-selected'),
         )}
         data-sidebar-drop-index={index}
         data-sidebar-pinned-item-key={item.key}
@@ -756,7 +759,7 @@ function SidebarBodyContent({
                         <Reorder.Group
                           as="div"
                           axis="y"
-                          className="sidebar-reorder-group tw:min-w-0"
+                          className="sidebar-reorder-group tw:flex tw:min-w-0 tw:flex-col tw:gap-px"
                           data-sidebar-drop-container="pinned"
                           values={pinnedItemValues}
                           onReorder={(nextOrder) => {
@@ -856,7 +859,7 @@ function SidebarBodyContent({
                           <Reorder.Group
                             as="div"
                             axis="y"
-                            className="sidebar-reorder-group tw:min-w-0"
+                            className="sidebar-reorder-group tw:flex tw:min-w-0 tw:flex-col tw:gap-px"
                             values={orderedProjects.map(sidebarProjectKey)}
                             onReorder={(nextOrder) => {
                               if (sameStringOrder(projectOrderRef.current, nextOrder)) return
@@ -923,6 +926,7 @@ function SidebarBodyContent({
                     customSections={customSectionOptions}
                     dropIndexBase={displayedProjects.length}
                     groupKey="recent"
+                    sessionIndent="gutter"
                     initialLimit={10}
                     manualOrderByScope={manualOrderByScope}
                     now={now}
@@ -1624,7 +1628,7 @@ function SidebarCustomSection({
           className={cx(
             'sidebar-project-sortable',
             selectedKeys.includes(entry.key) &&
-              'sidebar-item--selected tw:[&_.sidebar-row]:bg-app-selected',
+              'sidebar-item--selected tw:[&_.sidebar-project-header]:bg-app-selected',
           )}
           data-sidebar-drop-index={index}
           key={entry.key}
@@ -1778,7 +1782,7 @@ function SidebarCustomSection({
           <Reorder.Group
             as="div"
             axis="y"
-            className="sidebar-reorder-group tw:min-w-0"
+            className="sidebar-reorder-group tw:flex tw:min-w-0 tw:flex-col tw:gap-px"
             data-sidebar-drop-container={`section:${section.id}`}
             values={values}
             onReorder={(nextOrder) => {

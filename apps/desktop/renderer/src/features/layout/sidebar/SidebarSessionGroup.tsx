@@ -431,14 +431,14 @@ function SidebarSessionGroupComponent({
           rowHeightClass,
         )}
         data-sidebar-session-id={session.id}
-        indent={showConversationIcon ? 'none' : 'session'}
+        indent={showConversationIcon || sessionIndent === 'gutter' ? 'none' : 'session'}
         layout="grid"
         leading={
           showConversationIcon ? (
             <MessageCircle aria-hidden="true" size={APP_ICON_SIZE} />
           ) : undefined
         }
-        leadingMode={showConversationIcon ? 'icon' : 'spacer'}
+        leadingMode={showConversationIcon ? 'icon' : sessionIndent === 'gutter' ? 'none' : 'spacer'}
         onMouseEnter={() => setHoveredSessionId(session.id)}
         onMouseLeave={() => {
           setHoveredSessionId((current) => (current === session.id ? null : current))
@@ -619,11 +619,18 @@ function SidebarSessionGroupComponent({
       {pagination !== 'all' ? (
         <>
           {hasOverflow ? (
-            <div className="sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-2 tw:grid-cols-[var(--sidebar-row-columns)] tw:rounded-md tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-control tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard">
-              <span
-                aria-hidden="true"
-                className="sidebar-row-leading sidebar-row-leading-spacer tw:flex tw:size-6 tw:w-6 tw:min-w-6 tw:shrink-0 tw:grow-0 tw:basis-6 tw:items-center tw:justify-center"
-              />
+            <div className={cx(
+              'sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-2 tw:rounded-md tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-control tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard',
+              sessionIndent === 'gutter' && !showConversationIcon
+                ? 'tw:grid-cols-[minmax(0,1fr)_auto]'
+                : 'tw:grid-cols-[var(--sidebar-row-columns)]',
+            )}>
+              {sessionIndent !== 'gutter' || showConversationIcon ? (
+                <span
+                  aria-hidden="true"
+                  className="sidebar-row-leading sidebar-row-leading-spacer tw:flex tw:size-6 tw:w-6 tw:min-w-6 tw:shrink-0 tw:grow-0 tw:basis-6 tw:items-center tw:justify-center"
+                />
+              ) : null}
               <div className={cx('sidebar-row-main', 'tw:min-w-0', 'tw:flex', 'tw:items-center', 'tw:gap-4')}>
                 {canShowMore ? (
                   <Button

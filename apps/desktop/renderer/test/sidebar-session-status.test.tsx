@@ -10,6 +10,7 @@ import type { SessionListItem } from '../src/uiTypes.js'
 function renderSessionRows(
   sessions: SessionListItem[],
   pendingPermissionSessionIds: ReadonlySet<string> = new Set(),
+  sessionIndent: 'content' | 'gutter' = 'content',
 ) {
   return renderToStaticMarkup(
     <DesktopSettingsProvider access="read-only">
@@ -17,6 +18,7 @@ function renderSessionRows(
         <SidebarSessionGroup
           activeSessionId={null}
           groupKey="status"
+          sessionIndent={sessionIndent}
           now={0}
           sessions={sessions}
           pendingPermissionSessionIds={pendingPermissionSessionIds}
@@ -35,6 +37,18 @@ function renderSessionRows(
 }
 
 const INDICATOR_CLASS_TOKEN = /(?:^|\s)sidebar-indicator(?=\s|$)/
+
+test('gutter session rows and show-more omit the leading spacer', () => {
+  const project = mockWorkspace('C:\\sidebar-gutter')
+  const base = mockSessionSnapshot('gutter', project, { workspacePath: project.path }).item
+  const sessions = Array.from({ length: 11 }, (_, index) => ({ ...base, id: `gutter-${index}` }))
+  const markup = renderSessionRows(sessions, new Set(), 'gutter')
+  expect(markup).toContain('sidebar-row--no-leading')
+  expect(markup).toContain('展开显示')
+  expect(markup).not.toContain('sidebar-row-leading-spacer')
+  expect(markup).toContain('tw:grid-cols-[minmax(0,1fr)_auto]')
+  expect(renderSessionRows(sessions)).toContain('sidebar-row-leading-spacer')
+})
 
 /** 统计带 `sidebar-indicator` 语义类的行尾状态槽数量（类名顺序无关）。 */
 function countIndicatorSlots(markup: string): number {

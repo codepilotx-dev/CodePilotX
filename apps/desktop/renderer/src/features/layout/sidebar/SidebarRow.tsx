@@ -47,7 +47,7 @@ export const SidebarRow = forwardRef<HTMLElement, Props>(function SidebarRow(
     // Row shell: 30px row, 8px gutter, 10px radius, 2px column gap between the
     // leading slot, the label and the trailing slot.
     'tw:relative tw:grid tw:w-full tw:box-border tw:min-h-[var(--sidebar-row-height)] tw:items-center tw:gap-x-2 tw:rounded-md tw:px-2 tw:text-left tw:text-app-text tw:type-body tw:no-underline tw:select-none tw:cursor-pointer tw:outline-none tw:transition-colors tw:duration-feedback tw:ease-out',
-    leadingMode === 'none' && indent === 'session'
+    leadingMode === 'none'
       ? 'tw:grid-cols-[minmax(0,1fr)_auto]'
       : 'tw:grid-cols-[var(--sidebar-row-columns)]',
     active ? 'tw:bg-app-selected' : 'tw:bg-transparent',
