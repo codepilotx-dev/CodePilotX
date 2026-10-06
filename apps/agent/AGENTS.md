@@ -58,3 +58,11 @@
 - 行为变化时运行：`bun run --cwd apps/agent test`。
 - 入口、编译或 sidecar 产物变化时运行：`bun run build:agent`。
 - RPC、schema、outbox 或 recovery 变化时，必须运行相关回归测试和根目录 `bun run typecheck`。
+
+## 权限实现要求
+
+- 复用 PermissionDecisionEngine、ApprovalService、Reviewer、PermissionGrantStore 和现有注册链，禁止建立平行权限系统或重复命令解析器。
+- inspectInput 的 permissionFacts / authorizationScope 是宿主事实；工具参数中的 `__ruleRequiresApproval` 等字段不能影响权限。能力来自已注册元数据。
+- Hook 输入改写必须回到注册校验与最终判权；never-review 仅免除工具自身审批，不能绕过 Hook、硬拒绝或受保护资源。
+- 路径授权必须按实际目标匹配，通过 WorkspaceService 调用级视图使用；读取授权不能写入，预览不能消费一次性授权，执行时消费并防止并发复用。
+- 多文件补丁在执行前校验全部路径。保留审批 checkpoint、事务 outbox、冻结队列权限和中断恢复语义；不为权限改造新增平行存储。

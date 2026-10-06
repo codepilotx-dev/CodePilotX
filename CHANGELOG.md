@@ -97,6 +97,8 @@
 
 ### Changed
 
+- [agent/desktop] 统一工具权限判定与共享预设，接入调用级临时路径授权；granular 不再强制普通操作审批，完全访问的 never 策略拒绝首次电脑应用授权，保留宿主 Shell、硬拒绝和既有审批恢复。
+
 - [repo] 修复公共代码基线的四项检查：统一 Prettier 格式（当前基线 74 个文件），补齐 12 项过时断言（日历样式改为容忍换行空白、补丁卡对齐 `until-exit` 挂载策略、待回答问题由输入区承载、分叉图标改用 `Split`、订阅事件与设置导航补项、过程摘要对齐中性文案与多活动项汇总）；`@playwright/test` 与 `playwright-core` 统一到 1.59.1，并移除无障碍测试中重复且无导航超时的预热 `beforeAll`；升级 `@xmldom/xmldom` 0.8.15、`brace-expansion` 5.0.11、`fast-uri` 3.1.7、`http-cache-semantics` 4.3.0、`js-yaml` 4.3.2、`sharp` 0.35.4、`smol-toml` 1.7.1、`undici` 8.10.2 与 `electron` 41.10.6；`braces` 经 Stylelint 以固定 glob 引入且上游暂无修复版本，按负责人与到期日登记临时豁免。
 
 - [agent/desktop/protocol] 简化电脑控制授权：开启后从聊天直接使用，完全访问按有效权限直接读取和操作且不保存隐式授权；请求批准和帮我批准首次应用授权均由用户确认，支持对话授权及策略允许时的永久授权。补齐应用审批元数据、独立授权响应与 checkpoint 恢复，保存允许不打断读取，撤销仍停止控制；设置页仅保留任意应用开关、永久允许及已有权限记录管理。
