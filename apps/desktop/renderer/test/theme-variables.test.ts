@@ -90,7 +90,7 @@ describe('fixed Codex UI themes', () => {
     expect(customVariables['--cpx-sys-font-family-sans']).toBe(customFont)
 
     const stylesheet = await Bun.file(
-      new URL('../src/styles/design-system/tokens.scss', import.meta.url),
+      new URL('../src/styles/design-system/tokens.css', import.meta.url),
     ).text()
     const normalizedStylesheet = stylesheet.replace(/\s+/g, ' ')
 
@@ -213,7 +213,7 @@ describe('fixed Codex UI themes', () => {
     expect(dark['--cpx-sys-shadow-raised']).toBe('0 2px 8px rgb(0 0 0 / 40%)')
 
     const stylesheet = await Bun.file(
-      new URL('../src/styles/design-system/tokens.scss', import.meta.url),
+      new URL('../src/styles/design-system/tokens.css', import.meta.url),
     ).text()
     const normalizedStylesheet = stylesheet.replace(/\s+/g, ' ')
 

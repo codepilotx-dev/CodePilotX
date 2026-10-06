@@ -10,7 +10,7 @@ describe('SettingsSection surface', () => {
       </SettingsSection>,
     )
 
-    expect(html).toContain('class="settings-section-content settings-card"')
+    expect(html).toContain('settings-section-content settings-card')
     expect(html).toContain('data-surface="card"')
   })
 
@@ -23,7 +23,7 @@ describe('SettingsSection surface', () => {
       </SettingsSection>,
     )
 
-    expect(html).toContain('class="settings-section-content"')
+    expect(html).toContain('settings-section-content')
     expect(html).toContain('data-surface="plain"')
     expect(html).not.toContain('settings-card')
   })

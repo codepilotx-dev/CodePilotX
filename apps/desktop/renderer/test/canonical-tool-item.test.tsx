@@ -91,8 +91,9 @@ describe('canonical tool item display', () => {
       <AttachmentFilePill detail="text/plain · 42 B" name="notes.txt" onOpen={() => undefined} />,
     )
 
-    expect(markup).toContain(
-      '<button aria-label="打开 notes.txt" class="attachment-file-pill__open" type="button">',
+    // 外观已迁到 Tailwind utility，这里只钉住锚点类与非 Button 语义。
+    expect(markup).toMatch(
+      /<button aria-label="打开 notes.txt" class="attachment-file-pill__open[^"]*" type="button">/,
     )
     expect(markup).not.toMatch(/class="[^"]*attachment-file-pill__open[^"]*ui-button/)
   })

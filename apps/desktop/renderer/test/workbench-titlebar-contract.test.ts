@@ -12,9 +12,15 @@ function readRendererFile(path: string): string {
 describe('workbench chrome contract', () => {
   test('keeps the renderer title bar at a deterministic logical height', () => {
     const shell = readRendererFile('src/features/layout/shell/WorkbenchShellView.tsx')
-    const tokens = readRendererFile('src/styles/design-system/tokens.scss')
+    const menuBar = readRendererFile('src/features/layout/MenuBar.tsx')
+    const tokens = readRendererFile('src/styles/design-system/tokens.css')
+    const tailwind = readRendererFile('src/styles/tailwind.css')
 
-    expectSourceContains(shell, 'className="desktop-menubar tw:shrink-0"')
+    // 36px 菜单栏高度来自 --chrome-h，经 tw:h-chrome 作用到菜单栏与其标题栏。
+    expectSourceContains(tokens, '--chrome-h: 36px')
+    expectSourceContains(tailwind, '--height-chrome: var(--chrome-h)')
+    expectSourceContains(shell, 'desktop-menubar tw:h-chrome tw:shrink-0 tw:bg-app-titlebar')
+    expectSourceContains(menuBar, 'menubar-titlebar tw:flex tw:h-chrome')
     expectSourceNotContains(shell, 'updateTitleBarOverlay')
     expectSourceNotContains(shell, 'getBoundingClientRect().height')
     expectSourceContains(tokens, '--application-menubar-height: 36px')
@@ -22,20 +28,29 @@ describe('workbench chrome contract', () => {
   })
 
   test('keeps application chrome separate from the workspace toolbar', () => {
-    const chrome = readRendererFile('src/styles/features/layout-chrome.scss')
-    const workspaceHeader = readRendererFile('src/styles/features/_layout-workspace-header.scss')
+    const menuBar = readRendererFile('src/features/layout/MenuBar.tsx')
+    const auxiliaryTitlebar = readRendererFile(
+      'src/features/layout/auxiliary/AuxiliaryTitlebar.tsx',
+    )
+    const workspaceHeader = readRendererFile(
+      'src/features/layout/workspace-header/DesktopWorkspaceHeader.tsx',
+    )
+    const tailwind = readRendererFile('src/styles/tailwind.css')
     const layout = readRendererFile('src/features/layout/shell/DesktopLayout.tsx')
 
-    expectSourceContains(chrome, '--desktop-titlebar-height: var(--application-menubar-height)')
-    expectSourceContains(chrome, '--cpx-sys-color-workbench-titlebar-bg')
-    expectSourceContains(workspaceHeader, 'height: var(--workspace-header-height)')
-    expectSourceContains(workspaceHeader, 'position: absolute')
-    expectSourceContains(workspaceHeader, 'background: transparent')
+    // 标题栏底色只由 titlebar surface 提供；工作区工具栏继续使用 workspace 高度变量。
     expectSourceContains(
-      workspaceHeader,
-      'border-bottom: 1px solid var(--cpx-sys-color-border-subtle)',
+      tailwind,
+      '--color-app-titlebar: var(--cpx-sys-color-workbench-titlebar-bg);',
     )
-    expectSourceNotContains(workspaceHeader, '--cpx-sys-color-workbench-titlebar-bg')
+    expectSourceContains(tailwind, '--height-toolbar: var(--workspace-toolbar-height);')
+    expectSourceContains(menuBar, 'menubar-titlebar tw:flex tw:h-chrome')
+    expectSourceContains(auxiliaryTitlebar, 'auxiliary-titlebar tw:flex tw:h-chrome')
+    expectSourceContains(workspaceHeader, 'tw:h-[var(--workspace-header-height)]')
+    expectSourceContains(workspaceHeader, 'tw:absolute')
+    expectSourceContains(workspaceHeader, 'tw:before:bg-transparent')
+    expectSourceContains(workspaceHeader, 'tw:data-[divider]:before:border-app-border-subtle')
+    expectSourceNotContains(workspaceHeader, 'workbench-titlebar-bg')
     expectSourceContains(layout, '<DesktopWorkspaceHeader')
     expectSourceContains(layout, 'desktop-main-route__header-spacer')
   })

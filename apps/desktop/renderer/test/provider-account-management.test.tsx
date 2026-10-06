@@ -59,8 +59,8 @@ describe('model center account management', () => {
     expect(html).toContain('2 个')
     expect(html).toContain('>查看<')
     expect(html).toContain('>连接<')
-    expect(html).toContain(
-      '<span class="provider-card-logo settings-management-row-icon"><span class="ui-remote-image"',
+    expect(html).toMatch(
+      /<span class="provider-card-logo settings-management-row-icon"><span class="ui-remote-image\b/,
     )
     expect(html).not.toContain('class="ui-remote-image provider-card-logo"')
     expect(html.match(/class="provider-card-logo settings-management-row-icon"/g)).toHaveLength(2)
@@ -74,11 +74,12 @@ describe('model center account management', () => {
       ),
     ).text()
 
-    expect(source).toMatch(/<div\s+className="provider-editor-model-card-header"\s*>/)
+    // 外观已迁到 Tailwind utility，断言只锁定“标题按钮独立于头部”这一结构契约。
+    expect(source).toMatch(/<div\s+className="provider-editor-model-card-header[^"]*"\s*>/)
     expect(source).toMatch(
-      /<button\s+aria-controls=\{contentId\}\s+aria-expanded=\{expanded\}\s+className="provider-editor-model-card-summary"/,
+      /<button\s+aria-controls=\{contentId\}\s+aria-expanded=\{expanded\}\s+className=\{?["']?provider-editor-model-card-summary/,
     )
-    expect(source).toMatch(/<\/button>\s+<div className="provider-editor-model-card-controls">/)
+    expect(source).toMatch(/<\/button>\s+<div className="provider-editor-model-card-controls[^"]*">/)
     expect(source).not.toContain('onClick={event => event.stopPropagation()}')
     expect(source).toContain('mountPolicy="always"')
     expect(source).toContain('const [expanded, setExpanded] = useState(defaultExpanded)')

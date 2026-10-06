@@ -97,11 +97,13 @@ describe('workbench dynamic tab state', () => {
       }),
     )
 
-    expect(markup).toContain(
-      '<button class="right-panel-tabs-empty-state__item" disabled="" title="当前不可用" type="button">',
+    // The launcher hook class stays the query anchor; appearance is utilities.
+    expect(markup).toMatch(
+      /<button class="right-panel-tabs-empty-state__item [^"]*" disabled="" title="当前不可用" type="button">/,
     )
-    expect(markup).toContain('<strong>代码审查</strong>')
-    expect(markup).toContain('<kbd>Ctrl+R</kbd>')
+    expect(markup).toContain('<strong')
+    expect(markup).toContain('代码审查</strong>')
+    expect(markup).toContain('Ctrl+R</kbd>')
     expect(markup).not.toContain('ui-button')
   })
 
@@ -359,7 +361,7 @@ describe('workbench dynamic tab state', () => {
     )
     const terminalTab = markup.indexOf('data-panel-tab="terminal"')
     const addButton = markup.indexOf('aria-label="添加标签"')
-    const spacer = markup.indexOf('class="right-dock-tab-empty"')
+    const spacer = markup.indexOf('right-dock-tab-empty')
     const closePanel = markup.indexOf('title="关闭底部面板"')
 
     expect(markup).toContain('title="C:\\repo"')

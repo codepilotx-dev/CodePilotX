@@ -34,6 +34,15 @@ function renderSessionRows(
   )
 }
 
+const INDICATOR_CLASS_TOKEN = /(?:^|\s)sidebar-indicator(?=\s|$)/
+
+/** 统计带 `sidebar-indicator` 语义类的行尾状态槽数量（类名顺序无关）。 */
+function countIndicatorSlots(markup: string): number {
+  return [...markup.matchAll(/<span[^>]*class="([^"]*)"/g)].filter((match) =>
+    INDICATOR_CLASS_TOKEN.test(match[1] ?? ''),
+  ).length
+}
+
 test('sidebar approval replaces the spinner until the session resumes running', () => {
   const project = mockWorkspace('C:\\sidebar-status')
   const base = mockSessionSnapshot('status', project, { workspacePath: project.path }).item
@@ -49,7 +58,7 @@ test('sidebar approval replaces the spinner until the session resumes running', 
   for (const approval of [render('waiting'), render('running', true)]) {
     expect(approval).toContain('sidebar-session-approval')
     expect(approval).not.toContain('sidebar-session-spinner')
-    expect(approval).not.toContain('class="sidebar-indicator"')
+    expect(countIndicatorSlots(approval)).toBe(0)
   }
   const running = render('running')
   expect(running).toContain('sidebar-session-spinner')
@@ -84,7 +93,7 @@ test('canonical completion clears a stale running indicator', () => {
   })
   const markup = renderSessionRows([corrected])
   expect(markup).not.toContain('sidebar-session-spinner')
-  expect(markup).not.toContain('class="sidebar-indicator"')
+  expect(countIndicatorSlots(markup)).toBe(0)
 })
 
 test('sidebar renders only occupied status icon slots in their existing order', () => {
@@ -107,8 +116,10 @@ test('sidebar renders only occupied status icon slots in their existing order', 
           ...(isFork ? ['分叉会话'] : []),
           ...(state === 'unread' ? ['未读'] : state === 'running' ? ['加载中'] : []),
         ]
-        expect(markup.match(/class="sidebar-indicator"/g)?.length ?? 0).toBe(labels.length)
-        expect(markup).not.toContain('<span class="sidebar-indicator"></span>')
+        expect(countIndicatorSlots(markup)).toBe(labels.length)
+        expect(markup).not.toMatch(
+          /<span[^>]*class="[^"]*sidebar-indicator[^"]*"[^>]*><\/span>/,
+        )
         const positions = labels.map((label) => markup.indexOf(`aria-label="${label}"`))
         expect(positions.every((position) => position >= 0)).toBe(true)
         expect(positions).toEqual([...positions].sort((a, b) => a - b))

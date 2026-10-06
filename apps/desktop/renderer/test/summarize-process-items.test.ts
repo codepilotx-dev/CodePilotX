@@ -103,9 +103,11 @@ describe('summarizeTurnProcessItems', () => {
       active: false,
       failed: false,
       kind: 'integration',
-      label:
-        '使用了 drive、加载了工具、调用了工具、编辑了文件、读取了文件、运行了命令、搜索了网页、调用了工具',
+      label: '使用 drive、加载工具、调用工具、编辑文件、读取文件、运行命令、搜索网页、调用工具',
     })
+    expect(result.summaryKey).toBe(
+      'completed:ok:integration:drive|loaded-tool|tool|file-change|exploration|command|web-search|dynamic-tool',
+    )
   })
 
   test('uses the file label and a safe fallback', () => {
@@ -123,7 +125,7 @@ describe('summarizeTurnProcessItems', () => {
       ),
     ).toMatchObject({
       kind: 'file-change',
-      label: '编辑了文件',
+      label: '编辑文件',
     })
 
     const text = {
@@ -133,11 +135,11 @@ describe('summarizeTurnProcessItems', () => {
     } as unknown as Item
     expect(summarizeTurnProcessItems([text], 'completed')).toMatchObject({
       kind: 'tool',
-      label: '已处理',
+      label: '处理过程',
     })
   })
 
-  test('uses the latest active item for a running summary', () => {
+  test('aggregates every activity item for a running summary', () => {
     const result = summarizeTurnProcessItems(
       [
         toolItem({ state: 'running' }, 'command-1'),
@@ -158,7 +160,7 @@ describe('summarizeTurnProcessItems', () => {
       active: true,
       failed: false,
       kind: 'exploration',
-      label: '正在读取 src/foo.ts',
+      label: '读取文件、运行命令',
     })
     expect(result.summaryKey).toContain('read-1')
 
@@ -186,7 +188,7 @@ describe('summarizeTurnProcessItems', () => {
       ),
     ).toMatchObject({
       kind: 'exploration',
-      label: '正在搜索“needle”',
+      label: '读取文件',
     })
 
     const completedReasoning = {
@@ -195,10 +197,11 @@ describe('summarizeTurnProcessItems', () => {
       text: '分析下一步',
       status: 'completed',
     } as unknown as Item
+    // 纯思考不产生聚合标签，思考态由时间线的 thinking fallback 承载。
     expect(summarizeTurnProcessItems([completedReasoning], 'running')).toMatchObject({
       active: true,
-      kind: 'thinking',
-      label: '正在思考',
+      kind: 'tool',
+      label: '处理过程',
     })
   })
 
@@ -215,7 +218,7 @@ describe('summarizeTurnProcessItems', () => {
       active: false,
       failed: true,
       kind: 'command',
-      label: '运行了命令',
+      label: '运行命令',
     })
   })
 
@@ -238,7 +241,7 @@ describe('summarizeTurnProcessItems', () => {
     ).toMatchObject({
       failed: true,
       kind: 'file-change',
-      label: '停止创建了文件',
+      label: '停止创建文件',
     })
   })
 })

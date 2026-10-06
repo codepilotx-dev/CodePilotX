@@ -3,7 +3,7 @@ import { strict as assert } from 'node:assert'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium, expect } from '@playwright/test'
-import { compile } from 'sass'
+import { compileEntryStyles } from './helpers/renderer-styles.js'
 
 const rendererRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const source = (path: string) =>
@@ -116,7 +116,7 @@ if (process.versions.bun) {
 }
 let script = ''
 for await (const chunk of process.stdin) script += chunk.toString('utf8')
-const css = compile(resolve(rendererRoot, 'src/styles/index.scss')).css
+const css = await compileEntryStyles()
 const browser = await chromium.launch({ channel: 'chrome', headless: true })
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } })

@@ -10,14 +10,14 @@ import { expectSourceContains, normalizeSource } from './source-contract.js'
  * files with node:fs; there are no snapshots and no quantity baselines.
  *
  * Frozen semantics (do not weaken to make tests green):
- * - tokens.scss defines semantic type roles, a corrected 4px spacing scale,
+ * - tokens.css defines semantic type roles, a corrected 4px spacing scale,
  *   semantic radius/motion/z-index roles, and no root --control-/--layout-/
  *   --app-icon-/--menu- geometry tokens.
  * - check-style-contracts.ts + style-contracts.json grow a featureTokenContract
  *   that governs non-color tokens across styles, TSX, inline styles, Tailwind
  *   arbitrary values and component geometry, with precise reasons and stale
  *   detection.
- * - base.scss reduced-motion zeroes every system motion token.
+ * - base.css reduced-motion zeroes every system motion token.
  */
 
 function read(relative: string): Promise<string> {
@@ -54,8 +54,8 @@ function blockContent(source: string, openPattern: RegExp): string | undefined {
 }
 
 describe('non-color design token contracts', () => {
-  test('tokens.scss defines the semantic type role tokens', async () => {
-    const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+  test('tokens.css defines the semantic type role tokens', async () => {
+    const tokens = extractTokens(await read('../src/styles/design-system/tokens.css'))
     const roles = [
       'display',
       'caption',
@@ -77,12 +77,12 @@ describe('non-color design token contracts', () => {
     const missing = missingFrom(tokens, roles)
     expect(
       missing,
-      `tokens.scss must define every type role as a --cpx-sys-type-* token; missing: ${missing.join(', ') || 'none'}`,
+      `tokens.css must define every type role as a --cpx-sys-type-* token; missing: ${missing.join(', ') || 'none'}`,
     ).toEqual([])
   })
 
-  test('tokens.scss locks the Codex typography sizes, weights, and role-specific line heights', async () => {
-    const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+  test('tokens.css locks the Codex typography sizes, weights, and role-specific line heights', async () => {
+    const tokens = extractTokens(await read('../src/styles/design-system/tokens.css'))
     expect(normalizeSource(tokens.get('--cpx-sys-font-family-sans'))).toBe(
       normalizeSource(
         '"Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
@@ -199,28 +199,35 @@ describe('non-color design token contracts', () => {
   })
 
   test('base, utilities, and Tailwind consume the shared typography roles', async () => {
-    const [base, utilities, tailwind] = await Promise.all([
-      read('../src/styles/base.scss'),
-      read('../src/styles/design-system/utilities.scss'),
+    const [base, tailwind] = await Promise.all([
+      read('../src/styles/base.css'),
       read('../src/styles/tailwind.css'),
     ])
 
     expect(base).toMatch(/body\s*\{[\s\S]*?font:\s*var\(--cpx-sys-type-body\);/)
-    for (const role of [
-      'display',
-      'label',
-      'body-sm',
-      'body-lg',
-      'reading',
-      'row-title',
-      'control',
-      'metric',
-      'code',
-      'title-xl',
-    ]) {
-      expectSourceContains(utilities, `'type-${role}'`)
+    // 迁移后 `u-type-*` 工具类由 `tailwind.css` 的 `@utility type-*` 承担，
+    // 每个角色继续消费同名的系统排版 shorthand。
+    const roleTokens: Record<string, string> = {
+      display: 'display',
+      label: 'label',
+      'body-sm': 'body-sm',
+      'body-lg': 'body-lg',
+      reading: 'reading',
+      'row-title': 'row-title',
+      control: 'control',
+      metric: 'metric',
+      code: 'code',
+      'title-xl': 'heading-xl',
     }
-    expectSourceContains(utilities, "'font-body': (font-weight: var(--cpx-sys-font-weight-body))")
+    for (const [role, token] of Object.entries(roleTokens)) {
+      expect(tailwind).toMatch(
+        new RegExp(`@utility type-${role} \\{\\s*font: var\\(--cpx-sys-type-${token}\\);`),
+      )
+    }
+    // 单独字重角色：`font-body` 映射为 `type-weight-body`。
+    expect(tailwind).toMatch(
+      /@utility type-weight-body \{\s*font-weight: var\(--cpx-sys-font-weight-body\);/,
+    )
 
     const mappings = {
       xs: 'xs',
@@ -238,36 +245,36 @@ describe('non-color design token contracts', () => {
   })
 
   test('representative components keep page, section, row, reading, control, metric, and meta responsibilities distinct', async () => {
-    const [settings, session, markdown, button, billing, conversation] = await Promise.all([
-      read('../src/styles/features/_settings-core.scss'),
-      read('../src/styles/features/_session-page.scss'),
-      read('../src/styles/markdown.scss'),
-      read('../src/styles/components/button.scss'),
-      read('../src/styles/features/_settings-billing.scss'),
-      read('../src/styles/features/_canonical-conversation.scss'),
-    ])
+    const [settings, session, markdown, button, settingsSection, generalSettings, conversation] =
+      await Promise.all([
+        read('../src/styles/primitives/settings.css'),
+        read('../src/features/session/QuickChatView.tsx'),
+        read('../src/styles/markdown.css'),
+        read('../src/components/ui/Button.tsx'),
+        read('../src/features/settings/SettingsSection.tsx'),
+        read('../src/features/settings/GeneralSettings.tsx'),
+        read('../src/styles/primitives/conversation.css'),
+      ])
 
-    expect(settings).toMatch(
-      /\.settings-page-title\s*\{[^}]*font:\s*var\(--cpx-sys-type-heading-xl\);/s,
-    )
-    expect(settings).toMatch(
-      /\.settings-section-title\s*\{[^}]*font:\s*var\(--cpx-sys-type-heading-sm\);/s,
-    )
+    // 页面/区块标题的排版角色随迁移落到 TSX：语义类名旁挂 `type-*` utility。
+    expect(generalSettings).toMatch(/className="settings-page-title [^"]*tw:type-title-xl/)
+    expect(settingsSection).toMatch(/className="settings-section-title [^"]*tw:type-title-sm/)
     expect(settings).toMatch(
       /\.settings-management-row-title\s*\{[^}]*font:\s*var\(--cpx-sys-type-row-title\);/s,
     )
-    expect(session).toMatch(/\.quick-chat-hero\s*\{[^}]*font:\s*var\(--cpx-sys-type-display\);/s)
+    expect(session).toContain('tw:type-display')
     expect(markdown).toMatch(/\.md-body\s*\{[^}]*font:\s*var\(--cpx-sys-type-reading\);/s)
     expect(markdown).toMatch(/h2\s*\{[^}]*font:\s*var\(--cpx-sys-type-heading-lg\);/s)
-    expect(button).toMatch(/\.ui-button\s*\{[^}]*font:\s*var\(--cpx-sys-type-control\);/s)
-    expect(billing).toMatch(
+    expect(button).toContain('tw:type-control')
+    // 用量指标卡仍在共享设置样式里，metric 角色 + tabular-nums 不变。
+    expect(settings).toMatch(
       /\.usage-metric-card strong\s*\{[^}]*font:\s*var\(--cpx-sys-type-metric\);[^}]*font-variant-numeric:\s*tabular-nums;/s,
     )
     expect(conversation).toMatch(/font:\s*var\(--cpx-sys-type-caption\);/)
   })
 
-  test('tokens.scss defines the corrected 4px spacing scale 1..8 = 4/8/12/16/20/24/28/32px', async () => {
-    const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+  test('tokens.css defines the corrected 4px spacing scale 1..8 = 4/8/12/16/20/24/28/32px', async () => {
+    const tokens = extractTokens(await read('../src/styles/design-system/tokens.css'))
     const expected: Record<string, string> = {
       '--cpx-sys-space-1': '4px',
       '--cpx-sys-space-2': '8px',
@@ -287,12 +294,12 @@ describe('non-color design token contracts', () => {
 
     expect(
       details,
-      `tokens.scss space scale must be 4/8/12/16/20/24/28/32px: ${details || 'ok'}`,
+      `tokens.css space scale must be 4/8/12/16/20/24/28/32px: ${details || 'ok'}`,
     ).toBe('')
   })
 
-  test('tokens.scss defines semantic radius roles', async () => {
-    const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+  test('tokens.css defines semantic radius roles', async () => {
+    const tokens = extractTokens(await read('../src/styles/design-system/tokens.css'))
     const roles = ['indicator', 'compact', 'control', 'container', 'floating', 'pill'].map(
       (role) => `--cpx-sys-radius-${role}`,
     )
@@ -300,12 +307,12 @@ describe('non-color design token contracts', () => {
     const missing = missingFrom(tokens, roles)
     expect(
       missing,
-      `tokens.scss must define every radius role as a --cpx-sys-radius-* token; missing: ${missing.join(', ') || 'none'}`,
+      `tokens.css must define every radius role as a --cpx-sys-radius-* token; missing: ${missing.join(', ') || 'none'}`,
     ).toEqual([])
   })
 
-  test('tokens.scss defines semantic motion roles', async () => {
-    const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+  test('tokens.css defines semantic motion roles', async () => {
+    const tokens = extractTokens(await read('../src/styles/design-system/tokens.css'))
     const roles = ['instant', 'feedback', 'exit', 'state', 'enter', 'panel', 'loading'].map(
       (role) => `--cpx-sys-motion-${role}`,
     )
@@ -313,12 +320,12 @@ describe('non-color design token contracts', () => {
     const missing = missingFrom(tokens, roles)
     expect(
       missing,
-      `tokens.scss must define every motion role as a --cpx-sys-motion-* token; missing: ${missing.join(', ') || 'none'}`,
+      `tokens.css must define every motion role as a --cpx-sys-motion-* token; missing: ${missing.join(', ') || 'none'}`,
     ).toEqual([])
   })
 
-  test('tokens.scss defines semantic z-index roles', async () => {
-    const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+  test('tokens.css defines semantic z-index roles', async () => {
+    const tokens = extractTokens(await read('../src/styles/design-system/tokens.css'))
     const roles = [
       'local',
       'sticky',
@@ -333,19 +340,19 @@ describe('non-color design token contracts', () => {
     const missing = missingFrom(tokens, roles)
     expect(
       missing,
-      `tokens.scss must define every z-index role as a --cpx-sys-z-* token; missing: ${missing.join(', ') || 'none'}`,
+      `tokens.css must define every z-index role as a --cpx-sys-z-* token; missing: ${missing.join(', ') || 'none'}`,
     ).toEqual([])
   })
 
-  test('tokens.scss no longer defines root geometry tokens --control-/--layout-/--app-icon-/--menu-', async () => {
-    const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+  test('tokens.css no longer defines root geometry tokens --control-/--layout-/--app-icon-/--menu-', async () => {
+    const tokens = extractTokens(await read('../src/styles/design-system/tokens.css'))
     const banned = [...tokens.keys()].filter((name) =>
       /^--(?:control|layout|app-icon|menu)-/.test(name),
     )
 
     expect(
       banned,
-      `tokens.scss must not define root geometry tokens: ${banned.join(', ') || 'none'}`,
+      `tokens.css must not define root geometry tokens: ${banned.join(', ') || 'none'}`,
     ).toEqual([])
   })
 
@@ -487,13 +494,13 @@ describe('non-color design token contracts', () => {
     }
   })
 
-  test('base.scss reduced-motion zeroes every system motion token', async () => {
-    const base = await read('../src/styles/base.scss')
+  test('base.css reduced-motion zeroes every system motion token', async () => {
+    const base = await read('../src/styles/base.css')
     const reduceMotion = blockContent(base, /\[data-reduce-motion=['"]on['"]\]\s*\{/)
 
     expect(
       reduceMotion,
-      'base.scss must contain a :root[data-reduce-motion="on"] block that resets motion tokens',
+      'base.css must contain a :root[data-reduce-motion="on"] block that resets motion tokens',
     ).toBeDefined()
 
     const motionTokens = [
@@ -524,16 +531,16 @@ describe('non-color design token contracts', () => {
       ).toBe(true)
     }
 
-    // base.scss must never reintroduce non-zero motion tokens (e.g. 1ms).
+    // base.css must never reintroduce non-zero motion tokens (e.g. 1ms).
     const nonZero = [...declarations.entries()].filter(([, value]) => !/^0(?:ms)?$/.test(value))
     expect(
       nonZero,
-      `base.scss must not set non-zero motion tokens; offending: ${nonZero.map(([name, value]) => `${name}: ${value}`).join(', ') || 'none'}`,
+      `base.css must not set non-zero motion tokens; offending: ${nonZero.map(([name, value]) => `${name}: ${value}`).join(', ') || 'none'}`,
     ).toEqual([])
   })
 
-  test('tokens.scss pins the shared page widths and the conversation width', async () => {
-    const tokens = extractTokens(await read('../src/styles/design-system/tokens.scss'))
+  test('tokens.css pins the shared page widths and the conversation width', async () => {
+    const tokens = extractTokens(await read('../src/styles/design-system/tokens.css'))
     expect(tokens.get('--cpx-sys-layout-content-max-width')).toBe('1009px')
     expect(tokens.get('--cpx-sys-layout-wide-max-width')).toBe('1250px')
     // 会话正文上限是摘要三段判定的基准，必须与 threadSummaryState 的 736 一致。
@@ -546,8 +553,8 @@ describe('non-color design token contracts', () => {
     const conversationPage = await read(
       '../src/features/session/conversation/ConversationPage.tsx',
     )
-    const workbench = await read('../src/styles/features/_layout-workbench.scss')
-    const canonical = await read('../src/styles/features/_canonical-conversation.scss')
+    const workbench = await read('../src/styles/features/layout-workbench.css')
+    const canonical = await read('../src/styles/primitives/conversation.css')
 
     expect(desktopLayout).not.toContain('data-page-width')
     expect(conversationPage).not.toContain('data-conversation-width')
@@ -562,8 +569,8 @@ describe('non-color design token contracts', () => {
   })
 
   test('canonical conversation lets the final agent response fill the page width', async () => {
-    const conversation = await read('../src/styles/features/_canonical-conversation.scss')
-    const markdown = await read('../src/styles/markdown.scss')
+    const conversation = await read('../src/styles/primitives/conversation.css')
+    const markdown = await read('../src/styles/markdown.css')
     expect(conversation).toMatch(
       /\.canonical-turn\s*\{[\s\S]*?max-width:\s*var\(--page-content-max-width\)/,
     )
@@ -597,8 +604,8 @@ describe('non-color design token contracts', () => {
   })
 
   test('canonical conversation narrative content inherits one reading rhythm', async () => {
-    const conversation = await read('../src/styles/features/_canonical-conversation.scss')
-    const markdown = await read('../src/styles/markdown.scss')
+    const conversation = await read('../src/styles/primitives/conversation.css')
+    const markdown = await read('../src/styles/markdown.css')
     expect(conversation).toMatch(
       /\.canonical-turn\s*\{[\s\S]*?font:\s*var\(--cpx-sys-type-reading\);/,
     )
@@ -615,8 +622,10 @@ describe('non-color design token contracts', () => {
     ]) {
       expect(conversation).toMatch(new RegExp(`${selector}\\s*\\{[\\s\\S]*?font:\\s*inherit;`))
     }
+    // SCSS 的 `&--process` 嵌套在原生 CSS 里展开为显式子选择器：
+    // process 文本项的 md-body 继续 `font: inherit`。
     expect(conversation).toMatch(
-      /\.canonical-text-item\s*\{[\s\S]*?&--process\s*\{[\s\S]*?font:\s*inherit;/,
+      /\.canonical-text-item--process > \.md-body\s*\{\s*font:\s*inherit;/,
     )
     expect(conversation).toMatch(
       /\.canonical-user-message__bubble \.md-body,\s*\.canonical-text-item--process > \.md-body,\s*\.canonical-text-item--result > \.md-body/,
@@ -636,7 +645,7 @@ describe('non-color design token contracts', () => {
   })
 
   test('Markdown code fallbacks use the shared code line-height token without a local floor', async () => {
-    const markdown = await read('../src/styles/markdown.scss')
+    const markdown = await read('../src/styles/markdown.css')
     expect(markdown).not.toMatch(/line-height:\s*max\(20px,\s*var\(--cpx-sys-line-height-code\)\)/)
     expect(markdown).toMatch(
       /\.md-code-placeholder,[\s\S]*?\.md-math-fallback\s*\{[\s\S]*?line-height:\s*var\(--cpx-sys-line-height-code\)/,
@@ -644,14 +653,17 @@ describe('non-color design token contracts', () => {
   })
 
   test('settings page content defaults to content max width', async () => {
-    const settings = await read('../src/styles/features/_settings-core.scss')
-    expect(settings).toMatch(
-      /max-width:\s*calc\(var\(--page-content-max-width\) \+ var\(--cpx-sys-space-5\) \* 2\)/,
+    const settingsPage = await read('../src/features/settings/GeneralSettings.tsx')
+    // 设置页内容宽度改由 TSX utility 承担：内容上限 + 两侧 space-5 内边距
+    // （原 `_settings-core.scss` 的 max-width 公式）。
+    expectSourceContains(
+      settingsPage,
+      'tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]',
     )
   })
 
   test('review diff uses shared code line-height token instead of local formula', async () => {
-    const review = await read('../src/styles/features/review.scss')
+    const review = await read('../src/styles/primitives/review.css')
     expect(review).not.toMatch(/--review-diffs-line-height:\s*max\(/)
     expect(review).toMatch(/line-height:\s*var\(--cpx-sys-line-height-code\)/)
   })

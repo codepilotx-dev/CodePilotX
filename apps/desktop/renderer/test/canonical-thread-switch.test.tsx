@@ -513,7 +513,9 @@ describe('canonical thread switch', () => {
     expect(markup).not.toContain('折叠后不可见的处理说明')
     expect(markup).toContain('data-mount-policy="until-exit"')
     expect(markup).toContain('aria-hidden="true"')
-    expect(markup).toContain('请选择发布方式')
+    // 折叠活动外仍展示询问与等待状态；问题正文由输入区域承载，时间线不再回显。
+    expect(markup).toContain('canonical-turn__blockers')
+    expect(markup).toContain('正在询问问题')
     expect(markup).toContain('等待你的回答')
     expect(markup).toContain('折叠外的最终回复')
   })

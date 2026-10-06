@@ -330,6 +330,7 @@ describe('Codex 侧栏导航', () => {
       'providers',
       'plugins',
       'browser',
+      'computer',
     ])
     const providers = SETTINGS_ITEMS.find((item) => item.routeId === 'providers')
     expect(providers?.rows.map((row) => row.title)).toEqual([
@@ -509,18 +510,21 @@ describe('sidebar shell modes', () => {
     expectSourceContains(rightDockSource, 'RIGHT_DOCK_KEYBOARD_STEP = 10')
   })
 
-  test('图标栏宽度只在 SCSS 与 SIDEBAR_RAIL_WIDTH 各出现一次且保持一致', () => {
-    const sidebarStyles = readFileSync(
-      new URL('../src/styles/features/layout-sidebar.scss', import.meta.url),
+  test('图标栏宽度只由 SIDEBAR_RAIL_WIDTH 提供并由 rail slot 消费', () => {
+    const frameSource = readFileSync(
+      new URL('../src/features/layout/SidebarFrame.tsx', import.meta.url),
       'utf8',
     )
-    const railSlot =
-      sidebarStyles.match(
-        /\.desktop-sidebar-rail-slot\[data-sidebar-layout=['"]modern['"]\]\s*\{([\s\S]*?)\n\}/,
-      )?.[1] ?? ''
 
-    // SCSS 无法读取 TS 常量，这里钉住两侧不漂移；命中宽度由 SIDEBAR_RAIL_WIDTH 提供。
-    expectSourceContains(railSlot, `width: ${SIDEBAR_RAIL_WIDTH}px;`)
+    // 迁移后宽度不再是 SCSS 字面量：TS 常量写入 `--sidebar-rail-width`，
+    // rail slot 与侧栏面板都只通过该变量取得宽度，避免两侧漂移。
+    expectSourceContains(frameSource, 'const railWidth = SIDEBAR_RAIL_WIDTH')
+    expectSourceContains(frameSource, "'--sidebar-rail-width': `${railWidth}px`")
+    expectSourceContains(frameSource, 'tw:w-[var(--sidebar-rail-width)]')
+    expectSourceContains(
+      frameSource,
+      'tw:w-[calc(var(--sidebar-current-width)-var(--sidebar-rail-width))]',
+    )
   })
 
 

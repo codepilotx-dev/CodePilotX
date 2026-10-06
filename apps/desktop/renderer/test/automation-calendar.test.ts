@@ -171,25 +171,31 @@ describe('automation calendar compact month & residing agenda', () => {
     expect(todayIndex).toBeGreaterThan(prevIndex)
     expect(nextIndex).toBeGreaterThan(todayIndex)
 
-    // Navigation buttons are compact uniform height
-    const prevSnippet = html.slice(prevIndex, prevIndex + 200)
+    // Navigation buttons are compact uniform height. Slice to the end of the
+    // opening tag: the utility class list is long, so a fixed window would
+    // depend on how many classes a button happens to carry.
+    const openTagAt = (index: number) => html.slice(index, html.indexOf('>', index) + 1)
+    const prevSnippet = openTagAt(prevIndex)
     expect(prevSnippet).toContain('data-size="compact"')
     expect(prevSnippet).toContain('data-uniform="true"')
-    const nextSnippet = html.slice(nextIndex, nextIndex + 200)
+    const nextSnippet = openTagAt(nextIndex)
     expect(nextSnippet).toContain('data-size="compact"')
     expect(nextSnippet).toContain('data-uniform="true"')
 
     // Toolbar and title-group use flex-end baseline alignment
-    const calendarStyles = readFileSync(
-      new URL('../src/styles/features/automation-calendar.scss', import.meta.url),
+    // （原 `automation-calendar.scss` 规则已迁到组件 utility）。
+    const calendarSource = readFileSync(
+      new URL('../src/features/automation/AutomationCalendar.tsx', import.meta.url),
       'utf8',
     )
-    expect(calendarStyles).toContain(
-      '.automation-calendar__toolbar {\n  display: flex;\n  align-items: flex-end;',
-    )
-    expect(calendarStyles).toContain(
-      '.automation-calendar__title-group {\n  display: flex;\n  align-items: flex-end;',
-    )
+    const classAttrOf = (classAnchor: string) =>
+      calendarSource.match(new RegExp(`className="${classAnchor}([^"]*)"`))?.[1] ?? ''
+    const toolbarClass = classAttrOf('automation-calendar__toolbar')
+    expect(toolbarClass).toContain('tw:flex')
+    expect(toolbarClass).toContain('tw:items-end')
+    const titleGroupClass = classAttrOf('automation-calendar__title-group')
+    expect(titleGroupClass).toContain('tw:flex')
+    expect(titleGroupClass).toContain('tw:items-end')
   })
 })
 
