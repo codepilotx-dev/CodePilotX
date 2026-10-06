@@ -356,7 +356,7 @@ function SidebarBodyContent({
   function toggleSelection(key: string, modifier: 'toggle' | 'range' | 'replace'): void {
     if (modifier === 'replace') {
       selectionAnchorRef.current = key
-      setSelectedKeys([key])
+      setSelectedKeys([])
       return
     }
     if (modifier === 'range' && selectionAnchorRef.current) {
@@ -428,6 +428,12 @@ function SidebarBodyContent({
     if (!key) return
     toggleSelection(key, event.shiftKey ? 'range' : event.ctrlKey || event.metaKey ? 'toggle' : 'replace')
   }
+
+  useEffect(() => {
+    if (activeSessionId) return
+    setSelectedKeys([])
+    selectionAnchorRef.current = null
+  }, [activeSessionId])
 
   useEffect(() => {
     if (!draggingProjectKey) return
@@ -840,7 +846,8 @@ function SidebarBodyContent({
                           <IconButton
                             color="ghostSecondary"
                             onClick={onChooseWorkspace}
-                            size="toolbar"
+                            iconSize="md"
+                            size="compact"
                             title="添加项目"
                           >
                             <Plus size={APP_ICON_SIZE} />
@@ -905,7 +912,8 @@ function SidebarBodyContent({
                     <IconButton
                       color="ghostSecondary"
                       onClick={() => onCreateSession(null)}
-                      size="toolbar"
+                      iconSize="md"
+                      size="compact"
                       title="新建无项目任务"
                     >
                       <SquarePen size={APP_ICON_SIZE} />
@@ -1216,9 +1224,10 @@ function TimelinePriorityMenu({
       trigger={
         <IconButton
           aria-label="优先级显示选项"
+          iconSize="md"
           className="sidebar-timeline-menu-button tw:flex-none tw:opacity-0 tw:pointer-events-none tw:focus-visible:opacity-100 tw:focus-visible:pointer-events-auto tw:data-[state=open]:opacity-100 tw:data-[state=open]:pointer-events-auto tw:group-hover:opacity-100 tw:group-hover:pointer-events-auto tw:group-has-[:focus-visible]:opacity-100 tw:group-has-[:focus-visible]:pointer-events-auto"
           color="ghostSecondary"
-          size="toolbar"
+          size="compact"
           title="优先级显示选项"
         >
           <Ellipsis size={APP_ICON_SIZE} />
@@ -1372,7 +1381,7 @@ function SidebarOrganizeMenu({
       side="bottom"
       sideOffset={4}
       trigger={
-        <IconButton color="ghostSecondary" size="toolbar" title="整理侧栏">
+        <IconButton color="ghostSecondary" iconSize="md" size="compact" title="整理侧栏">
           <Ellipsis size={APP_ICON_SIZE} />
         </IconButton>
       }
@@ -1436,7 +1445,7 @@ function SidebarPinnedSortMenu({
       side="bottom"
       sideOffset={4}
       trigger={
-        <IconButton color="ghostSecondary" size="toolbar" title="置顶排序">
+        <IconButton color="ghostSecondary" iconSize="md" size="compact" title="置顶排序">
           <Ellipsis size={APP_ICON_SIZE} />
         </IconButton>
       }
@@ -1737,7 +1746,7 @@ function SidebarCustomSection({
               side="bottom"
               sideOffset={4}
               trigger={
-                <IconButton color="ghostSecondary" size="toolbar" title="分组操作">
+                <IconButton color="ghostSecondary" iconSize="md" size="compact" title="分组操作">
                   <Ellipsis size={APP_ICON_SIZE} />
                 </IconButton>
               }
