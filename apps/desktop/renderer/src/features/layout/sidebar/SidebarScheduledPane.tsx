@@ -32,9 +32,9 @@ export function SidebarScheduledPane(): ReactNode {
   }, [controller.runs])
 
   return (
-    <div className="sidebar-scheduled-pane">
-      <header className="sidebar-pane-heading">
-        <h2>{t('已安排')}</h2>
+    <div className="sidebar-scheduled-pane tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:py-2">
+      <header className="sidebar-pane-heading tw:flex tw:min-h-9 tw:shrink-0 tw:items-center tw:justify-between tw:px-3">
+        <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">{t('已安排')}</h2>
         <Link
           aria-label={t('新建任务')}
           title={t('新建任务')}
@@ -48,7 +48,7 @@ export function SidebarScheduledPane(): ReactNode {
           <Plus size={APP_ICON_SIZE} />
         </Link>
       </header>
-      <div className="sidebar-pane-filters">
+      <div className="sidebar-pane-filters tw:flex tw:flex-col tw:gap-2 tw:p-2">
         <SearchInput
           aria-label={t('搜索已安排任务')}
           placeholder={t('搜索已安排任务')}
@@ -66,13 +66,13 @@ export function SidebarScheduledPane(): ReactNode {
           onChange={controller.setFilter}
         />
       </div>
-      <ScrollArea className="sidebar-scheduled-scroll">
+      <ScrollArea className="sidebar-scheduled-scroll tw:min-h-0 tw:flex-1 tw:p-2">
         {controller.supported === false ? (
           <SidebarEmptyRow>{t('当前连接不支持已安排任务')}</SidebarEmptyRow>
         ) : controller.loading ? (
           <SidebarEmptyRow role="status">{t('正在加载任务…')}</SidebarEmptyRow>
         ) : controller.error ? (
-          <div className="sidebar-pane-error" role="alert">
+          <div className="sidebar-pane-error tw:p-2 tw:text-app-text-soft tw:type-body-sm" role="alert">
             <p>{controller.error}</p>
             <Button size="compact" onClick={() => void controller.refresh()}>
               {t('重试')}
@@ -87,7 +87,7 @@ export function SidebarScheduledPane(): ReactNode {
             const limit = runLimits[task.id] ?? 5
             return (
               <section key={task.id} className="sidebar-scheduled-task">
-                <div className="sidebar-scheduled-task-heading">
+                <div className="sidebar-scheduled-task-heading tw:flex tw:min-w-0 tw:items-center">
                   <IconButton
                     title={`${t('执行记录')}：${task.name}`}
                     aria-expanded={open}
@@ -114,7 +114,8 @@ export function SidebarScheduledPane(): ReactNode {
                     layout="flex"
                     leadingMode="none"
                     active={location.pathname === '/automations' && selectedId === task.id}
-                    labelClassName="u-truncate"
+                    className="tw:min-w-0 tw:grow tw:shrink tw:basis-auto"
+                    labelClassName="tw:truncate"
                     title={task.name}
                     trailing={task.status === 'paused' ? t('已暂停') : undefined}
                   >
@@ -124,7 +125,7 @@ export function SidebarScheduledPane(): ReactNode {
                   </SidebarRow>
                 </div>
                 {open ? (
-                  <div className="sidebar-scheduled-runs">
+                  <div className="sidebar-scheduled-runs tw:pl-6">
                     {runs.length === 0 ? (
                       <SidebarEmptyRow>{t('暂无执行记录')}</SidebarEmptyRow>
                     ) : (
@@ -135,7 +136,7 @@ export function SidebarScheduledPane(): ReactNode {
                           leadingMode="none"
                           key={run.id}
                           active={selectedRunId === run.id && selectedId === task.id}
-                          labelClassName="u-truncate"
+                          labelClassName="tw:truncate"
                         >
                           <Link
                             onClick={() => void controller.markRunRead(run.id)}

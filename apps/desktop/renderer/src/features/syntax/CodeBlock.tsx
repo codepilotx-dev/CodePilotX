@@ -204,7 +204,7 @@ export function CodeBlock({
       )}
     >
       {headerLabel !== null ? (
-        <figcaption className="md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between u-type-caption tw:text-app-text-soft">
+        <figcaption className="md-code-header tw:flex tw:h-8 tw:items-center tw:justify-between tw:type-caption tw:text-app-text-soft">
           {isEditingLang ? (
             <input
               autoFocus

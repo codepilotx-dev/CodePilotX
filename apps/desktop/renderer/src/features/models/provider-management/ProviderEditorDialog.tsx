@@ -35,6 +35,7 @@ import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { SettingsDropdown } from '../../settings/SettingsDropdown.js'
 import { PROVIDER_PRESETS, type ProviderPreset } from './providerEditorPresets.js'
+import { cx } from '../../../utils/cx.js'
 import {
   DEEPSEEK_PROTOCOL_OPTIONS,
   DEFAULT_DEEPSEEK_PROTOCOL,
@@ -124,6 +125,22 @@ export type ProviderEditorDialogProps = {
   onOpenChange: (open: boolean) => void
   onSaved: (providerId: string) => void | Promise<void>
 }
+
+/* 编辑弹窗字段：标签/说明排版与输入宽度，窄屏回到单列。 */
+const PROVIDER_EDITOR_FIELD_CLASS =
+  'provider-editor-field tw:grid tw:gap-2 tw:[&>span]:flex tw:[&>span]:items-center tw:[&>span]:justify-between tw:[&>span]:gap-2 tw:[&>span]:text-app-text tw:[&>span]:type-label tw:[&>span>small]:text-app-text-meta tw:[&>span>small]:type-caption tw:[&>p]:col-start-2 tw:[&>p]:m-0 tw:[&>p]:text-app-text-soft tw:[&>p]:type-body-sm tw:[&_input]:w-full tw:[&_textarea]:w-full tw:max-[720px]:grid-cols-1 tw:max-[720px]:[&>p]:col-start-1'
+
+/* `--mono` 变体把该字段的输入控件切到等宽字体。 */
+const PROVIDER_EDITOR_FIELD_MONO_CLASS =
+  'provider-editor-field--mono tw:[&_input]:type-code tw:[&_textarea]:type-code'
+
+/* 模型卡摘要按钮下方的正文（DisclosureContent 的 contentClassName）。 */
+const PROVIDER_EDITOR_MODEL_CARD_BODY_CLASS =
+  'provider-editor-model-card-body tw:grid tw:gap-4 tw:rounded-none tw:border-t tw:border-t-app-border-subtle tw:bg-app-raised tw:p-4'
+
+/* 高级配置正文（DisclosureContent 的 contentClassName）。 */
+const PROVIDER_EDITOR_MODEL_ADVANCED_CONTENT_CLASS =
+  'provider-editor-model-advanced-content tw:grid tw:gap-3 tw:border-t tw:border-t-app-border-subtle tw:p-3'
 
 export function ProviderEditorDialog({
   open,
@@ -419,12 +436,12 @@ export function ProviderEditorDialog({
         <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop" />
         <Dialog.Content
           aria-labelledby={titleId}
-          className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog provider-editor-dialog"
+          className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog provider-editor-dialog tw:w-[min(720px,calc(100vw_-_32px))] tw:max-h-[min(85vh,780px)] tw:max-[720px]:w-[calc(100vw_-_16px)] tw:max-[720px]:max-h-[calc(100vh_-_16px)]"
           onCloseAutoFocus={onCloseAutoFocus}
         >
-          <header className="settings-management-dialog-header provider-editor-header">
-            <div className="settings-management-dialog-heading provider-editor-heading">
-              <div className="provider-editor-icon">
+          <header className="settings-management-dialog-header provider-editor-header tw:flex-none tw:justify-between">
+            <div className="settings-management-dialog-heading provider-editor-heading tw:flex tw:min-w-0 tw:items-start tw:gap-3">
+              <div className="provider-editor-icon tw:inline-flex tw:size-9 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:bg-app-accent-subtle tw:text-app-accent-fg tw:[&_svg]:size-icon-lg">
                 <Server aria-hidden size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
               </div>
               <div>
@@ -435,7 +452,7 @@ export function ProviderEditorDialog({
                       ? `编辑 ${provider.displayName}`
                       : '新增自定义 Provider'}
                 </Dialog.Title>
-                <Dialog.Description>
+                <Dialog.Description className="tw:mt-1">
                   {managed
                     ? '内置 DeepSeek Provider：切换全局 API 协议，所有模型同步生效'
                     : '配置兼容 OpenAI / Anthropic 协议的自定义模型端点'}
@@ -449,7 +466,7 @@ export function ProviderEditorDialog({
             </Dialog.Close>
           </header>
 
-          <div className="provider-editor-tabs-bar">
+          <div className="provider-editor-tabs-bar tw:flex-none tw:border-b tw:border-b-app-border-subtle tw:px-5 tw:pt-0 tw:pb-3">
             <SegmentedControl<DialogTab>
               ariaLabel="配置分类"
               onChange={setActiveTab}
@@ -459,12 +476,12 @@ export function ProviderEditorDialog({
             />
           </div>
 
-          <div className="settings-management-dialog-body provider-editor-body">
+          <div className="settings-management-dialog-body provider-editor-body tw:overflow-x-hidden">
             {activeTab === 'basic' ? (
-              <div className="provider-editor-tab-panel">
+              <div className="provider-editor-tab-panel tw:grid tw:gap-4">
                 {managed ? (
                   <div className="settings-management-dialog-card provider-editor-basic-card">
-                    <div className="settings-management-dialog-row provider-editor-field">
+                    <div className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS)}>
                       <span>API 协议</span>
                       <SegmentedControl<DeepSeekProtocol>
                         ariaLabel="DeepSeek API 协议"
@@ -479,7 +496,7 @@ export function ProviderEditorDialog({
                         切换后所有 DeepSeek 模型从下一次请求开始使用新协议，正在进行的请求不会中断。
                       </p>
                     </div>
-                    <label className="settings-management-dialog-row provider-editor-field provider-editor-field--mono">
+                    <label className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
                       <span>Endpoint</span>
                       <Input readOnly value={deepSeekProtocolOption(protocol).endpoint} />
                       <p>端点由所选协议决定，由系统自动管理。</p>
@@ -488,19 +505,19 @@ export function ProviderEditorDialog({
                 ) : null}
 
                 {!managed && !editing ? (
-                  <section className="provider-editor-presets-section">
-                    <div className="provider-editor-presets-header">
-                      <span>快速套用常用预设</span>
+                  <section className="provider-editor-presets-section tw:grid tw:gap-2 tw:rounded-lg tw:border tw:border-dashed tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-3">
+                    <div className="provider-editor-presets-header tw:flex tw:items-center tw:justify-between tw:gap-2">
+                      <span className="tw:text-app-text-meta tw:type-label">快速套用常用预设</span>
                       <Sparkles
                         aria-hidden
                         size={APP_ICON_SIZE}
                         strokeWidth={APP_ICON_STROKE_WIDTH}
                       />
                     </div>
-                    <div className="provider-editor-presets-list">
+                    <div className="provider-editor-presets-list tw:flex tw:flex-wrap tw:items-center tw:gap-2">
                       {PROVIDER_PRESETS.map((preset) => (
                         <button
-                          className="provider-editor-preset-chip"
+                          className="provider-editor-preset-chip tw:cursor-pointer tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:py-1 tw:text-app-text tw:type-label tw:transition-all tw:hover:border-app-accent tw:hover:bg-app-accent-subtle tw:hover:text-app-accent-fg"
                           key={preset.id}
                           title={preset.description}
                           type="button"
@@ -515,7 +532,7 @@ export function ProviderEditorDialog({
 
                 {!managed ? (
                   <div className="settings-management-dialog-card provider-editor-basic-card">
-                    <label className="settings-management-dialog-row provider-editor-field provider-editor-field--mono">
+                    <label className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
                       <span>
                         Provider ID
                         {editing ? <small>（不可修改）</small> : null}
@@ -527,7 +544,7 @@ export function ProviderEditorDialog({
                         onChange={(event) => setId(event.target.value)}
                       />
                     </label>
-                    <label className="settings-management-dialog-row provider-editor-field">
+                    <label className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS)}>
                       <span>显示名称</span>
                       <Input
                         placeholder="如：Ollama 本地服务"
@@ -535,7 +552,7 @@ export function ProviderEditorDialog({
                         onChange={(event) => setName(event.target.value)}
                       />
                     </label>
-                    <label className="settings-management-dialog-row provider-editor-field provider-editor-field--mono">
+                    <label className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
                       <span>Base URL</span>
                       <Input
                         placeholder="https://example.com/v1"
@@ -544,7 +561,7 @@ export function ProviderEditorDialog({
                       />
                       <p>端点 URL，例如本地服务 http://localhost:11434/v1 或官方 API 路径。</p>
                     </label>
-                    <label className="settings-management-dialog-row provider-editor-field">
+                    <label className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS)}>
                       <span>认证方式</span>
                       <SettingsDropdown
                         ariaLabel="认证方式"
@@ -557,7 +574,7 @@ export function ProviderEditorDialog({
                         onChange={(value) => setAuth(value as 'api-key' | 'none')}
                       />
                     </label>
-                    <label className="settings-management-dialog-row provider-editor-field provider-editor-field--mono">
+                    <label className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
                       <span>凭据环境变量（逗号分隔）</span>
                       <Input
                         placeholder="如：OLLAMA_API_KEY, CUSTOM_API_KEY"
@@ -571,14 +588,18 @@ export function ProviderEditorDialog({
             ) : null}
 
             {activeTab === 'models' ? (
-              <div className="provider-editor-tab-panel">
-                <header className="provider-editor-models-header">
-                  <div className="provider-editor-models-title">
-                    <h3>模型列表</h3>
-                    <span>{models.length}</span>
+              <div className="provider-editor-tab-panel tw:grid tw:gap-4">
+                <header className="provider-editor-models-header tw:flex tw:items-center tw:justify-between tw:gap-3">
+                  <div className="provider-editor-models-title tw:flex tw:items-center tw:gap-2">
+                    <h3 className="tw:m-0 tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-md)] tw:type-weight-label">
+                      模型列表
+                    </h3>
+                    <span className="tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-xs)] tw:type-weight-label">
+                      {models.length}
+                    </span>
                   </div>
                   {!managed ? (
-                    <div className="provider-editor-models-actions">
+                    <div className="provider-editor-models-actions tw:flex tw:items-center tw:gap-2">
                       {editing ? (
                         <Button color="secondary" disabled={busy} onClick={() => void discover()}>
                           <RefreshCw aria-hidden size={APP_ICON_SIZE} />从 /models 导入
@@ -598,9 +619,11 @@ export function ProviderEditorDialog({
                 </header>
 
                 {candidates.length > 0 ? (
-                  <section className="provider-editor-candidates-card">
-                    <header>
-                      <strong>发现 {candidates.length} 个候选模型</strong>
+                  <section className="provider-editor-candidates-card tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-app-accent-border tw:bg-app-accent-subtle tw:p-4">
+                    <header className="tw:flex tw:items-center tw:justify-between tw:gap-2">
+                      <strong className="tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-sm)]">
+                        发现 {candidates.length} 个候选模型
+                      </strong>
                       <Button
                         color="primary"
                         disabled={selectedCandidates.size === 0}
@@ -609,9 +632,12 @@ export function ProviderEditorDialog({
                         导入已选 ({selectedCandidates.size})
                       </Button>
                     </header>
-                    <div className="provider-editor-candidates-list">
+                    <div className="provider-editor-candidates-list tw:grid tw:max-h-40 tw:gap-1 tw:overflow-y-auto tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-2">
                       {candidates.map((candidate) => (
-                        <label className="provider-editor-candidate-row" key={String(candidate.id)}>
+                        <label
+                          className="provider-editor-candidate-row tw:flex tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-xs tw:px-2 tw:py-1 tw:[font-size:var(--cpx-sys-font-size-sm)] tw:hover:bg-app-hover tw:[&_input]:cursor-pointer"
+                          key={String(candidate.id)}
+                        >
                           <input
                             checked={selectedCandidates.has(String(candidate.id))}
                             type="checkbox"
@@ -625,7 +651,7 @@ export function ProviderEditorDialog({
                             }
                           />
                           <span>{String(candidate.id)}</span>
-                          <span className="provider-editor-model-card-badge">{candidate.api}</span>
+                          <span className="provider-editor-model-card-badge tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-xs)]">{candidate.api}</span>
                         </label>
                       ))}
                     </div>
@@ -637,12 +663,12 @@ export function ProviderEditorDialog({
                     {models.map((model) => (
                       <div className="settings-management-dialog-row" key={model.editorKey}>
                         <span>{model.id}</span>
-                        <span className="provider-editor-model-card-badge">{protocol}</span>
+                        <span className="provider-editor-model-card-badge tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-xs)]">{protocol}</span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="provider-editor-models-list">
+                  <div className="provider-editor-models-list tw:grid tw:gap-3">
                     {models.map((model, index) => (
                       <ProviderModelCard
                         canRemove={models.length > 1}
@@ -669,12 +695,14 @@ export function ProviderEditorDialog({
             ) : null}
 
             {activeTab === 'advanced' && !managed ? (
-              <div className="provider-editor-tab-panel">
+              <div className="provider-editor-tab-panel tw:grid tw:gap-4">
                 <div className="settings-management-dialog-card">
-                  <div className="settings-management-dialog-row provider-editor-switch-card">
-                    <div className="provider-editor-switch-info">
-                      <strong>启用此 Provider</strong>
-                      <span>在模型选择菜单与 Agent 会话中允许调用此 Provider</span>
+                  <div className="settings-management-dialog-row provider-editor-switch-card tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:rounded-none tw:border-0 tw:bg-transparent tw:px-4 tw:py-3">
+                    <div className="provider-editor-switch-info tw:grid tw:min-w-0 tw:gap-1">
+                      <strong className="tw:text-app-text tw:type-row-title">启用此 Provider</strong>
+                      <span className="tw:text-app-text-soft tw:type-body-sm">
+                        在模型选择菜单与 Agent 会话中允许调用此 Provider
+                      </span>
                     </div>
                     <ToggleSwitch
                       ariaLabel="启用 Provider"
@@ -682,10 +710,12 @@ export function ProviderEditorDialog({
                       onChange={setEnabled}
                     />
                   </div>
-                  <div className="settings-management-dialog-row provider-editor-switch-card">
-                    <div className="provider-editor-switch-info">
-                      <strong>允许非 loopback 明文 HTTP</strong>
-                      <span>允许连接局域网或远程非 localhost 的 http:// 端点</span>
+                  <div className="settings-management-dialog-row provider-editor-switch-card tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:rounded-none tw:border-0 tw:bg-transparent tw:px-4 tw:py-3">
+                    <div className="provider-editor-switch-info tw:grid tw:min-w-0 tw:gap-1">
+                      <strong className="tw:text-app-text tw:type-row-title">允许非 loopback 明文 HTTP</strong>
+                      <span className="tw:text-app-text-soft tw:type-body-sm">
+                        允许连接局域网或远程非 localhost 的 http:// 端点
+                      </span>
                     </div>
                     <ToggleSwitch
                       ariaLabel="允许非 loopback HTTP"
@@ -696,7 +726,7 @@ export function ProviderEditorDialog({
                 </div>
 
                 {isRemoteHttp && !allowInsecureHttp ? (
-                  <div className="provider-editor-alert" data-tone="warning">
+                  <div className="provider-editor-alert tw:flex tw:items-start tw:gap-3 tw:rounded-md tw:px-4 tw:py-3 tw:type-body-sm tw:[&_svg]:size-icon tw:[&_svg]:shrink-0 tw:[&_svg]:mt-1 tw:data-[tone=warning]:border tw:data-[tone=warning]:border-app-warning-border tw:data-[tone=warning]:bg-app-warning-subtle tw:data-[tone=warning]:text-app-warning tw:data-[tone=danger]:border tw:data-[tone=danger]:border-app-danger-border tw:data-[tone=danger]:bg-app-danger-subtle tw:data-[tone=danger]:text-app-danger tw:data-[tone=info]:border tw:data-[tone=info]:border-app-info-border tw:data-[tone=info]:bg-app-info-subtle tw:data-[tone=info]:text-app-info-fg" data-tone="warning">
                     <AlertTriangle size={APP_ICON_SIZE} aria-hidden />
                     <div>
                       <strong>检测到非本地明文 HTTP 端点</strong>
@@ -708,13 +738,13 @@ export function ProviderEditorDialog({
                   </div>
                 ) : null}
 
-                <label className="settings-management-dialog-card settings-management-dialog-row provider-editor-field">
+                <label className={cx('settings-management-dialog-card settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS)}>
                   <span>
                     全局非敏感 Headers
                     <small>每行 name: value</small>
                   </span>
                   <textarea
-                    className="provider-editor-textarea"
+                    className="provider-editor-textarea tw:w-full tw:min-h-20 tw:resize-y tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:type-code tw:transition-[border-color] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:outline-2 tw:focus:outline-solid tw:focus:outline-offset-[-1px] tw:focus:outline-app-focus tw:placeholder:text-app-text-meta"
                     placeholder="X-Custom-Header: value&#10;Custom-Client: CodePilotX"
                     rows={4}
                     value={headers}
@@ -726,15 +756,19 @@ export function ProviderEditorDialog({
             ) : null}
           </div>
 
-          <footer className="settings-management-dialog-footer provider-editor-footer">
-            <div className="provider-editor-footer-status">
+          <footer className="settings-management-dialog-footer provider-editor-footer tw:flex-none tw:justify-between tw:max-[720px]:flex-col tw:max-[720px]:items-stretch tw:max-[720px]:gap-2">
+            <div className="provider-editor-footer-status tw:min-w-0 tw:flex-1">
               {error ? (
-                <p className="provider-editor-error-text" role="status" title={error}>
+                <p
+                  className="provider-editor-error-text tw:m-0 tw:overflow-hidden tw:text-app-danger tw:type-body-sm tw:text-ellipsis tw:whitespace-nowrap"
+                  role="status"
+                  title={error}
+                >
                   {error}
                 </p>
               ) : null}
             </div>
-            <div className="provider-editor-footer-actions">
+            <div className="provider-editor-footer-actions tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:max-[720px]:justify-end">
               <Button color="secondary" onClick={() => onOpenChange(false)}>
                 取消
               </Button>
@@ -766,39 +800,39 @@ const ProviderModelCard = memo(function ProviderModelCard({
   const contentId = useId()
 
   return (
-    <div className="provider-editor-model-card" data-expanded={expanded}>
-      <div className="provider-editor-model-card-header">
+    <div className="provider-editor-model-card tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:transition-[border-color] tw:duration-state tw:ease-standard tw:data-[expanded=true]:border-app-accent-border" data-expanded={expanded}>
+      <div className="provider-editor-model-card-header tw:flex tw:items-center tw:justify-between tw:gap-0 tw:bg-app-panel">
         <button
           aria-controls={contentId}
           aria-expanded={expanded}
-          className="provider-editor-model-card-summary"
+          className="provider-editor-model-card-summary tw:min-w-0 tw:flex tw:flex-auto tw:flex-wrap tw:items-center tw:self-stretch tw:gap-2 tw:rounded-none tw:border-0 tw:bg-transparent tw:px-4 tw:py-3 tw:text-left tw:select-none tw:outline-none tw:hover:bg-app-hover tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)]"
           type="button"
           onClick={() => setExpanded((current) => !current)}
         >
-          <span className="provider-editor-model-card-chevron">
+          <span className="provider-editor-model-card-chevron tw:inline-flex tw:items-center tw:justify-center tw:text-app-text-soft tw:transition-transform tw:duration-disclosure tw:ease-disclosure">
             {expanded ? (
               <ChevronDown aria-hidden size={APP_ICON_SIZES.sm} />
             ) : (
               <ChevronRight aria-hidden size={APP_ICON_SIZES.sm} />
             )}
           </span>
-          <code>{model.id || '(未命名模型)'}</code>
+          <code className="tw:font-mono tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-sm)] tw:type-weight-label">{model.id || '(未命名模型)'}</code>
           {model.name && model.name !== model.id ? (
-            <span className="provider-editor-model-card-name">({model.name})</span>
+            <span className="provider-editor-model-card-name tw:text-app-text-soft tw:type-caption">({model.name})</span>
           ) : null}
-          <span className="provider-editor-model-card-badge">{model.api}</span>
+          <span className="provider-editor-model-card-badge tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-xs)]">{model.api}</span>
           {model.reasoning ? (
-            <span className="provider-editor-model-card-tag provider-editor-model-tag--reasoning">
+            <span className="provider-editor-model-card-tag tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:px-2 tw:py-1 tw:[font-size:var(--cpx-sys-font-size-xs)] provider-editor-model-tag--reasoning">
               <Brain aria-hidden size={APP_ICON_SIZE} /> Reasoning
             </span>
           ) : null}
           {model.imageInput ? (
-            <span className="provider-editor-model-card-tag provider-editor-model-tag--vision">
+            <span className="provider-editor-model-card-tag tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:px-2 tw:py-1 tw:[font-size:var(--cpx-sys-font-size-xs)] provider-editor-model-tag--vision">
               <Eye aria-hidden size={APP_ICON_SIZE} /> Vision
             </span>
           ) : null}
         </button>
-        <div className="provider-editor-model-card-controls">
+        <div className="provider-editor-model-card-controls tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:pr-4">
           <ToggleSwitch
             ariaLabel="启用模型"
             checked={model.enabled}
@@ -812,7 +846,7 @@ const ProviderModelCard = memo(function ProviderModelCard({
         </div>
       </div>
       <DisclosureContent
-        contentClassName="provider-editor-model-card-body"
+        contentClassName={PROVIDER_EDITOR_MODEL_CARD_BODY_CLASS}
         expanded={expanded}
         id={contentId}
         mountPolicy="always"
@@ -836,9 +870,9 @@ function ModelEditor({
     onChange({ ...model, [key]: Math.max(0, Number(value) || 0) })
 
   return (
-    <div className="provider-editor-tab-panel">
-      <div className="provider-editor-grid">
-        <label className="provider-editor-field provider-editor-field--mono">
+    <div className="provider-editor-tab-panel tw:grid tw:gap-4">
+      <div className="provider-editor-grid tw:grid tw:grid-cols-2 tw:gap-4">
+        <label className={cx(PROVIDER_EDITOR_FIELD_CLASS, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
           <span>模型 ID</span>
           <Input
             placeholder="如：llama3.2 或 gpt-4o"
@@ -846,7 +880,7 @@ function ModelEditor({
             onChange={(event) => onChange({ ...model, id: event.target.value })}
           />
         </label>
-        <label className="provider-editor-field">
+        <label className={PROVIDER_EDITOR_FIELD_CLASS}>
           <span>显示名称</span>
           <Input
             placeholder="默认使用模型 ID"
@@ -856,8 +890,8 @@ function ModelEditor({
         </label>
       </div>
 
-      <div className="provider-editor-grid">
-        <label className="provider-editor-field">
+      <div className="provider-editor-grid tw:grid tw:grid-cols-2 tw:gap-4">
+        <label className={PROVIDER_EDITOR_FIELD_CLASS}>
           <span>模型 API 协议</span>
           <SettingsDropdown
             ariaLabel="模型 API"
@@ -867,7 +901,7 @@ function ModelEditor({
             onChange={(value) => onChange({ ...model, api: value as Api })}
           />
         </label>
-        <label className="provider-editor-field">
+        <label className={PROVIDER_EDITOR_FIELD_CLASS}>
           <span>
             Context Window
             <small>默认 32,768</small>
@@ -880,8 +914,8 @@ function ModelEditor({
         </label>
       </div>
 
-      <div className="provider-editor-grid">
-        <label className="provider-editor-field">
+      <div className="provider-editor-grid tw:grid tw:grid-cols-2 tw:gap-4">
+        <label className={PROVIDER_EDITOR_FIELD_CLASS}>
           <span>
             Max Output Tokens
             <small>默认 8,192</small>
@@ -894,8 +928,8 @@ function ModelEditor({
         </label>
       </div>
 
-      <div className="provider-editor-model-toggles-row">
-        <div className="provider-editor-model-toggle-pill">
+      <div className="provider-editor-model-toggles-row tw:grid tw:grid-cols-3 tw:gap-2 tw:max-[720px]:grid-cols-1">
+        <div className="provider-editor-model-toggle-pill tw:flex tw:items-center tw:justify-between tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-3 tw:py-2 tw:[&>span]:text-app-text tw:[&>span]:[font-size:var(--cpx-sys-font-size-xs)] tw:[&>span]:type-weight-label">
           <span>启用此模型</span>
           <ToggleSwitch
             ariaLabel="启用模型"
@@ -903,7 +937,7 @@ function ModelEditor({
             onChange={(enabled) => onChange({ ...model, enabled })}
           />
         </div>
-        <div className="provider-editor-model-toggle-pill">
+        <div className="provider-editor-model-toggle-pill tw:flex tw:items-center tw:justify-between tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-3 tw:py-2 tw:[&>span]:text-app-text tw:[&>span]:[font-size:var(--cpx-sys-font-size-xs)] tw:[&>span]:type-weight-label">
           <span>推理思考 (Reasoning)</span>
           <ToggleSwitch
             ariaLabel="推理模型"
@@ -911,7 +945,7 @@ function ModelEditor({
             onChange={(reasoning) => onChange({ ...model, reasoning })}
           />
         </div>
-        <div className="provider-editor-model-toggle-pill">
+        <div className="provider-editor-model-toggle-pill tw:flex tw:items-center tw:justify-between tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-3 tw:py-2 tw:[&>span]:text-app-text tw:[&>span]:[font-size:var(--cpx-sys-font-size-xs)] tw:[&>span]:type-weight-label">
           <span>图像输入 (Vision)</span>
           <ToggleSwitch
             ariaLabel="图片输入"
@@ -922,13 +956,13 @@ function ModelEditor({
       </div>
 
       <div
-        className="provider-editor-model-advanced-details"
+        className="provider-editor-model-advanced-details tw:overflow-hidden tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-panel tw:data-[expanded=true]:[&_svg]:rotate-90"
         data-expanded={advanced ? 'true' : 'false'}
       >
         <button
           aria-controls={advancedId}
           aria-expanded={advanced}
-          className="provider-editor-model-advanced-summary"
+          className="provider-editor-model-advanced-summary tw:flex tw:w-full tw:cursor-pointer tw:select-none tw:items-center tw:gap-1 tw:rounded-none tw:border-0 tw:bg-transparent tw:px-3 tw:py-2 tw:text-left tw:text-app-text-soft tw:type-caption tw:hover:text-app-text tw:focus-visible:outline-none tw:focus-visible:shadow-[var(--cpx-sys-focus-ring-inset)] tw:[&_svg]:size-icon-sm tw:[&_svg]:transition-transform tw:[&_svg]:duration-disclosure tw:[&_svg]:ease-disclosure"
           onClick={() => setAdvanced((current) => !current)}
           type="button"
         >
@@ -936,13 +970,13 @@ function ModelEditor({
           高级配置与 Token 计费
         </button>
         <DisclosureContent
-          contentClassName="provider-editor-model-advanced-content"
+          contentClassName={PROVIDER_EDITOR_MODEL_ADVANCED_CONTENT_CLASS}
           expanded={advanced}
           id={advancedId}
           mountPolicy="always"
         >
-          <div className="provider-editor-grid">
-            <label className="provider-editor-field">
+          <div className="provider-editor-grid tw:grid tw:grid-cols-2 tw:gap-4">
+            <label className={PROVIDER_EDITOR_FIELD_CLASS}>
               <span>输入成本 ($ / 1M tokens)</span>
               <Input
                 type="number"
@@ -950,7 +984,7 @@ function ModelEditor({
                 onChange={(event) => number('inputCost', event.target.value)}
               />
             </label>
-            <label className="provider-editor-field">
+            <label className={PROVIDER_EDITOR_FIELD_CLASS}>
               <span>输出成本 ($ / 1M tokens)</span>
               <Input
                 type="number"
@@ -960,8 +994,8 @@ function ModelEditor({
             </label>
           </div>
 
-          <div className="provider-editor-grid">
-            <label className="provider-editor-field">
+          <div className="provider-editor-grid tw:grid tw:grid-cols-2 tw:gap-4">
+            <label className={PROVIDER_EDITOR_FIELD_CLASS}>
               <span>缓存读取成本 ($ / 1M tokens)</span>
               <Input
                 type="number"
@@ -969,7 +1003,7 @@ function ModelEditor({
                 onChange={(event) => number('cacheReadCost', event.target.value)}
               />
             </label>
-            <label className="provider-editor-field">
+            <label className={PROVIDER_EDITOR_FIELD_CLASS}>
               <span>缓存写入成本 ($ / 1M tokens)</span>
               <Input
                 type="number"
@@ -979,13 +1013,13 @@ function ModelEditor({
             </label>
           </div>
 
-          <label className="provider-editor-field">
+          <label className={PROVIDER_EDITOR_FIELD_CLASS}>
             <span>
               模型专属 Headers
               <small>每行 name: value</small>
             </span>
             <textarea
-              className="provider-editor-textarea"
+              className="provider-editor-textarea tw:w-full tw:min-h-20 tw:resize-y tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:type-code tw:transition-[border-color] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:outline-2 tw:focus:outline-solid tw:focus:outline-offset-[-1px] tw:focus:outline-app-focus tw:placeholder:text-app-text-meta"
               placeholder="X-Model-Specific: value"
               rows={3}
               value={model.headers}
@@ -993,10 +1027,10 @@ function ModelEditor({
             />
           </label>
 
-          <label className="provider-editor-field provider-editor-field--mono">
+          <label className={cx(PROVIDER_EDITOR_FIELD_CLASS, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
             <span>Thinking Level Map (JSON)</span>
             <textarea
-              className="provider-editor-textarea"
+              className="provider-editor-textarea tw:w-full tw:min-h-20 tw:resize-y tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:type-code tw:transition-[border-color] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:outline-2 tw:focus:outline-solid tw:focus:outline-offset-[-1px] tw:focus:outline-app-focus tw:placeholder:text-app-text-meta"
               placeholder='{"high": "high"}'
               rows={3}
               value={model.thinkingLevelMap}
@@ -1004,10 +1038,10 @@ function ModelEditor({
             />
           </label>
 
-          <label className="provider-editor-field provider-editor-field--mono">
+          <label className={cx(PROVIDER_EDITOR_FIELD_CLASS, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
             <span>API Compat (JSON)</span>
             <textarea
-              className="provider-editor-textarea"
+              className="provider-editor-textarea tw:w-full tw:min-h-20 tw:resize-y tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:type-code tw:transition-[border-color] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:outline-2 tw:focus:outline-solid tw:focus:outline-offset-[-1px] tw:focus:outline-app-focus tw:placeholder:text-app-text-meta"
               placeholder="{}"
               rows={3}
               value={model.compat}

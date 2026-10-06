@@ -98,7 +98,7 @@ export function CommitPopover({
   return (
     <div
       aria-label="提交或推送"
-      className="popover-surface review-popover commit-popover"
+      className="popover-surface review-popover commit-popover tw:fixed tw:z-popover tw:flex tw:min-w-[min(288px,calc(100vw-16px))] tw:max-w-[var(--popover-max-width,min(384px,calc(100vw-16px)))] tw:flex-col tw:gap-2 tw:p-2 tw:border tw:border-app-border tw:rounded-xl tw:bg-app-raised tw:font-sans tw:shadow-lg"
       ref={panelRef}
       role="dialog"
       style={{
@@ -110,14 +110,18 @@ export function CommitPopover({
         top: position.top,
       }}
     >
-      <header className="review-popover-header">
-        <span className="review-popover-branch">
+      <header className="review-popover-header tw:flex tw:items-center tw:gap-2 tw:text-app-text tw:type-row-title">
+        <span className="review-popover-branch tw:inline-flex tw:items-center tw:gap-1 tw:text-app-text">
           {branchName}
           <ChevronDown size={APP_ICON_SIZES.sm} />
         </span>
-        <span className="review-popover-counts">
-          <strong>+{formatPanelNumber(additions)}</strong>
-          <em>-{formatPanelNumber(deletions)}</em>
+        <span className="review-popover-counts tw:ml-auto tw:inline-flex tw:items-center tw:gap-1 tw:type-weight-label tw:tabular-nums">
+          <strong className="tw:text-app-success tw:type-weight-label">
+            +{formatPanelNumber(additions)}
+          </strong>
+          <em className="tw:text-app-danger tw:not-italic tw:type-weight-label">
+            -{formatPanelNumber(deletions)}
+          </em>
         </span>
         <IconButton
           iconSize="sm"
@@ -132,10 +136,11 @@ export function CommitPopover({
         </IconButton>
       </header>
 
-      <label className="review-popover-field">
-        <span>提交信息</span>
+      <label className="review-popover-field tw:flex tw:flex-col tw:gap-1 tw:text-app-text-soft tw:type-body-sm">
+        <span className="tw:type-weight-label">提交信息</span>
         <textarea
           autoFocus
+          className="tw:w-full tw:min-h-16 tw:resize-y tw:px-2 tw:py-1 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-canvas tw:text-app-text tw:type-control"
           placeholder="输入提交信息..."
           rows={3}
           value={message}
@@ -154,7 +159,7 @@ export function CommitPopover({
         />
       </label>
 
-      <label className="review-popover-check">
+      <label className="review-popover-check tw:flex tw:items-center tw:gap-2 tw:text-app-text-soft tw:type-control">
         <input
           checked={includeUnstaged}
           type="checkbox"
@@ -163,14 +168,14 @@ export function CommitPopover({
         <span>包含未暂存的更改</span>
       </label>
 
-      <div className="review-popover-actions">
+      <div className="review-popover-actions tw:flex tw:flex-col tw:gap-1 tw:border-t tw:border-app-border tw:pt-1">
         <Button
           color="primary"
           className="tw:w-full tw:justify-between"
           disabled={false}
           onClick={() => onCommit(message, includeUnstaged)}
         >
-          <span className="review-popover-action-label">
+          <span className="review-popover-action-label tw:inline-flex tw:items-center tw:gap-2">
             <ArrowUpToLine size={APP_ICON_SIZE} />
             提交
           </span>
@@ -181,13 +186,13 @@ export function CommitPopover({
           className="tw:w-full tw:justify-between"
           onClick={() => onCommitAndPush(message, includeUnstaged)}
         >
-          <span className="review-popover-action-label">
+          <span className="review-popover-action-label tw:inline-flex tw:items-center tw:gap-2">
             <ArrowUp size={APP_ICON_SIZE} />
             提交并推送
           </span>
         </Button>
         <Button color="primary" className="tw:w-full tw:justify-between" onClick={() => onPush()}>
-          <span className="review-popover-action-label">
+          <span className="review-popover-action-label tw:inline-flex tw:items-center tw:gap-2">
             <ArrowDown size={APP_ICON_SIZE} />
             推送
           </span>

@@ -5,6 +5,7 @@ import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js
 import { Button } from '../../../components/ui/Button.js'
 import { RequestCard } from './RequestCard.js'
 import { useApprovalCapability } from './useQuestionSkipCapability.js'
+import { cx } from '../../../utils/cx.js'
 
 type ReviewState = RpcResult<'approval/reviewState'>
 const dismissedNudges = new Set<string>()
@@ -52,14 +53,14 @@ export function AutoReviewNudge({
       variant="permission"
       description={
         <>
-          <p className="inline-approval-target">
+          <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere">
             你已成功允许三次操作。可以由 Guardian 审查后续操作；关闭此提示会保留人工审批。
           </p>
           {error ? <p role="alert">{error}</p> : null}
         </>
       }
       actions={
-        <div className="inline-approval-actions">
+        <div className="inline-approval-actions tw:ml-auto tw:flex tw:shrink-0 tw:flex-wrap tw:items-center tw:gap-2">
           <Button color="secondary" disabled={busy} onClick={close}>
             保持人工审批
           </Button>
@@ -132,7 +133,7 @@ export function ApprovalRulesDialog({
           {error ? <p role="alert">{error}</p> : null}
           {!busy && !rules.length && !error ? <p>暂无持久授权规则。</p> : null}
           {rules.map((rule) => (
-            <div key={rule.id} className="inline-approval-actions">
+            <div key={rule.id} className="inline-approval-actions tw:ml-auto tw:flex tw:shrink-0 tw:flex-wrap tw:items-center tw:gap-2">
               <span>{rule.target.join(' / ')}</span>
               <Button
                 color="secondary"
@@ -224,7 +225,10 @@ export function ApprovalRetryDialog({
               key={denial.id}
               role="radio"
               aria-checked={selected === denial.id}
-              className={`inline-approval-option${selected === denial.id ? ' selected' : ''}`}
+              className={cx(
+                'inline-approval-option tw:grid tw:w-full tw:grid-cols-[var(--cpx-sys-space-7)_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-transparent tw:p-2 tw:text-left tw:text-app-text tw:type-body tw:focus-visible:shadow-[var(--cpx-sys-focus-ring)] tw:focus-visible:outline-none',
+                selected === denial.id ? 'selected tw:bg-app-hover' : 'tw:bg-transparent',
+              )}
               disabled={busy}
               onClick={() => setSelected(denial.id)}
             >
@@ -232,7 +236,7 @@ export function ApprovalRetryDialog({
                 {denial.tool}：{denial.reason}
               </span>
               {denial.input ? (
-                <pre className="inline-approval-command">
+                <pre className="inline-approval-command tw:block tw:w-full tw:min-w-0 tw:overflow-auto tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:type-code tw:whitespace-pre-wrap tw:break-all tw:max-h-[3lh]">
                   {JSON.stringify(denial.input, null, 2)}
                 </pre>
               ) : null}

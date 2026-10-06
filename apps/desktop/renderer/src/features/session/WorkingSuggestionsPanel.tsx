@@ -3,6 +3,12 @@ import type React from 'react'
 import { ArrowLeft, FilePlus2, LayoutTemplate, ListChecks, RefreshCw, Search } from 'lucide-react'
 import type { WorkingSuggestionState } from './workingSuggestions.js'
 import {
+  SUGGESTION_HEADING_ACTION_CLASS,
+  SUGGESTION_HEADING_CLASS,
+  SUGGESTION_HEADING_TITLE_CLASS,
+  SUGGESTION_ROW_CLASS,
+} from './NewSessionSuggestionPanel.js'
+import {
   findWorkingSuggestionCategory,
   WORKING_SUGGESTION_CATEGORIES,
   type WorkingSuggestionCategory,
@@ -63,7 +69,7 @@ export function WorkingSuggestionsPanel({
           {suggestions.slice(0, 3).map((suggestion, index) => (
             <button
               key={suggestion.id}
-              className="new-session-suggestion-row working-suggestion-row"
+              className={`${SUGGESTION_ROW_CLASS} working-suggestion-row`}
               style={
                 {
                   '--new-session-suggestion-index': index,
@@ -82,7 +88,7 @@ export function WorkingSuggestionsPanel({
             </button>
           ))}
           <button
-            className="new-session-suggestion-row working-suggestion-row tw:text-app-text-soft"
+            className={`${SUGGESTION_ROW_CLASS} working-suggestion-row tw:text-app-text-soft`}
             style={
               {
                 '--new-session-suggestion-index': 3,
@@ -108,12 +114,12 @@ export function WorkingSuggestionsPanel({
         style={{ width: 'var(--quick-chat-surface-width)' }}
       >
         <div className="working-suggestion-list tw:grid tw:gap-0.5">
-          <div className="new-session-suggestion-list-heading working-suggestion-list-heading">
-            <span className="tw:text-app-text-soft">
+          <div className={`${SUGGESTION_HEADING_CLASS} working-suggestion-list-heading`}>
+            <span className="tw:inline-flex tw:min-w-0 tw:items-center tw:gap-2 tw:text-app-text-soft">
               <LayoutTemplate aria-hidden size={APP_ICON_SIZE} />
               工作模板
             </span>
-            <button type="button" onClick={onShowSuggestions}>
+            <button type="button" className={SUGGESTION_HEADING_ACTION_CLASS} onClick={onShowSuggestions}>
               <ArrowLeft aria-hidden size={APP_ICON_SIZE} />
               返回建议
             </button>
@@ -123,7 +129,7 @@ export function WorkingSuggestionsPanel({
             return (
               <button
                 key={category.id}
-                className="new-session-suggestion-row working-suggestion-row"
+                className={`${SUGGESTION_ROW_CLASS} working-suggestion-row`}
                 style={
                   {
                     '--new-session-suggestion-index': index,
@@ -157,12 +163,12 @@ export function WorkingSuggestionsPanel({
       style={{ width: 'var(--quick-chat-surface-width)' }}
     >
       <div className="working-suggestion-list tw:grid tw:gap-0.5">
-        <div className="new-session-suggestion-list-heading working-suggestion-list-heading">
-          <span className="tw:text-app-text-soft">
+        <div className={`${SUGGESTION_HEADING_CLASS} working-suggestion-list-heading`}>
+          <span className="tw:inline-flex tw:min-w-0 tw:items-center tw:gap-2 tw:text-app-text-soft">
             <Icon aria-hidden className="tw:shrink-0 tw:text-app-text-soft" size={APP_ICON_SIZE} />
             {category.label}
           </span>
-          <button type="button" onClick={() => onBack(category)}>
+          <button type="button" className={SUGGESTION_HEADING_ACTION_CLASS} onClick={() => onBack(category)}>
             <ArrowLeft aria-hidden size={APP_ICON_SIZE} />
             返回
           </button>
@@ -170,7 +176,7 @@ export function WorkingSuggestionsPanel({
         {category.tasks.map((task, index) => (
           <button
             key={task.id}
-            className="new-session-suggestion-row working-suggestion-row"
+            className={`${SUGGESTION_ROW_CLASS} working-suggestion-row`}
             style={
               {
                 '--new-session-suggestion-index': index,

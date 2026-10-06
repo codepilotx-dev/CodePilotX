@@ -1,5 +1,5 @@
 {
-  "styleEntrypoint": "src/styles/index.scss",
+  "styleEntrypoint": "src/styles/tailwind.css",
   "styleEntrypointImporter": "src/main.tsx",
   "cascadeLayerOrder": [
     "theme",
@@ -12,39 +12,13 @@
     "utilities",
     "overrides"
   ],
-  "utilityContract": {
-    "source": "src/styles/design-system/utilities.scss",
-    "prefix": "u-",
-    "maxSelectors": 220,
-    "maxBytes": 18432,
-    "maxGzipBytes": 4096
-  },
   "directStyleImportAllowlist": [
-    "src/features/browser/BrowserManagementControls.tsx -> src/styles/lazy/browser-management.scss",
-    "src/features/browser/BrowserAnnotationCards.tsx -> src/styles/lazy/browser-annotations.scss",
-    "src/main.tsx -> src/styles/tailwind.css",
-    "src/features/pet/PetCatalogPage.tsx -> src/styles/lazy/pet-catalog.scss",
-    "src/features/pet/PetOverlayPage.tsx -> src/styles/lazy/pet-overlay.scss",
-    "src/features/models/ModelCenterView.tsx -> src/styles/lazy/model-center.scss",
-    "src/features/models/setup/ModelSetupPage.tsx -> src/styles/lazy/model-setup.scss",
-    "src/features/session-groups/SessionGroupsView.tsx -> src/styles/lazy/session-groups.scss",
-    "src/features/plugins/PluginsView.tsx -> src/styles/lazy/marketplace.scss",
-    "src/features/settings/SettingsLayout.tsx -> src/styles/lazy/settings.scss",
-    "src/features/terminal/TerminalPanel.tsx -> src/styles/lazy/terminal.scss",
-    "src/features/whats-new/WhatsNewDialog.tsx -> src/styles/lazy/whats-new.scss"
+    "src/features/pet/PetOverlayPage.tsx -> src/styles/lazy/pet-overlay.css",
+    "src/features/terminal/TerminalPanel.tsx -> src/styles/lazy/terminal.css"
   ],
   "lazyStyleEntrypoints": {
-    "src/styles/lazy/browser-management.scss": "features",
-    "src/styles/lazy/browser-annotations.scss": "features",
-    "src/styles/lazy/marketplace.scss": "features",
-    "src/styles/lazy/model-center.scss": "features",
-    "src/styles/lazy/model-setup.scss": "features",
-    "src/styles/lazy/pet-catalog.scss": "features",
-    "src/styles/lazy/pet-overlay.scss": "features",
-    "src/styles/lazy/settings.scss": "features",
-    "src/styles/lazy/session-groups.scss": "features",
-    "src/styles/lazy/terminal.scss": "vendor",
-    "src/styles/lazy/whats-new.scss": "features"
+    "src/styles/lazy/pet-overlay.css": "features",
+    "src/styles/lazy/terminal.css": "vendor"
   },
   "customPropertyReferenceAllowlist": [
     "--popover-overflow-x",
@@ -60,8 +34,7 @@
     "--radix-select-content-available-height",
     "--radix-select-trigger-width",
     "--radix-tooltip-content-transform-origin",
-    "--simple-view-height",
-    "--advanced-view-height"
+    "--sidebar-collapse-target-size"
   ],
   "forbiddenCustomPropertyPatterns": [
     "^--color-bg(?:-|$)",
@@ -70,175 +43,69 @@
     "^--color-text(?:$|-(?:strong|meta|soft|mute|muted|placeholder|disabled|on-accent)$)"
   ],
   "importantDeclarationAllowlist": {
-    "src/styles/base.scss": 8,
-    "src/styles/popover.scss": 1
+    "src/styles/base.css": 8,
+    "src/styles/popover.css": 1
   },
   "dataThemeSelectorAllowlist": {
-    "src/styles/features/model-center.scss": 2
+    "src/styles/design-system/tokens.css": 4
   },
   "literalLineHeightAllowlist": {
-    "src/styles/modal.scss": 2
+    "src/styles/modal.css": 2
   },
   "tailwindLeadingAllowlist": {},
   "featureColorContract": {
-    "roots": ["src/styles/features", "src/styles/lazy"],
+    "roots": [
+      "src/styles/features",
+      "src/styles/lazy"
+    ],
     "componentTokenExceptions": [
       {
-        "file": "src/styles/features/_terminal.scss",
+        "file": "src/styles/lazy/terminal.css",
         "token": "--cpx-comp-terminal-bg",
-        "reason": "Terminal adapter consumes the terminal component palette as one indivisible third-party surface."
+        "reason": "终端表面配色是 xterm 第三方适配器调色板，成对声明在惰性 vendor 入口内，不能拆成系统语义色。"
       },
       {
-        "file": "src/styles/features/_terminal.scss",
+        "file": "src/styles/lazy/terminal.css",
         "token": "--cpx-comp-terminal-fg",
-        "reason": "Terminal adapter consumes the terminal component palette as one indivisible third-party surface."
+        "reason": "终端表面配色是 xterm 第三方适配器调色板，成对声明在惰性 vendor 入口内，不能拆成系统语义色。"
       }
     ],
-    "literalColorExceptions": [
-      {
-        "file": "src/styles/features/_settings-appearance.scss",
-        "value": "#f3f3f3",
-        "reason": "Theme mode thumbnail previews a fixed light palette independent of the active theme."
-      },
-      {
-        "file": "src/styles/features/_settings-appearance.scss",
-        "value": "#5d5d5d",
-        "reason": "Theme mode thumbnail previews a fixed dark palette independent of the active theme."
-      },
-      {
-        "file": "src/styles/features/_settings-appearance.scss",
-        "value": "#9f9f9f",
-        "reason": "System-theme thumbnail shows a fixed light/dark split independent of the active theme."
-      },
-      {
-        "file": "src/styles/features/_settings-appearance.scss",
-        "value": "#000",
-        "reason": "Color picker saturation/value gradient must terminate at absolute black."
-      },
-      {
-        "file": "src/styles/features/_settings-appearance.scss",
-        "value": "#fff",
-        "reason": "Color picker gradient and handles require absolute white independent of the active theme."
-      },
-      {
-        "file": "src/styles/features/_settings-appearance.scss",
-        "value": "rgb(0 0 0 / 40%)",
-        "reason": "Color picker handle needs a theme-independent contrast ring."
-      },
-      {
-        "file": "src/styles/features/_settings-appearance.scss",
-        "value": "#f00",
-        "reason": "Hue picker spectrum uses absolute color stops."
-      },
-      {
-        "file": "src/styles/features/_settings-appearance.scss",
-        "value": "#ff0",
-        "reason": "Hue picker spectrum uses absolute color stops."
-      },
-      {
-        "file": "src/styles/features/_settings-appearance.scss",
-        "value": "#0f0",
-        "reason": "Hue picker spectrum uses absolute color stops."
-      },
-      {
-        "file": "src/styles/features/_settings-appearance.scss",
-        "value": "#0ff",
-        "reason": "Hue picker spectrum uses absolute color stops."
-      },
-      {
-        "file": "src/styles/features/_settings-appearance.scss",
-        "value": "#00f",
-        "reason": "Hue picker spectrum uses absolute color stops."
-      },
-      {
-        "file": "src/styles/features/_settings-appearance.scss",
-        "value": "#f0f",
-        "reason": "Hue picker spectrum uses absolute color stops."
-      }
-    ],
-    "colorMixExceptions": [
-      {
-        "file": "src/styles/features/_settings-billing.scss",
-        "localProperty": "--usage-chart-1",
-        "reason": "Usage heatmap intentionally interpolates a data-series color against the semantic surface."
-      },
-      {
-        "file": "src/styles/features/_settings-billing.scss",
-        "localProperty": "--usage-chart-3",
-        "reason": "Usage chart intentionally interpolates a data-series color against the semantic border."
-      }
-    ]
+    "literalColorExceptions": [],
+    "colorMixExceptions": []
   },
   "featureTokenContract": {
-    "roots": ["src/styles/features", "src/styles/lazy"],
-    "scriptRoots": ["src/features", "src/components"],
+    "roots": [
+      "src/styles/features",
+      "src/styles/lazy"
+    ],
+    "scriptRoots": [
+      "src/features",
+      "src/components"
+    ],
     "componentGeometryExceptions": [],
     "inlineStyleExceptions": [],
-    "tailwindArbitraryExceptions": [],
+    "tailwindArbitraryExceptions": [
+      {
+        "file": "src/features/layout/workspace-header/DesktopWorkspaceHeader.tsx",
+        "property": "className",
+        "value": "tw:px-[var(--workspace-header-center-padding)]",
+        "reason": "工作区工具栏的路由带居中内边距由左右插槽宽度在 CSS 中推导，是运行时几何值，没有静态设计令牌可替代。"
+      }
+    ],
     "tailwindTypographyExceptions": [],
     "literalTypographyExceptions": [],
     "literalRadiusExceptions": [],
     "literalMotionExceptions": [],
-    "literalShadowExceptions": [
-      {
-        "file": "src/styles/features/_settings-appearance.scss",
-        "property": "box-shadow",
-        "value": "0 0 0 1px color-mix(in srgb, currentColor 10%, transparent)",
-        "reason": "The configurable color swatch needs a neutral outline derived from its dynamic currentColor."
-      },
-      {
-        "file": "src/styles/features/_settings-appearance.scss",
-        "property": "box-shadow",
-        "value": "0 0 0 1px rgb(0 0 0 / 40%)",
-        "reason": "Color picker thumbs need a fixed dark contrast outline over arbitrary user-selected hues."
-      }
-    ],
+    "literalShadowExceptions": [],
     "literalZIndexExceptions": [
       {
-        "file": "src/styles/features/_composer-shell.scss",
-        "property": "z-index",
-        "value": "1",
-        "reason": "Composer utility surface uses local ordering inside the isolated composer stacking context."
-      },
-      {
-        "file": "src/styles/features/_composer-shell.scss",
-        "property": "z-index",
-        "value": "2",
-        "reason": "Composer input surface stays above its utility sibling inside the isolated composer stacking context."
-      },
-      {
-        "file": "src/styles/features/layout-sidebar.scss",
-        "property": "z-index",
-        "value": "1",
-        "reason": "The docked sidebar uses local sibling ordering inside its positioned dock container."
-      },
-      {
-        "file": "src/styles/features/_layout-workspace-header.scss",
+        "file": "src/styles/features/layout-workspace-header.css",
         "property": "z-index",
         "value": "1",
         "reason": "Workspace header route groups use local grid-item ordering inside the dock layer."
-      },
-      {
-        "file": "src/styles/features/_session-page.scss",
-        "property": "z-index",
-        "value": "2",
-        "reason": "Focused composer actions use local ordering inside the isolated composer control group."
       }
     ],
-    "literalSpacingExceptions": [
-      {
-        "file": "src/styles/features/automation.scss",
-        "property": "padding",
-        "value": "5px",
-        "reason": "Codex-matched automation suggestion rows require a fixed 5px outer inset around their existing tokenized button padding."
-      },
-      {
-        "file": "src/styles/features/automation.scss",
-        "property": "gap",
-        "value": "5px",
-        "reason": "Codex-matched automation suggestion rows require a fixed 5px gap between adjacent list items."
-      }
-    ]
+    "literalSpacingExceptions": []
   },
   "interactionContract": {
     "interactiveRowAllowedFiles": [

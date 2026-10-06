@@ -95,6 +95,7 @@ export type QuickChatContextValue = {
   composerProps: DesktopComposerProps | null
   composerDraft?: QuickChatComposerDraftBridge
   bottomPanelVisible: boolean
+  /** 右工作区处于内容全宽：聊天区域被隐藏，摘要浮层需要随之关闭。 */
   layoutResizeActive: boolean
   onToggleBottomPanel: () => void
   rightDockPlanEventId: string | null

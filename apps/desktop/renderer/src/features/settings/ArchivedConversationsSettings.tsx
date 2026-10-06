@@ -61,20 +61,23 @@ export function ArchivedConversationsSettings(): React.ReactNode {
 
   return (
     <SettingsContentArea className="">
-      <div className="settings-content-inner">
-        <div className="settings-page-header">
-          <h2 className="settings-page-title">已归档对话</h2>
+      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
+          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">已归档对话</h2>
         </div>
         <SettingsSection
           title="归档列表"
           description={error ?? '归档对话不会出现在侧边栏和搜索中，恢复后会回到原来的分组。'}
         >
           {archivedSessions.length === 0 ? (
-            <p className="archived-empty">暂无已归档对话。</p>
+            <p className="archived-empty tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">暂无已归档对话。</p>
           ) : (
             archivedSessions.map((session) => (
-              <article className="archived-session-row" key={session.id}>
-                <div className="archived-session-copy">
+              <article
+                className="archived-session-row tw:flex tw:items-center tw:gap-4 tw:bg-transparent tw:px-4 tw:py-4 tw:max-[900px]:flex-col tw:max-[900px]:items-stretch tw:[&+&]:border-t tw:[&+&]:border-t-app-border"
+                key={session.id}
+              >
+                <div className="archived-session-copy tw:min-w-0 tw:flex-1 tw:[&>h3]:m-0 tw:[&>h3]:truncate tw:[&>h3]:text-app-text tw:[&>h3]:type-row-title tw:[&>p]:m-0 tw:[&>p]:text-app-text-soft tw:[&>p]:text-[length:var(--cpx-sys-font-size-xs)]">
                   <h4>{sessionDisplayTitle(session)}</h4>
                   <p>
                     {session.standalone ? '对话' : session.workspaceName}
@@ -82,7 +85,7 @@ export function ArchivedConversationsSettings(): React.ReactNode {
                     {session.createdAt}
                   </p>
                 </div>
-                <div className="archived-session-actions">
+                <div className="archived-session-actions tw:flex tw:shrink-0 tw:items-center tw:gap-2">
                   <Button
                     color="primary"
                     onClick={() => void restoreSession(session)}

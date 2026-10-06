@@ -2,13 +2,15 @@ import { useCallback, useEffect, useState } from 'react'
 
 export const SIDEBAR_WIDTH_STORAGE_KEY = 'layout.sidebarWidth'
 export const SIDEBAR_COLLAPSED_STORAGE_KEY = 'layout.sidebarCollapsed'
-export const SIDEBAR_LAYOUT_RESET_EVENT = 'codepilotx:sidebar-layout-reset'
 export const SIDEBAR_MIN_WIDTH = 240
 export const SIDEBAR_MAX_WIDTH = 520
-export const DEFAULT_SIDEBAR_WIDTH = 275
+export const DEFAULT_SIDEBAR_WIDTH = 340
 
 export function clampSidebarWidth(value: number): number {
-  return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, Math.round(value)))
+  const maxAvailable =
+    typeof window !== 'undefined' ? Math.max(SIDEBAR_MIN_WIDTH, window.innerWidth - 240) : SIDEBAR_MAX_WIDTH
+  const max = Math.min(SIDEBAR_MAX_WIDTH, maxAvailable)
+  return Math.min(max, Math.max(SIDEBAR_MIN_WIDTH, Math.round(value)))
 }
 
 export function readStoredSidebarWidth(defaultWidth = DEFAULT_SIDEBAR_WIDTH): number {
@@ -34,16 +36,6 @@ export function readStoredSidebarCollapsed(): boolean {
   }
 }
 
-export function resetStoredSidebarLayout(): void {
-  try {
-    window.localStorage.removeItem(SIDEBAR_WIDTH_STORAGE_KEY)
-    window.localStorage.removeItem(SIDEBAR_COLLAPSED_STORAGE_KEY)
-  } catch {
-    /* localStorage may be disabled; the reset event still restores in-memory state. */
-  }
-  window.dispatchEvent(new Event(SIDEBAR_LAYOUT_RESET_EVENT))
-}
-
 export type UseDesktopLayoutResult = {
   sidebarCollapsed: boolean
   sidebarWidth: number
@@ -58,16 +50,6 @@ export function useDesktopLayout(defaultWidth = DEFAULT_SIDEBAR_WIDTH): UseDeskt
 
   useEffect(() => {
     setSidebarWidthState(readStoredSidebarWidth(defaultWidth))
-  }, [defaultWidth])
-
-  useEffect(() => {
-    function handleSidebarLayoutReset(): void {
-      setSidebarCollapsedState(false)
-      setSidebarWidthState(defaultWidth)
-    }
-
-    window.addEventListener(SIDEBAR_LAYOUT_RESET_EVENT, handleSidebarLayoutReset)
-    return () => window.removeEventListener(SIDEBAR_LAYOUT_RESET_EVENT, handleSidebarLayoutReset)
   }, [defaultWidth])
 
   const setSidebarWidth = useCallback((nextWidth: number): void => {

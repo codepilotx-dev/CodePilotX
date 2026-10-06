@@ -8,6 +8,7 @@ import { SearchInput } from '../../components/ui/SearchInput.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { RemoteImage } from '../../components/ui/RemoteImage.js'
 import { SkeletonBlock, SkeletonRegion } from '../../components/ui/Skeleton.js'
+import { Spinner } from '../../components/ui/Spinner.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
@@ -146,7 +147,7 @@ export function PetCatalogSection({
       <WorkspaceHeaderItem align="start" id="pets.tabs" order={0} slot="left">
         <SegmentedControl<PetCatalogTab>
           ariaLabel="宠物商店分组"
-          className="pet-catalog-workspace-tabs"
+          className="pet-catalog-workspace-tabs tw:[&_.segmented-control-item_span]:type-caption tw:[&_.segmented-control-item_span]:text-app-text-meta"
           getPanelId={() => 'pet-catalog-panel'}
           getTabId={(value) => `pet-catalog-${value}-tab`}
           onChange={setTab}
@@ -186,9 +187,9 @@ export function PetCatalogSection({
         </IconButton>
       </WorkspaceHeaderItem>
 
-      <section aria-label="社区宠物目录" className="pet-catalog-browser">
-        <div className="pet-catalog-panel">
-          <div className="pet-catalog-filters">
+      <section aria-label="社区宠物目录" className="pet-catalog-browser tw:min-w-0">
+        <div className="pet-catalog-panel tw:rounded-xl tw:border tw:border-app-border tw:bg-app-panel tw:p-4 tw:shadow-none">
+          <div className="pet-catalog-filters tw:grid tw:grid-cols-[minmax(220px,1fr)_minmax(140px,auto)_minmax(140px,auto)] tw:items-center tw:gap-2 tw:[&_.settings-dropdown]:w-full tw:[&_.settings-dropdown]:min-w-0 tw:[&_.settings-dropdown]:bg-app-raised tw:@max-[720px]/pet-catalog-page:grid-cols-1">
             <SearchInput
               aria-label="搜索社区宠物"
               onChange={setQuery}
@@ -226,12 +227,18 @@ export function PetCatalogSection({
           </div>
 
           {catalog.cacheState === 'stale' ? (
-            <p className="pet-catalog-status" role="status">
+            <p
+              className="pet-catalog-status tw:m-0 tw:mt-3 tw:rounded-md tw:bg-app-hover tw:px-3 tw:py-2 tw:type-body-sm tw:text-app-text-meta"
+              role="status"
+            >
               当前显示上次成功获取的目录，联网后可手动刷新。
             </p>
           ) : null}
           {showWakeAction && !overlayEnabled ? (
-            <div className="pet-catalog-wake" role="status">
+            <div
+              className="pet-catalog-wake tw:mt-3 tw:flex tw:items-center tw:justify-between tw:gap-3 tw:rounded-lg tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-app-text tw:@max-[720px]/pet-catalog-page:flex-col tw:@max-[720px]/pet-catalog-page:items-start"
+              role="status"
+            >
               <span>新宠物已经准备好了。</span>
               <Button
                 color="primary"
@@ -254,40 +261,43 @@ export function PetCatalogSection({
           >
             {tab === 'available' && loading && !catalog.pets.length ? (
               <SkeletonRegion
-                className="pet-catalog-grid pet-catalog-skeleton-grid"
+                className="pet-catalog-grid pet-catalog-skeleton-grid tw:mt-4 tw:grid tw:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] tw:gap-3"
                 label="正在载入社区宠物"
               >
                 {Array.from({ length: 6 }).map((_, index) => (
                   <article
                     aria-hidden="true"
-                    className="pet-catalog-card pet-catalog-skeleton-card"
+                    className="pet-catalog-card tw:grid tw:min-w-0 tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border tw:bg-app-raised tw:shadow-none pet-catalog-skeleton-card tw:pointer-events-none"
                     key={index}
                   >
-                    <SkeletonBlock className="pet-catalog-skeleton-art" />
-                    <div className="pet-catalog-card-body">
-                      <SkeletonBlock className="pet-catalog-skeleton-title" />
-                      <SkeletonBlock className="pet-catalog-skeleton-author" />
-                      <SkeletonBlock className="pet-catalog-skeleton-description" />
-                      <div className="pet-catalog-skeleton-tags">
+                    <SkeletonBlock className="pet-catalog-skeleton-art tw:h-33 tw:rounded-none" />
+                    <div className="pet-catalog-card-body tw:grid tw:min-w-0 tw:grid-rows-[auto_auto_minmax(3.5em,1fr)_auto_auto] tw:gap-2 tw:p-3">
+                      <SkeletonBlock className="pet-catalog-skeleton-title tw:h-4.5 tw:w-[62%] tw:rounded-md" />
+                      <SkeletonBlock className="pet-catalog-skeleton-author tw:h-3.5 tw:w-[44%] tw:rounded-md" />
+                      <SkeletonBlock className="pet-catalog-skeleton-description tw:h-[3.5em] tw:w-full tw:rounded-lg" />
+                      <div className="pet-catalog-skeleton-tags tw:flex tw:gap-2 tw:[&>*]:h-[22px] tw:[&>*]:w-[58px] tw:[&>*]:rounded-full">
                         <SkeletonBlock />
                         <SkeletonBlock />
                       </div>
-                      <SkeletonBlock className="pet-catalog-skeleton-action" />
+                      <SkeletonBlock className="pet-catalog-skeleton-action tw:h-7 tw:w-full tw:rounded-md" />
                     </div>
                   </article>
                 ))}
               </SkeletonRegion>
             ) : null}
             {tab === 'installed' && installedPetsLoading && !groups.installed.length ? (
-              <div className="pet-catalog-empty" role="status">
-                <span className="ui-button-spinner" />
+              <div
+                className="pet-catalog-empty tw:grid tw:justify-items-center tw:gap-2 tw:px-4 tw:py-12 tw:text-center tw:text-app-text-meta"
+                role="status"
+              >
+                <Spinner size="medium" />
                 正在载入已安装宠物…
               </div>
             ) : null}
             {tab === 'available' && !loading && catalog.cacheState === 'unavailable' ? (
-              <div className="pet-catalog-empty">
+              <div className="pet-catalog-empty tw:grid tw:justify-items-center tw:gap-2 tw:px-4 tw:py-12 tw:text-center tw:text-app-text-meta">
                 <PawPrint size={APP_ICON_SIZE} />
-                <strong>暂时无法获取社区目录</strong>
+                <strong className="tw:text-app-text">暂时无法获取社区目录</strong>
                 <span>请检查网络连接；已安装的宠物仍可正常使用。</span>
                 <Button color="secondary" onClick={() => void loadCatalog(true)} type="button">
                   重试
@@ -298,9 +308,9 @@ export function PetCatalogSection({
             !(tab === 'available' && catalog.cacheState === 'unavailable') &&
             hasFilters &&
             !visiblePets.length ? (
-              <div className="pet-catalog-empty">
+              <div className="pet-catalog-empty tw:grid tw:justify-items-center tw:gap-2 tw:px-4 tw:py-12 tw:text-center tw:text-app-text-meta">
                 <SearchX size={APP_ICON_SIZE} />
-                <strong>没有匹配的宠物</strong>
+                <strong className="tw:text-app-text">没有匹配的宠物</strong>
                 <span>尝试更换关键词或筛选条件。</span>
                 <Button color="secondary" onClick={clearFilters} type="button">
                   清除筛选
@@ -312,9 +322,9 @@ export function PetCatalogSection({
             tab === 'installed' &&
             !installedPetsLoading &&
             !activePets.length ? (
-              <div className="pet-catalog-empty">
+              <div className="pet-catalog-empty tw:grid tw:justify-items-center tw:gap-2 tw:px-4 tw:py-12 tw:text-center tw:text-app-text-meta">
                 <PawPrint size={APP_ICON_SIZE} />
-                <strong>还没有安装宠物</strong>
+                <strong className="tw:text-app-text">还没有安装宠物</strong>
                 <span>前往“未安装”挑选一个桌面伙伴。</span>
                 <Button color="secondary" onClick={() => setTab('available')} type="button">
                   浏览未安装
@@ -326,9 +336,9 @@ export function PetCatalogSection({
             tab === 'available' &&
             catalog.cacheState !== 'unavailable' &&
             !activePets.length ? (
-              <div className="pet-catalog-empty">
+              <div className="pet-catalog-empty tw:grid tw:justify-items-center tw:gap-2 tw:px-4 tw:py-12 tw:text-center tw:text-app-text-meta">
                 <PawPrint size={APP_ICON_SIZE} />
-                <strong>社区宠物均已安装</strong>
+                <strong className="tw:text-app-text">社区宠物均已安装</strong>
                 <span>可以前往“已安装”切换当前使用的宠物。</span>
                 <Button color="secondary" onClick={() => setTab('installed')} type="button">
                   查看已安装
@@ -337,14 +347,17 @@ export function PetCatalogSection({
             ) : null}
 
             {visiblePets.length ? (
-              <div className="pet-catalog-grid">
+              <div className="pet-catalog-grid tw:mt-4 tw:grid tw:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] tw:gap-3">
                 {visiblePets.map((pet) => {
                   const installed = pet.installed || installedIds.has(pet.id)
                   const selected = selectedPetId === pet.id
                   const installing = installingSlug === pet.id
                   return (
-                    <article className="pet-catalog-card" key={pet.id}>
-                      <div className="pet-catalog-art">
+                    <article
+                      className="pet-catalog-card tw:grid tw:min-w-0 tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border tw:bg-app-raised tw:shadow-none"
+                      key={pet.id}
+                    >
+                      <div className="pet-catalog-art tw:flex tw:h-33 tw:items-center tw:justify-center tw:overflow-hidden tw:bg-app-editor tw:p-3 tw:text-app-text tw:[&_.pet-sprite]:flex-none tw:[&_.pet-sprite]:bg-no-repeat">
                         {installed && pet.spritesheetUrl ? (
                           <PetSprite
                             animation="idle"
@@ -355,7 +368,7 @@ export function PetCatalogSection({
                         ) : pet.previewUrl ? (
                           <RemoteImage
                             alt=""
-                            className="pet-catalog-preview"
+                            className="pet-catalog-preview tw:flex tw:size-full tw:items-center tw:justify-center tw:[&_.ui-skeleton-block]:rounded-lg"
                             decoding="async"
                             fallback={
                               <PawPrint
@@ -364,7 +377,7 @@ export function PetCatalogSection({
                                 size={APP_ICON_SIZE}
                               />
                             }
-                            imageClassName="pet-catalog-preview__image"
+                            imageClassName="pet-catalog-preview__image tw:block tw:m-auto tw:h-auto tw:max-h-full tw:w-auto tw:max-w-full tw:object-scale-down"
                             loading="lazy"
                             src={pet.previewUrl}
                           />
@@ -372,23 +385,32 @@ export function PetCatalogSection({
                           <PawPrint aria-hidden="true" size={APP_ICON_SIZE} />
                         )}
                       </div>
-                      <div className="pet-catalog-card-body">
-                        <div className="pet-catalog-card-heading">
+                      <div className="pet-catalog-card-body tw:grid tw:min-w-0 tw:grid-rows-[auto_auto_minmax(3.5em,1fr)_auto_auto] tw:gap-2 tw:p-3">
+                        <div className="pet-catalog-card-heading tw:flex tw:items-center tw:justify-between tw:gap-2 tw:text-app-text">
                           <strong>{pet.displayName}</strong>
-                          <span>v{pet.spriteVersionNumber}</span>
+                          <span className="tw:shrink-0 tw:type-caption tw:text-app-text-meta">v{pet.spriteVersionNumber}</span>
                         </div>
                         {pet.author ? (
-                          <p className="pet-catalog-author">作者：{pet.author}</p>
+                          <p className="pet-catalog-author tw:m-0 tw:type-body-sm tw:text-app-text-meta">
+                          作者：{pet.author}
+                        </p>
                         ) : (
-                          <p className="pet-catalog-author">自定义来源</p>
+                          <p className="pet-catalog-author tw:m-0 tw:type-body-sm tw:text-app-text-meta">
+                          自定义来源
+                        </p>
                         )}
-                        <p className="pet-catalog-description">
+                        <p className="pet-catalog-description tw:m-0 tw:line-clamp-3 tw:type-body-sm tw:text-app-text-meta">
                           {pet.description || '这个宠物还没有介绍。'}
                         </p>
-                        <div className="pet-catalog-tags">
-                          <span>{pet.categoryLabel}</span>
+                        <div className="pet-catalog-tags tw:flex tw:flex-wrap tw:gap-2">
+                          <span className="tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-meta">
+                            {pet.categoryLabel}
+                          </span>
                           {pet.licenseKind ? (
-                            <span data-license={pet.licenseKind}>
+                            <span
+                              className="tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-meta tw:data-[license=restricted]:text-app-warning tw:data-[license=unknown]:text-app-warning"
+                              data-license={pet.licenseKind}
+                            >
                               {petLicenseLabel(pet.licenseKind)}
                             </span>
                           ) : null}
@@ -424,11 +446,11 @@ export function PetCatalogSection({
         actionLabel="我已了解，继续安装"
         description={
           licensePet ? (
-            <span className="pet-license-confirmation">
+            <span className="pet-license-confirmation tw:grid tw:gap-2">
               <span>
                 “{licensePet.displayName}”由 {licensePet.author} 提供。
               </span>
-              <span className="pet-license-confirmation-text">{licensePet.license}</span>
+              <span className="pet-license-confirmation-text tw:max-h-28 tw:overflow-auto tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:whitespace-pre-wrap">{licensePet.license}</span>
               <span>请仅在上述许可允许的范围内使用和分发。</span>
             </span>
           ) : undefined

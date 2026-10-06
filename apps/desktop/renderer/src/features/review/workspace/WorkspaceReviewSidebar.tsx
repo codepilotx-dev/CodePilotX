@@ -131,8 +131,24 @@ import {
   type ReviewFileLoadState,
 } from '../diff/WorkspaceReviewDiff.js'
 import { filterStatusForFile, type ReviewFilter } from './reviewFileStatus.js'
+import { cx } from '../../../utils/cx.js'
 
 const REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH = REVIEW_FILE_TREE_PANEL_MIN_WIDTH + 8 + 260
+
+/*
+ * Complete static class lists for the sidebar shell. The semantic class names
+ * stay in the DOM as query hooks; `in-[.workbench-panel]` reproduces the old
+ * `.workbench-panel .review-sidebar` override so a docked sidebar fills its
+ * workbench panel instead of keeping the standalone column metrics.
+ */
+const REVIEW_SIDEBAR_CLASS =
+  'review-sidebar tw:@container tw:flex tw:h-full tw:min-h-0 tw:flex-col tw:overflow-hidden tw:border-l tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-none tw:in-[.workbench-panel]:flex-auto tw:in-[.workbench-panel]:w-full tw:in-[.workbench-panel]:min-w-0 tw:in-[.workbench-panel]:max-w-none tw:in-[.workbench-panel]:border-l-0'
+const REVIEW_SIDEBAR_TOOLBAR_CLASS =
+  'tw:box-border tw:flex tw:min-h-[calc(var(--chrome-h)_+_var(--cpx-sys-space-2))] tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-1 tw:shadow-none'
+const REVIEW_COUNTS_CLASS = 'tw:inline-flex tw:items-center tw:gap-2'
+const REVIEW_FOOTER_CLASS =
+  'tw:absolute tw:bottom-2.5 tw:left-1/2 tw:z-local tw:flex tw:-translate-x-1/2 tw:items-center tw:justify-center tw:gap-4 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-1 tw:shadow-none'
+
 function reviewDiffExpansionFromKeys(
   allPaths: readonly string[],
   expandedKeys: readonly string[],
@@ -2137,20 +2153,25 @@ function WorkspaceReviewSidebarImpl({
 
   return (
     <aside
-      className={hideFileList ? 'review-sidebar hide-files' : 'review-sidebar'}
+      className={cx(REVIEW_SIDEBAR_CLASS, hideFileList && 'hide-files')}
       aria-label="本地代码审查"
       data-review-view={reviewView}
       data-wrap-lines={wordWrap ? 'true' : 'false'}
       ref={reviewRootRef}
     >
       <div
-        className={
-          source.kind === 'branch'
-            ? 'review-sidebar-toolbar review-sidebar-toolbar--branch'
-            : 'review-sidebar-toolbar'
-        }
+        className={cx(
+          'review-sidebar-toolbar',
+          source.kind === 'branch' && 'review-sidebar-toolbar--branch',
+          REVIEW_SIDEBAR_TOOLBAR_CLASS,
+        )}
       >
-        <div className="review-sidebar-title">
+        <div
+          className={cx(
+            'review-sidebar-title tw:inline-flex tw:min-w-0 tw:flex-[1_1_auto] tw:items-center tw:gap-3 tw:overflow-hidden',
+            source.kind === 'branch' && 'tw:flex-nowrap',
+          )}
+        >
           <ReviewSourceMenu
             branches={branches}
             commits={commits}
@@ -2164,21 +2185,33 @@ function WorkspaceReviewSidebarImpl({
           />
           {summary ? (
             totals.additions > 0 || totals.deletions > 0 ? (
-              <span className="review-sidebar-counts">
+              <span className={cx('review-sidebar-counts', REVIEW_COUNTS_CLASS)}>
                 <>
-                  <strong>+{formatPanelNumber(totals.additions)}</strong>
-                  <em>-{formatPanelNumber(totals.deletions)}</em>
+                  <strong className="tw:text-app-success tw:type-weight-label">
+                    +{formatPanelNumber(totals.additions)}
+                  </strong>
+                  <em className="tw:text-app-danger tw:not-italic tw:type-weight-label">
+                    -{formatPanelNumber(totals.deletions)}
+                  </em>
                 </>
               </span>
             ) : null
           ) : (
-            <span aria-label="变更统计不可用" className="review-sidebar-counts">
+            <span
+              aria-label="变更统计不可用"
+              className={cx('review-sidebar-counts', REVIEW_COUNTS_CLASS)}
+            >
               —
             </span>
           )}
           {source.kind === 'branch' ? (
-            <div className="review-branch-range">
-              <span title={gitStatus?.branchName ?? 'HEAD'}>{gitStatus?.branchName ?? 'HEAD'}</span>
+            <div className="review-branch-range tw:flex tw:min-w-0 tw:flex-[1_1_180px] tw:items-center tw:gap-1 tw:text-app-text-soft tw:type-caption">
+              <span
+                className="tw:min-w-0 tw:max-w-[38%] tw:overflow-hidden tw:px-2 tw:text-ellipsis tw:whitespace-nowrap"
+                title={gitStatus?.branchName ?? 'HEAD'}
+              >
+                {gitStatus?.branchName ?? 'HEAD'}
+              </span>
               <span aria-hidden="true">→</span>
               <PopoverMenu
                 align="start"
@@ -2187,18 +2220,27 @@ function WorkspaceReviewSidebarImpl({
                 sideOffset={4}
                 width={240}
                 trigger={
-                  <button className="review-branch-range__trigger" type="button">
-                    <span>{source.baseBranch}</span>
+                  <button
+                    className="review-branch-range__trigger tw:inline-flex tw:min-w-0 tw:max-w-[54%] tw:items-center tw:gap-1 tw:rounded-md tw:px-2 tw:py-1 tw:text-app-text-soft tw:hover:bg-app-hover tw:hover:text-app-text tw:active:bg-app-selected"
+                    type="button"
+                  >
+                    <span className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">
+                      {source.baseBranch}
+                    </span>
                     <ChevronDown size={APP_ICON_SIZES.sm} />
                   </button>
                 }
                 onOpenChange={setBranchPickerOpen}
               >
                 {sourceOptionsState === 'loading' ? (
-                  <div className="review-source-submenu-message">正在加载分支…</div>
+                  <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-body-sm">
+                    正在加载分支…
+                  </div>
                 ) : sourceOptionsState === 'error' ? (
                   <>
-                    <div className="review-source-submenu-message">无法加载分支</div>
+                    <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-body-sm">
+                      无法加载分支
+                    </div>
                     <PopoverItem onClick={() => setSourceOptionsRetry((current) => current + 1)}>
                       重试
                     </PopoverItem>
@@ -2225,7 +2267,7 @@ function WorkspaceReviewSidebarImpl({
             </div>
           ) : null}
         </div>
-        <div className="review-sidebar-actions">
+        <div className="review-sidebar-actions tw:inline-flex tw:flex-none tw:items-center tw:gap-1 tw:whitespace-nowrap">
           <PopoverMenu
             align="end"
             className="popover-review-more popover-menu--grid"
@@ -2333,7 +2375,7 @@ function WorkspaceReviewSidebarImpl({
           <Tooltip content="搜索文件">
             <IconButton
               iconSize="sm"
-              className="review-sidebar-search-action"
+              className="review-sidebar-search-action tw:@max-[560px]:hidden"
               color="ghostSecondary"
               size="toolbar"
               title="搜索文件"
@@ -2373,13 +2415,15 @@ function WorkspaceReviewSidebarImpl({
               iconSize="sm"
               color="secondary"
               aria-label="提交或推送"
-              className="review-sidebar-primary-action"
+              className="review-sidebar-primary-action tw:@min-[640px]:min-w-6"
               ref={commitButtonRef}
               size="toolbar"
               onClick={() => setCommitPopoverOpen((value) => !value)}
             >
               <GitCommitHorizontal size={APP_ICON_SIZES.sm} />
-              <span className="review-sidebar-action-label">提交或推送</span>
+              <span className="review-sidebar-action-label tw:hidden tw:type-control tw:@min-[640px]:inline">
+                提交或推送
+              </span>
             </Button>
           </Tooltip>
           <Tooltip content="创建拉取请求">
@@ -2387,20 +2431,25 @@ function WorkspaceReviewSidebarImpl({
               iconSize="sm"
               color="secondary"
               aria-label="创建拉取请求"
-              className="review-sidebar-primary-action"
+              className="review-sidebar-primary-action tw:@min-[640px]:min-w-6"
               ref={prButtonRef}
               size="toolbar"
               onClick={() => setPrPopoverOpen((value) => !value)}
             >
               <GitPullRequestArrow size={APP_ICON_SIZES.sm} />
-              <span className="review-sidebar-action-label">创建拉取请求</span>
+              <span className="review-sidebar-action-label tw:hidden tw:type-control tw:@min-[640px]:inline">
+                创建拉取请求
+              </span>
             </Button>
           </Tooltip>
         </div>
       </div>
 
       {error ? (
-        <div className="review-error-state" role="alert">
+        <div
+          className="review-error-state tw:flex tw:flex-none tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:px-4 tw:py-2 tw:text-app-danger tw:type-body-sm"
+          role="alert"
+        >
           <span>{error}</span>
           <Button color="secondary" onClick={() => void refreshReviewDiff(true)}>
             重试
@@ -2409,7 +2458,7 @@ function WorkspaceReviewSidebarImpl({
       ) : null}
 
       <motion.div
-        className="review-sidebar-main"
+        className="review-sidebar-main tw:relative tw:flex tw:min-w-0 tw:min-h-0 tw:flex-auto tw:items-stretch tw:overflow-hidden tw:bg-app-editor tw:[contain:size_layout_paint]"
         ref={reviewMainRef}
         style={
           {
@@ -2466,12 +2515,12 @@ function WorkspaceReviewSidebarImpl({
           visible={!showProjectEmptyState && !hideFileList}
           width={fileTreePanelWidth}
         >
-          <div className="review-file-tree-panel-content">
-            <div className="review-file-search-region">
+          <div className="review-file-tree-panel-content tw:flex tw:min-w-0 tw:min-h-0 tw:flex-auto tw:flex-col">
+            <div className="review-file-search-region tw:shrink-0 tw:bg-app-panel tw:px-4 tw:pt-3 tw:pb-2">
               <SearchInput
                 ref={fileSearchInputRef}
                 aria-label="筛选文件"
-                className="review-file-search"
+                className="review-file-search tw:w-full tw:min-h-8 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-raised"
                 onChange={setSearch}
                 placeholder="筛选文件..."
                 value={search}
@@ -2503,11 +2552,13 @@ function WorkspaceReviewSidebarImpl({
 
             {staleComments.length > 0 ? (
               <ScrollArea
-                className="review-stale-comments-scroll"
-                contentClassName="review-stale-comments"
+                className="review-stale-comments-scroll tw:shrink-0 tw:max-h-[24%]"
+                contentClassName="review-stale-comments tw:border-t tw:border-app-border-subtle tw:bg-app-panel tw:px-3 tw:py-3"
                 aria-label="过期评论"
               >
-                <div className="review-stale-title">过期评论</div>
+                <div className="review-stale-title tw:mb-2 tw:text-app-text-soft tw:type-title-sm">
+                  过期评论
+                </div>
                 {staleComments.map((comment) => (
                   <ReviewComment
                     comment={comment}
@@ -2526,7 +2577,7 @@ function WorkspaceReviewSidebarImpl({
       {!hideFileList &&
       visibleFiles.length > 0 &&
       (source.kind === 'unstaged' || source.kind === 'staged') ? (
-        <footer className="review-footer">
+        <footer className={cx('review-footer', REVIEW_FOOTER_CLASS)}>
           {scope === 'unstaged' ? (
             <>
               <Tooltip content="还原所有未暂存变更">
@@ -2586,7 +2637,7 @@ function WorkspaceReviewSidebarImpl({
       ) : null}
 
       {source.kind === 'pull-request' ? (
-        <footer className="review-footer">
+        <footer className={cx('review-footer', REVIEW_FOOTER_CLASS)}>
           <Button
             color="secondary"
             disabled={pending || openComments.length === 0}

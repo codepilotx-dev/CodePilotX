@@ -26,6 +26,8 @@ import type {
   ModelProviderID,
   SidebarProductMode,
   SidebarSectionId,
+  SidebarCustomization,
+  SidebarCustomSection,
 } from './types.js'
 
 export const DESKTOP_PERMISSION_MODES = new Set<DesktopPermissionMode>([
@@ -83,6 +85,24 @@ export const DESKTOP_DRAWER_TABS = new Set<DesktopDrawerTab>([
 export const MAX_RECENT_WORKSPACES = 5
 export const MAX_REMOVED_WORKSPACES = 50
 export const SIDEBAR_STATE_VERSION = 2
+
+export const DEFAULT_SIDEBAR_DESTINATION_ORDER: readonly string[] = [
+  'automations',
+  'plugins',
+  'sessionGroups',
+]
+
+/** 默认直接显示的入口是“已安排”与“插件”，其余可用入口先收进“更多”。 */
+export const DEFAULT_SIDEBAR_HIDDEN_DESTINATION_IDS: readonly string[] = ['sessionGroups']
+
+export const DEFAULT_SIDEBAR_CUSTOMIZATION: SidebarCustomization = {
+  version: 1,
+  sections: [],
+  sectionOrder: [],
+  pinnedSort: 'manual',
+  destinationOrder: [...DEFAULT_SIDEBAR_DESTINATION_ORDER],
+  hiddenDestinationIds: [...DEFAULT_SIDEBAR_HIDDEN_DESTINATION_IDS],
+}
 
 export const PROJECT_APPEARANCE_COLORS: readonly ProjectAppearanceColor[] = [
   'default',
@@ -216,6 +236,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     browserAllowedSites: [],
     collapsedSidebarSections: ['projects', 'recent'],
     browserSitePermissions: [],
+    sidebarCustomization: DEFAULT_SIDEBAR_CUSTOMIZATION,
     pet: {
       enabled: false,
       selectedPetId: null,
@@ -530,6 +551,10 @@ export function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSet
       parsed.browserSitePermissions,
       parsed.browserAllowedSites,
     ),
+    sidebarCustomization: normalizeSidebarCustomization(
+      parsed.sidebarCustomization,
+      defaults.sidebarCustomization,
+    ),
     pet: normalizePetSettings(parsed.pet, defaults.pet),
     notifications: normalizeSystemNotificationSettings(
       parsed.notifications,
@@ -798,6 +823,91 @@ function normalizeDesktopSidebarSort(
   if (value === 'recent' || value === 'created') return 'updated'
   return isDesktopSidebarSort(value) ? value : fallback
 }
+
+export function normalizeSidebarCustomization(
+  value: unknown,
+  fallback: SidebarCustomization = DEFAULT_SIDEBAR_CUSTOMIZATION,
+): SidebarCustomization {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return fallback
+  }
+  const raw = value as Record<string, unknown>
+  const version = typeof raw.version === 'number' ? raw.version : 1
+  if (version > 1) {
+    return value as SidebarCustomization
+  }
+
+  const rawSections = Array.isArray(raw.sections) ? raw.sections : []
+  const sections: SidebarCustomSection[] = []
+  const sectionIdSet = new Set<string>()
+
+  for (const s of rawSections) {
+    if (!s || typeof s !== 'object' || Array.isArray(s)) continue
+    const sec = s as Record<string, unknown>
+    const id = typeof sec.id === 'string' && sec.id.trim() ? sec.id.trim() : null
+    if (!id || sectionIdSet.has(id)) continue
+    sectionIdSet.add(id)
+    const title = typeof sec.title === 'string' ? sec.title : '新建分组'
+    const itemKeys = Array.isArray(sec.itemKeys)
+      ? sec.itemKeys.filter((k): k is string => typeof k === 'string' && Boolean(k))
+      : []
+    const sort: 'manual' | 'updated' = sec.sort === 'updated' ? 'updated' : 'manual'
+    const collapsed = Boolean(sec.collapsed)
+    sections.push({ id, title, itemKeys, sort, collapsed })
+  }
+
+  const rawOrder = Array.isArray(raw.sectionOrder)
+    ? raw.sectionOrder.filter((id): id is string => typeof id === 'string')
+    : []
+  const sectionOrder: string[] = []
+  const orderSet = new Set<string>()
+  for (const id of rawOrder) {
+    if (!orderSet.has(id)) {
+      orderSet.add(id)
+      sectionOrder.push(id)
+    }
+  }
+  for (const sec of sections) {
+    if (!orderSet.has(sec.id)) {
+      orderSet.add(sec.id)
+      sectionOrder.push(sec.id)
+    }
+  }
+
+  const pinnedSort: 'manual' | 'updated' = raw.pinnedSort === 'updated' ? 'updated' : 'manual'
+
+  const rawDestOrder = Array.isArray(raw.destinationOrder)
+    ? raw.destinationOrder.filter((id): id is string => typeof id === 'string')
+    : []
+  const destinationOrder: string[] = []
+  const destOrderSet = new Set<string>()
+  for (const id of rawDestOrder) {
+    if (!destOrderSet.has(id)) {
+      destOrderSet.add(id)
+      destinationOrder.push(id)
+    }
+  }
+  for (const id of DEFAULT_SIDEBAR_DESTINATION_ORDER) {
+    if (!destOrderSet.has(id)) {
+      destOrderSet.add(id)
+      destinationOrder.push(id)
+    }
+  }
+
+  const hiddenDestinationIds = Array.isArray(raw.hiddenDestinationIds)
+    ? normalizeUniqueStringList(raw.hiddenDestinationIds, [])
+    : [...DEFAULT_SIDEBAR_HIDDEN_DESTINATION_IDS]
+
+  return {
+    version: 1,
+    sections,
+    sectionOrder,
+    pinnedSort,
+    destinationOrder,
+    hiddenDestinationIds,
+  }
+}
+
 
 export function upsertRecentWorkspace(
   workspaces: DesktopWorkspace[],

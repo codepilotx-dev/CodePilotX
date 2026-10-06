@@ -276,7 +276,7 @@ describe('Electron 外观设置存储', () => {
     expect(await new AppearanceSettingsStore(root).load()).toEqual(loaded)
 
     const reapplied = await store.applyNewDesignTheme()
-    expect(reapplied.chromeThemes.light.accent).toBe('#339cff')
+    expect(reapplied.chromeThemes.light.accent).toBe('#0169cc')
     expect(reapplied.chromeThemes.light.surface).toBe('#ffffff')
     expect(reapplied.fontSizes.ui).toBe(15)
     expect(reapplied.chromeThemes.light.fonts.ui).toBe('Inter')
@@ -313,7 +313,7 @@ describe('Electron 外观设置存储', () => {
     const root = temporaryRoot()
     const store1 = new AppearanceSettingsStore(root)
     const initial = await store1.load()
-    expect(initial.chromeThemes.light.accent).toBe('#339cff')
+    expect(initial.chromeThemes.light.accent).toBe('#0169cc')
 
     const custom = {
       ...initial,

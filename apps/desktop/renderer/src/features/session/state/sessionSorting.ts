@@ -20,9 +20,7 @@ export function sortSessionsForSidebar<T extends SessionListItem>(
   if (options.sort === 'manual') {
     return sortSessionsByManualOrder(sessions, options)
   }
-  if (options.sort === 'priority') {
-    return [...sessions].sort((left, right) => compareSessionsByPriority(left, right, options))
-  }
+  // 普通列表只提供“最近更新 / 手动排序”；历史 priority 值按最近更新呈现。
   return sortSessionsByRecency(sessions)
 }
 
@@ -31,17 +29,6 @@ export function compareSessionsByRecency<T extends SessionListItem>(left: T, rig
     sessionRecencyMs(right) - sessionRecencyMs(left) ||
     timestampMs(right.createdAt) - timestampMs(left.createdAt) ||
     right.id.localeCompare(left.id)
-  )
-}
-
-function compareSessionsByPriority<T extends SessionListItem>(
-  left: T,
-  right: T,
-  options: Pick<SidebarSessionSortOptions, 'needsInputSessionIds' | 'unreadSessionIds'>,
-): number {
-  return (
-    sessionPriorityRank(left, options) - sessionPriorityRank(right, options) ||
-    compareSessionsByRecency(left, right)
   )
 }
 
@@ -69,18 +56,6 @@ function sortSessionsByManualOrder<T extends SessionListItem>(
     storedIndex += 1
     return storedSession ?? session
   })
-}
-
-function sessionPriorityRank(
-  session: SessionListItem,
-  options: Pick<SidebarSessionSortOptions, 'needsInputSessionIds' | 'unreadSessionIds'>,
-): number {
-  if (session.status === 'waiting' || options.needsInputSessionIds.has(session.id)) {
-    return 0
-  }
-  if (options.unreadSessionIds.has(session.id)) return 1
-  if (session.status === 'running') return 2
-  return 3
 }
 
 function sessionRecencyMs(session: SessionListItem): number {

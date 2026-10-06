@@ -44,30 +44,44 @@ export function WorkspaceFileTree(props: WorkspaceFileTreeProps): React.ReactNod
   const projectFolders = props.workspace?.folders ?? []
   if (!props.folderId && projectFolders.length > 1) {
     return (
-      <div className={cx('workspace-file-tree-groups', props.className)}>
+      <div
+        className={cx(
+          'workspace-file-tree-groups tw:flex tw:h-full tw:min-h-0 tw:grow tw:shrink tw:basis-auto tw:flex-col tw:overflow-hidden',
+          props.className,
+        )}
+      >
         {projectFolders.map((folder) => (
           <section
-            className="workspace-file-tree-group"
+            className="workspace-file-tree-group tw:flex tw:min-h-20 tw:flex-1 tw:flex-col tw:overflow-hidden tw:border-b tw:border-app-border"
             data-folder-availability={folder.availability}
             key={folder.id}
           >
-            <header className="workspace-file-tree-group-header">
+            <header className="workspace-file-tree-group-header tw:sticky tw:top-0 tw:z-local tw:flex tw:h-8 tw:items-center tw:gap-2 tw:bg-app-dock tw:px-3 tw:text-app-text tw:type-label">
               <ChevronRight
                 aria-hidden="true"
-                className="right-dock-tree-chevron"
+                className="right-dock-tree-chevron tw:inline-flex tw:size-icon-sm tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text-meta tw:transition-transform tw:duration-state tw:ease-out"
                 size={APP_ICON_SIZES.sm}
               />
-              <span>{folder.name}</span>
-              {folder.role === 'primary' ? <em>主目录</em> : null}
+              <span className="tw:min-w-0 tw:flex-1 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">
+                {folder.name}
+              </span>
+              {folder.role === 'primary' ? (
+                <em className="tw:rounded-full tw:bg-app-panel tw:px-2 tw:py-1 tw:text-app-accent tw:type-meta tw:not-italic">
+                  主目录
+                </em>
+              ) : null}
             </header>
             {folder.availability === 'missing' ? (
-              <div className="right-dock-tree-empty">目录当前不可用。</div>
+              <div className="right-dock-tree-empty tw:px-2 tw:py-5 tw:text-app-text-meta tw:type-body-sm">
+                目录当前不可用。
+              </div>
             ) : (
               <WorkspaceFileTreeContent
                 {...props}
                 autoFocusSearch={false}
                 files={folder.role === 'primary' ? props.files : []}
                 folderId={folder.id}
+                grouped
                 rootPath="."
                 searchable={false}
                 workspace={{
@@ -101,6 +115,7 @@ function WorkspaceFileTreeContent({
   autoFocusSearch = false,
   className,
   files,
+  grouped = false,
   revealToken,
   rootPath = null,
   searchable = true,
@@ -109,7 +124,10 @@ function WorkspaceFileTreeContent({
   onAddComposerFiles,
   onEscape,
   onOpenFile,
-}: WorkspaceFileTreeProps): React.ReactNode {
+}: WorkspaceFileTreeProps & {
+  /** Grouped trees fill their `workspace-file-tree-group` section instead of the pane. */
+  grouped?: boolean
+}): React.ReactNode {
   const [query, setQuery] = useState('')
   const [entries, setEntries] = useState<DesktopFileEntry[]>(() =>
     rootPath ? [] : normalizeRootEntries(files),
@@ -343,8 +361,8 @@ function WorkspaceFileTreeContent({
           file.type === 'file' && activePath != null ? normalizePath(activePath) === key : undefined
         }
         className={cx(
-          'right-dock-tree-row',
-          activePath != null && normalizePath(activePath) === key && 'active',
+          'right-dock-tree-row tw:flex tw:h-6.5 tw:min-h-6.5 tw:w-full tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:py-0 tw:pr-2 tw:pl-2 tw:text-left tw:text-app-text tw:cursor-pointer tw:select-none tw:type-secondary tw:transition-[background-color,border-color,box-shadow,color] tw:duration-state tw:ease-out tw:hover:bg-app-hover',
+          activePath != null && normalizePath(activePath) === key && 'active tw:bg-app-selected',
         )}
         role="treeitem"
         style={{ paddingLeft: `${4 + file.depth * 14}px` }}
@@ -411,28 +429,37 @@ function WorkspaceFileTreeContent({
         {file.type === 'directory' && loadingDirectories.has(key) ? (
           <LoaderCircle
             aria-hidden="true"
-            className="right-dock-tree-chevron is-spinning"
+            className="right-dock-tree-chevron is-spinning tw:inline-flex tw:size-icon-sm tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text-meta"
             size={APP_ICON_SIZE}
           />
         ) : file.type === 'directory' && directoryErrors.has(key) ? (
-          <RotateCcw aria-hidden="true" className="right-dock-tree-chevron" size={APP_ICON_SIZE} />
+          <RotateCcw
+            aria-hidden="true"
+            className="right-dock-tree-chevron tw:inline-flex tw:size-icon-sm tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text-meta"
+            size={APP_ICON_SIZE}
+          />
         ) : file.type === 'directory' ? (
           <ChevronRight
             aria-hidden="true"
-            className={cx('right-dock-tree-chevron', expandedDirectories.has(key) && 'is-expanded')}
+            className={cx(
+              'right-dock-tree-chevron tw:inline-flex tw:size-icon-sm tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text-meta tw:transition-transform tw:duration-state tw:ease-out',
+              expandedDirectories.has(key) && 'is-expanded tw:rotate-90',
+            )}
             size={APP_ICON_SIZES.sm}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
         ) : (
           <FileTypeIcon
             aria-hidden="true"
-            className="right-dock-tree-file-icon"
+            className="right-dock-tree-file-icon tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center"
             path={file.path}
             size={APP_ICON_SIZE}
             strokeWidth={APP_ICON_STROKE_WIDTH}
           />
         )}
-        <span>{file.name}</span>
+        <span className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">
+          {file.name}
+        </span>
       </button>
     )
     if (!sendablePath) return treeItem
@@ -453,12 +480,18 @@ function WorkspaceFileTreeContent({
   }
 
   return (
-    <div className={cx('workspace-file-tree', 'right-dock-file-tree', className)}>
+    <div
+      className={cx(
+        'workspace-file-tree right-dock-file-tree tw:flex tw:min-h-0 tw:min-w-0 tw:flex-col tw:overflow-hidden tw:px-1 tw:py-2',
+        grouped ? 'tw:h-auto tw:min-h-12 tw:max-h-none' : 'tw:h-full',
+        className,
+      )}
+    >
       {searchable ? (
         <SearchInput
           aria-label="筛选文件"
           autoFocus={autoFocusSearch}
-          className="right-dock-search"
+          className="right-dock-search tw:mb-1 tw:h-7 tw:min-h-7 tw:shrink-0 tw:text-app-text-meta tw:shadow-none"
           onChange={setQuery}
           onEscapeEmpty={onEscape}
           placeholder="筛选文件..."
@@ -469,7 +502,7 @@ function WorkspaceFileTreeContent({
       {visibleRows.length > 0 ? (
         <VList
           ref={listRef}
-          className="right-dock-tree-scroll-area right-dock-tree-vlist"
+          className="right-dock-tree-scroll-area right-dock-tree-vlist tw:min-h-0 tw:grow tw:shrink tw:basis-auto tw:overflow-x-hidden tw:overflow-y-auto"
           data={visibleRows}
           data-file-tree-virtualized-scroll="true"
           itemSize={FILE_TREE_ROW_HEIGHT}
@@ -478,7 +511,7 @@ function WorkspaceFileTreeContent({
           {(row) => <Fragment key={fileTreeRowKey(row)}>{renderRow(row)}</Fragment>}
         </VList>
       ) : (
-        <div className="right-dock-tree-empty">
+        <div className="right-dock-tree-empty tw:px-2 tw:py-5 tw:text-app-text-meta tw:type-body-sm">
           {workspace && rootPath && directoryErrors.has(normalizePath(rootPath)) ? (
             <Button
               color="secondary"

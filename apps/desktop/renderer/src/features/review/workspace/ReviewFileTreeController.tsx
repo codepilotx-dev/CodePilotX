@@ -60,12 +60,16 @@ export const ReviewFileTreeController = React.memo(function ReviewFileTreeContro
   }, [])
 
   if (rows.length === 0) {
-    return <div className="review-empty-state">{emptyMessage}</div>
+    return (
+      <div className="review-empty-state tw:px-4 tw:py-6 tw:text-app-text-meta tw:type-body-sm">
+        {emptyMessage}
+      </div>
+    )
   }
 
   return (
     <VList
-      className="review-file-tree-scroll review-file-tree-vlist"
+      className="review-file-tree-scroll review-file-tree-vlist tw:flex-auto tw:min-h-0 tw:min-w-0"
       data={rows}
       itemSize={REVIEW_FILE_TREE_ROW_HEIGHT}
       ref={listRef}

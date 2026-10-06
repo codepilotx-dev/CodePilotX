@@ -59,7 +59,7 @@ export function deriveDesktopSurfaceUnder(
   const target = dark ? { red: 0, green: 0, blue: 0 } : inkRgb
   const amount = Math.max(
     0,
-    Math.min(1, (dark ? 0.16 : 0.04) + (contrast - (dark ? 60 : 45)) * (dark ? 0.0015 : 0.0012)),
+    Math.min(1, (dark ? 0.1 : 0.04) + (contrast - (dark ? 60 : 40)) * (dark ? 0.0015 : 0.0012)),
   )
   const mix = (channel: keyof typeof surfaceRgb) =>
     Math.round(surfaceRgb[channel] + (target[channel] - surfaceRgb[channel]) * amount)
@@ -166,31 +166,31 @@ export type DesktopThemeSettingsV7<CodeThemeId extends string = string> = Omit<
 > & { version: 7 }
 
 export const DEFAULT_LIGHT_CHROME_THEME: DesktopChromeTheme = {
-  accent: '#339cff',
+  accent: '#0169cc',
   accentPreset: 'custom',
-  contrast: 45,
+  contrast: 40,
   fonts: { code: null, ui: null, uiFace: null, codeFace: null },
-  ink: '#1a1c1f',
+  ink: '#1f1f1f',
   semanticColors: {
     diffAdded: '#00a240',
-    diffRemoved: '#ba2623',
-    skill: '#924ff7',
+    diffRemoved: '#e02e2a',
+    skill: '#751ed9',
   },
   surface: '#ffffff',
 }
 
 export const DEFAULT_DARK_CHROME_THEME: DesktopChromeTheme = {
-  accent: '#339cff',
+  accent: '#0169cc',
   accentPreset: 'custom',
   contrast: 60,
   fonts: { code: null, ui: null, uiFace: null, codeFace: null },
-  ink: '#ffffff',
+  ink: '#eeeeee',
   semanticColors: {
-    diffAdded: '#40c977',
-    diffRemoved: '#fa423e',
-    skill: '#ad7bf9',
+    diffAdded: '#00a240',
+    diffRemoved: '#e02e2a',
+    skill: '#b06dff',
   },
-  surface: '#181818',
+  surface: '#111111',
 }
 
 export const DEFAULT_CHROME_THEMES: Record<DesktopThemeVariant, DesktopChromeTheme> = {
@@ -202,7 +202,7 @@ export const DEFAULT_APPEARANCE_SETTINGS: DesktopThemeSettingsV7 = {
   version: 7,
   mode: 'system',
   chromeThemes: DEFAULT_CHROME_THEMES,
-  codeThemeIds: { light: 'codex-light', dark: 'codex-dark' },
+  codeThemeIds: { light: 'codex-new-light', dark: 'codex-new-dark' },
   pointerCursorEnabled: false,
   reduceMotion: 'system',
   fontSmoothingEnabled: true,

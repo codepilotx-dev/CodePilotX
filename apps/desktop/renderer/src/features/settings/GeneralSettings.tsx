@@ -53,7 +53,7 @@ const REVIEW_DELIVERY_OPTIONS: Array<{
 
 function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
   return (
-    <OpenTargetIcon className="settings-open-target-icon" kind={target.kind} targetId={target.id} />
+    <OpenTargetIcon className="settings-open-target-icon tw:size-icon tw:shrink-0 tw:rounded-md tw:object-contain" kind={target.kind} targetId={target.id} />
   )
 }
 
@@ -296,9 +296,9 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
   ]
   return (
     <SettingsContentArea className="">
-      <div className="settings-content-inner">
-        <div className="settings-page-header">
-          <h2 className="settings-page-title">常规</h2>
+      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
+          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">常规</h2>
         </div>
 
         <SettingsSection title="权限">

@@ -76,15 +76,18 @@ describe('collapsible user Markdown', () => {
     const path = await import('node:path')
     const scssPath = path.resolve(
       import.meta.dir,
-      '../src/styles/features/_canonical-conversation.scss',
+      '../src/styles/primitives/conversation.css',
     )
     const content = await fs.readFile(scssPath, 'utf-8')
 
-    // The shared bubble reading rhythm block must not include p
-    const bubbleBlock = content.match(
-      /\.canonical-user-message__bubble\s+\.md-body[\s\S]*?\{([\s\S]*?)\n\}/,
+    // 用户消息气泡共享列表与首尾节点节奏；space-3 段落间距只属于
+    // process/result 文本项，气泡不参与该段落规则（原 SCSS 嵌套块检查的
+    // 等价形式：读取段落规则的 selector 列表）。
+    const paragraphMarginSelectors = content.match(
+      /([^{}]+)\{\s*p\s*\{[^}]*margin-block:\s*var\(--cpx-sys-space-3\);[^}]*\}/,
     )?.[1]
-    expect(bubbleBlock).toBeDefined()
-    expect(bubbleBlock).not.toMatch(/\bp\b/)
+    expect(paragraphMarginSelectors).toBeDefined()
+    expect(paragraphMarginSelectors).toContain('.canonical-text-item--process > .md-body')
+    expect(paragraphMarginSelectors).not.toContain('.canonical-user-message__bubble')
   })
 })

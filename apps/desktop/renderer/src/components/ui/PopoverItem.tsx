@@ -3,6 +3,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Check, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react'
 import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from './iconTokens.js'
 import { Tooltip } from './Tooltip.js'
+import { cx } from '../../utils/cx.js'
 
 type BaseProps = {
   children: React.ReactNode
@@ -122,7 +123,7 @@ function withOptionalTooltip(item: React.ReactElement, meta: React.ReactNode): R
   return (
     <Tooltip
       align="center"
-      className="popover-item-tooltip"
+      className="popover-item-tooltip tw:w-max tw:wrap-anywhere"
       content={meta}
       side="right"
       sideOffset={10}
@@ -311,11 +312,17 @@ export function PopoverLabel({
   children,
   className = 'popover-section-title',
 }: React.ComponentPropsWithoutRef<typeof DropdownMenu.Label>): React.ReactNode {
-  return <DropdownMenu.Label className={className}>{children}</DropdownMenu.Label>
+  return (
+    <DropdownMenu.Label
+      className={cx(className, 'tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label')}
+    >
+      {children}
+    </DropdownMenu.Label>
+  )
 }
 
 export function PopoverSeparator({
   className = 'popover-divider',
 }: React.ComponentPropsWithoutRef<typeof DropdownMenu.Separator>): React.ReactNode {
-  return <DropdownMenu.Separator className={className} />
+  return <DropdownMenu.Separator className={cx(className, 'tw:h-px tw:my-1 tw:bg-app-border')} />
 }

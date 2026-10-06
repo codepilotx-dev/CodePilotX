@@ -19,9 +19,9 @@ export function ComputerControlChip({ threadId }: { threadId: string | null }): 
 
   return (
     <>
-      <span className="toolbar-divider" />
+      <span className="toolbar-divider tw:inline-block tw:h-3.5 tw:w-px tw:shrink-0 tw:bg-app-border-subtle" />
       <span
-        className="chip-button composer-plan-mode-chip active"
+        className="chip-button composer-plan-mode-chip active tw:relative tw:bg-app-selected tw:text-app-accent-fg tw:type-secondary tw:hover:bg-app-selected"
         title="当前聊天正在控制电脑；停止后需要新的对话回合才能继续"
       >
         <MonitorSmartphone aria-hidden="true" size={APP_ICON_SIZE} />

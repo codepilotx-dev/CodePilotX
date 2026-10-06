@@ -60,12 +60,15 @@ export function AutomationDetailPanel({
     : []
 
   return (
-    <section className="automation-detail" aria-label={creating ? '创建自动化' : '自动化详情'}>
-      <header className="automation-detail-header">
-        <div className="automation-detail-title-group">
+    <section
+      className="automation-detail tw:grid tw:min-h-0 tw:min-w-0 tw:max-h-[min(35rem,calc(100vh-60px),var(--radix-popover-content-available-height))] tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[auto_minmax(0,1fr)_auto] tw:bg-transparent"
+      aria-label={creating ? '创建自动化' : '自动化详情'}
+    >
+      <header className="automation-detail-header tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)+var(--cpx-sys-space-3))] tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:p-3">
+        <div className="automation-detail-title-group tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-2">
           {onBack ? (
             <Button
-              className="automation-detail-back-btn"
+              className="automation-detail-back-btn tw:shrink-0"
               color="ghostSecondary"
               size={exitPending === 'back' ? 'compact' : 'toolbar'}
               uniform={exitPending !== 'back'}
@@ -77,13 +80,16 @@ export function AutomationDetailPanel({
               {exitPending === 'back' ? '再按一次返回' : null}
             </Button>
           ) : null}
-          <h2 title={creating ? '创建自动化' : controller.selected?.name}>
+          <h2
+            className="tw:m-0 tw:min-w-0 tw:flex-1 tw:truncate tw:type-title-md tw:text-app-text"
+            title={creating ? '创建自动化' : controller.selected?.name}
+          >
             {creating ? '创建自动化' : controller.selected?.name}
           </h2>
         </div>
-        <div className="automation-detail-header-actions">
+        <div className="automation-detail-header-actions tw:flex tw:shrink-0 tw:items-center tw:gap-2">
           {!creating && controller.selected ? (
-            <span className="automation-status-pill">
+            <span className="automation-status-pill tw:whitespace-nowrap tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-panel tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-soft">
               {
                 {
                   active: '已开启',
@@ -109,8 +115,11 @@ export function AutomationDetailPanel({
         </div>
       </header>
 
-      <div className="automation-detail-scroll">
-        <section className="automation-form" aria-label="自动化设置">
+      <div className="automation-detail-scroll tw:min-h-0 tw:overflow-auto">
+        <section
+          className="automation-form tw:grid tw:gap-2 tw:p-3"
+          aria-label="自动化设置"
+        >
           <FormField label="名称">
             <Input
               value={draft.name}
@@ -124,7 +133,7 @@ export function AutomationDetailPanel({
               onChange={(event) => update({ prompt: event.currentTarget.value })}
             />
           </FormField>
-          <div className="automation-form-grid">
+          <div className="automation-form-grid tw:grid tw:grid-cols-[minmax(0,1fr)] tw:gap-2">
             <FormField label="排期">
               <Select
                 ariaLabel="排期"
@@ -249,7 +258,7 @@ export function AutomationDetailPanel({
             </FormField>
           )}
 
-          <div className="automation-more-settings">
+          <div className="automation-more-settings tw:px-3 tw:py-2">
             <Button
               color="ghostTertiary"
               size="default"
@@ -259,8 +268,8 @@ export function AutomationDetailPanel({
             >
               更多设置
             </Button>
-            <div id={settingsId} hidden={!settingsOpen}>
-              <div className="automation-form-grid">
+            <div id={settingsId} className="tw:mt-2" hidden={!settingsOpen}>
+              <div className="automation-form-grid tw:grid tw:grid-cols-[minmax(0,1fr)] tw:gap-2">
                 <FormField label="运行方式">
                   <Select
                     ariaLabel="运行方式"
@@ -381,8 +390,11 @@ export function AutomationDetailPanel({
           </div>
 
           {draft.permissionConfig.sandboxMode === 'danger-full-access' ? (
-            <div className="automation-risk" role="note">
-              <AlertTriangle aria-hidden="true" size={APP_ICON_SIZE} />
+            <div
+              className="automation-risk tw:flex tw:items-start tw:gap-2 tw:rounded-container tw:border tw:border-app-warning-border tw:bg-app-warning-subtle tw:p-3 tw:type-body-sm tw:text-app-warning-fg"
+              role="note"
+            >
+              <AlertTriangle className="tw:mt-1 tw:flex-none" aria-hidden="true" size={APP_ICON_SIZE} />
               <span>任务会在无人值守时获得完全访问权限。请只对可信项目和明确任务使用。</span>
             </div>
           ) : null}
@@ -396,13 +408,16 @@ export function AutomationDetailPanel({
         </section>
 
         {!creating && controller.selected ? (
-          <details className="automation-more-settings" key={controller.selected.id}>
-            <summary>执行记录（{runs.length}）</summary>
+          <details
+            className="automation-more-settings tw:px-3 tw:py-2"
+            key={controller.selected.id}
+          >
+            <summary className="tw:cursor-pointer tw:type-control">执行记录（{runs.length}）</summary>
             <RunHistory runs={runs} controller={controller} onOpenThread={onOpenThread} />
           </details>
         ) : null}
       </div>
-      <footer className="automation-form-actions automation-detail-footer">
+      <footer className="automation-form-actions automation-detail-footer tw:flex tw:min-h-8 tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:border-t tw:border-app-border-subtle tw:px-3 tw:py-2">
         {creating ? (
           <Button
             color="primary"
@@ -434,10 +449,12 @@ function FormField({
   children: React.ReactNode
 }): React.ReactNode {
   return (
-    <label className="automation-field">
-      <span className="automation-field-label">{label}</span>
+    <label className="automation-field tw:[&_.ui-select-trigger]:w-full tw:grid tw:min-w-0 tw:content-start tw:gap-1">
+      <span className="automation-field-label tw:type-control tw:text-app-text">{label}</span>
       {children}
-      {hint ? <span className="automation-field-hint">{hint}</span> : null}
+      {hint ? (
+        <span className="automation-field-hint tw:type-caption tw:text-app-text-meta">{hint}</span>
+      ) : null}
     </label>
   )
 }
@@ -445,14 +462,14 @@ function FormField({
 function SaveIndicator({ controller }: { controller: AutomationController }): React.ReactNode {
   if (controller.saveState === 'saving')
     return (
-      <span className="automation-save-state">
-        <RotateCcw size={APP_ICON_SIZE} aria-hidden="true" />
+      <span className="automation-save-state tw:inline-flex tw:items-center tw:gap-1">
+        <RotateCcw className="tw:size-icon-sm" size={APP_ICON_SIZE} aria-hidden="true" />
         正在保存…
       </span>
     )
   if (controller.saveState === 'failed' || controller.saveState === 'conflict') {
     return (
-      <div className="automation-save-retry">
+      <div className="automation-save-retry tw:flex tw:w-full tw:items-center tw:justify-between tw:gap-2 tw:type-caption tw:text-app-danger-fg">
         <span>
           {controller.saveState === 'conflict'
             ? '已有更新，草稿尚未覆盖。'
@@ -466,12 +483,16 @@ function SaveIndicator({ controller }: { controller: AutomationController }): Re
   }
   if (controller.saveState === 'saved')
     return (
-      <span className="automation-save-state">
-        <Check size={APP_ICON_SIZES.sm} aria-hidden="true" />
+      <span className="automation-save-state tw:inline-flex tw:items-center tw:gap-1">
+        <Check className="tw:size-icon-sm" size={APP_ICON_SIZES.sm} aria-hidden="true" />
         已保存
       </span>
     )
-  return <span className="automation-save-state">修改后自动保存</span>
+  return (
+    <span className="automation-save-state tw:inline-flex tw:items-center tw:gap-1">
+      修改后自动保存
+    </span>
+  )
 }
 
 function RunHistory({
@@ -484,11 +505,18 @@ function RunHistory({
   onOpenThread: (id: string) => void
 }): React.ReactNode {
   return (
-    <section className="automation-runs" aria-labelledby="automation-runs-title">
-      <header>
-        <div>
-          <span className="automation-eyebrow">收件箱</span>
-          <h3 id="automation-runs-title">运行记录</h3>
+    <section
+      className="automation-runs tw:mt-2 tw:grid tw:gap-3 tw:border-t tw:border-app-border-subtle tw:p-3"
+      aria-labelledby="automation-runs-title"
+    >
+      <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
+        <div className="tw:grid tw:gap-1">
+          <span className="automation-eyebrow tw:uppercase tw:tracking-[0.08em] tw:type-caption tw:text-app-text-meta">
+            收件箱
+          </span>
+          <h3 className="tw:m-0 tw:type-title-sm tw:text-app-text" id="automation-runs-title">
+            运行记录
+          </h3>
         </div>
         {runs.some((run) => !run.readAt) ? (
           <Button
@@ -501,34 +529,48 @@ function RunHistory({
         ) : null}
       </header>
       {runs.length ? (
-        <ol>
+        <ol className="tw:m-0 tw:grid tw:list-none tw:gap-2 tw:p-0">
           {runs.map((run) => (
-            <li key={run.id} data-status={run.status} data-unread={!run.readAt || undefined}>
+            <li
+              className="tw:group"
+              key={run.id}
+              data-status={run.status}
+              data-unread={!run.readAt || undefined}
+            >
               <button
                 type="button"
+                className="tw:grid tw:w-full tw:cursor-pointer tw:grid-cols-[minmax(0,1fr)_auto] tw:gap-x-3 tw:gap-y-1 tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-transparent tw:p-3 tw:text-left tw:text-app-text tw:hover:bg-app-hover tw:disabled:cursor-default"
                 disabled={!run.threadId}
                 onClick={() => {
                   if (run.threadId) onOpenThread(run.threadId)
                   if (!run.readAt) void controller.markRunRead(run.id)
                 }}
               >
-                <span className="automation-run-status">
-                  <span className="automation-status-dot" />
+                <span className="automation-run-status tw:inline-flex tw:items-center tw:gap-2 tw:type-label">
+                  <span className="automation-status-dot tw:size-2 tw:rounded-full tw:bg-app-info tw:group-data-[status=completed]:bg-app-success tw:group-data-[status=failed]:bg-app-danger tw:group-data-[status=interrupted]:bg-app-danger" />
                   {runStatusLabel(run.status)}
                 </span>
-                <span className="automation-run-trigger">{runTriggerLabel(run.trigger)}</span>
-                <time>
+                <span className="automation-run-trigger tw:type-caption tw:text-app-text-meta">
+                  {runTriggerLabel(run.trigger)}
+                </span>
+                <time className="tw:col-start-2 tw:row-start-1 tw:type-caption tw:text-app-text-meta">
                   {formatAutomationTime(run.completedAt ?? run.startedAt ?? run.createdAt)}
                 </time>
                 {run.status === 'running' || run.status === 'queued' ? (
-                  <Play aria-hidden="true" size={APP_ICON_SIZE} />
+                  <Play
+                    className="tw:col-start-2 tw:text-app-info-fg"
+                    aria-hidden="true"
+                    size={APP_ICON_SIZE}
+                  />
                 ) : null}
               </button>
             </li>
           ))}
         </ol>
       ) : (
-        <p className="automation-runs-empty">首次运行后，结果会显示在这里。</p>
+        <p className="automation-runs-empty tw:m-0 tw:type-caption tw:text-app-text-meta">
+          首次运行后，结果会显示在这里。
+        </p>
       )}
     </section>
   )

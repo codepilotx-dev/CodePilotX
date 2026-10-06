@@ -113,18 +113,20 @@ function PreviewCard({ item }: { item: ConversationTurnNavItem }): React.ReactNo
 
   return (
     <div
-      className="conversation-turn-preview-card"
+      className="conversation-turn-preview-card tw:box-border tw:w-80 tw:max-w-[calc(100vw-16px)] tw:rounded-xl tw:border-[0.5px] tw:border-app-border tw:bg-app-raised tw:p-2 tw:text-app-text tw:type-caption tw:shadow-lg"
       data-thread-user-message-navigation-tooltip-preview
     >
-      <span className="u-sr-only">
+      <span className="tw:sr-only">
         {`用户消息：${item.userText || '无内容'}${
           assistantPreview ? `。助手回复：${assistantPreview}` : ''
         }`}
       </span>
       <div aria-hidden="true" inert>
-        <div className="preview-card-user-text">{item.userText || '（无内容）'}</div>
+        <div className="preview-card-user-text tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text tw:type-label">
+          {item.userText || '（无内容）'}
+        </div>
         {assistantPreview ? (
-          <div className="preview-card-assistant-text">
+          <div className="preview-card-assistant-text tw:mt-1 tw:text-app-text-meta tw:type-caption tw:line-clamp-3">
             <MarkdownMessage
               allowWideBlocks={false}
               externalResourcePolicy={{
@@ -136,22 +138,25 @@ function PreviewCard({ item }: { item: ConversationTurnNavItem }): React.ReactNo
           </div>
         ) : null}
         {displayedOutputs.length > 0 ? (
-          <div className="preview-card-outputs">
+          <div className="preview-card-outputs tw:mt-2 tw:flex tw:min-w-0 tw:items-center tw:gap-3 tw:overflow-hidden tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption">
             {displayedOutputs.map((output) => (
-              <span className="preview-card-output" key={`${output.type}:${output.path}`}>
+              <span
+                className="preview-card-output tw:inline-flex tw:min-w-0 tw:max-w-42 tw:flex-[0_1_auto] tw:items-center tw:gap-2"
+                key={`${output.type}:${output.path}`}
+              >
                 <FileTypeIcon
                   aria-hidden="true"
-                  className="preview-card-output-icon"
+                  className="preview-card-output-icon tw:size-icon tw:flex-none tw:opacity-70"
                   path={output.path}
                   size={APP_ICON_SIZE}
                 />
-                <span className="preview-card-output-label">
+                <span className="preview-card-output-label tw:max-w-36 tw:overflow-hidden tw:text-ellipsis">
                   {output.label || fileName(output.path)}
                 </span>
               </span>
             ))}
             {item.outputs.length > displayedOutputs.length ? (
-              <span className="preview-card-output-more">
+              <span className="preview-card-output-more tw:flex-none">
                 +{item.outputs.length - displayedOutputs.length}
               </span>
             ) : null}
@@ -381,12 +386,12 @@ export function ConversationTurnNavRail({
     <nav
       ref={anchorRef}
       aria-label="用户消息导航"
-      className="conversation-turn-nav-rail"
+      className="conversation-turn-nav-rail tw:absolute tw:top-1/2 tw:left-[var(--conversation-rail-inline-start,var(--cpx-sys-space-2))] tw:z-5 tw:w-[var(--conversation-rail-width,var(--cpx-sys-space-8))] tw:max-h-[min(70vh,640px)] tw:invisible tw:opacity-0 tw:pointer-events-none tw:-translate-y-1/2 tw:[transition:opacity_var(--cpx-sys-motion-enter)_var(--cpx-sys-ease-out),visibility_var(--cpx-sys-motion-instant)_var(--cpx-sys-ease-linear)_var(--cpx-sys-motion-enter)] tw:data-[visible=true]:visible tw:data-[visible=true]:opacity-100 tw:data-[visible=true]:pointer-events-auto"
       data-visible="true"
     >
       <div
         ref={listRef}
-        className="conversation-turn-nav-list"
+        className="conversation-turn-nav-list tw:flex tw:w-[var(--conversation-rail-width,var(--cpx-sys-space-8))] tw:max-h-[min(70vh,640px)] tw:flex-col tw:items-start tw:justify-start tw:gap-0 tw:overflow-x-hidden tw:overflow-y-auto tw:overscroll-contain tw:[scrollbar-width:none] tw:[mask-image:none]"
         data-scrubbing={scrubItemId !== null ? '' : undefined}
         onLostPointerCapture={endScrub}
         onPointerCancelCapture={endScrub}
@@ -447,7 +452,7 @@ export function ConversationTurnNavRail({
               <Tooltip
                 key={item.id}
                 align="center"
-                className="conversation-turn-preview-tooltip"
+                className="conversation-turn-preview-tooltip tw:animate-none"
                 content={<PreviewCard item={item} />}
                 delayDuration={0}
                 onOpenChange={(open) => {
@@ -465,7 +470,7 @@ export function ConversationTurnNavRail({
                   }}
                   aria-current={visibleItemIds.has(item.id) ? 'true' : undefined}
                   aria-label={`跳转到第 ${index + 1} 条用户消息`}
-                  className="conversation-turn-nav-item"
+                  className="conversation-turn-nav-item tw:relative tw:flex tw:h-2.5 tw:min-h-2.5 tw:w-[var(--conversation-rail-width,var(--cpx-sys-space-8))] tw:min-w-[var(--conversation-rail-width,var(--cpx-sys-space-8))] tw:shrink-0 tw:items-center tw:justify-start tw:border-none tw:bg-transparent tw:p-0 tw:cursor-pointer tw:outline-none tw:focus-visible:rounded-md tw:focus-visible:outline-1 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
                   data-scrub-target={scrubItemId === item.id ? '' : undefined}
                   data-turn-navigation-item-id={item.id}
                   onBlur={() => {

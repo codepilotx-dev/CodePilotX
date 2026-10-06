@@ -57,10 +57,17 @@ export function Tooltip({
               : [
                   'tooltip-presence',
                   'tooltip-content',
+                  'tw:z-tooltip',
                   'tw:max-w-[min(20rem,calc(100vw-2rem))]',
+                  'tw:rounded-sm',
+                  'tw:border',
+                  'tw:border-app-border-subtle',
+                  'tw:bg-app-raised',
+                  'tw:shadow-lg',
                   'tw:px-2',
                   'tw:py-1',
-                  'u-type-caption',
+                  'tw:select-none',
+                  'tw:type-caption',
                   'tw:text-app-text-soft',
                   className,
                 ]

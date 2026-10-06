@@ -217,24 +217,30 @@ export function DatePicker({
         <button
           ref={triggerRef}
           aria-label={ariaLabel}
-          className={cx('ui-date-picker-trigger', className)}
+          className={cx(
+            'ui-date-picker-trigger tw:inline-flex tw:min-w-0 tw:cursor-pointer tw:items-center tw:gap-control-gap tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-control tw:px-control-inline tw:py-control-block tw:text-app-text tw:outline-none tw:transition-[background-color,border-color] tw:duration-feedback tw:ease-standard tw:enabled:hover:border-app-border-strong tw:focus-visible:border-app-focus tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1 tw:disabled:cursor-default tw:disabled:text-app-text-disabled tw:disabled:opacity-55',
+            className,
+          )}
           disabled={disabled}
           type="button"
         >
           <CalendarDays
             size={APP_ICON_SIZE}
             aria-hidden="true"
-            className="ui-date-picker-trigger-icon"
+            className="ui-date-picker-trigger-icon tw:size-icon tw:shrink-0 tw:text-app-text-soft"
           />
           <span
-            className={cx('ui-date-picker-value', !value && 'ui-date-picker-value--placeholder')}
+            className={cx(
+              'ui-date-picker-value tw:min-w-0 tw:flex-auto tw:overflow-hidden tw:text-left tw:text-ellipsis tw:whitespace-nowrap',
+              !value && 'ui-date-picker-value--placeholder tw:text-app-text-meta',
+            )}
           >
             {value ? displayDate(value, locale) : t(placeholder)}
           </span>
           <ChevronDown
             size={APP_ICON_SIZES.sm}
             aria-hidden="true"
-            className="ui-date-picker-chevron"
+            className="ui-date-picker-chevron tw:size-icon-sm tw:shrink-0 tw:text-app-text-soft"
           />
         </button>
       </Popover.Trigger>
@@ -242,30 +248,33 @@ export function DatePicker({
         <Popover.Content
           align="start"
           aria-label={`${t(ariaLabel)} ${t('日历')}`}
-          className="popover-surface ui-date-picker-content"
+          className="popover-surface ui-date-picker-content tw:z-popover tw:w-[min(304px,calc(100vw_-_var(--cpx-sys-space-4)))] tw:p-3"
           collisionPadding={8}
           sideOffset={4}
           onEscapeKeyDown={() => requestAnimationFrame(() => triggerRef.current?.focus())}
         >
-          <div className="ui-date-picker-header">
+          <div className="ui-date-picker-header tw:mb-2 tw:flex tw:items-center tw:justify-between">
             <button
               aria-label={t('上个月')}
-              className="ui-date-picker-nav"
+              className="ui-date-picker-nav tw:inline-grid tw:size-7 tw:cursor-pointer tw:place-items-center tw:rounded-control tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text tw:outline-none tw:hover:bg-app-hover tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1"
               type="button"
               onClick={() => navigateMonth(-1)}
             >
-              <ChevronLeft size={APP_ICON_SIZE} aria-hidden="true" />
+              <ChevronLeft size={APP_ICON_SIZE} aria-hidden="true" className="tw:size-icon" />
             </button>
-            <div aria-live="polite" className="ui-date-picker-month">
+            <div
+              aria-live="polite"
+              className="ui-date-picker-month tw:text-app-text tw:type-title-sm"
+            >
               {monthLabel(visibleMonth, locale)}
             </div>
             <button
               aria-label={t('下个月')}
-              className="ui-date-picker-nav"
+              className="ui-date-picker-nav tw:inline-grid tw:size-7 tw:cursor-pointer tw:place-items-center tw:rounded-control tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text tw:outline-none tw:hover:bg-app-hover tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1"
               type="button"
               onClick={() => navigateMonth(1)}
             >
-              <ChevronRight size={APP_ICON_SIZES.sm} aria-hidden="true" />
+              <ChevronRight size={APP_ICON_SIZES.sm} aria-hidden="true" className="tw:size-icon" />
             </button>
           </div>
           <div
@@ -274,7 +283,7 @@ export function DatePicker({
             className="ui-date-picker-grid"
             role="grid"
           >
-            <div className="ui-date-picker-weekdays" role="row">
+            <div className="ui-date-picker-weekdays tw:grid tw:grid-cols-7" role="row">
               {WEEKDAYS.map((weekday) => (
                 <span
                   aria-label={
@@ -290,7 +299,7 @@ export function DatePicker({
                         ][WEEKDAYS.indexOf(weekday)]
                       : `星期${weekday}`
                   }
-                  className="ui-date-picker-weekday"
+                  className="ui-date-picker-weekday tw:grid tw:h-6 tw:place-items-center tw:text-app-text-meta tw:type-label"
                   key={weekday}
                   role="columnheader"
                 >
@@ -300,9 +309,9 @@ export function DatePicker({
                 </span>
               ))}
             </div>
-            <div className="ui-date-picker-days" role="rowgroup">
+            <div className="ui-date-picker-days tw:grid tw:grid-cols-7" role="rowgroup">
               {Array.from({ length: 6 }, (_, weekIndex) => (
-                <div className="ui-date-picker-week" key={weekIndex} role="row">
+                <div className="ui-date-picker-week tw:contents" key={weekIndex} role="row">
                   {calendarDates.slice(weekIndex * 7, weekIndex * 7 + 7).map((date) => {
                     const dateValue = formatDateValue(date)
                     const unavailable = isUnavailable(date)
@@ -314,7 +323,19 @@ export function DatePicker({
                         aria-current={dateValue === todayValue ? 'date' : undefined}
                         aria-label={dayLabel(date, todayValue, value, locale)}
                         aria-selected={selected}
-                        className="ui-date-picker-day"
+                        className={cx(
+                          'ui-date-picker-day tw:relative tw:grid tw:cursor-pointer tw:aspect-square tw:place-items-center tw:rounded-control tw:border-0 tw:bg-transparent tw:p-0 tw:type-control tw:outline-none tw:aria-selected:bg-app-accent tw:enabled:hover:bg-app-hover tw:disabled:cursor-default tw:disabled:line-through tw:disabled:opacity-55 tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1',
+                          // The SCSS gave disabled > selected > outside > base precedence for the
+                          // day text colour. Tailwind emits variant utilities in a fixed order that
+                          // cannot reproduce it, so the winning tone is picked here instead.
+                          unavailable
+                            ? 'tw:text-app-text-disabled'
+                            : selected
+                              ? 'tw:text-app-on-accent'
+                              : currentMonth
+                                ? 'tw:text-app-text'
+                                : 'tw:text-app-text-meta',
+                        )}
                         data-date={dateValue}
                         data-outside={!currentMonth || undefined}
                         disabled={unavailable}
@@ -328,7 +349,7 @@ export function DatePicker({
                       >
                         <span>{date.getDate()}</span>
                         {dateValue === todayValue ? (
-                          <span className="ui-date-picker-state">
+                          <span className="ui-date-picker-state tw:absolute tw:right-1 tw:bottom-0 tw:type-caption">
                             {locale === 'en-US' ? 'Today' : '今'}
                           </span>
                         ) : null}
@@ -339,9 +360,9 @@ export function DatePicker({
               ))}
             </div>
           </div>
-          <div className="ui-date-picker-footer">
+          <div className="ui-date-picker-footer tw:mt-2 tw:flex tw:items-center tw:justify-between tw:gap-2 tw:border-t tw:border-app-border-subtle tw:pt-2">
             <button
-              className="ui-date-picker-footer-action"
+              className="ui-date-picker-footer-action tw:min-h-7 tw:cursor-pointer tw:rounded-control tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text tw:type-control tw:outline-none tw:enabled:hover:bg-app-hover tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1 tw:disabled:cursor-default tw:disabled:text-app-text-disabled"
               disabled={isUnavailable(today)}
               type="button"
               onClick={() => chooseDate(today)}
@@ -349,7 +370,7 @@ export function DatePicker({
               {t('今天')}
             </button>
             <button
-              className="ui-date-picker-footer-action"
+              className="ui-date-picker-footer-action tw:min-h-7 tw:cursor-pointer tw:rounded-control tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-app-text tw:type-control tw:outline-none tw:enabled:hover:bg-app-hover tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1 tw:disabled:cursor-default tw:disabled:text-app-text-disabled"
               disabled={!value}
               type="button"
               onClick={() => {

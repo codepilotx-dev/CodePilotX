@@ -177,15 +177,15 @@ export function SubagentThreadPanel({
   return (
     <section
       aria-label={`${task.displayName} 子智能体线程`}
-      className="subagent-thread-panel"
+      className="subagent-thread-panel tw:grid tw:h-full tw:min-h-0 tw:min-w-0 tw:grid-rows-[auto_minmax(0,1fr)] tw:bg-app-panel tw:text-app-text tw:[container-type:inline-size]"
       data-blocked={blocked || undefined}
       data-status={run.status}
     >
-      <header className="subagent-thread-panel__header">
-        <div className="subagent-thread-panel__identity">
+      <header className="subagent-thread-panel__header tw:flex tw:min-h-[58px] tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-3">
+        <div className="subagent-thread-panel__identity tw:flex tw:min-w-0 tw:items-center tw:gap-3">
           {onBackToParent ? (
             <IconButton
-              className="subagent-thread-panel__back"
+              className="subagent-thread-panel__back tw:flex-none"
               color="ghostSecondary"
               size="toolbar"
               title="返回主对话"
@@ -194,14 +194,19 @@ export function SubagentThreadPanel({
               <ArrowLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             </IconButton>
           ) : null}
-          <span className="subagent-thread-panel__avatar" aria-hidden="true">
+          <span
+            className="subagent-thread-panel__avatar tw:inline-flex tw:size-[30px] tw:flex-none tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text"
+            aria-hidden="true"
+          >
             <Bot data-icon-kind="artwork" size={14} strokeWidth={2} />
           </span>
-          <div className="subagent-thread-panel__title-block">
-            <h2>{task.displayName}</h2>
+          <div className="subagent-thread-panel__title-block tw:min-w-0">
+            <h2 className="tw:m-0 tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text tw:type-row-title tw:tracking-normal">
+              {task.displayName}
+            </h2>
           </div>
         </div>
-        <div className="subagent-thread-panel__run-actions">
+        <div className="subagent-thread-panel__run-actions tw:flex tw:items-center tw:gap-1">
           <StatusBadge status={run.status} />
           {capabilities.canApplyWorktree && callbacks.onApplyWorktree ? (
             <IconButton
@@ -261,17 +266,23 @@ export function SubagentThreadPanel({
         </div>
       </header>
 
-      <div ref={scrollRef} className="subagent-thread-panel__scroll-region">
-        <div className="subagent-thread-panel__transcript">
+      <div
+        ref={scrollRef}
+        className="subagent-thread-panel__scroll-region tw:min-h-0 tw:overflow-auto tw:[scrollbar-gutter:stable]"
+      >
+        <div className="subagent-thread-panel__transcript tw:mx-auto tw:grid tw:w-[min(760px,calc(100%-28px))] tw:min-w-0 tw:gap-4 tw:px-0 tw:pt-5 tw:pb-7">
           {run.queueReason ? (
-            <div className="subagent-thread-panel__notice" role="status">
-              <LoaderCircle className="is-spinning" size={APP_ICON_SIZE} />
+            <div
+              className="subagent-thread-panel__notice tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:px-3 tw:py-2 tw:bg-app-editor tw:text-app-text-meta tw:type-body-sm"
+              role="status"
+            >
+              <LoaderCircle className="tw:animate-spin" size={APP_ICON_SIZE} />
               {queueReasonLabel(run.queueReason)}
             </div>
           ) : null}
 
           {canonicalTurns.length > 0 ? (
-            <div className="subagent-thread-panel__timeline">
+            <div className="subagent-thread-panel__timeline tw:grid tw:gap-4">
               {typeof document === 'undefined' ? (
                 canonicalTurns.map(renderTurn)
               ) : (
@@ -289,7 +300,10 @@ export function SubagentThreadPanel({
               )}
             </div>
           ) : (
-            <div className="subagent-thread-panel__empty" role="status">
+            <div
+              className="subagent-thread-panel__empty tw:py-7 tw:text-center tw:text-app-text-meta tw:type-body"
+              role="status"
+            >
               {run.status === 'queued' || run.status === 'preparing'
                 ? '等待开始执行'
                 : '暂无运行记录'}
@@ -319,7 +333,10 @@ export function SubagentThreadPanel({
 
           {blocked ? <BlockedNotice run={run} viewBlocked={viewBlocked} /> : null}
           {run.error ? (
-            <div className="subagent-thread-panel__error" role="alert">
+            <div
+              className="subagent-thread-panel__error tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:px-3 tw:py-2 tw:text-app-danger-fg tw:type-body-sm"
+              role="alert"
+            >
               <AlertCircle size={APP_ICON_SIZE} />
               <span>{run.error}</span>
             </div>
@@ -347,7 +364,10 @@ function BlockedNotice({
           ? '此子智能体正在等待你的操作'
           : '此子智能体已阻塞'
   return (
-    <div className="subagent-thread-panel__blocked" role="status">
+    <div
+      className="subagent-thread-panel__blocked tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border tw:border-app-warning-border tw:bg-app-warning-subtle tw:px-3 tw:py-2 tw:text-app-warning-fg tw:type-body-sm"
+      role="status"
+    >
       <AlertCircle size={APP_ICON_SIZE} />
       <span>{label}</span>
     </div>
@@ -356,21 +376,27 @@ function BlockedNotice({
 
 function RunResult({ result }: { result: NonNullable<SubagentRun['result']> }): React.ReactNode {
   return (
-    <article className="subagent-thread-panel__result" data-outcome={result.outcome}>
-      <header>
+    <article
+      className="subagent-thread-panel__result tw:grid tw:gap-3 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-3"
+      data-outcome={result.outcome}
+    >
+      <header className="tw:flex tw:items-center tw:gap-2">
         {result.outcome === 'succeeded' ? (
-          <Check size={APP_ICON_SIZES.sm} />
+          <Check className="tw:text-app-success" size={APP_ICON_SIZES.sm} />
         ) : (
           <AlertCircle size={APP_ICON_SIZE} />
         )}
         <strong>{result.summary}</strong>
       </header>
       {result.findings.length > 0 ? (
-        <ul>
+        <ul className="tw:m-0 tw:grid tw:list-none tw:gap-2 tw:p-0">
           {result.findings.map((finding, index) => (
-            <li key={`${finding.title}:${index}`}>
+            <li
+              className="tw:grid tw:gap-1 tw:border-t tw:border-app-border-subtle tw:pt-2"
+              key={`${finding.title}:${index}`}
+            >
               <strong>{finding.title}</strong>
-              <span>{finding.detail}</span>
+              <span className="tw:text-app-text-meta tw:type-body">{finding.detail}</span>
             </li>
           ))}
         </ul>
@@ -381,9 +407,12 @@ function RunResult({ result }: { result: NonNullable<SubagentRun['result']> }): 
 
 function StatusBadge({ status }: { status: SubagentRun['status'] }): React.ReactNode {
   return (
-    <span className="subagent-thread-panel__status-badge" data-status={status}>
+    <span
+      className="subagent-thread-panel__status-badge tw:flex tw:flex-none tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-caption tw:data-[status=completed]:border-app-success-border tw:data-[status=completed]:bg-app-success-subtle tw:data-[status=completed]:text-app-success-fg tw:data-[status=failed]:border-app-danger-border tw:data-[status=failed]:bg-app-danger-subtle tw:data-[status=failed]:text-app-danger-fg tw:data-[status=interrupted]:border-app-danger-border tw:data-[status=interrupted]:bg-app-danger-subtle tw:data-[status=interrupted]:text-app-danger-fg"
+      data-status={status}
+    >
       {isActiveRunStatus(status) ? (
-        <LoaderCircle className="is-spinning" size={APP_ICON_SIZES.sm} />
+        <LoaderCircle className="tw:animate-spin" size={APP_ICON_SIZES.sm} />
       ) : status === 'completed' ? (
         <Check size={APP_ICON_SIZES.sm} />
       ) : status === 'failed' ? (

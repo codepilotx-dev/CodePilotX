@@ -4,87 +4,90 @@ import {
   BottomPanelToggleIcon,
   RightPanelToggleIcon,
   WorkspaceShellControls,
+  resolveWorkspaceControlPresentation,
 } from '../src/features/layout/dock/WorkspaceShellControls.js'
-import type { WorkbenchPanelSnapshot } from '../src/features/layout/dock/rightDockState.js'
 
-const baseDockState: WorkbenchPanelSnapshot = {
-  activeTab: 'review',
-  availableTabs: ['review'],
-  badges: {},
-  open: false,
-  tabs: [{ id: 'review', kind: 'review' }],
+function renderControls(
+  overrides: Partial<Parameters<typeof WorkspaceShellControls>[0]> = {},
+): string {
+  return renderToStaticMarkup(
+    <WorkspaceShellControls
+      canCreateWorkspaceTab={true}
+      createWorkspaceTabReason="当前桌面运行环境没有提供内置浏览器能力。"
+      hasWorkspaceTabs={false}
+      onCreateWorkspaceTab={() => {}}
+      onStepWorkspaceLayout={() => {}}
+      onToggleTerminal={() => {}}
+      showBottomPanel={true}
+      showRightPanel={true}
+      terminalAvailable={true}
+      terminalVisible={false}
+      workspaceLayout="chat"
+      {...overrides}
+    />,
+  )
 }
 
 describe('WorkspaceShellControls', () => {
   test('renders divider and both bottom panel and right panel controls', () => {
-    const html = renderToStaticMarkup(
-      <WorkspaceShellControls
-        onToggleRightPanel={() => {}}
-        onToggleTerminal={() => {}}
-        rightDockState={baseDockState}
-        showBottomPanel={true}
-        showRightPanel={true}
-        terminalAvailable={true}
-        terminalVisible={false}
-      />,
-    )
+    const html = renderControls()
 
     expect(html).toContain('workspace-shell-controls')
     expect(html).toContain('workspace-shell-controls__divider')
     expect(html).toContain('aria-label="打开底部面板 (Ctrl+`)"')
     expect(html).toContain('title="打开底部面板 (Ctrl+`)"')
-    expect(html).toContain('aria-label="显示右侧面板"')
+    expect(html).toContain('aria-label="新建标签页 (Ctrl+Shift+B)"')
+    expect(html).not.toContain('aria-label="进入完整视图"')
+    expect(html).not.toContain('disabled=""')
   })
 
-  test('switches labels and pressed state when bottom panel and right panel are open', () => {
-    const html = renderToStaticMarkup(
-      <WorkspaceShellControls
-        onToggleRightPanel={() => {}}
-        onToggleTerminal={() => {}}
-        rightDockState={{ ...baseDockState, open: true }}
-        showBottomPanel={true}
-        showRightPanel={true}
-        terminalAvailable={true}
-        terminalVisible={true}
-      />,
-    )
+  test('disables the empty workspace entry when no tab can be created', () => {
+    const html = renderControls({ canCreateWorkspaceTab: false })
 
-    expect(html).toContain('aria-label="隐藏底部面板"')
-    expect(html).toContain('title="隐藏底部面板"')
+    expect(html).toContain('title="当前桌面运行环境没有提供内置浏览器能力。"')
+    expect(html).toContain('disabled=""')
+  })
+
+  test('keeps tab entries hidden while the workspace shows the chat surface', () => {
+    const html = renderControls({ hasWorkspaceTabs: true, workspaceLayout: 'chat' })
+
+    expect(html).toContain('aria-label="显示标签页 (Ctrl+Shift+B)"')
+    expect(html).toContain('aria-pressed="false"')
+  })
+
+  test('split view only offers hiding tabs', () => {
+    const html = renderControls({ hasWorkspaceTabs: true, workspaceLayout: 'split' })
+
+    expect(html).toContain('aria-label="隐藏标签页 (Ctrl+Shift+B)"')
+    expect(html).toContain('title="隐藏标签页 (Ctrl+Shift+B)"')
+    expect(html).not.toContain('aria-label="进入完整视图"')
     expect(html).toContain('aria-pressed="true"')
-    expect(html).toContain('aria-label="关闭右侧面板"')
-    expect(html).toContain('title="关闭右侧面板"')
+  })
+
+  test('presentation helper stays in sync with the observable layout', () => {
+    expect(resolveWorkspaceControlPresentation('chat', false)).toEqual({
+      label: '新建标签页',
+      pressed: false,
+    })
+    expect(resolveWorkspaceControlPresentation('chat', true)).toEqual({
+      label: '显示标签页',
+      pressed: false,
+    })
+    expect(resolveWorkspaceControlPresentation('split', true)).toEqual({
+      label: '隐藏标签页',
+      pressed: true,
+    })
   })
 
   test('disables bottom panel toggle when terminal is unavailable', () => {
-    const html = renderToStaticMarkup(
-      <WorkspaceShellControls
-        onToggleRightPanel={() => {}}
-        onToggleTerminal={() => {}}
-        rightDockState={baseDockState}
-        showBottomPanel={true}
-        showRightPanel={true}
-        terminalAvailable={false}
-        terminalVisible={false}
-      />,
-    )
+    const html = renderControls({ terminalAvailable: false })
 
     expect(html).toContain('disabled=""')
     expect(html).toContain('title="创建任务后可使用底部面板"')
   })
 
   test('returns null when neither panel is shown', () => {
-    const html = renderToStaticMarkup(
-      <WorkspaceShellControls
-        onToggleRightPanel={() => {}}
-        onToggleTerminal={() => {}}
-        rightDockState={baseDockState}
-        showBottomPanel={false}
-        showRightPanel={false}
-        terminalAvailable={true}
-        terminalVisible={false}
-      />,
-    )
+    const html = renderControls({ showBottomPanel: false, showRightPanel: false })
 
     expect(html).toBe('')
   })

@@ -31,7 +31,9 @@ describe('PetQuickReply', () => {
     expect(html).toContain('选择编辑器')
     expect(html).toContain('其他回答')
     expect(html).toContain('role="radio"')
-    expect(html).not.toContain('aria-pressed')
+    // The choice buttons must not advertise a pressed state. Match the attribute
+    // itself: utility class names may legitimately mention `aria-pressed`.
+    expect(html).not.toMatch(/\saria-pressed(=|\s|>)/)
     expect(html).toMatch(/disabled=""[^>]*>提交回答</)
   })
 

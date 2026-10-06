@@ -43,10 +43,18 @@ export function RouteErrorPageContent({ error }: RouteErrorPageContentProps): Re
   const isDynamicModuleError = isDynamicModuleLoadError(error)
 
   return (
-    <main className="not-found-page" data-startup-surface-ready="true" role="alert">
-      <span aria-hidden="true">!</span>
-      <h1>{isDynamicModuleError ? '界面模块未加载完成' : '页面暂时无法显示'}</h1>
-      <p>
+    <main
+      className="not-found-page tw:grid tw:w-full tw:min-w-0 tw:min-h-full tw:content-center tw:justify-items-center tw:gap-3 tw:p-5 tw:bg-app-canvas tw:text-center tw:text-app-text"
+      data-startup-surface-ready="true"
+      role="alert"
+    >
+      <span aria-hidden="true" className="tw:text-app-text-meta tw:type-title-xl">
+        !
+      </span>
+      <h1 className="tw:m-0 tw:text-app-text tw:type-title-sm">
+        {isDynamicModuleError ? '界面模块未加载完成' : '页面暂时无法显示'}
+      </h1>
+      <p className="tw:m-0 tw:max-w-[440px] tw:text-app-text-soft tw:type-body-sm">
         {isDynamicModuleError
           ? '应用可能正在更新，请重新加载后继续。'
           : '应用遇到临时问题，请重新加载后继续。'}

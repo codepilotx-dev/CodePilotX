@@ -209,7 +209,12 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
 
   return (
     <footer
-      className={`sidebar-footer tw:flex tw:w-full tw:shrink-0 tw:items-center${compact ? ' sidebar-footer--rail' : ''}`}
+      className={cx(
+        'sidebar-footer tw:flex tw:w-full tw:flex-none tw:min-w-0 tw:items-center tw:gap-1 tw:mt-1',
+        compact
+          ? 'sidebar-footer--rail tw:flex-col tw:border-t-0 tw:p-0'
+          : 'tw:border-t tw:border-t-app-border-subtle tw:px-2 tw:pt-1',
+      )}
       ref={ref}
     >
       <PopoverMenu
@@ -224,11 +229,22 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             active={settingsActive || menuOpen}
             ref={accountMenuTriggerRef}
             asChild
-            className="sidebar-settings-link"
-            labelClassName={cx('sidebar-settings-label', 'u-min-w-0')}
+            className={cx(
+              'sidebar-settings-link tw:text-app-text tw:type-body tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus',
+              // 图标栏底部：36px 方形入口，只保留头像并居中，隐藏文字行。
+              // 行本身保持 grid（SidebarRow 基础类），这里让头像槽横跨整格并居中，
+              // 避免与基础 display/grid-template-columns 互相覆盖。
+              compact
+                ? 'tw:size-9 tw:min-w-9 tw:min-h-9 tw:flex-none tw:rounded-md tw:p-0 tw:[&>.sidebar-row-main]:hidden tw:[&>.sidebar-row-leading]:col-span-full tw:[&>.sidebar-row-leading]:w-full tw:[&>.sidebar-row-leading]:justify-center'
+                : 'tw:min-h-[var(--sidebar-row-height)] tw:w-full tw:min-w-0 tw:grow tw:shrink tw:basis-auto',
+            )}
+            labelClassName={cx('sidebar-settings-label', 'tw:min-w-0')}
             layout="flex"
             leading={
-              <span className="sidebar-account-avatar" aria-hidden="true">
+              <span
+                className="sidebar-account-avatar tw:relative tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-full tw:bg-app-hover tw:text-app-text tw:[&_.ui-remote-image-content]:object-cover"
+                aria-hidden="true"
+              >
                 {!githubAuthenticated ? (
                   compact ? (
                     <CircleUser data-icon-kind="artwork" size={14} />
@@ -245,7 +261,10 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                   <CircleUser data-icon-kind="artwork" size={14} />
                 )}
                 {updateIndicator.visible ? (
-                  <span className="sidebar-account-update-dot" aria-hidden="true" />
+                  <span
+                    className="sidebar-account-update-dot tw:absolute tw:right-0 tw:bottom-0 tw:size-2 tw:rounded-full tw:border tw:border-app-border tw:bg-app-success"
+                    aria-hidden="true"
+                  />
                 ) : null}
               </span>
             }
@@ -256,10 +275,10 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                   ? `${accountTriggerName}，${t(updateIndicator.ariaLabel)}`
                   : accountTriggerName
               }
-              className="sidebar-footer-trigger"
+              className="sidebar-footer-trigger tw:w-full tw:min-w-0 tw:overflow-hidden tw:border-0 tw:text-left tw:text-inherit tw:whitespace-nowrap tw:cursor-pointer tw:[font:inherit]"
               type="button"
             >
-              <span className={compact ? 'u-sr-only' : undefined}>{accountTriggerName}</span>
+              <span className={compact ? 'tw:sr-only' : undefined}>{accountTriggerName}</span>
             </button>
           </SidebarRow>
         }
@@ -268,7 +287,10 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
         <div className="popover-section">
           <PopoverItem
             icon={
-              <span className="popover-account-avatar" aria-hidden="true">
+              <span
+                className="popover-account-avatar tw:relative tw:inline-flex tw:size-full tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-full tw:bg-app-hover tw:text-app-text tw:[&_.ui-remote-image-content]:object-cover"
+                aria-hidden="true"
+              >
                 {githubUser?.avatarUrl ? (
                   <RemoteImage
                     alt=""
@@ -314,7 +336,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                   data-theme-component="dropdown-surface"
                   alignOffset={-4}
                   aria-label={t('剩余用量详情')}
-                  className="popover-surface popover popover-sub-content popover-usage-submenu"
+                  className="popover-surface popover popover-sub-content popover-usage-submenu tw:p-1 tw:[--popover-overflow-y:hidden]"
                   collisionPadding={6}
                   sideOffset={4}
                   style={buildPopoverSizingStyle({
@@ -322,43 +344,73 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
                     maxWidth: 'calc(100vw - 16px)',
                   })}
                 >
-                  <div className="popover-usage-content">
+                  <div className="popover-usage-content tw:flex tw:min-w-0 tw:flex-col tw:gap-1">
                     {usage.loading ? (
-                      <div className="popover-usage-empty" role="status">
+                      <div
+                        className="popover-usage-empty tw:min-w-0 tw:overflow-hidden tw:p-2 tw:text-center tw:text-app-text-meta tw:type-body-sm tw:whitespace-nowrap"
+                        role="status"
+                      >
                         {t('正在查询用量…')}
                       </div>
                     ) : usage.error ? (
-                      <div className="popover-usage-empty popover-usage-empty-error" role="status">
+                      <div
+                        className="popover-usage-empty popover-usage-empty-error tw:min-w-0 tw:overflow-hidden tw:p-2 tw:text-center tw:text-app-text-soft tw:type-body-sm tw:whitespace-nowrap"
+                        role="status"
+                      >
                         {usage.error}
                       </div>
                     ) : usageRows.length > 0 ? (
-                      <div aria-label={t('额度明细')} className="popover-usage-rows" role="group">
+                      <div
+                        aria-label={t('额度明细')}
+                        className="popover-usage-rows tw:flex tw:min-w-0 tw:flex-col"
+                        role="group"
+                      >
                         {usageRows.map((row) => (
-                          <div className="popover-usage-row" key={row.id}>
-                            <span className="popover-usage-label">{row.label}</span>
-                            <span className="popover-usage-value">
-                              <span className="popover-usage-amount">{row.usage}</span>
+                          <div
+                            className="popover-usage-row tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-md tw:px-2 tw:py-1 tw:text-app-text-soft tw:type-body"
+                            key={row.id}
+                          >
+                            <span className="popover-usage-label tw:min-w-0 tw:overflow-hidden tw:text-app-text tw:type-weight-label tw:whitespace-nowrap">
+                              {row.label}
+                            </span>
+                            <span className="popover-usage-value tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:justify-end tw:gap-2 tw:text-right">
+                              <span className="popover-usage-amount tw:text-app-text tw:type-label tw:tabular-nums tw:whitespace-nowrap">
+                                {row.usage}
+                              </span>
                             </span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="popover-usage-empty" role="status">
+                      <div
+                        className="popover-usage-empty tw:min-w-0 tw:overflow-hidden tw:p-2 tw:text-center tw:text-app-text-meta tw:type-body-sm tw:whitespace-nowrap"
+                        role="status"
+                      >
                         {t('当前提供商未返回用量数据')}
                       </div>
                     )}
-                    <div className="popover-usage-divider" />
+                    <div className="popover-usage-divider tw:mx-2 tw:my-1 tw:h-px tw:bg-app-border-subtle" />
                     <DropdownMenu.Item
-                      className="popover-usage-action"
+                      className="popover-usage-action tw:flex tw:w-full tw:items-center tw:justify-between tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-2 tw:py-1 tw:text-left tw:text-app-text tw:type-body tw:cursor-pointer tw:transition-colors tw:duration-feedback tw:ease-out tw:hover:bg-app-hover tw:focus-visible:bg-app-hover tw:focus-visible:outline-none tw:data-[highlighted]:bg-app-hover tw:data-[highlighted]:outline-none"
                       tabIndex={-1}
                       onSelect={() => {
                         openSettings('/settings/billing')
                       }}
                     >
-                      <span className={cx('popover-usage-action-label', 'u-flex-1', 'u-min-w-0')}>
+                      <span
+                        className={cx(
+                          'popover-usage-action-label',
+                          'tw:flex-1',
+                          'tw:min-w-0',
+                          'tw:overflow-hidden tw:whitespace-nowrap',
+                        )}
+                      >
                         {t('了解更多')}
                       </span>
-                      <ArrowUpRight className="popover-usage-action-icon" size={APP_ICON_SIZE} />
+                      <ArrowUpRight
+                        className="popover-usage-action-icon tw:size-icon tw:flex-none tw:text-app-text-meta"
+                        size={APP_ICON_SIZE}
+                      />
                     </DropdownMenu.Item>
                   </div>
                 </DropdownMenu.SubContent>
@@ -452,7 +504,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
           ) : null}
         </div>
       </PopoverMenu>
-      <span aria-atomic="true" aria-live="polite" className="u-sr-only">
+      <span aria-atomic="true" aria-live="polite" className="tw:sr-only">
         {t(updateIndicator.announcement)}
       </span>
     </footer>

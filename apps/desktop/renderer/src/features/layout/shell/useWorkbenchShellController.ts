@@ -1,15 +1,18 @@
 import { desktopBrowserClient } from '../../../services/desktop-client/desktop-browser-client.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH, useDesktopLayout } from '../useDesktopLayout.js'
+import { SIDEBAR_MAX_WIDTH, useDesktopLayout } from '../useDesktopLayout.js'
 import {
   applyWorkbenchTabsAction,
   createDefaultWorkbenchTabsState,
+  getWorkbenchWorkspaceLayout,
+  getWorkspaceView,
   type WorkbenchPanelAction,
   type WorkbenchPanelTarget,
   type MarkdownFileViewMode,
   type WorkbenchTabDescriptor,
   type WorkbenchTabId,
   type WorkbenchTabsState,
+  type WorkspaceLayout,
 } from '../dock/rightDockState.js'
 import { auxiliaryWindowService } from '../auxiliary/auxiliaryWindowService.js'
 import { BUILTIN_COMPOSITE_VIEWS } from '../dock/compositeViews.js'
@@ -30,11 +33,13 @@ import {
   RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY,
   bottomPanelHeightFromRatio,
   bottomPanelHeightToRatio,
+  clampWorkbenchSize,
   getBottomPanelMaxHeight,
   getResponsiveRightDockDefaultWidth,
   getRightDockMaxWidth,
-  reduceRightDockResponsiveState,
-  rightDockWidthFromRatio,
+  resolveRightDockDragLayout,
+  rightDockWidthFromRangeRatio,
+  rightDockWidthToRangeRatio,
   rightDockWidthToRatio,
   type WorkbenchSize,
 } from './workbenchLayoutSizing.js'
@@ -65,11 +70,10 @@ import {
 const NON_NATIVE_RESIZE_SETTLE_MS = 500
 
 export function useWorkbenchShellController({
-  modern = false,
   activePane,
-}: { modern?: boolean; activePane?: SidebarPane | null } = {}) {
-  const railWidth = modern ? SIDEBAR_RAIL_WIDTH : 0
-  const layout = useDesktopLayout(modern ? MODERN_SIDEBAR_DEFAULT_WIDTH : undefined)
+}: { activePane?: SidebarPane | null } = {}) {
+  const railWidth = SIDEBAR_RAIL_WIDTH
+  const layout = useDesktopLayout(MODERN_SIDEBAR_DEFAULT_WIDTH)
   const {
     sidebarCollapsed,
     sidebarWidth,
@@ -86,71 +90,70 @@ export function useWorkbenchShellController({
     sidebarWidth,
     rightOpen: workbenchPanelState.right.open,
     bottomOpen: workbenchPanelState.bottom.open,
-    rightFullWidth: workbenchPanelState.rightFullWidth,
   })
   const [workspaceSize, setWorkspaceSize] = useState<WorkbenchSize>({
     width: 0,
     height: 0,
   })
+  /** 右栏宽度的有效区间比例（分裂态持久值），以及旧 width/W 兼容值。 */
+  const [rightDockRangeRatio, setRightDockRangeRatio] = useState<number | null>(null)
   const [rightDockWidthRatio, setRightDockWidthRatio] = useState<number | null>(null)
-  const responsiveRightDockWidth = rightDockWidthFromRatio(
-    rightDockWidthRatio ?? 0,
-    workspaceSize.width,
-  )
   const [bottomPanelHeightRatio, setBottomPanelHeightRatio] = useState<number | null>(null)
   const responsiveBottomPanelHeight = bottomPanelHeightFromRatio(
     bottomPanelHeightRatio ?? 0,
     workspaceSize.height,
   )
-  const [rightDockResponsiveState, setRightDockResponsiveState] = useState(() =>
-    reduceRightDockResponsiveState(
-      { suppressed: false, manualOverride: false },
-      {
-        type: 'resize',
-        windowWidth: typeof window === 'undefined' ? 0 : window.innerWidth,
-      },
-    ),
-  )
+  /** 拖拽期间的原始指针尺寸；越界判定只读它，松手/取消后回到已提交布局。 */
+  const [rightDockDragRaw, setRightDockDragRaw] = useState<number | null>(null)
 
   const [workbenchLayoutState, setWorkbenchLayoutState] = useState<WorkbenchLayoutState | null>(
     null,
   )
 
-  const displayedSidebarWidth = modern
-    ? Math.max(MODERN_SIDEBAR_MIN_WIDTH, workbenchLayoutState?.primarySidebarWidth ?? sidebarWidth)
-    : (workbenchLayoutState?.primarySidebarWidth ?? sidebarWidth)
+  const workspaceView = getWorkspaceView(workbenchPanelState)
+  const committedWorkspaceLayout = getWorkbenchWorkspaceLayout(workbenchPanelState)
+  const dragWorkspaceLayout =
+    rightDockDragRaw === null
+      ? null
+      : resolveRightDockDragLayout(rightDockDragRaw)
+  const workspaceLayout = dragWorkspaceLayout ?? committedWorkspaceLayout
+
+  const displayedSidebarWidth = Math.max(
+    MODERN_SIDEBAR_MIN_WIDTH,
+    workbenchLayoutState?.primarySidebarWidth ?? sidebarWidth,
+  )
 
   const sidebarShell = useSidebarShellController({
     desktopCollapsed: sidebarCollapsed,
-    sidebarWidth: displayedSidebarWidth,
     railWidth,
     activePane,
     setDesktopCollapsed: setSidebarCollapsed,
   })
   const rightDockState = workbenchPanelState.right
   const bottomPanelState = workbenchPanelState.bottom
-  const rightDockVisible =
-    rightDockWidthRatio !== null &&
-    rightDockState.open &&
-    (!rightDockResponsiveState.suppressed || rightDockResponsiveState.manualOverride)
+  const rightDockVisible = workspaceLayout !== 'chat'
   const rightDockMaxWidth = getRightDockMaxWidth(workspaceSize.width)
   const bottomPanelMaxHeight = getBottomPanelMaxHeight(workspaceSize.height)
 
-  const rightDockFullWidth = rightDockVisible && workbenchPanelState.rightFullWidth
-  const rightDockWidth = workbenchLayoutState?.auxiliaryPanelWidth ?? responsiveRightDockWidth
-  const rightPanelCommittedSize = rightDockFullWidth
-    ? Math.max(workspaceSize.width, rightDockWidth)
-    : rightDockWidth
+  const splitRightDockWidth =
+    rightDockRangeRatio !== null && workspaceSize.width > 0
+      ? rightDockWidthFromRangeRatio(rightDockRangeRatio, workspaceSize.width)
+      : (workbenchLayoutState?.auxiliaryPanelWidth ?? RIGHT_DOCK_MIN_WIDTH)
+  const rightDockWidth = splitRightDockWidth
+  const rightPanelCommittedSize = rightDockWidth
   const bottomPanelHeight = workbenchLayoutState?.bottomPanelHeight ?? responsiveBottomPanelHeight
 
-  const rightPanelLiveResize = useLiveResizeValue(rightPanelCommittedSize)
+  // 右栏隐藏时宿主仍保留挂载：实时尺寸必须收敛到 0，否则空白按分屏宽度占位。
+  const rightPanelLiveResize = useLiveResizeValue(rightPanelCommittedSize, !rightDockVisible)
   const bottomPanelLiveResize = useLiveResizeValue(bottomPanelHeight)
 
   const latestWorkspaceSizeRef = useRef<WorkbenchSize>(workspaceSize)
-  const rightDockWidthRatioRef = useRef(rightDockWidthRatio)
+  const rightDockRangeRatioRef = useRef(rightDockRangeRatio)
   const bottomPanelHeightRatioRef = useRef(bottomPanelHeightRatio)
-  const rightDockFullWidthRef = useRef(rightDockFullWidth)
-  const rightDockResponsiveStateRef = useRef(rightDockResponsiveState)
+  const workspaceLayoutRef = useRef(workspaceLayout)
+  const previousWorkspaceLayoutRef = useRef(workspaceLayout)
+  const dragLayoutRef = useRef<WorkspaceLayout | null>(dragWorkspaceLayout)
+  const rightDockVisibleRef = useRef(rightDockVisible)
   const rightDockStateRef = useRef(rightDockState)
   const rightPanelLiveResizeRef = useRef(rightPanelLiveResize)
   const bottomPanelLiveResizeRef = useRef(bottomPanelLiveResize)
@@ -158,10 +161,11 @@ export function useWorkbenchShellController({
   const settleFrameRef = useRef<number | null>(null)
   const resizeActivityCoordinator = getResizeActivityCoordinator()
 
-  rightDockWidthRatioRef.current = rightDockWidthRatio
+  rightDockRangeRatioRef.current = rightDockRangeRatio
   bottomPanelHeightRatioRef.current = bottomPanelHeightRatio
-  rightDockFullWidthRef.current = rightDockFullWidth
-  rightDockResponsiveStateRef.current = rightDockResponsiveState
+  workspaceLayoutRef.current = workspaceLayout
+  dragLayoutRef.current = dragWorkspaceLayout
+  rightDockVisibleRef.current = rightDockVisible
   rightDockStateRef.current = rightDockState
   rightPanelLiveResizeRef.current = rightPanelLiveResize
   bottomPanelLiveResizeRef.current = bottomPanelLiveResize
@@ -199,13 +203,15 @@ export function useWorkbenchShellController({
     )
   }, [])
 
-  const updateRightDockManualState = useCallback((type: 'manualOpen' | 'manualClose'): void => {
-    const windowWidth = typeof window === 'undefined' ? 0 : window.innerWidth
-    setRightDockResponsiveState((current) =>
-      reduceRightDockResponsiveState(current, {
-        type,
-        windowWidth,
-      }),
+  const setWorkspaceLayout = useCallback((layout: WorkspaceLayout): void => {
+    setWorkbenchPanelState((current) =>
+      applyWorkbenchTabsAction(current, { type: 'setWorkspaceLayout', layout }),
+    )
+  }, [])
+
+  const stepWorkspaceLayout = useCallback((): void => {
+    setWorkbenchPanelState((current) =>
+      applyWorkbenchTabsAction(current, { type: 'stepWorkspaceLayout' }),
     )
   }, [])
 
@@ -221,11 +227,15 @@ export function useWorkbenchShellController({
   }, [dispatchPanelAction])
 
   const openPanelTab = useCallback(
-    (target: WorkbenchPanelTarget, tab: WorkbenchTabDescriptor, index?: number): void => {
-      if (target === 'right') updateRightDockManualState('manualOpen')
-      dispatchPanelAction({ type: 'openTab', target, tab, index })
+    (
+      target: WorkbenchPanelTarget,
+      tab: WorkbenchTabDescriptor,
+      index?: number,
+      options: { reveal?: boolean } = {},
+    ): void => {
+      dispatchPanelAction({ type: 'openTab', target, tab, index, reveal: options.reveal })
     },
-    [dispatchPanelAction, updateRightDockManualState],
+    [dispatchPanelAction],
   )
 
   const openRightDockTab = useCallback(
@@ -249,28 +259,10 @@ export function useWorkbenchShellController({
     [dispatchPanelAction],
   )
 
-  const closeRightDock = useCallback((): void => {
-    updateRightDockManualState('manualClose')
-    dispatchPanelAction({ type: 'closePanel', target: 'right' })
-  }, [dispatchPanelAction, updateRightDockManualState])
-
   const togglePanel = useCallback(
     (target: WorkbenchPanelTarget): void => {
-      if (target === 'right' && rightDockState.open && !rightDockVisible) {
-        updateRightDockManualState('manualOpen')
-        focusPanelController('right')
-        return
-      }
-
-      if (target === 'right') {
-        if (rightDockState.open) {
-          updateRightDockManualState('manualClose')
-        } else {
-          updateRightDockManualState('manualOpen')
-        }
-      }
       setWorkbenchPanelState((current) => {
-        const opening = !current[target].open
+        const opening = target === 'right' ? !current.right.open : !current[target].open
         const next = applyWorkbenchTabsAction(current, { type: 'togglePanel', target })
         if (opening) {
           focusPanelController(target)
@@ -278,15 +270,14 @@ export function useWorkbenchShellController({
         return next
       })
     },
-    [rightDockState.open, rightDockVisible, updateRightDockManualState],
+    [],
   )
 
   const closePanel = useCallback(
     (target: WorkbenchPanelTarget): void => {
-      if (target === 'right') updateRightDockManualState('manualClose')
       dispatchPanelAction({ type: 'closePanel', target })
     },
-    [dispatchPanelAction, updateRightDockManualState],
+    [dispatchPanelAction],
   )
 
   const movePanelTab = useCallback(
@@ -296,13 +287,12 @@ export function useWorkbenchShellController({
       tabId: WorkbenchTabId,
       index?: number,
     ): void => {
-      if (target === 'right') updateRightDockManualState('manualOpen')
       if (target === 'sidebar' && sidebarCollapsed) {
         setSidebarCollapsed(false)
       }
       dispatchPanelAction({ type: 'moveTab', source, target, tabId, index })
     },
-    [dispatchPanelAction, setSidebarCollapsed, sidebarCollapsed, updateRightDockManualState],
+    [dispatchPanelAction, setSidebarCollapsed, sidebarCollapsed],
   )
 
   const popOutPanelTab = useCallback(
@@ -374,15 +364,15 @@ export function useWorkbenchShellController({
     [dispatchPanelAction],
   )
 
-  const toggleRightFullWidth = useCallback((): void => {
-    updateRightDockManualState('manualOpen')
-    dispatchPanelAction({ type: 'toggleRightFullWidth' })
-  }, [dispatchPanelAction, updateRightDockManualState])
-
-  const commitRightDockWidthRatio = useCallback((nextRatio: number): void => {
-    setRightDockWidthRatio(nextRatio)
-    window.localStorage.setItem(RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY, String(nextRatio))
-  }, [])
+  const commitRightDockRangeRatio = useCallback((nextRatio: number): void => {
+    setRightDockRangeRatio(nextRatio)
+    const legacyRatio = rightDockWidthToRatio(
+      rightDockWidthFromRangeRatio(nextRatio, workspaceSize.width),
+      workspaceSize.width,
+    )
+    setRightDockWidthRatio(legacyRatio)
+    window.localStorage.setItem(RIGHT_DOCK_WIDTH_RATIO_STORAGE_KEY, String(legacyRatio))
+  }, [workspaceSize.width])
 
   const commitBottomPanelHeightRatio = useCallback((nextRatio: number): void => {
     setBottomPanelHeightRatio(nextRatio)
@@ -391,29 +381,60 @@ export function useWorkbenchShellController({
 
   const handleSetRightDockWidth = useCallback(
     (nextWidth: number): void => {
-      const nextRatio = rightDockWidthToRatio(nextWidth, workspaceSize.width)
-      commitRightDockWidthRatio(nextRatio)
+      const clampedWidth = clampRightDockWidth(nextWidth, workspaceSize.width)
+      commitRightDockRangeRatio(rightDockWidthToRangeRatio(clampedWidth, workspaceSize.width))
       dispatchLayoutAction({
         type: 'commitAuxiliaryPanelSize',
-        size: nextWidth,
+        size: clampedWidth,
         workspaceWidth: workspaceSize.width,
       })
     },
-    [commitRightDockWidthRatio, dispatchLayoutAction, workspaceSize.width],
+    [commitRightDockRangeRatio, dispatchLayoutAction, workspaceSize.width],
   )
+
+  /** 拖拽期间只有分屏需要宽度预览；仅聊天时不占宽度。 */
+  const resolveRightDockResizePreview = useCallback(
+    (nextSize: number | null): void => {
+      if (nextSize === null) {
+        rightPanelLiveResizeRef.current.previewSize(null)
+        return
+      }
+      if (dragLayoutRef.current === 'split') {
+        rightPanelLiveResizeRef.current.previewSize(nextSize)
+      }
+    },
+    [],
+  )
+
+  const handleRightDockResizeRaw = useCallback((rawSize: number | null): void => {
+    setRightDockDragRaw(rawSize)
+  }, [])
+
+  /**
+   * 松手结算：分屏写回有效尺寸；隐藏内容只提交布局，不覆盖此前的
+   * split 尺寸，也不在存储里留下越界值。
+   */
+  const resolveRightDockResizeCommit = useCallback((rawSize: number): boolean => {
+    const layout = resolveRightDockDragLayout(rawSize)
+    if (layout === 'split') return true
+    setWorkbenchPanelState((current) =>
+      applyWorkbenchTabsAction(current, { type: 'setWorkspaceLayout', layout }),
+    )
+    return false
+  }, [])
 
   const handleResetRightDockWidth = useCallback((): void => {
     const defaultWidth = getResponsiveRightDockDefaultWidth(
       workspaceSize.width,
       workspaceSize.height,
     )
-    commitRightDockWidthRatio(rightDockWidthToRatio(defaultWidth, workspaceSize.width))
+    commitRightDockRangeRatio(rightDockWidthToRangeRatio(defaultWidth, workspaceSize.width))
     dispatchLayoutAction({
       type: 'commitAuxiliaryPanelSize',
       size: defaultWidth,
       workspaceWidth: workspaceSize.width,
     })
-  }, [commitRightDockWidthRatio, dispatchLayoutAction, workspaceSize.height, workspaceSize.width])
+  }, [commitRightDockRangeRatio, dispatchLayoutAction, workspaceSize.height, workspaceSize.width])
 
   const handleSetBottomPanelHeight = useCallback(
     (nextHeight: number): void => {
@@ -495,42 +516,16 @@ export function useWorkbenchShellController({
       const finalSize = latestWorkspaceSizeRef.current
       if (finalSize.width <= 0 || finalSize.height <= 0) return
 
-      const currentResp = rightDockResponsiveStateRef.current
-      const nextResp = reduceRightDockResponsiveState(currentResp, {
-        type: 'resize',
-        windowWidth: window.innerWidth,
-      })
-      const responsiveChanged =
-        nextResp.suppressed !== currentResp.suppressed ||
-        nextResp.manualOverride !== currentResp.manualOverride
-      if (
-        responsiveChanged &&
-        rightDockStateRef.current.open &&
-        !nextResp.manualOverride &&
-        !currentResp.suppressed &&
-        nextResp.suppressed
-      ) {
-        moveRightDockFocusToMain()
-      }
-      if (responsiveChanged) {
-        rightDockResponsiveStateRef.current = nextResp
-        setRightDockResponsiveState(nextResp)
-      }
-
-      const finalRightRatio = rightDockWidthRatioRef.current
+      const finalRightRangeRatio = rightDockRangeRatioRef.current
       const finalBottomRatio = bottomPanelHeightRatioRef.current
       const finalRightDockWidth =
-        finalRightRatio !== null
-          ? rightDockWidthFromRatio(finalRightRatio, finalSize.width)
+        finalRightRangeRatio !== null
+          ? rightDockWidthFromRangeRatio(finalRightRangeRatio, finalSize.width)
           : undefined
       const finalBottomHeight =
         finalBottomRatio !== null
           ? bottomPanelHeightFromRatio(finalBottomRatio, finalSize.height)
           : undefined
-      const targetRightVisible =
-        finalRightRatio !== null &&
-        rightDockStateRef.current.open &&
-        (!nextResp.suppressed || nextResp.manualOverride)
 
       setWorkspaceSize(finalSize)
       setWorkbenchLayoutState((current) => {
@@ -550,6 +545,7 @@ export function useWorkbenchShellController({
             workspaceHeight: finalSize.height,
           })
         }
+        const targetRightVisible = workspaceLayoutRef.current !== 'chat'
         if (next.visibility.auxiliaryPanel !== targetRightVisible) {
           next = {
             ...next,
@@ -589,17 +585,9 @@ export function useWorkbenchShellController({
         const initialSize = latestWorkspaceSizeRef.current
         if (initialSize.width <= 0 || initialSize.height <= 0) return
         const [rightRatio, bottomRatio] = module.default(initialSize.width, initialSize.height)
-        rightDockWidthRatioRef.current = rightRatio
         bottomPanelHeightRatioRef.current = bottomRatio
         setRightDockWidthRatio(rightRatio)
         setBottomPanelHeightRatio(bottomRatio)
-
-        const initialResponsiveState = reduceRightDockResponsiveState(
-          rightDockResponsiveStateRef.current,
-          { type: 'resize', windowWidth: window.innerWidth },
-        )
-        rightDockResponsiveStateRef.current = initialResponsiveState
-        setRightDockResponsiveState(initialResponsiveState)
 
         const snapshot = module.readWorkbenchLayoutSnapshot({
           workspaceWidth: initialSize.width,
@@ -610,30 +598,26 @@ export function useWorkbenchShellController({
           rightDockRatio: rightRatio,
           bottomPanelRatio: bottomRatio,
         })
-        let initialState: WorkbenchLayoutState = {
+        const rangeRatio =
+          snapshot.auxiliaryPanelWidthRangeRatio ??
+          rightDockWidthToRangeRatio(snapshot.auxiliaryPanelWidth, initialSize.width)
+        rightDockRangeRatioRef.current = rangeRatio
+        setRightDockRangeRatio(rangeRatio)
+        // 主导航折叠偏好由既有 sidebar 状态决定。
+        const initialState: WorkbenchLayoutState = {
           visibility: {
             primarySidebar: !captured.sidebarCollapsed,
             mainContent: true,
-            auxiliaryPanel:
-              captured.rightOpen &&
-              (!initialResponsiveState.suppressed || initialResponsiveState.manualOverride),
+            auxiliaryPanel: captured.rightOpen,
             bottomPanel: captured.bottomOpen,
           },
           primarySidebarWidth: snapshot.primarySidebarWidth,
           auxiliaryPanelWidth: snapshot.auxiliaryPanelWidth,
+          auxiliaryPanelWidthRangeRatio: rangeRatio,
           bottomPanelHeight: snapshot.bottomPanelHeight,
-          auxiliaryMaximized: snapshot.auxiliaryMaximized,
-          beforeAuxiliaryMaximized: snapshot.beforeAuxiliaryMaximized,
-          beforeAuxiliaryMaximizedAuxiliaryWidth: snapshot.beforeAuxiliaryMaximizedAuxiliaryWidth,
-        }
-        if (captured.rightFullWidth && initialState.visibility.auxiliaryPanel) {
-          initialState = applyWorkbenchLayoutAction(initialState, {
-            type: 'enterAuxiliaryMaximized',
-          })
-        } else if (initialState.auxiliaryMaximized) {
-          initialState = applyWorkbenchLayoutAction(initialState, {
-            type: 'exitAuxiliaryMaximized',
-          })
+          auxiliaryMaximized: false,
+          beforeAuxiliaryMaximized: null,
+          beforeAuxiliaryMaximizedAuxiliaryWidth: null,
         }
         setWorkspaceSize(initialSize)
         setWorkbenchLayoutState(initialState)
@@ -652,12 +636,11 @@ export function useWorkbenchShellController({
         return
       }
 
-      const currentRightRatio = rightDockWidthRatioRef.current
+      const currentRightRangeRatio = rightDockRangeRatioRef.current
       const currentBottomRatio = bottomPanelHeightRatioRef.current
-      const liveRightDockWidth = rightDockFullWidthRef.current
-        ? nextSize.width
-        : currentRightRatio !== null
-          ? rightDockWidthFromRatio(currentRightRatio, nextSize.width)
+      const liveRightDockWidth =
+        currentRightRangeRatio !== null
+          ? rightDockWidthFromRangeRatio(currentRightRangeRatio, nextSize.width)
           : null
       const liveBottomPanelHeight =
         currentBottomRatio !== null
@@ -719,73 +702,54 @@ export function useWorkbenchShellController({
       sidebarWidth,
       rightOpen: rightDockState.open,
       bottomOpen: bottomPanelState.open,
-      rightFullWidth: workbenchPanelState.rightFullWidth,
     }
-  }, [
-    sidebarCollapsed,
-    sidebarWidth,
-    rightDockState.open,
-    bottomPanelState.open,
-    workbenchPanelState.rightFullWidth,
-  ])
+  }, [sidebarCollapsed, sidebarWidth, rightDockState.open, bottomPanelState.open])
 
+  // 布局展示由 workspaceView 决定；这里只把同一份事实镜像进持久化快照的可见集合。
   useEffect(() => {
     if (workbenchLayoutState == null) return
 
     setWorkbenchLayoutState((current) => {
       if (current == null) return current
-      let next = current
-
-      if (workbenchPanelState.rightFullWidth && rightDockVisible && !next.auxiliaryMaximized) {
-        next = applyWorkbenchLayoutAction(next, {
-          type: 'enterAuxiliaryMaximized',
-        })
-      } else if (
-        (!workbenchPanelState.rightFullWidth || !rightDockVisible) &&
-        next.auxiliaryMaximized
-      ) {
-        next = applyWorkbenchLayoutAction(next, {
-          type: 'exitAuxiliaryMaximized',
-        })
-      }
-
-      if (next.auxiliaryMaximized) return next
-
       const targetAuxVisible = rightDockVisible
       const targetBottomVisible = bottomPanelState.open
       const targetPrimaryVisible = !sidebarCollapsed
 
       if (
-        next.visibility.auxiliaryPanel !== targetAuxVisible ||
-        next.visibility.bottomPanel !== targetBottomVisible ||
-        next.visibility.primarySidebar !== targetPrimaryVisible
+        current.visibility.auxiliaryPanel === targetAuxVisible &&
+        current.visibility.bottomPanel === targetBottomVisible &&
+        current.visibility.primarySidebar === targetPrimaryVisible &&
+        current.visibility.mainContent === true
       ) {
-        next = {
-          ...next,
-          visibility: {
-            ...next.visibility,
-            auxiliaryPanel: targetAuxVisible,
-            bottomPanel: targetBottomVisible,
-            primarySidebar: targetPrimaryVisible,
-            mainContent: true,
-          },
-        }
-      } else if (next.visibility.mainContent !== true) {
-        next = {
-          ...next,
-          visibility: { ...next.visibility, mainContent: true },
-        }
+        return current
       }
 
-      return next
+      return {
+        ...current,
+        visibility: {
+          ...current.visibility,
+          auxiliaryPanel: targetAuxVisible,
+          bottomPanel: targetBottomVisible,
+          primarySidebar: targetPrimaryVisible,
+          mainContent: true,
+        },
+      }
     })
-  }, [
-    workbenchPanelState.rightFullWidth,
-    rightDockVisible,
-    bottomPanelState.open,
-    sidebarCollapsed,
-    workbenchLayoutState,
-  ])
+  }, [rightDockVisible, bottomPanelState.open, sidebarCollapsed, workbenchLayoutState])
+
+  useEffect(() => {
+    const previous = previousWorkspaceLayoutRef.current
+    if (previous === workspaceLayout) return
+    previousWorkspaceLayoutRef.current = workspaceLayout
+    const active = document.activeElement
+    if (!(active instanceof HTMLElement)) return
+    const inChat = active.closest('#desktop-main-content') !== null
+    const inContent = active.closest('[data-app-shell-tab-panel-controller="right"]') !== null
+    if (!inChat && !inContent) return
+    // 先把即将隐藏的一侧焦点移走，再切换布局：隐藏内容后回到聊天输入框。
+    if (inChat) focusPanelController('right')
+    else focusConversationComposer()
+  }, [workspaceLayout])
 
   useEffect(() => {
     if (workbenchLayoutState == null) return
@@ -796,6 +760,7 @@ export function useWorkbenchShellController({
           visibility: workbenchLayoutState.visibility,
           primarySidebarWidth: workbenchLayoutState.primarySidebarWidth,
           auxiliaryPanelWidth: workbenchLayoutState.auxiliaryPanelWidth,
+          auxiliaryPanelWidthRangeRatio: workbenchLayoutState.auxiliaryPanelWidthRangeRatio,
           bottomPanelHeight: workbenchLayoutState.bottomPanelHeight,
           auxiliaryMaximized: workbenchLayoutState.auxiliaryMaximized,
           beforeAuxiliaryMaximized: workbenchLayoutState.beforeAuxiliaryMaximized,
@@ -814,10 +779,15 @@ export function useWorkbenchShellController({
     toggleSidebarCollapsed,
     collapseSidebar,
     sidebarShell,
-    sidebarMinWidth: modern ? MODERN_SIDEBAR_MIN_WIDTH : SIDEBAR_MIN_WIDTH,
+    sidebarMinWidth: MODERN_SIDEBAR_MIN_WIDTH,
     sidebarMaxWidth: SIDEBAR_MAX_WIDTH,
     workbenchPanelState,
     setWorkbenchPanelState,
+    workspaceView,
+    workspaceLayout,
+    committedWorkspaceLayout,
+    setWorkspaceLayout,
+    stepWorkspaceLayout,
     rightDockState,
     bottomPanelState,
     bottomPanelVisible: workbenchLayoutState?.visibility.bottomPanel ?? bottomPanelState.open,
@@ -829,6 +799,10 @@ export function useWorkbenchShellController({
     rightDockWidth,
     rightPanelCommittedSize,
     rightPanelLiveResize,
+    rightDockDragRaw,
+    handleRightDockResizeRaw,
+    handleRightDockResizePreview: resolveRightDockResizePreview,
+    shouldCommitRightDockResize: resolveRightDockResizeCommit,
     bottomPanelMinHeight: BOTTOM_PANEL_MIN_HEIGHT,
     bottomPanelMaxHeight,
     bottomPanelHeight,
@@ -837,7 +811,6 @@ export function useWorkbenchShellController({
     openPanelTab,
     selectPanelTab,
     closePanelTab,
-    closeRightDock,
     handleSetRightDockWidth,
     handleResetRightDockWidth,
     handleSetBottomPanelHeight,
@@ -854,9 +827,12 @@ export function useWorkbenchShellController({
     closeTabsToRight,
     pinTab,
     setFileMarkdownViewMode,
-    toggleRightFullWidth,
     workbenchLayoutState,
   }
+}
+
+function clampRightDockWidth(width: number, workspaceWidth: number): number {
+  return clampWorkbenchSize(width, RIGHT_DOCK_MIN_WIDTH, getRightDockMaxWidth(workspaceWidth))
 }
 
 function focusPanelController(target: WorkbenchPanelTarget): void {
@@ -872,4 +848,13 @@ function focusPanelController(target: WorkbenchPanelTarget): void {
     if (attempts++ < 60) requestAnimationFrame(focusWhenMounted)
   }
   requestAnimationFrame(focusWhenMounted)
+}
+
+/** 隐藏右侧内容后把焦点交还聊天输入框；输入框尚未挂载时退回聊天区域。 */
+function focusConversationComposer(): void {
+  const composer = document.querySelector<HTMLElement>(
+    '#desktop-main-content .composer-editor [contenteditable="true"]',
+  )
+  if (composer) composer.focus({ preventScroll: true })
+  else document.getElementById('desktop-main-content')?.focus({ preventScroll: true })
 }

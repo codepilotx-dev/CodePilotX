@@ -6,6 +6,13 @@ import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
 import type { PluginCatalogItem } from './pluginCatalog.js'
 import { PLUGIN_CATEGORY_LABELS, pluginPrimaryAction, pluginStatusLabel } from './pluginCatalog.js'
+import { cx } from '../../utils/cx.js'
+import {
+  DETAILS_METADATA_CLASS,
+  DETAILS_METADATA_LABEL_CLASS,
+  DETAILS_METADATA_ROW_CLASS,
+  DETAILS_METADATA_VALUE_CLASS,
+} from './catalogClassNames.js'
 
 type ActionProps = {
   item: PluginCatalogItem
@@ -16,76 +23,76 @@ type ActionProps = {
 
 export function PluginDetailsMetadata({ item }: { item: PluginCatalogItem }): React.ReactNode {
   return (
-    <dl className="plugin-details-metadata">
-      <div className="plugin-details-metadata__row">
-        <dt>来源</dt>
-        <dd>{PLUGIN_CATEGORY_LABELS[item.category]}</dd>
+    <dl className={cx('plugin-details-metadata', DETAILS_METADATA_CLASS)}>
+      <div className={cx('plugin-details-metadata__row', DETAILS_METADATA_ROW_CLASS)}>
+        <dt className={DETAILS_METADATA_LABEL_CLASS}>来源</dt>
+        <dd className={DETAILS_METADATA_VALUE_CLASS}>{PLUGIN_CATEGORY_LABELS[item.category]}</dd>
       </div>
-      <div className="plugin-details-metadata__row">
-        <dt>状态</dt>
-        <dd>{pluginStatusLabel(item)}</dd>
+      <div className={cx('plugin-details-metadata__row', DETAILS_METADATA_ROW_CLASS)}>
+        <dt className={DETAILS_METADATA_LABEL_CLASS}>状态</dt>
+        <dd className={DETAILS_METADATA_VALUE_CLASS}>{pluginStatusLabel(item)}</dd>
       </div>
       {item.version ? (
-        <div className="plugin-details-metadata__row">
-          <dt>版本</dt>
-          <dd>{item.version}</dd>
+        <div className={cx('plugin-details-metadata__row', DETAILS_METADATA_ROW_CLASS)}>
+          <dt className={DETAILS_METADATA_LABEL_CLASS}>版本</dt>
+          <dd className={DETAILS_METADATA_VALUE_CLASS}>{item.version}</dd>
         </div>
       ) : null}
       {item.developerName ? (
-        <div className="plugin-details-metadata__row">
-          <dt>开发者</dt>
-          <dd>{item.developerName}</dd>
+        <div className={cx('plugin-details-metadata__row', DETAILS_METADATA_ROW_CLASS)}>
+          <dt className={DETAILS_METADATA_LABEL_CLASS}>开发者</dt>
+          <dd className={DETAILS_METADATA_VALUE_CLASS}>{item.developerName}</dd>
         </div>
       ) : null}
       {item.capabilities?.length ? (
-        <div className="plugin-details-metadata__row">
-          <dt>能力</dt>
-          <dd>{item.capabilities.join('、')}</dd>
+        <div className={cx('plugin-details-metadata__row', DETAILS_METADATA_ROW_CLASS)}>
+          <dt className={DETAILS_METADATA_LABEL_CLASS}>能力</dt>
+          <dd className={DETAILS_METADATA_VALUE_CLASS}>{item.capabilities.join('、')}</dd>
         </div>
       ) : null}
       {item.skills?.length ? (
-        <div className="plugin-details-metadata__row">
-          <dt>技能</dt>
-          <dd>{item.skills.join('、')}</dd>
+        <div className={cx('plugin-details-metadata__row', DETAILS_METADATA_ROW_CLASS)}>
+          <dt className={DETAILS_METADATA_LABEL_CLASS}>技能</dt>
+          <dd className={DETAILS_METADATA_VALUE_CLASS}>{item.skills.join('、')}</dd>
         </div>
       ) : null}
       {item.unavailableReason ? (
-        <div className="plugin-details-metadata__row">
-          <dt>说明</dt>
-          <dd>{item.unavailableReason}</dd>
+        <div className={cx('plugin-details-metadata__row', DETAILS_METADATA_ROW_CLASS)}>
+          <dt className={DETAILS_METADATA_LABEL_CLASS}>说明</dt>
+          <dd className={DETAILS_METADATA_VALUE_CLASS}>{item.unavailableReason}</dd>
         </div>
       ) : null}
       {item.miniMaxCli?.latestVersion ? (
-        <div className="plugin-details-metadata__row">
-          <dt>最新版本</dt>
-          <dd>{item.miniMaxCli.latestVersion}</dd>
+        <div className={cx('plugin-details-metadata__row', DETAILS_METADATA_ROW_CLASS)}>
+          <dt className={DETAILS_METADATA_LABEL_CLASS}>最新版本</dt>
+          <dd className={DETAILS_METADATA_VALUE_CLASS}>{item.miniMaxCli.latestVersion}</dd>
         </div>
       ) : null}
       {item.miniMaxCli ? (
-        <div className="plugin-details-metadata__row">
-          <dt>认证</dt>
-          <dd>{miniMaxAuthLabel(item.miniMaxCli.authStatus)}</dd>
+        <div className={cx('plugin-details-metadata__row', DETAILS_METADATA_ROW_CLASS)}>
+          <dt className={DETAILS_METADATA_LABEL_CLASS}>认证</dt>
+          <dd className={DETAILS_METADATA_VALUE_CLASS}>{miniMaxAuthLabel(item.miniMaxCli.authStatus)}</dd>
         </div>
       ) : null}
       {item.miniMaxCli?.credentialSource ? (
-        <div className="plugin-details-metadata__row">
-          <dt>当前 Key</dt>
-          <dd>
+        <div className={cx('plugin-details-metadata__row', DETAILS_METADATA_ROW_CLASS)}>
+          <dt className={DETAILS_METADATA_LABEL_CLASS}>当前 Key</dt>
+          <dd className={DETAILS_METADATA_VALUE_CLASS}>
             {item.miniMaxCli.credentialSource.label} ·{' '}
             {item.miniMaxCli.credentialSource.maskedValue}
           </dd>
         </div>
       ) : null}
       {item.miniMaxCli?.credentialSource ? (
-        <div className="plugin-details-metadata__row">
-          <dt>区域</dt>
-          <dd>{item.miniMaxCli.credentialSource.region === 'cn' ? '中国' : 'Global'}</dd>
+        <div className={cx('plugin-details-metadata__row', DETAILS_METADATA_ROW_CLASS)}>
+          <dt className={DETAILS_METADATA_LABEL_CLASS}>区域</dt>
+          <dd className={DETAILS_METADATA_VALUE_CLASS}>{item.miniMaxCli.credentialSource.region === 'cn' ? '中国' : 'Global'}</dd>
         </div>
       ) : null}
       {item.miniMaxCli?.quotaLabel ? (
-        <div className="plugin-details-metadata__row">
-          <dt>套餐</dt>
-          <dd>{item.miniMaxCli.quotaLabel}</dd>
+        <div className={cx('plugin-details-metadata__row', DETAILS_METADATA_ROW_CLASS)}>
+          <dt className={DETAILS_METADATA_LABEL_CLASS}>套餐</dt>
+          <dd className={DETAILS_METADATA_VALUE_CLASS}>{item.miniMaxCli.quotaLabel}</dd>
         </div>
       ) : null}
     </dl>
@@ -113,7 +120,7 @@ export function PluginDetailsPrimaryAction({
 
   if (action.kind === 'toggle-plugin') {
     return (
-      <span className="plugin-details-primary-toggle">
+      <span className="plugin-details-primary-toggle tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption tw:whitespace-nowrap">
         <span>{action.checked ? '已启用' : '已禁用'}</span>
         <ToggleSwitch
           ref={toggleRef}

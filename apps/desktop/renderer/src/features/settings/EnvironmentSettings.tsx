@@ -26,11 +26,14 @@ import {
 } from '../../components/ui/iconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { arrayBufferToBase64 } from '../../utils/binaryEncoding.js'
+import { cx } from '../../utils/cx.js'
 import { WorkspaceFileTree } from '../layout/WorkspaceFileTree.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import {
   DEFAULT_PROJECT_APPEARANCE,
+  PROJECT_APPEARANCE_COLOR_CLASS,
+  PROJECT_APPEARANCE_MARKER_CLASS,
   ProjectAppearanceGlyph,
 } from '../projects/projectAppearance.js'
 import { notifyProjectCatalogChanged } from '../projects/projectCatalogEvents.js'
@@ -106,56 +109,65 @@ function EnvironmentList({ onError, routeBase }: Props & { routeBase: string }):
 
   const visibleProjects = filterEnvironmentProjects(projects, query)
 
-  const projectRows = visibleProjects.map((project) => (
-    <button
-      className="environment-project-row"
-      key={project.projectId ?? project.id ?? project.path}
-      type="button"
-      onClick={() => {
-        if (!project.projectId) {
-          onError('该项目缺少稳定的项目标识。')
-          return
-        }
-        navigate(`${routeBase}/${encodeURIComponent(project.projectId)}`)
-      }}
-    >
-      <span className="environment-project-icon">
-        <ProjectAppearanceGlyph
-          appearance={
-            project.projectId
-              ? (projectAppearances[project.projectId] ?? DEFAULT_PROJECT_APPEARANCE)
-              : DEFAULT_PROJECT_APPEARANCE
+  const projectRows = visibleProjects.map((project) => {
+    const appearance = project.projectId
+      ? (projectAppearances[project.projectId] ?? DEFAULT_PROJECT_APPEARANCE)
+      : DEFAULT_PROJECT_APPEARANCE
+    return (
+      <button
+        className={cx(
+          'environment-project-row tw:grid tw:w-full tw:cursor-pointer tw:grid-cols-[auto_minmax(0,1fr)_auto_auto] tw:items-center tw:gap-3 tw:rounded-lg tw:px-4 tw:py-4 tw:text-left tw:text-app-text tw:shadow-none tw:[&>svg:last-child]:box-content tw:[&>svg:last-child]:rounded-md',
+          routeBase === '/projects'
+            ? 'tw:border-0 tw:bg-transparent tw:[&>svg:last-child]:bg-transparent tw:[&>svg:last-child]:p-0'
+            : 'tw:border tw:border-app-border-subtle tw:bg-app-raised tw:hover:bg-app-hover tw:[&>svg:last-child]:bg-app-hover tw:[&>svg:last-child]:p-2',
+        )}
+        key={project.projectId ?? project.id ?? project.path}
+        type="button"
+        onClick={() => {
+          if (!project.projectId) {
+            onError('该项目缺少稳定的项目标识。')
+            return
           }
-          className="project-appearance-marker"
-          size={APP_ICON_SIZE}
+          navigate(`${routeBase}/${encodeURIComponent(project.projectId)}`)
+        }}
+      >
+        <span className="environment-project-icon tw:grid tw:size-8 tw:place-items-center tw:rounded-md tw:bg-app-hover tw:text-app-text-soft">
+          <ProjectAppearanceGlyph
+            appearance={appearance}
+            className={cx(
+              PROJECT_APPEARANCE_MARKER_CLASS,
+              PROJECT_APPEARANCE_COLOR_CLASS[appearance.color] ?? 'tw:text-app-text-soft',
+            )}
+            size={APP_ICON_SIZE}
+          />
+        </span>
+        <span className="environment-project-copy tw:grid tw:min-w-0 tw:gap-1 tw:[&>strong]:truncate tw:[&>strong]:type-row-title tw:[&>span]:truncate tw:[&>span]:text-app-text-soft tw:[&>span]:type-body-sm">
+          <strong>{project.name}</strong>
+          <span title={project.path}>{project.path}</span>
+        </span>
+        <span className="environment-project-meta tw:text-app-text-soft tw:type-body-sm tw:whitespace-nowrap tw:@max-[720px]:hidden">{project.folders?.length ?? 1} 个目录</span>
+        <ChevronRight
+          aria-hidden="true"
+          size={APP_ICON_SIZES.sm}
+          strokeWidth={APP_ICON_STROKE_WIDTH}
         />
-      </span>
-      <span className="environment-project-copy">
-        <strong>{project.name}</strong>
-        <span title={project.path}>{project.path}</span>
-      </span>
-      <span className="environment-project-meta">{project.folders?.length ?? 1} 个目录</span>
-      <ChevronRight
-        aria-hidden="true"
-        size={APP_ICON_SIZES.sm}
-        strokeWidth={APP_ICON_STROKE_WIDTH}
-      />
-    </button>
-  ))
+      </button>
+    )
+  })
 
   const projectList = loading ? (
     <EnvironmentEmpty>正在载入项目…</EnvironmentEmpty>
   ) : projects.length === 0 ? (
     <EnvironmentEmpty>暂无项目。选择一个目录来创建或打开项目。</EnvironmentEmpty>
   ) : visibleProjects.length === 0 ? (
-    <div className="environment-search-empty">
+    <div className="environment-search-empty tw:flex tw:items-center tw:justify-between tw:gap-3 tw:text-app-text-soft tw:[&>p]:m-0">
       <p>未找到匹配“{query}”的项目。</p>
       <Button color="secondary" size="compact" onClick={() => setQuery('')}>
         清除搜索
       </Button>
     </div>
   ) : (
-    <div className="environment-project-list">{projectRows}</div>
+    <div className="environment-project-list tw:grid tw:gap-3">{projectRows}</div>
   )
 
   const projectSection = (
@@ -186,11 +198,11 @@ function EnvironmentList({ onError, routeBase }: Props & { routeBase: string }):
           }
           title="项目"
         >
-          <div className="environment-settings environment-primary-content">
+          <div className="environment-settings environment-primary-content tw:min-h-0 tw:min-w-0">
             {loading ? (
-              <div className="environment-primary-empty">正在载入项目…</div>
+              <div className="environment-primary-empty tw:flex tw:min-h-64 tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0 tw:[&>p]:type-body">正在载入项目…</div>
             ) : projects.length === 0 ? (
-              <div className="environment-primary-empty">
+              <div className="environment-primary-empty tw:flex tw:min-h-64 tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0 tw:[&>p]:type-body">
                 <h2>暂无项目</h2>
                 <p>添加一个本地目录，开始管理项目环境与默认设置。</p>
                 <Button color="secondary" onClick={() => void addProject()}>
@@ -198,7 +210,7 @@ function EnvironmentList({ onError, routeBase }: Props & { routeBase: string }):
                 </Button>
               </div>
             ) : visibleProjects.length === 0 ? (
-              <div className="environment-primary-empty">
+              <div className="environment-primary-empty tw:flex tw:min-h-64 tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0 tw:[&>p]:type-body">
                 <h2>未找到项目</h2>
                 <p>没有与“{query}”匹配的项目。</p>
                 <Button color="secondary" size="compact" onClick={() => setQuery('')}>
@@ -206,12 +218,12 @@ function EnvironmentList({ onError, routeBase }: Props & { routeBase: string }):
                 </Button>
               </div>
             ) : (
-              <div className="environment-primary-projects">
-                <div className="environment-primary-projects__header" aria-hidden="true">
+              <div className="environment-primary-projects tw:@container">
+                <div className="environment-primary-projects__header tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:px-3 tw:py-2 tw:text-app-text-meta tw:type-caption" aria-hidden="true">
                   <span>项目</span>
                   <span>目录</span>
                 </div>
-                <div className="environment-project-list">{projectRows}</div>
+                <div className="environment-project-list tw:grid">{projectRows}</div>
               </div>
             )}
           </div>
@@ -222,11 +234,11 @@ function EnvironmentList({ onError, routeBase }: Props & { routeBase: string }):
 
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner environment-settings">
-        <header className="settings-page-header environment-page-heading">
+      <div className="settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)] tw:[&_.settings-section-content]:overflow-visible">
+        <header className="settings-page-header environment-page-heading tw:mt-0 tw:mx-0 tw:mb-8 tw:flex tw:items-start tw:justify-between tw:gap-5 tw:[&>div]:min-w-0 tw:@max-[720px]:flex-col">
           <div>
-            <h1 className="settings-page-title">环境</h1>
-            <p className="settings-page-desc">管理项目的项目指令和共享来源。</p>
+            <h1 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">环境</h1>
+            <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">管理项目的项目指令和共享来源。</p>
           </div>
         </header>
 
@@ -427,7 +439,7 @@ function EnvironmentDetail({
   if (loading) {
     return (
       <SettingsContentArea>
-        <div className="settings-content-inner environment-settings">
+        <div className="settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)] tw:[&_.settings-section-content]:overflow-visible">
           <EnvironmentEmpty>正在载入项目环境…</EnvironmentEmpty>
         </div>
       </SettingsContentArea>
@@ -437,9 +449,9 @@ function EnvironmentDetail({
   if (!project) {
     return (
       <SettingsContentArea>
-        <div className="settings-content-inner environment-settings">
+        <div className="settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)] tw:[&_.settings-section-content]:overflow-visible">
           <button
-            className="environment-breadcrumb"
+            className="environment-breadcrumb tw:mt-0 tw:mr-0 tw:mb-5 tw:ml-0 tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-2 tw:max-w-full tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:hover:text-app-text tw:[&>span]:truncate tw:[&>span]:text-app-text"
             type="button"
             onClick={() => navigate(routeBase)}
           >
@@ -454,9 +466,9 @@ function EnvironmentDetail({
 
   return (
     <SettingsContentArea>
-      <div className="settings-content-inner environment-settings">
+      <div className="settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)] tw:[&_.settings-section-content]:overflow-visible">
         <button
-          className="environment-breadcrumb"
+          className="environment-breadcrumb tw:mt-0 tw:mr-0 tw:mb-5 tw:ml-0 tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-2 tw:max-w-full tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:hover:text-app-text tw:[&>span]:truncate tw:[&>span]:text-app-text"
           type="button"
           onClick={() => navigate(routeBase)}
         >
@@ -468,10 +480,10 @@ function EnvironmentDetail({
           <span>编辑</span>
         </button>
 
-        <header className="settings-page-header environment-page-heading">
+        <header className="settings-page-header environment-page-heading tw:mt-0 tw:mx-0 tw:mb-8 tw:flex tw:items-start tw:justify-between tw:gap-5 tw:[&>div]:min-w-0 tw:@max-[720px]:flex-col">
           <div>
-            <h1 className="settings-page-title">编辑本地环境</h1>
-            <p className="settings-page-desc" title={project.path}>
+            <h1 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">编辑本地环境</h1>
+            <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm" title={project.path}>
               {project.path}
             </p>
           </div>
@@ -499,7 +511,7 @@ function EnvironmentDetail({
                 { value: 'local', label: '本地目录' },
               ]}
               showSelectedIndicator
-              triggerClassName="environment-settings-dropdown"
+              triggerClassName="environment-settings-dropdown tw:w-full tw:bg-app-canvas"
               value={executionEnvironment}
               width={240}
               onChange={(value) => setExecutionEnvironment(value === 'local' ? 'local' : 'auto')}
@@ -563,7 +575,7 @@ function EnvironmentDetail({
                 label: `${folder.name}${folder.role === 'primary' ? '（主目录）' : ''}`,
               }))}
               showSelectedIndicator
-              triggerClassName="environment-settings-dropdown"
+              triggerClassName="environment-settings-dropdown tw:w-full tw:bg-app-canvas"
               value={sourceFolderId}
               width={280}
               onChange={setSourceFolderId}
@@ -599,14 +611,17 @@ function EnvironmentDetail({
           {sources.length === 0 ? (
             <EnvironmentEmpty>暂无共享来源。</EnvironmentEmpty>
           ) : (
-            <div className="environment-source-list">
+            <div className="environment-source-list tw:grid">
               {sources.map((source) => (
                 <div className="environment-source-row" key={source.id}>
                   <div>
                     <strong>{source.name}</strong>
                     <span>{source.storage === 'managed' ? '托管文件' : source.path}</span>
                   </div>
-                  <span className="environment-source-status" data-status={source.status}>
+                  <span
+                    className="environment-source-status tw:whitespace-nowrap tw:text-app-text-soft tw:type-caption tw:[&:not([data-status=available])]:text-app-danger"
+                    data-status={source.status}
+                  >
                     {sourceStatusLabel(source.status)}
                   </span>
                   <IconButton
@@ -698,7 +713,7 @@ function EnvironmentDetail({
 }
 
 function EnvironmentEmpty({ children }: { children: React.ReactNode }): React.ReactNode {
-  return <p className="environment-empty">{children}</p>
+  return <p className="environment-empty tw:m-0 tw:px-4 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-body-sm">{children}</p>
 }
 
 function sourceStatusLabel(status: DesktopProjectSource['status']): string {

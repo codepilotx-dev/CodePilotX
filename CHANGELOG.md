@@ -7,6 +7,62 @@
 
 ## Unreleased
 
+### Changed
+
+- [desktop] 合并 UI-Design 外观重建与 Tailwind 样式迁移，保留 dev 的日程文件访问范围与 MCP 交互逻辑。
+
+- [desktop/renderer] 全量迁移 UI-Design 设计 Token：引入 Radix 参考色阶（sRGB 与 Display P3 宽色域覆盖）、MiSans 与 JetBrains Mono 字体资产及排版栈、无单位行高、字符间距角色、7 档基础圆角刻度（5px、8px、10px、14px、18px、24px、9999px）、边缘高光与浮动投影体系以及标准/入场动效缓动（160ms/220ms/340ms）；升级默认浅色/深色主题基线（浅色 `#ffffff`/`#1f1f1f`/对比度 40，深色 `#111111`/`#eeeeee`/对比度 60，默认强调色 `#0169cc`）、双路运行时语义色彩推导与代码高亮对比度保证，保留用户自定义主题、字号 delta 调节、自定义字体与桌面布局几何契约。
+
+- [desktop/renderer] 桌面样式入口统一到 `styles/tailwind.css`：系统 token 与全局 reset 转为原生 CSS（`design-system/tokens.css`、`design-system/codex-semantic-tokens.css`、`base.css`），保留原有 cascade layer 顺序，迁移期继续由 `styles/index.scss` 加载未转换的 SCSS；样式契约检查支持原生 `@import`/Tailwind 指令与并存入口，Stylelint 配置同步覆盖新路径。
+
+- [desktop/renderer] 补齐 Tailwind 设计令牌映射：新增表面、前景、边框、交互状态、状态族、Diff、图表与语法颜色，语义圆角、raised/prominent 阴影、模糊、语义 z-index、页面与面板宽度、标题栏高度与动效缓动映射，并为基础动效补回 `pulse`/`spin`；新增 `tw:type-*` 排版角色与 `tw:type-weight-*` 字重角色替代 `u-type-*`，`transition-*` 默认时长改用 `--cpx-sys-motion-state`，不再回退到 0s。
+
+- [desktop/renderer] 基础组件全面迁移到 Tailwind：Button/IconButton（14 尺寸档、13 配色档、圆角、图标槽与全部交互状态改为模块级静态映射）、复选框/单选组/分段控件/开关、输入框/文本域/搜索框、Select 与菜单行/上下文菜单、日期选择器、Popover/Dropdown/Tooltip/Modal 浮层与对话框，全部删除对应 SCSS；伪元素、`color-mix` 表面、`-webkit-app-region`、forced-colors 关键字与需要被 `getComputedStyle` 读取的值集中到 `styles/primitives/*.css`，`.popover-surface` 等仍被多个 feature 直接消费的共享基座按原样保留。
+
+- [desktop/renderer] 页面骨架迁移到 Tailwind：菜单栏/标题栏/窗口控制区、侧栏（行、导航、分组、悬浮卡、拖放）、工作台与工作区工具栏、右侧工作区与底部面板、标签栏、一级页面布局、项目详情卡片全部改为 `tw:` 类；标题栏保持 36px、透明 Window Controls Overlay 与拖拽区域，拖拽几何与虚拟列表容器沿用运行时变量。
+
+- [desktop/renderer] 聊天与 Review 迁移到 Tailwind：输入区（输入面、工具条、权限/计划芯片、模型与推理菜单、斜杠命令、附件托盘、消息队列 Dock、状态浮层）、会话正文与时间线、审批与提问卡片、置顶摘要、子代理面板、Review 侧栏与 diff、提交与 PR 浮层；ProseMirror、CodeMirror、xterm 等第三方生成 DOM 的样式按所属 feature 保留在 `styles/primitives/*.css`。
+
+- [desktop/renderer] 其余桌面界面迁移到 Tailwind：设置页全部页面（含外观主题色板、用量与成本图表、快捷键、个人资料热力图）、模型中心与模型引导、插件市场、自动化与日历、浏览器面板、终端外壳、宠物目录与浮层、更新提示、404/错误页，以及辅助窗口容器。
+
+- [desktop/renderer] 样式契约与工具链同步改造：契约脚本改为支持原生 `@import` 与 Tailwind 指令、按「谁现在持有这条规则」扫描样式，新增 `tw:` 前缀守卫、`type-*` 与 `tw:type-weight-*` 组合守卫、全源动效（scroll-mask/`will-change`）守卫；浏览器检查脚本改为经 Vite 编译真实 `tailwind.css` 入口（迁移期叠加尚未迁移的 SCSS），Stylelint 覆盖新路径与新残留文件。
+
+- [desktop/renderer] 修复迁移中暴露的既有样式缺陷：多处引用不存在的 Tailwind 类名（`bg-app-surface`、`text-app-text-primary`、`border-border`、`fill-popover` 等）导致样式静默失效、变体前缀顺序错误（`hover:tw:`）不生成规则、`transition-*` 因缺少默认时长而完全不生效、`outline-none` 与 `focus-visible:outline-2` 同用时焦点环被吃掉、`type-*` 角色与 `tw:type-weight-*` 组合时字重被 `font:` 简写重置、侧栏置顶行多出 16px 缩进造成标题提前截断。
+
+- [desktop/renderer] 完成 Tailwind 迁移收尾：删除全部业务 SCSS 与迁移期聚合入口，Sass 依赖、Vite SCSS 配置与 `*.scss` 模块类型声明一并移除，测试 fixture 中引用已删除 SCSS 文件的路径改指迁移后的 CSS 落点；残留 CSS 仅为 token、reset、动画、启动遮罩与第三方/生成 DOM 样式，样式检查、Stylelint 与浏览器检查脚本不再依赖 Sass 编译。
+
+- [desktop] 移除工作区内容全宽与完整视图入口，聊天和内容仅支持并排分屏或隐藏标签页；拖拽拉宽遵守分屏尺寸上限，旧全宽状态恢复为分屏并保留标签、显隐和宽度记忆。
+
+- [desktop] 移除页面宽度的默认/窄/宽手动档位：外观设置与会话工具栏不再提供宽度切换，布局也不再读取该设置；`conversationWidth` 存储字段与往返保存保留，仅作为兼容数据不再影响渲染。会话页与新建聊天页统一改为 736px 正文上限（其他一级页面继续使用 1009px 默认宽度），消息、输入框、审批与状态卡片共用同一对齐规则和左侧 48px、右侧 16px 安全边距。
+
+- [desktop] 置顶摘要改为按聊天区域宽度自动布局：小于 1096px 用工具栏浮层、1096～1535px 置顶并与正文并排、达到 1536px 起固定在右侧留白；正文偏移量改为由摘要宽度与间隙推导，不再写死。置顶偏好改用独立 UI 偏好键 `codepilotx.desktop.threadSummaryPinned.v1` 保存，浮层开合不持久化，切换会话或进入内容全宽时关闭浮层但保留置顶偏好。
+
+- [desktop] 右侧工作区切换语义收敛：右栏按钮改为「进入内容全宽 / 退出内容全宽」，工具栏在内容全宽时显示「进入分屏视图」；仅聊天且没有保留标签时，入口复用现有浏览器标签创建流程，浏览器不可用时禁用并说明原因。隐藏右侧内容后焦点回到聊天输入框；内容全宽改用 React `Activity` 保留聊天页状态（草稿、折叠与滚动位置），只隐藏聊天区域，主导航与底部面板保持独立。
+
+- [desktop] 右侧工作区迁移到 Codex「进入分屏视图」模型：主 Chat 与右侧内容宿主固定在同一个 React 树位置，隐藏标签页与完整视图只切换几何、可见性与 `inert`，已打开的文件、浏览器与终端不再随布局切换卸载重建；新增 chat/split/full 三态 `workspaceView` 并持久化（缺失时由旧 `right.open`/`rightFullWidth` 推导），标题栏入口按当前布局动态提供新建标签页、显示/隐藏标签页与进入分屏/完整视图，完整视图标签栏同时提供 Chat 与内容入口且 Chat 不可关闭；右栏宽度改用有效区间比例保存（新增可选 `auxiliaryPanelWidthRangeRatio`，旧 `rightDockWidthRatio.v2` 仍按 width/W 同步写入），拖拽越界时原始尺寸小于 160px 隐藏内容、超过上限且主区不足 160px 进入完整视图，单次拖动可拉回，取消或失去指针捕获不写入尺寸；移除按窗口 960px 自动压制右栏与到达阈值即收起右栏的旧分支，`Ctrl+Shift+B` 与 `Ctrl+J` 统一走三态步进，菜单文案与按钮一致。
+
+- [desktop] 侧边栏统一迁移到 Codex 桌面侧栏基准：移除经典/新版双布局与 720px 自动隐藏分支，导航轨固定 52px、内容默认 340px、预览下限 290px；内容标题区 52px、行高 30px、行圆角 10px、图标容器 24px、分组间距 16px，透明度施加于颜色而非整个容器。
+
+- [desktop] 侧栏补齐悬停预览：导航轨入口 100ms 进入、切换 300ms、离开 100ms，斜向移动用指针轨迹三角保留预览（最长 1000ms）；菜单、HoverCard、弹窗与拖放期间注册保持，Escape 在未被子层处理时关闭预览；展开 0.3s、预览进入 0.3s、退出 0.2s、固定后 settle 0.12s，宽度拖动结束后保存、低于 120px 收起、双击恢复 340px。
+
+- [desktop] 侧栏条目改造：置顶区改为聊天与项目混排的单一有序列表，新增自定义分组（创建、重命名、删除、折叠、排序）并保证条目顶层归属唯一；普通列表排序只保留最近更新与手动，历史 priority 按最近更新呈现；聊天与自定义分组默认显示 10 项、项目 5 项，活动条目强制可见。
+
+- [desktop] 侧栏拖放统一为共享上下文：激活距离 6px，支持同组排序、置顶区、自定义分组与默认区域之间移动，提供拖动影子、插入线、边缘自动滚动与无效目标反馈；真实项目目标只接受本项目聊天，其他项目拒绝放置且不修改会话工作目录；支持 Ctrl 多选、Shift 范围选择与批量拖放，父子同时选中时按父项目处理。
+
+- [desktop] 侧栏行菜单补齐移动到分组、复制会话链接与复制工作目录；归档部分失败时只回滚失败条目的分组归属，不覆盖后续侧栏操作。
+
+- [desktop] 修复会话目录只读取首批 100 项的问题：客户端适配层消费 `thread/list` 的 `nextCursor` 并去重，异常或重复游标不会无限翻页。
+
+- [desktop] 新增侧栏插件面板，复用现有插件目录与过滤函数，查询、分类与状态通过 URL 参数与 `/plugins` 页面共享；导航轨按已安排、插件直接入口与“更多”分组，设置与账户固定在底部。
+
+- [desktop] 侧栏设置改为保留式迁移：新增可选 `desktop.sidebarCustomization`（version 1），旧 classic 值仍可读取但运行时统一新布局，宽度、收起状态、置顶记录与手动顺序全部保留，缺失字段补默认值；更高版本原样保留并禁止降级写入，未知条目键不删除，移除基于 `sidebarStateVersion` 的自动清空迁移路径。
+
+- [desktop/renderer] 对齐 Codex 桌面会话视图视觉结构与计划展开交互规范：会话正文采用 48rem 最大宽度（保留 narrow/wide 切换），右侧常驻摘要面板调整为 300px 宽度并在固定且处于 shift 模式时向左平移 154px，同时平移动画覆盖正文与输入框；会话滚动条改为系统细滚动条并在底部添加渐隐遮罩；用户气泡调整为 70% 最大宽度、22px 圆角与 10px 16px 内边距，附件及本地上下文引用右对齐，图片附件保持 160px×80px 宽高比；助手操作栏默认隐藏并在消息或轮次悬停/聚焦时显式展示；计划卡片正文限高调整为 320px 并带底部渐隐遮罩，支持展开/收起切换与持久化状态，并在生成完成后提供复制与 PLAN.md 导出下载操作。
+
+- [desktop/renderer] 将 DatePicker 外观迁移到 Tailwind utility：触发器、日历弹层、月份导航、星期表头与日期格子（选中/今日/禁用/非本月）全部改用 `tw:` 语义色、`type-*` 排版角色与 `tw:py-control-block`/`tw:px-control-inline`/`tw:gap-control-gap` 命名间距令牌；日期文字色按 `disabled > selected > outside > base` 优先级静态映射以保持原 SCSS 层叠结果，`data-outside`/`aria-selected`、ARIA、键盘与焦点行为不变；删除 `styles/components/date-picker.scss`，新增 `styles/primitives/date-picker.css` 保留 forced-colors 下选中日的系统高亮。
+
+- [desktop/renderer] 收尾同步契约测试到 Tailwind 迁移落点：`codex-style-contracts`、`non-color-token-contracts` 以及自动化日历/用户消息测试中原先直读已删除 SCSS 的样式事实断言，改读组件 TSX utility 或迁移后的 `styles/**/*.css`（primitives、components、features）；`&--process` 嵌套、`font-body` 映射、`.thread-summary-inline` 宽度等规则换成等价的新落点断言，ARIA、语义类名与数据属性等行为契约保持不变，测试套件恢复全绿。
+
 ### Added
 
 - [desktop] 重排外观页，将字体样式、字号、对比度、交互偏好和 Diff 预览收进可折叠高级区；新增高级设置局部重置，保留基础配色、主题选择、UI 字体家族及侧边栏布局和页面宽度。
@@ -100,6 +156,8 @@
 - [agent/desktop] 统一工具权限判定与共享预设，接入调用级临时路径授权；granular 不再强制普通操作审批，完全访问的 never 策略拒绝首次电脑应用授权，保留宿主 Shell、硬拒绝和既有审批恢复。
 
 - [repo] 修复公共代码基线的四项检查：统一 Prettier 格式（当前基线 74 个文件），补齐 12 项过时断言（日历样式改为容忍换行空白、补丁卡对齐 `until-exit` 挂载策略、待回答问题由输入区承载、分叉图标改用 `Split`、订阅事件与设置导航补项、过程摘要对齐中性文案与多活动项汇总）；`@playwright/test` 与 `playwright-core` 统一到 1.59.1，并移除无障碍测试中重复且无导航超时的预热 `beforeAll`；升级 `@xmldom/xmldom` 0.8.15、`brace-expansion` 5.0.11、`fast-uri` 3.1.7、`http-cache-semantics` 4.3.0、`js-yaml` 4.3.2、`sharp` 0.35.4、`smol-toml` 1.7.1、`undici` 8.10.2 与 `electron` 41.10.6；`braces` 经 Stylelint 以固定 glob 引入且上游暂无修复版本，按负责人与到期日登记临时豁免。
+
+- [desktop] 移除工作区内容全宽与完整视图入口，聊天和内容仅支持并排分屏或隐藏标签页；拖拽拉宽遵守分屏尺寸上限，旧全宽状态恢复为分屏并保留标签、显隐和宽度记忆。
 
 - [agent/desktop/protocol] 简化电脑控制授权：开启后从聊天直接使用，完全访问按有效权限直接读取和操作且不保存隐式授权；请求批准和帮我批准首次应用授权均由用户确认，支持对话授权及策略允许时的永久授权。补齐应用审批元数据、独立授权响应与 checkpoint 恢复，保存允许不打断读取，撤销仍停止控制；设置页仅保留任意应用开关、永久允许及已有权限记录管理。
 
@@ -293,6 +351,14 @@
 
 - [desktop/renderer] 修复 reduced-motion 下静态启动遮罩无法退场的问题：状态文案未变化时不再重写 DOM，避免 MutationObserver 自触发成死循环、饿死定时器与 `load` 事件。此前开启「减少动态效果」的机器冷启动会停在鲸鱼遮罩，视觉与无障碍测试也因此卡在 `beforeAll` 超时且只能看到 guid 报错。
 
+- [desktop] 修复终端对宽色域 CSS 配色的解析，转为 xterm 可识别的 RGBA，并同步使用代码行高设置。
+
+- [desktop] 修复外观模式卡片在 Tailwind 迁移后遗漏相对定位的问题，将透明 radio 点击区域限制在各自卡片内，恢复鼠标切换系统／浅色／深色模式。
+
+- [desktop/renderer] 修复点击导航轨「插件」即整页崩溃的问题：侧栏插件面板渲染在 DesktopLayout 内部而非路由 Outlet 之下，`useDesktopLayoutOutletContext()` 读不到 outlet context，面板挂载即抛出 `Cannot destructure property 'workspacePath'` 并落入错误页；`workspacePath` 现由 DesktopLayout 直接以 props 传入侧栏插件面板。
+
+- [desktop] 修复右工作区在隐藏状态仍按上次分屏宽度占位的问题：面板宿主保留挂载后，缩放窗口或拖动左侧边栏触发的尺寸提交会把实时宽度写回已提交的分屏宽度，而隐藏的宿主没有动画再收敛到 0，导致聊天区域右侧出现一片与右栏等宽的空白。实时尺寸现在按折叠态收敛到 0，隐藏面板不再占位，重新显示时仍由面板自身的入场动画接管宽度。
+
 - [desktop/renderer] 修复鼠标操作流在浮层关闭后触发器上出现键盘焦点环的问题：下拉、右键菜单、选择器、菜单栏与锚定浮层记录打开方式，指针打开的浮层关闭恢复焦点时以 `focus-visible:false` 重聚焦抑制焦点环，键盘打开的浮层保持焦点环可见（WCAG 2.4.7），Esc 关闭、选择选项和点击外部关闭均不再让鼠标用户看到突兀的 outline。
 
 - [desktop/renderer] 补齐键盘可访问性：侧栏会话/项目列表与设置分类导航支持 ↑/↓ 在条目间移动焦点（保留 Alt+↑/↓ 重排和 Tab 逐项访问），侧栏停靠面板标题可聚焦并用 Enter/空格展开收起，新对话页装饰鲸鱼按钮退出 Tab 序列，代码块编辑框恢复全局聚焦环。
@@ -477,6 +543,8 @@
 - [agent/desktop] 补齐工作目录、会话 ID 与系统深链复制，支持 CodePilotX Agent 分页读取关联会话，并为外部 Agent 提供按会话 ID 查询的 SQLite 只读语义视图。
 
 ### Changed
+
+- [desktop] 移除工作区内容全宽与完整视图入口，聊天和内容仅支持并排分屏或隐藏标签页；拖拽拉宽遵守分屏尺寸上限，旧全宽状态恢复为分屏并保留标签、显隐和宽度记忆。
 
 - [agent] 委派改用指导策略并精简主/子代理 prompt 与生命周期工具描述：小型、强耦合工作由主 Agent 直接完成，只把边界明确、有独立产出、能隔离大量中间信息或适合并行的问题交给子代理，尊重用户与仓库规则的并行要求；task 字符串携带目标、范围、关键背景、约束与预期证据；子代理交付要求（结论、证据引用、必要验证与未决事项、长日志留在任务记录、outcome 如实陈述、不得编造验证成功）写入 profile 提示、子代理任务输入与 finalize_result 描述，主 Agent 复核与最终交付相关的结论且不为总结再造子代理。
 
@@ -861,6 +929,8 @@
 
 ### Changed
 
+- [desktop] 移除工作区内容全宽与完整视图入口，聊天和内容仅支持并排分屏或隐藏标签页；拖拽拉宽遵守分屏尺寸上限，旧全宽状态恢复为分屏并保留标签、显隐和宽度记忆。
+
 - [desktop/renderer] 固定侧栏关注任务区并按真实关注状态切换铃铛提示，补齐置顶筛选、批量已读/归档及 Codex 式透明分类标题与列表间距。
 - [Desktop] 侧栏按 Agent 能力动态展示现有入口，并对齐 Codex 的滚动定位、遮罩、粘性分组、悬浮预览与折叠动效。
 - [Agent/renderer] 将子 Agent 详情重构为无输入框的只读工作台线程：移除公开直发能力与侧边聊天混淆，保留停止、重试、工作区处理、审批和结构化提问，返回或关闭标签时恢复主对话焦点
@@ -1105,6 +1175,8 @@
 - [renderer] 修复普通设置下拉框无法显示当前选项文字、控件缩成仅剩箭头的问题，选项标签改为跟随 UI 字号
 
 ### Changed
+
+- [desktop] 移除工作区内容全宽与完整视图入口，聊天和内容仅支持并排分屏或隐藏标签页；拖拽拉宽遵守分屏尺寸上限，旧全宽状态恢复为分屏并保留标签、显隐和宽度记忆。
 
 - [renderer] 会话生命周期状态行改用计划、权限、提问和子代理操作各自的语义图标，并为运行状态增加扫光反馈
 - [renderer] 已完成的命令组标题增加终端语义图标，便于区分处理过程与命令集合

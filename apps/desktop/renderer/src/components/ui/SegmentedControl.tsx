@@ -46,7 +46,27 @@ export function SegmentedControl<T extends string>({
     'tw:gap-0.5',
     overflowMode === 'auto' ? 'tw:overflow-x-auto' : 'tw:overflow-visible',
     overflowMode === 'auto' ? 'tw:overflow-y-hidden' : false,
+    variant === 'inset' ? 'tw:rounded-control tw:bg-app-underlay tw:p-0.5' : false,
     className,
+  )
+  /*
+   * 默认变体里 hover 仍要压过选中态（原始 SCSS 的 :hover:not(:disabled) 特异度更高），
+   * 任意 variant 的 utility 在 Tailwind 输出中排在 data / aria 变体之后，正好复现该顺序；
+   * inset 变体相反（选中态压过 hover），用普通 hover variant 即可。
+   */
+  const itemClassName = cx(
+    'segmented-control-item tw:inline-flex tw:min-h-6 tw:shrink-0 tw:cursor-pointer tw:items-center tw:rounded-item tw:border tw:border-transparent tw:bg-transparent tw:px-2 tw:py-0.5 tw:text-app-text-meta tw:type-control',
+    'tw:transition-[background-color,border-color,box-shadow,color] tw:duration-feedback tw:ease-standard',
+    'tw:data-[state=on]:text-app-text tw:aria-pressed:text-app-text tw:aria-selected:text-app-text',
+    variant === 'inset'
+      ? 'tw:not-disabled:hover:bg-app-hover tw:not-disabled:hover:text-app-text tw:data-[state=on]:bg-app-canvas tw:aria-pressed:bg-app-canvas tw:aria-selected:bg-app-canvas tw:data-[state=on]:shadow-sm tw:aria-pressed:shadow-sm tw:aria-selected:shadow-sm'
+      : 'tw:[&:enabled:hover]:bg-app-hover tw:[&:enabled:hover]:text-app-text tw:data-[state=on]:bg-app-selected tw:aria-pressed:bg-app-selected tw:aria-selected:bg-app-selected',
+    'tw:disabled:cursor-default tw:disabled:opacity-45',
+    'tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus',
+    // forced-colors 高亮来自 base.css 的 token 重映射（border-strong / selected → Highlight）。
+    'tw:forced-colors:data-[state=on]:border-app-border-strong tw:forced-colors:data-[state=on]:bg-app-selected tw:forced-colors:data-[state=on]:text-app-on-accent tw:forced-colors:data-[state=on]:forced-color-adjust-none',
+    'tw:forced-colors:aria-pressed:border-app-border-strong tw:forced-colors:aria-pressed:bg-app-selected tw:forced-colors:aria-pressed:text-app-on-accent tw:forced-colors:aria-pressed:forced-color-adjust-none',
+    'tw:forced-colors:aria-selected:border-app-border-strong tw:forced-colors:aria-selected:bg-app-selected tw:forced-colors:aria-selected:text-app-on-accent tw:forced-colors:aria-selected:forced-color-adjust-none',
   )
 
   if (!isTabs) {
@@ -65,7 +85,7 @@ export function SegmentedControl<T extends string>({
       >
         {options.map((option) => (
           <ToggleGroup.Item
-            className="segmented-control-item tw:shrink-0"
+            className={itemClassName}
             disabled={option.disabled}
             key={option.value}
             value={option.value}
@@ -99,7 +119,7 @@ export function SegmentedControl<T extends string>({
           <button
             aria-controls={getPanelId?.(option.value)}
             aria-selected={selected}
-            className="segmented-control-item tw:shrink-0"
+            className={itemClassName}
             disabled={option.disabled}
             id={getTabId?.(option.value)}
             key={option.value}

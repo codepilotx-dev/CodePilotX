@@ -1,4 +1,4 @@
-import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import React from 'react'
 import { LoaderCircle } from 'lucide-react'
 import type { RpcResult } from '@codepilotx/agent-protocol'
@@ -29,8 +29,16 @@ export const FileMutationDiffBody = React.memo(function FileMutationDiffBody({
 
 export function FileMutationDiffLoading(): React.ReactNode {
   return (
-    <div className="canonical-file-mutation__message" role="status">
-      <LoaderCircle size={APP_ICON_SIZES.sm} className="canonical-spin" aria-hidden="true" />
+    <div
+      className="canonical-file-mutation__message tw:flex tw:min-h-[72px] tw:items-center tw:justify-center tw:gap-2 tw:p-3 tw:text-app-text-soft"
+      role="status"
+    >
+      <LoaderCircle
+        size={APP_ICON_SIZES.sm}
+        className="canonical-spin tw:flex-none"
+        strokeWidth={APP_ICON_STROKE_WIDTH}
+        aria-hidden="true"
+      />
       正在加载差异
     </div>
   )
@@ -38,7 +46,10 @@ export function FileMutationDiffLoading(): React.ReactNode {
 
 export function FileMutationDiffError({ onRetry }: { onRetry: () => void }): React.ReactNode {
   return (
-    <div className="canonical-file-mutation__message" role="alert">
+    <div
+      className="canonical-file-mutation__message tw:flex tw:min-h-[72px] tw:items-center tw:justify-center tw:gap-2 tw:p-3 tw:text-app-text-soft"
+      role="alert"
+    >
       <span>无法加载本次文件差异</span>
       <Button color="secondary" onClick={onRetry}>
         重试

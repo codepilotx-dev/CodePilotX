@@ -209,6 +209,41 @@ import type {
 // does not need to retain their implementation.
 const attachmentUploadSupport = import('./attachmentUploadSupport.js')
 const localContextImportSupport = import('./localContextImportSupport.js')
+export const THREAD_LIST_PAGE_SIZE = 100
+
+/** 防御上限：异常的分页响应不会让侧栏无限翻页。 */
+export const THREAD_LIST_MAX_PAGES = 200
+
+/**
+ * 消费 thread/list 的 nextCursor，直到取完全部会话；
+ * 侧栏因此不再只显示首批 100 项。
+ */
+export async function collectAllThreadPages(
+  fetchPage: (cursor: string | undefined) => Promise<{
+    threads: readonly ThreadListItem[]
+    nextCursor?: string | null
+  }>,
+): Promise<ThreadListItem[]> {
+  const threads: ThreadListItem[] = []
+  const seenThreadIds = new Set<string>()
+  const fetchedCursors = new Set<string | undefined>()
+  let cursor: string | undefined
+  for (let page = 0; page < THREAD_LIST_MAX_PAGES; page += 1) {
+    // 同一游标只请求一次：服务端重放同一页时不会重复请求，也不会无限翻页。
+    if (fetchedCursors.has(cursor)) break
+    fetchedCursors.add(cursor)
+    const response = await fetchPage(cursor)
+    for (const thread of response.threads) {
+      if (seenThreadIds.has(thread.id)) continue
+      seenThreadIds.add(thread.id)
+      threads.push(thread)
+    }
+    cursor = response.nextCursor ?? undefined
+    if (cursor === undefined) break
+  }
+  return threads
+}
+
 export function createAgentSessionDesktopClient(
   environment: DesktopClientEnvironment,
   mockClient: DesktopApi &
@@ -927,14 +962,16 @@ export function createAgentSessionDesktopClient(
   }): Promise<DesktopSessionSnapshot[]> {
     const archived = options?.archived === true
     const requestEpochs = new Map(lifecycleEpochBySessionId)
-    const [projectsById, response] = await Promise.all([
-      loadProjectsById(),
+    const projectsByIdPromise = loadProjectsById()
+    const allThreads = await collectAllThreadPages((cursor) =>
       rpc.call('thread/list', {
         archived,
-        limit: 100,
+        limit: THREAD_LIST_PAGE_SIZE,
+        ...(cursor ? { cursor } : {}),
       }),
-    ])
-    const snapshots = response.threads.map((rawItem) => {
+    )
+    const projectsById = await projectsByIdPromise
+    const snapshots = allThreads.map((rawItem) => {
       const item = applySessionReadThrough(rawItem)
       const listSnapshot = agentThreadListItemToDesktopSnapshot(
         item,

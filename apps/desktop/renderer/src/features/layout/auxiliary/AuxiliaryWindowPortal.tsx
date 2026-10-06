@@ -52,7 +52,7 @@ export function AuxiliaryWindowPortal({
 
   return createPortal(
     <AuxiliaryWindowContext.Provider value={contextValue}>
-      <div className="auxiliary-window-shell tw:flex tw:flex-col tw:h-full tw:w-full tw:bg-app-bg tw:text-app-text-primary tw:overflow-hidden">
+      <div className="auxiliary-window-shell tw:flex tw:flex-col tw:h-full tw:w-full tw:bg-app-canvas tw:text-app-text tw:overflow-hidden">
         <AuxiliaryTitlebar icon={icon} onDockBack={onDockBack} title={title} />
         <main className="auxiliary-window-content tw:flex-1 tw:min-h-0 tw:overflow-hidden tw:flex tw:flex-col">
           {children}

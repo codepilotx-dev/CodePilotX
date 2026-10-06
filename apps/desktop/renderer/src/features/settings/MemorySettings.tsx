@@ -171,10 +171,10 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
 
   return (
     <SettingsContentArea className="memory-settings-page">
-      <div className="settings-content-inner">
-        <div className="settings-page-header">
-          <h2 className="settings-page-title">记忆</h2>
-          <p className="settings-page-desc">管理当前工作区的自动长期记忆和召回时间线。</p>
+      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+        <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
+          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">记忆</h2>
+          <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">管理当前工作区的自动长期记忆和召回时间线。</p>
         </div>
 
         <SettingsSection title="记忆状态">
@@ -210,7 +210,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
         <SettingsSection
           title="项目记忆"
           actions={
-            <div className="settings-inline-actions">
+            <div className="settings-inline-actions tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-2 tw:max-[900px]:justify-start">
               <Button
                 color="secondary"
                 disabled={busy || !hasWorkspace}
@@ -241,10 +241,10 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
         >
           {hasWorkspace ? (
             <>
-              <div className="memory-settings-toolbar">
+              <div className="memory-settings-toolbar tw:flex tw:flex-wrap tw:items-center tw:gap-2 tw:px-3 tw:pt-3">
                 <SearchInput
                   aria-label="搜索记忆文件"
-                  className="memory-settings-search"
+                  className="memory-settings-search tw:max-w-80 tw:min-w-40 tw:flex-1"
                   value={query}
                   onChange={setQuery}
                   placeholder="搜索文件名或描述"
@@ -253,56 +253,56 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                   ariaLabel="记忆类型"
                   options={MEMORY_TYPE_OPTIONS}
                   showSelectedIndicator
-                  triggerClassName="memory-settings-filter"
+                  triggerClassName="memory-settings-filter tw:w-auto tw:min-w-0 tw:px-2 tw:py-1"
                   value={typeFilter}
                   width={160}
                   onChange={(value) => setTypeFilter(value as MemoryTypeFilter)}
                 />
-                <span className="memory-settings-count">{filteredMemories.length} 条</span>
+                <span className="memory-settings-count tw:ml-auto tw:text-app-text-soft tw:type-caption tw:whitespace-nowrap">{filteredMemories.length} 条</span>
               </div>
               {error ? <p className="settings-row-error">{error}</p> : null}
-              <div className="memory-settings-grid">
-                <div className="memory-settings-panel">
-                  <div className="memory-settings-panel-header">
+              <div className="memory-settings-grid tw:grid tw:min-h-120 tw:grid-cols-[minmax(260px,1fr)_minmax(380px,1.6fr)] tw:gap-3 tw:p-3">
+                <div className="memory-settings-panel tw:flex tw:min-h-0 tw:flex-col tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border tw:bg-app-panel tw:shadow-none">
+                  <div className="memory-settings-panel-header tw:flex tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-b-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text-soft tw:type-row-title tw:select-none">
                     <span>记忆列表</span>
                   </div>
-                  <div className="memory-settings-list-scroll-area">
-                    <div className="memory-settings-list-scroll-content">
+                  <div className="memory-settings-list-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden tw:overflow-y-auto">
+                    <div className="memory-settings-list-scroll-content tw:min-w-0">
                       {filteredMemories.map((memory) => (
                         <button
                           key={memory.relativePath}
                           className={
                             selectedPath === memory.relativePath
-                              ? 'memory-settings-item active'
-                              : 'memory-settings-item'
+                              ? 'memory-settings-item active tw:border-b-app-border-strong tw:bg-app-selected'
+                              : 'memory-settings-item tw:hover:bg-app-hover'
                           }
                           onClick={() => void openMemory(memory.relativePath)}
                           type="button"
                         >
-                          <span className="memory-settings-item-name">{memory.relativePath}</span>
-                          <span className="memory-settings-item-meta">
-                            <span className="memory-settings-item-type">
+                          <span className="memory-settings-item-name tw:truncate tw:text-app-text tw:type-row-title">{memory.relativePath}</span>
+                          <span className="memory-settings-item-meta tw:flex tw:min-w-0 tw:items-center tw:gap-2">
+                            <span className="memory-settings-item-type tw:inline-flex tw:shrink-0 tw:items-center tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-caption">
                               {memory.type ?? 'unknown'}
                             </span>
-                            <span className="memory-settings-item-desc">
+                            <span className="memory-settings-item-desc tw:min-w-0 tw:truncate tw:text-app-text-soft tw:type-body-sm">
                               {memory.description ?? '无描述'}
                             </span>
                           </span>
                         </button>
                       ))}
                       {filteredMemories.length === 0 ? (
-                        <div className="settings-empty-state">暂无记忆</div>
+                        <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">暂无记忆</div>
                       ) : null}
                     </div>
                   </div>
                 </div>
-                <div className="memory-settings-panel">
-                  <div className="memory-settings-panel-header memory-settings-panel-header-editor">
-                    <span className="memory-settings-editor-title">
+                <div className="memory-settings-panel tw:flex tw:min-h-0 tw:flex-col tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border tw:bg-app-panel tw:shadow-none">
+                  <div className="memory-settings-panel-header memory-settings-panel-header-editor tw:flex tw:flex-wrap tw:shrink-0 tw:items-center tw:gap-2 tw:border-b tw:border-b-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text-soft tw:type-row-title tw:select-none">
+                    <span className="memory-settings-editor-title tw:min-w-0 tw:flex-1 tw:truncate tw:text-app-text tw:type-row-title">
                       {selectedMemory ? selectedMemory.relativePath : '内容编辑'}
                     </span>
                     {selectedMemory ? (
-                      <div className="memory-settings-editor-actions">
+                      <div className="memory-settings-editor-actions tw:flex tw:shrink-0 tw:items-center tw:gap-2">
                         <Button
                           color="primary"
                           disabled={busy}
@@ -324,11 +324,11 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                       </div>
                     ) : null}
                   </div>
-                  <div className="memory-settings-editor-scroll-area">
-                    <div className="memory-settings-editor-scroll-content">
+                  <div className="memory-settings-editor-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-hidden">
+                    <div className="memory-settings-editor-scroll-content tw:flex tw:min-w-0 tw:h-full tw:flex-col">
                       {selectedMemory ? (
                         <textarea
-                          className="settings-textarea memory-settings-editor-textarea"
+                          className="settings-textarea memory-settings-editor-textarea tw:block tw:w-full tw:min-h-80 tw:flex-1 tw:resize-y tw:box-border tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-canvas tw:p-3 tw:text-app-text tw:type-code tw:m-0 tw:outline-none tw:focus:border-app-accent-border"
                           value={selectedMemory.content}
                           onChange={(event) =>
                             setSelectedMemory({
@@ -338,7 +338,7 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                           }
                         />
                       ) : (
-                        <div className="settings-empty-state">选择一条记忆查看内容</div>
+                        <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">选择一条记忆查看内容</div>
                       )}
                     </div>
                   </div>
@@ -346,25 +346,28 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
               </div>
             </>
           ) : (
-            <div className="settings-empty-state">请先打开工作区后管理项目记忆</div>
+            <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">请先打开工作区后管理项目记忆</div>
           )}
         </SettingsSection>
 
         <SettingsSection title="召回时间线">
-          <div className="memory-recall-list-scroll-area">
-            <div className="memory-recall-list-scroll-content">
+          <div className="memory-recall-list-scroll-area tw:max-h-90 tw:min-h-0 tw:overflow-x-hidden tw:overflow-y-auto">
+            <div className="memory-recall-list-scroll-content tw:min-w-0">
               {!hasWorkspace ? (
-                <div className="settings-empty-state">请先打开工作区后查看召回记录</div>
+                <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">请先打开工作区后查看召回记录</div>
               ) : recalls.length === 0 ? (
-                <div className="settings-empty-state">暂无召回记录</div>
+                <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">暂无召回记录</div>
               ) : (
                 recalls.map((recall, index) => (
-                  <article className="memory-recall-item" key={`${recall.createdAt}-${index}`}>
-                    <span className="memory-recall-time">
+                  <article
+                    className="memory-recall-item tw:grid tw:gap-1 tw:border-b tw:border-b-app-border tw:px-4 tw:py-3 tw:last:border-b-0"
+                    key={`${recall.createdAt}-${index}`}
+                  >
+                    <span className="memory-recall-time tw:text-app-text tw:type-label">
                       {new Date(recall.createdAt).toLocaleString()}
                     </span>
-                    <span className="memory-recall-summary">{recall.querySummary}</span>
-                    <span className="memory-recall-files">
+                    <span className="memory-recall-summary tw:text-app-text tw:type-body">{recall.querySummary}</span>
+                    <span className="memory-recall-files tw:truncate tw:text-app-text-soft tw:type-caption">
                       {recall.memories
                         .map(
                           (memory) => `${memory.relativePath}${memory.truncated ? ' (截断)' : ''}`,

@@ -7,7 +7,7 @@ import { usePetOverlayController } from './usePetOverlayController.js'
 import { resolvePetDragAnimation } from './petDirectionModel.js'
 import type { PetAnimationName } from './petAnimationModel.js'
 import { usePetLookFrame } from './usePetLookFrame.js'
-import '../../styles/lazy/pet-overlay.scss'
+import '../../styles/lazy/pet-overlay.css'
 
 export function PetOverlayPage(): React.ReactNode {
   const controller = usePetOverlayController()
@@ -60,9 +60,12 @@ export function PetOverlayPage(): React.ReactNode {
 
   if (!controller.pet) {
     return (
-      <main className="pet-overlay-page" data-startup-surface-ready="true">
+      <main
+      className="pet-overlay-page tw:relative tw:size-full tw:select-none tw:pointer-events-none"
+      data-startup-surface-ready="true"
+    >
         <div
-          className="pet-overlay-empty pet-overlay-interactive"
+          className="pet-overlay-empty pet-overlay-interactive tw:absolute tw:top-2 tw:right-2 tw:left-2 tw:flex tw:max-h-55 tw:min-h-[70px] tw:flex-col tw:items-stretch tw:gap-2 tw:overflow-auto tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:px-4 tw:py-3 tw:text-app-text tw:shadow-lg tw:backdrop-blur-none tw:pointer-events-auto"
           onPointerEnter={() => setInteractive(true)}
           onPointerLeave={() => setInteractive(false)}
         >
@@ -73,10 +76,13 @@ export function PetOverlayPage(): React.ReactNode {
   }
 
   return (
-    <main className="pet-overlay-page" data-startup-surface-ready="true">
+    <main
+      className="pet-overlay-page tw:relative tw:size-full tw:select-none tw:pointer-events-none"
+      data-startup-surface-ready="true"
+    >
       {notification || greeting ? (
         <section
-          className="pet-overlay-pill pet-overlay-interactive"
+          className="pet-overlay-pill pet-overlay-interactive tw:absolute tw:top-2 tw:right-2 tw:left-2 tw:flex tw:max-h-55 tw:min-h-[70px] tw:flex-col tw:items-stretch tw:gap-2 tw:overflow-auto tw:rounded-xl tw:border tw:border-app-border tw:bg-app-raised tw:px-4 tw:py-3 tw:text-app-text tw:shadow-lg tw:backdrop-blur-none tw:pointer-events-auto"
           onBlurCapture={(event) => {
             if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
               return
@@ -90,15 +96,20 @@ export function PetOverlayPage(): React.ReactNode {
             if (!keyboardActive) setInteractive(false)
           }}
         >
-          <div className="pet-overlay-pill-header">
-            <div className="pet-overlay-pill-copy">
-              <strong>{notification?.title ?? `你好，我是 ${controller.pet.displayName}`}</strong>
-              <span>{notification?.detail ?? '我会在任务需要你时提醒你。'}</span>
+          <div className="pet-overlay-pill-header tw:flex tw:items-center tw:gap-2">
+            <div className="pet-overlay-pill-copy tw:flex tw:min-w-0 tw:flex-1 tw:flex-col">
+              <strong className="tw:truncate">
+                {notification?.title ?? `你好，我是 ${controller.pet.displayName}`}
+              </strong>
+              <span className="tw:truncate tw:type-body-sm tw:text-app-text-meta">
+                {notification?.detail ?? '我会在任务需要你时提醒你。'}
+              </span>
             </div>
             {notification ? (
-              <div className="pet-overlay-pill-actions">
+              <div className="pet-overlay-pill-actions tw:flex tw:items-center tw:gap-1">
                 <button
                   aria-label="打开任务"
+                  className="tw:grid tw:size-7.5 tw:cursor-pointer tw:place-items-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:hover:bg-app-hover"
                   onClick={() => void controller.openThread(notification.threadId)}
                   type="button"
                 >
@@ -106,6 +117,7 @@ export function PetOverlayPage(): React.ReactNode {
                 </button>
                 <button
                   aria-label="关闭提醒"
+                  className="tw:grid tw:size-7.5 tw:cursor-pointer tw:place-items-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:hover:bg-app-hover"
                   onClick={() => controller.dismiss(notification.id)}
                   type="button"
                 >
@@ -115,7 +127,7 @@ export function PetOverlayPage(): React.ReactNode {
             ) : null}
           </div>
           {notification?.request ? (
-            <div className="pet-overlay-pill-body">
+            <div className="pet-overlay-pill-body tw:border-t tw:border-app-border tw:pt-1">
               <PetQuickReply
                 disabled={replySubmitting}
                 request={notification.request}
@@ -125,7 +137,7 @@ export function PetOverlayPage(): React.ReactNode {
           ) : null}
           {notification ? (
             <form
-              className="pet-overlay-reply-form"
+              className="pet-overlay-reply-form tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:gap-2"
               onSubmit={(event) => {
                 event.preventDefault()
                 const text = reply.trim()
@@ -149,6 +161,7 @@ export function PetOverlayPage(): React.ReactNode {
             >
               <input
                 aria-label="快捷回复"
+                className="tw:h-7.5 tw:min-w-0 tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:px-2 tw:text-app-text tw:type-body tw:outline-none tw:focus:border-app-focus"
                 disabled={replySubmitting}
                 placeholder="回复这个任务…"
                 value={reply}
@@ -159,13 +172,17 @@ export function PetOverlayPage(): React.ReactNode {
               />
               <button
                 aria-label="发送回复"
+                className="tw:grid tw:size-7.5 tw:cursor-pointer tw:place-items-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:hover:bg-app-hover tw:disabled:cursor-not-allowed tw:disabled:opacity-50"
                 disabled={replySubmitting || !reply.trim()}
                 type="submit"
               >
                 <Send size={APP_ICON_SIZE} />
               </button>
               {replyError ? (
-                <span aria-live="polite" className="pet-overlay-reply-error">
+                <span
+                  aria-live="polite"
+                  className="pet-overlay-reply-error tw:col-span-full tw:type-caption tw:text-app-danger"
+                >
                   {replyError}
                 </span>
               ) : null}
@@ -176,7 +193,7 @@ export function PetOverlayPage(): React.ReactNode {
 
       <div
         ref={avatarRef}
-        className="pet-overlay-avatar pet-overlay-interactive"
+        className="pet-overlay-avatar pet-overlay-interactive tw:absolute tw:right-5 tw:bottom-2.5 tw:grid tw:cursor-grab tw:touch-none tw:place-items-end tw:active:cursor-grabbing tw:pointer-events-auto"
         onPointerDown={(event) => {
           event.currentTarget.setPointerCapture(event.pointerId)
           dragScreenXRef.current = event.screenX

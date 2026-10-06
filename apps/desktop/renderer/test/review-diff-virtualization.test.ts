@@ -75,11 +75,11 @@ describe('review diff virtualization', () => {
         }),
       ),
     )
-    const summaryStart = html.indexOf('class="review-file-summary"')
+    const summaryStart = html.indexOf('class="review-file-summary')
     const summaryTagStart = html.lastIndexOf('<button', summaryStart)
     const summaryTagEnd = html.indexOf('>', summaryStart)
     const summaryEnd = html.indexOf('</button>', summaryStart)
-    const actionsStart = html.indexOf('class="review-file-actions review-file-actions-primary"')
+    const actionsStart = html.indexOf('class="review-file-actions review-file-actions-primary')
     const controls = html
       .slice(summaryTagStart, summaryTagEnd)
       .match(/aria-controls="([^"]+)"/)?.[1]
@@ -90,7 +90,7 @@ describe('review diff virtualization', () => {
     expect(html).not.toContain('class="review-file-row preview-header" role="button"')
     expect(html).toContain('aria-expanded="true"')
     expect(controls).toBeTruthy()
-    expect(html).toContain(`class="review-diff-file-body" id="${controls}"`)
+    expect(html).toContain(`class="review-diff-file-body tw:contents" id="${controls}"`)
   })
 })
 

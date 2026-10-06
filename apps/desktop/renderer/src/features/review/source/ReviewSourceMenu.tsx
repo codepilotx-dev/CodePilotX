@@ -46,14 +46,20 @@ export function ReviewSourceMenu({
     <PopoverMenu
       align="start"
       avoidCollisions={false}
-      className="popover-review-scope popover-menu--flex"
+      className="popover-review-scope popover-menu--flex tw:block"
       open={open}
       side="bottom"
       sideOffset={4}
       width={200}
       trigger={
-        <button aria-label="切换变更范围" className="review-scope-trigger" type="button">
-          <span className="review-scope-trigger-label">{reviewSourceLabel(source)}</span>
+        <button
+          aria-label="切换变更范围"
+          className="review-scope-trigger tw:inline-flex tw:min-h-8 tw:min-w-0 tw:shrink tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-compact tw:border-0 tw:bg-transparent tw:px-2 tw:text-left tw:text-app-text tw:type-weight-label tw:hover:bg-app-hover tw:data-[state=open]:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus"
+          type="button"
+        >
+          <span className="review-scope-trigger-label tw:min-w-[54px] tw:text-left">
+            {reviewSourceLabel(source)}
+          </span>
           <ChevronDown size={APP_ICON_SIZES.sm} />
         </button>
       }
@@ -65,8 +71,10 @@ export function ReviewSourceMenu({
       >
         <PopoverRadioItem value="last-turn">上一轮</PopoverRadioItem>
       </PopoverRadioGroup>
-      <DropdownMenu.Separator className="review-source-menu-separator" />
-      <DropdownMenu.Label className="review-source-menu-label">未提交</DropdownMenu.Label>
+      <DropdownMenu.Separator className="review-source-menu-separator tw:my-1 tw:h-px tw:bg-app-border-subtle" />
+      <DropdownMenu.Label className="review-source-menu-label tw:flex tw:items-center tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label tw:outline-none">
+        未提交
+      </DropdownMenu.Label>
       <PopoverRadioGroup
         value={source.kind === 'unstaged' || source.kind === 'staged' ? source.kind : ''}
         onValueChange={(kind) => onSelectSource({ kind: kind as 'unstaged' | 'staged' })}
@@ -74,17 +82,23 @@ export function ReviewSourceMenu({
         <PopoverRadioItem value="unstaged">未暂存</PopoverRadioItem>
         <PopoverRadioItem value="staged">已暂存</PopoverRadioItem>
       </PopoverRadioGroup>
-      <DropdownMenu.Separator className="review-source-menu-separator" />
+      <DropdownMenu.Separator className="review-source-menu-separator tw:my-1 tw:h-px tw:bg-app-border-subtle" />
       <ReviewCommitSourceSubmenu>
         {sourceOptionsState === 'loading' ? (
-          <div className="review-source-submenu-message">正在加载提交…</div>
+          <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-body-sm">
+            正在加载提交…
+          </div>
         ) : sourceOptionsState === 'error' ? (
           <>
-            <div className="review-source-submenu-message">无法加载提交记录</div>
+            <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-body-sm">
+              无法加载提交记录
+            </div>
             <PopoverItem onClick={onRetry}>重试</PopoverItem>
           </>
         ) : commits.length === 0 ? (
-          <div className="review-source-submenu-message">分支上暂无提交记录</div>
+          <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-body-sm">
+            分支上暂无提交记录
+          </div>
         ) : (
           <PopoverRadioGroup
             value={source.kind === 'commit' ? source.commitSha : ''}
@@ -95,15 +109,19 @@ export function ReviewSourceMenu({
               })
             }
           >
-            <div className="review-source-commit-list">
+            <div className="review-source-commit-list tw:max-h-80 tw:overflow-x-hidden tw:overflow-y-auto">
               {commits.map((commit) => (
                 <PopoverRadioItem key={`commit:${commit.sha}`} value={commit.sha}>
                   <span
-                    className="review-source-commit-row"
+                    className="review-source-commit-row tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2"
                     title={commit.subject || commit.shortSha}
                   >
-                    <span>{commit.subject || '无提交信息'}</span>
-                    <small>{formatRelativeCommitTime(commit.authoredAt)}</small>
+                    <span className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">
+                      {commit.subject || '无提交信息'}
+                    </span>
+                    <small className="tw:flex-none tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption">
+                      {formatRelativeCommitTime(commit.authoredAt)}
+                    </small>
                   </span>
                 </PopoverRadioItem>
               ))}
@@ -139,7 +157,7 @@ function ReviewCommitSourceSubmenu({ children }: { children: React.ReactNode }):
         <DropdownMenu.SubContent
           data-theme-component="dropdown-surface"
           alignOffset={-4}
-          className="popover-surface popover popover-sub-content popover-review-commits popover-menu--flex"
+          className="popover-surface popover popover-sub-content popover-review-commits popover-menu--flex tw:max-h-[min(320px,calc(100vh-96px))] tw:overflow-hidden"
           collisionPadding={6}
           sideOffset={4}
           style={buildPopoverSizingStyle({ width: 320 })}

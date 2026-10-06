@@ -1012,8 +1012,26 @@ export type DesktopStoredSettings = {
   browserAllowedSites: string[]
   collapsedSidebarSections: SidebarSectionId[]
   browserSitePermissions: DesktopBrowserSitePermission[]
+  sidebarCustomization?: SidebarCustomization
   pet: DesktopPetSettings
   notifications: DesktopSystemNotificationSettings
+}
+
+export type SidebarCustomSection = {
+  id: string
+  title: string
+  itemKeys: string[]
+  sort: 'manual' | 'updated'
+  collapsed: boolean
+}
+
+export type SidebarCustomization = {
+  version: number
+  sections: SidebarCustomSection[]
+  sectionOrder: string[]
+  pinnedSort: 'manual' | 'updated'
+  destinationOrder: string[]
+  hiddenDestinationIds: string[]
 }
 
 export type DesktopConfigReadResult = RpcResult<'config/read'>

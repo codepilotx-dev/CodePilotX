@@ -44,6 +44,14 @@ export const SidebarRow = forwardRef<HTMLElement, Props>(function SidebarRow(
     active ? 'selected' : undefined,
     indent === 'session' ? 'sidebar-row--session' : undefined,
     leadingMode === 'none' ? 'sidebar-row--no-leading' : undefined,
+    // Row shell: 30px row, 8px gutter, 10px radius, 2px column gap between the
+    // leading slot, the label and the trailing slot.
+    'tw:relative tw:grid tw:w-full tw:box-border tw:min-h-[var(--sidebar-row-height)] tw:items-center tw:gap-x-2 tw:rounded-md tw:px-2 tw:text-left tw:text-app-text tw:type-body tw:no-underline tw:select-none tw:cursor-pointer tw:outline-none tw:transition-colors tw:duration-feedback tw:ease-out',
+    leadingMode === 'none' && indent === 'session'
+      ? 'tw:grid-cols-[minmax(0,1fr)_auto]'
+      : 'tw:grid-cols-[var(--sidebar-row-columns)]',
+    active ? 'tw:bg-app-selected' : 'tw:bg-transparent',
+    'tw:hover:bg-app-hover',
     className,
   )
 
@@ -117,15 +125,23 @@ function renderRowContent({
         <span
           aria-hidden={leadingMode === 'spacer' ? true : undefined}
           className={cx(
-            'sidebar-row-leading',
-            leadingMode === 'icon' ? 'icon-button sidebar-item-icon' : 'sidebar-row-leading-spacer',
+            'sidebar-row-leading tw:flex tw:min-w-0 tw:items-center',
+            leadingMode === 'icon'
+              ? 'icon-button sidebar-item-icon tw:w-6 tw:shrink-0 tw:grow-0 tw:basis-6 tw:justify-center'
+              : 'sidebar-row-leading-spacer tw:size-4 tw:min-w-4',
           )}
         >
           {leadingMode === 'icon' ? leading : null}
         </span>
       ) : null}
-      <span className={cx('sidebar-row-main', labelClassName)}>{children}</span>
-      {hasTrailing ? <span className="sidebar-row-trailing">{trailing}</span> : null}
+      <span className={cx('sidebar-row-main tw:flex tw:w-full tw:min-w-0 tw:items-center', labelClassName)}>
+        {children}
+      </span>
+      {hasTrailing ? (
+        <span className="sidebar-row-trailing tw:flex tw:w-full tw:min-w-0 tw:items-center tw:justify-end">
+          {trailing}
+        </span>
+      ) : null}
     </>
   )
 }
@@ -142,11 +158,17 @@ export function SidebarEmptyRow({
         'sidebar-row',
         'sidebar-row--flex',
         'sidebar-empty-row',
-        'u-type-body-sm tw:text-app-text-soft',
+        'tw:type-body-sm tw:text-app-text-soft',
+        'tw:grid tw:w-full tw:box-border tw:min-h-[var(--sidebar-row-height)] tw:items-center tw:rounded-md tw:px-2 tw:py-1',
+        // The empty row keeps the shared row grid (3-column template), matching
+        // the former `.sidebar-row--flex` shell.
+        'tw:grid-cols-[var(--sidebar-row-columns)] tw:gap-x-2',
         className,
       )}
     >
-      <p className="sidebar-empty tw:m-0 tw:min-w-0 tw:text-app-text-soft">{children}</p>
+      <p className="sidebar-empty tw:m-0 tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-soft">
+        {children}
+      </p>
     </div>
   )
 }

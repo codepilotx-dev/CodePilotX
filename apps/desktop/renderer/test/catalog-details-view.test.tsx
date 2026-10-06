@@ -52,8 +52,9 @@ describe('Codex-style plugin product details', () => {
     expect(html).toContain('立即试用')
     expect(html).toContain('aria-label="示例提示词"')
     expect(html.match(/catalog-plugin-prompts__background/g)).toHaveLength(1)
+    // 外观已迁到 Tailwind utility，断言只锁定背景图的存在与属性顺序。
     expect(html).toMatch(
-      /<img alt="" aria-hidden="true" class="catalog-plugin-prompts__background"/,
+      /<img alt="" aria-hidden="true" class="catalog-plugin-prompts__background[^"]*"/,
     )
     expect(html.match(/catalog-plugin-prompts__item/g)).toHaveLength(3)
     expect(html.match(/catalog-plugin-prompts__plugin-icon/g)).toHaveLength(3)

@@ -1,8 +1,41 @@
 import React from 'react'
-import { Maximize2, PanelRight } from 'lucide-react'
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Download,
+  Maximize2,
+  PanelRight,
+} from 'lucide-react'
 import type { StructuredPlan } from '@codepilotx/shared/thread'
 import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { MarkdownMessage } from '../../markdown/index.js'
+import {
+  createKeyedDisclosureStore,
+  useDisclosureExpanded,
+} from '../../../components/ui/keyedDisclosureStore.js'
+import { desktopClipboard } from '../../../services/desktop-client/index.js'
+
+export const planDisclosureStore = createKeyedDisclosureStore({ initialExpandedKeys: [] })
+
+const WORKFLOW_PLAN_DOCK_BUTTON_CLASS =
+  'workflow-plan-card__dock tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text-meta tw:cursor-pointer tw:transition-[background,color] tw:duration-feedback tw:ease-out tw:hover:bg-app-hover tw:hover:text-app-text'
+
+export function usePlanExpanded(
+  threadId: string | undefined,
+  eventId: string,
+): [boolean, (expanded: boolean) => void] {
+  const key = `${threadId ?? 'default'}:${eventId}`
+  const expanded = useDisclosureExpanded(planDisclosureStore, key)
+  const setExpanded = React.useCallback(
+    (next: boolean) => {
+      planDisclosureStore.setExpanded(key, next)
+    },
+    [key],
+  )
+  return [expanded, setExpanded]
+}
 
 export type OpenPlanInDockRequest = {
   eventId: string
@@ -40,6 +73,7 @@ export function WorkflowPlanCard({
   streaming,
   isDocked,
   onOpenInRightDock,
+  threadId,
 }: {
   eventId: string
   summary: string
@@ -47,21 +81,58 @@ export function WorkflowPlanCard({
   streaming: boolean
   isDocked: boolean
   onOpenInRightDock: (plan: OpenPlanInDockRequest) => void
+  threadId?: string
 }): React.ReactNode {
   const title = structured?.title ?? planTitleFromSummary(summary)
   const presentation = planCardPresentation({ streaming, isDocked })
   const plan = createPlanDockRequest({ eventId, title, content: summary, streaming })
+  const [expanded, setExpanded] = usePlanExpanded(threadId, eventId)
+  const [copied, setCopied] = React.useState(false)
+  const copyTimeoutRef = React.useRef<number | null>(null)
+
+  React.useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current !== null) {
+        window.clearTimeout(copyTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const handleCopy = React.useCallback(() => {
+    void desktopClipboard
+      .writeText(summary)
+      .then(() => {
+        setCopied(true)
+        if (copyTimeoutRef.current !== null) {
+          window.clearTimeout(copyTimeoutRef.current)
+        }
+        copyTimeoutRef.current = window.setTimeout(() => setCopied(false), 1400)
+      })
+      .catch(() => undefined)
+  }, [summary])
+
+  const handleExport = React.useCallback(() => {
+    const blob = new Blob([summary], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'PLAN.md'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }, [summary])
 
   if (presentation.compact) {
     return (
-      <article className="workflow-plan-card workflow-plan-card--compact">
+      <article className="workflow-plan-card workflow-plan-card--compact tw:flex tw:w-full tw:min-w-0 tw:max-w-none tw:flex-col tw:gap-0 tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:p-0 tw:text-app-text tw:type-body tw:shadow-none">
         <button
-          className="workflow-plan-card__compact-button"
+          className="workflow-plan-card__compact-button tw:grid tw:w-full tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:border-0 tw:bg-transparent tw:px-4 tw:py-4 tw:text-left tw:text-app-text tw:cursor-pointer tw:hover:bg-app-hover"
           type="button"
           onClick={() => onOpenInRightDock(plan)}
         >
-          <span className="workflow-plan-card__label">{presentation.label}</span>
-          <span className="workflow-plan-card__compact-title">{title}</span>
+          <span className="workflow-plan-card__label tw:text-app-text-meta tw:type-label">{presentation.label}</span>
+          <span className="workflow-plan-card__compact-title tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:type-row-title">{title}</span>
           <PanelRight size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
         </button>
       </article>
@@ -69,14 +140,43 @@ export function WorkflowPlanCard({
   }
 
   return (
-    <article className="workflow-plan-card">
-      <header className="workflow-plan-card__header">
-        <span className="workflow-plan-card__label">{presentation.label}</span>
-        <div className="workflow-plan-card__actions">
+    <article
+      className="workflow-plan-card tw:relative tw:flex tw:w-full tw:min-w-0 tw:max-w-none tw:flex-col tw:gap-3 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-underlay tw:p-4 tw:text-app-text tw:type-body tw:shadow-none tw:animate-[workflow-item-in_var(--cpx-sys-motion-enter)_var(--cpx-sys-ease-out)]"
+      data-expanded={expanded ? 'true' : 'false'}
+    >
+      <header className="workflow-plan-card__header tw:flex tw:items-center tw:justify-between tw:gap-3">
+        <span className="workflow-plan-card__label tw:text-app-text-meta tw:type-label">{presentation.label}</span>
+        <div className="workflow-plan-card__actions tw:inline-flex tw:flex-none tw:items-center tw:gap-1">
+          {!streaming ? (
+            <>
+              <button
+                aria-label={copied ? '已复制计划' : '复制计划'}
+                className={WORKFLOW_PLAN_DOCK_BUTTON_CLASS}
+                title={copied ? '已复制' : '复制计划'}
+                type="button"
+                onClick={handleCopy}
+              >
+                {copied ? (
+                  <Check size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                ) : (
+                  <Copy size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                )}
+              </button>
+              <button
+                aria-label="导出计划 (PLAN.md)"
+                className={WORKFLOW_PLAN_DOCK_BUTTON_CLASS}
+                title="导出计划 (PLAN.md)"
+                type="button"
+                onClick={handleExport}
+              >
+                <Download size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              </button>
+            </>
+          ) : null}
           {presentation.showOpenInRightDock ? (
             <button
               aria-label="在右侧打开计划"
-              className="workflow-plan-card__dock"
+              className={WORKFLOW_PLAN_DOCK_BUTTON_CLASS}
               title="在右侧打开计划"
               type="button"
               onClick={() => onOpenInRightDock(plan)}
@@ -87,11 +187,36 @@ export function WorkflowPlanCard({
         </div>
       </header>
 
-      <h2 className="workflow-plan-card__title">{title}</h2>
+      <h2 className="workflow-plan-card__title tw:m-0 tw:text-app-text tw:type-body-lg">{title}</h2>
 
-      <div className="workflow-plan-card__body">
+      <div
+        className="workflow-plan-card__body tw:relative tw:max-h-80 tw:overflow-hidden tw:[&_.md-body]:text-app-text tw:[&_.md-body_h1:first-child]:hidden tw:[&_.md-body_code:not(pre_code)]:border tw:[&_.md-body_code:not(pre_code)]:border-app-border tw:[&_.md-body_code:not(pre_code)]:bg-app-editor tw:[&_.md-body_code:not(pre_code)]:text-app-text tw:data-[expanded=true]:max-h-none tw:data-[expanded=true]:overflow-visible"
+        data-expanded={expanded ? 'true' : 'false'}
+      >
         {structured ? <StructuredPlanView plan={structured} /> : <MarkdownMessage text={summary} />}
       </div>
+
+      {!streaming ? (
+        <div className="workflow-plan-card__footer tw:flex tw:justify-center tw:pt-2">
+          <button
+            className="workflow-plan-card__expand-button tw:inline-flex tw:h-7 tw:items-center tw:gap-1 tw:rounded-pill tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:text-app-text-soft tw:type-label tw:cursor-pointer tw:transition-[background,color] tw:duration-state tw:ease-out tw:hover:bg-app-hover tw:hover:text-app-text"
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? (
+              <>
+                <ChevronUp size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <span>收起计划</span>
+              </>
+            ) : (
+              <>
+                <ChevronDown size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                <span>展开计划</span>
+              </>
+            )}
+          </button>
+        </div>
+      ) : null}
     </article>
   )
 }
@@ -102,15 +227,22 @@ export function WorkflowPlanCard({
  */
 export function StructuredPlanView({ plan }: { plan: StructuredPlan }): React.ReactNode {
   return (
-    <div className="workflow-plan-structured">
-      <p className="workflow-plan-structured__summary">{plan.summary}</p>
+    <div className="workflow-plan-structured tw:flex tw:flex-col tw:gap-3 tw:text-app-text tw:type-reading">
+      <p className="workflow-plan-structured__summary tw:m-0 tw:text-app-text-soft">{plan.summary}</p>
       <StructuredPlanSection title="实现变更">
         {plan.changes.map((change, index) => (
-          <div className="workflow-plan-structured__change" key={`${change.area}:${index}`}>
-            <h4 className="workflow-plan-structured__area">{change.area}</h4>
-            <ul className="workflow-plan-structured__list">
+          <div
+            className="workflow-plan-structured__change tw:flex tw:flex-col tw:gap-1"
+            key={`${change.area}:${index}`}
+          >
+            <h4 className="workflow-plan-structured__area tw:m-0 tw:text-app-text tw:type-row-title">
+              {change.area}
+            </h4>
+            <ul className="workflow-plan-structured__list tw:m-0 tw:flex tw:flex-col tw:gap-1 tw:pl-4">
               {change.items.map((item, itemIndex) => (
-                <li key={`${item}:${itemIndex}`}>{item}</li>
+                <li className="tw:wrap-anywhere" key={`${item}:${itemIndex}`}>
+                  {item}
+                </li>
               ))}
             </ul>
           </div>
@@ -133,9 +265,11 @@ function StructuredPlanListSection({
   if (items.length === 0) return null
   return (
     <StructuredPlanSection title={title}>
-      <ul className="workflow-plan-structured__list">
+      <ul className="workflow-plan-structured__list tw:m-0 tw:flex tw:flex-col tw:gap-1 tw:pl-4">
         {items.map((item, index) => (
-          <li key={`${item}:${index}`}>{item}</li>
+          <li className="tw:wrap-anywhere" key={`${item}:${index}`}>
+            {item}
+          </li>
         ))}
       </ul>
     </StructuredPlanSection>
@@ -150,8 +284,10 @@ function StructuredPlanSection({
   children: React.ReactNode
 }): React.ReactNode {
   return (
-    <section className="workflow-plan-structured__section">
-      <h3 className="workflow-plan-structured__heading">{title}</h3>
+    <section className="workflow-plan-structured__section tw:flex tw:flex-col tw:gap-2">
+      <h3 className="workflow-plan-structured__heading tw:m-0 tw:text-app-text-meta tw:type-label tw:normal-case">
+        {title}
+      </h3>
       {children}
     </section>
   )
@@ -180,6 +316,6 @@ export function planCardPresentation({
     compact: isDocked,
     label: streaming ? '编写计划' : '计划',
     showOpenInRightDock: !streaming,
-    showFoldControls: false,
+    showFoldControls: !streaming,
   }
 }

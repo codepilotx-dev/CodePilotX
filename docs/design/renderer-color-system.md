@@ -10,7 +10,7 @@
 
 新增颜色不是禁区，但必须先证明现有语义无法表达，再在系统层定义稳定含义。禁止用页面名、功能名、组件实例名或视觉描述（例如 `lighter-green-card`）创建公共颜色。
 
-桌面配色沿用这三层来源，并对齐本地参考包的通用桌面主题：浅色默认 `surface=#ffffff`、`ink=#1a1c1f`、对比度 45；深色默认 `surface=#181818`、`ink=#ffffff`、对比度 60；两者 `accent=#339cff`。新设置和 `Codex(new)` 预设使用这些默认值，原版 Codex 与代码语法主题保留。用户保存的 V6/V7 配色、字体与字号继续保留；不得通过识别旧默认色偷偷迁移用户设置，也不得新增平行变量命名。
+桌面配色沿用这三层来源，并对齐本地参考包的通用桌面主题：浅色默认 `surface=#ffffff`、`ink=#1f1f1f`、对比度 40；深色默认 `surface=#111111`、`ink=#eeeeee`、对比度 60；两者 `accent=#0169cc`。新设置和 `Codex(new)` 预设使用这些默认值，原版 Codex 与代码语法主题保留。用户保存的 V6/V7 配色、字体与字号继续保留；不得通过识别旧默认色偷偷迁移用户设置，也不得新增平行变量命名。
 
 现有派生器统一生成 surface、foreground、border 与 accent 角色：浅色编辑器背景向白色混合 12%，深色向 ink 混合 7%；panel 使用参考 panel 公式，raised 使用 elevatedPrimary，control 使用 controlOpaque。次级文字为 ink 的 65% 透明度，三级文字和边框随对比度派生；深色细边框透明度为 `0.03 + 0.02 × 归一化对比度`。强调前景在深色中向白色提亮，柔和背景、hover 和 active 使用独立的强调派生；文字继续执行现有 4.5:1 对比度校正，Diff 不复用强调色背景算法。
 
@@ -47,12 +47,12 @@
 
 Workbench 大区域使用独立的公共区域 token，布局 Feature 不直接绑定基础 surface：
 
-| 区域                  | 语义 token                              | 默认来源                            |
-| --------------------- | --------------------------------------- | ----------------------------------- |
-| 窗口标题/菜单栏       | `--cpx-sys-color-workbench-titlebar-bg` | `--cpx-sys-color-surface-recessed`  |
-| 左侧栏                | `--cpx-sys-color-workbench-sidebar-bg`  | `--cpx-sys-color-surface-recessed`  |
-| 主工作区              | `--cpx-sys-color-workbench-main-bg`     | `--cpx-sys-color-surface-canvas`    |
-| 右侧 Dock、底部 Panel | `--cpx-sys-color-workbench-panel-bg`    | `--cpx-sys-color-workbench-main-bg` |
+| 区域                  | 语义 token                              | 默认来源                                                                                    |
+| --------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 窗口标题/菜单栏       | `--cpx-sys-color-workbench-titlebar-bg` | 跟随侧栏背景（`--cpx-sys-color-workbench-sidebar-bg`）                                      |
+| 左侧栏                | `--cpx-sys-color-workbench-sidebar-bg`  | 浅色为 `gray-2`（`--cpx-ref-gray-2`），深色为 Deep（`--cpx-sys-color-surface-recessed`）    |
+| 主工作区              | `--cpx-sys-color-workbench-main-bg`     | `--cpx-sys-color-surface-canvas`                                                            |
+| 右侧 Dock、底部 Panel | `--cpx-sys-color-workbench-panel-bg`    | `--cpx-sys-color-workbench-main-bg`                                                         |
 
 `surface-panel` 仍用于工作区内部的常驻卡片、摘要和审批容器，不代表右侧 Dock 或底部 Panel 的外层底色。Feature 只消费公开区域 token，不消费颜色类 `--cpx-comp-*`，也不直接选择基础 surface。默认值相同的区域仍保持独立 token，以允许主题覆盖并避免组件耦合；工作区 toolbar/header 保持透明并继承 `workbench-main-bg`，不使用 titlebar token。
 
@@ -85,25 +85,24 @@ Hover、selected、active 是交互阶段，不是业务状态；使用统一的
 
 同一容器最多使用一个业务 tone，且必须同时提供文字、图标或标签线索。状态卡片的标准组合是：
 
-```scss
-.connection-state[data-tone='warning'] {
-  color: var(--cpx-sys-color-warning-fg);
-  border: 1px solid var(--cpx-sys-color-warning-subtle-border);
-  background: var(--cpx-sys-color-warning-subtle-bg);
-}
+```tsx
+<div
+  className="connection-state tw:rounded-md tw:border tw:border-app-warning-border tw:bg-app-warning-subtle tw:text-app-warning-fg"
+  data-tone="warning"
+/>
 ```
 
 错误示例：
 
-```scss
-/* feature 越权消费组件内部颜色 */
-background: var(--cpx-comp-input-bg);
+```tsx
+// feature 越权消费组件内部颜色
+'bg-[var(--cpx-comp-input-bg)]'
 
-/* 无主题语义、不能适配明暗模式 */
-color: #3d8f72;
+// 无主题语义、不能适配明暗模式
+'tw:text-[#3d8f72]'
 
-/* 在调用点发明另一套状态强度 */
-background: color-mix(in srgb, var(--cpx-sys-color-warning) 9%, var(--cpx-sys-color-surface-panel));
+// 在调用点发明另一套状态强度（设计系统里没有对应语义色）
+'tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-warning)_9%,var(--cpx-sys-color-surface-panel))]'
 ```
 
 ## 例外与自动检查
@@ -113,6 +112,7 @@ background: color-mix(in srgb, var(--cpx-sys-color-warning) 9%, var(--cpx-sys-co
 - 禁止引用颜色类 `--cpx-comp-*`；尺寸、圆角等非颜色组件契约不受此规则影响。
 - 禁止十六进制、RGB、HSL 等裸颜色。
 - 禁止在 feature 中混合两个系统语义颜色，或用局部颜色变量自行派生新色阶。
+- TSX 通过 `tw:bg-app-*` / `tw:text-app-*` / `tw:border-app-*` 消费语义颜色；命名不在 `tailwind.css` 的 `@theme inline` 里时，说明该语义色还没有映射，应先补映射，而不是在调用点写任意值。
 - 色盘、图表数据色和第三方终端等确实无法由单个语义角色表达的算法，必须在 `style-contracts.json` 记录精确的文件与 token、字面值或局部变量，并写明原因。
 - 每个例外必须被真实代码使用；代码迁移后未删除的 stale 例外会导致检查失败。禁止文件级通配、数量基线和“为了通过检查”批量刷新例外。
 

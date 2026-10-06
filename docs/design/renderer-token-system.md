@@ -51,25 +51,25 @@ CodePilotX 全面采用 UI-Design 视觉体系（基于 `F:\CodeProject\UI-Desig
 
 ### 排版
 
-排版先按内容职责分为展示、结构、交互、阅读和代码五条层级，再通过 `--cpx-sys-type-*` 使用。系统字体优先使用 Windows 自带的 `Segoe UI Variable Text`，并回退到 `Segoe UI` 和平台系统字体；只使用稳定的 `400 / 500 / 600` 字重，不打包额外 UI 字体。需要单独设置属性时，复用角色所依赖的 `--cpx-sys-font-size-*`、`--cpx-sys-line-height-*` 和 `--cpx-sys-font-weight-*`，不得写裸字号或行高。
+排版先按内容职责分为展示、结构、交互、阅读和代码五条层级，再通过 `--cpx-sys-type-*` 使用。系统字体优先使用 `MiSans`，并回退到平台系统字体；代码字体优先使用 `JetBrains Mono`，并回退到等宽系统字体。字重遵循稳定的 `400 / 500 / 600`。排版采用无单位行高（如 `1.2 / 1.333 / 1.429 / 1.5` 等）与字符间距角色（`--cpx-sys-letter-spacing-*`）。需要单独设置属性时，复用角色所依赖的 `--cpx-sys-font-size-*`、`--cpx-sys-line-height-*`、`--cpx-sys-letter-spacing-*` 和 `--cpx-sys-font-weight-*`，不得写裸字号或行高。
 
-| 角色         | 默认字号 / 行高 / 字重                            | 内容职责                                 | 默认前景色                         |
+| 角色         | 默认字号 / 行高 / 字重 / 字距                     | 内容职责                                 | 默认前景色                         |
 | ------------ | ------------------------------------------------- | ---------------------------------------- | ---------------------------------- |
-| `display`    | `28 / 34 / 600`                                   | Coding、Working 与 Chat 首页 Hero        | `fg-primary`                       |
-| `caption`    | `12 / 16 / 400`                                   | 时间、路径、计数和辅助状态               | `fg-tertiary`                      |
-| `label`      | `12 / 16 / 500`                                   | 分组名、字段标签和短状态标签             | 按上下文选择 secondary 或 tertiary |
-| `body-sm`    | `13 / 18 / 400`                                   | 次级说明、工具活动和侧栏辅助文字         | `fg-secondary`                     |
-| `control`    | `13 / 18 / 500`                                   | Button、Input、Menu、紧凑导航和文件行    | `fg-primary`                       |
-| `body`       | `14 / 20 / 400`                                   | 普通 UI 正文、评论和表单说明             | `fg-primary`                       |
-| `row-title`  | `14 / 20 / 500`                                   | 设置行、卡片行和普通对象名称             | `fg-primary`                       |
-| `reading`    | `14 / 24 / 400`                                   | 用户消息、Agent 最终回答和 Markdown 长文 | `fg-primary`                       |
-| `body-lg`    | `16 / 24 / 400`                                   | 首页 Prompt 和短引导正文                 | `fg-primary`                       |
-| `heading-sm` | `16 / 22 / 600`                                   | Section、Dialog、Popover 和 Markdown H3  | `fg-primary`                       |
-| `heading-md` | `18 / 24 / 600`                                   | 重点卡片和详情页局部主标题               | `fg-primary`                       |
-| `heading-lg` | `20 / 28 / 600`                                   | Markdown H2 和强信息分区                 | `fg-primary`                       |
-| `heading-xl` | `24 / 30 / 600`                                   | 一级页面、Setup 主标题和 Markdown H1     | `fg-primary`                       |
-| `metric`     | `20 / 28 / 600`                                   | 金额、用量和统计值；使用 tabular figures | `fg-primary`                       |
-| `code`       | `13 / 20 / 400`（随用户代码字号保持 `+7px` 行高） | 代码、命令、Diff 和终端                  | 按语法或上下文选择                 |
+| `display`    | `28 / 1.14 / 600 / -0.70px`                       | Coding、Working 与 Chat 首页 Hero        | `fg-primary`                       |
+| `caption`    | `12 / 1.40 / 400 / 0px`                           | 时间、路径、计数和辅助状态               | `fg-tertiary`                      |
+| `label`      | `12 / 1.30 / 500 / 0.45px`                        | 分组名、字段标签和短状态标签             | 按上下文选择 secondary 或 tertiary |
+| `body-sm`    | `13 / 1.45 / 400 / 0px`                           | 次级说明、工具活动和侧栏辅助文字         | `fg-secondary`                     |
+| `control`    | `13 / 1.20 / 500 / -0.05px`                       | Button、Input、Menu、紧凑导航和文件行    | `fg-primary`                       |
+| `body`       | `14 / 1.50 / 400 / -0.05px`                       | 普通 UI 正文、评论和表单说明             | `fg-primary`                       |
+| `row-title`  | `14 / 1.50 / 500 / -0.05px`                       | 设置行、卡片行和普通对象名称             | `fg-primary`                       |
+| `reading`    | `14 / 1.50 / 400 / -0.05px`                       | 用户消息、Agent 最终回答和 Markdown 长文 | `fg-primary`                       |
+| `body-lg`    | `16 / 1.50 / 400 / -0.12px`                       | 首页 Prompt 和短引导正文                 | `fg-primary`                       |
+| `heading-sm` | `16 / 1.25 / 600 / -0.25px`                       | Section、Dialog、Popover 和 Markdown H3  | `fg-primary`                       |
+| `heading-md` | `18 / 1.25 / 600 / -0.25px`                       | 重点卡片和详情页局部主标题               | `fg-primary`                       |
+| `heading-lg` | `20 / 1.20 / 600 / -0.45px`                       | Markdown H2 和强信息分区                 | `fg-primary`                       |
+| `heading-xl` | `24 / 1.14 / 600 / -0.70px`                       | 一级页面、Setup 主标题和 Markdown H1     | `fg-primary`                       |
+| `metric`     | `20 / 1.20 / 600 / -0.45px`                       | 金额、用量和统计值；使用 tabular figures | `fg-primary`                       |
+| `code`       | `13 / 1.50 / 400 / 0px`（随代码字号动态更新）     | 代码、命令、Diff 和终端                  | 按语法或上下文选择                 |
 
 普通正文使用 `400`，控件、标签和行标题使用 `500`，结构标题、指标和真正的强调使用 `600`。选中态通过背景和前景色表达，不得为了选中而改变普通列表项字重。UI 文本不得借用 `reading` 获取额外行距，工具活动也不得借用 `body` 与最终回答争夺层级。
 
@@ -109,77 +109,80 @@ CodePilotX 全面采用 UI-Design 视觉体系（基于 `F:\CodeProject\UI-Desig
 
 圆角采用“基础刻度 + 语义角色”双层结构。基础刻度是唯一数值来源：
 
-| 基础 Token              |   数值 | 映射语义角色与使用场景                                    |
-| ----------------------- | -----: | --------------------------------------------------------- |
-| `--cpx-sys-radius-2xs`  |    4px | `indicator`：状态圆点、紧凑标签、微型指示条               |
-| `--cpx-sys-radius-xs`   |    6px | `compact`：快捷键徽标、轻量提示                           |
-| `--cpx-sys-radius-sm`   |    8px | `item`：菜单项、侧边栏导航项、Tooltip                     |
-| `--cpx-sys-radius-md`   |   10px | `control`：普通按钮、输入框、分段选择器                   |
-| `--cpx-sys-radius-lg`   |   12px | `container` / `floating`：卡片、下拉浮层、Popover 面板    |
-| `--cpx-sys-radius-xl`   |   14px | 较大卡片、抽屉内胆                                        |
-| `--cpx-sys-radius-2xl`  |   16px | `prominent`：对话框（Modal）、Composer 悬浮容器、消息气泡 |
-| `--cpx-sys-radius-3xl`  |   20px | 大型模态窗口、导引面板                                    |
-| `--cpx-sys-radius-4xl`  |   28px | 预留特大层级                                              |
-| `--cpx-sys-radius-full` | 9999px | `pill`：胶囊按钮、Switch 开关、标签胶囊、药丸触发器       |
+| 基础 Token                          |   数值 | 映射语义角色与使用场景                                    |
+| ----------------------------------- | -----: | --------------------------------------------------------- |
+| `--cpx-sys-radius-2xs` / `xs`       |    5px | `indicator` / `compact`：状态指示点、微型标签、徽标       |
+| `--cpx-sys-radius-sm`               |    8px | `item`：菜单项、侧边栏导航行、Tooltip                     |
+| `--cpx-sys-radius-md`               |   10px | `control` / `item-lg`：普通按钮、输入框、分段控件         |
+| `--cpx-sys-radius-lg`               |   14px | `container` / `floating`：卡片容器、下拉浮层、Popover 面板 |
+| `--cpx-sys-radius-xl` / `2xl`       |   18px | `prominent`：对话框（Modal）、Composer 悬浮容器、消息气泡 |
+| `--cpx-sys-radius-3xl` / `4xl`      |   24px | 大型展示容器、导引面板                                    |
+| `--cpx-sys-radius-full`             | 9999px | `pill`：胶囊按钮、Switch 开关、标签胶囊、药丸触发器       |
 
-光学校正统一为 `1.0`（无超椭圆畸变，纯净 Apple HIG 风格），所有表面均遵循上述标准刻度。`full` 只用于真正的胶囊、圆形控件、Badge、Chip、Toggle track 等，不得用于普通卡片、列表行、Dialog 或矩形表面。嵌套表面优先继承外层半径，或根据 `inner radius = max(outer radius - inset, 0)` 计算并映射到最近的已有 Token。
-
-Composer 必须将首页工具条结构、实际输入布局和圆角角色分别表达为 `data-composer-utility-bar-variant`、`data-composer-layout` 与 `data-composer-radius-variant`。`home` 只改变首页环境条与输入面的拼接关系，不决定圆角；`default + multiline` 使用 `prominent / 2xl (16px)`，只有真实 `default + single-line` 使用 `pill / full`。
+光学校正统一为 `1.0`（纯净几何圆角，无超椭圆畸变）。`full` 只用于真正的胶囊、圆形控件、Badge、Chip、Toggle track 等，不得用于普通卡片、列表行、Dialog 或矩形表面。嵌套表面优先继承外层半径，或根据 `inner radius = max(outer radius - inset, 0)` 计算并映射到最近的已有 Token。
 
 ### 动效
 
-时长按 `instant / feedback / exit / state / enter / panel / loading` 选择，并搭配 `--cpx-sys-ease-standard / in / out / linear`。统一时长依次为 `0 / 60 / 80 / 60 / 80 / 100 / 900ms`：直接指针 hover 背景与拖拽跟随使用 `instant`，hover 按压及文本颜色反馈使用 `feedback`，退出使用 `exit`，非布局状态使用 `state`，浮层进入使用 `enter`，高度与位置编排使用 `panel`，折叠展开使用 `disclosure (100ms)`，持续循环使用 `loading`。直接指针操作期间的位置反馈必须使用 `instant` 当帧跟随，释放后、键盘操作或外部状态同步才可使用 `state` 落位。全局 Tooltip 遵循首次延迟 350ms (`delayDuration`) 与组内快速切换 300ms (`skipDelayDuration`) 规则。禁止裸 `ms/s`、`cubic-bezier()` 和 easing 关键字。`data-reduce-motion="on"` 下所有系统时长必须归零。
+时长按 `fast (160ms) / normal (220ms) / slow (340ms)` 体系，并搭配 standard 与 entrance 缓动：
+- 标准缓动：`--cpx-sys-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);`
+- 入场缓动：`--cpx-sys-ease-entrance: cubic-bezier(0.22, 1, 0.36, 1);`
+- 交互微动效（按钮、列表项、开关状态等）使用 `160ms`。
+- 展开、抽屉与浮层动画使用 `220ms` 或 `340ms`。
+- `data-reduce-motion="on"` 下所有系统时长自动归零。
 
 ### 阴影与层级
 
-分级轻量投影提供真实桌面层次感（Dark 模式下自动加深透明度保证深底对比度）：
+分级轻量投影与边缘高光（Dark 模式下自动反转透明度并增强对比度）：
 
-- 常驻卡片与容器：`--cpx-sys-shadow-resting`（浅色 `0 2px 8px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02)` / 深色 `0 2px 8px rgba(0,0,0,0.4)`）。
-- 抬升与激活项：`--cpx-sys-shadow-raised`（浅色 `0 4px 14px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.03)` / 深色 `0 4px 14px rgba(0,0,0,0.45)`）。
-- 悬浮控件与分段激活钮：`--cpx-sys-shadow-control`（浅色 `0 1px 2px rgba(0,0,0,0.04)` / 深色 `0 1px 2px rgba(0,0,0,0.3)`）。
-- 浮层与弹窗：`--cpx-sys-shadow-floating`（浅色 `0 8px 30px rgba(0,0,0,0.12)` / 深色 `0 8px 30px rgba(0,0,0,0.5)`）。
-- 突出主交互面（悬浮 Composer、Dialog 等）：`--cpx-sys-shadow-prominent`（浅色 `0 12px 36px rgba(0,0,0,0.14)` / 深色 `0 12px 36px rgba(0,0,0,0.6)`）。
+- 边缘高光与常驻表面：`--cpx-sys-shadow-resting` / `--cpx-sys-shadow-raised`（浅色 `inset 0 1px 0 rgba(255, 255, 255, 0.7)` / 深色 `inset 0 1px 0 rgba(238, 238, 238, 0.04)`）。
+- 悬浮控件与分段激活钮：`--cpx-sys-shadow-control`（默认使用 `none`，平直沉稳）。
+- 浮层与模态弹窗：`--cpx-sys-shadow-floating`（`0 16px 48px rgb(0 0 0 / 24%)`，纯黑半透明阴影杜绝光晕）。
 - 毛玻璃背景模糊：`--cpx-sys-blur-sm` (8px)、`--cpx-sys-blur-md` (16px)、`--cpx-sys-blur-lg` (24px)。
 
 全局层级固定为 `local < sticky < dock < composer < modal < popover < tooltip < toast`。`-1..5` 只允许在明确 stacking context 内表达局部兄弟顺序；其他值必须使用系统层级 Token。
 
 全局层级固定为 `local < sticky < dock < composer < modal < popover < tooltip < toast`。`-1..5` 只允许在明确 stacking context 内表达局部兄弟顺序；其他值必须使用系统层级 Token。
 
+## Tailwind 消费方式
+
+组件与页面外观写在 TSX 的 `tw:` utility 里，Token 通过 `src/styles/tailwind.css` 的 `@theme` / `@theme inline` 映射消费。
+
+- 引用运行时变量（浅色/深色/自定义主题会改变的值）写在 `@theme inline`，例如 `--color-app-panel: var(--cpx-sys-color-surface-panel)`，让 utility 直接用 `var(--cpx-sys-color-*)`，而不是复制一份静态值。
+- 静态值（如 `--spacing: 0.25rem`）写在普通 `@theme`；`--*: initial` 先清空 Tailwind 默认调色板，使 `--cpx-sys-*` 成为唯一真源。
+- 排版用 `@utility type-*` 消费完整字体角色（`tw:type-title-md`、`tw:type-caption` 等），不在页面里逐条拼字号与字重。
+- 颜色、圆角、阴影、模糊、语义层级、面板尺寸、图标尺寸与动效时长都有对应映射：`tw:bg-app-*`、`tw:rounded-control`、`tw:shadow-md`、`tw:z-popover`、`tw:max-w-conversation`、`tw:size-icon-md`、`tw:duration-state`。
+- 普通间距沿用 4px 刻度：`--cpx-sys-space-N` 对应 `tw:gap-N` / `tw:px-N`。不在刻度上的控件几何用命名间距条目，例如 `--spacing-control-block: var(--cpx-comp-input-padding-block)` → `tw:py-control-block`。
+- 每个 utility 与变体都必须带 `tw:` 前缀，且前缀在最前（`tw:hover:bg-app-hover`、`tw:data-[expanded=false]:grid-rows-[0fr]`）。漏写时 Tailwind 不报错也不生成规则，契约检查会直接失败。
+- 无法用 utility 表达的规则（伪元素、`color-mix` 计算的表面、需要被 `transitionend`/`getComputedStyle`/测试读取的属性、第三方生成 DOM）写入 `src/styles/primitives/<name>.css`，由 `src/styles/tailwind.css` 加载到 `primitives` 层，并在文件头注释说明原因。
+
 ## 自动契约与例外
 
-`scripts/check-style-contracts.ts` 的 `featureTokenContract` 扫描 Feature/lazy SCSS、TS/TSX inline style 和 Tailwind arbitrary value，并验证例外重复与 stale 状态。
+`scripts/check-style-contracts.ts` 的 `featureTokenContract` 扫描 `src/styles/features`、`src/styles/lazy` 下的残留 CSS、TS/TSX inline style 和 Tailwind arbitrary value，并验证例外重复与 stale 状态。同一脚本还校验 `tw:` 前缀、`type-*` 与 `tw:type-weight-*` 的组合、全源动效契约、单一样式入口图（`src/styles/tailwind.css`）与 `@layer` 顺序。Renderer 已不再编译 Sass：所有样式都是原生 CSS。
 
 例外必须同时包含文件、属性、精确值和具体原因。可接受场景包括 Diff 行号的 `ch` 对齐、运行时拖拽边界、图表坐标、动态色板对比描边和第三方内部尺寸。不能因为迁移困难、希望保留任意历史像素或检查失败而新增例外。
 
 ## 示例
 
-```scss
-.feature-toolbar {
-  gap: var(--cpx-sys-space-2);
-  padding: var(--cpx-sys-space-2) var(--cpx-sys-space-3);
-  border-radius: var(--cpx-sys-radius-control);
-  transition: opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
-  z-index: var(--cpx-sys-z-sticky);
-}
+```tsx
+<div
+  className={cx(
+    'feature-toolbar tw:flex tw:items-center tw:gap-2 tw:px-3 tw:py-2 tw:rounded-control tw:z-sticky',
+    'tw:transition-opacity tw:duration-state tw:ease-standard',
+  )}
+>
+  <h2 className="feature-title tw:type-title-sm tw:text-app-text">{title}</h2>
+  <p className="feature-description tw:type-body-sm tw:text-app-text-soft">{description}</p>
+  <span className="feature-meta tw:type-caption tw:text-app-text-meta">{count}</span>
+</div>
+```
 
-.feature-title {
-  color: var(--cpx-sys-color-fg-primary);
-  font: var(--cpx-sys-type-heading-sm);
-}
+```css
+/* 只在 utility 表达不了时使用：运行时几何、第三方 DOM、伪元素。 */
+@layer primitives {
+  .feature-empty-state {
+    --empty-state-padding: clamp(var(--cpx-sys-space-3), 4vh, var(--cpx-sys-space-6));
 
-.feature-description {
-  color: var(--cpx-sys-color-fg-secondary);
-  font: var(--cpx-sys-type-body-sm);
-}
-
-.feature-meta {
-  color: var(--cpx-sys-color-fg-tertiary);
-  font: var(--cpx-sys-type-caption);
-}
-
-.responsive-empty-state {
-  --empty-state-padding: clamp(var(--cpx-sys-space-3), 4vh, var(--cpx-sys-space-6));
-
-  padding: var(--empty-state-padding);
+    padding: var(--empty-state-padding);
+  }
 }
 ```

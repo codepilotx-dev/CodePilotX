@@ -3,7 +3,7 @@
 // node node_modules/.cache/icon-size.browser.mjs
 import { strict as assert } from 'node:assert'
 import { chromium } from '@playwright/test'
-import { compile } from 'sass'
+import { compileEntryStyles } from './helpers/renderer-styles.js'
 import { createElement as h } from 'react'
 import { renderToReadableStream, renderToString } from 'react-dom/server'
 import {
@@ -30,10 +30,7 @@ import { SidebarRow } from '../src/features/layout/sidebar/SidebarRow.js'
 import { PluginIcon } from '../src/features/plugins/PluginIcon.js'
 import { ProviderLogo } from '../src/features/session/composer/providerLogos.js'
 
-const css = compile('src/styles/index.scss').css
-const lazyCss = ['marketplace', 'model-center', 'settings']
-  .map((name) => compile(`src/styles/lazy/${name}.scss`).css)
-  .join('\n')
+const css = await compileEntryStyles()
 const sizes: [ButtonSize, number, number][] = [
   ['compact', 24, 12],
   ['composer', 28, 16],
@@ -328,7 +325,7 @@ try {
     true,
   )
   // Load the actual feature entries after initial paint, preserving their production cascade layers.
-  await page.addStyleTag({ content: lazyCss })
+
   await page.locator('#lazy').evaluate((element, source) => {
     element.innerHTML = `<span class="plugin-catalog-card__icon"><span class="plugin-logo plugin-logo--themed"><img alt="" class="plugin-logo__image plugin-logo__image--light" src="${source}"><img alt="" class="plugin-logo__image plugin-logo__image--dark" src="${source}"></span></span>`
   }, logo)

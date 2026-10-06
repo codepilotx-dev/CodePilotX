@@ -60,8 +60,23 @@ import {
 import { groupSkillsForDisplay } from './skillCatalog.js'
 import { usePluginCatalog } from './usePluginCatalog.js'
 import { useMiniMaxCli } from './useMiniMaxCli.js'
+import { cx } from '../../utils/cx.js'
+import {
+  DETAILS_BREADCRUMB_CLASS,
+  DETAILS_BREADCRUMB_CURRENT_CLASS,
+  FORCED_COLORS_FOCUS_CLASS,
+  FORCED_COLORS_SURFACE_CLASS,
+} from './catalogClassNames.js'
 
 const SKILLS_SH_API_DOCS_URL = 'https://www.skills.sh/docs/api#authentication'
+
+/* 空态卡片：面板表面 + 居中内容。 */
+const PLUGINS_EMPTY_BASE =
+  'tw:grid tw:min-h-0 tw:min-w-0 tw:place-items-center tw:gap-3 tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-4 tw:py-7 tw:text-center tw:text-app-text-meta tw:shadow-none'
+
+/* 读取失败提示条：危险色表面 + 图标/正文/动作三栏。 */
+const PLUGINS_CALLOUT_BASE =
+  'tw:flex tw:min-w-0 tw:items-start tw:gap-3 tw:rounded-container tw:border tw:border-app-danger-border tw:bg-app-danger-subtle tw:p-4 tw:shadow-none tw:@max-[479px]/plugins-page:items-stretch tw:@max-[479px]/plugins-page:flex-wrap'
 
 const TAB_OPTIONS: ReadonlyArray<{ value: CatalogTab; label: string }> = [
   { value: 'plugins', label: '插件' },
@@ -382,7 +397,7 @@ export function PluginsView(): React.ReactNode {
     <>
       <WorkspaceHeaderItem align="start" id="plugins.navigation" order={0} slot="left">
         {target?.kind === 'plugin' ? (
-          <div className="plugins-detail-breadcrumb">
+          <div className={cx('plugins-detail-breadcrumb', DETAILS_BREADCRUMB_CLASS)}>
             <Button
               color="ghostSecondary"
               onClick={closeDetails}
@@ -396,7 +411,9 @@ export function PluginsView(): React.ReactNode {
               size={APP_ICON_SIZES.sm}
               strokeWidth={APP_ICON_STROKE_WIDTH}
             />
-            <span>{selectedPlugin?.name ?? target.id}</span>
+            <span className={DETAILS_BREADCRUMB_CURRENT_CLASS}>
+              {selectedPlugin?.name ?? target.id}
+            </span>
           </div>
         ) : target ? (
           <Button color="ghostSecondary" onClick={closeDetails} ref={backButtonRef} size="toolbar">
@@ -423,7 +440,7 @@ export function PluginsView(): React.ReactNode {
       </WorkspaceHeaderItem>
       {target?.kind === 'plugin' ? null : (
         <WorkspaceHeaderItem align="end" id="plugins.actions" order={100} slot="right">
-          <div className="plugins-header-actions">
+          <div className="plugins-header-actions tw:flex tw:min-w-0 tw:items-center tw:gap-2">
             <IconButton
               aria-busy={activeLoading}
               color="ghostSecondary"
@@ -462,7 +479,7 @@ export function PluginsView(): React.ReactNode {
       )}
 
       {target ? (
-        <main className="plugins-details-page">
+        <main className="plugins-details-page tw:h-full tw:w-full tw:min-w-0 tw:overflow-auto tw:bg-app-canvas tw:p-5 tw:@container/plugins-page">
           {selectedPlugin ? (
             <CatalogDetailsView
               busy={busyPluginIds.has(selectedPlugin.id)}
@@ -489,14 +506,14 @@ export function PluginsView(): React.ReactNode {
               onOpenSource={(item) => item.url && void desktopClient.openExternalURL(item.url)}
             />
           ) : (
-            <div className="catalog-details-view">
+            <div className="catalog-details-view tw:grid tw:mx-auto tw:w-[min(var(--page-content-max-width),100%)] tw:gap-7">
               <CatalogSkeleton label={`正在加载${tab === 'plugins' ? '插件' : '技能'}详情`} />
             </div>
           )}
         </main>
       ) : (
         <PrimaryPageLayout
-          className="plugins-primary-page"
+          className="plugins-primary-page tw:@container/plugins-page"
           description={
             tab === 'plugins'
               ? '在常用工具中扩展 CodePilotX 的能力。'
@@ -514,7 +531,7 @@ export function PluginsView(): React.ReactNode {
           }
           title={tab === 'plugins' ? '插件' : '技能'}
         >
-          <div aria-live="polite" className="plugins-sr-status">
+          <div aria-live="polite" className="plugins-sr-status tw:sr-only">
             {announcement}
           </div>
           {tab === 'plugins' ? (
@@ -639,11 +656,21 @@ type PluginDirectoryProps = {
 
 function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
   return (
-    <div aria-labelledby="plugins-tab" className="plugins-panel" id="plugins-panel" role="tabpanel">
-      <section aria-labelledby="included-plugins-title" className="plugins-included-overview">
-        <header className="plugins-section-heading">
-          <h2 id="included-plugins-title">已安装</h2>
-          <span className="plugins-sr-status">共 {props.installed.length} 个插件</span>
+    <div
+      aria-labelledby="plugins-tab"
+      className="plugins-panel tw:grid tw:min-w-0 tw:gap-8"
+      id="plugins-panel"
+      role="tabpanel"
+    >
+      <section
+        aria-labelledby="included-plugins-title"
+        className="plugins-included-overview tw:grid tw:gap-1"
+      >
+        <header className="plugins-section-heading tw:flex tw:min-h-8 tw:min-w-0 tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-b-app-border-subtle tw:pb-2">
+          <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm" id="included-plugins-title">
+            已安装
+          </h2>
+          <span className="plugins-sr-status tw:sr-only">共 {props.installed.length} 个插件</span>
           <IconButton
             color="ghostSecondary"
             onClick={props.manage}
@@ -653,22 +680,24 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
             <Settings aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </IconButton>
         </header>
-        <ul className="plugins-included-overview__list">
+        <ul className="plugins-included-overview__list tw:m-0 tw:flex tw:h-11 tw:min-w-0 tw:list-none tw:flex-nowrap tw:gap-1 tw:overflow-hidden tw:p-0">
           {props.installed.length === 0 ? (
-            <li className="plugins-included-overview__empty">暂无已启用插件</li>
+            <li className="plugins-included-overview__empty tw:inline-flex tw:items-center tw:text-app-text-soft tw:type-body-sm">
+              暂无已启用插件
+            </li>
           ) : null}
           {props.installed.map((item) => (
             <li key={item.id}>
               <button
                 aria-label={`查看 ${item.name} 详情`}
-                className="plugins-included-overview__item"
+                className={cx('plugins-included-overview__item tw:group tw:inline-flex tw:size-11 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-xl tw:border-0 tw:bg-transparent tw:p-1 tw:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus', FORCED_COLORS_SURFACE_CLASS, FORCED_COLORS_FOCUS_CLASS)}
                 data-catalog-item-id={`plugin:${item.id}`}
                 data-plugin-tone={item.tone}
                 onClick={() => props.onOpenDetails(item)}
                 title={item.name}
                 type="button"
               >
-                <span className="plugins-included-overview__logo">
+                <span className={cx('plugins-included-overview__logo tw:inline-flex tw:size-9 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-lg tw:border-[0.5px] tw:border-app-border-subtle tw:bg-app-raised tw:shadow-lg tw:transition-transform tw:duration-feedback tw:ease-standard tw:group-hover:-translate-y-1', FORCED_COLORS_SURFACE_CLASS)}>
                   <PluginIcon
                     logoDarkSource={item.logoDarkSource}
                     logoSource={item.logoSource}
@@ -681,7 +710,7 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
         </ul>
       </section>
 
-      <div className="plugins-directory-navigation">
+      <div className="plugins-directory-navigation tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:@max-[479px]/plugins-page:items-stretch">
         <SegmentedControl
           ariaLabel="插件来源"
           onChange={props.setPluginCategory}
@@ -717,14 +746,14 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
           title={props.query ? '没有匹配的插件' : '当前筛选没有结果'}
         />
       ) : (
-        <div className="plugins-source-groups">
+        <div className="plugins-source-groups tw:grid tw:min-w-0 tw:gap-8">
           {props.groups.map((group) => (
-            <section className="plugins-source-group" key={group.category}>
-              <header className="plugins-section-heading">
-                <h2>{group.label}</h2>
-                <span className="plugins-sr-status">共 {group.items.length} 项</span>
+            <section className="plugins-source-group tw:grid tw:min-w-0 tw:gap-3" key={group.category}>
+              <header className="plugins-section-heading tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-3">
+                <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">{group.label}</h2>
+                <span className="plugins-sr-status tw:sr-only">共 {group.items.length} 项</span>
               </header>
-              <ul className="plugins-catalog-grid">
+              <ul className="plugins-catalog-grid tw:m-0 tw:grid tw:grid-cols-2 tw:min-w-0 tw:list-none tw:gap-x-7 tw:gap-y-4 tw:p-0 tw:@max-[580px]/plugins-page:grid-cols-1">
                 {group.items.map((item) => (
                   <PluginCatalogCard
                     busy={props.busyPluginIds.has(item.id)}
@@ -765,11 +794,11 @@ function SkillDirectory(props: SkillDirectoryProps): React.ReactNode {
     <div
       aria-busy={props.loading || undefined}
       aria-labelledby="skills-tab"
-      className="plugins-panel"
+      className="plugins-panel tw:grid tw:min-w-0 tw:gap-8"
       id="skills-panel"
       role="tabpanel"
     >
-      <div className="plugins-directory-navigation">
+      <div className="plugins-directory-navigation tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:@max-[479px]/plugins-page:items-stretch">
         <SegmentedControl
           ariaLabel="技能来源"
           onChange={props.setSkillOwner}
@@ -782,16 +811,16 @@ function SkillDirectory(props: SkillDirectoryProps): React.ReactNode {
         <CatalogCallout message={props.error} onRetry={props.refresh} title="技能目录刷新失败" />
       ) : null}
       {props.error && total === 0 ? (
-        <div className="plugins-empty">
+        <div className={cx('plugins-empty', PLUGINS_EMPTY_BASE)}>
           <AlertOctagon aria-hidden="true" size={APP_ICON_SIZE} />
-          <h2>技能目录暂不可用</h2>
-          <p>{props.error}</p>
-          <ol className="plugins-empty-steps">
+          <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">技能目录暂不可用</h2>
+          <p className="tw:m-0 tw:text-app-text-meta tw:type-body-sm tw:wrap-anywhere">{props.error}</p>
+          <ol className="plugins-empty-steps tw:m-0 tw:grid tw:list-decimal tw:gap-1 tw:pl-5 tw:text-left tw:type-body-sm">
             <li>在 Vercel 项目中启用 OIDC Federation。</li>
             <li>用该项目提供的 VERCEL_OIDC_TOKEN 启动 CodePilotX。</li>
             <li>重启应用后重新加载 skills.sh 技能目录。</li>
           </ol>
-          <div className="plugins-empty-actions">
+          <div className="plugins-empty-actions tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:justify-center tw:gap-2">
             <Button color="secondary" onClick={props.refresh}>
               重试
             </Button>
@@ -819,7 +848,7 @@ function SkillDirectory(props: SkillDirectoryProps): React.ReactNode {
           title={props.query ? '没有匹配的技能' : '目录为空'}
         />
       ) : (
-        <div className="plugins-source-groups">
+        <div className="plugins-source-groups tw:grid tw:min-w-0 tw:gap-8">
           {props.groups.installed.length > 0 ? (
             <SkillSection
               id="installed-skills-title"
@@ -862,12 +891,14 @@ function SkillSection({
   title: string
 }): React.ReactNode {
   return (
-    <section aria-labelledby={id} className="plugins-source-group">
-      <header className="plugins-section-heading">
-        <h2 id={id}>{title}</h2>
-        <span className="plugins-sr-status">共 {items.length} 项</span>
+    <section aria-labelledby={id} className="plugins-source-group tw:grid tw:min-w-0 tw:gap-3">
+      <header className="plugins-section-heading tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-3">
+        <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm" id={id}>
+          {title}
+        </h2>
+        <span className="plugins-sr-status tw:sr-only">共 {items.length} 项</span>
       </header>
-      <ul className="plugins-catalog-grid">
+      <ul className="plugins-catalog-grid tw:m-0 tw:grid tw:grid-cols-2 tw:min-w-0 tw:list-none tw:gap-x-7 tw:gap-y-4 tw:p-0 tw:@max-[580px]/plugins-page:grid-cols-1">
         {items.map((item) => (
           <SkillCatalogCard
             installing={installingSkillIds.has(item.id)}
@@ -892,11 +923,11 @@ function CatalogCallout({
   title: string
 }): React.ReactNode {
   return (
-    <div className="plugins-callout" data-tone="danger" role="status">
-      <AlertOctagon aria-hidden="true" size={APP_ICON_SIZE} />
-      <div>
+    <div className={cx('plugins-callout', PLUGINS_CALLOUT_BASE, FORCED_COLORS_SURFACE_CLASS, 'tw:forced-colors:border-double')} data-tone="danger" role="status">
+      <AlertOctagon aria-hidden="true" className="tw:shrink-0 tw:text-app-danger" size={APP_ICON_SIZE} />
+      <div className="tw:grid tw:min-w-0 tw:flex-auto tw:gap-1">
         <strong>{title}</strong>
-        <p>{message}</p>
+        <p className="tw:m-0 tw:text-app-text-meta tw:type-body-sm tw:wrap-anywhere">{message}</p>
       </div>
       <Button color="secondary" onClick={onRetry}>
         重试
@@ -907,9 +938,15 @@ function CatalogCallout({
 
 function CatalogSkeleton({ label }: { label: string }): React.ReactNode {
   return (
-    <SkeletonRegion className="plugins-catalog-grid plugins-skeleton-grid" label={label}>
+    <SkeletonRegion
+      className="plugins-catalog-grid plugins-skeleton-grid tw:m-0 tw:grid tw:grid-cols-2 tw:min-w-0 tw:list-none tw:gap-x-7 tw:gap-y-4 tw:p-0 tw:@max-[580px]/plugins-page:grid-cols-1"
+      label={label}
+    >
       {Array.from({ length: 6 }).map((_, index) => (
-        <SkeletonBlock className="plugins-skeleton" key={index} />
+        <SkeletonBlock
+          className={cx('plugins-skeleton tw:min-h-[60px] tw:rounded-container tw:border tw:border-app-border-subtle', FORCED_COLORS_SURFACE_CLASS)}
+          key={index}
+        />
       ))}
     </SkeletonRegion>
   )
@@ -927,10 +964,10 @@ function CatalogEmpty({
   title: string
 }): React.ReactNode {
   return (
-    <div className="plugins-empty">
+    <div className={cx('plugins-empty', PLUGINS_EMPTY_BASE)}>
       <Clock aria-hidden="true" size={APP_ICON_SIZE} />
-      <h2>{title}</h2>
-      <p>{message}</p>
+      <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">{title}</h2>
+      <p className="tw:m-0 tw:text-app-text-meta tw:type-body-sm tw:wrap-anywhere">{message}</p>
       {actionLabel && onAction ? (
         <Button color="secondary" onClick={onAction}>
           {actionLabel}
@@ -939,5 +976,3 @@ function CatalogEmpty({
     </div>
   )
 }
-
-import '../../styles/lazy/marketplace.scss'

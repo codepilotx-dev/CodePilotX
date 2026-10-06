@@ -73,41 +73,87 @@ const CODEX_DARK_SYNTAX = {
   punctuation: '#c9d1d9',
 }
 
+const DEFAULT_LIGHT_SURFACE = '#ffffff'
+const DEFAULT_LIGHT_INK = '#1f1f1f'
+const DEFAULT_LIGHT_CONTRAST = 40
+const DEFAULT_LIGHT_ACCENT = '#0169cc'
+
+const DEFAULT_DARK_SURFACE = '#111111'
+const DEFAULT_DARK_INK = '#eeeeee'
+const DEFAULT_DARK_CONTRAST = 60
+const DEFAULT_DARK_ACCENT = '#0169cc'
+
+function normalizeHex(value: string): string {
+  const hex = value.trim().toLowerCase().replace('#', '')
+  if (hex.length === 3) {
+    return `#${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`
+  }
+  return `#${hex}`
+}
+
 export function deriveThemeVariables(config: DesktopThemeConfigV1): ThemeVariableMap {
   const { theme, variant } = config
   const dark = variant === 'dark'
+  const isCodexNew =
+    config.codeThemeId === 'codex-new-light' ||
+    config.codeThemeId === 'codex-new-dark' ||
+    config.codeThemeId === 'codex-new'
+
+  const defaultSurface = dark ? DEFAULT_DARK_SURFACE : DEFAULT_LIGHT_SURFACE
+  const defaultInk = dark ? DEFAULT_DARK_INK : DEFAULT_LIGHT_INK
+  const defaultContrast = dark ? DEFAULT_DARK_CONTRAST : DEFAULT_LIGHT_CONTRAST
+  const defaultAccent = dark ? DEFAULT_DARK_ACCENT : DEFAULT_LIGHT_ACCENT
+
+  const isNeutralDefault =
+    isCodexNew &&
+    normalizeHex(theme.surface) === defaultSurface &&
+    normalizeHex(theme.ink) === defaultInk &&
+    theme.contrast === defaultContrast
+
+  const isAccentDefault = isNeutralDefault && normalizeHex(theme.accent) === defaultAccent
+
   const interactionInk = parseHex(theme.ink)
   const interactionHover = rgba(interactionInk, dark ? 0.08 : 0.05)
   const interactionSelected = rgba(interactionInk, 0.05)
   const roles = deriveCodexRoles(theme.surface, theme.ink, theme.accent, dark, theme.contrast)
+
+  const mathEditorBackground = isNeutralDefault
+    ? (dark ? '#191919' : '#f9f9f9')
+    : roles.editorBackground
+  const mathInk = theme.ink
+
   const added = deriveSemanticTone({
     hue: theme.semanticColors.diffAdded,
-    editorBackground: roles.editorBackground,
-    ink: theme.ink,
+    editorBackground: mathEditorBackground,
+    ink: mathInk,
   })
   const removed = deriveSemanticTone({
     hue: theme.semanticColors.diffRemoved,
-    editorBackground: roles.editorBackground,
-    ink: theme.ink,
+    editorBackground: mathEditorBackground,
+    ink: mathInk,
   })
-  const warningHue = dark ? '#f0a33b' : '#a05a00'
+  const warningHue = isNeutralDefault ? '#fb6a22' : (dark ? '#f0a33b' : '#a05a00')
   const warningTone = deriveSemanticTone({
     hue: warningHue,
-    editorBackground: roles.editorBackground,
-    ink: theme.ink,
+    editorBackground: mathEditorBackground,
+    ink: mathInk,
   })
   const skillTone = deriveSemanticTone({
     hue: theme.semanticColors.skill,
-    editorBackground: roles.editorBackground,
-    ink: theme.ink,
+    editorBackground: mathEditorBackground,
+    ink: mathInk,
   })
   const infoHue = dark ? '#38bdf8' : '#0284c7'
   const infoTone = deriveSemanticTone({
     hue: infoHue,
-    editorBackground: roles.editorBackground,
-    ink: theme.ink,
+    editorBackground: mathEditorBackground,
+    ink: mathInk,
   })
-  const accentForeground = [theme.surface, roles.editorBackground, roles.accentSubtle].reduce(
+  const accentForeground = [
+    theme.surface,
+    mathEditorBackground,
+    roles.accentSubtle,
+  ].reduce(
     (candidate, background) =>
       ensureContrast(parseColor(candidate), interactionInk, parseColor(background), 4.5),
     roles.accentForeground,
@@ -117,39 +163,69 @@ export function deriveThemeVariables(config: DesktopThemeConfigV1): ThemeVariabl
   const shadowRaised = dark
     ? '0 2px 8px rgb(0 0 0 / 40%)'
     : '0 2px 8px rgb(0 0 0 / 4%), 0 1px 2px rgb(0 0 0 / 2%)'
-  const shadowFloating = dark ? '0 8px 30px rgb(0 0 0 / 50%)' : '0 8px 30px rgb(0 0 0 / 12%)'
+  const shadowFloating = '0 16px 48px rgb(0 0 0 / 24%)'
   const shadowControl = dark ? '0 1px 2px rgb(0 0 0 / 20%)' : '0 1px 2px rgb(0 0 0 / 2%)'
 
   return {
     // System Layer: Foundation & Contrast
     '--cpx-sys-contrast': String(theme.contrast),
-    '--cpx-sys-color-accent': theme.accent,
-    '--cpx-sys-color-fg-on-accent': textOnAccent(theme.accent),
-    '--cpx-sys-color-fg-primary': theme.ink,
+    '--cpx-sys-color-accent': isAccentDefault ? 'var(--cpx-ref-blue-9)' : theme.accent,
+    '--cpx-sys-color-fg-on-accent': isAccentDefault
+      ? 'var(--cpx-ref-blue-contrast)'
+      : textOnAccent(theme.accent),
+    '--cpx-sys-color-fg-primary': isNeutralDefault ? 'var(--cpx-ref-gray-12)' : theme.ink,
     '--cpx-sys-color-surface-canvas': theme.surface,
-    '--cpx-sys-color-surface-recessed': roles.surfaceRecessed,
-    '--cpx-sys-color-surface-panel': roles.panel,
-    '--cpx-sys-color-surface-control': roles.control,
-    '--cpx-sys-color-surface-raised': roles.raised,
-    '--cpx-sys-color-surface-editor': roles.editorBackground,
+    '--cpx-sys-color-surface-recessed': isNeutralDefault
+      ? (dark ? '#0f0f0f' : 'var(--cpx-ref-gray-3)')
+      : roles.surfaceRecessed,
+    '--cpx-sys-color-surface-panel': isNeutralDefault ? 'var(--cpx-ref-gray-2)' : roles.panel,
+    '--cpx-sys-color-surface-control': isNeutralDefault ? 'var(--cpx-ref-gray-2)' : roles.control,
+    '--cpx-sys-color-surface-raised': isNeutralDefault ? 'var(--cpx-ref-gray-2)' : roles.raised,
+    '--cpx-sys-color-surface-editor': isNeutralDefault ? 'var(--cpx-ref-gray-2)' : roles.editorBackground,
+    '--cpx-sys-color-surface-secondary': isNeutralDefault ? 'var(--cpx-ref-gray-4)' : roles.control,
+    '--cpx-sys-color-surface-active': isNeutralDefault ? 'var(--cpx-ref-gray-5)' : roles.raised,
+
+    // Workbench region surfaces
+    '--cpx-sys-color-workbench-sidebar-bg': dark
+      ? (isNeutralDefault ? 'var(--cpx-sys-color-surface-recessed)' : roles.surfaceRecessed)
+      : (isNeutralDefault ? 'var(--cpx-ref-gray-2)' : roles.panel),
+    '--cpx-sys-color-workbench-titlebar-bg': 'var(--cpx-sys-color-workbench-sidebar-bg)',
+    '--cpx-sys-color-workbench-main-bg': 'var(--cpx-sys-color-surface-canvas)',
+    '--cpx-sys-color-workbench-panel-bg': 'var(--cpx-sys-color-workbench-main-bg)',
 
     // System Layer: Foreground / text
-    '--cpx-sys-color-fg-secondary': roles.textSecondary,
-    '--cpx-sys-color-fg-tertiary': roles.textTertiary,
-    '--cpx-sys-color-fg-disabled': roles.textDisabled,
+    '--cpx-sys-color-fg-secondary': isNeutralDefault ? 'var(--cpx-ref-gray-11)' : roles.textSecondary,
+    '--cpx-sys-color-fg-tertiary': isNeutralDefault
+      ? 'color-mix(in srgb, var(--cpx-sys-color-fg-primary) 58%, transparent)'
+      : roles.textTertiary,
+    '--cpx-sys-color-fg-disabled': isNeutralDefault
+      ? 'color-mix(in srgb, var(--cpx-sys-color-fg-primary) 48%, transparent)'
+      : roles.textDisabled,
 
     // System Layer: Borders
-    '--cpx-sys-color-border-subtle': roles.borderLight,
-    '--cpx-sys-color-border-default': roles.border,
-    '--cpx-sys-color-border-strong': roles.borderHeavy,
-    '--cpx-sys-color-border-focus': roles.borderFocus,
+    '--cpx-sys-color-border-subtle': isNeutralDefault ? 'var(--cpx-ref-gray-a6)' : roles.borderLight,
+    '--cpx-sys-color-border-default': isNeutralDefault ? 'var(--cpx-ref-gray-a7)' : roles.border,
+    '--cpx-sys-color-border-strong': isNeutralDefault ? 'var(--cpx-ref-gray-a8)' : roles.borderHeavy,
+    '--cpx-sys-color-border-focus': isNeutralDefault
+      ? 'color-mix(in srgb, var(--cpx-sys-color-accent) 50%, transparent)'
+      : roles.borderFocus,
 
     // System Layer: Accent & semantic multi-hues
-    '--cpx-sys-color-accent-subtle-bg': roles.accentSubtle,
-    '--cpx-sys-color-accent-subtle-border': rgba(parseHex(theme.accent), 0.22),
-    '--cpx-sys-color-accent-fg': accentForeground,
-    '--cpx-sys-color-accent-hover': roles.accentHover,
-    '--cpx-sys-color-accent-active': roles.accentActive,
+    '--cpx-sys-color-accent-subtle-bg': isAccentDefault ? 'var(--cpx-ref-blue-a3)' : roles.accentSubtle,
+    '--cpx-sys-color-accent-subtle-hover-bg': isAccentDefault
+      ? 'var(--cpx-ref-blue-a4)'
+      : roles.accentHover,
+    '--cpx-sys-color-accent-subtle-active-bg': isAccentDefault
+      ? 'var(--cpx-ref-blue-a5)'
+      : roles.accentActive,
+    '--cpx-sys-color-accent-subtle-border': isAccentDefault
+      ? 'var(--cpx-ref-blue-a7)'
+      : rgba(parseHex(theme.accent), 0.22),
+    '--cpx-sys-color-accent-fg': isAccentDefault ? 'var(--cpx-ref-blue-11)' : accentForeground,
+    '--cpx-sys-color-accent-hover': isAccentDefault ? 'var(--cpx-ref-blue-10)' : roles.accentHover,
+    '--cpx-sys-color-accent-active': isAccentDefault
+      ? (dark ? 'var(--cpx-ref-blue-8)' : 'var(--cpx-ref-blue-10)')
+      : roles.accentActive,
     '--cpx-sys-color-danger': theme.semanticColors.diffRemoved,
     '--cpx-sys-color-danger-subtle-bg': removed.lineBackground,
     '--cpx-sys-color-danger-subtle-border': rgba(parseHex(theme.semanticColors.diffRemoved), 0.22),
@@ -170,14 +246,16 @@ export function deriveThemeVariables(config: DesktopThemeConfigV1): ThemeVariabl
     '--cpx-sys-color-info-subtle-bg': infoTone.lineBackground,
     '--cpx-sys-color-info-subtle-border': rgba(parseHex(infoHue), 0.22),
     '--cpx-sys-color-info-fg': infoTone.foreground,
-    '--cpx-sys-color-scrim': roles.simpleScrim,
+    '--cpx-sys-color-scrim': isNeutralDefault
+      ? (dark ? 'rgba(0, 0, 0, 0.65)' : 'rgba(0, 0, 0, 0.25)')
+      : roles.simpleScrim,
 
     // System Charts Colors
     '--cpx-sys-color-charts-red': theme.semanticColors.diffRemoved,
     '--cpx-sys-color-charts-orange': dark ? '#fb923c' : '#ea580c',
     '--cpx-sys-color-charts-yellow': warningHue,
     '--cpx-sys-color-charts-green': theme.semanticColors.diffAdded,
-    '--cpx-sys-color-charts-blue': theme.accent,
+    '--cpx-sys-color-charts-blue': isAccentDefault ? 'var(--cpx-ref-blue-9)' : theme.accent,
     '--cpx-sys-color-charts-purple': theme.semanticColors.skill,
     '--cpx-sys-color-charts-cyan': infoHue,
 
@@ -186,14 +264,16 @@ export function deriveThemeVariables(config: DesktopThemeConfigV1): ThemeVariabl
     '--cpx-sys-blur-md': '16px',
     '--cpx-sys-blur-lg': '24px',
     '--cpx-sys-glass-filter': 'blur(16px)',
-    '--cpx-sys-glass-bg': `color-mix(in srgb, ${roles.raised} 85%, transparent)`,
-    '--cpx-sys-glass-border': roles.borderLight,
+    '--cpx-sys-glass-bg': isNeutralDefault
+      ? 'var(--cpx-ref-gray-surface)'
+      : `color-mix(in srgb, ${roles.raised} 85%, transparent)`,
+    '--cpx-sys-glass-border': isNeutralDefault ? 'var(--cpx-ref-gray-a6)' : roles.borderLight,
     '--cpx-sys-glass-shadow': shadowFloating,
 
     // System Layer: Interactive states
-    '--cpx-sys-color-hover': interactionHover,
-    '--cpx-sys-color-active': interactionSelected,
-    '--cpx-sys-color-selected': interactionSelected,
+    '--cpx-sys-color-hover': isNeutralDefault ? 'var(--cpx-ref-gray-a3)' : interactionHover,
+    '--cpx-sys-color-active': isNeutralDefault ? 'var(--cpx-ref-gray-a5)' : interactionSelected,
+    '--cpx-sys-color-selected': isNeutralDefault ? 'var(--cpx-ref-gray-a4)' : interactionSelected,
 
     // System Layer: Diff semantic tones
     '--cpx-sys-color-diff-added-fg': added.foreground,
@@ -206,11 +286,15 @@ export function deriveThemeVariables(config: DesktopThemeConfigV1): ThemeVariabl
     '--cpx-sys-color-diff-removed-text': removed.textBackground,
 
     // System Layer: Shadows
-    '--cpx-sys-shadow-resting': shadowResting,
-    '--cpx-sys-shadow-raised': shadowRaised,
+    '--cpx-sys-shadow-resting': isNeutralDefault
+      ? (dark ? 'inset 0 1px 0 rgba(238, 238, 238, 0.04)' : 'inset 0 1px 0 rgba(255, 255, 255, 0.7)')
+      : shadowResting,
+    '--cpx-sys-shadow-raised': isNeutralDefault
+      ? (dark ? 'inset 0 1px 0 rgba(238, 238, 238, 0.04)' : 'inset 0 1px 0 rgba(255, 255, 255, 0.7)')
+      : shadowRaised,
     '--cpx-sys-shadow-prominent': shadowFloating,
     '--cpx-sys-shadow-floating': shadowFloating,
-    '--cpx-sys-shadow-control': shadowControl,
+    '--cpx-sys-shadow-control': isNeutralDefault ? 'none' : shadowControl,
 
     // System Layer: Fonts
     '--cpx-sys-font-family-sans': fontFamilyWithFace(
@@ -233,21 +317,12 @@ export function deriveThemeVariables(config: DesktopThemeConfigV1): ThemeVariabl
     '--cpx-sys-color-syntax-variable': syntax.variable,
     '--cpx-sys-color-syntax-punctuation': syntax.punctuation,
 
-    // Component Layer: only genuinely composite or component-specific values.
+    // Component Layer: genuinely component-specific runtime overrides
     '--cpx-comp-switch-thumb-fill': '#ffffff',
-    '--cpx-comp-tooltip-border': `1px solid ${roles.borderLight}`,
-    '--cpx-comp-tooltip-shadow': shadowFloating,
-    '--cpx-comp-scrollbar-slider-bg': roles.border,
-    '--cpx-comp-scrollbar-slider-hover-bg': roles.borderHeavy,
-    '--cpx-comp-scrollbar-slider-active-bg': roles.borderHeavy,
-
-    '--cpx-comp-surface-edge': `1px solid ${roles.borderLight}`,
-    '--cpx-comp-surface-edge-strong': `1px solid ${roles.border}`,
-    '--cpx-comp-glass-shadow': shadowFloating,
+    '--cpx-comp-scrollbar-slider-bg': isNeutralDefault ? 'var(--cpx-ref-gray-a7)' : roles.border,
+    '--cpx-comp-scrollbar-slider-hover-bg': isNeutralDefault ? 'var(--cpx-ref-gray-a8)' : roles.borderHeavy,
+    '--cpx-comp-scrollbar-slider-active-bg': isNeutralDefault ? 'var(--cpx-ref-gray-a8)' : roles.borderHeavy,
     '--cpx-comp-glass-filter': 'blur(16px)',
-    '--cpx-comp-modal-border': `1px solid ${roles.borderLight}`,
-    '--cpx-comp-modal-shadow': shadowFloating,
-    '--cpx-comp-sidebar-border': '0',
   }
 }
 
@@ -317,7 +392,7 @@ function deriveSemanticTone({
   const inkRgb = parseHex(ink)
   const dark = relativeLuminance(editorRgb) < 0.3
   const lineBackground = mixHex(editorRgb, hueRgb, 0.02)
-  const textBackground = mixHex(editorRgb, hueRgb, 0.04)
+  const textBackground = mixHex(editorRgb, hueRgb, dark ? 0.04 : 0.035)
   const backgrounds = [editorBackground, lineBackground, textBackground]
   const foreground = backgrounds.reduce(
     (candidate, background) =>
@@ -478,7 +553,7 @@ function deriveDarkPalette(
 }
 
 function normalizeCodexContrast(value: number, variant: 'light' | 'dark'): number {
-  const base = variant === 'dark' ? 60 : 45
+  const base = variant === 'dark' ? 60 : 40
   const baseRatio = base / 100
   const adjusted = value / 100 + ((value - base) / 60) * 0.7
   const normalized = value <= base ? adjusted : baseRatio + (adjusted - baseRatio) * 2
@@ -486,7 +561,7 @@ function normalizeCodexContrast(value: number, variant: 'light' | 'dark'): numbe
 }
 
 function parseHex(value: string): Rgb {
-  const hex = value.slice(1)
+  const hex = normalizeHex(value).slice(1)
   return {
     red: Number.parseInt(hex.slice(0, 2), 16),
     green: Number.parseInt(hex.slice(2, 4), 16),

@@ -76,14 +76,23 @@ export function OAuthConnection({
   const promptLabel = manualCallback ? t('回调链接') : (prompt?.message ?? '')
   const promptForm = prompt ? (
     <form
-      className="model-center-oauth-form"
+      className="model-center-oauth-form tw:grid tw:min-w-0 tw:gap-3"
       onSubmit={(event) => {
         event.preventDefault()
         if (auth.value.trim() && !auth.busy) void auth.respond()
       }}
     >
-      {manualCallback ? <p>{t('粘贴浏览器最终跳转的完整链接，手动完成登录。')}</p> : null}
-      <label htmlFor={prompt.type === 'select' ? undefined : inputId}>{promptLabel}</label>
+      {manualCallback ? (
+        <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere">
+          {t('粘贴浏览器最终跳转的完整链接，手动完成登录。')}
+        </p>
+      ) : null}
+      <label
+        className="tw:text-app-text-soft tw:type-label"
+        htmlFor={prompt.type === 'select' ? undefined : inputId}
+      >
+        {promptLabel}
+      </label>
       {prompt.type === 'select' ? (
         <SettingsDropdown
           ariaLabel={promptLabel}
@@ -99,6 +108,7 @@ export function OAuthConnection({
         />
       ) : (
         <Input
+          className="tw:w-full tw:min-w-0"
           id={inputId}
           aria-label={promptLabel}
           autoComplete="off"
@@ -109,7 +119,7 @@ export function OAuthConnection({
           value={auth.value}
         />
       )}
-      <div className="model-center-oauth-actions">
+      <div className="model-center-oauth-actions tw:flex tw:flex-wrap tw:items-center tw:gap-2">
         <Button color="primary" type="submit" disabled={!auth.value.trim()} loading={auth.busy}>
           {t(manualCallback ? '完成登录' : prompt.type === 'manual_code' ? '提交授权码' : '继续')}
         </Button>
@@ -118,40 +128,63 @@ export function OAuthConnection({
   ) : null
 
   return (
-    <section className="model-center-account-connection model-center-oauth-flow">
+    <section className="model-center-account-connection model-center-oauth-flow tw:grid tw:min-w-0 tw:gap-3 tw:p-4">
       {!hideHeader ? (
-        <header>
+        <header className="tw:flex tw:min-w-0 tw:items-start tw:justify-between tw:gap-3">
           <div>
-            <h4>{t(title)}</h4>
-            <p>{t(description)}</p>
+            <h4 className="tw:m-0 tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-md)] tw:type-weight-label">
+              {t(title)}
+            </h4>
+            <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-sm)] tw:[line-height:var(--cpx-sys-line-height-tight)]">
+              {t(description)}
+            </p>
           </div>
-          {connected ? <span data-tone="success">{t('已授权')}</span> : null}
+          {connected ? (
+            <span
+              className="tw:whitespace-nowrap tw:rounded-full tw:border tw:border-app-border-subtle tw:px-2 tw:py-1 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-xs)] tw:data-[tone=success]:text-app-success"
+              data-tone="success"
+            >
+              {t('已授权')}
+            </span>
+          ) : null}
         </header>
       ) : null}
 
-      <div className="model-center-oauth-body">
+      <div className="model-center-oauth-body tw:grid tw:min-w-0 tw:gap-4">
         {status ? (
-          <div className="model-center-oauth-status" role="status">
+          <div className="model-center-oauth-status tw:flex tw:items-start tw:gap-3 tw:text-app-text tw:[&>.ui-spinner]:mt-1 tw:[&>.ui-spinner]:shrink-0 tw:[&>svg]:mt-1 tw:[&>svg]:shrink-0" role="status">
             {active || auth.busy ? <Spinner /> : <Check size={APP_ICON_SIZES.sm} aria-hidden />}
             <div>
-              <strong>{t(status)}</strong>
+              <strong className="tw:type-row-title">{t(status)}</strong>
               {active && authUrlNotice && !completing ? (
-                <p>{t('完成登录后，这里会自动更新。')}</p>
+                <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">
+                  {t('完成登录后，这里会自动更新。')}
+                </p>
               ) : null}
             </div>
           </div>
         ) : null}
 
         {visibleNotices.length > 0 ? (
-          <div className="model-center-oauth-notices">
+          <div className="model-center-oauth-notices tw:grid tw:min-w-0 tw:gap-3">
             {visibleNotices.map((notice, index) => {
               if (notice.type === 'auth_url') {
-                return <p key={index}>{notice.instructions}</p>
+                return (
+                  <p
+                    className="tw:m-0 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere"
+                    key={index}
+                  >
+                    {notice.instructions}
+                  </p>
+                )
               }
               if (notice.type === 'device_code') {
                 return (
-                  <div className="model-center-account-oauth" key={index}>
-                    <p>
+                  <div
+                    className="model-center-account-oauth tw:grid tw:gap-2 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-3"
+                    key={index}
+                  >
+                    <p className="tw:m-0 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-sm)] tw:[line-height:var(--cpx-sys-line-height-tight)]">
                       {t('设备码')}：<code>{notice.userCode}</code>
                     </p>
                     <Button
@@ -168,12 +201,19 @@ export function OAuthConnection({
                 isChatGPT && notice.message.startsWith('Could not listen on ')
                   ? t('自动回调不可用，可展开下方入口手动完成登录。')
                   : notice.message
-              return <p key={index}>{message}</p>
+              return (
+                <p
+                  className="tw:m-0 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere"
+                  key={index}
+                >
+                  {message}
+                </p>
+              )
             })}
           </div>
         ) : null}
 
-        <div className="model-center-oauth-actions">
+        <div className="model-center-oauth-actions tw:flex tw:flex-wrap tw:items-center tw:gap-2">
           {!active ? (
             <Button color="primary" loading={auth.busy} onClick={start}>
               {t(connected ? '重新授权' : '在浏览器登录')}
@@ -202,7 +242,7 @@ export function OAuthConnection({
         </div>
 
         {manualCallback ? (
-          <div className="model-center-oauth-fallback">
+          <div className="model-center-oauth-fallback tw:border-t tw:border-t-app-border-subtle tw:pt-3 tw:[&_form]:pt-3">
             <DisclosureController
               key={`${auth.session?.id}:${prompt?.id}`}
               mountPolicy="until-exit"
@@ -229,7 +269,10 @@ export function OAuthConnection({
           promptForm
         )}
         {error ? (
-          <p className="model-center-account-error" role="alert">
+          <p
+            className="model-center-account-error tw:m-0 tw:text-app-danger tw:[font-size:var(--cpx-sys-font-size-sm)] tw:[line-height:var(--cpx-sys-line-height-tight)]"
+            role="alert"
+          >
             {error}
           </p>
         ) : null}

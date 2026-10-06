@@ -144,6 +144,7 @@ import {
 } from '../../session-groups/sessionGroupPreference.js'
 import type { DesktopSessionGroup } from '../../../services/desktop-client/types.js'
 import { formatCompactNumber } from '../../../utils/usageFormatters.js'
+import { cx } from '../../../utils/cx.js'
 
 type Option<T extends string> = {
   value: T
@@ -169,12 +170,119 @@ type ComposerDropdown =
   | 'goal'
   | 'plugin'
 
+/*
+ * Permission chips are plain `chip-button` triggers whose colors come from
+ * `--cpx-sys-color-*`: every mode keeps a transparent chip, and only
+ * full-access tints its label. The `permission-chip*` class names stay as
+ * query hooks for the permission-menu Select and its tests.
+ */
 const PERMISSION_CHIP_CLASS_NAMES: Record<DesktopPermissionMode, string> = {
-  default: 'permission-chip permission-chip-default',
-  'auto-review': 'permission-chip permission-chip-auto',
-  'full-access': 'permission-chip permission-chip-bypassPermissions',
-  custom: 'permission-chip permission-chip-customConfig',
+  default: 'permission-chip permission-chip-default tw:text-app-text',
+  'auto-review': 'permission-chip permission-chip-auto tw:text-app-text',
+  'full-access': 'permission-chip permission-chip-bypassPermissions tw:text-app-warning',
+  custom: 'permission-chip permission-chip-customConfig tw:text-app-text',
 }
+
+/*
+ * Geometry shared by the permission trigger: the chip keeps the row height and
+ * pill radius from `chip-button`, loses its own border/background, animates the
+ * permission state on the feedback duration, and reports the open menu as the
+ * selected surface. `icon-size`/block/shrink keep the leading permission glyph
+ * on the shared icon slot even though the trigger is a Radix Select trigger
+ * rather than the shared Button.
+ */
+const PERMISSION_TRIGGER_CLASS = cx(
+  'permission-select-trigger tw:min-w-0 tw:border tw:border-transparent tw:bg-transparent',
+  'tw:transition-[background,border-color,color] tw:duration-feedback tw:ease-standard',
+  'tw:hover:bg-app-hover tw:data-[state=open]:bg-app-selected',
+  'tw:[&>svg:first-child]:block tw:[&>svg:first-child]:size-icon tw:[&>svg:first-child]:shrink-0',
+)
+const PERMISSION_TRIGGER_OPEN_CLASS = 'tw:bg-app-selected'
+const PERMISSION_TRIGGER_LABEL_CLASS =
+  'permission-select-trigger-label tw:min-w-0 tw:truncate tw:@max-[480px]:hidden'
+const PERMISSION_TRIGGER_CHEVRON_CLASS = 'tw:@max-[440px]:hidden'
+const PERMISSION_ITEM_ICON_CLASS =
+  'permission-select-item-icon tw:mt-0 tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text tw:[&>svg]:block tw:[&>svg]:size-icon tw:[&>svg]:[stroke-width:var(--cpx-sys-icon-stroke-width)]'
+const PERMISSION_ITEM_BODY_CLASS =
+  'permission-select-item-body tw:min-w-0 tw:flex-1 tw:grid tw:gap-0'
+const PERMISSION_ITEM_DETAIL_CLASS =
+  'permission-select-item-detail tw:whitespace-normal tw:text-app-text-soft tw:type-secondary'
+const PERMISSION_ITEM_INDICATOR_CLASS =
+  'permission-select-item-indicator tw:mt-0 tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text'
+
+/*
+ * Composer shell chrome. The silhouette (radius, corner shape) stays in
+ * `src/styles/features/_composer-shell.scss` because it resolves from the
+ * composer layout + radius variant through `--composer-radius`; everything else
+ * moved onto the elements here.
+ *
+ * The utility bar pre-dates the surface variants: `.composer-bottom` and
+ * `.composer-utility-bar` are always on the same element, and the home surfaces
+ * (Working / Coding new-session pages) replace its margins, padding, background
+ * and order, so each variant gets one complete, static class list.
+ */
+const COMPOSER_STACK_CLASS =
+  'composer-stack tw:relative tw:isolate tw:z-composer tw:flex tw:w-full tw:flex-col tw:[container-type:inline-size]'
+const COMPOSER_TOP_BASE_CLASS = cx(
+  'composer composer-input-surface composer-top',
+  'tw:relative tw:z-2 tw:flex tw:min-h-0 tw:flex-col tw:justify-between tw:[container-type:inline-size]',
+  'tw:px-3 tw:pt-3 tw:pb-1',
+  'tw:shadow-prominent tw:transition-[min-height] tw:duration-panel tw:ease-standard',
+  'tw:focus-within:border-app-border-strong',
+  'tw:forced-colors:outline-1 tw:forced-colors:outline-solid tw:forced-colors:shadow-none',
+)
+const COMPOSER_TOP_DEFAULT_CLASS = cx(
+  COMPOSER_TOP_BASE_CLASS,
+  'tw:order-2 tw:border tw:border-app-border-subtle tw:bg-app-panel',
+)
+/*
+ * Both home surfaces drop the shared `.composer` glass backdrop that
+ * `styles/components/card.scss` still declares for the resting composer.
+ */
+const COMPOSER_TOP_WORKING_CLASS = cx(
+  COMPOSER_TOP_BASE_CLASS,
+  'tw:order-1 tw:border-0 tw:bg-app-control tw:[backdrop-filter:none]',
+)
+const COMPOSER_TOP_CODING_CLASS = cx(
+  COMPOSER_TOP_BASE_CLASS,
+  'tw:order-2 tw:border-0 tw:bg-app-control tw:[backdrop-filter:none]',
+)
+const UTILITY_BAR_BASE_CLASS = cx(
+  'composer-bottom composer-utility-bar',
+  'tw:z-1 tw:flex tw:min-w-0 tw:max-w-none tw:items-center tw:gap-2 tw:overflow-x-auto tw:overflow-y-hidden',
+  'tw:border-0 tw:whitespace-nowrap',
+  'tw:forced-colors:outline-1 tw:forced-colors:outline-solid tw:forced-colors:shadow-none',
+  'tw:[&_.meta-chip]:h-7 tw:[&_.meta-chip]:flex-none tw:[&_.meta-chip]:rounded-full tw:[&_.meta-chip]:px-2 tw:[&_.meta-chip]:transition-all',
+  'tw:@max-[475px]:[&_.meta-chip_span]:hidden',
+)
+const UTILITY_BAR_DEFAULT_CLASS = cx(
+  UTILITY_BAR_BASE_CLASS,
+  'tw:order-1 tw:min-h-11.5 tw:mx-3 tw:mt-0 tw:-mb-px tw:px-2 tw:pt-1 tw:pb-2',
+  'tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-surface-recessed)_92%,transparent)]',
+  'tw:animate-[composer-utility-enter_var(--cpx-sys-motion-enter)_var(--cpx-sys-ease-out)_both]',
+)
+const UTILITY_BAR_HOME_WORKING_CLASS = cx(
+  UTILITY_BAR_BASE_CLASS,
+  'tw:order-2 tw:min-h-0 tw:mx-3 tw:-mt-px tw:mb-0 tw:p-2 tw:bg-app-underlay',
+)
+const UTILITY_BAR_HOME_CODING_CLASS = cx(
+  UTILITY_BAR_BASE_CLASS,
+  'tw:order-1 tw:min-h-0 tw:mx-3 tw:mt-0 tw:-mb-5 tw:px-2 tw:pt-2 tw:pb-6 tw:bg-app-underlay',
+)
+const UTILITY_BAR_SIDE_TASK_CLASS = 'tw:[&_.meta-chip]:pointer-events-none'
+const TOOLBAR_CLASS =
+  'composer-toolbar tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:pt-2 tw:@max-[420px]:gap-1'
+const TOOLBAR_LEFT_CLASS =
+  'toolbar-left tw:flex tw:min-w-0 tw:items-center tw:gap-1.5 tw:@max-[420px]:gap-1'
+const TOOLBAR_RIGHT_CLASS =
+  'toolbar-right tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:justify-end tw:gap-1.5 tw:@max-[420px]:gap-1'
+const TOOLBAR_DIVIDER_CLASS =
+  'toolbar-divider tw:inline-block tw:h-3.5 tw:w-px tw:shrink-0 tw:bg-app-border-subtle'
+const COMPOSER_META_CHIP_HIDE_LABEL_CLASS = 'tw:@max-[475px]:[&_.meta-chip_span]:hidden'
+const COMPOSER_HIDE_DIVIDER_CLASS = 'tw:@max-[300px]:[&_.toolbar-divider]:hidden'
+const COMPOSER_HIDE_USAGE_CHIP_CLASS = 'tw:@max-[300px]:[&_.context-usage-chip]:hidden'
+const COMPOSER_HIDE_PLAN_CHIP_LABEL_CLASS =
+  'tw:@max-[475px]:[&_.composer-plan-mode-chip>span:last-child]:hidden'
 
 type Props = {
   draftKey: ComposerDraftKey
@@ -1039,10 +1147,13 @@ export function ComposerCard({
   }
 
   function getPermissionIcon(value: DesktopPermissionMode): React.ReactNode {
-    if (value === 'default') return <Hand size={APP_ICON_SIZE} />
-    if (value === 'full-access') return <ShieldAlert size={APP_ICON_SIZE} />
-    if (value === 'custom') return <Wrench size={APP_ICON_SIZE} />
-    return <ShieldCheck size={APP_ICON_SIZE} />
+    if (value === 'default')
+      return <Hand size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    if (value === 'full-access')
+      return <ShieldAlert size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    if (value === 'custom')
+      return <Wrench size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+    return <ShieldCheck size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
   }
 
   function getPermissionClassName(value: DesktopPermissionMode): string {
@@ -1053,7 +1164,7 @@ export function ComposerCard({
   const usedPercent = contextUsage ? Math.min(100, Math.max(0, contextUsage.usedPercent)) : 0
   return (
     <div
-      className="composer-stack tw:relative tw:flex tw:w-full tw:flex-col"
+      className={COMPOSER_STACK_CLASS}
       data-placement={placement}
       data-surface={surface}
       data-composer-layout={layout}
@@ -1084,7 +1195,7 @@ export function ComposerCard({
     >
       {fileDragActive ? (
         <div
-          className="tw:absolute tw:inset-0 tw:z-50 tw:flex tw:items-center tw:justify-center tw:border tw:border-dashed tw:border-app-border-strong tw:bg-app-raised u-type-control"
+          className="tw:absolute tw:inset-0 tw:z-50 tw:flex tw:items-center tw:justify-center tw:border tw:border-dashed tw:border-app-border-strong tw:bg-app-raised tw:type-control"
           role="status"
         >
           松开以添加文件
@@ -1103,11 +1214,25 @@ export function ComposerCard({
         />
       ) : null}
       <div
-        className="composer composer-input-surface composer-top tw:relative tw:flex tw:min-h-0 tw:flex-col tw:justify-between"
+        className={cx(
+          utilityBarVariant === 'home' && surface === 'working'
+            ? COMPOSER_TOP_WORKING_CLASS
+            : utilityBarVariant === 'home'
+              ? COMPOSER_TOP_CODING_CLASS
+              : COMPOSER_TOP_DEFAULT_CLASS,
+          COMPOSER_META_CHIP_HIDE_LABEL_CLASS,
+          COMPOSER_HIDE_DIVIDER_CLASS,
+          COMPOSER_HIDE_USAGE_CHIP_CLASS,
+          COMPOSER_HIDE_PLAN_CHIP_LABEL_CLASS,
+        )}
         inert={submitting || undefined}
       >
         {inlineSubmitFailure ? (
-          <div className="composer-submit-error" id={submitErrorId} role="alert">
+          <div
+            className="composer-submit-error tw:mx-1 tw:mt-0 tw:mb-2 tw:text-app-warning tw:type-caption"
+            id={submitErrorId}
+            role="alert"
+          >
             {inlineSubmitFailure.message}，请修改后重试。
           </div>
         ) : null}
@@ -1284,8 +1409,8 @@ export function ComposerCard({
           />
         </ChatInputDropdown>
 
-        <div className="composer-toolbar tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:pt-2">
-          <div className="toolbar-left tw:flex tw:min-w-0 tw:items-center tw:gap-1.5">
+        <div className={TOOLBAR_CLASS}>
+          <div className={TOOLBAR_LEFT_CLASS}>
             <IconButton
               active={buttonContextOpen}
               aria-expanded={buttonContextOpen}
@@ -1321,26 +1446,26 @@ export function ComposerCard({
               <Select.Trigger
                 aria-label="选择权限模式"
                 data-theme-component="dropdown-trigger"
-                className={[
+                className={cx(
                   'chip-button',
                   getPermissionClassName(permissionMode),
-                  openDropdown === 'permission' ? 'active' : '',
-                  'permission-select-trigger',
-                ].join(' ')}
+                  PERMISSION_TRIGGER_CLASS,
+                  openDropdown === 'permission' && PERMISSION_TRIGGER_OPEN_CLASS,
+                )}
                 title="选择权限模式"
               >
                 {getPermissionIcon(permissionMode)}
-                <span className="permission-select-trigger-label">
+                <span className={PERMISSION_TRIGGER_LABEL_CLASS}>
                   {selectedPermission?.label ?? '默认权限'}
                 </span>
-                <Select.Icon asChild>
+                <Select.Icon asChild className={PERMISSION_TRIGGER_CHEVRON_CLASS}>
                   <ChevronDown size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                 </Select.Icon>
               </Select.Trigger>
               <Select.Portal>
                 <Select.Content
                   align="start"
-                  className="popover-surface permission-select-content"
+                  className="popover-surface permission-select-content tw:min-w-0 tw:max-w-[var(--popover-max-width,min(calc(300px_+_var(--popover-width-extra)),calc(100vw_-_24px)))] tw:max-h-[min(320px,calc(100vh_-_96px))] tw:overflow-hidden"
                   data-theme-component="dropdown-surface"
                   collisionPadding={6}
                   position="popper"
@@ -1348,8 +1473,8 @@ export function ComposerCard({
                   sideOffset={4}
                   style={buildPopoverSizingStyle({ width: 300 })}
                 >
-                  <Select.Viewport className="permission-select-scroll-area">
-                    <div className="permission-select-scroll-content">
+                  <Select.Viewport className="permission-select-scroll-area tw:grid tw:max-h-[max(80px,calc(min(320px,calc(100vh-96px))-12px))] tw:overflow-x-hidden tw:overflow-y-auto">
+                    <div className="permission-select-scroll-content tw:grid tw:min-w-0">
                       {routedSessionId && workspace?.projectId && scopedGrantsSupported ? (
                         <Select.Item className="permission-select-item" value="approval-rules">
                           <Select.ItemText>管理项目授权</Select.ItemText>
@@ -1361,17 +1486,17 @@ export function ComposerCard({
                           key={option.value}
                           value={option.value}
                         >
-                          <span className="permission-select-item-icon">
+                          <span className={PERMISSION_ITEM_ICON_CLASS}>
                             {getPermissionIcon(option.value)}
                           </span>
-                          <span className="permission-select-item-body">
+                          <span className={PERMISSION_ITEM_BODY_CLASS}>
                             <Select.ItemText>{option.label}</Select.ItemText>
                             {option.detail ? (
-                              <span className="permission-select-item-detail">
+                              <span className={PERMISSION_ITEM_DETAIL_CLASS}>
                                 {option.value === 'auto-review' ? (
                                   <>
                                     <span>{option.detail.replace(/了解更多.*$/, '')}</span>
-                                    <span className="permission-select-item-detail-more">
+                                    <span className="permission-select-item-detail-more tw:block tw:underline">
                                       了解更多
                                     </span>
                                   </>
@@ -1381,7 +1506,7 @@ export function ComposerCard({
                               </span>
                             ) : null}
                           </span>
-                          <Select.ItemIndicator className="permission-select-item-indicator">
+                          <Select.ItemIndicator className={PERMISSION_ITEM_INDICATOR_CLASS}>
                             <Check size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
                           </Select.ItemIndicator>
                         </Select.Item>
@@ -1393,24 +1518,35 @@ export function ComposerCard({
             </Select.Root>
             {goalModeEnabled ? (
               <>
-                <span className="toolbar-divider" />
+                <span className={TOOLBAR_DIVIDER_CLASS} />
                 <button
                   aria-pressed="true"
-                  className="chip-button composer-plan-mode-chip active"
+                  className={cx(
+                    'chip-button composer-plan-mode-chip active tw:group tw:relative tw:bg-app-selected tw:text-app-accent-fg tw:type-secondary tw:hover:bg-app-selected',
+                  )}
                   onClick={() => {
                     onGoalModeChange?.(false)
                   }}
                   title="目标模式"
                   type="button"
                 >
-                  <span aria-hidden="true" className="composer-plan-mode-chip-icon">
+                  <span
+                    aria-hidden="true"
+                    className={cx(
+                      'composer-plan-mode-chip-icon tw:relative tw:inline-flex tw:size-icon-sm tw:shrink-0 tw:items-center tw:justify-center',
+                    )}
+                  >
                     <Target
-                      className="composer-plan-mode-chip-icon-plan"
+                      className={cx(
+                        'composer-plan-mode-chip-icon-plan tw:absolute tw:inset-0 tw:m-auto tw:transition-opacity tw:duration-state tw:ease-out tw:group-hover:opacity-0',
+                      )}
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
                     <X
-                      className="composer-plan-mode-chip-icon-exit"
+                      className={cx(
+                        'composer-plan-mode-chip-icon-exit tw:absolute tw:inset-0 tw:m-auto tw:size-icon-sm tw:rounded-full tw:bg-[color-mix(in_srgb,currentColor_18%,transparent)] tw:p-0 tw:opacity-0 tw:transition-opacity tw:duration-state tw:ease-out tw:group-hover:opacity-100',
+                      )}
                       size={APP_ICON_SIZES.sm}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
@@ -1421,24 +1557,35 @@ export function ComposerCard({
             ) : null}
             {planModeActive ? (
               <>
-                <span className="toolbar-divider" />
+                <span className={TOOLBAR_DIVIDER_CLASS} />
                 <button
                   aria-pressed="true"
-                  className="chip-button composer-plan-mode-chip active"
+                  className={cx(
+                    'chip-button composer-plan-mode-chip active tw:group tw:relative tw:bg-app-selected tw:text-app-accent-fg tw:type-secondary tw:hover:bg-app-selected',
+                  )}
                   onClick={() => {
                     onPlanModeChange?.(false)
                   }}
                   title="计划模式"
                   type="button"
                 >
-                  <span aria-hidden="true" className="composer-plan-mode-chip-icon">
+                  <span
+                    aria-hidden="true"
+                    className={cx(
+                      'composer-plan-mode-chip-icon tw:relative tw:inline-flex tw:size-icon-sm tw:shrink-0 tw:items-center tw:justify-center',
+                    )}
+                  >
                     <ListChecks
-                      className="composer-plan-mode-chip-icon-plan"
+                      className={cx(
+                        'composer-plan-mode-chip-icon-plan tw:absolute tw:inset-0 tw:m-auto tw:transition-opacity tw:duration-state tw:ease-out tw:group-hover:opacity-0',
+                      )}
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
                     <X
-                      className="composer-plan-mode-chip-icon-exit"
+                      className={cx(
+                        'composer-plan-mode-chip-icon-exit tw:absolute tw:inset-0 tw:m-auto tw:size-icon-sm tw:rounded-full tw:bg-[color-mix(in_srgb,currentColor_18%,transparent)] tw:p-0 tw:opacity-0 tw:transition-opacity tw:duration-state tw:ease-out tw:group-hover:opacity-100',
+                      )}
                       size={APP_ICON_SIZES.sm}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
@@ -1449,24 +1596,35 @@ export function ComposerCard({
             ) : null}
             {localRouterMode !== 'off' ? (
               <>
-                <span className="toolbar-divider" />
+                <span className={TOOLBAR_DIVIDER_CLASS} />
                 <button
                   aria-pressed="true"
-                  className="chip-button composer-plan-mode-chip active"
+                  className={cx(
+                    'chip-button composer-plan-mode-chip active tw:group tw:relative tw:bg-app-selected tw:text-app-accent-fg tw:type-secondary tw:hover:bg-app-selected',
+                  )}
                   onClick={() => {
                     onLocalRouterModeChange?.('off')
                   }}
                   title={localRouterMode === 'pareto-code' ? 'Pareto Code Router' : 'Fusion Router'}
                   type="button"
                 >
-                  <span aria-hidden="true" className="composer-plan-mode-chip-icon">
+                  <span
+                    aria-hidden="true"
+                    className={cx(
+                      'composer-plan-mode-chip-icon tw:relative tw:inline-flex tw:size-icon-sm tw:shrink-0 tw:items-center tw:justify-center',
+                    )}
+                  >
                     <Sparkles
-                      className="composer-plan-mode-chip-icon-plan"
+                      className={cx(
+                        'composer-plan-mode-chip-icon-plan tw:absolute tw:inset-0 tw:m-auto tw:transition-opacity tw:duration-state tw:ease-out tw:group-hover:opacity-0',
+                      )}
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
                     <X
-                      className="composer-plan-mode-chip-icon-exit"
+                      className={cx(
+                        'composer-plan-mode-chip-icon-exit tw:absolute tw:inset-0 tw:m-auto tw:size-icon-sm tw:rounded-full tw:bg-[color-mix(in_srgb,currentColor_18%,transparent)] tw:p-0 tw:opacity-0 tw:transition-opacity tw:duration-state tw:ease-out tw:group-hover:opacity-100',
+                      )}
                       size={APP_ICON_SIZES.sm}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
@@ -1490,11 +1648,11 @@ export function ComposerCard({
             <ComputerControlChip threadId={routedSessionId ?? null} />
           </div>
 
-          <div className="toolbar-right tw:flex tw:min-w-0 tw:items-center tw:gap-1.5">
+          <div className={TOOLBAR_RIGHT_CLASS}>
             {showContextUsage ? (
               <span
                 aria-label={`上下文窗口使用量：${contextUsage ? `已用 ${usedPercent}%，剩余 ${100 - usedPercent}%` : '暂无数据'}`}
-                className="context-usage-chip"
+                className="context-usage-chip tw:group tw:relative tw:inline-flex tw:size-3 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:text-app-text-soft"
                 role="button"
                 tabIndex={0}
                 onClick={() => setOpenDropdown('status')}
@@ -1510,7 +1668,10 @@ export function ComposerCard({
                 }
               >
                 <span className="chip-dot" />
-                <span className="context-usage-popover" role="tooltip">
+                <span
+                  className="context-usage-popover tw:pointer-events-none tw:absolute tw:right-0 tw:bottom-[calc(100%+var(--cpx-sys-space-2))] tw:z-tooltip tw:block tw:w-66 tw:translate-y-1 tw:rounded-floating tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-left tw:text-app-text-meta tw:opacity-0 tw:shadow-lg tw:transition-[opacity,translate] tw:duration-state tw:ease-out tw:whitespace-normal tw:before:absolute tw:before:inset-x-0 tw:before:top-full tw:before:h-2 tw:before:content-[''] tw:group-hover:pointer-events-auto tw:group-hover:translate-y-0 tw:group-hover:opacity-100 tw:group-focus-visible:pointer-events-auto tw:group-focus-visible:translate-y-0 tw:group-focus-visible:opacity-100"
+                  role="tooltip"
+                >
                   <ContextUsagePanel contextUsage={contextUsage} />
                 </span>
               </span>
@@ -1583,7 +1744,7 @@ export function ComposerCard({
 
             <IconButton
               aria-label={submitting ? '正在发送' : isRunning && !canSubmit ? '停止' : '发送'}
-              className={`send-button${submitting ? ' is-submitting' : ''}`}
+              className={cx('send-button', submitting && 'is-submitting')}
               color="primary"
               size="composer"
               iconSize="lg"
@@ -1593,7 +1754,7 @@ export function ComposerCard({
               type="button"
             >
               {submitting ? (
-                <Activity aria-hidden="true" size={APP_ICON_SIZES.lg} />
+                <Activity aria-hidden="true" className="tw:animate-spin" size={APP_ICON_SIZES.lg} />
               ) : isRunning && !canSubmit ? (
                 <Square size={APP_ICON_SIZES.lg} fill="currentColor" />
               ) : (
@@ -1613,7 +1774,16 @@ export function ComposerCard({
       </div>
 
       {placement !== 'thread' ? (
-        <div className="composer-bottom composer-utility-bar tw:flex tw:min-w-0 tw:items-center tw:gap-2">
+        <div
+          className={cx(
+            utilityBarVariant === 'home' && surface === 'working'
+              ? UTILITY_BAR_HOME_WORKING_CLASS
+              : utilityBarVariant === 'home'
+                ? UTILITY_BAR_HOME_CODING_CLASS
+                : UTILITY_BAR_DEFAULT_CLASS,
+            placement === 'side-task' && UTILITY_BAR_SIDE_TASK_CLASS,
+          )}
+        >
           {surface === 'chat' ? null : subagentMode ? (
             <MetaChip
               icon={<Folder size={APP_ICON_SIZE} />}

@@ -6,6 +6,7 @@ import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
 import type { DesktopDiffMarkerStyle } from '../../../../shared/types.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import { useDisclosureExpanded } from '../../../components/ui/keyedDisclosureStore.js'
+import { cx } from '../../../utils/cx.js'
 
 import type {
   CanonicalItemDisclosure,
@@ -101,7 +102,7 @@ export function ExpandableFileMutationRow({
 
   return (
     <div
-      className="cpx-agent-activity__item"
+      className="cpx-agent-activity__item tw:min-w-0 tw:text-app-text-soft"
       data-expandable="true"
       data-expanded={expanded ? 'true' : 'false'}
     >
@@ -131,7 +132,10 @@ export function ExpandableFileMutationRow({
         />
       </button>
       <DisclosureContent
-        contentClassName="cpx-agent-activity__details cpx-agent-activity__details--diff"
+        contentClassName={cx(
+          'cpx-agent-activity__details cpx-agent-activity__details--diff',
+          'tw:mx-0 tw:my-1 tw:max-h-[420px] tw:overflow-auto tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:mb-2',
+        )}
         expanded={expanded}
         id={contentId}
         mountPolicy="until-exit"

@@ -9,7 +9,6 @@ import type {
 } from '../../../shared/types.js'
 import type { AppView, SessionListItem } from '../../uiTypes.js'
 import { SidebarBody } from './sidebar/SidebarBody.js'
-import { SidebarFooter } from './sidebar/SidebarFooter.js'
 import { SidebarDockedPanes } from './sidebar/SidebarDockedPanes.js'
 import { SidebarEmptyRow } from './sidebar/SidebarRow.js'
 import type { DesktopFileEntry } from '../../../shared/types.js'
@@ -19,13 +18,7 @@ import type {
   WorkbenchTabId,
   WorkbenchTabsState,
 } from './dock/rightDockState.js'
-import {
-  SidebarHeader,
-  SidebarNewTaskNav,
-  SidebarTopNav,
-  type SidebarCapabilityState,
-  UNKNOWN_SIDEBAR_CAPABILITY_STATE,
-} from './sidebar/SidebarTopNav.js'
+import { SidebarHeader, SidebarNewTaskNav } from './sidebar/SidebarTopNav.js'
 import {
   buildSidebarViewModel,
   buildSidebarTimelineModel,
@@ -50,14 +43,28 @@ import {
   sidebarSectionDisclosureKey,
 } from './sidebar/sidebarDisclosureStore.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
+import { DEFAULT_SIDEBAR_CUSTOMIZATION } from '../../../shared/settingsSchema.js'
+import {
+  addSidebarSection,
+  deleteSidebarSection,
+  moveItemToSection,
+  orderSidebarSections,
+  removeItemsFromSections,
+  renameSidebarSection,
+  captureSidebarAssignments,
+  restoreFailedArchiveAssignments,
+  restoreSidebarAssignments,
+  setSidebarSectionCollapsed,
+  setSidebarSectionItems,
+  setSidebarSectionSort,
+} from './sidebar/sidebarCustomization.js'
+import type { SidebarCustomization } from '../../../shared/types.js'
 
 import type { SidebarPane } from './sidebar/sidebarNavigation.js'
 
 type Props = {
   active?: boolean
-  onNavigate?: () => void
   pane?: SidebarPane
-  capabilityState?: SidebarCapabilityState
   activeSessionId: string | null
   catalogStatus: DesktopSessionCatalogStatus
   pendingPermissionSessionIds: ReadonlySet<string>
@@ -100,9 +107,7 @@ type Props = {
 
 export function DesktopSidebar({
   active = true,
-  onNavigate,
   pane,
-  capabilityState: sidebarCapabilityState = UNKNOWN_SIDEBAR_CAPABILITY_STATE,
   activeSessionId,
   catalogStatus,
   pendingPermissionSessionIds,
@@ -138,14 +143,16 @@ export function DesktopSidebar({
   const location = useLocation()
   const [relativeNow, setRelativeNow] = useState(() => Date.now())
   const [sidebarScrollOverlapping, setSidebarScrollOverlapping] = useState(false)
-  const modern = pane !== undefined
   const sidebarScrollPositionsRef = useRef<Map<SidebarScrollModeKey, number>>(new Map())
   const {
     collapsedSidebarSections,
     collapsedSidebarProjectPaths,
     setSidebarManualOrder,
+    setRecentWorkspaces,
     setSidebarOrganization,
     setSidebarProjectSort,
+    sidebarCustomization,
+    setSidebarCustomization,
     sidebarSessionPins,
     setSidebarSessionPins,
     sidebarManualOrder,
@@ -164,6 +171,8 @@ export function DesktopSidebar({
     setSidebarActivityShowPinned,
     syncExternalSettingsPatch,
   } = useDesktopSettings()
+  const sidebarCustomizationRef = useRef(sidebarCustomization)
+  sidebarCustomizationRef.current = sidebarCustomization
   const persistSidebarDisclosuresRef = useRef(syncExternalSettingsPatch)
   persistSidebarDisclosuresRef.current = syncExternalSettingsPatch
   const sidebarDisclosureExternalSignatureRef = useRef(
@@ -219,6 +228,7 @@ export function DesktopSidebar({
         recentWorkspaces: mergedProjects,
         removedWorkspaces,
         sessionPins: sidebarSessionPins,
+        customSections: sidebarCustomization.sections,
         sessions,
       }),
     [
@@ -229,6 +239,7 @@ export function DesktopSidebar({
       sidebarManualOrder,
       sidebarOrganization,
       sidebarShowScheduledSessions,
+      sidebarCustomization,
       sidebarSessionPins,
       pane,
     ],
@@ -257,7 +268,7 @@ export function DesktopSidebar({
       }),
     [activityFilteredSessions, relativeNow, sidebarActivityShowPinned],
   )
-  const timeline = (modern ? pane === 'activity' : sidebarTimelineEnabled) ? timelineModel : null
+  const timeline = pane === 'activity' ? timelineModel : null
   const hasUnread = useMemo(
     () => hasSidebarUnreadSessions(viewModel.visibleSessions),
     [viewModel.visibleSessions],
@@ -273,7 +284,7 @@ export function DesktopSidebar({
   const sidebarScrollModeKey = getSidebarScrollModeKey({
     organization: sidebarOrganization,
     timelineEnabled: timeline !== null,
-    pane: modern ? pane : undefined,
+    pane,
   })
 
   const markAttentionRead = useCallback(async (): Promise<void> => {
@@ -396,7 +407,22 @@ export function DesktopSidebar({
   }
 
   async function archiveSessions(targetSessions: readonly SessionListItem[]): Promise<boolean> {
+    const targetKeys = targetSessions.map((session) => sidebarPinnedSessionKey(session))
+    const capturedAssignments = captureSidebarAssignments(
+      sidebarCustomizationRef.current,
+      targetKeys,
+    )
     const result = await onArchiveSessions(targetSessions.map((session) => session.id))
+    if (result.failedSessionIds.length > 0) {
+      // 部分失败时只回滚失败条目的分组归属，成功归档的保持移除。
+      updateSidebarCustomization((current) =>
+        restoreFailedArchiveAssignments(
+          current,
+          result.failedSessionIds.map((sessionId) => `session:${sessionId}`),
+          capturedAssignments,
+        ),
+      )
+    }
     if (result.succeededSessionIds.length > 0) {
       const removedIds = new Set(result.succeededSessionIds)
       setSidebarSessionPins((current) =>
@@ -417,16 +443,6 @@ export function DesktopSidebar({
     }
     return true
   }
-
-  const updateManualOrder = useCallback(
-    (scopeKey: string, order: string[]): void => {
-      setSidebarManualOrder((current) => ({
-        ...current,
-        [scopeKey]: order,
-      }))
-    },
-    [setSidebarManualOrder],
-  )
 
   const removePinnedManualOrder = useCallback(
     (keys: readonly string[]): void => {
@@ -449,6 +465,134 @@ export function DesktopSidebar({
     [setSidebarManualOrder],
   )
 
+  const updateSidebarCustomization = useCallback(
+    (updater: (current: SidebarCustomization) => SidebarCustomization): void => {
+      setSidebarCustomization((current) => updater(current ?? DEFAULT_SIDEBAR_CUSTOMIZATION))
+    },
+    [setSidebarCustomization],
+  )
+
+  const createCustomSection = useCallback((): void => {
+    const id = `section-${crypto.randomUUID().slice(0, 8)}`
+    updateSidebarCustomization((current) => addSidebarSection(current, id))
+  }, [updateSidebarCustomization])
+
+  /** 拖入自定义分组：移除置顶与旧归属，按插入位置写入目标分组。 */
+  const moveItemsToDestination = useCallback(
+    (itemKeys: readonly string[], sectionId: string, index?: number): void => {
+      const sessionKeys = itemKeys.filter((key) => key.startsWith('session:'))
+      if (sessionKeys.length > 0) {
+        const sessionIds = new Set(sessionKeys.map((key) => key.slice('session:'.length)))
+        setSidebarSessionPins((current) =>
+          Object.fromEntries(
+            Object.entries(current).filter(([sessionId]) => !sessionIds.has(sessionId)),
+          ),
+        )
+        removePinnedManualOrder(sessionKeys)
+      }
+      const projectKeys = itemKeys.filter((key) => key.startsWith('project:'))
+      let offset = 0
+      for (const key of itemKeys) {
+        const target = index === undefined ? undefined : index + offset
+        updateSidebarCustomization((current) => moveItemToSection(current, sectionId, key, target))
+        offset += 1
+      }
+      if (projectKeys.length > 0) {
+        setRecentWorkspaces((current) =>
+          current.map((workspace) =>
+            projectKeys.includes(sidebarPinnedProjectKey(workspace))
+              ? { ...workspace, pinnedAt: null }
+              : workspace,
+          ),
+        )
+        removePinnedManualOrder(projectKeys)
+      }
+    },
+    [
+      removePinnedManualOrder,
+      setRecentWorkspaces,
+      setSidebarSessionPins,
+      updateSidebarCustomization,
+    ],
+  )
+
+  /** 拖入置顶区：移除自定义归属、取消旧置顶顺序后按插入位置置顶。 */
+  const pinItemsToTop = useCallback(
+    (itemKeys: readonly string[], index?: number): void => {
+      updateSidebarCustomization((current) => removeItemsFromSections(current, itemKeys))
+      const pinnedAt = new Date().toISOString()
+      const sessionKeys = itemKeys.filter((key) => key.startsWith('session:'))
+      if (sessionKeys.length > 0) {
+        setSidebarSessionPins((current) => {
+          const next = { ...current }
+          for (const key of sessionKeys) next[key.slice('session:'.length)] = pinnedAt
+          return next
+        })
+      }
+      const projectKeys = itemKeys.filter((key) => key.startsWith('project:'))
+      if (projectKeys.length > 0) {
+        setRecentWorkspaces((current) =>
+          current.map((workspace) =>
+            projectKeys.includes(sidebarPinnedProjectKey(workspace))
+              ? { ...workspace, pinnedAt }
+              : workspace,
+          ),
+        )
+      }
+      if (index !== undefined) {
+        setSidebarManualOrder((current) => {
+          const existing = (current['pinned-items'] ?? []).filter((key) => !itemKeys.includes(key))
+          const insertAt = Math.max(0, Math.min(index, existing.length))
+          const nextPinned = [
+            ...existing.slice(0, insertAt),
+            ...itemKeys,
+            ...existing.slice(insertAt),
+          ]
+          return { ...current, 'pinned-items': nextPinned }
+        })
+      }
+    },
+    [setRecentWorkspaces, setSidebarManualOrder, setSidebarSessionPins, updateSidebarCustomization],
+  )
+
+  /** 拖入默认区域：移除自定义归属并取消置顶，回到真实项目或平铺列表。 */
+  const releaseItemsToDefault = useCallback(
+    (itemKeys: readonly string[]): void => {
+      updateSidebarCustomization((current) => removeItemsFromSections(current, itemKeys))
+      const sessionKeys = itemKeys.filter((key) => key.startsWith('session:'))
+      if (sessionKeys.length > 0) {
+        const sessionIds = new Set(sessionKeys.map((key) => key.slice('session:'.length)))
+        setSidebarSessionPins((current) =>
+          Object.fromEntries(
+            Object.entries(current).filter(([sessionId]) => !sessionIds.has(sessionId)),
+          ),
+        )
+      }
+      const projectKeys = itemKeys.filter((key) => key.startsWith('project:'))
+      if (projectKeys.length > 0) {
+        setRecentWorkspaces((current) =>
+          current.map((workspace) =>
+            projectKeys.includes(sidebarPinnedProjectKey(workspace))
+              ? { ...workspace, pinnedAt: null }
+              : workspace,
+          ),
+        )
+      }
+      removePinnedManualOrder(itemKeys)
+    },
+    [removePinnedManualOrder, setRecentWorkspaces, setSidebarSessionPins, updateSidebarCustomization],
+  )
+
+  const updateManualOrder = useCallback(
+    (scopeKey: string, order: string[]): void => {
+      setSidebarManualOrder((current) => ({
+        ...current,
+        [scopeKey]: order,
+      }))
+    },
+    [setSidebarManualOrder],
+  )
+
   return (
     <div className="sidebar-layout tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-1 tw:flex-col tw:overflow-hidden tw:py-2">
       <SidebarHeader
@@ -457,7 +601,7 @@ export function DesktopSidebar({
         onOpenCommandMenu={onOpenCommandMenu}
       />
       <SidebarNewTaskNav
-        label={modern ? '新聊天' : undefined}
+        label="新聊天"
         isActiveView={isActiveView}
         scrollOverlapping={sidebarScrollOverlapping}
       />
@@ -465,13 +609,6 @@ export function DesktopSidebar({
         onScrollOverlapChange={setSidebarScrollOverlapping}
         scrollHeader={
           <>
-            {!modern ? (
-              <SidebarTopNav
-                capabilityState={sidebarCapabilityState}
-                isActiveView={isActiveView}
-                showProjects={sidebarOrganization === 'flat'}
-              />
-            ) : null}
             {catalogStatus.state === 'loading' ? (
               <SidebarEmptyRow role="status">正在加载任务目录…</SidebarEmptyRow>
             ) : null}
@@ -525,7 +662,48 @@ export function DesktopSidebar({
           onUnpinWorkspace(target)
         }}
         onReport={onReport}
+        customSections={viewModel.customSections}
+        pinnedSort={sidebarCustomization.pinnedSort}
+        onPinnedSortChange={(pinnedSort) =>
+          updateSidebarCustomization((current) => ({ ...current, pinnedSort }))
+        }
         onManualOrderChange={updateManualOrder}
+        onCreateSection={createCustomSection}
+        onRenameSection={(sectionId, title) =>
+          updateSidebarCustomization((current) => renameSidebarSection(current, sectionId, title))
+        }
+        onDeleteSection={(sectionId) =>
+          updateSidebarCustomization((current) => deleteSidebarSection(current, sectionId))
+        }
+        onSetSectionCollapsed={(sectionId, collapsed) =>
+          updateSidebarCustomization((current) =>
+            setSidebarSectionCollapsed(current, sectionId, collapsed),
+          )
+        }
+        onSetSectionSort={(sectionId, sort) =>
+          updateSidebarCustomization((current) => setSidebarSectionSort(current, sectionId, sort))
+        }
+        onReorderSectionItems={(sectionId, keys) =>
+          updateSidebarCustomization((current) => setSidebarSectionItems(current, sectionId, keys))
+        }
+        onMoveItemsToSection={(itemKeys, sectionId, index) => {
+          moveItemsToDestination(itemKeys, sectionId, index)
+        }}
+        onMoveItemsToPinned={(itemKeys, index) => {
+          pinItemsToTop(itemKeys, index)
+        }}
+        onMoveItemsToDefault={(itemKeys) => {
+          releaseItemsToDefault(itemKeys)
+        }}
+        onRestoreItemsToProject={(itemKeys) => {
+          releaseItemsToDefault(itemKeys)
+        }}
+        onMoveSessionToSection={(sessionId, sectionId) =>
+          moveItemsToDestination([`session:${sessionId}`], sectionId)
+        }
+        onMoveSessionToDefault={(sessionId) =>
+          releaseItemsToDefault([`session:${sessionId}`])
+        }
         onOrganizationChange={setSidebarOrganization}
         onProjectSortChange={setSidebarProjectSort}
         onSessionSortChange={setSidebarSort}
@@ -546,13 +724,6 @@ export function DesktopSidebar({
           onPopOutTab={onPopOutDockedTab}
           onOpenFile={onOpenFile}
           onSelectTab={onSelectDockedTab ?? (() => undefined)}
-        />
-      ) : null}
-      {!modern ? (
-        <SidebarFooter
-          onNavigate={onNavigate}
-          onOpenWhatsNew={onOpenWhatsNew}
-          onReport={onReport}
         />
       ) : null}
       {archiveAttentionDialogMounted ? (

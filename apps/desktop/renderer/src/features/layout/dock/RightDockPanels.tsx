@@ -122,11 +122,11 @@ export function RightDockSkillPreviewPanel({ tab }: { tab: SkillPreviewTab }): R
   return (
     <ScrollArea
       aria-label={`${tab.skill.name} 技能内容`}
-      className="right-dock-plan-scroll-area tw:min-h-0 tw:flex-1"
+      className="right-dock-plan-scroll-area tw:min-h-0 tw:min-w-0 tw:flex-1 tw:bg-app-dock"
       contentClassName="right-dock-plan-scroll-content tw:min-w-0 tw:p-4"
     >
       <article className="right-dock-plan-document tw:mx-auto tw:w-full tw:max-w-[48rem] tw:text-app-text">
-        <pre className="right-dock-skill-content tw:m-0 tw:whitespace-pre-wrap tw:break-words">
+        <pre className="right-dock-skill-content tw:m-0 tw:whitespace-pre-wrap tw:break-words tw:type-code">
           {content}
         </pre>
       </article>
@@ -156,7 +156,7 @@ export function RightDockPlanPanel({ content }: PlanPanelProps): React.ReactNode
   return (
     <ScrollArea
       aria-label="计划"
-      className="right-dock-plan-scroll-area tw:min-h-0 tw:flex-1"
+      className="right-dock-plan-scroll-area tw:min-h-0 tw:min-w-0 tw:flex-1 tw:bg-app-dock"
       contentClassName="right-dock-plan-scroll-content tw:min-w-0 tw:p-4"
     >
       <article className="right-dock-plan-document tw:mx-auto tw:w-full tw:max-w-[48rem] tw:text-app-text">
@@ -205,17 +205,14 @@ export function RightDockFilesPanel({
   const rootDisplayName = workspacePath ? workspacePath.replace(/\\/g, '/').replace(/\/$/, '') : '/'
 
   return (
-    <section className="right-dock-file-browser" aria-label="打开文件">
+    <section
+      aria-label="打开文件"
+      className="right-dock-file-browser tw:flex tw:h-full tw:w-full tw:min-h-0 tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:flex-col tw:overflow-hidden tw:bg-app-dock tw:@container"
+    >
       <article
         className={cx(
           'right-dock-file-document',
-          'u-flex',
-          'u-flex-col',
-          'u-min-w-0',
-          'u-w-full',
-          'u-min-h-0',
-          'u-flex-1',
-          'u-h-full',
+          'tw:flex tw:h-full tw:w-full tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-col',
         )}
       >
         <header className="file-breadcrumb-toolbar file-breadcrumb-toolbar--empty">
@@ -274,13 +271,12 @@ export function RightDockFilesPanel({
           ref={layoutRef}
           className={cx(
             'right-dock-file-editor-layout',
-            'u-flex-1',
-            'u-h-full',
+            'tw:flex tw:h-full tw:w-full tw:min-h-0 tw:min-w-0 tw:flex-1 tw:overflow-hidden',
             treeVisible && 'has-file-tree',
           )}
           style={treeResize.layoutStyle}
         >
-          <div className="right-dock-file-selection-target right-dock-open-file-placeholder">
+          <div className="right-dock-file-selection-target right-dock-open-file-placeholder tw:flex tw:h-full tw:min-h-0 tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:flex-col tw:items-center tw:justify-center tw:[&>*]:grow tw:[&>*]:shrink tw:[&>*]:basis-auto tw:[&>*]:min-h-0">
             <div className="right-dock-empty-state">
               <svg
                 aria-hidden="true"
@@ -314,7 +310,7 @@ export function RightDockFilesPanel({
               aria-valuemax={treeResize.maximumWidth}
               aria-valuemin={FILE_TREE_MIN_WIDTH}
               aria-valuenow={treeWidth}
-              className="right-dock-editor-tree-resize-handle"
+              className="right-dock-editor-tree-resize-handle tw:relative tw:z-local tw:w-2 tw:min-w-2 tw:grow-0 tw:shrink-0 tw:basis-2 tw:cursor-col-resize tw:touch-none tw:focus-visible:outline-none"
               role="separator"
               tabIndex={0}
               title="拖拽调整文件树宽度，双击恢复默认宽度"
@@ -322,7 +318,10 @@ export function RightDockFilesPanel({
               onKeyDown={treeResize.handleKeyDown}
               onPointerDown={treeResize.startResize}
             />
-            <aside aria-label="工作区文件树" className="right-dock-editor-file-tree">
+            <aside
+              aria-label="工作区文件树"
+              className="right-dock-editor-file-tree tw:grow tw:shrink tw:basis-auto tw:h-full tw:min-h-0 tw:min-w-0 tw:overflow-hidden tw:border-l tw:border-app-border-subtle tw:bg-app-underlay"
+            >
               <WorkspaceFileTree
                 key={workspacePath}
                 activePath={activePath}
@@ -491,13 +490,7 @@ export function RightDockFilePreviewPanel({
       <article
         className={cx(
           'right-dock-file-document',
-          'u-flex',
-          'u-flex-col',
-          'u-min-w-0',
-          'u-w-full',
-          'u-min-h-0',
-          'u-flex-1',
-          'u-h-full',
+          'tw:flex tw:h-full tw:w-full tw:min-h-0 tw:min-w-0 tw:flex-1 tw:flex-col',
         )}
       >
         <FileBreadcrumbToolbar
@@ -519,8 +512,7 @@ export function RightDockFilePreviewPanel({
           ref={layoutRef}
           className={cx(
             'right-dock-file-editor-layout',
-            'u-flex-1',
-            'u-h-full',
+            'tw:flex tw:h-full tw:w-full tw:min-h-0 tw:min-w-0 tw:flex-1 tw:overflow-hidden',
             treeVisible && 'has-file-tree',
           )}
           style={treeResize.layoutStyle}
@@ -540,7 +532,7 @@ export function RightDockFilePreviewPanel({
             layout="flex"
             trigger={
               <div
-                className="right-dock-file-selection-target"
+                className="right-dock-file-selection-target tw:flex tw:min-h-0 tw:grow tw:shrink tw:basis-auto tw:flex-col tw:[&>*]:grow tw:[&>*]:shrink tw:[&>*]:basis-auto tw:[&>*]:min-h-0"
                 onContextMenu={() => setSelectedText(window.getSelection()?.toString() ?? '')}
               >
                 <Suspense fallback={<WorkbenchPanelLoading label="正在加载文件编辑器…" />}>
@@ -577,7 +569,7 @@ export function RightDockFilePreviewPanel({
                   ) : (
                     <FileEditor
                       ariaLabel={`${expectedPath} 文件编辑器`}
-                      className="right-dock-file-code"
+                      className="right-dock-file-code tw:m-0 tw:min-h-full tw:rounded-none tw:border-0 tw:shadow-none tw:[&_.md-code-pre]:min-w-0"
                       error={document.saveError}
                       language={language}
                       path={expectedPath}
@@ -614,7 +606,7 @@ export function RightDockFilePreviewPanel({
               aria-valuemax={treeResize.maximumWidth}
               aria-valuemin={FILE_TREE_MIN_WIDTH}
               aria-valuenow={treeWidth}
-              className="right-dock-editor-tree-resize-handle"
+              className="right-dock-editor-tree-resize-handle tw:relative tw:z-local tw:w-2 tw:min-w-2 tw:grow-0 tw:shrink-0 tw:basis-2 tw:cursor-col-resize tw:touch-none tw:focus-visible:outline-none"
               role="separator"
               tabIndex={0}
               title="拖拽调整文件树宽度，双击恢复默认宽度"
@@ -622,7 +614,10 @@ export function RightDockFilePreviewPanel({
               onKeyDown={treeResize.handleKeyDown}
               onPointerDown={treeResize.startResize}
             />
-            <aside aria-label="当前文件的工作区文件树" className="right-dock-editor-file-tree">
+            <aside
+              aria-label="当前文件的工作区文件树"
+              className="right-dock-editor-file-tree tw:grow tw:shrink tw:basis-auto tw:h-full tw:min-h-0 tw:min-w-0 tw:overflow-hidden tw:border-l tw:border-app-border-subtle tw:bg-app-underlay"
+            >
               <WorkspaceFileTree
                 activePath={expectedPath}
                 files={files}
@@ -943,7 +938,7 @@ function EditorFileTreePresenceItem({
               transition: motionTransition(reducedMotion, exitTween),
             }
       }
-      className="right-dock-editor-file-tree-presence"
+      className="right-dock-editor-file-tree-presence tw:flex tw:h-full tw:min-h-0 tw:grow-0 tw:shrink-0 tw:basis-auto tw:overflow-hidden"
       data-file-tree-presence={isPresent ? 'open' : 'exiting'}
       data-presence={isPresent ? 'present' : 'exiting'}
       initial={skipEnterAnimation ? false : hiddenState}

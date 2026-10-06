@@ -12,8 +12,12 @@ const viewSource = readFileSync(
   new URL('../src/features/automation/AutomationView.tsx', import.meta.url),
   'utf8',
 )
-const styleSource = readFileSync(
-  new URL('../src/styles/features/automation.scss', import.meta.url),
+const detailSource = readFileSync(
+  new URL('../src/features/automation/AutomationDetailPanel.tsx', import.meta.url),
+  'utf8',
+)
+const calendarSource = readFileSync(
+  new URL('../src/features/automation/AutomationCalendar.tsx', import.meta.url),
   'utf8',
 )
 
@@ -99,19 +103,21 @@ describe('AutomationView primary page hierarchy', () => {
   })
 
   test('keeps suggestion rhythm without extra button padding', () => {
-    expectSourceContains(styleSource, 'gap: var(--cpx-sys-space-3);')
-    expectSourceContains(styleSource, 'font: var(--cpx-sys-type-body-sm);')
-    const buttonStyles = styleSource.match(/\.automation-suggestions li button \{[\s\S]*?\n\}/)?.[0]
-    expectSourceNotContains(buttonStyles, 'padding: var(--cpx-sys-space-3) var(--cpx-sys-space-2);')
-    const sectionStyles = styleSource.match(/\.automation-suggestions \{[\s\S]*?\n\}/)?.[0]
-    const headingStyles = styleSource.match(/\.automation-suggestions h2 \{[\s\S]*?\n\}/)?.[0]
+    // 建议列表的节奏（外框分隔线、行内 gap、按钮无多余内边距）现在由
+    // AutomationView.tsx 的 utility 类承担，断言随之改为源码契约。
+    const sectionTag = viewSource.match(/className="automation-suggestions [^"]*"/)?.[0]
+    const buttonTag = viewSource.match(
+      /className="tw:grid tw:w-full tw:cursor-pointer tw:grid-cols-\[var\(--cpx-sys-space-5\)_minmax\(0,1fr\)\][^"]*"/,
+    )?.[0]
+    const headingTag = viewSource.match(/<h2 className="[^"]*">建议<\/h2>/)?.[0]
 
-    expectSourceContains(sectionStyles, 'border-top: 1px solid var(--cpx-sys-color-border-subtle);')
-    expectSourceNotContains(headingStyles, 'padding:')
-    expectSourceNotContains(
-      headingStyles,
-      'border-bottom: 1px solid var(--cpx-sys-color-border-subtle);',
-    )
+    expectSourceContains(sectionTag, 'tw:border-t tw:border-app-border-subtle tw:pt-3')
+    expectSourceContains(buttonTag, 'tw:gap-3')
+    expectSourceNotContains(buttonTag, 'tw:p-')
+    expectSourceNotContains(buttonTag, 'tw:px-')
+    expectSourceNotContains(buttonTag, 'tw:py-')
+    expectSourceNotContains(headingTag, 'tw:p')
+    expectSourceNotContains(headingTag, 'tw:border-b')
   })
 
   test('keeps detail header in single row and hides raw timezone text from execution time', () => {
@@ -119,14 +125,9 @@ describe('AutomationView primary page hierarchy', () => {
       new URL('../src/features/automation/ScheduledTaskDetailPanel.tsx', import.meta.url),
       'utf8',
     )
-    const calendarStyleSource = readFileSync(
-      new URL('../src/styles/features/automation-calendar.scss', import.meta.url),
-      'utf8',
-    )
-
     // Header is single row with title group on left and action group on right
-    expectSourceContains(styleSource, 'automation-detail-title-group')
-    expectSourceContains(styleSource, 'automation-detail-header-actions')
+    expectSourceContains(detailSource, 'automation-detail-title-group')
+    expectSourceContains(detailSource, 'automation-detail-header-actions')
     expectSourceContains(scheduledTaskSource, 'automation-detail-title-group')
     expectSourceContains(scheduledTaskSource, 'automation-detail-header-actions')
 
@@ -137,12 +138,11 @@ describe('AutomationView primary page hierarchy', () => {
     expectSourceNotContains(scheduledTaskSource, 'type="datetime-local"')
     expectSourceNotContains(scheduledTaskSource, '<Field label="执行时间" hint={draft.timeZone}>')
 
-    // Calendar selected day uses accent border instead of dull solid gray
-    expectSourceContains(calendarStyleSource, ".automation-calendar__day[aria-selected='true']")
-    expectSourceContains(
-      calendarStyleSource,
-      'outline: 1.5px solid var(--cpx-sys-color-accent-fg);',
-    )
+    // Calendar selected day uses accent border instead of dull solid gray; the
+    // selected state now rides on `aria-selected` variants in AutomationCalendar.tsx.
+    expectSourceContains(calendarSource, 'tw:aria-selected:border-app-accent-fg')
+    expectSourceContains(calendarSource, 'tw:aria-selected:outline-[1.5px]')
+    expectSourceContains(calendarSource, 'tw:aria-selected:outline-app-accent-fg')
   })
 
   test('converges creation to top-right menu with CPX planning and manual settings', () => {
@@ -159,8 +159,8 @@ describe('AutomationView primary page hierarchy', () => {
     expectSourceContains(viewSource, "{ value: 'calendar', label: '日历' }")
     expectSourceContains(viewSource, "{ value: 'runs', label: '执行记录' }")
     expectSourceContains(viewSource, '<AutomationRunsList')
-    expectSourceContains(styleSource, '.automation-runs-page-list')
-    expectSourceContains(styleSource, '.automation-runs-page-item')
-    expectSourceContains(styleSource, '.automation-runs-page-button')
+    expectSourceContains(viewSource, 'automation-runs-page-list')
+    expectSourceContains(viewSource, 'automation-runs-page-item')
+    expectSourceContains(viewSource, 'automation-runs-page-button')
   })
 })

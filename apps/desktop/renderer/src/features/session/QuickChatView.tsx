@@ -268,7 +268,7 @@ function CodingQuickChatView(): React.ReactNode {
         trigger={
           <button
             aria-label={`${t('选择项目：')}${workspaceName}`}
-            className="project-name"
+            className="project-name tw:inline-block tw:max-w-[min(40vw,18ch)] tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap tw:text-ellipsis tw:align-baseline tw:cursor-pointer tw:text-app-text tw:[font:inherit] tw:underline tw:decoration-dotted tw:decoration-1 tw:underline-offset-4 tw:hover:text-app-text-soft tw:hover:decoration-current tw:data-[state=open]:text-app-text-soft tw:data-[state=open]:decoration-current tw:aria-expanded:text-app-text-soft tw:aria-expanded:decoration-current tw:focus-visible:outline-offset-3"
             title={workspaceName}
             type="button"
           >
@@ -302,17 +302,20 @@ function CodingQuickChatView(): React.ReactNode {
   )
 
   return (
-    <div ref={pageRef} className="quick-chat-workspace">
+    <div
+      ref={pageRef}
+      className="quick-chat-workspace tw:flex tw:h-full tw:w-full tw:min-h-0 tw:overflow-hidden"
+    >
       <main
-        className="quick-chat-view coding-chat-view"
+        className="quick-chat-view coding-chat-view tw:flex tw:h-full tw:max-w-none tw:w-full tw:min-h-full tw:flex-col tw:items-stretch tw:justify-end tw:overflow-x-hidden tw:overflow-y-auto tw:px-8 tw:pb-4 tw:text-app-text tw:[scrollbar-gutter:stable]"
         onInputCapture={handleComposerInputCapture}
       >
-        <section className="quick-chat-hero-region">
-          <div className="quick-chat-hero">
+        <section className="quick-chat-hero-region tw:m-auto tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-center tw:justify-end tw:gap-5">
+          <div className="quick-chat-hero tw:flex tw:w-[var(--quick-chat-surface-width)] tw:max-w-full tw:flex-col tw:items-center tw:gap-6 tw:text-center tw:text-app-text tw:type-display">
             <button
               ref={whaleMarkRef}
               aria-hidden="true"
-              className="quick-chat-mark"
+              className="quick-chat-mark tw:block tw:size-14 tw:origin-center tw:cursor-pointer tw:select-none tw:border-0 tw:bg-app-text tw:p-0 tw:opacity-30 tw:[mask:url('/whale-icon.svg')_center_no-repeat] tw:[transition:opacity_var(--cpx-sys-motion-micro)_var(--cpx-sys-ease-standard),transform_var(--cpx-sys-motion-state)_var(--cpx-sys-ease-standard)] tw:hover:opacity-40 tw:focus-visible:outline-offset-4"
               tabIndex={-1}
               type="button"
               onClick={handleWhaleMarkClick}
@@ -344,9 +347,9 @@ function CodingQuickChatView(): React.ReactNode {
           </AnimatePresence>
         </section>
 
-        <section className="quick-chat-composer-region">
+        <section className="quick-chat-composer-region tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-center tw:justify-end tw:gap-3">
           {composerProps ? (
-            <div className="chat-composer">
+            <div className="chat-composer tw:static tw:m-0 tw:flex tw:w-[var(--quick-chat-surface-width)] tw:max-w-full tw:flex-col tw:items-center tw:gap-3 tw:pointer-events-auto">
               <DesktopComposer {...composerProps} surface="coding" />
             </div>
           ) : null}
@@ -373,7 +376,11 @@ function NewSessionPresence({
     <motion.div
       animate={{ opacity: 1, scale: 1, y: 0 }}
       aria-hidden={!isPresent ? true : undefined}
-      className={`new-session-${kind}-presence`}
+      className={
+        panel
+          ? `new-session-${kind}-presence tw:flex tw:w-full tw:min-w-0 tw:justify-center`
+          : `new-session-${kind}-presence tw:w-full tw:h-full tw:min-h-0`
+      }
       data-presence={isPresent ? 'present' : 'exiting'}
       exit={{
         opacity: 0,

@@ -2426,14 +2426,14 @@ async function scan(options: CliOptions): Promise<{
     {
       area: 'properties/theme 与设计令牌',
       status: 'map' as InventoryStatus,
-      target: 'src/styles/design-system/tokens.scss',
+      target: 'src/styles/design-system/tokens.css',
       recommendation:
         '映射到 CodePilotX 的 theme/tokens 层；保留颜色、surface、字体、间距、圆角、阴影、层级与动效语义，--tw-* 仅登记。',
     },
     {
       area: 'base/reset',
       status: 'adapt' as InventoryStatus,
-      target: 'src/styles/base.scss',
+      target: 'src/styles/base.css',
       recommendation:
         '把 Codex base 层的元素默认值适配到现有 reset/base，不复制构建后的全局选择器。',
     },
@@ -2453,7 +2453,7 @@ async function scan(options: CliOptions): Promise<{
     {
       area: 'shell/layout',
       status: 'adapt' as InventoryStatus,
-      target: 'src/styles/shell.scss and src/styles/features/layout-*',
+      target: 'src/features/layout/shell/*.tsx and src/styles/primitives/chrome.css',
       recommendation:
         '窗口、侧栏、工作台、面板映射现有 shell/layout 层，并保留 Windows/Electron 边界。',
     },
@@ -2466,14 +2466,14 @@ async function scan(options: CliOptions): Promise<{
     {
       area: 'vendor styles',
       status: 'vendor' as InventoryStatus,
-      target: 'src/styles/vendor.scss',
+      target: 'src/styles/lazy/*.scss (vendor entrypoints)',
       recommendation:
         'KaTeX、ProseMirror、xterm、Recharts、Mapbox、PDF.js 等外部 DOM 规则留在 vendor 边界。',
     },
     {
       area: 'platform/vendor overrides',
       status: 'adapt' as InventoryStatus,
-      target: 'src/styles/index.scss overrides layer',
+      target: 'src/styles/tailwind.css overrides layer',
       recommendation:
         '只有平台差异和无法在 vendor 源层处理的第三方修正进入 overrides，保持现有九层级联顺序。',
     },

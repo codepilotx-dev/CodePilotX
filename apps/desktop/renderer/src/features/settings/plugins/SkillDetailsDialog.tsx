@@ -106,8 +106,8 @@ export function SkillDetailsDialog({
               )}
             </span>
             <span className="settings-management-dialog-heading tw:min-w-0 tw:flex-1">
-              <Dialog.Title className="u-type-title-sm tw:m-0">{skill.name}</Dialog.Title>
-              <Dialog.Description className="u-type-body-sm tw:mt-1 tw:mb-0 tw:text-app-text-soft">
+              <Dialog.Title className="tw:type-title-sm tw:m-0">{skill.name}</Dialog.Title>
+              <Dialog.Description className="tw:type-body-sm tw:mt-1 tw:mb-0 tw:text-app-text-soft">
                 {skill.description || '未提供技能说明。'}
               </Dialog.Description>
             </span>
@@ -119,25 +119,25 @@ export function SkillDetailsDialog({
           </header>
 
           <div className="settings-management-dialog-body tw:min-h-0 tw:flex-1 tw:overflow-auto">
-            <dl className="u-type-body-sm tw:mb-4 tw:grid tw:grid-cols-[auto_minmax(0,1fr)] tw:gap-x-4 tw:gap-y-2">
+            <dl className="tw:type-body-sm tw:mb-4 tw:grid tw:grid-cols-[auto_minmax(0,1fr)] tw:gap-x-4 tw:gap-y-2">
               <dt className="tw:text-app-text-soft">来源</dt>
               <dd className="tw:m-0">{skillScopeLabel(skill.scope)}</dd>
               <dt className="tw:text-app-text-soft">状态</dt>
               <dd className="tw:m-0">{skill.enabled ? '已启用' : '已禁用'}</dd>
             </dl>
             {loading ? (
-              <p className="u-type-body-sm tw:m-0 tw:text-app-text-soft" role="status">
+              <p className="tw:type-body-sm tw:m-0 tw:text-app-text-soft" role="status">
                 正在读取 SKILL.md…
               </p>
             ) : error ? (
               <div
-                className="u-type-body-sm tw:border tw:border-app-danger tw:bg-app-panel tw:p-3 tw:text-app-danger"
+                className="tw:type-body-sm tw:border tw:border-app-danger tw:bg-app-panel tw:p-3 tw:text-app-danger"
                 role="alert"
               >
                 {error}
               </div>
             ) : (
-              <pre className="plugin-details-code tw:m-0 tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:border tw:border-app-border tw:bg-app-canvas tw:p-4 tw:text-app-text">
+              <pre className="plugin-details-code tw:m-0 tw:overflow-auto tw:whitespace-pre-wrap tw:break-words tw:border tw:border-app-border tw:bg-app-canvas tw:p-4 tw:text-app-text tw:type-code">
                 {content}
               </pre>
             )}

@@ -8,6 +8,7 @@ import {
   clampWorkbenchSize,
   getBottomPanelMaxHeight,
   getRightDockMaxWidth,
+  rightDockWidthToRangeRatio,
 } from './workbenchLayoutSizing.js'
 
 export const WORKBENCH_LAYOUT_SCHEMA_VERSION = 1
@@ -27,6 +28,8 @@ export type WorkbenchLayoutState = {
   visibility: WorkbenchPartVisibility
   primarySidebarWidth: number
   auxiliaryPanelWidth: number
+  /** 右栏宽度在有效区间内的位置，跨工作区宽度变化时优先于像素宽度。 */
+  auxiliaryPanelWidthRangeRatio: number | null
   bottomPanelHeight: number
   auxiliaryMaximized: boolean
   beforeAuxiliaryMaximized: WorkbenchPartVisibility | null
@@ -71,10 +74,15 @@ export function createDefaultWorkbenchLayoutState(
   workspaceWidth: number,
   workspaceHeight: number,
 ): WorkbenchLayoutState {
+  const auxiliaryPanelWidth = clampAuxiliaryPanelWidth(RIGHT_DOCK_DEFAULT_WIDTH, workspaceWidth)
   return {
     visibility: createDefaultVisibility(),
     primarySidebarWidth: clampPrimarySidebarWidth(DEFAULT_PRIMARY_SIDEBAR_WIDTH),
-    auxiliaryPanelWidth: clampAuxiliaryPanelWidth(RIGHT_DOCK_DEFAULT_WIDTH, workspaceWidth),
+    auxiliaryPanelWidth,
+    auxiliaryPanelWidthRangeRatio: rightDockWidthToRangeRatio(
+      auxiliaryPanelWidth,
+      workspaceWidth,
+    ),
     bottomPanelHeight: clampBottomPanelHeight(BOTTOM_PANEL_DEFAULT_HEIGHT, workspaceHeight),
     auxiliaryMaximized: false,
     beforeAuxiliaryMaximized: null,
@@ -157,9 +165,11 @@ function reduceCommitAuxiliaryPanelSize(
   size: number,
   workspaceWidth: number,
 ): WorkbenchLayoutState {
+  const auxiliaryPanelWidth = clampAuxiliaryPanelWidth(size, workspaceWidth)
   return {
     ...state,
-    auxiliaryPanelWidth: clampAuxiliaryPanelWidth(size, workspaceWidth),
+    auxiliaryPanelWidth,
+    auxiliaryPanelWidthRangeRatio: rightDockWidthToRangeRatio(auxiliaryPanelWidth, workspaceWidth),
   }
 }
 

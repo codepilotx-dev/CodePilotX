@@ -21,10 +21,10 @@ export function SkeletonRegion({
     <div
       aria-busy="true"
       aria-live="polite"
-      className={cx('ui-skeleton-region', className)}
+      className={cx('ui-skeleton-region tw:min-w-0', className)}
       role="status"
     >
-      <span className="u-sr-only">{label}</span>
+      <span className="tw:sr-only">{label}</span>
       {children}
     </div>
   )
@@ -35,7 +35,10 @@ export function SkeletonBlock({ className, label }: SkeletonBlockProps): React.R
     <span
       aria-hidden={label ? undefined : 'true'}
       aria-label={label}
-      className={cx('ui-skeleton-block', className)}
+      className={cx(
+        'ui-skeleton-block tw:relative tw:block tw:overflow-hidden tw:shadow-none',
+        className,
+      )}
       role={label ? 'status' : undefined}
     />
   )

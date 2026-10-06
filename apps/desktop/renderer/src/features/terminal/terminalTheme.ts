@@ -10,8 +10,43 @@ const DEFAULT_TERMINAL_FONT_SIZE = 13
 const MIN_TERMINAL_FONT_SIZE = 8
 const MAX_TERMINAL_FONT_SIZE = 24
 
+let colorCanvasCtx: CanvasRenderingContext2D | null = null
+
+function normalizeColor(rawColor: string): string {
+  const trimmed = rawColor.trim()
+  if (!trimmed) return trimmed
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
+    return trimmed
+  }
+  try {
+    if (!colorCanvasCtx) {
+      const canvas = document.createElement('canvas')
+      canvas.width = 1
+      canvas.height = 1
+      colorCanvasCtx = canvas.getContext('2d', { willReadFrequently: true })
+    }
+    if (!colorCanvasCtx) return trimmed
+    colorCanvasCtx.clearRect(0, 0, 1, 1)
+    // Sentinel check: if assigning trimmed fails, canvas ignores the assignment.
+    colorCanvasCtx.fillStyle = '#010203'
+    colorCanvasCtx.fillStyle = trimmed
+    if (colorCanvasCtx.fillStyle === '#010203' && trimmed !== '#010203') {
+      return trimmed
+    }
+    colorCanvasCtx.fillRect(0, 0, 1, 1)
+    if (typeof colorCanvasCtx.getImageData === 'function') {
+      const pixel = colorCanvasCtx.getImageData(0, 0, 1, 1).data
+      const alpha = Number((pixel[3] / 255).toFixed(3))
+      return `rgba(${pixel[0]}, ${pixel[1]}, ${pixel[2]}, ${alpha})`
+    }
+    return colorCanvasCtx.fillStyle
+  } catch {
+    return trimmed
+  }
+}
+
 function cssColor(styles: CSSStyleDeclaration, name: string): string {
-  return styles.getPropertyValue(name).trim()
+  return normalizeColor(styles.getPropertyValue(name))
 }
 
 export function readTerminalTheme(element: Element): ITheme {
@@ -42,11 +77,15 @@ export function readTerminalTheme(element: Element): ITheme {
 
 export function readTerminalFont(element: Element): TerminalFont {
   const styles = getComputedStyle(element)
-  const fontSize = parseTerminalFontSize(cssColor(styles, '--cpx-sys-font-size-code'))
+  const fontSize = parseTerminalFontSize(styles.getPropertyValue('--cpx-sys-font-size-code').trim())
+  const rawLineHeight = styles.getPropertyValue('--cpx-sys-line-height-code').trim()
+  const parsedLineHeight = Number.parseFloat(rawLineHeight)
+  const lineHeight =
+    Number.isFinite(parsedLineHeight) && parsedLineHeight > 0 ? parsedLineHeight : 1.5
   return {
-    fontFamily: cssColor(styles, '--cpx-sys-font-family-mono'),
+    fontFamily: styles.getPropertyValue('--cpx-sys-font-family-mono').trim(),
     fontSize,
-    lineHeight: (fontSize + 7) / fontSize,
+    lineHeight,
   }
 }
 

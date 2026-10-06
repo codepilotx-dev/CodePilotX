@@ -128,7 +128,14 @@ export function SidebarHoverCardSurface({
           onPointerEnter={keepOpen}
           onPointerLeave={closeAfterDelay}
         >
-          <div className={cx('sidebar-hover-card-surface', className)}>{children}</div>
+          <div
+            className={cx(
+              'sidebar-hover-card-surface tw:z-tooltip tw:min-w-[220px] tw:max-w-[min(320px,calc(100vw-16px))] tw:rounded-xl tw:p-1 tw:text-left tw:text-app-text tw:pointer-events-auto tw:forced-colors:border tw:forced-colors:border-[CanvasText]',
+              className,
+            )}
+          >
+            {children}
+          </div>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

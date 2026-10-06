@@ -7,7 +7,9 @@ describe('loading interaction primitives', () => {
   test('keeps an unlabeled spinner decorative', () => {
     const html = renderToStaticMarkup(<Spinner />)
 
-    expect(html).toContain('class="ui-spinner"')
+    // Appearance lives in Tailwind utilities, so assert the semantic class token
+    // instead of the whole class attribute.
+    expect(html).toMatch(/class="[^"]*\bui-spinner\b/)
     expect(html).toContain('aria-hidden="true"')
     expect(html).not.toContain('role="status"')
   })

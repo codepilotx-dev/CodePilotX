@@ -72,7 +72,7 @@ function FontInput({
   return (
     <Input
       aria-label={ariaLabel}
-      className="appearance-font-input"
+      className="appearance-font-input tw:h-7 tw:min-h-7 tw:w-full tw:max-w-34 tw:rounded-md tw:px-2 tw:type-body tw:@max-[760px]:w-[min(100%,240px)] tw:@max-[760px]:max-w-60"
       placeholder={placeholder}
       value={draft}
       onBlur={() => {
@@ -202,7 +202,7 @@ export function ThemeFontPicker({
         ]
 
   return (
-    <div aria-busy={fontsState === 'loading'} className="appearance-theme-font-row">
+    <div aria-busy={fontsState === 'loading'} className="appearance-theme-font-row tw:inline-flex tw:w-max tw:max-w-full tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-2">
       {controls !== 'style' ? (
         <SettingsDropdown
           ariaLabel={`${ariaLabel}字体家族`}

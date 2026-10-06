@@ -5,6 +5,39 @@ import { cx } from '../../../utils/cx.js'
 import { ReasoningMenu } from './ReasoningMenu.js'
 import type { ThinkingOption } from './ThinkingLevelPopover.js'
 
+/*
+ * Capsule trigger for the integrated model picker. The chevron follows the
+ * capsule through the `group` utility so the hover hand-off does not need a
+ * descendant selector.
+ */
+const CAPSULE_CLASS = cx(
+  'composer-model-trigger-capsule tw:group tw:inline-flex tw:h-9 tw:cursor-pointer tw:select-none tw:items-center tw:gap-1.5',
+  'tw:rounded-pill tw:pl-3 tw:pr-2 tw:text-app-text-soft',
+  'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
+  'tw:hover:bg-app-hover tw:hover:text-app-text',
+)
+const CAPSULE_IDLE_CLASS = 'tw:bg-transparent'
+const CAPSULE_ACTIVE_CLASS = 'tw:bg-app-hover tw:text-app-text'
+const NAME_BUTTON_CLASS = cx(
+  'composer-model-trigger-name-btn tw:inline-flex tw:cursor-pointer tw:items-center tw:border-0 tw:bg-transparent tw:p-0 tw:m-0',
+  'tw:text-inherit tw:type-control tw:outline-none',
+  'tw:focus-visible:rounded-xs tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-2',
+)
+const NAME_CLASS = 'composer-model-trigger-name tw:max-w-40 tw:truncate tw:tracking-[-0.01em]'
+const EFFORT_WRAP_CLASS = 'composer-model-trigger-effort-wrap tw:inline-flex tw:items-center'
+const EFFORT_BUTTON_CLASS = cx(
+  'composer-model-trigger-effort-btn tw:inline-flex tw:cursor-pointer tw:items-center tw:rounded-indicator tw:border-0',
+  'tw:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_5%,transparent)] tw:px-1.5 tw:py-px tw:text-app-text-soft tw:type-label',
+  'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
+  'tw:hover:bg-[color-mix(in_srgb,var(--cpx-sys-color-fg-primary)_12%,transparent)] tw:hover:text-app-text',
+  'tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus tw:focus-visible:outline-offset-1',
+)
+const CHEVRON_WRAP_CLASS =
+  'composer-model-trigger-chevron-wrap tw:inline-flex tw:cursor-pointer tw:items-center tw:justify-center tw:text-app-text-meta tw:group-hover:text-app-text'
+const CHEVRON_CLASS =
+  'composer-model-trigger-chevron tw:transition-transform tw:duration-state tw:ease-standard'
+const CHEVRON_OPEN_CLASS = 'tw:rotate-180 tw:text-app-text'
+
 export type ModelSelectTriggerProps = {
   modelName: string
   tooltipTitle?: string
@@ -49,7 +82,7 @@ export const ModelSelectTrigger = React.forwardRef<HTMLDivElement, ModelSelectTr
       <div
         ref={ref}
         id={id}
-        className={cx('composer-model-trigger-capsule', active && 'is-active', className)}
+        className={cx(CAPSULE_CLASS, active ? CAPSULE_ACTIVE_CLASS : CAPSULE_IDLE_CLASS, className)}
         onClick={onToggleOpen}
       >
         <button
@@ -62,7 +95,7 @@ export const ModelSelectTrigger = React.forwardRef<HTMLDivElement, ModelSelectTr
               ? `模型与推理设置：${modelName}，${thinkingLabel}`
               : `模型：${modelName}`
           }
-          className="composer-model-trigger-name-btn"
+          className={NAME_BUTTON_CLASS}
           onClick={(event) => {
             // Let the parent container's onClick handle it or trigger directly
             if (onToggleOpen) {
@@ -71,14 +104,11 @@ export const ModelSelectTrigger = React.forwardRef<HTMLDivElement, ModelSelectTr
             }
           }}
         >
-          <span className="composer-model-trigger-name">{modelName}</span>
+          <span className={NAME_CLASS}>{modelName}</span>
         </button>
 
         {showThinkingOptions && thinkingLabel && onThinkingChange ? (
-          <div
-            className="composer-model-trigger-effort-wrap"
-            onClick={(event) => event.stopPropagation()}
-          >
+          <div className={EFFORT_WRAP_CLASS} onClick={(event) => event.stopPropagation()}>
             <ReasoningMenu
               open={effortMenuOpen}
               onOpenChange={setEffortMenuOpen}
@@ -93,7 +123,7 @@ export const ModelSelectTrigger = React.forwardRef<HTMLDivElement, ModelSelectTr
               trigger={
                 <button
                   type="button"
-                  className="composer-model-trigger-effort-btn"
+                  className={EFFORT_BUTTON_CLASS}
                   title="点击选择推理思考强度"
                   aria-label={`推理思考强度：${thinkingLabel}`}
                 >
@@ -104,11 +134,11 @@ export const ModelSelectTrigger = React.forwardRef<HTMLDivElement, ModelSelectTr
           </div>
         ) : null}
 
-        <span aria-hidden="true" className="composer-model-trigger-chevron-wrap">
+        <span aria-hidden="true" className={CHEVRON_WRAP_CLASS}>
           <ChevronDown
             size={APP_ICON_SIZES.sm}
             strokeWidth={APP_ICON_STROKE_WIDTH}
-            className={cx('composer-model-trigger-chevron', isOpen && 'is-open')}
+            className={cx(CHEVRON_CLASS, isOpen && CHEVRON_OPEN_CLASS)}
           />
         </span>
       </div>

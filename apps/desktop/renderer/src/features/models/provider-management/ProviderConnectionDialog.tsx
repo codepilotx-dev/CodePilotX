@@ -90,12 +90,12 @@ export function ProviderConnectionDialog({
         <Dialog.Content
           aria-describedby={descriptionId}
           aria-labelledby={titleId}
-          className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog model-center-key-dialog model-center-connection-dialog"
+          className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog model-center-key-dialog model-center-connection-dialog tw:w-[min(600px,calc(100vw_-_48px))] tw:max-h-[min(720px,calc(100vh_-_48px))] tw:overflow-x-hidden tw:[&>section]:p-5"
           data-dialog-size="detail"
           onCloseAutoFocus={focusRestore.onCloseAutoFocus}
         >
-          <header className="settings-management-dialog-header model-center-key-dialog-header">
-            <div className="settings-management-dialog-heading model-center-key-dialog-heading">
+          <header className="settings-management-dialog-header model-center-key-dialog-header tw:flex tw:items-start tw:justify-between tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:p-5">
+            <div className="settings-management-dialog-heading model-center-key-dialog-heading tw:flex tw:min-w-0 tw:items-start tw:gap-3">
               {selected ? (
                 <IconButton
                   color="ghostSecondary"
@@ -106,15 +106,18 @@ export function ProviderConnectionDialog({
                   <ChevronLeft size={APP_ICON_SIZE} aria-hidden />
                 </IconButton>
               ) : (
-                <span className="model-center-key-dialog-icon">
+                <span className="model-center-key-dialog-icon tw:inline-flex tw:size-9 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:bg-app-editor tw:text-app-text-soft tw:[&_svg]:size-icon-lg">
                   <Link2 size={APP_ICON_SIZE} aria-hidden />
                 </span>
               )}
               <div>
-                <Dialog.Title id={titleId}>
+                <Dialog.Title id={titleId} className="tw:type-weight-label">
                   {selected ? t(choiceLabel(selected, provider)) : `连接 ${provider.displayName}`}
                 </Dialog.Title>
-                <Dialog.Description id={descriptionId}>
+                <Dialog.Description
+                  id={descriptionId}
+                  className="tw:mt-1 tw:[line-height:var(--cpx-sys-line-height-tight)]"
+                >
                   {selected?.kind === 'inference-oauth'
                     ? t(
                         provider.providerID === 'openai'
@@ -141,29 +144,33 @@ export function ProviderConnectionDialog({
           </header>
 
           {!selected ? (
-            <div className="settings-management-dialog-card model-center-connection-choices">
+            <div className="settings-management-dialog-card model-center-connection-choices tw:m-5 tw:gap-0">
               {choices.map((choice) => (
                 <button
-                  className="settings-management-dialog-row model-center-connection-choice"
+                  className="settings-management-dialog-row model-center-connection-choice tw:flex tw:min-h-14 tw:w-full tw:cursor-pointer tw:items-center tw:gap-3 tw:rounded-none tw:border-0 tw:bg-transparent tw:px-4 tw:py-3 tw:text-left tw:text-app-text tw:transition-[background-color,border-color] tw:duration-state tw:ease-standard tw:hover:border-app-border-subtle tw:hover:bg-app-hover"
                   key={choice.id}
                   type="button"
                   onClick={() => setSelectedId(choice.id)}
                 >
-                  <span className="model-center-connection-choice-icon">
+                  <span className="model-center-connection-choice-icon tw:inline-flex tw:size-9 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:bg-app-editor tw:text-app-text-soft">
                     {choice.kind === 'inference-key' ? (
                       <KeyRound aria-hidden size={APP_ICON_SIZE} />
                     ) : (
                       <ShieldCheck aria-hidden size={APP_ICON_SIZE} />
                     )}
                   </span>
-                  <span className="model-center-connection-choice-text">
-                    <strong>{t(choiceLabel(choice, provider))}</strong>
-                    <small>{choiceDescription(choice)}</small>
+                  <span className="model-center-connection-choice-text tw:grid tw:min-w-0 tw:gap-1">
+                    <strong className="tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-md)] tw:type-weight-label">
+                      {t(choiceLabel(choice, provider))}
+                    </strong>
+                    <small className="tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-sm)] tw:[line-height:var(--cpx-sys-line-height-tight)]">
+                      {choiceDescription(choice)}
+                    </small>
                   </span>
                 </button>
               ))}
               {choices.length === 0 ? (
-                <p className="model-center-account-section-empty">
+                <p className="model-center-account-section-empty tw:m-0 tw:rounded-lg tw:border tw:border-dashed tw:border-app-border-subtle tw:p-3 tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-sm)] tw:[line-height:var(--cpx-sys-line-height-tight)]">
                   当前供应商没有可在应用内建立的连接，请查看官方文档。
                 </p>
               ) : null}

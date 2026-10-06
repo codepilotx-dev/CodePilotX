@@ -9,6 +9,7 @@ import {
   bottomPanelHeightToRatio,
   getResponsiveRightDockDefaultWidth,
   rightDockWidthFromRatio,
+  rightDockWidthToRangeRatio,
   rightDockWidthToRatio,
 } from './workbenchLayoutSizing.js'
 import {
@@ -101,6 +102,10 @@ export function createDefaultWorkbenchLayoutSnapshot(
     visibility,
     primarySidebarWidth: sidebarWidth,
     auxiliaryPanelWidth: auxiliaryWidth,
+    auxiliaryPanelWidthRangeRatio: rightDockWidthToRangeRatio(
+      auxiliaryWidth,
+      input.workspaceWidth,
+    ),
     bottomPanelHeight: bottomHeight,
     auxiliaryMaximized: false,
     beforeAuxiliaryMaximized: null,
@@ -234,6 +239,7 @@ function tryParseStoredSnapshot(raw: string): WorkbenchLayoutSnapshot | null {
     visibility,
     primarySidebarWidth,
     auxiliaryPanelWidth,
+    auxiliaryPanelWidthRangeRatio: parseUnitIntervalValue(parsed.auxiliaryPanelWidthRangeRatio),
     bottomPanelHeight,
     auxiliaryMaximized,
     beforeAuxiliaryMaximized,
@@ -261,6 +267,9 @@ function normalizeSnapshot(
     snapshot.auxiliaryPanelWidth,
     safeWorkspaceWidth,
   )
+  const auxiliaryPanelWidthRangeRatio =
+    snapshot.auxiliaryPanelWidthRangeRatio ??
+    rightDockWidthToRangeRatio(auxiliaryPanelWidth, safeWorkspaceWidth)
   const bottomPanelHeight = clampBottomPanelHeight(snapshot.bottomPanelHeight, safeWorkspaceHeight)
   const beforeAuxiliaryMaximized = snapshot.auxiliaryMaximized
     ? { ...(snapshot.beforeAuxiliaryMaximized ?? visibility) }
@@ -276,6 +285,7 @@ function normalizeSnapshot(
     visibility,
     primarySidebarWidth,
     auxiliaryPanelWidth,
+    auxiliaryPanelWidthRangeRatio,
     bottomPanelHeight,
     auxiliaryMaximized: snapshot.auxiliaryMaximized,
     beforeAuxiliaryMaximized,
@@ -302,6 +312,11 @@ function parseVisibility(value: unknown): WorkbenchPartVisibility | null {
 }
 
 function parseUnitInterval(value: string | null): number | null {
+  const parsed = parseFiniteNumber(value)
+  return parsed != null && parsed >= 0 && parsed <= 1 ? parsed : null
+}
+
+function parseUnitIntervalValue(value: unknown): number | null {
   const parsed = parseFiniteNumber(value)
   return parsed != null && parsed >= 0 && parsed <= 1 ? parsed : null
 }

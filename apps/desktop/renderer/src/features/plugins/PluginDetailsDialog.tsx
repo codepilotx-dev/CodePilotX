@@ -10,6 +10,12 @@ import type { PluginCatalogItem } from './pluginCatalog.js'
 import { PluginIcon } from './PluginIcon.js'
 import { useLastNonNull } from '../../hooks/usePresenceRetention.js'
 import { PluginDetailsMetadata, PluginDetailsPrimaryAction } from './PluginDetailsContent.js'
+import { cx } from '../../utils/cx.js'
+import {
+  DETAILS_ERROR_CLASS,
+  DETAILS_ICON_CLASS,
+  FORCED_COLORS_SURFACE_CLASS,
+} from './catalogClassNames.js'
 
 type Props = {
   item: PluginCatalogItem | null
@@ -39,9 +45,12 @@ export function PluginDetailsDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop plugin-details-dialog__backdrop" />
+        <Dialog.Overlay className="ui-dialog-backdrop permission-modal-backdrop plugin-details-dialog__backdrop tw:overflow-hidden tw:forced-colors:bg-[color:Canvas] tw:forced-colors:opacity-75" />
         <Dialog.Content
-          className="ui-dialog-surface ui-dialog-surface--centered settings-management-dialog plugin-details-dialog"
+          className={cx(
+            'ui-dialog-surface ui-dialog-surface--centered settings-management-dialog plugin-details-dialog tw:grid tw:w-[min(34rem,calc(100vw_-_var(--cpx-sys-space-8)))] tw:max-h-[min(42rem,calc(100vh_-_var(--cpx-sys-space-8)))] tw:min-w-0 tw:overflow-hidden tw:grid-rows-[auto_minmax(0,1fr)_auto] tw:text-app-text',
+            FORCED_COLORS_SURFACE_CLASS,
+          )}
           data-dialog-size="detail"
           onCloseAutoFocus={(event) => {
             if (!restoreFocusElement?.isConnected) return
@@ -53,10 +62,10 @@ export function PluginDetailsDialog({
             closeButtonRef.current?.focus()
           }}
         >
-          <header className="settings-management-dialog-header plugin-details-dialog__header">
+          <header className="settings-management-dialog-header plugin-details-dialog__header tw:grid tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-start tw:gap-3 tw:border-b tw:border-b-app-border-subtle tw:p-5">
             <span
               aria-hidden="true"
-              className="plugin-details-dialog__plugin-icon"
+              className={cx('plugin-details-dialog__plugin-icon', DETAILS_ICON_CLASS)}
               data-plugin-tone={item.tone}
             >
               <PluginIcon
@@ -65,9 +74,11 @@ export function PluginDetailsDialog({
                 name={item.iconName}
               />
             </span>
-            <div className="settings-management-dialog-heading plugin-details-dialog__heading">
-              <Dialog.Title className="plugin-details-dialog__title">{item.name}</Dialog.Title>
-              <Dialog.Description className="plugin-details-dialog__description">
+            <div className="settings-management-dialog-heading plugin-details-dialog__heading tw:grid tw:min-w-0 tw:gap-1">
+              <Dialog.Title className="plugin-details-dialog__title tw:m-0 tw:text-app-text tw:type-title-sm tw:wrap-anywhere">
+                {item.name}
+              </Dialog.Title>
+              <Dialog.Description className="plugin-details-dialog__description tw:m-0 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere">
                 {item.description}
               </Dialog.Description>
             </div>
@@ -83,17 +94,17 @@ export function PluginDetailsDialog({
             </Dialog.Close>
           </header>
 
-          <ScrollArea className="settings-management-dialog-body plugin-details-dialog__scroll-area">
+          <ScrollArea className="settings-management-dialog-body plugin-details-dialog__scroll-area tw:min-h-0 tw:overscroll-contain tw:p-5">
             <PluginDetailsMetadata item={item} />
 
             {error ? (
-              <p className="plugin-details-dialog__error" role="status">
+              <p className={cx('plugin-details-dialog__error', DETAILS_ERROR_CLASS, 'tw:forced-colors:border-double')} role="status">
                 {error}
               </p>
             ) : null}
           </ScrollArea>
 
-          <footer className="settings-management-dialog-footer plugin-details-dialog__actions">
+          <footer className="settings-management-dialog-footer plugin-details-dialog__actions tw:flex tw:flex-wrap tw:justify-end tw:gap-2 tw:border-t tw:border-t-app-border-subtle tw:px-5 tw:py-4">
             <Dialog.Close asChild>
               <Button color="secondary">关闭</Button>
             </Dialog.Close>

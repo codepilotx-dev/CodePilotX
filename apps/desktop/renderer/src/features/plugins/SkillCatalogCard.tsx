@@ -7,6 +7,25 @@ import {
   APP_ICON_SIZES,
 } from '../../components/ui/iconTokens.js'
 import type { DesktopSkillAuditStatus, DesktopSkillCatalogItem } from '../../../shared/types.js'
+import { cx } from '../../utils/cx.js'
+import {
+  FORCED_COLORS_FOCUS_CLASS,
+  FORCED_COLORS_SURFACE_CLASS,
+  PLAIN_BUTTON_CLASS,
+  STACKED_COPY_CLASS,
+  TRUNCATED_LINE_CLASS,
+} from './catalogClassNames.js'
+
+/* 审计徽章按状态取整段配色，避免动态拼接类名。 */
+const AUDIT_BADGE_TONE_CLASS: Record<DesktopSkillAuditStatus, string> = {
+  pass: 'tw:border-app-success-border tw:bg-app-success-subtle tw:text-app-success-fg',
+  warn: 'tw:border-app-warning-border tw:bg-app-warning-subtle tw:text-app-warning-fg',
+  fail: 'tw:border-app-danger-border tw:bg-app-danger-subtle tw:text-app-danger-fg',
+}
+
+/* 审计徽章外壳：胶囊形、描边、大写标签。 */
+const AUDIT_BADGE_CLASS =
+  'plugins-audit-badge tw:inline-flex tw:shrink-0 tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-app-border tw:px-2 tw:py-1 tw:type-label tw:uppercase'
 
 type Props = {
   installing?: boolean
@@ -23,22 +42,35 @@ export function SkillCatalogCard({
 }: Props): React.ReactNode {
   return (
     <li>
-      <article className="skill-catalog-card">
+      <article className={cx('skill-catalog-card tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:min-w-0 tw:items-center tw:gap-3 tw:rounded-2xl tw:border-0 tw:bg-transparent tw:p-2.5 tw:shadow-none tw:transition-[background-color] tw:duration-state tw:ease-standard tw:[&:hover:not(:has(>div:hover))]:bg-app-hover tw:@max-[479px]/plugins-page:grid-cols-1', FORCED_COLORS_SURFACE_CLASS)}>
         <button
-          className="skill-catalog-card__main"
+          className={cx('skill-catalog-card__main', PLAIN_BUTTON_CLASS, FORCED_COLORS_FOCUS_CLASS)}
           data-catalog-item-id={`skill:${skill.id}`}
           onClick={(event) => onOpenDetails(skill, event.currentTarget)}
           type="button"
         >
-          <span aria-hidden="true" className="skill-catalog-card__icon">
+          <span
+            aria-hidden="true"
+            className={cx(
+              'skill-catalog-card__icon tw:inline-flex tw:size-9 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-raised tw:text-app-text',
+              FORCED_COLORS_SURFACE_CLASS,
+            )}
+          >
             <Sparkles data-icon-kind="artwork" size={APP_ICON_SIZE} strokeWidth={2} />
           </span>
-          <span className="skill-catalog-card__copy">
-            <span className="skill-catalog-card__title-line">
-              <strong>{skill.name}</strong>
+          <span className={cx('skill-catalog-card__copy', STACKED_COPY_CLASS)}>
+            <span className="skill-catalog-card__title-line tw:flex tw:min-w-0 tw:items-center tw:gap-2">
+              <strong className="tw:overflow-hidden tw:text-app-text tw:type-row-title tw:text-ellipsis tw:whitespace-nowrap">
+                {skill.name}
+              </strong>
               {skill.audit ? (
                 <span
-                  className={`plugins-audit-badge is-${skill.audit.status}`}
+                  className={cx(
+                    `is-${skill.audit.status}`,
+                    AUDIT_BADGE_CLASS,
+                    AUDIT_BADGE_TONE_CLASS[skill.audit.status],
+                    FORCED_COLORS_SURFACE_CLASS,
+                  )}
                   title={skill.audit.summary}
                 >
                   {renderAuditIcon(skill.audit.status)}
@@ -46,15 +78,15 @@ export function SkillCatalogCard({
                 </span>
               ) : null}
             </span>
-            <span className="skill-catalog-card__meta">
+            <span className={cx('skill-catalog-card__meta', TRUNCATED_LINE_CLASS)}>
               {skill.source} · {skill.installs.toLocaleString()} 次安装
             </span>
           </span>
         </button>
 
-        <div className="skill-catalog-card__actions">
+        <div className="skill-catalog-card__actions tw:flex tw:items-center tw:justify-end tw:@max-[479px]/plugins-page:justify-start">
           {skill.installed ? (
-            <span className="skill-catalog-card__installed">
+            <span className="skill-catalog-card__installed tw:flex tw:items-center tw:gap-2 tw:text-app-text-meta tw:type-caption tw:whitespace-nowrap">
               <Check aria-hidden="true" size={APP_ICON_SIZES.sm} />
               已添加
             </span>

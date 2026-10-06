@@ -13,6 +13,7 @@ import { AnchoredPopover } from '../../components/ui/AnchoredPopover.js'
 import { cx } from '../../utils/cx.js'
 import {
   PROJECT_APPEARANCE_COLORS,
+  PROJECT_APPEARANCE_COLOR_CLASS,
   PROJECT_APPEARANCE_ICONS,
   ProjectAppearanceGlyph,
 } from './projectAppearance.js'
@@ -42,13 +43,13 @@ export function ProjectAppearancePicker({
 
   return (
     <AnchoredPopover
-      className="project-appearance-popover"
+      className="project-appearance-popover tw:z-popover tw:w-[16.25rem] tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-2 tw:text-app-text tw:outline-none"
       contentLabel="项目图标和颜色"
       open={open}
       trigger={
         <button
           aria-label="选择项目图标和颜色"
-          className="project-appearance-trigger"
+          className="project-appearance-trigger tw:inline-flex tw:size-10 tw:shrink-0 tw:grow-0 tw:basis-10 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:enabled:hover:bg-app-hover tw:enabled:hover:text-app-text"
           disabled={disabled}
           type="button"
         >
@@ -60,34 +61,49 @@ export function ProjectAppearancePicker({
     >
       <RadioGroup.Root
         aria-label="项目颜色"
-        className="project-appearance-colors"
+        className="project-appearance-colors tw:grid tw:grid-cols-[repeat(6,1fr)] tw:gap-2 tw:border-b tw:border-app-border-subtle tw:px-1 tw:pt-1 tw:pb-3"
         value={appearance.color}
         onValueChange={(value) => selectColor(value as ProjectAppearanceColor)}
       >
         {PROJECT_APPEARANCE_COLORS.map((color) => (
           <RadioGroup.Item
             aria-label={colorLabel(color)}
-            className={cx('project-appearance-color', appearance.color === color && 'is-selected')}
+            className={cx(
+              'project-appearance-color tw:inline-flex tw:size-8 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-full tw:bg-current tw:shadow-[var(--cpx-sys-focus-ring-inset)]',
+              PROJECT_APPEARANCE_COLOR_CLASS[color] ?? 'tw:text-app-text-soft',
+              appearance.color === color
+                ? 'is-selected tw:border-3 tw:border-app-canvas tw:outline-2 tw:outline-current'
+                : 'tw:border-3 tw:border-transparent',
+            )}
             data-project-color={color}
             key={color}
             value={color}
           >
             <RadioGroup.Indicator>
-              <Check aria-hidden="true" size={APP_ICON_SIZES.sm} />
+              <Check
+                aria-hidden="true"
+                className="tw:text-app-canvas"
+                size={APP_ICON_SIZES.sm}
+              />
             </RadioGroup.Indicator>
           </RadioGroup.Item>
         ))}
       </RadioGroup.Root>
       <RadioGroup.Root
         aria-label="项目图标"
-        className="project-appearance-icons"
+        className="project-appearance-icons tw:grid tw:grid-cols-[repeat(6,1fr)] tw:gap-1 tw:py-2"
         value={appearance.icon}
         onValueChange={(value) => selectIcon(value as ProjectAppearanceIcon)}
       >
         {PROJECT_APPEARANCE_ICONS.map((icon) => (
           <RadioGroup.Item
             aria-label={iconLabel(icon)}
-            className={cx('project-appearance-icon', appearance.icon === icon && 'is-selected')}
+            className={cx(
+              'project-appearance-icon tw:inline-flex tw:size-8 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:hover:bg-app-hover tw:hover:text-app-text',
+              appearance.icon === icon
+                ? 'is-selected tw:bg-app-hover tw:text-app-text'
+                : 'tw:text-app-text-soft',
+            )}
             key={icon}
             value={icon}
           >
@@ -95,7 +111,7 @@ export function ProjectAppearancePicker({
           </RadioGroup.Item>
         ))}
       </RadioGroup.Root>
-      <div className="project-appearance-footer">
+      <div className="project-appearance-footer tw:flex tw:justify-end">
         <Button color="primary" onClick={() => setOpen(false)}>
           完成
         </Button>

@@ -6,12 +6,34 @@ import {
   type PopoverSizingProps,
 } from '../../../components/ui/popoverSizing.js'
 import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
+import { cx } from '../../../utils/cx.js'
 import {
   enterTween,
   exitTween,
   floatingSurfaceMotion,
   motionTransition,
 } from '../../motion/motionTransitions.js'
+
+/*
+ * The dropdown anchors above (or below) the composer input. Motion owns the
+ * enter/exit transform, so only the static anchoring geometry lives here.
+ */
+const DROPDOWN_CLASS = cx(
+  'popover-surface chat-input__dropdown tw:absolute tw:left-0 tw:z-popover',
+  'tw:bottom-[calc(100%+var(--cpx-sys-space-1))]',
+)
+const DROPDOWN_SUGGESTION_CLASS = cx(
+  'popover-surface chat-input__dropdown chat-input__dropdown--suggestion tw:absolute tw:left-0 tw:z-popover',
+  'tw:bottom-[calc(100%+var(--cpx-sys-space-2))]',
+)
+const DROPDOWN_BOTTOM_CLASS = cx(
+  'popover-surface chat-input__dropdown chat-input__dropdown--bottom tw:absolute tw:left-0 tw:z-popover',
+  'tw:bottom-auto tw:top-[calc(100%+var(--cpx-sys-space-1))]',
+)
+const DROPDOWN_SUGGESTION_BOTTOM_CLASS = cx(
+  'popover-surface chat-input__dropdown chat-input__dropdown--bottom chat-input__dropdown--suggestion tw:absolute tw:left-0 tw:z-popover',
+  'tw:bottom-auto tw:top-[calc(100%+var(--cpx-sys-space-2))]',
+)
 
 type Props = {
   open: boolean
@@ -161,12 +183,15 @@ function ChatInputDropdownSurface({
     <motion.div
       animate={surfaceMotion.animate}
       aria-hidden={!isPresent ? true : undefined}
-      className={[
-        'popover-surface',
-        'chat-input__dropdown',
-        suggestion ? 'chat-input__dropdown--suggestion' : '',
-        side === 'bottom' ? 'chat-input__dropdown--bottom' : '',
-      ].join(' ')}
+      className={
+        suggestion
+          ? side === 'bottom'
+            ? DROPDOWN_SUGGESTION_BOTTOM_CLASS
+            : DROPDOWN_SUGGESTION_CLASS
+          : side === 'bottom'
+            ? DROPDOWN_BOTTOM_CLASS
+            : DROPDOWN_CLASS
+      }
       data-presence={isPresent ? 'present' : 'exiting'}
       data-theme-component="dropdown-surface"
       exit={{
@@ -183,7 +208,7 @@ function ChatInputDropdownSurface({
       }}
       transition={motionTransition(reducedMotion, enterTween)}
     >
-      <div className="chat-input__dropdown-content">{children}</div>
+      <div className="chat-input__dropdown-content tw:p-2">{children}</div>
     </motion.div>
   )
 }

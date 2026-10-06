@@ -1,6 +1,7 @@
 import type React from 'react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { VList, type VListHandle } from 'virtua'
+import { cx } from '../../../utils/cx.js'
 import type { ComposerCommand } from './composerSlashCommands.js'
 export { filterComposerMenuItems } from './composerSuggestionMenu.js'
 
@@ -23,6 +24,44 @@ export type ComposerMenuItem = {
   onSelect: () => void
   command?: ComposerCommand
 }
+
+/*
+ * Suggestion menu shell. The section title is sticky inside the scrolling menu,
+ * and the scroll-mask variants drive the top/bottom fade through data attributes
+ * the component already tracks.
+ */
+const MENU_CLASS = cx(
+  'chat-input__suggestion-menu tw:max-h-[calc(var(--composer-suggestion-max-height)-var(--cpx-sys-space-4))]',
+  'tw:overflow-auto tw:overscroll-contain',
+)
+const SECTION_TITLE_CLASS = cx(
+  'chat-input__dropdown-section-title tw:sticky tw:top-0 tw:z-sticky tw:bg-app-raised',
+  'tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label',
+)
+const STATUS_ROW_CLASS = 'chat-input__dropdown-status tw:p-2 tw:text-app-text-meta tw:type-caption'
+const MENU_ITEM_CLASS = cx(
+  'chat-input__dropdown-item tw:grid tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:gap-x-2',
+  'tw:border-0 tw:type-control',
+)
+const MENU_ITEM_IDLE_CLASS = 'tw:bg-transparent'
+const MENU_ITEM_KEYBOARD_CLASS = 'is-keyboard-active tw:bg-app-hover'
+const MENU_ITEM_DISABLED_CLASS =
+  'is-disabled tw:cursor-not-allowed tw:pointer-events-none tw:text-app-text-meta tw:opacity-58'
+const ITEM_LEADING_CLASS = cx(
+  'chat-input__dropdown-leading tw:inline-flex tw:size-4 tw:items-center tw:justify-center tw:text-app-text',
+  'tw:[&>svg]:block tw:[&>svg]:size-icon',
+)
+const ITEM_COPY_CLASS =
+  'chat-input__dropdown-copy tw:flex tw:min-w-0 tw:items-baseline tw:gap-2 tw:overflow-hidden'
+const ITEM_LABEL_CLASS = 'chat-input__dropdown-label tw:flex-none'
+const ITEM_HINT_CLASS =
+  'chat-input__dropdown-hint tw:min-w-0 tw:truncate tw:text-app-text-meta tw:type-caption'
+const ITEM_META_CLASS =
+  'chat-input__dropdown-meta tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption'
+const EMPTY_CLASS =
+  'chat-input__dropdown-empty tw:p-2 tw:text-center tw:text-app-text-meta tw:type-secondary'
+const VLIST_CLASS =
+  'chat-input__suggestion-vlist tw:h-[calc(var(--composer-suggestion-max-height)-var(--cpx-sys-space-4))]'
 
 type Props = {
   id: string
@@ -92,14 +131,14 @@ export function ComposerCommandMenu({
   function renderRow(row: MenuRow): React.ReactNode {
     if ('section' in row)
       return (
-        <div className="chat-input__dropdown-section-title" role="presentation">
+        <div className={SECTION_TITLE_CLASS} role="presentation">
           {row.section}
         </div>
       )
     const item = row.item
     if (item.status)
       return (
-        <div className="chat-input__dropdown-status" role="status">
+        <div className={STATUS_ROW_CLASS} role="status">
           {item.label}
           {item.description ? `：${item.description}` : ''}
         </div>
@@ -108,12 +147,12 @@ export function ComposerCommandMenu({
       <button
         aria-disabled={item.disabled || undefined}
         aria-selected={item.key === activeKey}
-        className={[
-          'chat-input__dropdown-item',
-          item.isActive ? 'is-active' : '',
-          item.key === activeKey ? 'is-keyboard-active' : '',
-          item.disabled ? 'is-disabled' : '',
-        ].join(' ')}
+        className={cx(
+          MENU_ITEM_CLASS,
+          item.isActive && 'is-active',
+          item.key === activeKey ? MENU_ITEM_KEYBOARD_CLASS : MENU_ITEM_IDLE_CLASS,
+          item.disabled && MENU_ITEM_DISABLED_CLASS,
+        )}
         id={composerMenuItemId(id, item.key)}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => {
@@ -127,14 +166,12 @@ export function ComposerCommandMenu({
         title={item.disabled ? item.disabledReason : item.description}
         type="button"
       >
-        <span className="chat-input__dropdown-leading">{item.icon}</span>
-        <span className="chat-input__dropdown-copy">
-          <span className="chat-input__dropdown-label">{item.label}</span>
-          {item.description ? (
-            <span className="chat-input__dropdown-hint">{item.description}</span>
-          ) : null}
+        <span className={ITEM_LEADING_CLASS}>{item.icon}</span>
+        <span className={ITEM_COPY_CLASS}>
+          <span className={ITEM_LABEL_CLASS}>{item.label}</span>
+          {item.description ? <span className={ITEM_HINT_CLASS}>{item.description}</span> : null}
         </span>
-        {item.meta ? <span className="chat-input__dropdown-meta">{item.meta}</span> : null}
+        {item.meta ? <span className={ITEM_META_CLASS}>{item.meta}</span> : null}
       </button>
     )
   }
@@ -142,7 +179,7 @@ export function ComposerCommandMenu({
   return (
     <div
       aria-label="Composer 菜单"
-      className="chat-input__suggestion-menu"
+      className={MENU_CLASS}
       data-scroll-mask={mask}
       id={id}
       ref={rootRef}
@@ -150,17 +187,12 @@ export function ComposerCommandMenu({
       onScroll={virtual ? undefined : updateMask}
     >
       {!items.some((item) => !item.status) && !items.some((item) => item.status === 'loading') ? (
-        <div className="chat-input__dropdown-empty" role="status">
+        <div className={EMPTY_CLASS} role="status">
           {keyword ? emptyLabel : '暂无可用项'}
         </div>
       ) : null}
       {virtual ? (
-        <VList
-          className="chat-input__suggestion-vlist"
-          data={rows}
-          ref={listRef}
-          onScroll={updateMask}
-        >
+        <VList className={VLIST_CLASS} data={rows} ref={listRef} onScroll={updateMask}>
           {(row) => <div key={row.key}>{renderRow(row)}</div>}
         </VList>
       ) : (

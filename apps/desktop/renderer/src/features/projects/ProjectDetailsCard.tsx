@@ -5,12 +5,17 @@ import type { DesktopWorkspace, ProjectAppearance } from '../../../shared/types.
 import { Button } from '../../components/ui/Button.js'
 import { IconButton } from '../../components/ui/IconButton.js'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
+import { cx } from '../../utils/cx.js'
 import { ProjectAppearanceGlyph } from './projectAppearance.js'
 import {
   SidebarHoverCardFrame,
   SidebarHoverCardHeader,
   SidebarHoverCardRow,
 } from '../layout/sidebar/SidebarHoverCardLayout.js'
+
+/* 悬浮卡内的行内动作（文件夹、编辑项目）：26px 行、12px 前置图标、无边框。 */
+const PROJECT_HOVER_CARD_ACTION_CLASS =
+  'tw:grid tw:h-auto tw:min-h-[26px] tw:w-full tw:cursor-pointer tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)] tw:items-center tw:justify-start tw:gap-x-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:px-0 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-caption tw:shadow-none tw:hover:bg-app-hover tw:hover:text-app-text tw:hover:shadow-none tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:[&_svg]:size-icon-sm tw:[&_svg]:text-app-text-soft'
 
 type Props = {
   appearance: ProjectAppearance
@@ -62,15 +67,24 @@ export function ProjectDetailsCard({
 
   return (
     <SidebarHoverCardFrame
-      className="sidebar-project-hover-card-content"
+      className="sidebar-project-hover-card-content tw:flex tw:min-w-0 tw:flex-col tw:gap-1"
       onClick={(event) => event.stopPropagation()}
     >
-      <SidebarHoverCardHeader className="sidebar-project-hover-card-header">
-        <ProjectAppearanceGlyph size={APP_ICON_SIZE} appearance={appearance} />
-        <strong title={project.name}>{project.name}</strong>
+      <SidebarHoverCardHeader className="sidebar-project-hover-card-header tw:grid-cols-[var(--sidebar-hover-leading-width)_minmax(0,1fr)_auto]">
+        <ProjectAppearanceGlyph
+          size={APP_ICON_SIZE}
+          appearance={appearance}
+          className="tw:inline-flex tw:size-[var(--sidebar-hover-leading-width)] tw:items-center tw:justify-center tw:[&>svg]:block"
+        />
+        <strong
+          className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text tw:type-row-title"
+          title={project.name}
+        >
+          {project.name}
+        </strong>
         <IconButton
           iconSize="sm"
-          className="sidebar-project-hover-card-pin"
+          className="sidebar-project-hover-card-pin tw:inline-flex tw:flex-none tw:items-center tw:justify-center tw:justify-self-end"
           color={isPinned ? 'ghostActive' : 'ghostSecondary'}
           ref={pinRef}
           size="toolbar"
@@ -82,29 +96,38 @@ export function ProjectDetailsCard({
           {isPinned ? <PinOff size={APP_ICON_SIZES.sm} /> : <Pin size={APP_ICON_SIZES.sm} />}
         </IconButton>
       </SidebarHoverCardHeader>
-      <SidebarHoverCardRow className="sidebar-project-hover-card-stats">
-        <MessageSquare aria-hidden="true" size={APP_ICON_SIZE} />
-        <span className="sidebar-project-hover-card-stats-content">
+      <SidebarHoverCardRow className="sidebar-project-hover-card-stats tw:text-app-text-meta tw:type-caption">
+        <MessageSquare aria-hidden="true" className="tw:size-icon-sm tw:text-app-text-meta" size={APP_ICON_SIZE} />
+        <span className="sidebar-project-hover-card-stats-content tw:inline-flex tw:flex-wrap tw:items-center tw:gap-1">
           <span>{conversationCount} 个任务</span>
           {unreadCount > 0 ? (
             <>
-              <span aria-hidden="true" className="sidebar-project-hover-card-stat-separator">
+              <span
+                aria-hidden="true"
+                className="sidebar-project-hover-card-stat-separator tw:text-app-text-meta"
+              >
                 ·
               </span>
               <span>{unreadCount} 条未读</span>
             </>
           ) : null}
-          <span aria-hidden="true" className="sidebar-project-hover-card-stat-separator">
+          <span
+            aria-hidden="true"
+            className="sidebar-project-hover-card-stat-separator tw:text-app-text-meta"
+          >
             ·
           </span>
           <span>{openCount} 个已开启</span>
         </span>
       </SidebarHoverCardRow>
-      <div className="sidebar-project-hover-card-folders">
+      <div className="sidebar-project-hover-card-folders tw:mt-1 tw:flex tw:flex-col tw:gap-1">
         {folders.map((folder) =>
           folder.path ? (
             <button
-              className="sidebar-project-hover-card-folder"
+              className={cx(
+                'sidebar-project-hover-card-folder',
+                PROJECT_HOVER_CARD_ACTION_CLASS,
+              )}
               disabled={isUnavailable || folder.availability === 'missing'}
               key={folder.id}
               type="button"
@@ -114,14 +137,16 @@ export function ProjectDetailsCard({
               }}
             >
               <FolderOpen aria-hidden="true" size={APP_ICON_SIZE} />
-              <span className="sidebar-project-hover-card-folder-path">{folder.path}</span>
+              <span className="sidebar-project-hover-card-folder-path tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">
+                {folder.path}
+              </span>
             </button>
           ) : null,
         )}
       </div>
       <Button
         color="ghostSecondary"
-        className="sidebar-project-hover-card-edit"
+        className={cx('sidebar-project-hover-card-edit tw:mt-1', PROJECT_HOVER_CARD_ACTION_CLASS)}
         size="compact"
         onClick={() => {
           onEdit()

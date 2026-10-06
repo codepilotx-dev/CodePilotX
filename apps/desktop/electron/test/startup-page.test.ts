@@ -126,18 +126,18 @@ describe('startup page', () => {
       variant: 'light',
       theme: {
         surface: '#ffffff',
-        ink: '#1a1c1f',
-        accent: '#339cff',
+        ink: '#1f1f1f',
+        accent: '#0169cc',
         surfaceUnder: '#f6f6f6',
       },
     })
     expect(resolveStartupPageTheme(DEFAULT_APPEARANCE_SETTINGS, 'dark')).toEqual({
       variant: 'dark',
       theme: {
-        surface: '#181818',
-        ink: '#ffffff',
-        accent: '#339cff',
-        surfaceUnder: '#141414',
+        surface: '#111111',
+        ink: '#eeeeee',
+        accent: '#0169cc',
+        surfaceUnder: '#0f0f0f',
       },
     })
   })

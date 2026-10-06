@@ -96,12 +96,12 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
     <ScrollArea
       aria-label={t('设置分类')}
       className="settings-nav-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden"
-      contentClassName="settings-nav-scroll-content tw:flex tw:min-w-0 tw:flex-col"
+      contentClassName="settings-nav-scroll-content tw:flex tw:min-w-0 tw:flex-col tw:gap-4 tw:px-2"
     >
-      <div className="settings-nav-header tw:grid tw:shrink-0">
+      <div className="settings-nav-header tw:grid tw:shrink-0 tw:gap-3">
         <SidebarRow
           asChild
-          className="settings-back-btn"
+          className="settings-back-btn tw:mb-2 tw:type-row-title"
           layout="flex"
           leading={<ArrowLeft size={APP_ICON_SIZE} />}
         >
@@ -112,7 +112,7 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
         <SearchInput
           ref={searchInputRef}
           aria-label={t('搜索设置')}
-          className="settings-nav-search"
+          className="settings-nav-search tw:w-full"
           mode="combobox"
           controls="settings-search-results"
           expanded={Boolean(normalizedQuery)}
@@ -130,7 +130,7 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
         />
       </div>
       <div
-        className="settings-nav-menu tw:flex tw:w-full tw:min-w-0 tw:flex-col"
+        className="settings-nav-menu tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:gap-4"
         onKeyDown={(event) => moveFocusOnArrowKey(event, '.settings-nav-item')}
       >
         {normalizedQuery ? (
@@ -144,8 +144,8 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
         ) : (
           SETTINGS_GROUPS.map((group) => (
             <section className="settings-nav-group tw:grid" key={group.title}>
-              <div className="settings-nav-group-title-row">
-                <h2 className="settings-nav-group-title">{t(group.title)}</h2>
+              <div className="settings-nav-group-title-row tw:min-w-0 tw:px-2 tw:py-1">
+                <h2 className="settings-nav-group-title tw:m-0 tw:text-app-text-meta tw:type-row-title">{t(group.title)}</h2>
               </div>
               <div className="settings-nav-group-items tw:grid">
                 {group.items.map((item) => (
@@ -153,9 +153,9 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
                     active={activeTab === item.routeId}
                     asChild
                     key={item.id}
-                    className="settings-nav-item"
+                    className="settings-nav-item tw:type-row-title tw:whitespace-nowrap"
                     layout="flex"
-                    leading={<item.icon className="settings-nav-icon" />}
+                    leading={<item.icon className="settings-nav-icon tw:text-current" />}
                   >
                     <button onClick={() => onTabChange(item.routeId)} type="button">
                       <span>{t(item.label)}</span>
@@ -189,7 +189,7 @@ function SearchResults({
   if (results.length === 0) {
     return (
       <div className="settings-search-results" id="settings-search-results" role="listbox">
-        <p className="settings-search-empty">{t('未找到匹配的设置')}</p>
+        <p className="settings-search-empty tw:m-0 tw:px-2 tw:py-4 tw:text-app-text-soft tw:type-body-sm">{t('未找到匹配的设置')}</p>
       </div>
     )
   }
@@ -205,7 +205,7 @@ function SearchResults({
         return (
           <button
             aria-selected={selected}
-            className="settings-search-result"
+            className="settings-search-result tw:grid tw:w-full tw:min-w-0 tw:grid-cols-[minmax(0,1fr)] tw:gap-0.5 tw:rounded-container tw:p-2 tw:text-left tw:text-app-text tw:outline-none tw:hover:bg-app-hover tw:aria-selected:bg-app-selected tw:focus-visible:outline-solid tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus"
             id={`settings-search-result-${index}`}
             key={result.key}
             onClick={() => onActivate(result)}
@@ -214,15 +214,15 @@ function SearchResults({
             tabIndex={-1}
             type="button"
           >
-            <span className="settings-search-result-heading">
-              <span className="settings-search-result-title">
+            <span className="settings-search-result-heading tw:flex tw:min-w-0 tw:items-baseline tw:gap-2">
+              <span className="settings-search-result-title tw:min-w-0 tw:truncate tw:type-row-title">
                 {t(result.rowTitle ?? result.pageLabel)}
               </span>
               {result.rowTitle ? (
-                <span className="settings-search-result-page">{t(result.pageLabel)}</span>
+                <span className="settings-search-result-page tw:shrink-0 tw:text-app-text-meta tw:type-caption">{t(result.pageLabel)}</span>
               ) : null}
             </span>
-            <span className="settings-search-result-description">{t(result.description)}</span>
+            <span className="settings-search-result-description tw:line-clamp-2 tw:text-app-text-soft tw:type-caption">{t(result.description)}</span>
           </button>
         )
       })}

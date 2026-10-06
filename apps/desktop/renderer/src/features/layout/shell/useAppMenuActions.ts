@@ -35,6 +35,8 @@ type Options = {
   openFolder: Action
   toggleSidebar: Action
   togglePanel: (panel: 'bottom' | 'right') => void
+  /** 右工作区三态步进；菜单、快捷键与外壳按钮共用同一动作。 */
+  stepWorkspaceLayout: Action
   openFiles: Action
   openBrowser: Action
   reloadBrowser: Action
@@ -60,7 +62,7 @@ export function createAppMenuActions(options: Options) {
   const view: Record<ViewMenuAction, Action | undefined> = {
     toggleSidebar: options.toggleSidebar,
     toggleBottomPanel: () => options.togglePanel('bottom'),
-    toggleSidePanel: () => options.togglePanel('right'),
+    toggleSidePanel: options.stepWorkspaceLayout,
     toggleFileTree: options.openFiles,
     openBrowserTab: options.browserAvailable ? options.openBrowser : undefined,
     reloadBrowserPage:
@@ -133,6 +135,8 @@ export function createAppMenuActions(options: Options) {
       } else if (event.shiftKey) {
         if (key === 'n') action = file.newWindow
         else if (key === 'e') action = view.toggleFileTree
+        // Ctrl+Shift+B 与 Ctrl+J 走同一动作：Shift 分支必须显式处理，不能被 Ctrl+B 截获。
+        else if (key === 'b') action = view.toggleSidePanel
         else if (event.code === 'Slash') action = help.keyboardShortcuts
       } else {
         switch (key) {

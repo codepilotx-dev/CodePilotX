@@ -2,9 +2,13 @@ import { describe, expect, test } from 'bun:test'
 
 import {
   THREAD_SUMMARY_PANEL_WIDTH,
+  THREAD_SUMMARY_PINNED_STORAGE_KEY,
   deriveThreadSummaryState,
+  publishThreadSummaryPreference,
+  readThreadSummaryPinnedPreference,
   resolveThreadSummaryDisplayMode,
   resolveThreadSummaryDisplayModeUpdate,
+  resolveThreadSummaryShiftOffset,
   toggleThreadSummaryPreference,
   transitionThreadSummaryMode,
 } from '../src/features/session/summary/threadSummaryState.js'
@@ -16,22 +20,30 @@ import {
 
 describe('thread summary state', () => {
   test('resolves the exact responsive boundaries', () => {
-    expect(THREAD_SUMMARY_PANEL_WIDTH).toBe(260)
-    expect(resolveThreadSummaryDisplayMode(959)).toBe('overlay')
-    expect(resolveThreadSummaryDisplayMode(960)).toBe('shift')
+    expect(THREAD_SUMMARY_PANEL_WIDTH).toBe(300)
+    expect(resolveThreadSummaryDisplayMode(1095)).toBe('overlay')
+    expect(resolveThreadSummaryDisplayMode(1096)).toBe('shift')
     expect(resolveThreadSummaryDisplayMode(1535)).toBe('shift')
     expect(resolveThreadSummaryDisplayMode(1536)).toBe('gutter')
     expect(resolveThreadSummaryDisplayMode(Number.NaN)).toBe('overlay')
   })
 
+  test('resolves the shift offset according to display mode and pinning', () => {
+    expect(resolveThreadSummaryShiftOffset({ displayMode: 'shift', isPinned: true })).toBe(-154)
+    expect(resolveThreadSummaryShiftOffset({ displayMode: 'gutter', isPinned: true })).toBe(0)
+    expect(resolveThreadSummaryShiftOffset({ displayMode: 'overlay', isPinned: true })).toBe(0)
+    expect(resolveThreadSummaryShiftOffset({ displayMode: 'shift', isPinned: false })).toBe(0)
+  })
+
   test('reserves inline space only for a pinned summary outside overlay mode', () => {
-    const inlineState = deriveThreadSummaryState(960, {
+    const inlineState = deriveThreadSummaryState(1096, {
       isPinned: true,
       isPopoverOpen: false,
     })
     expect(inlineState).toMatchObject({
       displayMode: 'shift',
       shouldShowInline: true,
+      shiftOffset: -154,
     })
     expect(inlineState).not.toHaveProperty('contentShift')
 
@@ -43,23 +55,26 @@ describe('thread summary state', () => {
     ).toMatchObject({
       displayMode: 'gutter',
       shouldShowInline: true,
+      shiftOffset: 0,
     })
     expect(
-      deriveThreadSummaryState(960, {
+      deriveThreadSummaryState(1096, {
         isPinned: false,
         isPopoverOpen: false,
       }),
     ).toMatchObject({
       shouldShowInline: false,
+      shiftOffset: 0,
     })
     expect(
-      deriveThreadSummaryState(959, {
+      deriveThreadSummaryState(1095, {
         isPinned: true,
         isPopoverOpen: false,
       }),
     ).toMatchObject({
       displayMode: 'overlay',
       shouldShowInline: false,
+      shiftOffset: 0,
     })
   })
 
@@ -95,6 +110,35 @@ describe('thread summary state', () => {
       isPopoverOpen: false,
     })
     expect(transitionThreadSummaryMode(open, 'overlay', 'overlay')).toBe(open)
+  })
+
+  test('persists only the pinning preference through its own UI key', () => {
+    const stored = new Map<string, string>()
+    const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window')
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        localStorage: {
+          getItem: (key: string) => stored.get(key) ?? null,
+          setItem: (key: string, value: string) => stored.set(key, value),
+        },
+      },
+    })
+    try {
+      // 未写入过的用户读到默认置顶。
+      expect(readThreadSummaryPinnedPreference()).toBe(true)
+
+      publishThreadSummaryPreference({ isPinned: false, isPopoverOpen: true })
+      expect(stored.get(THREAD_SUMMARY_PINNED_STORAGE_KEY)).toBe('false')
+
+      // 浮层开合不写存储：只有置顶偏好是持久 UI 偏好。
+      publishThreadSummaryPreference({ isPinned: false, isPopoverOpen: false })
+      expect(stored.get(THREAD_SUMMARY_PINNED_STORAGE_KEY)).toBe('false')
+      expect([...stored.keys()]).toEqual([THREAD_SUMMARY_PINNED_STORAGE_KEY])
+    } finally {
+      if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow)
+      else Reflect.deleteProperty(globalThis, 'window')
+    }
   })
 })
 

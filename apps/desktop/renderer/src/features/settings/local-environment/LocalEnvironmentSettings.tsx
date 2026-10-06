@@ -134,7 +134,7 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
         <div className="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:p-3">
           <div>
             <strong>Setup</strong>
-            <p className="u-type-caption tw:m-0 tw:text-app-text-soft">
+            <p className="tw:type-caption tw:m-0 tw:text-app-text-soft">
               创建托管工作树时在新工作树目录下运行。
             </p>
           </div>
@@ -146,7 +146,7 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
           <div className="tw:flex tw:items-center tw:justify-between tw:gap-3">
             <div>
               <strong>Actions</strong>
-              <p className="u-type-caption tw:text-app-text-soft">
+              <p className="tw:type-caption tw:text-app-text-soft">
                 每个 Action 可提供默认命令和三平台覆盖。
               </p>
             </div>
@@ -159,7 +159,7 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
             </Button>
           </div>
           {actions.map((action, index) => (
-            <article className="settings-card tw:grid tw:gap-2 tw:p-3" key={index}>
+            <article className="settings-card tw:grid tw:gap-2 tw:p-3 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none" key={index}>
               <div className="tw:grid tw:grid-cols-2 tw:gap-2">
                 {(['name', 'icon', 'command', 'windows', 'macos', 'linux'] as const).map(
                   (field) => (
@@ -169,7 +169,7 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
                       }
                       key={field}
                     >
-                      <span className="u-type-caption tw:text-app-text-soft">
+                      <span className="tw:type-caption tw:text-app-text-soft">
                         {actionFieldLabel[field]}
                       </span>
                       <input
@@ -239,8 +239,8 @@ function SetupVariablesPopover(): React.ReactNode {
       width={320}
     >
       <div>
-        <strong className="u-type-control">设置脚本环境变量</strong>
-        <p className="u-type-caption tw:m-0 tw:mt-1 tw:text-app-text-soft">
+        <strong className="tw:type-control">设置脚本环境变量</strong>
+        <p className="tw:type-caption tw:m-0 tw:mt-1 tw:text-app-text-soft">
           创建托管工作树时由 Agent 注入；这里只显示变量名，不显示路径值。
         </p>
       </div>
@@ -260,8 +260,8 @@ function EnvironmentVariable({
 }): React.ReactNode {
   return (
     <div className="tw:grid tw:gap-1">
-      <span className="u-type-caption tw:text-app-text-soft">{description}</span>
-      <code className="local-environment-code tw:bg-app-canvas tw:px-2 tw:py-1">{name}</code>
+      <span className="tw:type-caption tw:text-app-text-soft">{description}</span>
+      <code className="local-environment-code tw:bg-app-canvas tw:px-2 tw:py-1 tw:type-code">{name}</code>
     </div>
   )
 }
@@ -283,7 +283,7 @@ function CommandRows({
           title={`${label} ${field}`}
           control={
             <textarea
-              className="confirmation-dialog-input local-environment-code tw:min-h-20 tw:min-w-96"
+              className="confirmation-dialog-input local-environment-code tw:min-h-20 tw:min-w-96 tw:type-code"
               value={value[field] ?? ''}
               onChange={(event) => onChange({ ...value, [field]: event.target.value })}
             />
