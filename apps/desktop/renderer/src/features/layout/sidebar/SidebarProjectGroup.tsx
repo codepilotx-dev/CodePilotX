@@ -271,7 +271,7 @@ function SidebarProjectGroupComponent({
                         className="sidebar-project-action-button"
                         color="ghostSecondary"
                         iconSize="md"
-                        size="iconMd"
+                        size="compact"
                         title="更多"
                       >
                         <MoreHorizontal size={APP_ICON_SIZE} />
@@ -322,7 +322,7 @@ function SidebarProjectGroupComponent({
                     color="ghostSecondary"
                     iconSize="md"
                     disabled={isUnavailable}
-                    size="iconMd"
+                    size="compact"
                     title="新建对话"
                     onClick={() => onCreateSession(managedProject)}
                   >

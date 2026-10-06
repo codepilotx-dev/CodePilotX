@@ -428,9 +428,6 @@ function SidebarSessionGroupComponent({
         asChild
         className={cx(
           'sidebar-session-row tw:[&>.sidebar-row-trailing]:w-auto',
-          // 只有带 24px 前置缩进的会话行（无会话图标）才使用内容缩进；
-          // 带图标的行沿用 8px gutter，与迁移前的 `.sidebar-row--session` 规则一致。
-          sessionIndent === 'content' && !showConversationIcon && 'tw:pl-6',
           rowHeightClass,
         )}
         data-sidebar-session-id={session.id}
@@ -441,7 +438,7 @@ function SidebarSessionGroupComponent({
             <MessageCircle aria-hidden="true" size={APP_ICON_SIZE} />
           ) : undefined
         }
-        leadingMode={showConversationIcon ? 'icon' : 'none'}
+        leadingMode={showConversationIcon ? 'icon' : 'spacer'}
         onMouseEnter={() => setHoveredSessionId(session.id)}
         onMouseLeave={() => {
           setHoveredSessionId((current) => (current === session.id ? null : current))
@@ -491,7 +488,7 @@ function SidebarSessionGroupComponent({
                     color="ghostSecondary"
                     iconSize="md"
                     onClick={() => onUnpinSession(session)}
-                    size="iconMd"
+                    size="compact"
                     title="取消置顶"
                   >
                     <PinOff size={APP_ICON_SIZE} />
@@ -502,7 +499,7 @@ function SidebarSessionGroupComponent({
                     color="ghostSecondary"
                     iconSize="md"
                     onClick={() => onPinSession(session)}
-                    size="iconMd"
+                    size="compact"
                     title="置顶"
                   >
                     <Pin size={APP_ICON_SIZE} />
@@ -513,7 +510,7 @@ function SidebarSessionGroupComponent({
                   color="ghostSecondary"
                   iconSize="md"
                   onClick={() => setConfirmArchiveSessionId(session.id)}
-                  size="iconMd"
+                  size="compact"
                   title="归档"
                 >
                   <Archive size={APP_ICON_SIZE} />
@@ -622,7 +619,11 @@ function SidebarSessionGroupComponent({
       {pagination !== 'all' ? (
         <>
           {hasOverflow ? (
-            <div className="sidebar-show-more-actions tw:flex tw:w-full tw:min-h-7 tw:items-center tw:rounded-md tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-control tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard">
+            <div className="sidebar-show-more-actions tw:grid tw:w-full tw:box-border tw:min-h-7 tw:items-center tw:gap-x-2 tw:grid-cols-[var(--sidebar-row-columns)] tw:rounded-md tw:px-2 tw:py-1 tw:text-left tw:text-app-text-meta tw:type-control tw:no-underline tw:transition-[background-color,box-shadow,color] tw:duration-feedback tw:ease-standard">
+              <span
+                aria-hidden="true"
+                className="sidebar-row-leading sidebar-row-leading-spacer tw:flex tw:size-6 tw:w-6 tw:min-w-6 tw:shrink-0 tw:grow-0 tw:basis-6 tw:items-center tw:justify-center"
+              />
               <div className={cx('sidebar-row-main', 'tw:min-w-0', 'tw:flex', 'tw:items-center', 'tw:gap-4')}>
                 {canShowMore ? (
                   <Button

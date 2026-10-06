@@ -115,8 +115,9 @@ function renderRowContent({
   trailing?: ReactNode
 }): ReactNode {
   const hasLeading =
-    leadingMode !== 'none' &&
-    (layout === 'grid' || (leadingMode === 'icon' && leading !== undefined && leading !== null))
+    leadingMode === 'icon'
+      ? leading !== undefined && leading !== null
+      : leadingMode === 'spacer'
   const hasTrailing = trailing !== undefined && trailing !== null
 
   return (
@@ -128,7 +129,7 @@ function renderRowContent({
             'sidebar-row-leading tw:flex tw:min-w-0 tw:items-center',
             leadingMode === 'icon'
               ? 'icon-button sidebar-item-icon tw:w-6 tw:shrink-0 tw:grow-0 tw:basis-6 tw:justify-center'
-              : 'sidebar-row-leading-spacer tw:size-4 tw:min-w-4',
+              : 'sidebar-row-leading-spacer tw:size-6 tw:w-6 tw:min-w-6 tw:shrink-0 tw:grow-0 tw:basis-6 tw:justify-center',
           )}
         >
           {leadingMode === 'icon' ? leading : null}
@@ -166,6 +167,10 @@ export function SidebarEmptyRow({
         className,
       )}
     >
+      <span
+        aria-hidden="true"
+        className="sidebar-row-leading sidebar-row-leading-spacer tw:flex tw:size-6 tw:w-6 tw:min-w-6 tw:shrink-0 tw:grow-0 tw:basis-6 tw:items-center tw:justify-center"
+      />
       <p className="sidebar-empty tw:m-0 tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-soft">
         {children}
       </p>
