@@ -9,14 +9,25 @@
 
 ### Added
 
+- [desktop/renderer] 引入 UI-Design 规范的 ButtonGroup 容器组件，支持 attached 边框折叠与 orientation 排布并级联透传按钮尺寸与视觉变体；Button 组件新增 isIconOnly、leftIcon、rightIcon、loadingText 与 asChild 委派渲染支持。
 - [desktop] 限制底部面板仅允许终端标签，支持点击加号启动多个终端，并约束底部与右侧栏仅在首页和会话中显示。
 
 ### Changed
 
+- [desktop/renderer] 侧栏 dropdown 与右键子菜单取消自定义宽度，统一采用 UI-Design 的 sm（220px）、md（280px）尺寸，共用 lg（360px）预设。
+
+- [desktop/renderer] 全面升级 Button 核心视觉与交互契约：对齐 UI-Design 的 7 种设计变体（primary、secondary、outline、ghost、danger、danger-outline、subtle-accent）、4 档标准高宽规格（xs 24px、sm 30px、md 36px、lg 42px）、严谨圆角规范（5px/8px/10px 与 pill 胶囊圆角），全局启用 active:scale-[0.98] 触感微反馈与双层焦点环，并在底层平滑兼容旧版尺寸别名与配色。
 - [desktop/renderer] 统一 Toast 与浮层外壳：在 components/ui 提供基于 40px 基准高度、18px 圆角、8px 水平内边距、6px 间距、玻璃背景、18px 模糊与浮层阴影的共用 Toast 及 ToastDivider；全局错误/状态提示、归档提示与缩放控制接入统一外壳，清理失效样式引用并保留现有定位、无障碍语义与交互行为。
+
+### Removed
+
+- [desktop/renderer] 淘汰独立的 IconButton 组件，全仓 60 处图标按钮调用点统一重构为 <Button isIconOnly ... /> 并彻底移除 IconButton.tsx。
 
 ### Fixed
 
+- [desktop/renderer] 活动视图的优先事项与日期分组复用普通侧栏标题和内容样式，移除专用滚动裁切动画，修复首行聊天被遮挡的问题。
+
+- [desktop/renderer] 侧边栏「展开显示」与「折叠显示」操作按钮保留首字与会话标题左边界严格对齐，通过负外边距抵消左内边距并恢复标准紧凑按钮内边距，消除悬浮高亮气泡在文字边缘的裁切感。
 - [desktop/renderer] 侧栏状态对齐 Codex：等待优先、运行覆盖未读，输入与审批分别使用蓝色和绿色胶囊，当前会话隐藏输入胶囊；统一 16px 圆环、20px 视觉槽与 8px 未读点，并预留倒计时及停用 UI，正式列表暂不接入自动回答逻辑。
 - [desktop/renderer] Coding 首页项目标语改为「你想让我们在 CodePilotX 中构建什么?」，保留项目切换入口并同步英文文案。
 
