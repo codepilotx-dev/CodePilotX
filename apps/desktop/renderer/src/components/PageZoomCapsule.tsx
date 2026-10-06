@@ -11,6 +11,7 @@ import { enterTween, exitTween, motionTransition } from '../features/motion/moti
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
 import { Button } from './ui/Button.js'
 import { IconButton } from './ui/IconButton.js'
+import { Toast, ToastDivider } from './ui/Toast.js'
 
 const HIDE_DELAY_MS = 2_000
 
@@ -71,9 +72,8 @@ export function PageZoomCapsule(): React.ReactNode {
   return (
     <AnimatePresence initial={false}>
       {visible ? (
-        <motion.output
+        <motion.div
           animate={{ opacity: 1, y: 0 }}
-          aria-live="polite"
           className="page-zoom-capsule"
           exit={{
             opacity: 0,
@@ -101,35 +101,39 @@ export function PageZoomCapsule(): React.ReactNode {
           }}
           transition={motionTransition(reducedMotion, enterTween)}
         >
-          <strong>{state.percent}%</strong>
-          <IconButton
-            color="ghostSecondary"
-            disabled={!state.canZoomOut}
-            onClick={() => changeZoom('out')}
-            size="toolbar"
-            title="缩小页面"
-          >
-            <Minus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
-          <IconButton
-            color="ghostSecondary"
-            disabled={!state.canZoomIn}
-            onClick={() => changeZoom('in')}
-            size="toolbar"
-            title="放大页面"
-          >
-            <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-          </IconButton>
-          <span aria-hidden="true" className="page-zoom-capsule-separator" />
-          <Button
-            color="ghostSecondary"
-            disabled={state.percent === 100}
-            onClick={() => changeZoom('reset')}
-            size="toolbarLabel"
-          >
-            重置
-          </Button>
-        </motion.output>
+          <Toast>
+            <output aria-live="polite" className="tw:contents">
+              <strong>{state.percent}%</strong>
+              <IconButton
+                color="ghostSecondary"
+                disabled={!state.canZoomOut}
+                onClick={() => changeZoom('out')}
+                size="toolbar"
+                title="缩小页面"
+              >
+                <Minus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              </IconButton>
+              <IconButton
+                color="ghostSecondary"
+                disabled={!state.canZoomIn}
+                onClick={() => changeZoom('in')}
+                size="toolbar"
+                title="放大页面"
+              >
+                <Plus size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+              </IconButton>
+              <ToastDivider />
+              <Button
+                color="ghostSecondary"
+                disabled={state.percent === 100}
+                onClick={() => changeZoom('reset')}
+                size="toolbarLabel"
+              >
+                重置
+              </Button>
+            </output>
+          </Toast>
+        </motion.div>
       ) : null}
     </AnimatePresence>
   )

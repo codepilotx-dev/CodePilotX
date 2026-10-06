@@ -46,21 +46,9 @@
 
   .page-zoom-capsule {
     position: fixed;
-    top: var(--cpx-sys-space-1);
+    top: calc(var(--application-menubar-height) + var(--cpx-sys-space-2));
     right: max(var(--cpx-sys-space-3), 100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + var(--cpx-sys-space-3));
     z-index: var(--cpx-sys-z-toast);
-    display: inline-flex;
-    height: calc(var(--application-menubar-height) - var(--cpx-sys-space-2));
-    align-items: center;
-    gap: var(--cpx-sys-space-1);
-    padding: 0 var(--cpx-sys-space-1) 0 var(--cpx-sys-space-3);
-    border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: var(--cpx-sys-radius-pill);
-    background: var(--cpx-sys-color-surface-raised);
-    box-shadow: var(--cpx-sys-shadow-floating);
-    color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-label);
-    -webkit-app-region: no-drag;
   }
   .page-zoom-capsule strong {
     min-width: 4ch;
@@ -68,108 +56,27 @@
     font: inherit;
   }
 
-  .page-zoom-capsule-separator {
-    width: 1px;
-    height: var(--cpx-sys-space-4);
-    background: var(--cpx-sys-color-border-subtle);
-  }
-
-  /* --- Global Error Toast --- */
-  .global-error-toast {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    z-index: var(--cpx-sys-z-toast);
-    max-height: min(70vh, 520px);
-    font: var(--cpx-sys-type-body);
-    transform: translateX(-50%);
-  }
-
+  .global-error-toast,
   .archive-session-toast {
-    border: var(--cpx-comp-surface-edge);
-    border-radius: var(--cpx-comp-surface-card-radius);
-    background: var(--cpx-comp-surface-floating);
-    box-shadow: var(--cpx-sys-shadow-floating);
-      position: fixed;
-    top: 14px;
+    position: fixed;
+    top: calc(var(--application-menubar-height) + var(--cpx-sys-space-2));
     left: 50%;
     z-index: var(--cpx-sys-z-toast);
-    display: inline-flex;
-    align-items: center;
-    gap: var(--cpx-comp-button-gap-compact);
-    padding: 0.54em 0.62em 0.54em 1em;
-    color: var(--cpx-sys-color-fg-primary);
-    font: var(--cpx-sys-type-caption);
     transform: translateX(-50%);
-    -webkit-app-region: no-drag;
-  
-}
+  }
+
+  .global-error-toast {
+    max-height: min(70vh, 520px);
+  }
+
+  .global-error-toast-scroll-area {
+    max-height: calc(min(70vh, 520px) - var(--cpx-sys-space-3));
+  }
 
   .global-error-toast-scroll-content {
     min-width: 0;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-  }
-
-  .global-error-toast.status {
-    align-items: center;
-    max-height: none;
-    font: var(--cpx-sys-type-caption);
-  }
-
-  .global-error-toast button {
-    width: calc(var(--cpx-sys-font-size-md) + 8px);
-    height: calc(var(--cpx-sys-font-size-md) + 8px);
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    border: 0;
-    border-radius: var(--cpx-sys-radius-full);
-    background: transparent;
-    color: var(--cpx-sys-color-fg-secondary);
-    font-size: var(--cpx-comp-icon-size-md);
-    line-height: 1;
-  }
-  .global-error-toast button:hover {
-    color: var(--cpx-sys-color-fg-primary);
-  }
-
-
-  .archive-session-toast-link,
-  .archive-session-toast-close {
-    border: 0;
-    background: transparent;
-    font: inherit;
-    cursor: pointer;
-    -webkit-app-region: no-drag;
-  }
-
-  .archive-session-toast-link {
-    padding: 0 3px;
-    color: var(--cpx-sys-color-accent-fg);
-    font-weight: var(--cpx-sys-font-weight-medium);
-  }
-  .archive-session-toast-link:hover {
-    text-decoration: underline;
-  }
-
-  .archive-session-toast-close {
-    width: 1.54em;
-    height: 1.54em;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 2px;
-    padding: 0;
-    border-radius: var(--cpx-sys-radius-full);
-    color: var(--cpx-sys-color-fg-secondary);
-    line-height: 1;
-  }
-  .archive-session-toast-close:hover {
-    color: var(--cpx-sys-color-fg-primary);
-    background: var(--cpx-sys-color-hover);
   }
 
   /* --- Permission code scroll --- */

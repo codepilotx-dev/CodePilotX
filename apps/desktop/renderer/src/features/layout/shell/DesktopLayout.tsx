@@ -133,6 +133,9 @@ import { CommandMenuDialog } from '../../search/CommandMenuDialog.js'
 import { DesktopComposer } from '../../session/composer/DesktopComposer.js'
 import { buildCommandMenuTasks } from '../../search/commandMenuModel.js'
 import { GlobalErrorModal } from '../../../components/GlobalErrorModal.js'
+import { Button } from '../../../components/ui/Button.js'
+import { IconButton } from '../../../components/ui/IconButton.js'
+import { Toast, ToastDivider } from '../../../components/ui/Toast.js'
 import { toUserErrorMessage } from '../../../utils/errors.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import type { ThreadArtifactPreviewInput } from '../../session/attachments/attachmentPreviewDescriptor.js'
@@ -3393,19 +3396,21 @@ function ArchiveConversationNotice({
   onOpenSettings: () => void
 }): React.ReactNode {
   return (
-    <div aria-live="polite" className="archive-session-toast" role="status">
+    <Toast aria-live="polite" className="archive-session-toast" role="status">
       <span>查看已归档的聊天：</span>
-      <button className="archive-session-toast-link" onClick={onOpenSettings} type="button">
+      <ToastDivider />
+      <Button color="ghostSecondary" size="toolbarLabel" onClick={onOpenSettings} type="button">
         设置
-      </button>
-      <button
-        aria-label="关闭归档提示"
-        className="archive-session-toast-close"
+      </Button>
+      <IconButton
+        color="ghostSecondary"
+        size="toolbar"
+        title="关闭归档提示"
         onClick={onClose}
         type="button"
       >
-        x
-      </button>
-    </div>
+        ×
+      </IconButton>
+    </Toast>
   )
 }

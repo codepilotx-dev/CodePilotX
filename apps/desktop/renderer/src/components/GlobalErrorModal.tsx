@@ -5,6 +5,9 @@ import { AnimatePresence, motion, useIsPresent } from 'motion/react'
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
 import { enterTween, exitTween, motionTransition } from '../features/motion/motionTransitions.js'
 import { IconButton } from './ui/IconButton.js'
+import { Toast } from './ui/Toast.js'
+
+const MotionToast = motion.create(Toast)
 
 type Props = {
   message: string | null
@@ -59,11 +62,11 @@ function GlobalErrorPresence({
   const isPresent = useIsPresent()
 
   return (
-    <motion.div
+    <MotionToast
       animate={{ opacity: 1, x: '-50%', y: 0 }}
       aria-hidden={!isPresent ? true : undefined}
       aria-live={isError ? 'assertive' : 'polite'}
-      className={`global-error-toast ${isError ? '' : 'status'} tw:flex tw:max-w-[min(55rem,calc(100vw-2rem))] tw:items-start tw:gap-2 tw:border tw:border-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text`}
+      className="global-error-toast tw:max-w-[min(55rem,calc(100vw-2rem))]"
       data-presence={isPresent ? 'present' : 'exiting'}
       exit={{
         opacity: 0,
@@ -89,6 +92,6 @@ function GlobalErrorPresence({
       >
         ×
       </IconButton>
-    </motion.div>
+    </MotionToast>
   )
 }

@@ -49,9 +49,7 @@
   "dataThemeSelectorAllowlist": {
     "src/styles/design-system/tokens.css": 4
   },
-  "literalLineHeightAllowlist": {
-    "src/styles/modal.css": 2
-  },
+  "literalLineHeightAllowlist": {},
   "tailwindLeadingAllowlist": {},
   "featureColorContract": {
     "roots": [
