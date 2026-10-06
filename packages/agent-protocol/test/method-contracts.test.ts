@@ -1406,6 +1406,8 @@ const fixtures = {
     },
     { project },
   ),
+  'project/edit': methodFixture('project/edit', { projectId: project.id, name: project.name, paths: [], expectedVersion: project.updatedAt, operationId: 'operation:project-edit' }, { project }),
+  'project/restore': methodFixture('project/restore', { projectId: project.id, removalOperationId: 'operation:project-remove', operationId: 'operation:project-restore' }, { project }),
   'project/remove': methodFixture(
     'project/remove',
     {

@@ -34,7 +34,7 @@ describe('automation schema', () => {
     expect(migrated.sqlite.query('PRAGMA user_version').get()).toEqual({
       user_version: SCHEMA_VERSION,
     })
-    expect(SCHEMA_VERSION).toBe(53)
+    expect(SCHEMA_VERSION).toBe(54)
     expect(probeAutomationStorageCapabilities(migrated.sqlite)).toEqual({
       automations: true,
       automationRuns: true,

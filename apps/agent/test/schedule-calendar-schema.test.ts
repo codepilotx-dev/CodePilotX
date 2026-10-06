@@ -34,7 +34,7 @@ describe('schedule calendar schema', () => {
     seeded.close()
 
     const migrated = new AgentDatabase(databasePaths)
-    expect(SCHEMA_VERSION).toBe(53)
+    expect(SCHEMA_VERSION).toBe(54)
     expect(migrated.sqlite.query('PRAGMA user_version').get()).toEqual({
       user_version: SCHEMA_VERSION,
     })

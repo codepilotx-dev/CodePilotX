@@ -101,6 +101,15 @@ describe('ManagedProjectlessWorkspaceService', () => {
         workspace: { kind: 'projectless', prompt: 'Build report' },
       })
       expect(duplicate.id).toBe(first.id)
+      const project = db.createProject({ primaryPath: root, name: 'Empty' })
+      db.editProject({ projectID: project.id, paths: [], name: 'Empty', expectedVersion: project.updatedAt })
+      const emptyOperation = crypto.randomUUID()
+      const emptyThread = await threads.create({ operationID: emptyOperation, workspace: { kind: 'project', projectID: project.id } })
+      expect(db.threadWorkspace(emptyThread.id)?.kind).toBe('projectless')
+      expect(db.projectMembership(emptyThread.id)).toBe(project.id)
+      expect(basename((await resolver.resolve(emptyThread.id)).cwd)).toBe('work')
+      expect((await threads.create({ operationID: emptyOperation, workspace: { kind: 'project', projectID: project.id } })).id).toBe(emptyThread.id)
+
       await expect(
         threads.create({ operationID, workspace: { kind: 'projectless', prompt: 'Different' } }),
       ).rejects.toThrow('operationId')

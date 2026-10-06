@@ -23,7 +23,7 @@ export class ThreadExecutionPreparationService {
       const bindingId = this.bindings.allocateBindingId()
       const bind = (threadId: string) => {
         const descriptor = this.db.threadWorkspace(threadId)
-        if (!descriptor || descriptor.kind !== 'project') {
+        if (!descriptor) {
           throw new AgentError('CONFLICT', '项目任务工作区不可用', 409)
         }
         this.bindings.bindLocal({

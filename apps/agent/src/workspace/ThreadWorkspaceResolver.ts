@@ -102,13 +102,13 @@ export class ThreadWorkspaceResolver {
       const executionBinding = this.resolveExecutionBinding(threadID, descriptor)
       const project = this.db.getProject(descriptor.projectID) as RuntimeProject | null
       if (!project) throw new AgentError('PROJECT_NOT_FOUND', '当前项目不存在', 404)
-      if (project.removedAt)
-        throw new AgentError('PROJECT_REMOVED', '当前项目已被移除，归档任务不能继续执行', 409)
-      const folders = project.folders?.filter((folder) => folder.availability !== 'missing') ?? []
+      const folders = descriptor.runtimeWorkspaceRoots.length > 0
+        ? descriptor.runtimeWorkspaceRoots.map((root) => ({ ...root, id: root.folderId }))
+        : project.folders?.filter((folder) => folder.availability !== 'missing') ?? []
       const primary =
         folders.find((folder) => folder.id === project.primaryFolderId) ??
         folders.find((folder) => folder.role === 'primary')
-      const primaryPath = primary?.path ?? project.rootPath
+      const primaryPath = primary?.path ?? descriptor.cwd ?? project.rootPath
       if (!primaryPath) throw new AgentError('PROJECT_FOLDER_NOT_FOUND', '项目主目录不存在', 409)
       const executionPrimary =
         executionBinding.kind === 'worktree' ? executionBinding.cwd : primaryPath

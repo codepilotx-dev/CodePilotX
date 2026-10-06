@@ -77,7 +77,7 @@ export class ThreadHistoryService {
     const workspace = this.db.threadWorkspace(threadID)
     return {
       id: row.id,
-      projectID: row.project_id,
+      projectID: this.db.projectMembership(threadID),
       gitBranch: row.git_branch,
       hasScheduledRun: Boolean(row.has_scheduled_run),
       isScheduledSession: Boolean(row.is_scheduled_session),

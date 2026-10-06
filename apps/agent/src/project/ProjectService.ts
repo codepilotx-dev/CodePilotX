@@ -1,10 +1,13 @@
 import { createHash } from 'node:crypto'
 import { realpath, stat } from 'node:fs/promises'
 import type { ProjectExecutionEnvironment } from '@codepilotx/shared/thread'
-import type { ModelRef } from '../domain'
+import type { EventEnvelope, ModelRef } from '../domain'
 import { AgentError } from '../domain'
 import type { RepositoryDatabase } from '../storage/repositories/RepositoryDatabase'
+import { projectPathKey } from '../storage/repositories/project-repository'
 import type { ProjectSourceService } from './ProjectSourceService'
+
+type ProjectRemovalResult = { projectId: string; removedAt: number; archivedThreadCount: number; removalOperationId?: string; undoExpiresAt?: number }
 
 const requestHash = (value: unknown) =>
   createHash('sha256').update(JSON.stringify(value)).digest('hex')
@@ -24,6 +27,7 @@ export class ProjectService {
   constructor(
     private readonly db: RepositoryDatabase,
     private readonly sources?: ProjectSourceService,
+    private readonly publish?: (events: readonly EventEnvelope[]) => Promise<void>,
   ) {}
 
   list(input: { folderPath?: string } = {}) {
@@ -184,111 +188,76 @@ export class ProjectService {
     return result
   }
 
+  async edit(input: { projectID: string; name: string; paths: string[]; expectedVersion: number; operationID: string }) {
+    const hash = requestHash(input)
+    const operation = this.db.beginProjectOperation({ operationID: input.operationID, method: 'project/edit', requestHash: hash, projectID: input.projectID })
+    if (operation.status === 'completed') return operation.result as { project: NonNullable<ReturnType<RepositoryDatabase['getProject']>> }
+    const paths = [...new Map((await Promise.all(input.paths.map(requireDirectory))).map((path) => [projectPathKey(path), path])).values()]
+    return this.db.profileSqlite.transaction(() => {
+      const result = { project: this.db.editProject({ ...input, paths }) }
+      this.db.completeProjectOperation(input.operationID, result)
+      return result
+    })()
+  }
+
   async remove(input: { projectID: string; operationID: string }) {
-    const hash = requestHash({ projectID: input.projectID })
-    const existingOperation = this.db.projectOperation(input.operationID)
-    if (existingOperation) {
-      const operation = this.db.beginProjectOperation({
-        operationID: input.operationID,
-        method: 'project/remove',
-        requestHash: hash,
-        projectID: input.projectID,
-      })
-      if (operation.status === 'completed') {
-        return operation.result as {
-          projectId: string
-          removedAt: number
-          archivedThreadCount: number
-        }
-      }
-    }
-    const existingProject = this.db.getProject(input.projectID)
-    if (existingProject?.removedAt) {
-      const archivedThreadCount = Number(
-        (
-          this.db.sqlite
-            .query(
-              `
-        SELECT COUNT(*) AS count FROM threads
-        WHERE project_id = ? AND archived_at IS NOT NULL
-      `,
-            )
-            .get(input.projectID) as { count: number }
-        ).count,
-      )
-      const result = {
-        projectId: input.projectID,
-        removedAt: existingProject.removedAt,
-        archivedThreadCount,
-      }
+    const operation = this.db.beginProjectOperation({ operationID: input.operationID, method: 'project/remove', requestHash: requestHash({ projectID: input.projectID }), projectID: input.projectID })
+    if (operation.status === 'completed') return operation.result as ProjectRemovalResult
+    const project = this.db.getProject(input.projectID)
+    if (!project) throw new AgentError('PROJECT_NOT_FOUND', '项目不存在', 404)
+    const checkpoint = operation.result as ProjectRemovalResult | null
+    if (project.removedAt !== null && !checkpoint) {
+      const result = { projectId: input.projectID, removedAt: project.removedAt, archivedThreadCount: 0 }
       this.db.completeProjectOperation(input.operationID, result)
       return result
     }
-    this.db.requireProjectForRemoval(input.projectID)
-    const running = this.db.sqlite
-      .query(
-        `
-      SELECT 1 AS present
-      FROM turns AS turn
-      INNER JOIN threads AS thread ON thread.id = turn.thread_id
-      WHERE thread.project_id = ?
-        AND turn.status IN (
-          'queued', 'running', 'waiting_permission', 'waiting_question',
-          'waiting_subagents'
-        )
-      LIMIT 1
-    `,
-      )
-      .get(input.projectID)
-    if (running) throw new AgentError('PROJECT_BUSY', '项目仍有运行中的任务', 409)
-    const operation = this.db.beginProjectOperation({
-      operationID: input.operationID,
-      method: 'project/remove',
-      requestHash: hash,
-      projectID: input.projectID,
-    })
-    if (operation.status === 'completed') {
-      return operation.result as {
-        projectId: string
-        removedAt: number
-        archivedThreadCount: number
-      }
-    }
-    const removedAt = Date.now()
-    const archivedThreadCount = this.db.sqlite
-      .query(
-        `
-      UPDATE threads
-      SET archived_at = COALESCE(archived_at, ?), updated_at = ?
-      WHERE project_id = ? AND archived_at IS NULL
-    `,
-      )
-      .run(removedAt, removedAt, input.projectID).changes
-    await this.sources?.removeAll(input.projectID)
-    this.db.removeProjectRecord(input.projectID, removedAt)
-    const result = { projectId: input.projectID, removedAt, archivedThreadCount }
+    const result = checkpoint ?? { projectId: input.projectID, removedAt: Math.max(Date.now(), project.updatedAt + 1), archivedThreadCount: 0, removalOperationId: input.operationID, undoExpiresAt: Date.now() + 60_000 }
+    this.db.profileSqlite.transaction(() => {
+      this.db.saveRemovalCheckpoint(input.operationID, result)
+      this.db.hideProject(input.projectID, result.removedAt)
+    })()
+    const events = this.db.detachProjectThreads(input.projectID, input.operationID)
     this.db.completeProjectOperation(input.operationID, result)
-    return result
+    await this.publish?.(events)
+    return this.db.projectOperation(input.operationID)!.result as ProjectRemovalResult
+  }
+
+  async restore(input: { projectID: string; removalOperationID: string; operationID: string }) {
+    const operation = this.db.beginProjectOperation({ operationID: input.operationID, method: 'project/restore', requestHash: requestHash(input), projectID: input.projectID })
+    if (operation.status === 'completed') return operation.result as { project: NonNullable<ReturnType<RepositoryDatabase['getProject']>> }
+    const removal = this.db.projectOperation(input.removalOperationID)
+    const result = removal?.result as ProjectRemovalResult | null
+    if (removal?.method !== 'project/remove' || removal.projectID !== input.projectID || !result?.undoExpiresAt || (!operation.result && Date.now() > result.undoExpiresAt)) throw new AgentError('CONFLICT', '项目撤销已过期', 409)
+    const current = this.db.getProject(input.projectID)
+    if (!current || (current.removedAt !== null && current.removedAt !== result.removedAt)) throw new AgentError('VERSION_CONFLICT', '项目状态已改变', 409)
+    this.db.saveRemovalCheckpoint(input.operationID, { removalOperationId: input.removalOperationID })
+    this.db.restoreProjectRecord(input.projectID)
+    const events = this.db.restoreProjectThreads(input.projectID, input.removalOperationID)
+    const restored = { project: this.db.getProject(input.projectID)! }
+    this.db.completeProjectOperation(input.operationID, restored)
+    await this.publish?.(events)
+    return restored
   }
 
   async recoverPendingRemovals() {
     const operations = this.db.profileSqlite
       .query(
         `
-      SELECT operation_id, project_id
+      SELECT operation_id, project_id, method, result
       FROM project_operations
-      WHERE method = 'project/remove' AND status = 'pending' AND project_id IS NOT NULL
+      WHERE method IN ('project/remove', 'project/restore') AND status = 'pending' AND project_id IS NOT NULL
       ORDER BY created_at, operation_id
     `,
       )
-      .all() as Array<{ operation_id: string; project_id: string }>
+      .all() as Array<{ operation_id: string; project_id: string; method: string; result: string | null }>
     const recovered: string[] = []
     for (const operation of operations) {
       try {
-        await this.remove({
-          projectID: operation.project_id,
-          operationID: operation.operation_id,
-        })
+        if (operation.method === 'project/restore') {
+          if (!operation.result) continue
+          const checkpoint = JSON.parse(operation.result) as { removalOperationId: string }
+          await this.restore({ projectID: operation.project_id, operationID: operation.operation_id, removalOperationID: checkpoint.removalOperationId })
+        } else await this.remove({ projectID: operation.project_id, operationID: operation.operation_id })
         recovered.push(operation.operation_id)
       } catch (cause) {
         if (!(cause instanceof AgentError) || cause.code !== 'PROJECT_BUSY') throw cause

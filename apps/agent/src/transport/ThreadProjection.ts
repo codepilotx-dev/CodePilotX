@@ -478,7 +478,7 @@ export class ThreadProjection {
 
   private projectThread(threadId: string): Thread | null {
     const { creationSurface: columnExists } = probeThreadsStorageCapabilities(this.db.sqlite)
-    const sql = `SELECT t.id, t.title, t.project_id, t.git_branch,
+    const sql = `SELECT t.id, t.title, ${this.db.projectMembershipSql()} AS project_id, t.git_branch,
       ${columnExists ? 't.creation_surface' : 'NULL AS creation_surface'},
       t.task_mode, t.sandbox_mode, t.approval_policy, t.approvals_reviewer,
       t.archived_at, t.created_at, t.updated_at, ${THREAD_ORIGIN_PROJECTION_SQL}
@@ -1133,7 +1133,7 @@ export class ThreadProjection {
     ]
     const values: Array<string | number | null> = []
     if (params.projectID !== undefined) {
-      where.push('t.project_id = ?')
+      where.push('${this.db.projectMembershipSql()} = ?')
       values.push(params.projectID)
     }
     if (params.archived !== undefined) {
@@ -1142,7 +1142,7 @@ export class ThreadProjection {
     const { creationSurface: columnExists } = probeThreadsStorageCapabilities(this.db.sqlite)
     const creationSurfaceExpr = columnExists ? 't.creation_surface' : 'NULL AS creation_surface'
     const sql = `
-      SELECT t.id, t.project_id, t.git_branch, ${creationSurfaceExpr}, t.title, t.preview, t.first_user_message, t.message_count,
+      SELECT t.id, ${this.db.projectMembershipSql()} AS project_id, t.git_branch, ${creationSurfaceExpr}, t.title, t.preview, t.first_user_message, t.message_count,
         t.archived_at, t.task_mode, t.sandbox_mode, t.approval_policy, t.approvals_reviewer, t.created_at, t.updated_at,
         read_state.unread_at, ${THREAD_ORIGIN_PROJECTION_SQL},
         (SELECT status FROM turns AS u WHERE u.thread_id = t.id

@@ -68,11 +68,7 @@ export abstract class WorkspaceRepositoryDatabase extends ProjectRepositoryDatab
   }
 
   threadProjectID(threadID: string) {
-    const row = this.sqlite.query('SELECT project_id FROM threads WHERE id = ?').get(threadID) as {
-      project_id: string | null
-    } | null
-    if (!row) return null
-    return row.project_id
+    return this.projectMembership(threadID)
   }
 
   threadWorkspace(threadID: string): StoredThreadWorkspace | null {
@@ -143,6 +139,7 @@ export abstract class WorkspaceRepositoryDatabase extends ProjectRepositoryDatab
 
   setThreadProject(threadID: string, projectID: string | null) {
     const project = projectID ? this.requireProject(projectID) : null
+    this.setProjectMembership(threadID, projectID)
     const result = this.sqlite
       .query(
         `UPDATE threads

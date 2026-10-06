@@ -262,6 +262,8 @@ export abstract class RepositoryCore {
   ): EventEnvelope
   protected abstract requireProject(projectID: string): StoredProject
   abstract threadWorkspace(threadID: string): StoredThreadWorkspace | null
+  abstract projectMembership(threadID: string): string | null
+  abstract projectMembershipSql(alias?: 't'): string
   abstract getAgentExecution(agentID: string): AgentExecution | null
 
   private transactionDepth = 0

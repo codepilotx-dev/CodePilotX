@@ -5,7 +5,7 @@ import { desktopClient } from '../../services/desktop-client/index.js'
 import { useEverOpened } from '../../hooks/usePresenceRetention.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
 import { DEFAULT_PROJECT_APPEARANCE } from './projectAppearance.js'
-import { notifyProjectCatalogChanged } from './projectCatalogEvents.js'
+import { notifyProjectCatalogChanged, notifyProjectRemoved } from './projectCatalogEvents.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
 
 const ProjectEditDialog = lazy(async () => {
@@ -34,7 +34,6 @@ export function ProjectManagementDialogs({
   setManagerOpen,
   setConfirmRemoveOpen,
   onProjectChange,
-  onArchiveSessions,
   onRemoveWorkspace,
   onReport,
 }: Props): React.ReactNode {
@@ -52,7 +51,7 @@ export function ProjectManagementDialogs({
           <ConfirmationDialog
             actionDisabled={busy || processingAction !== null}
             actionLabel={processingAction === 'remove' ? '处理中…' : '移除'}
-            description="项目任务将一并归档。磁盘上的目录与文件不会被删除。"
+            description="这只会从应用中移除项目。磁盘文件和现有聊天会保留，聊天将移出项目并继续使用原工作目录。"
             open={confirmRemoveOpen}
             title={`移除 ${project.name}?`}
             tone="danger"
@@ -61,18 +60,15 @@ export function ProjectManagementDialogs({
               setProcessingAction('remove')
               void (
                 project.projectId
-                  ? desktopClient.removeProject(project.projectId).then(() => true)
-                  : onArchiveSessions()
+                  ? desktopClient.removeProject(project.projectId).then((result) => {
+                      if (result.removalOperationId && result.undoExpiresAt) notifyProjectRemoved({ project, removalOperationId: result.removalOperationId, undoExpiresAt: result.undoExpiresAt })
+                      return true
+                    })
+                  : Promise.resolve(true)
               )
                 .then((success) => {
                   if (!success) return
                   setConfirmRemoveOpen(false)
-                  if (project.projectId) {
-                    setProjectAppearances((current) => {
-                      const { [project.projectId as string]: _removed, ...next } = current
-                      return next
-                    })
-                  }
                   onRemoveWorkspace(project)
                   notifyProjectCatalogChanged()
                 })

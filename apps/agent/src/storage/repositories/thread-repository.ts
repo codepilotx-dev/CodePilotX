@@ -520,7 +520,7 @@ export abstract class ThreadRepositoryDatabase extends RepositoryCore {
           title: row.title,
           kind: row.kind,
           messageCount: row.message_count,
-          projectID: row.project_id,
+          projectID: this.projectMembership(threadID),
         }
       : null
   }

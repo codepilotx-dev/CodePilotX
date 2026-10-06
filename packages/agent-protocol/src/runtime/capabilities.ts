@@ -1,6 +1,8 @@
 import { Schema } from 'effect'
 
 export const Capabilities = [
+  'project.edit.v1',
+  'project.restore.v1',
   'interaction.scopedGrants.v1',
   'interaction.questionPause.v1',
   'mcp.elicitation.v1',

@@ -1,3 +1,4 @@
+import { Effect } from 'effect'
 import type { RpcMethod } from '@codepilotx/agent-protocol'
 import type { RpcRouter } from '../RpcRouter'
 import { optionalRpcRecord as optionalRecord, rpcRecord as record } from '../decoders'
@@ -22,6 +23,8 @@ export const workspaceHandlers = {
     'project/create',
     'project/open',
     'project/update',
+    'project/edit',
+    'project/restore',
     'project/remove',
     'project/context/read',
     'project/folder/add',
@@ -47,7 +50,7 @@ export const workspaceHandlers = {
   ): Promise<unknown> {
     const { db, projectSources } = runtime.dependencies
     const params = optionalRecord(rawParams)
-    const projects = new ProjectService(db, projectSources)
+    const projects = new ProjectService(db, projectSources, async (events) => { for (const event of events) await Effect.runPromise(runtime.dependencies.hub.publish(event)) })
     const operationID = () => stringParam(params, 'operationId')
     const expectedVersion = () => {
       if (
@@ -98,6 +101,12 @@ export const workspaceHandlers = {
           expectedVersion: expectedVersion(),
           operationID: operationID(),
         })
+      case 'project/edit': {
+        if (!Array.isArray(params.paths) || !params.paths.every((path) => typeof path === 'string' && path.trim())) throw new AgentError('INVALID_REQUEST', 'paths 参数无效', 400)
+        return projects.edit({ projectID: stringParam(params, 'projectId'), name: stringParam(params, 'name'), paths: params.paths as string[], expectedVersion: expectedVersion(), operationID: operationID() })
+      }
+      case 'project/restore':
+        return projects.restore({ projectID: stringParam(params, 'projectId'), removalOperationID: stringParam(params, 'removalOperationId'), operationID: operationID() })
       case 'project/remove':
         return projects.remove({
           projectID: stringParam(params, 'projectId'),

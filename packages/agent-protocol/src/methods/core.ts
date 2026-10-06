@@ -410,6 +410,17 @@ export const ProjectUpdateParamsSchema = Schema.Struct({
 
 export const ProjectUpdateResultSchema = Schema.Struct({ project: AgentThread.ProjectSchema })
 
+export const ProjectEditParamsSchema = Schema.Struct({
+  ...ProjectUpdateParamsSchema.fields,
+  paths: Schema.Array(NonEmptyStringSchema),
+})
+
+export const ProjectRestoreParamsSchema = Schema.Struct({
+  projectId: OpaqueIDSchema,
+  removalOperationId: OpaqueIDSchema,
+  ...OperationParamsSchema.fields,
+})
+
 export const ProjectRemoveParamsSchema = Schema.Struct({
   projectId: OpaqueIDSchema,
   ...OperationParamsSchema.fields,
@@ -419,6 +430,8 @@ export const ProjectRemoveResultSchema = Schema.Struct({
   projectId: OpaqueIDSchema,
   removedAt: TimestampSchema,
   archivedThreadCount: NonNegativeIntSchema,
+  removalOperationId: Schema.optional(OpaqueIDSchema),
+  undoExpiresAt: Schema.optional(TimestampSchema),
 })
 
 export const ProjectContextReadParamsSchema = Schema.Struct({
@@ -1447,6 +1460,20 @@ export const CoreRpcMethods = {
     capability: null,
     mutation: true,
     exactParams: true,
+  }),
+  'project/edit': defineMethod({
+    params: ProjectEditParamsSchema,
+    result: ProjectUpdateResultSchema,
+    errors: ProjectErrors,
+    capability: 'project.edit.v1',
+    mutation: true,
+  }),
+  'project/restore': defineMethod({
+    params: ProjectRestoreParamsSchema,
+    result: ProjectUpdateResultSchema,
+    errors: ProjectErrors,
+    capability: 'project.restore.v1',
+    mutation: true,
   }),
   'project/remove': defineMethod({
     params: ProjectRemoveParamsSchema,

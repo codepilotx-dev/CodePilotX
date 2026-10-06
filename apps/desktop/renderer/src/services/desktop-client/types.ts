@@ -52,6 +52,7 @@ import type {
 type DesktopClientWindow = {
   codePilotXDesktop?: {
     pickWorkspaceDirectory(): Promise<string | null>
+    pickWorkspaceDirectories?(): Promise<string[]>
     getAppearanceSettings?(): Promise<DesktopThemeSettings>
     saveAppearanceSettings?(settings: DesktopThemeSettings): Promise<void>
     canRestorePreviousAppearance?(): Promise<boolean>

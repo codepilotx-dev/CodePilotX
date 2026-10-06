@@ -276,6 +276,12 @@ export const threadHandlers = {
           throw new AgentError('INVALID_REQUEST', 'title 参数无效', 400)
         if (archived !== undefined && typeof archived !== 'boolean')
           throw new AgentError('INVALID_REQUEST', 'archived 参数无效', 400)
+        if (archived === true) {
+          await runtime.dependencies.automation.removeThreadSchedules(threadId)
+          await runtime.dependencies.scheduledTasks?.removeThreadSchedules(threadId)
+          const active = db.activeTurn(threadId)
+          if (active) await threads.stop(threadId, active.id)
+        }
         const thread = await history.patch(threadId, {
           ...(title !== undefined ? { title } : {}),
           ...(archived !== undefined ? { archived } : {}),

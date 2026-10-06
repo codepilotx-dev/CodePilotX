@@ -121,6 +121,10 @@ export class ScheduledTaskService {
     return task
   }
 
+  async removeThreadSchedules(threadId: string) {
+    for (const item of this.repository.forThread(threadId)) await this.delete(item.id, item.revision)
+  }
+
   async delete(id: string, expectedRevision: number) {
     const task = this.repository.cancel(id, expectedRevision, this.now())
     await this.changed(task)

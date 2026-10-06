@@ -1,3 +1,6 @@
+import { ProjectService } from '../src/project/ProjectService'
+import { ThreadWorkspaceResolver } from '../src/workspace/ThreadWorkspaceResolver'
+import { ManagedProjectlessWorkspaceService } from '../src/workspace/ManagedProjectlessWorkspaceService'
 import { afterEach, describe, expect, test } from 'bun:test'
 import { Database } from 'bun:sqlite'
 import { createHash } from 'node:crypto'
@@ -23,6 +26,42 @@ const legacyMemoryKey = (path: string) =>
     .digest('hex')
 
 describe('项目共享上下文存储', () => {
+  test('项目编辑原子保存，清空与移除保留聊天目录，撤销不覆盖后来归属', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'codepilotx-project-edit-'))
+    temporaryPaths.push(root)
+    const original = join(root, 'original')
+    const replacement = join(root, 'replacement')
+    await Promise.all([mkdir(original), mkdir(replacement)])
+    const db = new AgentDatabase(join(root, 'history.sqlite'))
+    try {
+      const service = new ProjectService(db)
+      const project = db.createProject({ primaryPath: original, name: 'Original' })
+      const thread = db.createThread({ workspace: { kind: 'project', projectID: project.id } })
+      const other = db.createProject({ primaryPath: replacement, name: 'Other' })
+      await expect(service.edit({ projectID: project.id, name: 'Changed', paths: [replacement], expectedVersion: project.updatedAt + 1, operationID: crypto.randomUUID() })).rejects.toThrow('其他操作')
+      expect(db.getProject(project.id)?.folders[0]?.path).toBe(resolve(original))
+      const edited = await service.edit({ projectID: project.id, name: 'Empty', paths: [], expectedVersion: project.updatedAt, operationID: crypto.randomUUID() })
+      expect(edited.project.folders).toEqual([])
+      expect(edited.project.primaryFolderId).toBe('')
+      const resolver = new ThreadWorkspaceResolver(db, {} as ManagedProjectlessWorkspaceService)
+      expect((await resolver.resolve(thread.id)).cwd).toBe(resolve(original))
+      const operationID = crypto.randomUUID()
+      const removed = await service.remove({ projectID: project.id, operationID })
+      expect(removed.archivedThreadCount).toBe(0)
+      expect(db.projectMembership(thread.id)).toBeNull()
+      expect(db.sqlite.query('SELECT archived_at FROM threads WHERE id = ?').get(thread.id)).toEqual({ archived_at: null })
+      expect((await resolver.resolve(thread.id)).cwd).toBe(resolve(original))
+      expect(await service.remove({ projectID: project.id, operationID })).toEqual(removed)
+      db.transaction(() => db.setProjectMembership(thread.id, other.id))
+      const restored = await service.restore({ projectID: project.id, removalOperationID: operationID, operationID: crypto.randomUUID() })
+      expect(restored.project.removedAt).toBeNull()
+      expect(db.projectMembership(thread.id)).toBe(other.id)
+      const second = await service.remove({ projectID: project.id, operationID: crypto.randomUUID() })
+      db.profileSqlite.query('UPDATE project_operations SET result = ? WHERE operation_id = ?').run(JSON.stringify({ ...second, undoExpiresAt: 1 }), second.removalOperationId!)
+      await expect(service.restore({ projectID: project.id, removalOperationID: second.removalOperationId!, operationID: crypto.randomUUID() })).rejects.toThrow('过期')
+    } finally { db.close() }
+  })
+
   test('目录添加幂等、主目录唯一且同一路径可以属于不同项目', async () => {
     const root = await mkdtemp(join(tmpdir(), 'codepilotx-project-folders-'))
     temporaryPaths.push(root)

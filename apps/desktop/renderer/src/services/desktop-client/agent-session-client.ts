@@ -2341,10 +2341,22 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.updateProject(input),
       ),
+    editProject: (input) => withAgentOrMock(async () => {
+      requireAgentCapability('project.edit.v1')
+      const result = await rpc.call('project/edit', { ...input, operationId: crypto.randomUUID() })
+      projectsByIdCache = null
+      return projectToDesktopWorkspace(await ensureDesktopProjectTrusted(result.project), input.projectId)
+    }, () => mockClient.editProject(input)),
+    restoreProject: (projectId, removalOperationId) => withAgentOrMock(async () => {
+      requireAgentCapability('project.restore.v1')
+      const result = await rpc.call('project/restore', { projectId, removalOperationId, operationId: crypto.randomUUID() })
+      projectsByIdCache = null
+      return projectToDesktopWorkspace(result.project, projectId)
+    }, () => mockClient.restoreProject(projectId, removalOperationId)),
     removeProject: (projectId) =>
       withAgentOrMock(
         async () => {
-          const result = await rpc.call<{ archivedThreadCount: number }>('project/remove', {
+          const result = await rpc.call('project/remove', {
             projectId,
             operationId: crypto.randomUUID(),
           })
@@ -2476,6 +2488,12 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.removeProjectSource(projectId, sourceId),
       ),
+    chooseProjectFolders: async () => {
+      const picker = environment.window?.codePilotXDesktop?.pickWorkspaceDirectories
+      if (picker) return picker()
+      const path = await mockClient.chooseProjectFolder()
+      return path ? [path] : []
+    },
     chooseProjectFolder: async () => {
       const picker = environment.window?.codePilotXDesktop?.pickWorkspaceDirectory
       return picker ? picker() : mockClient.chooseProjectFolder()
@@ -3382,7 +3400,7 @@ export function createAgentSessionDesktopClient(
           return {
             sessionId: snapshot.item.id,
             workspace: snapshot.workspace,
-            standalone: sharedSnapshot.thread.workspace.kind === 'projectless',
+            standalone: sharedSnapshot.thread.projectID === null,
           }
         },
         () => mockClient.createSession(options),
@@ -3990,6 +4008,7 @@ export function createAgentSessionDesktopClient(
     'openExternalURL',
     'openSettings',
     'pickWorkspaceDirectory',
+    'pickWorkspaceDirectories',
     'pollCopilotLogin',
     'reinstallDesktopToolchain',
     'runDebugToolProbe',
@@ -4043,6 +4062,7 @@ export function createAgentSessionDesktopClient(
     openExternalURL: lazyMock('openExternalURL'),
     openSettings: lazyMock('openSettings'),
     pickWorkspaceDirectory: lazyMock('pickWorkspaceDirectory'),
+    pickWorkspaceDirectories: lazyMock('pickWorkspaceDirectories'),
     pollCopilotLogin: lazyMock('pollCopilotLogin'),
     reinstallDesktopToolchain: lazyMock('reinstallDesktopToolchain'),
     runDebugToolProbe: lazyMock('runDebugToolProbe'),

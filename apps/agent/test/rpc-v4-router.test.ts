@@ -177,6 +177,30 @@ const fixture = async (
 }
 
 describe('RPC v4 Router', () => {
+  test('归档先移除定时任务并停止活动 turn，失败不写入归档', async () => {
+    const calls: string[] = []
+    let fail = false
+    const { db, initialize, call } = await fixture({
+      automation: { removeThreadSchedules: async () => { calls.push('automation') } } as never,
+      scheduledTasks: { removeThreadSchedules: async () => { calls.push('scheduled') } } as never,
+      threads: { stop: async () => { calls.push('stop'); if (fail) throw new Error('stop failed') } } as never,
+      history: { patch: async () => { calls.push('archive'); return new ThreadProjection(db).list({ limit: 1 })[0] } } as never,
+    })
+    try {
+      const root = db.createProject({ primaryPath: process.cwd() })
+      const thread = db.createThread({ workspace: { kind: 'project', projectID: root.id } })
+      db.sqlite.query("INSERT INTO turns (id, thread_id, mode, sandbox_mode, approval_policy, approvals_reviewer, model_ref, status, created_at) VALUES (?, ?, 'chat', 'workspace-write', 'never', 'user', '{}', 'running', ?)").run('turn:archive', thread.id, Date.now())
+      await initialize()
+      await call('thread/update', { threadId: thread.id, patch: { archived: true } })
+      expect(calls).toEqual(['automation', 'scheduled', 'stop', 'archive'])
+      calls.length = 0
+      fail = true
+      const failed = await call('thread/update', { threadId: thread.id, patch: { archived: true } })
+      expect(failed.error).toBeDefined()
+      expect(calls).toEqual(['automation', 'scheduled', 'stop'])
+    } finally { db.close() }
+  })
+
   test('/rpc 仅从认证来源派生 transport authority', () => {
     expect(rpcTransportAuthority('Bearer desktop-token', null, 'desktop-token')).toBe(
       'desktop-host',

@@ -201,6 +201,7 @@ const DESKTOP_WINDOW_IPC_CHANNELS = {
 } as const satisfies typeof import('@codepilotx/shared/desktop-window-ipc').DESKTOP_WINDOW_IPC_CHANNELS
 
 const DESKTOP_WORKSPACE_IPC_CHANNELS = {
+  pickDirectories: 'workspace:pick-directories',
   pickDirectory: 'workspace:pick-directory',
 } as const satisfies typeof import('@codepilotx/shared/desktop-workspace-ipc').DESKTOP_WORKSPACE_IPC_CHANNELS
 
@@ -449,6 +450,8 @@ const desktop = {
   },
   pickWorkspaceDirectory: (): Promise<string | null> =>
     ipcRenderer.invoke(DESKTOP_WORKSPACE_IPC_CHANNELS.pickDirectory),
+  pickWorkspaceDirectories: (): Promise<string[]> =>
+    ipcRenderer.invoke(DESKTOP_WORKSPACE_IPC_CHANNELS.pickDirectories),
   getDataLocation: () => ipcRenderer.invoke(DESKTOP_DATA_LOCATION_IPC_CHANNELS.get),
   chooseDataLocation: (workspaceRoots?: readonly string[]) =>
     ipcRenderer.invoke(DESKTOP_DATA_LOCATION_IPC_CHANNELS.choose, workspaceRoots),

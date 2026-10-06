@@ -1,57 +1,10 @@
-import { describe, expect, test } from 'bun:test'
-import type { DesktopProjectFolder } from '../shared/types.js'
-import { createProjectFolderSavePlan } from '../src/features/projects/projectEditModel.js'
+import { expect, test } from 'bun:test'
+import { projectFolderPaths } from '../src/features/projects/projectEditModel.js'
 
-describe('project edit folder save plan', () => {
-  test('adds replacements before switching primary and removing old folders', () => {
-    const original = [
-      folder('primary', 'C:\\repo', 'primary'),
-      folder('docs', 'D:\\docs', 'secondary'),
-    ]
-
-    expect(
-      createProjectFolderSavePlan(original, [
-        {
-          originalId: 'primary',
-          path: 'C:\\repo',
-          role: 'secondary',
-        },
-        {
-          originalId: null,
-          path: 'E:\\replacement',
-          role: 'primary',
-        },
-      ]),
-    ).toEqual({
-      addPaths: ['E:\\replacement'],
-      desiredPrimaryPath: 'E:\\replacement',
-      removeFolderIds: ['docs'],
-    })
-  })
-
-  test('rejects a draft without a primary folder', () => {
-    expect(() =>
-      createProjectFolderSavePlan(
-        [folder('primary', 'C:\\repo', 'primary')],
-        [{ originalId: 'primary', path: 'C:\\repo', role: 'secondary' }],
-      ),
-    ).toThrow('项目必须保留一个主目录')
-  })
+test('项目编辑允许空目录，并将主目录放在新聊天 roots 第一位', () => {
+  expect(projectFolderPaths([])).toEqual([])
+  expect(projectFolderPaths([
+    { path: 'C:/secondary', role: 'secondary', originalId: 'secondary' },
+    { path: 'D:/primary', role: 'primary', originalId: null },
+  ])).toEqual(['D:/primary', 'C:/secondary'])
 })
-
-function folder(
-  id: string,
-  path: string,
-  role: DesktopProjectFolder['role'],
-): DesktopProjectFolder {
-  return {
-    id,
-    name: id,
-    path,
-    role,
-    availability: 'available',
-    order: 0,
-    createdAt: 0,
-    updatedAt: 0,
-  }
-}

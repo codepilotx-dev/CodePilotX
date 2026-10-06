@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { Folder, FolderPlus, RefreshCw, Star, Trash2, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
 import type {
   DesktopProjectFolder,
@@ -14,7 +14,7 @@ import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTo
 import { cx } from '../../utils/cx.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { ProjectAppearancePicker } from './ProjectAppearancePicker.js'
-import { createProjectFolderSavePlan, type ProjectFolderSaveDraft } from './projectEditModel.js'
+import { projectFolderPaths, type ProjectFolderSaveDraft } from './projectEditModel.js'
 import { notifyProjectCatalogChanged } from './projectCatalogEvents.js'
 import { errorMessageOf as errorMessage } from '@codepilotx/shared/errors'
 
@@ -79,19 +79,21 @@ export function ProjectEditDialog({
       .catch((error) => onReport(errorMessage(error)))
   }, [open, projectId, onReport])
 
-  const primaryDraft = useMemo(
-    () => draftFolders.find((folder) => folder.role === 'primary') ?? null,
-    [draftFolders],
-  )
-
   async function addFolder(): Promise<void> {
-    const path = await desktopClient.chooseProjectFolder()
-    if (!path) return
-    if (draftFolders.some((folder) => samePath(folder.path, path))) {
-      onReport('该目录已经在项目中。')
-      return
-    }
-    setDraftFolders((current) => [...current, createNewDraftFolder(path, current.length)])
+    addPaths(await desktopClient.chooseProjectFolders())
+  }
+
+  function addPaths(paths: string[]): void {
+    setDraftFolders((current) => {
+      const next = [...current]
+      for (const path of paths) {
+        if (next.some((folder) => samePath(folder.path, path))) continue
+        const folder = createNewDraftFolder(path, next.length)
+        if (next.length === 0) folder.role = 'primary'
+        next.push(folder)
+      }
+      return next
+    })
   }
 
   async function reselectFolder(folder: DraftFolder): Promise<void> {
@@ -123,16 +125,13 @@ export function ProjectEditDialog({
   }
 
   function setPrimary(folderId: string): void {
-    setDraftFolders((current) =>
-      current.map((folder) => ({
-        ...folder,
-        role: folder.id === folderId ? 'primary' : 'secondary',
-      })),
-    )
+    setDraftFolders((current) => [
+      ...current.filter((folder) => folder.id === folderId),
+      ...current.filter((folder) => folder.id !== folderId),
+    ].map((folder, order) => ({ ...folder, role: order === 0 ? 'primary' : 'secondary', order })))
   }
 
   function removeFolder(folder: DraftFolder): void {
-    if (folder.role === 'primary') return
     const affectedSources = folder.originalId ? (sourceCounts[folder.originalId] ?? 0) : 0
     if (
       affectedSources > 0 &&
@@ -140,62 +139,23 @@ export function ProjectEditDialog({
     ) {
       return
     }
-    setDraftFolders((current) => current.filter((candidate) => candidate.id !== folder.id))
-  }
-
-  async function refreshProject(): Promise<void> {
-    if (!projectId) return
-    const refreshed = (await desktopClient.listProjects()).find(
-      (item) => item.projectId === projectId,
-    )
-    if (refreshed) onProjectChange(refreshed)
+    setDraftFolders((current) => current.filter((candidate) => candidate.id !== folder.id).map((candidate, order) => ({ ...candidate, role: order === 0 ? 'primary' : 'secondary', order })))
   }
 
   async function save(): Promise<void> {
-    if (!projectId || busy || !draftName.trim() || !primaryDraft) return
+    if (!projectId || busy || !draftName.trim()) return
     setBusy(true)
-    let current = project
     try {
-      const savePlan = createProjectFolderSavePlan(project.folders ?? [], draftFolders)
-      for (const path of savePlan.addPaths) {
-        current = await desktopClient.addProjectFolder(projectId, path)
-      }
-
-      const desiredPrimary = current.folders?.find((folder) =>
-        samePath(folder.path, savePlan.desiredPrimaryPath),
-      )
-      if (!desiredPrimary) {
-        throw new Error('保存后未找到选定的主目录。')
-      }
-      if (current.primaryFolderId !== desiredPrimary.id) {
-        current = await desktopClient.setPrimaryProjectFolder(projectId, desiredPrimary.id)
-      }
-
-      for (const folderId of savePlan.removeFolderIds) {
-        const existing = current.folders?.find((folder) => folder.id === folderId)
-        if (!existing) continue
-        if (existing.role === 'primary') {
-          throw new Error('必须先选择其他目录作为主目录。')
-        }
-        current = await desktopClient.removeProjectFolder(projectId, folderId)
-      }
-
-      if (draftName.trim() !== current.name) {
-        current = await desktopClient.updateProject({
-          projectId,
-          name: draftName.trim(),
-          expectedVersion: current.projectVersion ?? 0,
-        })
-      }
-
+      const current = await desktopClient.editProject({
+        projectId, name: draftName.trim(), paths: projectFolderPaths(draftFolders),
+        expectedVersion: project.projectVersion ?? 0,
+      })
       onProjectChange(current)
       notifyProjectCatalogChanged()
       onOpenChange(false)
       onReport('项目已保存。')
     } catch (error) {
-      await refreshProject().catch(() => undefined)
-      notifyProjectCatalogChanged()
-      onReport(`部分项目更改可能已经生效，已刷新实际状态。${errorMessage(error)}`)
+      onReport(errorMessage(error))
     } finally {
       setBusy(false)
     }
@@ -270,7 +230,11 @@ export function ProjectEditDialog({
 
               <section className="project-edit-folders tw:flex tw:flex-col tw:gap-2">
                 <h3 className="tw:m-0 tw:type-row-title tw:text-app-text">源文件夹</h3>
-                <div className="project-edit-folder-list tw:max-h-[15rem] tw:overflow-y-auto tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-canvas">
+                <div onDragOver={(event) => { if (!busy) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy' } }}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    if (!busy) addPaths(Array.from(event.dataTransfer.files).map((file) => desktopClient.getComposerFilePath(file)).filter(Boolean))
+                  }} className="project-edit-folder-list tw:max-h-[15rem] tw:overflow-y-auto tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-canvas">
                   {draftFolders.map((folder) => (
                     <div
                       className={cx(
@@ -289,7 +253,7 @@ export function ProjectEditDialog({
                         {folder.name}
                       </span>
                       {draftFolders.length > 1 && folder.role === 'primary' ? (
-                        <span className="project-edit-primary-badge tw:shrink-0 tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-soft">
+                        <span title="新聊天使用主目录作为工作目录，并在这里查找 AGENTS.md、config.toml 和技能文件" className="project-edit-primary-badge tw:shrink-0 tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-soft">
                           主目录
                         </span>
                       ) : null}
@@ -322,7 +286,7 @@ export function ProjectEditDialog({
                       <IconButton
                         className="project-edit-folder-action tw:w-[1.875rem]"
                         color="ghostSecondary"
-                        disabled={busy || folder.role === 'primary'}
+                        disabled={busy}
                         size="toolbar"
                         title={`移除目录 ${folder.name}`}
                         type="button"
@@ -355,7 +319,7 @@ export function ProjectEditDialog({
               onClick={onRequestRemove}
             >
               <Trash2 size={APP_ICON_SIZE} />
-              删除项目
+              移除本地项目
             </Button>
             <div className="project-edit-footer-actions tw:flex tw:items-center tw:gap-3">
               <Dialog.Close asChild>
@@ -365,7 +329,7 @@ export function ProjectEditDialog({
               </Dialog.Close>
               <Button
                 color="primary"
-                disabled={busy || !projectId || !draftName.trim() || !primaryDraft}
+                disabled={busy || !projectId || !draftName.trim()}
                 loading={busy}
                 size="medium"
                 onClick={() => void save()}

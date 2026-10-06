@@ -30,7 +30,7 @@ const fixture = async () => {
 }
 
 describe('ProjectSourceService', () => {
-  test('启动恢复继续 pending 项目删除并清理无引用 Blob，但不删除源码目录', async () => {
+  test('启动恢复继续 pending 项目移除并保留来源与源码目录供撤销', async () => {
     const { dataDir, workspace, db, project, sources } = await fixture()
     try {
       const [source] = await sources.import(project.id, [
@@ -57,9 +57,7 @@ describe('ProjectSourceService', () => {
       expect(db.getProject(project.id)?.removedAt).toBeNumber()
       expect(db.projectOperation(operationID)?.status).toBe('completed')
       expect((await stat(workspace)).isDirectory()).toBe(true)
-      await expect(
-        (await ContentBlobStore.open(dataDir)).read(source.sha256),
-      ).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(await (await ContentBlobStore.open(dataDir)).read(source.sha256)).toBeDefined()
     } finally {
       db.close()
     }

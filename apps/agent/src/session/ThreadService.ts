@@ -262,7 +262,10 @@ export class ThreadService {
         throw new AgentError('OPERATION_ID_CONFLICT', 'operationId 已用于其他会话创建请求', 409)
       return { id: duplicate.threadID }
     }
-    if (input.workspace.kind === 'project') {
+    const emptyProjectID = input.workspace.kind === 'project' && this.db.getProject(input.workspace.projectID)?.folders.length === 0
+      ? input.workspace.projectID : null
+    if (emptyProjectID && input.workspace.kind === 'project' && input.workspace.execution?.kind === 'worktree') throw new AgentError('INVALID_REQUEST', '无源文件夹项目不能创建工作树', 400)
+    if (input.workspace.kind === 'project' && !emptyProjectID) {
       const projectID = input.workspace.projectID
       let groupEvent: EventEnvelope | null = null
       const created = this.db.transaction(() => {
@@ -302,7 +305,7 @@ export class ThreadService {
     const allocation = await this.workspaceResolver.allocateProjectless({
       workspaceID: crypto.randomUUID(),
       threadID,
-      ...(input.workspace.prompt === undefined ? {} : { prompt: input.workspace.prompt }),
+      ...(input.workspace.kind === 'projectless' && input.workspace.prompt !== undefined ? { prompt: input.workspace.prompt } : {}),
     })
     let groupEvent: EventEnvelope | null = null
     try {
@@ -327,6 +330,8 @@ export class ThreadService {
           operationID: input.operationID,
           requestHash,
         })
+        if (emptyProjectID) this.db.setProjectMembership(record.id, emptyProjectID)
+        input.bindExecution?.(record.id)
         if (input.sessionGroupID) {
           this.db.repositories.sessionGroups.setMembership(record.id, input.sessionGroupID)
           groupEvent = this.db.insertEvent(record.id, null, 'workflow/changed', {
@@ -415,6 +420,7 @@ export class ThreadService {
     const thread = this.get(threadID)
     const sideChat = this.sideChat(threadID)
     const runtime = await this.workspaceResolver.resolve(threadID)
+    const projectID = this.db.projectMembership(threadID)
     const snapshot = this.promptSettingsSnapshot(threadID)
     const settings = snapshot.settings
     const stringSetting = (key: string) =>
@@ -427,14 +433,14 @@ export class ThreadService {
           )
         : { sources: [] }
     const project =
-      runtime.kind === 'project'
-        ? (this.db.getProject(runtime.projectID) as unknown as {
+      projectID !== null
+        ? (this.db.getProject(projectID!) as unknown as {
             settings?: { instructions?: string }
           } | null)
         : null
     const projectSourceCatalog =
-      runtime.kind === 'project'
-        ? ((await this.projectSources?.catalog(runtime.projectID)) ?? null)
+      projectID !== null
+        ? ((await this.projectSources?.catalog(projectID!)) ?? null)
         : null
     const skillService = this.skillManagement?.runtimeService() ?? new SkillService()
     const skills = await skillService.scan({
@@ -451,7 +457,7 @@ export class ThreadService {
     const userMessage = latest?.content ?? ''
     const memories = this.memory.recall({
       query: userMessage,
-      ...(runtime.kind === 'project' ? { projectKey: projectMemoryKey(runtime.projectID) } : {}),
+      ...(projectID !== null ? { projectKey: projectMemoryKey(projectID) } : {}),
     })
     const exposedTools = this.orchestrator.toolExposure({
       taskMode: thread.settings.taskMode,
@@ -460,7 +466,7 @@ export class ThreadService {
       profile: 'main',
       hasSkillService: true,
       ...(sideChat ? { delegationEnabled: false } : {}),
-      ...(runtime.kind === 'project' && this.projectSources ? { hasProjectSources: true } : {}),
+      ...(projectID !== null && this.projectSources ? { hasProjectSources: true } : {}),
     }).exposed
     const sections = createPromptSections({
       permissionInstructions: `Resolved permission config: ${JSON.stringify(thread.settings.permissionConfig)}.`,
@@ -1108,7 +1114,7 @@ export class ThreadService {
       const activeModel = input.model
       const content = input.content
       const runtime = await this.workspaceResolver.resolve(threadID)
-      const projectID = runtime.projectID
+      const projectID = this.db.projectMembership(threadID)
       let workspace = runtime.workspace.withReadOnlyPaths([])
       const localContextReferences =
         this.localContextPaths?.repository.listAuthorized(threadID) ?? []
@@ -1172,8 +1178,8 @@ export class ThreadService {
       const desktopSettings = this.promptSettingsSnapshot(threadID).settings
       const defaultModeRequestUserInput = desktopSettings?.defaultModeRequestUserInput === true
       const project =
-        runtime.kind === 'project'
-          ? (this.db.getProject(runtime.projectID) as unknown as {
+        projectID !== null
+          ? (this.db.getProject(projectID!) as unknown as {
               settings?: { instructions?: string }
             } | null)
           : null
@@ -1198,8 +1204,8 @@ export class ThreadService {
         })
       }
       const projectSourceCatalog =
-        runtime.kind === 'project'
-          ? ((await this.projectSources?.catalog(runtime.projectID)) ?? null)
+        projectID !== null
+          ? ((await this.projectSources?.catalog(projectID!)) ?? null)
           : null
       const skillService = this.skillManagement?.runtimeService() ?? new SkillService()
       const skillCatalog = await skillService.scan({
@@ -1215,7 +1221,7 @@ export class ThreadService {
       )
       const memories = this.memory.recall({
         query: content,
-        ...(runtime.kind === 'project' ? { projectKey: projectMemoryKey(runtime.projectID) } : {}),
+        ...(projectID !== null ? { projectKey: projectMemoryKey(projectID) } : {}),
       })
       const stringSetting = (key: string) =>
         typeof desktopSettings?.[key] === 'string' && desktopSettings[key].trim()
@@ -1233,7 +1239,7 @@ export class ThreadService {
         profile: 'main',
         hasSkillService: true,
         ...(sideChat ? { delegationEnabled: false } : {}),
-        ...(runtime.kind === 'project' && this.projectSources ? { hasProjectSources: true } : {}),
+        ...(projectID !== null && this.projectSources ? { hasProjectSources: true } : {}),
         ...(defaultModeRequestUserInput ? { defaultModeRequestUserInput: true } : {}),
         ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
         ...(currentGoal?.status === 'active' ? { hasActiveGoal: true } : {}),
@@ -1367,12 +1373,12 @@ export class ThreadService {
         ...(sideChat ? { delegationEnabled: false } : {}),
         promptSections,
         skillService,
-        ...(runtime.kind === 'project' && this.projectSources
+        ...(projectID !== null && this.projectSources
           ? {
               projectSources: {
-                list: () => this.projectSources!.list(runtime.projectID),
+                list: () => this.projectSources!.list(projectID!),
                 read: (sourceID: string, range?: { offset: number; length: number }) =>
-                  this.projectSources!.read(runtime.projectID, sourceID, range),
+                  this.projectSources!.read(projectID!, sourceID, range),
               },
             }
           : {}),
@@ -1526,8 +1532,8 @@ export class ThreadService {
         ? null
         : this.memory.enqueue({
             threadID,
-            ...(runtime.kind === 'project'
-              ? { projectKey: projectMemoryKey(runtime.projectID) }
+            ...(projectID !== null
+              ? { projectKey: projectMemoryKey(projectID) }
               : {}),
             transcript: `用户任务：\n${content}\n\nAgent 结果：\n${result.output}`,
           })

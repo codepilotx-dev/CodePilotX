@@ -281,6 +281,14 @@ export function registerDesktopIpc(dependencies: DesktopIpcDependencies): void {
     const result = await dialog.showOpenDialog(ownerWindow, options)
     return result.canceled ? null : (result.filePaths[0] ?? null)
   })
+  ipcMain.handle(DESKTOP_WORKSPACE_IPC_CHANNELS.pickDirectories, async (event) => {
+    const ownerWindow = requireMainWindowSender(event, windows)
+    const result = await dialog.showOpenDialog(ownerWindow, {
+      title: '选择项目源文件夹',
+      properties: ['openDirectory', 'createDirectory', 'multiSelections'],
+    })
+    return result.canceled ? [] : result.filePaths
+  })
 }
 
 function isDesktopEditAction(value: unknown): value is DesktopEditAction {

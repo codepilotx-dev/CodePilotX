@@ -176,6 +176,11 @@ export class AutomationRepository {
     ).map(automationFromRow)
   }
 
+  forThread(threadId: string) {
+    const rows = this.db.sqlite.query("SELECT id FROM automations WHERE target_thread_id = ? AND kind = 'thread' AND status != 'deleted'").all(threadId) as Array<{ id: string }>
+    return rows.flatMap(({ id }) => { const value = this.read(id); return value ? [value] : [] })
+  }
+
   read(id: string, includeDeleted = false) {
     const row = this.db.sqlite
       .query(

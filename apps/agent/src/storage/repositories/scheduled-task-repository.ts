@@ -149,6 +149,11 @@ const invalidProposalReference = () => new AgentError('INVALID_REQUEST', '排期
 export class ScheduledTaskRepository {
   constructor(private readonly db: ScheduleCalendarDatabase) {}
 
+  forThread(threadId: string) {
+    const rows = this.db.sqlite.query("SELECT id FROM scheduled_tasks WHERE target_thread_id = ? AND kind = 'thread' AND status IN ('scheduled', 'paused', 'claimed', 'preparing', 'queued', 'running')").all(threadId) as Array<{ id: string }>
+    return rows.flatMap(({ id }) => { const value = this.read(id); return value ? [value] : [] })
+  }
+
   listRange(input: {
     from: number
     to: number
