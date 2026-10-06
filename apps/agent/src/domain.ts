@@ -199,6 +199,16 @@ export interface EventEnvelope<T = unknown> {
   createdAt: number
 }
 
+export interface ToolPermissionFacts {
+  ruleRequiresApproval?: boolean
+  hookRequiresApproval?: boolean
+  skillScript?: boolean
+  risk?: PermissionDecision['risk']
+  denyReason?: string
+  approvalReason?: string
+  approvalCategories?: readonly (keyof import('@codepilotx/shared/thread').GranularApprovalConfig)[]
+}
+
 export interface ToolInvocation {
   fileDiffs?: readonly import('@codepilotx/agent-protocol').RpcResult<'thread/patch/diff'>[]
   retryAuthorization?: { reviewId: string; fingerprint: string }
@@ -206,6 +216,8 @@ export interface ToolInvocation {
     import('./tool/ToolRegistry').ToolCatalogEntry,
     'sdkName' | 'capabilities' | 'allowedModes' | 'approvalStrategy' | 'origin'
   >
+  /** Trusted facts derived by host inspection, never from model arguments. */
+  permissionFacts?: ToolPermissionFacts
   grantsForbidden?: boolean
   id: string
   threadID: string

@@ -14,7 +14,6 @@ import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import { ComputerPolicyService } from './ComputerPolicyService'
 import type { PermissionConfig } from '@codepilotx/shared/thread'
-import { hasComputerFullAccess } from './ComputerAccess'
 
 type Identity = { threadID: string; turnID: string; agentID?: string; toolCallID?: string }
 /**
@@ -352,7 +351,7 @@ export class ComputerUseService {
     ref: string,
     plan: boolean,
     operation?: ComputerAction,
-    permissionConfig?: PermissionConfig,
+    _permissionConfig?: PermissionConfig,
   ) {
     this.requireAvailable(identity)
     const window = this.window(ref)
@@ -368,7 +367,6 @@ export class ComputerUseService {
     )
       throw new AgentError('PERMISSION_DENIED', '此应用的电脑控制权限已拒绝', 403)
     const granted =
-      hasComputerFullAccess(plan ? 'plan' : 'chat', permissionConfig) ||
       (permission?.decision === 'allow' &&
         !permission.needsConfirmation &&
         this.policy.state().allowPersistentApproval) ||
@@ -496,7 +494,6 @@ export class ComputerUseService {
     const result = await this.request(identity, 'read', signal, this.window(ref))
     if (!result.isError) {
       // Only a human-approved, fingerprint-checked resume creates a chat grant.
-      // Full access reads must not become implicit grants when permissions change.
       const window = this.window(ref)
       if (computerGrant) {
         const granted = this.grants.get(identity.threadID) ?? new Map<string, string>()

@@ -149,7 +149,7 @@ export class ApprovalService {
   }
   private browserRules(invocation: ToolInvocation): ApprovalRule[] {
     const origin = invocation.authorizationScope?.browserOrigin
-    if (!origin || !this.browser || invocation.input.__hookRequiresApproval) return []
+    if (!origin || !this.browser || invocation.permissionFacts?.hookRequiresApproval) return []
     return (['session', 'origin', 'all-sites'] as const).map((scope) => ({
       id: `${invocation.authorizationScope!.fingerprint}:${scope}`,
       kind: 'browser',
@@ -180,10 +180,6 @@ export class ApprovalService {
   async authorize(invocation: ToolInvocation, signal: AbortSignal): Promise<PermissionDecision> {
     const tool = (invocation.toolPolicy ??
       this.tools.get(invocation.name)) as import('../tool/ToolRegistry').ToolCatalogEntry
-    const resolved = this.decisions.evaluate(invocation, tool)
-    const safeInvocation = secretScrubber.scrub(invocation)
-    if (resolved.action !== 'review')
-      return { decision: resolved.decision, risk: resolved.risk, reason: resolved.reason }
     if (typeof invocation.input.command === 'string') {
       const analysis = analyzeShellRisk({
         command: invocation.input.command,
@@ -192,6 +188,10 @@ export class ApprovalService {
       if (analysis.hardDenied)
         return { decision: 'deny', risk: analysis.risk, reason: analysis.reason }
     }
+    const resolved = this.decisions.evaluate(invocation, tool)
+    const safeInvocation = secretScrubber.scrub(invocation)
+    if (resolved.action !== 'review')
+      return { decision: resolved.decision, risk: resolved.risk, reason: resolved.reason }
     if (
       resolved.reviewer === 'user' &&
       ((await this.rules.matches(invocation)) ||

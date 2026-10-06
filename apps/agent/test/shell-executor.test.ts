@@ -220,7 +220,7 @@ describe('统一 Shell 宿主执行门', () => {
       dataDir: join(root, '.agent-data'),
       resolveShellSecurityLevel: () => securityLevel,
       authorizeShell: async (invocation) => {
-        receivedRuleApproval = invocation.input.__ruleRequiresApproval === true
+        receivedRuleApproval = invocation.permissionFacts?.ruleRequiresApproval === true
         return { decision: 'allow', risk: 'high', reason: '允许' }
       },
       runHost: async () => {
@@ -365,4 +365,53 @@ describe('统一 Shell 宿主执行门', () => {
     expect(log).not.toContain('sensitive-command')
     expect(log).not.toContain('sensitive-output')
   })
+})
+
+test('Shell 恢复审批核对精确指纹；Hook 改写后重新验证 schema 和硬拒绝', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'codepilotx-shell-recheck-'))
+  tempPaths.push(root)
+  const context = await executionContext(root)
+  let runs = 0
+  let rewrite: Record<string, unknown> | undefined
+  const executor = new ToolExecutor(new ToolRegistry(), {
+    dataDir: join(root, '.agent-data'),
+    authorizeShell: async () => ({ decision: 'allow', risk: 'low', reason: 'test' }),
+    hooks: {
+      run: async (event) =>
+        event === 'pre_tool_use' && rewrite
+          ? [{ result: { decision: 'continue', narrowedInput: rewrite } }]
+          : [],
+    },
+    runHost: async () => {
+      runs += 1
+      return success()
+    },
+  })
+  const preview = await executor.previewApproval(
+    'PowerShell',
+    { command: 'Write-Output original' },
+    context,
+    'exact-call',
+  )
+  await expect(
+    executor.execute(
+      'PowerShell',
+      { command: 'Write-Output changed' },
+      {
+        ...context,
+        toolCallID: 'exact-call',
+        approvedToolCallID: 'exact-call',
+        approvedAuthorizationFingerprint: preview.authorizationFingerprint!,
+      },
+    ),
+  ).rejects.toThrow('作用范围已变化')
+  rewrite = { __ruleRequiresApproval: false }
+  await expect(
+    executor.execute('PowerShell', { command: 'Write-Output ok' }, context),
+  ).rejects.toThrow()
+  rewrite = { command: 'Remove-Item -Recurse -Force C:\\Windows' }
+  await expect(
+    executor.execute('PowerShell', { command: 'Write-Output ok' }, context),
+  ).rejects.toThrow()
+  expect(runs).toBe(0)
 })

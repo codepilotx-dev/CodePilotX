@@ -81,23 +81,23 @@ export const PermissionConfigSchema = Schema.Struct({
 })
 export type PermissionConfig = typeof PermissionConfigSchema.Type
 
-export const DEFAULT_PERMISSION_CONFIG: PermissionConfig = {
+export const DEFAULT_PERMISSION_CONFIG = {
   sandboxMode: 'workspace-write',
   approvalPolicy: 'on-request',
   approvalsReviewer: 'user',
-}
+} as const satisfies PermissionConfig
 
-export const AUTO_REVIEW_PERMISSION_CONFIG: PermissionConfig = {
+export const AUTO_REVIEW_PERMISSION_CONFIG = {
   sandboxMode: 'workspace-write',
   approvalPolicy: 'on-request',
   approvalsReviewer: 'auto_review',
-}
+} as const satisfies PermissionConfig
 
-export const FULL_ACCESS_PERMISSION_CONFIG: PermissionConfig = {
+export const FULL_ACCESS_PERMISSION_CONFIG = {
   sandboxMode: 'danger-full-access',
   approvalPolicy: 'never',
-  approvalsReviewer: 'auto_review',
-}
+  approvalsReviewer: 'user',
+} as const satisfies PermissionConfig
 
 export const AdditionalPermissionsSchema = Schema.Struct({
   readPaths: Schema.optional(Schema.Array(Schema.String)),

@@ -1,3 +1,6 @@
+// Runtime capability provenance and Hook recheck adapted from ZCode 872ad96
+// (Apache-2.0); see docs/agent/permissions.md and docs/licenses/ZCode-Apache-2.0.txt.
+import { createHash } from 'node:crypto'
 import {
   AgentError,
   type PermissionDecision,
@@ -409,7 +412,7 @@ export class ToolExecutor {
       Model.Ref.make({ providerID: Provider.ID.make('openai'), id: Model.ID.make('gpt-5') })
     // Call-scoped file access: only this invocation sees the effective policy, so
     // concurrent calls, subagents and later policy switches stay isolated from it.
-    const workspace = context.workspace.withFileAccess(
+    let workspace = context.workspace.withFileAccess(
       executionPolicyFromV4(permissionConfig).fileAccess,
     )
     const skipProjectHooks = context.skipHooks || context.taskMode === 'plan'
@@ -417,6 +420,37 @@ export class ToolExecutor {
       workspace.grantEditorAlias('@codepilotx/config.json', this.options.userConfigPath)
     }
     const definition = catalog.get(name)
+    const rawPaths =
+      name === 'apply_patch' && typeof input.patch === 'string'
+        ? parseApplyPatch(input.patch).map((operation) => operation.path)
+        : definition.capabilities.filesystem !== 'none'
+          ? [input.file_path ?? input.path].filter(
+              (path): path is string => typeof path === 'string' && !path.startsWith('@'),
+            )
+          : []
+    const canonicalPaths = await Promise.all(
+      rawPaths.map((path) => resolveProtectionPath(resolve(workspace.rootPath, path))),
+    )
+    const externalPaths = canonicalPaths.filter((path) => !workspace.containsPath(path))
+    const writesFiles =
+      definition.capabilities.filesystem === 'workspace-write' ||
+      definition.capabilities.filesystem === 'host-write'
+    const fileRequested = {
+      readPaths: writesFiles ? [] : externalPaths,
+      writePaths: writesFiles ? externalPaths : [],
+      networkDomains: [],
+    }
+    const fileGrantLookup = {
+      threadID: context.threadID,
+      turnID: context.turnID,
+      agentID: context.agentID ?? context.turnID,
+      requested: fileRequested,
+    }
+    const fileGrant =
+      externalPaths.length && !workspace.allowsOutsideWorkspace()
+        ? this.permissionGrants.authorize(fileGrantLookup)
+        : null
+    if (fileGrant) workspace = workspace.withPermissionPaths(fileRequested)
     const fileSnapshots = this.fileSnapshots(context, workspace)
     const baseInvocation: ToolInvocation = {
       id: context.toolCallID ?? crypto.randomUUID(),
@@ -453,7 +487,13 @@ export class ToolExecutor {
     for (const configWrite of inspection?.configWrites ?? []) {
       this.options?.validateConfigDocument?.(configWrite.content, configWrite.scope)
     }
-    const authorizationScope = inspection?.authorizationScope
+    const authorizationScope = inspection?.authorizationScope ?? {
+      affectedPaths: [],
+      fingerprint: createHash('sha256')
+        .update(JSON.stringify({ name, input, canonicalPaths }))
+        .digest('hex'),
+      ruleRequiresApproval: false,
+    }
     const pathValue = typeof input.file_path === 'string' ? input.file_path : input.path
     const fileTool = name === 'Read' || name === 'Write' || name === 'Edit'
     const targetPath =
@@ -479,13 +519,6 @@ export class ToolExecutor {
         this.options.validateConfigDocument(nextContent, configScope)
       }
     }
-    const policyInput =
-      sensitiveEnvironment ||
-      protectedGitWrite ||
-      protectedConfigWrite ||
-      authorizationScope?.ruleRequiresApproval
-        ? { ...input, __ruleRequiresApproval: true }
-        : input
     const invocation: ToolInvocation = {
       ...baseInvocation,
       toolPolicy: {
@@ -501,17 +534,27 @@ export class ToolExecutor {
       inspection?.grantsForbidden
         ? { grantsForbidden: true }
         : {}),
-      input: policyInput,
+      permissionFacts: {
+        ...inspection?.permissionFacts,
+        ruleRequiresApproval: Boolean(
+          inspection?.permissionFacts?.ruleRequiresApproval ||
+          sensitiveEnvironment ||
+          protectedGitWrite ||
+          protectedConfigWrite ||
+          authorizationScope?.ruleRequiresApproval,
+        ),
+      },
       ...(authorizationScope ? { authorizationScope } : {}),
       ...(context.authorizationOnly ? { durableApproval: true } : {}),
     }
     setFilePhase?.('authorization')
-    const resolved = this.decisions.evaluate(invocation, definition)
+    let resolved = this.decisions.evaluate(invocation, definition)
     if (resolved.action === 'deny')
       throw new AgentError('TOOL_PERMISSION_DENIED', resolved.reason, 403, resolved)
     const resumedApproval = context.approvedToolCallID === invocation.id
     if (
       resumedApproval &&
+      (inspection?.authorizationScope || context.approvedAuthorizationFingerprint) &&
       invocation.authorizationScope?.fingerprint !== context.approvedAuthorizationFingerprint
     ) {
       throw new AgentError(
@@ -569,7 +612,17 @@ export class ToolExecutor {
       )
     }
     const hookAsked = hookResults.some(({ result }) => result.decision === 'ask')
-    if (hookAsked) invocation.input = { ...invocation.input, __hookRequiresApproval: true }
+    if (hookAsked)
+      invocation.permissionFacts = {
+        ...invocation.permissionFacts,
+        hookRequiresApproval: true,
+        approvalReason:
+          hookResults.find(({ result }) => result.decision === 'ask')?.result.reason ??
+          'PreToolUse Hook 要求审批',
+      }
+    resolved = this.decisions.evaluate(invocation, definition)
+    if (resolved.action === 'deny')
+      throw new AgentError('TOOL_PERMISSION_DENIED', resolved.reason, 403, resolved)
     const grant =
       !resumedApproval && !hookAsked && resolved.action === 'review'
         ? this.permissionGrantFor(invocation, definition, !context.authorizationOnly)
@@ -657,6 +710,11 @@ export class ToolExecutor {
       for (const configWrite of inspection?.configWrites ?? []) {
         this.options?.validateConfigDocument?.(configWrite.content, configWrite.scope)
       }
+      if (
+        fileGrant &&
+        !this.permissionGrants.authorize({ ...fileGrantLookup, consumeToolCall: true })
+      )
+        throw new AgentError('TOOL_PERMISSION_DENIED', '临时路径授权已失效，请重新申请权限', 403)
       let output = await catalog.execute(name, input, {
         signal: context.signal,
         taskMode: context.taskMode,
@@ -1035,13 +1093,29 @@ export class ToolExecutor {
       risk = staticRisk.risk
       if (staticRisk.hardDenied)
         throw new AgentError('SHELL_HARD_DENY', staticRisk.reason, 403, staticRisk)
-      if (staticRisk.requiresApproval) {
-        invocation.input = {
-          ...invocation.input,
-          __ruleRequiresApproval: true,
-        }
+      invocation.permissionFacts = {
+        ruleRequiresApproval: staticRisk.requiresApproval,
+        risk: staticRisk.risk,
+        approvalReason: staticRisk.reason,
+      }
+      invocation.authorizationScope = {
+        affectedPaths: [],
+        fingerprint: createHash('sha256')
+          .update(JSON.stringify({ name: shellTool, input: invocation.input }))
+          .digest('hex'),
+        ruleRequiresApproval: staticRisk.requiresApproval,
       }
       const resumedApproval = context.approvedToolCallID === invocation.id
+      if (
+        resumedApproval &&
+        context.approvedAuthorizationFingerprint &&
+        context.approvedAuthorizationFingerprint !== invocation.authorizationScope.fingerprint
+      )
+        throw new AgentError(
+          'APPROVAL_SCOPE_CHANGED',
+          'Shell 输入或作用范围已变化，需要重新审批',
+          409,
+        )
       phase = 'hook'
       const hookResults =
         context.skipHooks || resumedApproval
@@ -1074,19 +1148,35 @@ export class ToolExecutor {
       if (narrowed && JSON.stringify(narrowed) !== JSON.stringify(input)) {
         if ((context.hookDepth ?? 0) >= 2)
           throw new AgentError('HOOK_REWRITE_LIMIT', 'Hook 重写 Shell 输入次数过多', 409)
-        return this.executeShell(
+        const rewritten = { ...input, ...narrowed }
+        const { timeoutMs, justification, ...argumentsInput } = rewritten
+        return this.execute(
           shellTool,
-          { ...input, ...narrowed },
+          {
+            ...argumentsInput,
+            ...(rewritten.timeoutMs !== undefined ? { timeout: rewritten.timeoutMs } : {}),
+            ...(rewritten.justification !== undefined
+              ? { description: rewritten.justification }
+              : {}),
+          },
           { ...context, hookDepth: (context.hookDepth ?? 0) + 1 },
-          catalog,
         )
       }
       if (hookResults.some(({ result }) => result.decision === 'ask'))
-        invocation.input = { ...invocation.input, __hookRequiresApproval: true }
+        invocation.permissionFacts = {
+          ...invocation.permissionFacts,
+          hookRequiresApproval: true,
+          approvalReason:
+            hookResults.find(({ result }) => result.decision === 'ask')?.result.reason ??
+            'PreToolUse Hook 要求审批',
+        }
+      const finalDecision = this.decisions.evaluate(invocation, catalog.get(shellTool))
       phase = 'authorization'
       const grant = resumedApproval
         ? null
         : this.permissionGrantFor(invocation, catalog.get(shellTool), !context.authorizationOnly)
+      if (finalDecision.action === 'deny' && !grant)
+        throw new AgentError('TOOL_PERMISSION_DENIED', finalDecision.reason, 403, finalDecision)
       const decision = resumedApproval
         ? ({
             decision: 'allow',
@@ -1114,7 +1204,8 @@ export class ToolExecutor {
           durationMs: Date.now() - preflightStartedAt,
         },
       })
-      if (context.authorizationOnly) return decision
+      if (context.authorizationOnly)
+        return { ...decision, authorizationFingerprint: invocation.authorizationScope.fingerprint }
       if (decision.decision !== 'allow')
         throw new AgentError('SHELL_PERMISSION_DENIED', decision.reason, 403, decision)
       phase = 'runtime'
@@ -1393,7 +1484,32 @@ export class ToolExecutor {
       }
       return { path: write.path, content: write.content, scope: write.scope }
     })
+    const facts = value.permissionFacts
+    if (
+      facts &&
+      (['ruleRequiresApproval', 'hookRequiresApproval', 'skillScript'].some(
+        (key) => key in facts && typeof facts[key as keyof typeof facts] !== 'boolean',
+      ) ||
+        (facts.approvalCategories !== undefined &&
+          (!Array.isArray(facts.approvalCategories) ||
+            facts.approvalCategories.some(
+              (category) =>
+                ![
+                  'sandboxApproval',
+                  'rules',
+                  'skillApproval',
+                  'requestPermissions',
+                  'mcpTools',
+                  'mcpElicitations',
+                ].includes(category),
+            ))) ||
+        (facts.risk !== undefined && !['low', 'medium', 'high', 'critical'].includes(facts.risk)) ||
+        (facts.denyReason !== undefined && typeof facts.denyReason !== 'string') ||
+        (facts.approvalReason !== undefined && typeof facts.approvalReason !== 'string'))
+    )
+      throw new AgentError('INVALID_TOOL_INSPECTION', '工具权限事实无效', 500)
     return {
+      ...(facts ? { permissionFacts: { ...facts } } : {}),
       ...(value.grantsForbidden ? { grantsForbidden: true } : {}),
       ...(value.fileDiffs
         ? {
@@ -1466,7 +1582,7 @@ export class ToolExecutor {
   ) {
     if (!hasRequestedPermissions(invocation.input)) return null
     const requestedDecision = this.decisions.evaluate(invocation, tool)
-    if (requestedDecision.action !== 'review') return null
+    if (requestedDecision.action === 'allow') return null
     const baselineInput = { ...invocation.input }
     delete baselineInput.additionalPermissions
     const baseline = this.decisions.evaluate({ ...invocation, input: baselineInput }, tool)

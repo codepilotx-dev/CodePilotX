@@ -92,7 +92,7 @@ const safeWorkspacePath = (context: ToolContext, inspection: WorkspaceMutationPa
   if (!owner) {
     // Full access resolves the target to an absolute display path, which is the
     // only identifiable label for a file outside every workspace root.
-    return context.workspace.allowsOutsideWorkspace() ? inspection.path : '<workspace-file>'
+    return context.workspace.displayPath(inspection.canonicalPath)
   }
   const child = relative(owner.path, inspection.canonicalPath).replaceAll('\\', '/')
   if (owner.path === context.workspace.rootPath) return child

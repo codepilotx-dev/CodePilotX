@@ -79,7 +79,7 @@ describe('核心工具面', () => {
     const validated: Array<{ text: string; scope: 'user' | 'project' }> = []
     const { root, executor, context } = await fixture({
       authorizeShell: async (invocation) => {
-        reviewed.push(invocation.input)
+        reviewed.push({ ...invocation.permissionFacts })
         return { decision: 'allow', risk: 'medium', reason: 'approved' }
       },
       validateConfigDocument: (text, scope) => validated.push({ text, scope }),
@@ -100,7 +100,7 @@ describe('核心工具面', () => {
       },
     )
     expect(userAuthorization.decision).toBe('allow')
-    expect(reviewed.at(-1)?.__ruleRequiresApproval).toBe(true)
+    expect(reviewed.at(-1)?.ruleRequiresApproval).toBe(true)
     expect(validated.at(-1)).toEqual({
       text: '{\n  "model": "new"\n}\n',
       scope: 'user',

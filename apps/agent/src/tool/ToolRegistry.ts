@@ -57,6 +57,7 @@ export type ToolFileSnapshots = {
   invalidate(paths: readonly string[]): Promise<void>
 }
 export type ToolInputInspection = {
+  permissionFacts?: ToolInvocation['permissionFacts']
   grantsForbidden?: boolean
   fileDiffs?: ToolInvocation['fileDiffs']
   authorizationScope: ToolAuthorizationScope
@@ -228,11 +229,7 @@ const searchPaths = async (context: ToolContext, value?: string) => {
   const canonical = await context.workspace.resolveDirectory(requested)
   const owner = context.workspace.rootForPath(canonical)
   if (!owner) {
-    // Only full access can reach a directory outside every root; it becomes its
-    // own search root so the absolute path stays identifiable in results.
-    if (!context.workspace.allowsOutsideWorkspace()) {
-      throw new AgentError('WORKSPACE_PATH_DENIED', '搜索路径不在当前工作区内', 403)
-    }
+    // resolveDirectory already checks full access or this call's approved paths.
     return [
       { root: canonical, target: '.', nativeTarget: context.workspace.displayPath(canonical) },
     ]
@@ -477,7 +474,7 @@ export const requestPermissionsDefinition: ToolDefinition<
   name: 'request_permissions',
   description: [
     '为下一次工具调用、当前 turn 或当前运行会话请求临时权限，并等待用户或自动审核的决定。',
-    '完全访问模式下工作区外的文件读写已经直接可用，不需要为此申请权限；该工具只用于网络域名、敏感路径规则或 MCP 等仍受审批控制的能力。',
+    '工作区外文件操作应先申请所需路径；授权不能覆盖敏感路径规则、Plan 或显式只读根。never 策略下本工具不可用，需由用户调整审批设置。',
     '每条申请都必须给出 justification，并至少包含一项 readPaths、writePaths 或 networkDomains；没有可申请权限时不要调用本工具。',
   ].join('\n'),
   schema: requestPermissionsSchema,

@@ -141,7 +141,12 @@ describe('统一权限真值', () => {
       command: 'winget uninstall fixture',
       __ruleRequiresApproval: true,
     }
-    expect(engine.evaluate(invocation({ input: riskyInput }), shell)).toMatchObject({
+    expect(
+      engine.evaluate(
+        invocation({ input: riskyInput, permissionFacts: { ruleRequiresApproval: true } }),
+        shell,
+      ),
+    ).toMatchObject({
       action: 'review',
       reviewer: 'user',
     })
@@ -149,6 +154,7 @@ describe('统一权限真值', () => {
       engine.evaluate(
         invocation({
           input: riskyInput,
+          permissionFacts: { ruleRequiresApproval: true },
           permissionConfig: {
             sandboxMode: 'workspace-write',
             approvalPolicy: 'never',
@@ -172,6 +178,7 @@ describe('统一权限真值', () => {
       engine.evaluate(
         invocation({
           input: riskyInput,
+          permissionFacts: { ruleRequiresApproval: true },
           permissionConfig: {
             sandboxMode: 'workspace-write',
             approvalPolicy: granular,
@@ -185,6 +192,7 @@ describe('统一权限真值', () => {
       engine.evaluate(
         invocation({
           input: riskyInput,
+          permissionFacts: { ruleRequiresApproval: true },
           permissionConfig: {
             sandboxMode: 'workspace-write',
             approvalPolicy: { ...granular, rules: true },
@@ -224,8 +232,7 @@ describe('统一权限真值', () => {
         catalog.get('PowerShell'),
       ),
     ).toMatchObject({
-      action: 'review',
-      reviewer: 'auto_review',
+      action: 'allow',
     })
     expect(
       engine.evaluate(
@@ -247,7 +254,8 @@ describe('统一权限真值', () => {
     expect(
       engine.evaluate(
         invocation({
-          input: { command: 'run-skill', __skillScript: true },
+          input: { command: 'run-skill' },
+          permissionFacts: { skillScript: true },
           permissionConfig: {
             sandboxMode: 'workspace-write',
             approvalPolicy: { ...policy, skillApproval: true },
@@ -258,12 +266,12 @@ describe('统一权限真值', () => {
       ),
     ).toMatchObject({
       action: 'review',
-      reason: expect.stringContaining('skillApproval'),
     })
     expect(
       engine.evaluate(
         invocation({
-          input: { command: 'run-skill', __skillScript: true },
+          input: { command: 'run-skill' },
+          permissionFacts: { skillScript: true },
           permissionConfig: {
             sandboxMode: 'workspace-write',
             approvalPolicy: { ...policy, skillApproval: false },
@@ -349,8 +357,7 @@ describe('统一权限真值', () => {
         mcpTool,
       ),
     ).toMatchObject({
-      action: 'review',
-      reason: expect.stringContaining('mcpTools'),
+      action: 'allow',
     })
     expect(
       engine.evaluate(
@@ -452,4 +459,42 @@ describe('脱敏', () => {
       'Opaque RunState',
     )
   })
+})
+
+test('预设允许普通操作；模型控制标记无效且 never-review 不能绕过可信限制', () => {
+  const engine = new PermissionDecisionEngine()
+  const catalog = new ToolRegistry()
+  for (const sandboxMode of ['workspace-write', 'danger-full-access'] as const) {
+    for (const approvalsReviewer of ['user', 'auto_review'] as const) {
+      for (const approvalPolicy of ['on-request', 'never'] as const) {
+        const permissionConfig = { sandboxMode, approvalsReviewer, approvalPolicy }
+        for (const name of ['Read', 'Write', 'PowerShell'])
+          expect(
+            engine.evaluate(invocation({ name, permissionConfig }), catalog.get(name)).action,
+          ).toBe('allow')
+        expect(
+          engine.evaluate(invocation({ name: 'Read', permissionConfig }), catalog.get('Read')).risk,
+        ).toBe('low')
+        const tool = { ...catalog.get('Read'), approvalStrategy: 'never-review' as const }
+        const input = {
+          __hookRequiresApproval: true,
+          __ruleRequiresApproval: true,
+          __skillScript: true,
+        }
+        expect(engine.evaluate(invocation({ input, permissionConfig }), tool).action).toBe('allow')
+        expect(
+          engine.evaluate(
+            invocation({ permissionConfig, permissionFacts: { hookRequiresApproval: true } }),
+            tool,
+          ).action,
+        ).toBe(approvalPolicy === 'never' ? 'deny' : 'review')
+        expect(
+          engine.evaluate(
+            invocation({ permissionConfig, permissionFacts: { denyReason: 'hard deny' } }),
+            tool,
+          ).action,
+        ).toBe('deny')
+      }
+    }
+  }
 })

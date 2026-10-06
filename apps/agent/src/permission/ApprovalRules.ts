@@ -77,7 +77,7 @@ export class ApprovalRules {
   candidates(invocation: ToolInvocation): ApprovalRule[] {
     if (
       invocation.grantsForbidden ||
-      invocation.input.__hookRequiresApproval ||
+      invocation.permissionFacts?.hookRequiresApproval ||
       invocation.name === 'request_permissions' ||
       invocation.authorizationScope?.computerApp ||
       invocation.authorizationScope?.browserOrigin
@@ -213,7 +213,7 @@ export class ApprovalRules {
         invocation.permissionConfig.approvalPolicy === 'untrusted' ||
         (invocation.toolPolicy ?? this.tools.get(invocation.name)).approvalStrategy ===
           'always-review' ||
-        invocation.input.__ruleRequiresApproval === true
+        invocation.permissionFacts?.ruleRequiresApproval === true
       if (commandRequired && !kinds.has('command')) return false
       if (!commandRequired) kinds.delete('command')
       if (!kinds.has('network')) return false

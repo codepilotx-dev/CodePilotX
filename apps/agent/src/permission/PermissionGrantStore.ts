@@ -108,7 +108,10 @@ export class PermissionGrantStore {
         (grant.scope === 'session' ||
           (grant.turnID === input.turnID &&
             (grant.scope === 'turn' || grant.agentID === input.agentID))) &&
-        coversPaths(grant.permissions.readPaths, input.requested.readPaths) &&
+        coversPaths(
+          [...grant.permissions.readPaths, ...grant.permissions.writePaths],
+          input.requested.readPaths,
+        ) &&
         coversPaths(grant.permissions.writePaths, input.requested.writePaths) &&
         coversDomains(grant.permissions.networkDomains, input.requested.networkDomains),
     )

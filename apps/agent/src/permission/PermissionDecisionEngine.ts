@@ -3,11 +3,7 @@ import type { PermissionDecision, ToolInvocation } from '../domain'
 import type { ToolCatalogEntry } from '../tool/ToolRegistry'
 import { toolAllowedForFileAccess, toolAllowedInTaskMode } from '../tool/ToolRegistry'
 import { resolveEffectivePermissionConfig } from './EffectivePermissionConfig'
-import {
-  executionPolicyFromV4,
-  type EffectiveExecutionPolicy,
-  type FileAccessProfile,
-} from './ExecutionPolicy'
+import { executionPolicyFromV4, type EffectiveExecutionPolicy } from './ExecutionPolicy'
 
 export interface RequestedPermissions {
   readPaths: string[]
@@ -60,11 +56,10 @@ export const hasRequestedPermissions = (input: Record<string, unknown>) =>
 const riskFor = (
   invocation: ToolInvocation,
   tool: ToolCatalogEntry,
-  fileAccess: FileAccessProfile,
 ): PermissionDecision['risk'] => {
   const requested = requestedPermissions(invocation.input)
-  if (fileAccess === 'full-access' || tool.capabilities.filesystem === 'host-write')
-    return 'critical'
+  if (invocation.permissionFacts?.risk) return invocation.permissionFacts.risk
+  if (tool.capabilities.filesystem === 'host-write') return 'critical'
   if (
     requested.writePaths.length ||
     tool.capabilities.filesystem === 'workspace-write' ||
@@ -77,9 +72,9 @@ const riskFor = (
 
 const approvalCapability = (invocation: ToolInvocation, tool: ToolCatalogEntry) => {
   if (tool.sdkName === 'request_permissions') return 'requestPermissions' as const
-  if (invocation.input.__skillScript === true) return 'skillApproval' as const
+  if (invocation.permissionFacts?.skillScript === true) return 'skillApproval' as const
   if (tool.origin?.kind === 'mcp') return 'mcpTools' as const
-  if (invocation.input.__ruleRequiresApproval === true) return 'rules' as const
+  if (invocation.permissionFacts?.ruleRequiresApproval === true) return 'rules' as const
   if (tool.capabilities.process || tool.capabilities.filesystem === 'host-write')
     return 'sandboxApproval' as const
   return 'rules' as const
@@ -87,7 +82,7 @@ const approvalCapability = (invocation: ToolInvocation, tool: ToolCatalogEntry) 
 
 const hardGatedCapability = (invocation: ToolInvocation, tool: ToolCatalogEntry) => {
   if (tool.sdkName === 'request_permissions') return 'requestPermissions' as const
-  if (invocation.input.__skillScript === true) return 'skillApproval' as const
+  if (invocation.permissionFacts?.skillScript === true) return 'skillApproval' as const
   if (tool.origin?.kind === 'mcp') return 'mcpTools' as const
   return null
 }
@@ -103,13 +98,14 @@ export class PermissionDecisionEngine {
       ),
     }
     const executionPolicy = executionPolicyFromV4(invocation.permissionConfig)
-    const risk = riskFor(invocation, tool, executionPolicy.fileAccess)
+    const risk = riskFor(invocation, tool)
     const deny = (reason: string): ResolvedPermissionDecision => ({
       action: 'deny',
       decision: 'deny',
       risk,
       reason,
     })
+    if (invocation.permissionFacts?.denyReason) return deny(invocation.permissionFacts.denyReason)
     if (!toolAllowedInTaskMode(tool, invocation.taskMode))
       return deny(`工具 ${tool.sdkName} 不允许在 ${invocation.taskMode} 模式执行`)
     if (invocation.taskMode === 'plan' && tool.sdkName === 'request_permissions')
@@ -154,9 +150,7 @@ export class PermissionDecisionEngine {
     // reviews a request. They must run before always-review can create one.
     const hardCapability = hardGatedCapability(invocation, tool)
     if (isGranularApprovalPolicy(policy) && hardCapability) {
-      return policy[hardCapability]
-        ? review(`granular 策略要求审批 ${hardCapability} capability`)
-        : deny(`granular 策略禁止 ${hardCapability} capability`)
+      if (!policy[hardCapability]) return deny(`granular 策略禁止 ${hardCapability} capability`)
     }
     // A not-yet-granted application is an elevation like any other. It routes
     // through the same policy gates, but the prompt must say what the grant
@@ -170,43 +164,42 @@ export class PermissionDecisionEngine {
             `允许在此聊天中读取和操作应用：${computerApp.name}。截图会进入聊天，必要时会短暂切到前台。`,
           )
     }
-    if (tool.approvalStrategy === 'never-review') return allow('工具声明为无需审批')
-    if (tool.approvalStrategy === 'always-review')
-      return invocation.permissionConfig.approvalPolicy === 'never'
-        ? deny('never 策略禁止等待审批')
-        : review('工具始终需要审批')
-
-    if (
-      computerApp &&
-      !invocation.authorizationScope?.ruleRequiresApproval &&
-      !invocation.input.__hookRequiresApproval &&
-      !hasRequestedPermissions(invocation.input)
-    )
-      return allow('电脑应用访问资格已满足')
-
-    // sandboxMode remains only as the v4/SQLite compatibility field. It maps
-    // to structured file access and never claims an OS boundary for Shell.
-    const mutatingMcpTool = tool.origin?.kind === 'mcp' && tool.capabilities.externalState
     const elevated =
       hasRequestedPermissions(invocation.input) ||
+      invocation.permissionFacts?.skillScript === true ||
       invocation.authorizationScope?.ruleRequiresApproval === true ||
-      invocation.input.__hookRequiresApproval === true ||
-      invocation.input.__ruleRequiresApproval === true ||
-      mutatingMcpTool
-    if (isGranularApprovalPolicy(policy))
-      return policy[approvalCapability(invocation, tool)]
-        ? review('细粒度策略要求审批')
-        : elevated
-          ? deny('细粒度策略禁止此权限请求')
-          : allow('细粒度策略允许当前文件访问范围内执行')
+      invocation.permissionFacts?.hookRequiresApproval === true ||
+      invocation.permissionFacts?.ruleRequiresApproval === true ||
+      (tool.origin?.kind === 'mcp' && tool.capabilities.externalState) ||
+      tool.approvalStrategy === 'always-review' ||
+      Boolean(invocation.permissionFacts?.approvalCategories?.length)
+    if (elevated) {
+      if (policy === 'never') return deny('never 策略禁止等待审批或新增授权')
+      if (isGranularApprovalPolicy(policy)) {
+        const categories = new Set(invocation.permissionFacts?.approvalCategories ?? [])
+        categories.add(approvalCapability(invocation, tool))
+        if (
+          invocation.permissionFacts?.ruleRequiresApproval ||
+          invocation.permissionFacts?.hookRequiresApproval ||
+          invocation.authorizationScope?.ruleRequiresApproval
+        )
+          categories.add('rules')
+        if (hasRequestedPermissions(invocation.input) && tool.sdkName !== 'request_permissions')
+          categories.add('sandboxApproval')
+        if ([...categories].some((category) => !policy[category]))
+          return deny('细粒度策略禁止此审批类别')
+      }
+      return review(
+        invocation.permissionFacts?.approvalReason ?? '额外范围、工具、Hook 或规则要求审批',
+      )
+    }
+    if (computerApp) return allow('电脑应用访问资格已满足')
+    if (tool.approvalStrategy === 'never-review') return allow('工具声明为无需审批')
+    if (isGranularApprovalPolicy(policy)) return allow('当前权限范围内执行')
     if (policy === 'untrusted')
       return tool.capabilities.filesystem === 'read' && !tool.capabilities.process && !elevated
         ? allow('可信纯读取操作')
         : review('untrusted 策略要求审批非纯读取操作')
-    if (policy === 'on-failure')
-      return elevated ? review('额外权限需要审批') : allow('按当前文件访问范围直接执行')
-    if (policy === 'on-request')
-      return elevated ? review('额外路径、网络或规则要求审批') : allow('当前文件访问范围内执行')
-    return elevated ? deny('never 策略禁止权限提升') : allow('never 策略按当前文件访问范围执行')
+    return allow('当前权限范围内执行')
   }
 }

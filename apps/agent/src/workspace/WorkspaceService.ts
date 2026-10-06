@@ -15,6 +15,8 @@ import {
 } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
 import { AgentError } from '../domain'
+import { pathContains } from '../permission/PathPermissions'
+import type { RequestedPermissions } from '../permission/PermissionDecisionEngine'
 import type { FileAccessProfile } from '../permission/ExecutionPolicy'
 
 const IGNORED_DIRECTORIES = new Set([
@@ -254,6 +256,10 @@ export class WorkspaceService {
       mutationQueues: new Map(),
       readOnlyPaths: new Map(),
     },
+    private readonly permissionPaths: Pick<RequestedPermissions, 'readPaths' | 'writePaths'> = {
+      readPaths: [],
+      writePaths: [],
+    },
   ) {
     this.rootPath = rootPath
     this.workspaceRoots = Object.freeze(workspaceRoots.map((root) => Object.freeze({ ...root })))
@@ -272,7 +278,32 @@ export class WorkspaceService {
    */
   withFileAccess(fileAccess: FileAccessProfile): WorkspaceService {
     if (fileAccess === this.fileAccess) return this
-    return new WorkspaceService(this.rootPath, this.workspaceRoots, fileAccess, this.shared)
+    return new WorkspaceService(
+      this.rootPath,
+      this.workspaceRoots,
+      fileAccess,
+      this.shared,
+      this.permissionPaths,
+    )
+  }
+
+  /** Approved paths are invocation-local and never modify shared grants. */
+  withPermissionPaths(paths: Pick<RequestedPermissions, 'readPaths' | 'writePaths'>) {
+    return new WorkspaceService(
+      this.rootPath,
+      this.workspaceRoots,
+      this.fileAccess,
+      this.shared,
+      paths,
+    )
+  }
+
+  private permissionPathFor(path: string, write = false) {
+    return (
+      write
+        ? this.permissionPaths.writePaths
+        : [...this.permissionPaths.readPaths, ...this.permissionPaths.writePaths]
+    ).find((parent) => pathContains(parent, path))
   }
 
   /** True only when this scope may reach paths outside the workspace roots. */
@@ -346,10 +377,16 @@ export class WorkspaceService {
 
   /** Isolate turn-local context grants while retaining the shared mutation queues. */
   withReadOnlyPaths(paths: readonly WorkspaceReadOnlyPath[]) {
-    const workspace = new WorkspaceService(this.rootPath, this.workspaceRoots, this.fileAccess, {
-      ...this.shared,
-      readOnlyPaths: new Map(this.shared.readOnlyPaths),
-    })
+    const workspace = new WorkspaceService(
+      this.rootPath,
+      this.workspaceRoots,
+      this.fileAccess,
+      {
+        ...this.shared,
+        readOnlyPaths: new Map(this.shared.readOnlyPaths),
+      },
+      this.permissionPaths,
+    )
     workspace.grantReadOnlyPaths(paths)
     return workspace
   }
@@ -371,7 +408,7 @@ export class WorkspaceService {
       // Paths outside every root are only reachable through full access or a
       // granted local-context path, and both need an unambiguous absolute path.
       if (this.allowsOutsideWorkspace()) return canonical.replaceAll('\\', '/')
-      if (this.readOnlyPathFor(canonical)) return canonical
+      if (this.readOnlyPathFor(canonical) || this.permissionPathFor(canonical)) return canonical
       const outside = relative(this.rootPath, canonical)
       return outside === '' ? '.' : outside.replaceAll('\\', '/')
     }
@@ -395,8 +432,13 @@ export class WorkspaceService {
   }
 
   private ensureWithinRoot(path: string) {
-    if (this.allowsOutsideWorkspace() || this.containsPath(path)) return
-    throw new AgentError('WORKSPACE_PATH_DENIED', '路径不在当前工作区内', 403)
+    if (
+      this.allowsOutsideWorkspace() ||
+      this.containsPath(path) ||
+      this.permissionPathFor(path, true)
+    )
+      return
+    throw new AgentError('WORKSPACE_PATH_DENIED', '路径不在当前工作区内，请先申请路径权限', 403)
   }
 
   private readOnlyPathFor(path: string) {
@@ -409,19 +451,26 @@ export class WorkspaceService {
   }
 
   private ensureReadable(path: string) {
-    if (this.allowsOutsideWorkspace() || this.containsPath(path) || this.readOnlyPathFor(path))
+    if (
+      this.allowsOutsideWorkspace() ||
+      this.containsPath(path) ||
+      this.readOnlyPathFor(path) ||
+      this.permissionPathFor(path)
+    )
       return
     throw new AgentError('WORKSPACE_PATH_DENIED', '路径不在当前工作区或已授权本地上下文内', 403)
   }
 
   private ensureWritable(path: string) {
+    if (this.fileAccess === 'read-only')
+      throw new AgentError('WORKSPACE_FILE_READONLY', '当前文件访问范围为只读', 403)
     const owner = this.rootForPath(path)
     // An explicitly read-only root stays read-only even under full access.
     if (owner) {
       if (owner.writable !== false) return
       throw new AgentError('WORKSPACE_FILE_READONLY', '当前工作区目录为只读', 403)
     }
-    if (this.allowsOutsideWorkspace()) return
+    if (this.allowsOutsideWorkspace() || this.permissionPathFor(path, true)) return
     throw new AgentError('WORKSPACE_FILE_READONLY', '当前工作区目录为只读', 403)
   }
 
@@ -436,7 +485,9 @@ export class WorkspaceService {
       throw new AgentError('WORKSPACE_PATH_DENIED', '路径必须位于当前工作区内', 403)
     }
     const requested = isAbsolute(path) ? resolve(path) : resolve(this.rootPath, path)
-    this.ensureReadable(requested)
+    // A call with approved paths also checks the canonical target below, including directory links.
+    if (!this.permissionPaths.readPaths.length && !this.permissionPaths.writePaths.length)
+      this.ensureReadable(requested)
     return requested
   }
 
@@ -458,6 +509,12 @@ export class WorkspaceService {
       if (canonical !== alias)
         throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名不能通过符号链接重定向', 403)
     } else if (!this.containsPath(canonical) && !this.allowsOutsideWorkspace()) {
+      const permissionPath = this.permissionPathFor(canonical)
+      if (permissionPath) {
+        if (!pathContains(permissionPath, canonical))
+          throw new AgentError('WORKSPACE_PATH_DENIED', '授权路径不能通过链接越界', 403)
+        return canonical
+      }
       const grant = this.readOnlyPathFor(requested)
       if (!grant)
         throw new AgentError('WORKSPACE_PATH_DENIED', '路径不在当前工作区或已授权本地上下文内', 403)
@@ -492,7 +549,7 @@ export class WorkspaceService {
       if (parent !== dirname(alias))
         throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名父目录无效', 403)
     } else {
-      this.ensureWithinRoot(parent)
+      this.ensureWithinRoot(resolve(parent, basename(requested)))
     }
     const metadata = await stat(parent)
     if (!metadata.isDirectory())
@@ -531,7 +588,7 @@ export class WorkspaceService {
       if (parent !== dirname(alias))
         throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名父目录无效', 403)
     } else {
-      this.ensureWithinRoot(parent)
+      this.ensureWithinRoot(resolve(parent, basename(requested)))
     }
     const metadata = await stat(parent)
     if (!metadata.isDirectory())
@@ -754,7 +811,7 @@ export class WorkspaceService {
       if (!entry.isDirectory() && !entry.isFile()) continue
 
       const entryPath = resolve(directory, entry.name)
-      this.ensureWithinRoot(entryPath)
+      this.ensureReadable(entryPath)
       result.push({
         name: entry.name,
         path: this.displayPath(entryPath),

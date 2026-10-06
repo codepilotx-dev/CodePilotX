@@ -1,3 +1,4 @@
+import { FULL_ACCESS_PERMISSION_CONFIG } from '@codepilotx/shared/thread'
 import { z } from 'zod'
 import type { AutomationService } from '../../automation'
 import { AgentError } from '../../domain'
@@ -65,9 +66,8 @@ const capabilities = (externalState: boolean) => ({
   userInteraction: false,
 })
 const permissionConfig = (sandboxMode: 'read-only' | 'workspace-write' | 'danger-full-access') => ({
+  ...FULL_ACCESS_PERMISSION_CONFIG,
   sandboxMode,
-  approvalPolicy: 'never' as const,
-  approvalsReviewer: 'auto_review' as const,
 })
 
 export const createAutomationDefinitions = (
