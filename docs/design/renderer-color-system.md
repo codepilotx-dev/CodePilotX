@@ -10,7 +10,7 @@
 
 新增颜色不是禁区，但必须先证明现有语义无法表达，再在系统层定义稳定含义。禁止用页面名、功能名、组件实例名或视觉描述（例如 `lighter-green-card`）创建公共颜色。
 
-桌面配色沿用这三层来源，并对齐本地参考包的通用桌面主题：浅色默认 `surface=#ffffff`、`ink=#1a1c1f`、对比度 45；深色默认 `surface=#181818`、`ink=#ffffff`、对比度 60；两者 `accent=#339cff`。新设置和 `Codex(new)` 预设使用这些默认值，原版 Codex 与代码语法主题保留。用户保存的 V6/V7 配色、字体与字号继续保留；不得通过识别旧默认色偷偷迁移用户设置，也不得新增平行变量命名。
+桌面配色沿用这三层来源，并对齐本地参考包的通用桌面主题：浅色默认 `surface=#ffffff`、`ink=#1f1f1f`、对比度 40；深色默认 `surface=#111111`、`ink=#eeeeee`、对比度 60；两者 `accent=#0169cc`。新设置和 `Codex(new)` 预设使用这些默认值，原版 Codex 与代码语法主题保留。用户保存的 V6/V7 配色、字体与字号继续保留；不得通过识别旧默认色偷偷迁移用户设置，也不得新增平行变量命名。
 
 现有派生器统一生成 surface、foreground、border 与 accent 角色：浅色编辑器背景向白色混合 12%，深色向 ink 混合 7%；panel 使用参考 panel 公式，raised 使用 elevatedPrimary，control 使用 controlOpaque。次级文字为 ink 的 65% 透明度，三级文字和边框随对比度派生；深色细边框透明度为 `0.03 + 0.02 × 归一化对比度`。强调前景在深色中向白色提亮，柔和背景、hover 和 active 使用独立的强调派生；文字继续执行现有 4.5:1 对比度校正，Diff 不复用强调色背景算法。
 
@@ -47,12 +47,12 @@
 
 Workbench 大区域使用独立的公共区域 token，布局 Feature 不直接绑定基础 surface：
 
-| 区域                  | 语义 token                              | 默认来源                            |
-| --------------------- | --------------------------------------- | ----------------------------------- |
-| 窗口标题/菜单栏       | `--cpx-sys-color-workbench-titlebar-bg` | `--cpx-sys-color-surface-recessed`  |
-| 左侧栏                | `--cpx-sys-color-workbench-sidebar-bg`  | `--cpx-sys-color-surface-recessed`  |
-| 主工作区              | `--cpx-sys-color-workbench-main-bg`     | `--cpx-sys-color-surface-canvas`    |
-| 右侧 Dock、底部 Panel | `--cpx-sys-color-workbench-panel-bg`    | `--cpx-sys-color-workbench-main-bg` |
+| 区域                  | 语义 token                              | 默认来源                                                                                    |
+| --------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 窗口标题/菜单栏       | `--cpx-sys-color-workbench-titlebar-bg` | 跟随侧栏背景（`--cpx-sys-color-workbench-sidebar-bg`）                                      |
+| 左侧栏                | `--cpx-sys-color-workbench-sidebar-bg`  | 浅色为 `gray-2`（`--cpx-ref-gray-2`），深色为 Deep（`--cpx-sys-color-surface-recessed`）    |
+| 主工作区              | `--cpx-sys-color-workbench-main-bg`     | `--cpx-sys-color-surface-canvas`                                                            |
+| 右侧 Dock、底部 Panel | `--cpx-sys-color-workbench-panel-bg`    | `--cpx-sys-color-workbench-main-bg`                                                         |
 
 `surface-panel` 仍用于工作区内部的常驻卡片、摘要和审批容器，不代表右侧 Dock 或底部 Panel 的外层底色。Feature 只消费公开区域 token，不消费颜色类 `--cpx-comp-*`，也不直接选择基础 surface。默认值相同的区域仍保持独立 token，以允许主题覆盖并避免组件耦合；工作区 toolbar/header 保持透明并继承 `workbench-main-bg`，不使用 titlebar token。
 

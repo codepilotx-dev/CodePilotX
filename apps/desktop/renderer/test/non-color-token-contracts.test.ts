@@ -85,7 +85,7 @@ describe('non-color design token contracts', () => {
     const tokens = extractTokens(await read('../src/styles/design-system/tokens.css'))
     expect(normalizeSource(tokens.get('--cpx-sys-font-family-sans'))).toBe(
       normalizeSource(
-        '"Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
+        'MiSans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
       ),
     )
     const expected: Record<string, string> = {
@@ -102,18 +102,18 @@ describe('non-color design token contracts', () => {
       '--cpx-sys-font-weight-body': '400',
       '--cpx-sys-font-weight-medium': '500',
       '--cpx-sys-font-weight-bold': '600',
-      '--cpx-sys-line-height-caption': 'calc(var(--cpx-sys-font-size-xs) + 4px)',
-      '--cpx-sys-line-height-label': 'calc(var(--cpx-sys-font-size-xs) + 4px)',
-      '--cpx-sys-line-height-body-sm': 'calc(var(--cpx-sys-font-size-sm) + 5px)',
-      '--cpx-sys-line-height-body': 'calc(var(--cpx-sys-font-size-md) + 6px)',
-      '--cpx-sys-line-height-body-lg': 'calc(var(--cpx-sys-font-size-lg) + 8px)',
-      '--cpx-sys-line-height-heading-sm': 'calc(var(--cpx-sys-font-size-lg) + 6px)',
-      '--cpx-sys-line-height-heading-md': 'calc(var(--cpx-sys-font-size-xl) + 6px)',
-      '--cpx-sys-line-height-heading-lg': 'calc(var(--cpx-sys-font-size-2xl) + 8px)',
-      '--cpx-sys-line-height-heading-xl': 'calc(var(--cpx-sys-font-size-3xl) + 6px)',
-      '--cpx-sys-line-height-display': 'calc(var(--cpx-sys-font-size-4xl) + 6px)',
-      '--cpx-sys-line-height-reading': 'calc(var(--cpx-sys-font-size-md) + 10px)',
-      '--cpx-sys-line-height-code': 'calc(var(--cpx-sys-font-size-code) + 7px)',
+      '--cpx-sys-line-height-caption': '1.4',
+      '--cpx-sys-line-height-label': '1.3',
+      '--cpx-sys-line-height-body-sm': '1.45',
+      '--cpx-sys-line-height-body': '1.5',
+      '--cpx-sys-line-height-body-lg': '1.5',
+      '--cpx-sys-line-height-heading-sm': '1.25',
+      '--cpx-sys-line-height-heading-md': '1.25',
+      '--cpx-sys-line-height-heading-lg': '1.2',
+      '--cpx-sys-line-height-heading-xl': '1.14',
+      '--cpx-sys-line-height-display': '1.14',
+      '--cpx-sys-line-height-reading': 'var(--cpx-sys-line-height-body)',
+      '--cpx-sys-line-height-code': '1.5',
     }
     const mismatched = Object.entries(expected).filter(
       ([name, value]) => tokens.get(name) !== value,
@@ -142,7 +142,7 @@ describe('non-color design token contracts', () => {
       '--cpx-sys-type-row-title':
         'var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-md) / var(--cpx-sys-line-height-body) var(--cpx-sys-font-family-sans)',
       '--cpx-sys-type-control':
-        'var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-sm) / var(--cpx-sys-line-height-body-sm) var(--cpx-sys-font-family-sans)',
+        'var(--cpx-sys-font-weight-medium) var(--cpx-sys-font-size-sm) / var(--cpx-sys-line-height-control) var(--cpx-sys-font-family-sans)',
       '--cpx-sys-type-heading-sm':
         'var(--cpx-sys-font-weight-bold) var(--cpx-sys-font-size-lg) / var(--cpx-sys-line-height-heading-sm) var(--cpx-sys-font-family-sans)',
       '--cpx-sys-type-heading-md':

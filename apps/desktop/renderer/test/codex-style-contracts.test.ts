@@ -340,7 +340,7 @@ describe('Codex CPX design system token contract', () => {
     expect(systemTokens.match(/--cpx-sys-shadow-prominent:/g)).toHaveLength(1)
     expectSourceContains(
       systemTokens,
-      '--cpx-sys-shadow-raised: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);',
+      '--cpx-sys-shadow-raised: inset 0 1px 0 rgba(255, 255, 255, 0.7);',
     )
     expectSourceContains(
       componentTokens,
@@ -365,19 +365,19 @@ describe('Codex CPX design system token contract', () => {
 
     for (const [role, duration] of [
       ['instant', '0ms'],
-      ['feedback', '60ms'],
-      ['exit', '80ms'],
-      ['state', '60ms'],
-      ['enter', '80ms'],
-      ['panel', '100ms'],
+      ['feedback', '160ms'],
+      ['exit', '160ms'],
+      ['state', '160ms'],
+      ['enter', '160ms'],
+      ['panel', '220ms'],
       ['loading', '900ms'],
     ]) {
       expectSourceContains(systemTokens, `--cpx-sys-motion-${role}: ${duration};`)
     }
 
-    expectSourceContains(motionTransitions, 'duration: 0.06,')
-    expect(motionTransitions.match(/duration: 0\.08,/g)).toHaveLength(2)
-    expectSourceContains(motionTransitions, 'duration: 0.1,')
+    expectSourceContains(motionTransitions, 'duration: 0.16,')
+    expect(motionTransitions.match(/duration: 0\.16,/g)).toHaveLength(4)
+    expectSourceContains(motionTransitions, 'duration: 0.22,')
     expectSourceContains(motionTransitions, "duration: 0.9,\n  ease: 'linear'")
   })
 
@@ -415,15 +415,15 @@ describe('Codex CPX design system token contract', () => {
     expectSourceContains(systemTokens, '--cpx-sys-corner-shape: round;')
     expectSourceNotContains(systemTokens, '--cpx-sys-corner-shape: superellipse(1.5);')
     const expectedSizes: Record<string, string> = {
-      '2xs': '4px',
-      xs: '6px',
+      '2xs': '5px',
+      xs: '5px',
       sm: '8px',
       md: '10px',
-      lg: '12px',
-      xl: '14px',
-      '2xl': '16px',
-      '3xl': '20px',
-      '4xl': '28px',
+      lg: '14px',
+      xl: '18px',
+      '2xl': '18px',
+      '3xl': '24px',
+      '4xl': '24px',
       full: '9999px',
     }
     for (const [size, value] of Object.entries(expectedSizes)) {
@@ -431,12 +431,12 @@ describe('Codex CPX design system token contract', () => {
       expectSourceContains(systemTokens, `--cpx-sys-radius-${size}: ${value};`)
     }
     for (const [role, size] of [
-      ['indicator', '2xs'],
+      ['indicator', 'xs'],
       ['compact', 'xs'],
       ['control', 'md'],
       ['container', 'lg'],
       ['floating', 'lg'],
-      ['prominent', '2xl'],
+      ['prominent', 'xl'],
       ['pill', 'full'],
     ]) {
       expect(systemTokens.match(new RegExp(`--cpx-sys-radius-${role}:`, 'g'))).toHaveLength(1)
@@ -583,11 +583,11 @@ describe('Codex CPX design system token contract', () => {
     // panels follow the workspace surface by default.
     expectSourceContains(
       systemTokens,
-      '--cpx-sys-color-workbench-titlebar-bg: var(--cpx-sys-color-surface-recessed);',
+      '--cpx-sys-color-workbench-titlebar-bg: var(--cpx-sys-color-workbench-sidebar-bg);',
     )
     expectSourceContains(
       systemTokens,
-      '--cpx-sys-color-workbench-sidebar-bg: var(--cpx-sys-color-surface-recessed);',
+      '--cpx-sys-color-workbench-sidebar-bg: var(--cpx-ref-gray-2);',
     )
     expectSourceContains(
       systemTokens,

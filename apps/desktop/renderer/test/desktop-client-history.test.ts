@@ -225,7 +225,7 @@ describe('desktop history client', () => {
     expect(loaded).toMatchObject({
       version: 7,
       mode: 'system',
-      codeThemeIds: { light: 'codex-light', dark: 'codex-dark' },
+      codeThemeIds: { light: 'codex-new-light', dark: 'codex-new-dark' },
     })
     expect(loaded.chromeThemes.light).not.toHaveProperty('opaqueWindows')
 

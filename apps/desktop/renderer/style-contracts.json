@@ -46,7 +46,9 @@
     "src/styles/base.css": 8,
     "src/styles/popover.css": 1
   },
-  "dataThemeSelectorAllowlist": {},
+  "dataThemeSelectorAllowlist": {
+    "src/styles/design-system/tokens.css": 4
+  },
   "literalLineHeightAllowlist": {
     "src/styles/modal.css": 2
   },

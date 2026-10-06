@@ -24,19 +24,20 @@ import { isRecord } from '@codepilotx/shared/guards'
 export const DEFAULT_LIGHT_THEME_ID = 'light-codex'
 export const DEFAULT_DARK_THEME_ID = 'dark-codex'
 export const DEFAULT_UI_FONT =
-  '"Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"'
-export const DEFAULT_CODE_FONT = '"JetBrains Mono", "SFMono-Regular", Consolas, monospace'
+  'MiSans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"'
+export const DEFAULT_CODE_FONT =
+  '"JetBrains Mono", "SF Mono", "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace'
 
 export { DEFAULT_LIGHT_CHROME_THEME, DEFAULT_DARK_CHROME_THEME }
 
 export const DEFAULT_LIGHT_THEME: DesktopThemeConfigV1 = {
-  codeThemeId: 'codex-light',
+  codeThemeId: 'codex-new-light',
   theme: DEFAULT_LIGHT_CHROME_THEME,
   variant: 'light',
 }
 
 export const DEFAULT_DARK_THEME: DesktopThemeConfigV1 = {
-  codeThemeId: 'codex-dark',
+  codeThemeId: 'codex-new-dark',
   theme: DEFAULT_DARK_CHROME_THEME,
   variant: 'dark',
 }
@@ -217,13 +218,13 @@ function normalizeCodeThemeIdForVariant(
   variant: DesktopThemeVariant,
 ): CodexHighlightThemeSlug {
   if (value === 'auto' || !isCodexHighlightThemeSlug(value)) {
-    return variant === 'light' ? 'codex-light' : 'codex-dark'
+    return variant === 'light' ? 'codex-new-light' : 'codex-new-dark'
   }
   return CODEX_HIGHLIGHT_THEMES.some((theme) => theme.slug === value && theme.variant === variant)
     ? value
     : variant === 'light'
-      ? 'codex-light'
-      : 'codex-dark'
+      ? 'codex-new-light'
+      : 'codex-new-dark'
 }
 
 function normalizeFontSizes(value: unknown): DesktopThemeSettings['fontSizes'] {

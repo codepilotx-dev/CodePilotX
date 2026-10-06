@@ -9,6 +9,8 @@
 
 ### Changed
 
+- [desktop/renderer] 全量迁移 UI-Design 设计 Token：引入 Radix 参考色阶（sRGB 与 Display P3 宽色域覆盖）、MiSans 与 JetBrains Mono 字体资产及排版栈、无单位行高、字符间距角色、7 档基础圆角刻度（5px、8px、10px、14px、18px、24px、9999px）、边缘高光与浮动投影体系以及标准/入场动效缓动（160ms/220ms/340ms）；升级默认浅色/深色主题基线（浅色 `#ffffff`/`#1f1f1f`/对比度 40，深色 `#111111`/`#eeeeee`/对比度 60，默认强调色 `#0169cc`）、双路运行时语义色彩推导与代码高亮对比度保证，保留用户自定义主题、字号 delta 调节、自定义字体与桌面布局几何契约。
+
 - [desktop/renderer] 桌面样式入口统一到 `styles/tailwind.css`：系统 token 与全局 reset 转为原生 CSS（`design-system/tokens.css`、`design-system/codex-semantic-tokens.css`、`base.css`），保留原有 cascade layer 顺序，迁移期继续由 `styles/index.scss` 加载未转换的 SCSS；样式契约检查支持原生 `@import`/Tailwind 指令与并存入口，Stylelint 配置同步覆盖新路径。
 
 - [desktop/renderer] 补齐 Tailwind 设计令牌映射：新增表面、前景、边框、交互状态、状态族、Diff、图表与语法颜色，语义圆角、raised/prominent 阴影、模糊、语义 z-index、页面与面板宽度、标题栏高度与动效缓动映射，并为基础动效补回 `pulse`/`spin`；新增 `tw:type-*` 排版角色与 `tw:type-weight-*` 字重角色替代 `u-type-*`，`transition-*` 默认时长改用 `--cpx-sys-motion-state`，不再回退到 0s。

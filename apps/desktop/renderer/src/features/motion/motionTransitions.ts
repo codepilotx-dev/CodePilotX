@@ -1,29 +1,50 @@
 import type { Transition } from 'motion/react'
 
-const standardEase = [0.16, 1, 0.3, 1] as const
+const standardEase = [0.4, 0, 0.2, 1] as const
+const entranceEase = [0.22, 1, 0.36, 1] as const
 
 export const instantTween: Transition = {
   duration: 0,
 }
 
 export const stateTween: Transition = {
-  duration: 0.06,
+  duration: 0.16,
+  ease: standardEase,
+}
+
+export const feedbackTween: Transition = {
+  duration: 0.16,
   ease: standardEase,
 }
 
 export const enterTween: Transition = {
-  duration: 0.08,
-  ease: standardEase,
+  duration: 0.16,
+  ease: entranceEase,
 }
 
 export const exitTween: Transition = {
-  duration: 0.08,
+  duration: 0.16,
   ease: standardEase,
 }
 
 export const layoutTween: Transition = {
-  duration: 0.1,
-  ease: standardEase,
+  duration: 0.22,
+  ease: entranceEase,
+}
+
+export const panelTween: Transition = {
+  duration: 0.22,
+  ease: entranceEase,
+}
+
+export const disclosureTween: Transition = {
+  duration: 0.22,
+  ease: entranceEase,
+}
+
+export const pageTween: Transition = {
+  duration: 0.34,
+  ease: entranceEase,
 }
 
 export const loadingTween: Transition = {

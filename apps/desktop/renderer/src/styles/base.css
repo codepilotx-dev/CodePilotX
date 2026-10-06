@@ -184,6 +184,7 @@ p {
   --cpx-sys-motion-enter: 0ms;
   --cpx-sys-motion-panel: 0ms;
   --cpx-sys-motion-disclosure: 0ms;
+  --cpx-sys-motion-page: 0ms;
   --cpx-sys-motion-loading: 0ms;
 }
 

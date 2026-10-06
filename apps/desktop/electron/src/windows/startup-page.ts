@@ -19,7 +19,7 @@ export function deriveSurfaceUnder(
   surface: string,
   ink: string,
   dark: boolean,
-  contrast = dark ? 60 : 45,
+  contrast = dark ? 60 : 40,
 ): string {
   return deriveDesktopSurfaceUnder(surface, ink, dark ? 'dark' : 'light', contrast)
 }

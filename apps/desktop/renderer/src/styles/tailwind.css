@@ -144,6 +144,7 @@
   --ease-in: var(--cpx-sys-ease-in);
   --ease-out: var(--cpx-sys-ease-out);
   --ease-standard: var(--cpx-sys-ease-standard);
+  --ease-entrance: var(--cpx-sys-ease-entrance);
   --ease-disclosure: var(--cpx-sys-ease-disclosure);
 
   --transition-duration-instant: var(--cpx-sys-motion-instant);
@@ -153,6 +154,7 @@
   --transition-duration-exit: var(--cpx-sys-motion-exit);
   --transition-duration-panel: var(--cpx-sys-motion-panel);
   --transition-duration-disclosure: var(--cpx-sys-motion-disclosure);
+  --transition-duration-page: var(--cpx-sys-motion-page);
   --transition-duration-loading: var(--cpx-sys-motion-loading);
 
   /*
@@ -210,6 +212,8 @@
   --color-app-control: var(--cpx-sys-color-surface-control);
   --color-app-raised: var(--cpx-sys-color-surface-raised);
   --color-app-editor: var(--cpx-sys-color-surface-editor);
+  --color-app-surface-secondary: var(--cpx-sys-color-surface-secondary);
+  --color-app-surface-active: var(--cpx-sys-color-surface-active);
   --color-app-scrim: var(--cpx-sys-color-scrim);
   --color-app-user-message: var(--cpx-sys-color-message-user-bg);
   --color-app-glass: var(--cpx-sys-glass-bg);
@@ -237,6 +241,8 @@
   /* Accent and status families */
   --color-app-accent: var(--cpx-sys-color-accent);
   --color-app-accent-subtle: var(--cpx-sys-color-accent-subtle-bg);
+  --color-app-accent-subtle-hover: var(--cpx-sys-color-accent-subtle-hover-bg);
+  --color-app-accent-subtle-active: var(--cpx-sys-color-accent-subtle-active-bg);
   --color-app-accent-border: var(--cpx-sys-color-accent-subtle-border);
   --color-app-accent-fg: var(--cpx-sys-color-accent-fg);
   --color-app-success: var(--cpx-sys-color-success);
@@ -319,69 +325,86 @@
 
 @utility type-display {
   font: var(--cpx-sys-type-display);
+  letter-spacing: var(--cpx-sys-letter-spacing-display);
 }
 
 @utility type-body {
   font: var(--cpx-sys-type-body);
+  letter-spacing: var(--cpx-sys-letter-spacing-body);
 }
 
 @utility type-control {
   font: var(--cpx-sys-type-control);
+  letter-spacing: var(--cpx-sys-letter-spacing-control);
 }
 
 @utility type-secondary {
   font: var(--cpx-sys-type-body-sm);
+  letter-spacing: var(--cpx-sys-letter-spacing-body-sm);
 }
 
 @utility type-meta {
   font: var(--cpx-sys-type-caption);
+  letter-spacing: var(--cpx-sys-letter-spacing-caption);
 }
 
 @utility type-caption {
   font: var(--cpx-sys-type-caption);
+  letter-spacing: var(--cpx-sys-letter-spacing-caption);
 }
 
 @utility type-label {
   font: var(--cpx-sys-type-label);
+  letter-spacing: var(--cpx-sys-letter-spacing-label);
 }
 
 @utility type-body-sm {
   font: var(--cpx-sys-type-body-sm);
+  letter-spacing: var(--cpx-sys-letter-spacing-body-sm);
 }
 
 @utility type-body-lg {
   font: var(--cpx-sys-type-body-lg);
+  letter-spacing: var(--cpx-sys-letter-spacing-body-lg);
 }
 
 @utility type-reading {
   font: var(--cpx-sys-type-reading);
+  letter-spacing: var(--cpx-sys-letter-spacing-body);
 }
 
 @utility type-row-title {
   font: var(--cpx-sys-type-row-title);
+  letter-spacing: var(--cpx-sys-letter-spacing-row-title);
 }
 
 @utility type-title-sm {
   font: var(--cpx-sys-type-heading-sm);
+  letter-spacing: var(--cpx-sys-letter-spacing-heading-sm);
 }
 
 @utility type-title-md {
   font: var(--cpx-sys-type-heading-md);
+  letter-spacing: var(--cpx-sys-letter-spacing-heading-md);
 }
 
 @utility type-title-lg {
   font: var(--cpx-sys-type-heading-lg);
+  letter-spacing: var(--cpx-sys-letter-spacing-heading-lg);
 }
 
 @utility type-title-xl {
   font: var(--cpx-sys-type-heading-xl);
+  letter-spacing: var(--cpx-sys-letter-spacing-heading-xl);
 }
 
 @utility type-metric {
   font: var(--cpx-sys-type-metric);
+  letter-spacing: var(--cpx-sys-letter-spacing-metric);
   font-variant-numeric: tabular-nums;
 }
 
 @utility type-code {
   font: var(--cpx-sys-type-code);
+  letter-spacing: var(--cpx-sys-letter-spacing-code);
 }
