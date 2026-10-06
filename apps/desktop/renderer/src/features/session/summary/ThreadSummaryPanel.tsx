@@ -3,7 +3,6 @@ import * as Dialog from '@radix-ui/react-dialog'
 import * as Popover from '@radix-ui/react-popover'
 import {
   Bot,
-  Check,
   ChevronDown,
   FileText,
   Folder,
@@ -14,8 +13,6 @@ import {
   Image as ImageIcon,
   Laptop,
   Link2,
-  ListChecks,
-  LoaderCircle,
   Package,
   Paperclip,
   Pause,
@@ -34,7 +31,6 @@ import { BranchSelectPopover } from '../composer/BranchSelectPopover.js'
 import type {
   ThreadSummaryArtifact,
   ThreadSummaryBrowserTab,
-  ThreadSummaryExecutionPlan,
   ThreadSummarySourceEntry,
   ThreadSummaryViewModel,
 } from './threadSummaryViewModel.js'
@@ -44,7 +40,6 @@ import {
   threadSummaryArtifactPreviewKind,
 } from './threadSummaryViewModel.js'
 import type { Attachment, LocalContextReference } from '@codepilotx/shared/thread'
-import type { OpenPlanInDockRequest } from '../workflow/WorkflowPlanCard.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
@@ -65,8 +60,6 @@ const SUMMARY_ROW_ICON_CLASS = 'tw:text-app-text'
 export type ThreadSummarySectionId =
   | 'environment'
   | 'goal'
-  | 'progress'
-  | 'plan'
   | 'agents'
   | 'browser'
   | 'sources'
@@ -83,7 +76,6 @@ type ThreadSummaryActions = {
   onOpenArtifact?: (artifact: ThreadSummaryArtifact) => void
   onOpenAttachment?: (attachment: Attachment) => void
   onOpenLocalContext?: (reference: LocalContextReference) => void
-  onOpenPlan: (plan: OpenPlanInDockRequest) => void
   onOpenReview: () => void
   onOpenSubagent?: (taskId: string) => void
   onOpenWorkspacePath: () => void
@@ -213,7 +205,6 @@ export function ThreadSummaryPanel({
   onOpenArtifact,
   onOpenAttachment,
   onOpenLocalContext,
-  onOpenPlan,
   onOpenReview,
   onOpenSubagent,
   onOpenWorkspacePath,
@@ -223,7 +214,6 @@ export function ThreadSummaryPanel({
   const [branchPopoverOpen, setBranchPopoverOpen] = React.useState(false)
   const [branchSearch, setBranchSearch] = React.useState('')
   const [sourcesPanelOpen, setSourcesPanelOpen] = React.useState(false)
-  const [showAllSteps, setShowAllSteps] = React.useState(false)
   const [showAllAgents, setShowAllAgents] = React.useState(false)
   const [showAllArtifacts, setShowAllArtifacts] = React.useState(false)
   const sourcePreview = previewThreadSummarySources(model.sources)
@@ -240,12 +230,6 @@ export function ThreadSummaryPanel({
     fileCount: 0,
   }
   const environment = model.environment
-  const executionPlan = model.executionPlan
-  const visiblePlanSteps = executionPlan
-    ? showAllSteps
-      ? executionPlan.steps
-      : executionPlan.window.steps
-    : []
 
   const isSectionExpanded = (id: ThreadSummarySectionId): boolean =>
     !collapsedSections.has(id)
@@ -399,81 +383,6 @@ export function ThreadSummaryPanel({
               </span>
             </small>
           </div>
-        </ThreadSummarySection>
-      ) : null}
-
-      {executionPlan ? (
-        <ThreadSummarySection
-          collapsedSummary={
-            <span className="tw:type-caption tw:tabular-nums">
-              {executionPlan.completedSteps}/{executionPlan.steps.length}
-            </span>
-          }
-          expanded={isSectionExpanded('progress')}
-          id="progress"
-          title="执行进度"
-          onToggle={toggleSection}
-        >
-          {executionPlan.status === 'interrupted' ? (
-            <div className="tw:px-2 tw:pb-1 tw:text-app-text-meta tw:type-caption">执行已中断</div>
-          ) : null}
-          <div
-            className="thread-summary-steps tw:grid tw:min-w-0 tw:gap-0.5 tw:px-2 tw:py-1"
-            role="list"
-          >
-            {visiblePlanSteps.map((step, index) => (
-              <div
-                className="tw:grid tw:min-w-0 tw:grid-cols-[16px_minmax(0,1fr)] tw:items-center tw:gap-2 tw:py-0.5"
-                key={`${step.step}-${index}`}
-                role="listitem"
-              >
-                <ExecutionStepIcon status={step.status} />
-                <span
-                  className={cx(
-                    'tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:type-body',
-                    step.status === 'completed'
-                      ? 'tw:text-app-text-meta tw:line-through'
-                      : 'tw:text-app-text',
-                  )}
-                  title={step.step}
-                >
-                  {step.step}
-                </span>
-              </div>
-            ))}
-          </div>
-          {!showAllSteps &&
-          (executionPlan.window.hiddenBefore > 0 || executionPlan.window.hiddenAfter > 0) ? (
-            <button
-              className={`${SUMMARY_ROW_CLASS} tw:text-app-text-meta tw:hover:text-app-text tw:focus-visible:text-app-text`}
-              type="button"
-              onClick={() => setShowAllSteps(true)}
-            >
-              <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />
-              <span className={SUMMARY_ROW_LABEL_CLASS}>
-                展开其余{' '}
-                {executionPlan.window.hiddenBefore + executionPlan.window.hiddenAfter} 步
-              </span>
-            </button>
-          ) : null}
-        </ThreadSummarySection>
-      ) : null}
-
-      {model.plan ? (
-        <ThreadSummarySection
-          expanded={isSectionExpanded('plan')}
-          id="plan"
-          title="计划"
-          onToggle={toggleSection}
-        >
-          <button
-            className={SUMMARY_ROW_CLASS}
-            type="button"
-            onClick={() => onOpenPlan(model.plan!)}
-          >
-            <ListChecks className={SUMMARY_ROW_ICON_CLASS} aria-hidden="true" size={APP_ICON_SIZE} />
-            <span className={SUMMARY_ROW_LABEL_CLASS}>{model.plan.title}</span>
-          </button>
         </ThreadSummarySection>
       ) : null}
 
@@ -825,34 +734,6 @@ function ArtifactRow({
     >
       {row}
     </button>
-  )
-}
-
-function ExecutionStepIcon({ status }: { status: 'pending' | 'in_progress' | 'completed' }) {
-  if (status === 'completed') {
-    return (
-      <Check
-        aria-hidden="true"
-        className="tw:text-app-success"
-        size={APP_ICON_SIZES.sm}
-        strokeWidth={2.5}
-      />
-    )
-  }
-  if (status === 'in_progress') {
-    return (
-      <LoaderCircle
-        aria-hidden="true"
-        className="tw:text-app-accent-fg tw:animate-spin tw:motion-reduce:animate-none"
-        size={APP_ICON_SIZES.sm}
-      />
-    )
-  }
-  return (
-    <span
-      aria-hidden="true"
-      className="tw:inline-block tw:size-2 tw:rounded-full tw:border tw:border-app-border-subtle"
-    />
   )
 }
 

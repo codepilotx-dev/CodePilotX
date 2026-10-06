@@ -1,9 +1,6 @@
 import type {
   Attachment,
-  ExecutionPlanItem,
-  ExecutionPlanStep,
   LocalContextReference,
-  PlanItem,
   SubagentProjection,
   SubagentStatus,
   ThreadGoal,
@@ -35,27 +32,6 @@ export type ThreadSummaryGoal = {
   timeUsedSeconds: number
   tokenBudget: number | null
   tokensUsed: number
-}
-
-export type ThreadSummaryPlan = {
-  eventId: string
-  title: string
-  content: string
-  openable: true
-}
-
-export type ThreadSummaryExecutionPlanWindow = {
-  steps: readonly ExecutionPlanStep[]
-  hiddenBefore: number
-  hiddenAfter: number
-}
-
-export type ThreadSummaryExecutionPlan = {
-  id: string
-  status: ExecutionPlanItem['status']
-  completedSteps: number
-  steps: readonly ExecutionPlanStep[]
-  window: ThreadSummaryExecutionPlanWindow
 }
 
 export type ThreadSummaryAgent = {
@@ -111,8 +87,6 @@ export type ThreadSummaryViewModel = {
   environment: ThreadSummaryEnvironment | null
   changes: ThreadSummaryChanges | null
   goal: ThreadSummaryGoal | null
-  executionPlan: ThreadSummaryExecutionPlan | null
-  plan: ThreadSummaryPlan | null
   agents: ThreadSummaryAgent[]
   browserTabs: ThreadSummaryBrowserTab[]
   sources: ThreadSummarySourceEntry[]
@@ -145,7 +119,6 @@ export type ThreadSummaryViewModelInput = {
   additions: number
   deletions: number
   goal: ThreadGoal | null
-  turns: readonly { planItem: PlanItem | null; executionPlanItems: readonly ExecutionPlanItem[] }[]
   attachments: readonly Attachment[]
   contextReferences: readonly LocalContextReference[]
   tools: readonly ToolItem[]
@@ -182,7 +155,6 @@ export function deriveThreadSummaryViewModel(
         deletions: input.deletions,
       }
     : null
-  const executionPlan = findLatestThreadSummaryExecutionPlan(input.turns)
   const agents = input.subagents.map(({ task, currentRun }) =>
     threadSummaryAgentFromProjection(task.id, task.displayName, currentRun?.status ?? 'interrupted'),
   )
@@ -203,7 +175,6 @@ export function deriveThreadSummaryViewModel(
     hasContent: Boolean(
       environment ||
         goal ||
-        executionPlan ||
         (agents.length > 0) ||
         (browserTabs.length > 0) ||
         (sources.length > 0) ||
@@ -212,8 +183,6 @@ export function deriveThreadSummaryViewModel(
     environment,
     changes,
     goal,
-    executionPlan,
-    plan: findLatestThreadSummaryPlan(input.turns),
     agents,
     browserTabs,
     sources,
@@ -237,82 +206,6 @@ export function threadSummaryAgentFromProjection(
     status,
     state,
     stoppable: state !== 'finished',
-  }
-}
-
-export function findLatestThreadSummaryPlan(
-  turns: readonly { planItem: PlanItem | null }[],
-): ThreadSummaryPlan | null {
-  for (let index = turns.length - 1; index >= 0; index -= 1) {
-    const planItem = turns[index]?.planItem
-    if (!planItem) continue
-    // 正在流式的计划还没有生成完成，右栏只能展示完成态快照。
-    if (planItem.status === 'streaming') continue
-    const content = planItem.markdown.trim()
-    if (!content) continue
-    return {
-      eventId: planItem.id,
-      title: planItem.title.trim() || planTitleFallback(content),
-      content,
-      openable: true,
-    }
-  }
-  return null
-}
-
-function planTitleFallback(content: string): string {
-  const heading = content.split(/\r?\n/).find((line) => line.trim().length > 0)
-  return (heading ?? content).replace(/^#{1,6}\s*/u, '').trim() || '计划'
-}
-
-export const THREAD_SUMMARY_STEP_PREVIEW_LIMIT = 6
-const THREAD_SUMMARY_STEP_WINDOW_SIZE = 3
-
-export function findLatestThreadSummaryExecutionPlan(
-  turns: readonly { executionPlanItems: readonly ExecutionPlanItem[] }[],
-): ThreadSummaryExecutionPlan | null {
-  for (let index = turns.length - 1; index >= 0; index -= 1) {
-    const item = turns[index]?.executionPlanItems.at(-1)
-    // 只使用最近一份非空执行计划，不与正式计划混合。
-    if (item && item.steps.length > 0) return summarizeExecutionPlan(item)
-  }
-  return null
-}
-
-function summarizeExecutionPlan(item: ExecutionPlanItem): ThreadSummaryExecutionPlan {
-  return {
-    id: item.id,
-    status: item.status,
-    completedSteps: item.steps.filter((step) => step.status === 'completed').length,
-    steps: item.steps,
-    window: buildThreadSummaryExecutionPlanWindow(item.steps),
-  }
-}
-
-/**
- * 长执行计划的聚焦窗口：不超过 6 步完整展示；超过时显示进行中项附近 3 步，
- * 无进行中项取首个未完成项，全完成取末尾 3 步。窗口始终取满并保持原顺序。
- */
-export function buildThreadSummaryExecutionPlanWindow(
-  steps: readonly ExecutionPlanStep[],
-  previewLimit: number = THREAD_SUMMARY_STEP_PREVIEW_LIMIT,
-): ThreadSummaryExecutionPlanWindow {
-  if (steps.length <= previewLimit) {
-    return { steps, hiddenBefore: 0, hiddenAfter: 0 }
-  }
-  const inProgressIndex = steps.findIndex((step) => step.status === 'in_progress')
-  const firstPendingIndex = steps.findIndex((step) => step.status === 'pending')
-  const focusIndex =
-    inProgressIndex >= 0
-      ? inProgressIndex
-      : firstPendingIndex >= 0
-        ? firstPendingIndex
-        : steps.length - THREAD_SUMMARY_STEP_WINDOW_SIZE
-  const startIndex = Math.max(0, Math.min(focusIndex, steps.length - THREAD_SUMMARY_STEP_WINDOW_SIZE))
-  return {
-    steps: steps.slice(startIndex, startIndex + THREAD_SUMMARY_STEP_WINDOW_SIZE),
-    hiddenBefore: startIndex,
-    hiddenAfter: steps.length - startIndex - THREAD_SUMMARY_STEP_WINDOW_SIZE,
   }
 }
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 
-import type { PlanItem, ToolItem } from '@codepilotx/shared/thread'
+import type { ToolItem } from '@codepilotx/shared/thread'
 
 import {
   THREAD_SUMMARY_PANEL_WIDTH,
@@ -17,9 +17,7 @@ import {
   transitionThreadSummaryMode,
 } from '../src/features/session/summary/threadSummaryState.js'
 import {
-  buildThreadSummaryExecutionPlanWindow,
   deriveThreadSummaryViewModel,
-  findLatestThreadSummaryPlan,
   previewThreadSummarySources,
   type ThreadSummaryViewModelInput,
 } from '../src/features/session/summary/threadSummaryViewModel.js'
@@ -199,7 +197,6 @@ describe('thread summary view model', () => {
       additions: 12,
       deletions: 4,
       goal: null,
-      turns: [],
       attachments: [],
       contextReferences: [],
       tools: [],
@@ -208,20 +205,6 @@ describe('thread summary view model', () => {
       browserTabs: [],
       ...overrides,
     }
-  }
-
-  function planItem(
-    overrides: Partial<PlanItem> & Pick<PlanItem, 'id' | 'markdown' | 'status'>,
-  ): PlanItem {
-    return {
-      type: 'plan',
-      messageID: 'm1',
-      turnId: 't1',
-      agentId: 'a1',
-      title: '默认计划标题',
-      createdAt: 1,
-      ...overrides,
-    } as PlanItem
   }
 
   function toolItem(
@@ -245,28 +228,7 @@ describe('thread summary view model', () => {
     } as ToolItem
   }
 
-  function executionPlanTurn(
-    steps: readonly { step: string; status: 'pending' | 'in_progress' | 'completed' }[],
-    status: 'streaming' | 'completed' | 'interrupted' = 'streaming',
-  ): ThreadSummaryViewModelInput['turns'][number] {
-    return {
-      planItem: null,
-      executionPlanItems: [
-        {
-          type: 'execution-plan',
-          id: 'exec-1',
-          messageID: 'm1',
-          turnId: 't1',
-          agentId: 'a1',
-          steps: [...steps],
-          status,
-          createdAt: 1,
-        },
-      ],
-    }
-  }
-
-  test('derives environment, goal, plan, agents and reports content', () => {
+  test('derives environment, goal, agents and reports content', () => {
     const model = deriveThreadSummaryViewModel(
       buildSummaryInput({
         goal: {
@@ -281,27 +243,6 @@ describe('thread summary view model', () => {
           createdAt: 1,
           updatedAt: 2,
         },
-        turns: [
-          {
-            planItem: planItem({
-              id: 'plan-1',
-              title: '旧计划',
-              markdown: '# 旧计划',
-              status: 'completed',
-            }),
-            executionPlanItems: [],
-          },
-          {
-            planItem: planItem({
-              id: 'plan-2',
-              title: '新计划',
-              markdown: '# 新计划\n\n内容',
-              status: 'completed',
-              createdAt: 2,
-            }),
-            executionPlanItems: [],
-          },
-        ],
         subagents: [
           { task: { id: 'task-1', displayName: '资料梳理' }, currentRun: { status: 'running' } },
           { task: { id: 'task-2', displayName: '回归测试' }, currentRun: { status: 'completed' } },
@@ -328,13 +269,7 @@ describe('thread summary view model', () => {
       tokenBudget: 100_000,
       tokensUsed: 42_000,
     })
-    expect(model.plan).toEqual({
-      eventId: 'plan-2',
-      title: '新计划',
-      content: '# 新计划\n\n内容',
-      openable: true,
-    })
-    // 完成的 Agent 保留为历史行且不可停止，活动的行可停止。
+        // 完成的 Agent 保留为历史行且不可停止，活动的行可停止。
     expect(model.agents).toEqual([
       {
         id: 'task-1',
@@ -594,160 +529,10 @@ describe('thread summary view model', () => {
     expect(model.environment).toBeNull()
     expect(model.changes).toBeNull()
     expect(model.goal).toBeNull()
-    expect(model.executionPlan).toBeNull()
-    expect(model.plan).toBeNull()
     expect(model.agents).toEqual([])
     expect(model.browserTabs).toEqual([])
     expect(model.sources).toEqual([])
     expect(model.artifacts).toEqual([])
-  })
-
-  test('selects the latest valid plan and skips streaming or empty ones', () => {
-    const turns: ThreadSummaryViewModelInput['turns'] = [
-      {
-        planItem: planItem({
-          id: 'plan-1',
-          title: '旧计划',
-          markdown: '# 旧计划',
-          status: 'completed',
-        }),
-        executionPlanItems: [],
-      },
-      { planItem: planItem({ id: 'plan-empty', markdown: '   ', status: 'completed' }), executionPlanItems: [] },
-      {
-        planItem: planItem({
-          id: 'plan-streaming',
-          markdown: '# 正在生成',
-          status: 'streaming',
-          createdAt: 3,
-        }),
-        executionPlanItems: [],
-      },
-    ]
-    expect(findLatestThreadSummaryPlan(turns)).toEqual({
-      eventId: 'plan-1',
-      title: '旧计划',
-      content: '# 旧计划',
-      openable: true,
-    })
-    expect(
-      findLatestThreadSummaryPlan([
-        {
-          planItem: planItem({
-          id: 'only-streaming',
-          title: '正在生成',
-          markdown: '# 正在生成',
-          status: 'streaming',
-        }),
-          executionPlanItems: [],
-        },
-      ]),
-    ).toBeNull()
-    expect(findLatestThreadSummaryPlan([])).toBeNull()
-  })
-
-  test('uses the latest non-empty execution plan and keeps the original order', () => {
-    const model = deriveThreadSummaryViewModel(
-      buildSummaryInput({
-        turns: [
-          executionPlanTurn([
-            { step: '旧步骤', status: 'completed' },
-          ]),
-          executionPlanTurn([
-            { step: '读取需求', status: 'completed' },
-            { step: '实现功能', status: 'in_progress' },
-            { step: '验证结果', status: 'pending' },
-          ]),
-        ],
-      }),
-    )
-
-    expect(model.executionPlan).toMatchObject({
-      id: 'exec-1',
-      completedSteps: 1,
-    })
-    expect(model.executionPlan?.window).toEqual({
-      steps: [
-        { step: '读取需求', status: 'completed' },
-        { step: '实现功能', status: 'in_progress' },
-        { step: '验证结果', status: 'pending' },
-      ],
-      hiddenBefore: 0,
-      hiddenAfter: 0,
-    })
-  })
-
-  describe('execution plan focus window', () => {
-    function steps(statuses: readonly ('pending' | 'in_progress' | 'completed')[]) {
-      return statuses.map((status, index) => ({ step: `步骤 ${index + 1}`, status }))
-    }
-
-    test('shows everything within the preview limit', () => {
-      expect(buildThreadSummaryExecutionPlanWindow(steps(['pending', 'in_progress']))).toEqual({
-        steps: steps(['pending', 'in_progress']),
-        hiddenBefore: 0,
-        hiddenAfter: 0,
-      })
-    })
-
-    test('focuses the in-progress step with two following steps', () => {
-      const result = buildThreadSummaryExecutionPlanWindow(
-        steps([
-          'completed',
-          'completed',
-          'completed',
-          'completed',
-          'in_progress',
-          'pending',
-          'pending',
-          'pending',
-        ]),
-      )
-      expect(result.hiddenBefore).toBe(4)
-      expect(result.hiddenAfter).toBe(1)
-      expect(result.steps.map((step) => step.step)).toEqual(['步骤 5', '步骤 6', '步骤 7'])
-    })
-
-    test('falls back to the first pending step without an in-progress one', () => {
-      const result = buildThreadSummaryExecutionPlanWindow(
-        steps([
-          'completed',
-          'completed',
-          'completed',
-          'pending',
-          'pending',
-          'pending',
-          'pending',
-          'pending',
-        ]),
-      )
-      expect(result.hiddenBefore).toBe(3)
-      expect(result.steps[0]).toMatchObject({ step: '步骤 4' })
-    })
-
-    test('keeps the tail window once every step is completed', () => {
-      const result = buildThreadSummaryExecutionPlanWindow(steps(Array.from({ length: 8 }, () => 'completed')))
-      expect(result.hiddenBefore).toBe(5)
-      expect(result.hiddenAfter).toBe(0)
-      expect(result.steps.map((step) => step.step)).toEqual(['步骤 6', '步骤 7', '步骤 8'])
-    })
-
-    test('clamps the window so an in-progress step near the end stays full', () => {
-      const result = buildThreadSummaryExecutionPlanWindow(
-        steps([
-          'completed',
-          'completed',
-          'completed',
-          'completed',
-          'completed',
-          'completed',
-          'completed',
-          'in_progress',
-        ]),
-      )
-      expect(result.hiddenBefore).toBe(5)
-      expect(result.steps.map((step) => step.step)).toEqual(['步骤 6', '步骤 7', '步骤 8'])
-    })
   })
 
   test('previews the first three sources for the summary side panel', () => {
