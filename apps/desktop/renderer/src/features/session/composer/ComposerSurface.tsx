@@ -28,11 +28,14 @@ export const ComposerFrame = forwardRef<HTMLDivElement, ComposerFrameProps>(func
   { children, className, style },
   ref,
 ) {
-  const hasWidthClass = className?.includes('tw:w-') || className?.includes('tw:w-[')
+  const hasCustomWidth =
+    className?.includes('workflow-page__composer-inner') ||
+    className?.includes('tw:w-') ||
+    className?.includes('tw:w-[')
   return (
     <div
       ref={ref}
-      className={cx(FRAME_CLASS, !hasWidthClass && 'tw:w-full', className)}
+      className={cx(FRAME_CLASS, !hasCustomWidth && 'tw:w-full', className)}
       style={style}
     >
       {children}

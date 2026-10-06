@@ -667,4 +667,28 @@ describe('non-color design token contracts', () => {
     expect(review).not.toMatch(/--review-diffs-line-height:\s*max\(/)
     expect(review).toMatch(/line-height:\s*var\(--cpx-sys-line-height-code\)/)
   })
+
+  test('conversation composer inner aligns with canonical turns across conversation and side chat', async () => {
+    const conversation = await read('../src/styles/primitives/conversation.css')
+    const threadComposerDock = await read(
+      '../src/features/session/conversation/ThreadComposerDock.tsx',
+    )
+    const composerSurface = await read('../src/features/session/composer/ComposerSurface.tsx')
+
+    expect(conversation).toMatch(
+      /\.conversation-page \.session-timeline-main,\s*\.conversation-page \.workflow-page__composer-inner\s*\{[\s\S]*?transform:\s*translateX\(var\(--conversation-shift-offset,\s*0px\)\);/,
+    )
+    expect(conversation).toMatch(
+      /\.conversation-page \.workflow-page__composer-inner\s*\{[\s\S]*?width:\s*min\(var\(--page-content-max-width\),\s*var\(--session-content-w\)\);[\s\S]*?max-width:\s*var\(--page-content-max-width\);[\s\S]*?margin-inline:\s*auto;/,
+    )
+    expect(conversation).toMatch(
+      /\.canonical-turn\s*\{[\s\S]*?width:\s*min\(var\(--page-content-max-width\),\s*var\(--session-content-w\)\);[\s\S]*?max-width:\s*var\(--page-content-max-width\);[\s\S]*?margin-inline:\s*auto;/,
+    )
+    expect(conversation).toMatch(
+      /\.right-dock-side-chat \.canonical-model-switch-divider,[\s\S]*?\.right-dock-side-chat \.workflow-page__composer-inner\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*100%;[\s\S]*?margin-inline:\s*0;/,
+    )
+    expect(threadComposerDock).not.toMatch(/tw:w-\[min\(/)
+    expect(threadComposerDock).not.toMatch(/tw:max-w-\[var\(/)
+    expect(composerSurface).toContain("className?.includes('workflow-page__composer-inner')")
+  })
 })

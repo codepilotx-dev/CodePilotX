@@ -489,7 +489,6 @@ export function ConversationPage(): React.ReactNode {
         additions: workspaceDiffSummary.additions,
         deletions: workspaceDiffSummary.deletions,
         goal: threadGoal,
-        turns: canonicalConversation.turns,
         attachments: canonicalAttachments,
         contextReferences: canonicalContextReferences,
         tools: canonicalTools,
@@ -505,7 +504,6 @@ export function ConversationPage(): React.ReactNode {
       workspaceChangedFileCount,
       workspaceDiffSummary,
       threadGoal,
-      canonicalConversation.turns,
       canonicalAttachments,
       canonicalContextReferences,
       canonicalTools,
@@ -1204,7 +1202,6 @@ export function ConversationPage(): React.ReactNode {
           onOpenArtifact={onOpenArtifact}
           onOpenAttachment={onOpenAttachment}
           onOpenLocalContext={onOpenLocalContext}
-          onOpenPlan={onOpenPlanInRightDock}
           onOpenReview={openReviewSidebar}
           onOpenSubagent={onOpenSubagent}
           onOpenWorkspacePath={onOpenWorkspacePath}
@@ -1585,7 +1582,6 @@ export function ConversationPage(): React.ReactNode {
                     onOpenArtifact={onOpenArtifact}
                     onOpenAttachment={onOpenAttachment}
                     onOpenLocalContext={onOpenLocalContext}
-                    onOpenPlan={onOpenPlanInRightDock}
                     onOpenReview={openReviewSidebar}
                     onOpenSubagent={onOpenSubagent}
                     onOpenWorkspacePath={onOpenWorkspacePath}

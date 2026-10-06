@@ -1,4 +1,3 @@
-import { Button } from '../../../components/ui/Button.js'
 import { useEffect } from 'react'
 import type React from 'react'
 import type {
@@ -361,52 +360,53 @@ export function DesktopComposer({
     onInputChange(document.text)
   }
 
+  useEffect(() => {
+    if (modelSelectionError) {
+      if (onError) {
+        onError(modelSelectionError)
+      } else if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('desktop:error', { detail: modelSelectionError }))
+      }
+    }
+  }, [modelSelectionError, onError, routedSessionId, draftKey])
+
   return (
-    <>
-      {modelSelectionError && (
-        <div role="alert">
-          {modelSelectionError}
-          <Button color="secondary" onClick={onRetryModelSelection}>
-            重新加载模型
-          </Button>
-        </div>
-      )}
-      <ComposerCard
-        draftKey={draftKey}
-        input={input}
-        canSubmit={canSubmit}
-        sessionStatus={sessionStatus}
-        permissionMode={effectivePermissionMode}
-        planModeActive={planModeActive}
-        placement={placement}
-        capabilities={{
-          ...effectiveCapabilities,
-          fileAttachments:
-            fileAttachmentsAvailable && (effectiveCapabilities?.fileAttachments ?? true),
-        }}
-        submitShortcut={submitShortcut}
-        surface={surface}
-        layout={layout}
-        radiusVariant={radiusVariant}
-        utilityBarVariant={utilityBarVariant}
-        workingPlugin={workingPlugin}
-        onWorkingPluginChange={handleWorkingPluginChange}
-        submitting={isSubmitting}
-        submitOutcome={lastSubmitOutcome}
-        goalModeEnabled={goalModeEnabled}
-        onGoalModeChange={setGoalModeEnabled}
-        localRouterMode={localRouterMode}
-        enableParetoCodeRouter={enableParetoCodeRouter}
-        enableFusionRouter={enableFusionRouter}
-        modelVariant={modelVariant}
-        modelVariantOptions={modelVariantOptions}
-        onModelVariantChange={onModelVariantChange}
-        thinkingMode={thinkingMode}
-        selectedProviderID={selectedProviderID ?? 'anthropic'}
-        selectedModelPreset={selectedModelPreset}
-        modelConfigured={modelConfigured}
-        modelCatalogLoading={modelCatalogLoading}
-        submitDisabledReason={unsupportedAttachmentReason ?? undefined}
+    <ComposerCard
+      draftKey={draftKey}
+      input={input}
+      canSubmit={canSubmit}
+      sessionStatus={sessionStatus}
+      permissionMode={effectivePermissionMode}
+      planModeActive={planModeActive}
+      placement={placement}
+      capabilities={{
+        ...effectiveCapabilities,
+        fileAttachments:
+          fileAttachmentsAvailable && (effectiveCapabilities?.fileAttachments ?? true),
+      }}
+      submitShortcut={submitShortcut}
+      surface={surface}
+      layout={layout}
+      radiusVariant={radiusVariant}
+      utilityBarVariant={utilityBarVariant}
+      workingPlugin={workingPlugin}
+      onWorkingPluginChange={handleWorkingPluginChange}
+      submitting={isSubmitting}
+      submitOutcome={lastSubmitOutcome}
+      goalModeEnabled={goalModeEnabled}
+      onGoalModeChange={setGoalModeEnabled}
+      localRouterMode={localRouterMode}
+      enableParetoCodeRouter={enableParetoCodeRouter}
+      enableFusionRouter={enableFusionRouter}
+      modelVariant={modelVariant}
+      modelVariantOptions={modelVariantOptions}
+      onModelVariantChange={onModelVariantChange}
+      thinkingMode={thinkingMode}
+      selectedProviderID={selectedProviderID ?? 'anthropic'}
+      selectedModelPreset={selectedModelPreset}
+      modelConfigured={modelConfigured}
+      modelCatalogLoading={modelCatalogLoading}
+      submitDisabledReason={unsupportedAttachmentReason ?? modelSelectionError ?? undefined}
         showThinkingOptions={showThinkingOptions}
         deepSeekThinkingControls={deepSeekThinkingControls}
         showContextUsage={showContextUsage}
@@ -490,6 +490,5 @@ export function DesktopComposer({
         onGoalComplete={onGoalComplete}
         onGoalClear={onGoalClear}
       />
-    </>
-  )
-}
+    )
+  }

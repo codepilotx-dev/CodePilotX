@@ -18,7 +18,7 @@ export const ThreadComposerDock = forwardRef<HTMLDivElement, ThreadComposerDockP
       >
         <ComposerFrame
           ref={ref}
-          className="workflow-page__composer-inner tw:mx-auto tw:w-[min(var(--page-content-max-width,100%),var(--session-content-w,100%))] tw:max-w-[var(--page-content-max-width,100%)] tw:pointer-events-auto tw:[&_.inline-approval-card]:w-full tw:[&_.inline-approval-card]:max-w-none tw:[&_.workflow-composer-card]:w-full tw:[&_.workflow-composer-card]:max-w-none"
+          className="workflow-page__composer-inner tw:pointer-events-auto tw:[&_.inline-approval-card]:w-full tw:[&_.inline-approval-card]:max-w-none tw:[&_.workflow-composer-card]:w-full tw:[&_.workflow-composer-card]:max-w-none"
           style={style}
         >
           {children}

@@ -278,6 +278,20 @@ describe('composer surface variant', () => {
     expect(resolveComposerCanSubmit(canSubmitInput({ isSubmitting: true }))).toBe(false)
     expect(resolveComposerCanSubmit(canSubmitInput({ hasAttachmentErrors: true }))).toBe(false)
   })
+
+  test('submitDisabledReason 透传给发送按钮 title，且无内联错误 alert', () => {
+    const errorMsg = '当前会话模型不可用：deepseek/deepseek-v4-flash，请检查提供商配置'
+    const html = renderToStaticMarkup(
+      <ComposerCard
+        {...composerCardProps({
+          canSubmit: false,
+          submitDisabledReason: errorMsg,
+        })}
+      />,
+    )
+    expect(html).toContain(errorMsg)
+    expect(html).not.toContain('重新加载模型')
+  })
 })
 
 function canSubmitInput(

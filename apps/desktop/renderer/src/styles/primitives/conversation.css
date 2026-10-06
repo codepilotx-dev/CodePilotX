@@ -383,9 +383,11 @@
 
   .right-dock-side-chat .canonical-model-switch-divider,
   .right-dock-side-chat .canonical-turn,
-  .right-dock-side-chat .canonical-turn-error {
+  .right-dock-side-chat .canonical-turn-error,
+  .right-dock-side-chat .workflow-page__composer-inner {
     width: 100%;
     max-width: 100%;
+    margin-inline: 0;
   }
 
   /* ── User message ── */
