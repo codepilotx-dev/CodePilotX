@@ -25,6 +25,11 @@ export type UserAttachmentPreviewSource =
       referenceId: string
       relativePath?: string
     }
+  | {
+      storage: 'artifact'
+      threadId: string
+      artifactId: string
+    }
 
 export type UserAttachmentPreviewTab = {
   id: 'user-attachment-preview'

@@ -69,6 +69,39 @@ export function createThreadLocalContextPreviewTab(
   }
 }
 
+export type ThreadArtifactPreviewInput = {
+  artifactId: string
+  name: string
+  mimeType: string
+  sizeBytes: number | null
+  previewKind: 'image' | 'text' | 'binary'
+}
+
+export function createThreadArtifactPreviewTab(
+  threadId: string,
+  artifact: ThreadArtifactPreviewInput,
+): UserAttachmentPreviewTab {
+  return {
+    id: 'user-attachment-preview',
+    kind: 'attachment-preview',
+    attachment: {
+      id: artifact.artifactId,
+      kind:
+        artifact.previewKind === 'image' || artifact.previewKind === 'text'
+          ? artifact.previewKind
+          : 'binary',
+      name: artifact.name,
+      mediaType: artifact.mimeType,
+      sizeBytes: artifact.sizeBytes ?? 0,
+    },
+    source: {
+      storage: 'artifact',
+      threadId,
+      artifactId: artifact.artifactId,
+    },
+  }
+}
+
 export function canPreviewDraftAttachment(attachment: DesktopComposerAttachment): boolean {
   return createDraftAttachmentPreviewTab(attachment) !== null
 }

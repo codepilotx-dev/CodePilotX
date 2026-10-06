@@ -3,15 +3,27 @@ import * as Dialog from '@radix-ui/react-dialog'
 import * as Popover from '@radix-ui/react-popover'
 import {
   Bot,
+  Check,
   ChevronDown,
+  FileText,
+  Folder,
   GitBranch,
   GitCommitHorizontal,
   GitPullRequest,
+  Globe,
+  Image as ImageIcon,
   Laptop,
   Link2,
   ListChecks,
-  Plus,
+  LoaderCircle,
+  Package,
+  Paperclip,
+  Pause,
+  Play,
+  Plug,
   RefreshCcw,
+  Search,
+  Square,
   SquarePlus,
   X,
 } from 'lucide-react'
@@ -19,8 +31,19 @@ import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens
 import { cx } from '../../../utils/cx.js'
 import { Tooltip } from '../../../components/ui/Tooltip.js'
 import { BranchSelectPopover } from '../composer/BranchSelectPopover.js'
-import type { ThreadSummaryViewModel } from './threadSummaryViewModel.js'
-import { previewThreadSummarySources } from './threadSummaryViewModel.js'
+import type {
+  ThreadSummaryArtifact,
+  ThreadSummaryBrowserTab,
+  ThreadSummaryExecutionPlan,
+  ThreadSummarySourceEntry,
+  ThreadSummaryViewModel,
+} from './threadSummaryViewModel.js'
+import {
+  previewThreadSummaryAgents,
+  previewThreadSummarySources,
+  threadSummaryArtifactPreviewKind,
+} from './threadSummaryViewModel.js'
+import type { Attachment, LocalContextReference } from '@codepilotx/shared/thread'
 import type { OpenPlanInDockRequest } from '../workflow/WorkflowPlanCard.js'
 import { IconButton } from '../../../components/ui/IconButton.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
@@ -39,20 +62,55 @@ const SUMMARY_ROW_LABEL_CLASS = 'tw:min-w-0 tw:overflow-hidden tw:text-ellipsis 
 
 const SUMMARY_ROW_ICON_CLASS = 'tw:text-app-text'
 
+export type ThreadSummarySectionId =
+  | 'environment'
+  | 'goal'
+  | 'progress'
+  | 'plan'
+  | 'agents'
+  | 'browser'
+  | 'sources'
+  | 'artifacts'
+
 type ThreadSummaryActions = {
+  onActivateBrowserTab?: (tabId: string) => void
   onBranchSelect: (branch: string) => Promise<void>
   onCommitOrPush: () => void
   onCreateBranch: () => void
   onCreatePullRequest: () => void
+  onGoalPause?: () => void
+  onGoalResume?: () => void
+  onOpenArtifact?: (artifact: ThreadSummaryArtifact) => void
+  onOpenAttachment?: (attachment: Attachment) => void
+  onOpenLocalContext?: (reference: LocalContextReference) => void
   onOpenPlan: (plan: OpenPlanInDockRequest) => void
   onOpenReview: () => void
   onOpenSubagent?: (taskId: string) => void
   onOpenWorkspacePath: () => void
+  onStopSubagent?: (taskId: string) => void
 }
 
 type ThreadSummaryPanelProps = ThreadSummaryActions & {
   branches: string[]
+  collapsedSections: ReadonlySet<ThreadSummarySectionId>
   model: ThreadSummaryViewModel
+  onToggleSection: (id: ThreadSummarySectionId) => void
+}
+
+const AGENT_STATUS_META_LABELS: Record<string, string> = {
+  loading: '加载中',
+  busy: '忙碌',
+  suspended: '已挂起',
+  error: '错误',
+}
+
+const GOAL_STATUS_LABELS: Record<string, string> = {
+  active: '进行中',
+  paused: '已暂停',
+  blocked: '受阻',
+  'usage-limited': '用量受限',
+  'budget-limited': '预算受限',
+  complete: '已完成',
 }
 
 export function ThreadSummaryPopover({
@@ -143,46 +201,88 @@ export class ThreadSummaryErrorBoundary extends React.Component<
 
 export function ThreadSummaryPanel({
   branches,
+  collapsedSections,
   model,
+  onActivateBrowserTab,
   onBranchSelect,
   onCommitOrPush,
   onCreateBranch,
   onCreatePullRequest,
+  onGoalPause,
+  onGoalResume,
+  onOpenArtifact,
+  onOpenAttachment,
+  onOpenLocalContext,
   onOpenPlan,
   onOpenReview,
+  onOpenSubagent,
   onOpenWorkspacePath,
+  onToggleSection,
+  onStopSubagent,
 }: ThreadSummaryPanelProps): React.ReactNode {
   const [branchPopoverOpen, setBranchPopoverOpen] = React.useState(false)
   const [branchSearch, setBranchSearch] = React.useState('')
   const [sourcesPanelOpen, setSourcesPanelOpen] = React.useState(false)
+  const [showAllSteps, setShowAllSteps] = React.useState(false)
+  const [showAllAgents, setShowAllAgents] = React.useState(false)
+  const [showAllArtifacts, setShowAllArtifacts] = React.useState(false)
   const sourcePreview = previewThreadSummarySources(model.sources)
   const sourceListId = React.useId()
+  const agentPreview = previewThreadSummaryAgents(model.agents)
+  const visibleAgents = showAllAgents ? model.agents : agentPreview.items
+  const artifactPreview = {
+    items: model.artifacts.slice(0, showAllArtifacts ? model.artifacts.length : 6),
+    totalCount: model.artifacts.length,
+  }
   const changes = model.changes ?? {
     additions: 0,
     deletions: 0,
     fileCount: 0,
   }
-  const hasChanges = changes.fileCount > 0 || changes.additions > 0 || changes.deletions > 0
+  const environment = model.environment
+  const executionPlan = model.executionPlan
+  const visiblePlanSteps = executionPlan
+    ? showAllSteps
+      ? executionPlan.steps
+      : executionPlan.window.steps
+    : []
+
+  const isSectionExpanded = (id: ThreadSummarySectionId): boolean =>
+    !collapsedSections.has(id)
+  const toggleSection = (id: ThreadSummarySectionId): void => onToggleSection(id)
 
   return (
     <aside
       className={`thread-summary-panel ${THREAD_SUMMARY_WIDTH_CLASS} tw:flex tw:min-h-0 tw:flex-col tw:gap-3 tw:overflow-x-hidden tw:overflow-y-auto tw:pt-3 tw:pb-2 tw:[scrollbar-width:thin]`}
       aria-label="置顶摘要"
     >
-      {model.environment ? (
+      {environment ? (
         <ThreadSummarySection
           collapsedSummary={
-            hasChanges ? (
+            changes.fileCount > 0 ? (
               <span className="thread-summary-diff tw:inline-flex tw:gap-1 tw:type-caption tw:tabular-nums">
                 <strong className="tw:text-app-success tw:type-weight-body">+{changes.additions}</strong>
                 <em className="tw:text-app-danger tw:not-italic">-{changes.deletions}</em>
               </span>
             ) : null
           }
+          expanded={isSectionExpanded('environment')}
           first
-          title="环境信息"
-          actionLabel="暂不支持创建本地环境"
+          id="environment"
+          title="环境"
+          onToggle={toggleSection}
         >
+          <button
+            className={SUMMARY_ROW_CLASS}
+            title={environment.workspacePath}
+            type="button"
+            onClick={onOpenWorkspacePath}
+          >
+            <Laptop className={SUMMARY_ROW_ICON_CLASS} aria-hidden="true" size={APP_ICON_SIZE} />
+            <span className={SUMMARY_ROW_LABEL_CLASS}>
+              {environment.workspaceName ?? '本地'}
+            </span>
+          </button>
           <button
             className={SUMMARY_ROW_CLASS}
             title="打开变更审查"
@@ -191,7 +291,7 @@ export function ThreadSummaryPanel({
           >
             <SquarePlus className={SUMMARY_ROW_ICON_CLASS} aria-hidden="true" size={APP_ICON_SIZE} />
             <span className={SUMMARY_ROW_LABEL_CLASS}>变更</span>
-            {hasChanges ? (
+            {changes.fileCount > 0 ? (
               <small className="thread-summary-change-summary tw:inline-flex tw:items-center tw:justify-end tw:gap-2 tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption">
                 <span className="thread-summary-diff tw:inline-flex tw:gap-1 tw:type-caption tw:tabular-nums">
                   <strong className="tw:text-app-success tw:type-weight-body">+{changes.additions}</strong>
@@ -200,75 +300,172 @@ export function ThreadSummaryPanel({
               </small>
             ) : null}
           </button>
-          <div
-            className="thread-summary-row-group tw:grid tw:w-[calc(100%+16px)] tw:-mx-2 tw:grid-cols-[minmax(0,1fr)_28px]"
-            title={model.environment.workspacePath}
-          >
-            <button
-              className="interactive-row interactive-row--nav thread-summary-row-group__main tw:grid tw:min-w-0 tw:grid-cols-[16px_minmax(0,1fr)] tw:bg-transparent tw:text-left tw:type-body"
-              type="button"
-              onClick={onOpenWorkspacePath}
-            >
-              <Laptop className={SUMMARY_ROW_ICON_CLASS} aria-hidden="true" size={APP_ICON_SIZE} />
-              <span className={SUMMARY_ROW_LABEL_CLASS}>本地</span>
-            </button>
-            <DisabledSummaryControl label="暂不支持切换执行位置">
-              <ChevronDown aria-hidden="true" size={APP_ICON_SIZES.sm} />
-            </DisabledSummaryControl>
-          </div>
-          <BranchSelectPopover
-            align="start"
-            branchSearch={branchSearch}
-            branches={branches}
-            className="popover-thread-summary-branch"
-            currentBranchDetail={`未提交：${model.environment.changedFileCount} 个文件`}
-            currentBranchName={model.environment.branchName ?? ''}
-            open={branchPopoverOpen}
-            side="left"
-            sideOffset={8}
-            width={220}
-            onBranchSearchChange={setBranchSearch}
-            onBranchSelect={onBranchSelect}
-            onCreateBranch={onCreateBranch}
-            onOpenChange={setBranchPopoverOpen}
-            trigger={
-              <button
-                className={SUMMARY_ROW_CLASS}
-                data-state={branchPopoverOpen ? 'open' : 'closed'}
-                title={model.environment.branchName ?? '未检测到 Git 分支'}
-                type="button"
+          {environment.isGitRepository ? (
+            <>
+              <BranchSelectPopover
+                align="start"
+                branchSearch={branchSearch}
+                branches={branches}
+                className="popover-thread-summary-branch"
+                currentBranchDetail={`未提交：${environment.changedFileCount} 个文件`}
+                currentBranchName={environment.branchName ?? ''}
+                open={branchPopoverOpen}
+                side="left"
+                sideOffset={8}
+                width={220}
+                onBranchSearchChange={setBranchSearch}
+                onBranchSelect={onBranchSelect}
+                onCreateBranch={onCreateBranch}
+                onOpenChange={setBranchPopoverOpen}
+                trigger={
+                  <button
+                    className={SUMMARY_ROW_CLASS}
+                    data-state={branchPopoverOpen ? 'open' : 'closed'}
+                    title={environment.branchName ?? '未检测到 Git 分支'}
+                    type="button"
+                  >
+                    <GitBranch
+                      className={SUMMARY_ROW_ICON_CLASS}
+                      aria-hidden="true"
+                      size={APP_ICON_SIZE}
+                    />
+                    <span className={SUMMARY_ROW_LABEL_CLASS}>
+                      {environment.branchName ?? '未检测到 Git 分支'}
+                    </span>
+                    <ChevronDown aria-hidden="true" size={APP_ICON_SIZES.sm} />
+                  </button>
+                }
+              />
+              <SummaryGitActionRow
+                enabled={environment.commitOrPushEnabled}
+                disabledReason={
+                  environment.commitOrPushDisabledReason ?? '当前工作区不可执行 Git 操作'
+                }
+                icon={<GitCommitHorizontal aria-hidden="true" size={APP_ICON_SIZE} />}
+                label="提交或推送"
+                onClick={onCommitOrPush}
+              />
+              <SummaryGitActionRow
+                enabled={environment.createPullRequestEnabled}
+                disabledReason={
+                  environment.createPullRequestDisabledReason ?? '当前分支不可创建拉取请求'
+                }
+                icon={<GitPullRequest aria-hidden="true" size={APP_ICON_SIZE} />}
+                label="创建拉取请求"
+                onClick={onCreatePullRequest}
+              />
+            </>
+          ) : null}
+        </ThreadSummarySection>
+      ) : null}
+
+      {model.goal ? (
+        <ThreadSummarySection
+          expanded={isSectionExpanded('goal')}
+          id="goal"
+          meta={
+            <GoalHeaderAction
+              goal={model.goal}
+              onGoalPause={onGoalPause}
+              onGoalResume={onGoalResume}
+            />
+          }
+          title="目标"
+          onToggle={toggleSection}
+        >
+          <div className="thread-summary-goal tw:grid tw:gap-1 tw:px-2 tw:py-1">
+            <p className="thread-summary-goal__objective tw:m-0 tw:min-w-0 tw:type-body tw:line-clamp-3 tw:whitespace-pre-wrap">
+              {model.goal.objective}
+            </p>
+            <small className="tw:flex tw:flex-wrap tw:items-center tw:gap-x-2 tw:gap-y-1 tw:text-app-text-meta tw:type-caption">
+              <span
+                className={cx(
+                  'tw:whitespace-nowrap',
+                  model.goal.status === 'complete' && 'tw:text-app-success',
+                  model.goal.status === 'paused' && 'tw:text-app-warning',
+                )}
               >
-                <GitBranch className={SUMMARY_ROW_ICON_CLASS} aria-hidden="true" size={APP_ICON_SIZE} />
-                <span className={SUMMARY_ROW_LABEL_CLASS}>
-                  {model.environment.branchName ?? '未检测到 Git 分支'}
+                {GOAL_STATUS_LABELS[model.goal.status] ?? model.goal.status}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className="tw:tabular-nums">
+                累计 {formatGoalDuration(model.goal.timeUsedSeconds)}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className="tw:tabular-nums">
+                {model.goal.tokenBudget !== null
+                  ? `${formatGoalNumber(model.goal.tokensUsed)} / ${formatGoalNumber(model.goal.tokenBudget)} tokens`
+                  : `${formatGoalNumber(model.goal.tokensUsed)} tokens`}
+              </span>
+            </small>
+          </div>
+        </ThreadSummarySection>
+      ) : null}
+
+      {executionPlan ? (
+        <ThreadSummarySection
+          collapsedSummary={
+            <span className="tw:type-caption tw:tabular-nums">
+              {executionPlan.completedSteps}/{executionPlan.steps.length}
+            </span>
+          }
+          expanded={isSectionExpanded('progress')}
+          id="progress"
+          title="执行进度"
+          onToggle={toggleSection}
+        >
+          {executionPlan.status === 'interrupted' ? (
+            <div className="tw:px-2 tw:pb-1 tw:text-app-text-meta tw:type-caption">执行已中断</div>
+          ) : null}
+          <div
+            className="thread-summary-steps tw:grid tw:min-w-0 tw:gap-0.5 tw:px-2 tw:py-1"
+            role="list"
+          >
+            {visiblePlanSteps.map((step, index) => (
+              <div
+                className="tw:grid tw:min-w-0 tw:grid-cols-[16px_minmax(0,1fr)] tw:items-center tw:gap-2 tw:py-0.5"
+                key={`${step.step}-${index}`}
+                role="listitem"
+              >
+                <ExecutionStepIcon status={step.status} />
+                <span
+                  className={cx(
+                    'tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:type-body',
+                    step.status === 'completed'
+                      ? 'tw:text-app-text-meta tw:line-through'
+                      : 'tw:text-app-text',
+                  )}
+                  title={step.step}
+                >
+                  {step.step}
                 </span>
-                <ChevronDown aria-hidden="true" size={APP_ICON_SIZES.sm} />
-              </button>
-            }
-          />
-          <SummaryGitActionRow
-            enabled={model.environment.commitOrPushEnabled}
-            disabledReason={
-              model.environment.commitOrPushDisabledReason ?? '当前工作区不可执行 Git 操作'
-            }
-            icon={<GitCommitHorizontal aria-hidden="true" size={APP_ICON_SIZE} />}
-            label="提交或推送"
-            onClick={onCommitOrPush}
-          />
-          <SummaryGitActionRow
-            enabled={model.environment.createPullRequestEnabled}
-            disabledReason={
-              model.environment.createPullRequestDisabledReason ?? '当前分支不可创建拉取请求'
-            }
-            icon={<GitPullRequest aria-hidden="true" size={APP_ICON_SIZE} />}
-            label="创建拉取请求"
-            onClick={onCreatePullRequest}
-          />
+              </div>
+            ))}
+          </div>
+          {!showAllSteps &&
+          (executionPlan.window.hiddenBefore > 0 || executionPlan.window.hiddenAfter > 0) ? (
+            <button
+              className={`${SUMMARY_ROW_CLASS} tw:text-app-text-meta tw:hover:text-app-text tw:focus-visible:text-app-text`}
+              type="button"
+              onClick={() => setShowAllSteps(true)}
+            >
+              <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />
+              <span className={SUMMARY_ROW_LABEL_CLASS}>
+                展开其余{' '}
+                {executionPlan.window.hiddenBefore + executionPlan.window.hiddenAfter} 步
+              </span>
+            </button>
+          ) : null}
         </ThreadSummarySection>
       ) : null}
 
       {model.plan ? (
-        <ThreadSummarySection title="计划">
+        <ThreadSummarySection
+          expanded={isSectionExpanded('plan')}
+          id="plan"
+          title="计划"
+          onToggle={toggleSection}
+        >
           <button
             className={SUMMARY_ROW_CLASS}
             type="button"
@@ -280,102 +477,396 @@ export function ThreadSummaryPanel({
         </ThreadSummarySection>
       ) : null}
 
-      {sourcePreview.items.length ? (
-        <ThreadSummarySection title="来源" actionLabel="暂不支持手动添加来源" rowsId={sourceListId}>
-          {sourcePreview.items.map((source) => (
-            <a
-              className={SUMMARY_ROW_CLASS}
-              href={source.url}
-              key={source.url}
-              rel="noreferrer"
-              target="_blank"
-              title={source.url}
+      {model.agents.length ? (
+        <ThreadSummarySection
+          collapsedSummary={<AgentSectionSummary agents={model.agents} />}
+          expanded={isSectionExpanded('agents')}
+          id="agents"
+          meta={<AgentSectionMeta agents={model.agents} />}
+          title="Agent"
+          onToggle={toggleSection}
+        >
+          {visibleAgents.map((agent) => (
+            <div
+              className="thread-summary-row-group tw:grid tw:w-[calc(100%+16px)] tw:-mx-2 tw:grid-cols-[minmax(0,1fr)_max-content]"
+              key={agent.id}
             >
-              <Link2 className={SUMMARY_ROW_ICON_CLASS} aria-hidden="true" size={APP_ICON_SIZE} />
-              <span className={SUMMARY_ROW_LABEL_CLASS}>{source.label}</span>
-            </a>
+              <button
+                className="interactive-row interactive-row--nav thread-summary-row-group__main tw:grid tw:min-w-0 tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:bg-transparent tw:text-left tw:type-body"
+                type="button"
+                onClick={() => onOpenSubagent?.(agent.id)}
+              >
+                <Bot className={SUMMARY_ROW_ICON_CLASS} aria-hidden="true" size={APP_ICON_SIZE} />
+                <span className={SUMMARY_ROW_LABEL_CLASS}>{agent.name}</span>
+                <small
+                  className={cx(
+                    'tw:whitespace-nowrap tw:type-caption',
+                    agent.state === 'finished'
+                      ? 'tw:text-app-text-meta'
+                      : 'tw:text-app-accent-fg',
+                  )}
+                >
+                  {subagentStatusLabel(agent.status)}
+                </small>
+              </button>
+              {agent.stoppable ? (
+                <Tooltip content="停止该子 Agent">
+                  <button
+                    aria-label={`停止 ${agent.name}`}
+                    className="tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:hover:bg-app-hover tw:hover:text-app-danger tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:[&>svg]:size-icon-sm"
+                    type="button"
+                    onClick={() => onStopSubagent?.(agent.id)}
+                  >
+                    <Square aria-hidden="true" size={APP_ICON_SIZES.sm} />
+                  </button>
+                </Tooltip>
+              ) : null}
+            </div>
           ))}
-          <button
-            aria-haspopup="dialog"
-            className={`${SUMMARY_ROW_CLASS} thread-summary-source-toggle tw:text-app-text-meta tw:[&>svg:first-child]:text-app-text-meta tw:hover:text-app-text tw:focus-visible:text-app-text tw:hover:[&>svg:first-child]:text-app-text tw:focus-visible:[&>svg:first-child]:text-app-text`}
-            type="button"
-            onClick={() => setSourcesPanelOpen(true)}
-          >
-            <Link2 aria-hidden="true" size={APP_ICON_SIZE} />
-            <span className={SUMMARY_ROW_LABEL_CLASS}>查看全部</span>
-          </button>
+          {!showAllAgents && agentPreview.totalCount > visibleAgents.length ? (
+            <button
+              className={`${SUMMARY_ROW_CLASS} tw:text-app-text-meta tw:hover:text-app-text tw:focus-visible:text-app-text`}
+              type="button"
+              onClick={() => setShowAllAgents(true)}
+            >
+              <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />
+              <span className={SUMMARY_ROW_LABEL_CLASS}>
+                查看全部 {agentPreview.totalCount} 个 Agent
+              </span>
+            </button>
+          ) : null}
         </ThreadSummarySection>
       ) : null}
 
-      {model.subagents.length ? (
-        <ThreadSummarySection title="子智能体">
-          <ThreadSummarySubagentsRow subagents={model.subagents} />
+      {model.browserTabs.length ? (
+        <ThreadSummarySection
+          expanded={isSectionExpanded('browser')}
+          id="browser"
+          title="浏览器"
+          onToggle={toggleSection}
+        >
+          {model.browserTabs.map((tab) => (
+            <BrowserTabRow key={tab.tabId} tab={tab} onActivate={onActivateBrowserTab} />
+          ))}
+        </ThreadSummarySection>
+      ) : null}
+
+      {sourcePreview.items.length ? (
+        <ThreadSummarySection
+          expanded={isSectionExpanded('sources')}
+          id="sources"
+          title="来源"
+          onToggle={toggleSection}
+        >
+          {sourcePreview.items.map((source) => (
+            <ThreadSummarySourceRow
+              key={source.identity}
+              source={source}
+              onOpenAttachment={onOpenAttachment}
+              onOpenLocalContext={onOpenLocalContext}
+            />
+          ))}
+          {sourcePreview.totalCount > sourcePreview.items.length ? (
+            <button
+              aria-haspopup="dialog"
+              className={`${SUMMARY_ROW_CLASS} thread-summary-source-toggle tw:text-app-text-meta tw:[&>svg:first-child]:text-app-text-meta tw:hover:text-app-text tw:focus-visible:text-app-text tw:hover:[&>svg:first-child]:text-app-text tw:focus-visible:[&>svg:first-child]:text-app-text`}
+              type="button"
+              onClick={() => setSourcesPanelOpen(true)}
+            >
+              <Link2 aria-hidden="true" size={APP_ICON_SIZE} />
+              <span className={SUMMARY_ROW_LABEL_CLASS}>
+                查看全部 {sourcePreview.totalCount} 条来源
+              </span>
+            </button>
+          ) : null}
+        </ThreadSummarySection>
+      ) : null}
+
+      {artifactPreview.items.length ? (
+        <ThreadSummarySection
+          expanded={isSectionExpanded('artifacts')}
+          id="artifacts"
+          title="产物"
+          onToggle={toggleSection}
+        >
+          {artifactPreview.items.map((artifact) => (
+            <ArtifactRow key={artifact.artifactId} artifact={artifact} onOpen={onOpenArtifact} />
+          ))}
+          {!showAllArtifacts && artifactPreview.totalCount > artifactPreview.items.length ? (
+            <button
+              className={`${SUMMARY_ROW_CLASS} tw:text-app-text-meta tw:hover:text-app-text tw:focus-visible:text-app-text`}
+              type="button"
+              onClick={() => setShowAllArtifacts(true)}
+            >
+              <ChevronDown aria-hidden="true" size={APP_ICON_SIZE} />
+              <span className={SUMMARY_ROW_LABEL_CLASS}>
+                查看全部 {artifactPreview.totalCount} 个产物
+              </span>
+            </button>
+          ) : null}
         </ThreadSummarySection>
       ) : null}
 
       <ThreadSummarySourcesPanel
         open={sourcesPanelOpen}
         sources={model.sources}
+        onOpenAttachment={onOpenAttachment}
+        onOpenLocalContext={onOpenLocalContext}
         onOpenChange={setSourcesPanelOpen}
       />
     </aside>
   )
 }
 
-function ThreadSummarySubagentsRow({
-  subagents,
+function GoalHeaderAction({
+  goal,
+  onGoalPause,
+  onGoalResume,
 }: {
-  subagents: ThreadSummaryViewModel['subagents']
+  goal: ThreadSummaryViewModel['goal']
+  onGoalPause?: () => void
+  onGoalResume?: () => void
 }): React.ReactNode {
-  const activeCount = subagents.filter(
-    (subagent) => !isFinishedSubagentStatus(subagent.status),
-  ).length
-  const finishedCount = subagents.length - activeCount
-  const label = activeCount > 0 ? `${activeCount} 正在运行` : `${finishedCount} 完成`
+  if (!goal) return null
+  const paused = goal.status === 'paused'
+  const action = paused ? onGoalResume : onGoalPause
+  if (!action || (goal.status !== 'active' && !paused)) return null
+  const label = paused ? '恢复目标' : '暂停目标'
+  return (
+    <Tooltip content={label}>
+      <button
+        aria-label={label}
+        className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:hover:bg-app-hover tw:hover:text-app-text tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:[&>svg]:size-icon-sm"
+        type="button"
+        onClick={action}
+      >
+        {paused ? (
+          <Play aria-hidden="true" size={APP_ICON_SIZES.sm} />
+        ) : (
+          <Pause aria-hidden="true" size={APP_ICON_SIZES.sm} />
+        )}
+      </button>
+    </Tooltip>
+  )
+}
 
+function AgentSectionMeta({ agents }: { agents: ThreadSummaryViewModel['agents'] }): React.ReactNode {
+  const running = agents.filter((agent) => agent.state === 'running').length
+  const waiting = agents.filter((agent) => agent.state === 'waiting').length
+  const finished = agents.length - running - waiting
+  const label =
+    running + waiting > 0
+      ? [running > 0 ? `${running} 运行` : null, waiting > 0 ? `${waiting} 等待` : null]
+          .filter(Boolean)
+          .join(' · ')
+      : `${finished} 已结束`
+  return <span className="tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption">{label}</span>
+}
+
+function AgentSectionSummary({
+  agents,
+}: {
+  agents: ThreadSummaryViewModel['agents']
+}): React.ReactNode {
+  const active = agents.filter((agent) => agent.state !== 'finished').length
+  return (
+    <span className="tw:type-caption tw:tabular-nums">
+      {active > 0 ? `${active} 活跃` : `${agents.length} 已结束`}
+    </span>
+  )
+}
+
+function BrowserTabRow({
+  tab,
+  onActivate,
+}: {
+  tab: ThreadSummaryBrowserTab
+  onActivate?: (tabId: string) => void
+}): React.ReactNode {
+  const stateLabel = AGENT_STATUS_META_LABELS[tab.state]
+  return (
+    <button
+      className={SUMMARY_ROW_CLASS}
+      title={tab.state === 'error' ? '该标签页加载出错' : tab.title}
+      type="button"
+      onClick={() => onActivate?.(tab.tabId)}
+    >
+      <Globe className={SUMMARY_ROW_ICON_CLASS} aria-hidden="true" size={APP_ICON_SIZE} />
+      <span className={SUMMARY_ROW_LABEL_CLASS}>{tab.title}</span>
+      <small className="tw:flex tw:items-center tw:gap-1.5 tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption">
+        {tab.domain ? <span>{tab.domain}</span> : null}
+        {stateLabel ? (
+          <span
+            className={cx(
+              tab.state === 'error' && 'tw:text-app-danger',
+              tab.state === 'suspended' && 'tw:text-app-warning',
+            )}
+          >
+            {stateLabel}
+          </span>
+        ) : null}
+      </small>
+    </button>
+  )
+}
+
+function ThreadSummarySourceRow({
+  source,
+  onOpenAttachment,
+  onOpenLocalContext,
+}: {
+  source: ThreadSummarySourceEntry
+  onOpenAttachment?: (attachment: Attachment) => void
+  onOpenLocalContext?: (reference: LocalContextReference) => void
+}): React.ReactNode {
+  if (source.kind === 'attachment') {
+    const Icon = source.attachment.kind === 'image' ? ImageIcon : Paperclip
+    return (
+      <button
+        className={SUMMARY_ROW_CLASS}
+        title={source.attachment.kind === 'image' ? '预览图片附件' : source.label}
+        type="button"
+        onClick={() => onOpenAttachment?.(source.attachment)}
+      >
+        <Icon className={SUMMARY_ROW_ICON_CLASS} aria-hidden="true" size={APP_ICON_SIZE} />
+        <span className={SUMMARY_ROW_LABEL_CLASS}>{source.label}</span>
+      </button>
+    )
+  }
+  if (source.kind === 'reference') {
+    const Icon = source.reference.kind === 'directory' ? Folder : FileText
+    return (
+      <button
+        className={SUMMARY_ROW_CLASS}
+        title={source.reference.status === 'missing' ? '引用的路径已不存在' : source.label}
+        type="button"
+        onClick={() => onOpenLocalContext?.(source.reference)}
+      >
+        <Icon className={SUMMARY_ROW_ICON_CLASS} aria-hidden="true" size={APP_ICON_SIZE} />
+        <span className={SUMMARY_ROW_LABEL_CLASS}>{source.label}</span>
+      </button>
+    )
+  }
+  if (source.kind === 'link') {
+    return (
+      <a
+        className={SUMMARY_ROW_CLASS}
+        href={source.url}
+        rel="noreferrer"
+        target="_blank"
+        title={source.url}
+      >
+        <Link2 className={SUMMARY_ROW_ICON_CLASS} aria-hidden="true" size={APP_ICON_SIZE} />
+        <span className={SUMMARY_ROW_LABEL_CLASS}>{source.label}</span>
+      </a>
+    )
+  }
+  const Icon = source.toolKind === 'web-search' ? Search : Plug
   return (
     <div
-      aria-label={`子智能体：${label}`}
-      className="thread-summary-row thread-summary-subagents-summary tw:box-border tw:min-h-7 tw:items-center tw:gap-2 tw:rounded-container tw:px-2 tw:text-app-text tw:cursor-default tw:select-none tw:type-body"
-      title={subagents.map((subagent) => subagent.name).join('、')}
+      className="thread-summary-row thread-summary-source-static tw:grid tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2 tw:grid-cols-[16px_minmax(0,1fr)] tw:items-center tw:gap-2 tw:px-2 tw:text-app-text tw:type-body"
+      title={source.source ?? source.label}
     >
-      <span className="thread-summary-subagents-summary__avatars tw:flex tw:items-center tw:overflow-visible">
-        {subagents.slice(0, 4).map((subagent, index) => (
-          <span
-            aria-hidden="true"
-            className={cx(
-              'tw:inline-flex tw:size-[18px] tw:items-center tw:justify-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:[&+span]:-ml-2',
-              index === 1
-                ? 'tw:text-app-accent-fg'
-                : index === 2
-                  ? 'tw:text-app-success'
-                  : index === 3
-                    ? 'tw:text-app-warning'
-                    : 'tw:text-app-text',
-            )}
-            key={subagent.id}
-          >
-            <Bot data-icon-kind="artwork" size={14} />
-          </span>
-        ))}
-      </span>
-      <span className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">{label}</span>
-      {activeCount > 0 && finishedCount > 0 ? (
-        <small className="tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption">
-          {finishedCount} 完成
-        </small>
-      ) : null}
+      <Icon className={SUMMARY_ROW_ICON_CLASS} aria-hidden="true" size={APP_ICON_SIZE} />
+      <span className={SUMMARY_ROW_LABEL_CLASS}>{source.label}</span>
     </div>
+  )
+}
+
+function ArtifactRow({
+  artifact,
+  onOpen,
+}: {
+  artifact: ThreadSummaryArtifact
+  onOpen?: (artifact: ThreadSummaryArtifact) => void
+}): React.ReactNode {
+  const previewable = threadSummaryArtifactPreviewKind(artifact.mimeType) !== 'binary'
+  const meta = [
+    artifact.mimeType,
+    artifact.sizeBytes !== null ? formatByteSize(artifact.sizeBytes) : null,
+    previewable ? null : '不支持预览',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  const row = (
+    <>
+      {artifact.previewKind === 'image' ? (
+        <ImageIcon className={SUMMARY_ROW_ICON_CLASS} aria-hidden="true" size={APP_ICON_SIZE} />
+      ) : (
+        <Package className={SUMMARY_ROW_ICON_CLASS} aria-hidden="true" size={APP_ICON_SIZE} />
+      )}
+      <span className={SUMMARY_ROW_LABEL_CLASS}>{artifact.name}</span>
+      <small
+        className={cx(
+          'tw:whitespace-nowrap tw:type-caption',
+          previewable ? 'tw:text-app-text-meta' : 'tw:text-app-text-disabled',
+        )}
+      >
+        {meta}
+      </small>
+    </>
+  )
+  if (!previewable || !onOpen) {
+    return (
+      <div
+        className="thread-summary-row tw:grid tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2 tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:items-center tw:gap-2 tw:px-2 tw:text-app-text tw:type-body"
+        title={`${artifact.name}：${meta}`}
+      >
+        {row}
+      </div>
+    )
+  }
+  return (
+    <button
+      className={SUMMARY_ROW_CLASS}
+      title={`预览 ${artifact.name}`}
+      type="button"
+      onClick={() => onOpen(artifact)}
+    >
+      {row}
+    </button>
+  )
+}
+
+function ExecutionStepIcon({ status }: { status: 'pending' | 'in_progress' | 'completed' }) {
+  if (status === 'completed') {
+    return (
+      <Check
+        aria-hidden="true"
+        className="tw:text-app-success"
+        size={APP_ICON_SIZES.sm}
+        strokeWidth={2.5}
+      />
+    )
+  }
+  if (status === 'in_progress') {
+    return (
+      <LoaderCircle
+        aria-hidden="true"
+        className="tw:text-app-accent-fg tw:animate-spin tw:motion-reduce:animate-none"
+        size={APP_ICON_SIZES.sm}
+      />
+    )
+  }
+  return (
+    <span
+      aria-hidden="true"
+      className="tw:inline-block tw:size-2 tw:rounded-full tw:border tw:border-app-border-subtle"
+    />
   )
 }
 
 function ThreadSummarySourcesPanel({
   open,
   sources,
+  onOpenAttachment,
+  onOpenLocalContext,
   onOpenChange,
 }: {
   open: boolean
   sources: ThreadSummaryViewModel['sources']
+  onOpenAttachment?: (attachment: Attachment) => void
+  onOpenLocalContext?: (reference: LocalContextReference) => void
   onOpenChange: (open: boolean) => void
 }): React.ReactNode {
   const { onCloseAutoFocus } = useDialogFocusRestore(open)
@@ -400,27 +891,19 @@ function ThreadSummarySourcesPanel({
             </Dialog.Close>
           </header>
           <Dialog.Description className="tw:m-0 tw:text-app-text-meta tw:type-body-sm">
-            当前会话中已识别的文件与网页来源。
+            当前会话中已识别的附件、文件与网页来源。
           </Dialog.Description>
           <div
             className="thread-summary-sources-panel__list tw:grid tw:min-h-0 tw:content-start tw:gap-1 tw:overflow-y-auto"
             role="list"
           >
             {sources.map((source) => (
-              <a
-                className="interactive-row interactive-row--nav tw:grid tw:min-w-0 tw:grid-cols-[16px_minmax(0,1fr)] tw:no-underline"
-                href={source.url}
-                key={source.url}
-                rel="noreferrer"
-                role="listitem"
-                target="_blank"
-                title={source.url}
-              >
-                <Link2 aria-hidden="true" size={APP_ICON_SIZE} />
-                <span className="tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">
-                  {source.label}
-                </span>
-              </a>
+              <ThreadSummarySourceRow
+                key={source.identity}
+                source={source}
+                onOpenAttachment={onOpenAttachment}
+                onOpenLocalContext={onOpenLocalContext}
+              />
             ))}
           </div>
         </Dialog.Content>
@@ -430,24 +913,26 @@ function ThreadSummarySourcesPanel({
 }
 
 function ThreadSummarySection({
-  actionLabel,
   children,
   collapsedSummary,
+  expanded,
   first = false,
-  rowsId,
+  id,
+  meta,
   title,
+  onToggle,
 }: {
-  actionLabel?: string
   children: React.ReactNode
   collapsedSummary?: React.ReactNode
+  expanded: boolean
   first?: boolean
-  rowsId?: string
+  id: ThreadSummarySectionId
+  meta?: React.ReactNode
   title: string
+  onToggle: (id: ThreadSummarySectionId) => void
 }): React.ReactNode {
   const headingId = React.useId()
-  const generatedRowsId = React.useId()
-  const contentId = rowsId ?? generatedRowsId
-  const [expanded, setExpanded] = React.useState(true)
+  const contentId = React.useId()
   return (
     <section
       aria-labelledby={headingId}
@@ -464,7 +949,7 @@ function ThreadSummarySection({
             aria-expanded={expanded}
             className="thread-summary-section__toggle tw:inline-flex tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-md tw:border-0 tw:bg-transparent tw:py-1 tw:pr-1 tw:pl-0 tw:text-left tw:text-inherit tw:[font:inherit] tw:cursor-pointer tw:outline-none tw:focus-visible:outline-2 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
             type="button"
-            onClick={() => setExpanded((current) => !current)}
+            onClick={() => onToggle(id)}
           >
             <span className="tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap" id={headingId}>
               {title}
@@ -474,11 +959,7 @@ function ThreadSummarySection({
           </button>
         </h2>
         <span className="thread-summary-section__actions tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:justify-end">
-          {actionLabel ? (
-            <DisabledSummaryControl label={actionLabel}>
-              <Plus aria-hidden="true" size={APP_ICON_SIZE} />
-            </DisabledSummaryControl>
-          ) : null}
+          {expanded ? meta : null}
         </span>
       </header>
       <DisclosureContent
@@ -490,31 +971,6 @@ function ThreadSummarySection({
         {children}
       </DisclosureContent>
     </section>
-  )
-}
-
-function DisabledSummaryControl({
-  children,
-  label,
-}: {
-  children: React.ReactNode
-  label: string
-}): React.ReactNode {
-  return (
-    <Tooltip content={label} side="left">
-      <button
-        aria-disabled="true"
-        aria-label={label}
-        className="thread-summary-disabled-control tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:justify-self-end tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:[font:inherit] tw:cursor-not-allowed tw:outline-none tw:hover:bg-app-hover tw:focus-visible:bg-app-hover tw:focus-visible:outline-1 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus tw:[&>svg]:size-icon-sm"
-        type="button"
-        onClick={(event) => {
-          event.preventDefault()
-          event.stopPropagation()
-        }}
-      >
-        {children}
-      </button>
-    </Tooltip>
   )
 }
 
@@ -551,11 +1007,40 @@ function SummaryGitActionRow({
   return enabled ? row : <Tooltip content={disabledReason}>{row}</Tooltip>
 }
 
-function isFinishedSubagentStatus(status: string): boolean {
-  return (
-    status === 'completed' ||
-    status === 'failed' ||
-    status === 'stopped' ||
-    status === 'interrupted'
-  )
+function subagentStatusLabel(status: string): string {
+  if (status === 'completed') return '已完成'
+  if (status === 'failed') return '失败'
+  if (status === 'stopped') return '已停止'
+  if (status === 'interrupted') return '已中断'
+  if (status === 'queued') return '排队中'
+  if (status === 'waiting-question') return '等待回答'
+  if (status === 'waiting-permission') return '等待审批'
+  if (status === 'steering') return '调整中'
+  return '运行中'
+}
+
+function formatGoalDuration(timeUsedSeconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(timeUsedSeconds))
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  if (hours > 0) return `${hours}小时${minutes}分`
+  if (minutes > 0) return `${minutes}分${seconds}秒`
+  return `${seconds}秒`
+}
+
+function formatGoalNumber(value: number): string {
+  return new Intl.NumberFormat('en-US').format(Math.max(0, Math.floor(value)))
+}
+
+function formatByteSize(sizeBytes: number): string {
+  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let value = sizeBytes
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit += 1
+  }
+  return `${value >= 10 || unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`
 }

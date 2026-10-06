@@ -56,7 +56,7 @@ export function useUserAttachmentPreview(
             data: result.data,
             encoding: result.encoding,
           }))
-        : tab.source.storage === 'draft-path'
+          : tab.source.storage === 'draft-path'
           ? desktopClient
               .readDraftComposerPath({
                 grantId: tab.source.grantId,
@@ -73,6 +73,24 @@ export function useUserAttachmentPreview(
                 data: result.data ?? '',
                 encoding: result.encoding ?? null,
               }))
+          : tab.source.storage === 'artifact'
+          ? desktopClient
+              .readArtifact(tab.source.threadId, tab.source.artifactId)
+              .then((result) => {
+                const isImage = result.artifact.mimeType.toLowerCase().startsWith('image/')
+                return {
+                  attachment: {
+                    id: result.artifact.id,
+                    kind: isImage ? 'image' : 'text',
+                    name: result.artifact.name,
+                    mediaType: result.artifact.mimeType,
+                    sizeBytes: result.artifact.sizeBytes,
+                  },
+                  // 预览面板要求 image 走 base64、text 走 utf8；Artifact 读取固定返回 base64。
+                  data: isImage ? result.data : decodeBase64Utf8(result.data),
+                  encoding: isImage ? ('base64' as const) : ('utf8' as const),
+                }
+              })
           : desktopClient
               .readLocalContextPath({
                 threadId: tab.source.threadId,
@@ -127,4 +145,14 @@ export function useUserAttachmentPreview(
   }, [])
 
   return { ...state, retry }
+}
+
+function decodeBase64Utf8(base64: string): string {
+  try {
+    const binary = atob(base64)
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
+    return new TextDecoder('utf-8').decode(bytes)
+  } catch {
+    return ''
+  }
 }

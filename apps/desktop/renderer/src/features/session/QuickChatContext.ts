@@ -1,20 +1,13 @@
 import type { ReactNode } from 'react'
 import { createContext, useContext } from 'react'
 import type { ModelPreset } from '../../modelPresets.js'
-import type {
-  DesktopUserMessageInput,
-  DesktopGitStatus,
-  DesktopPermissionDecision,
-  DesktopPermissionMode,
-  DesktopPermissionRequest,
-  DesktopSessionStatus,
-  DesktopWorkspace,
-} from '../../../shared/types.js'
+import type { DesktopUserMessageInput, DesktopGitStatus, DesktopPermissionDecision, DesktopPermissionMode, DesktopPermissionRequest, DesktopSessionStatus, DesktopWorkspace, DesktopThreadGoal, DesktopBrowserState } from '../../../shared/types.js'
 import type { OpenPlanInDockRequest } from './workflow/WorkflowPlanCard.js'
 import type { MarkdownFileOpenOptions, MarkdownFileReference } from '../markdown/index.js'
 import type { DesktopComposerProps } from './composer/DesktopComposer.js'
 import type { NewSessionRecentTask } from './newSessionSuggestions.js'
 import type { Attachment, LocalContextReference } from '@codepilotx/shared/thread'
+import type { ThreadArtifactPreviewInput } from './attachments/attachmentPreviewDescriptor.js'
 
 export type ProviderModelOption = {
   providerID: string
@@ -60,6 +53,12 @@ export type QuickChatContextValue = {
   onOpenFileReference: (reference: MarkdownFileReference, options: MarkdownFileOpenOptions) => void
   onOpenAttachment: (attachment: Attachment) => void
   onOpenLocalContext: (reference: LocalContextReference) => void
+  onOpenArtifact: (artifact: ThreadArtifactPreviewInput) => void
+  onActivateBrowserTab: (tabId: string) => void
+  browserTabs: DesktopBrowserState[]
+  threadGoal: DesktopThreadGoal | null
+  onGoalPause: () => void
+  onGoalResume: () => void
   canCopyFileReferenceContents: (reference: MarkdownFileReference) => boolean
   onCopyFileReferenceContents: (reference: MarkdownFileReference) => void | Promise<void>
   onSubmitEditedUserMessage: (input: DesktopUserMessageInput) => Promise<void>

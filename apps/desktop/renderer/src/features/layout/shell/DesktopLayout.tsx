@@ -135,6 +135,7 @@ import { buildCommandMenuTasks } from '../../search/commandMenuModel.js'
 import { GlobalErrorModal } from '../../../components/GlobalErrorModal.js'
 import { toUserErrorMessage } from '../../../utils/errors.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
+import type { ThreadArtifactPreviewInput } from '../../session/attachments/attachmentPreviewDescriptor.js'
 import { desktopBrowserClient } from '../../../services/desktop-client/desktop-browser-client.js'
 
 const GitWorkflowModal = lazy(() =>
@@ -314,6 +315,7 @@ export function DesktopLayout(): React.ReactNode {
   const [whatsNewRestoreFocusElement, setWhatsNewRestoreFocusElement] =
     useState<HTMLElement | null>(null)
   const [browserState, setBrowserState] = useState<DesktopBrowserState | null>(null)
+  const [browserTabs, setBrowserTabs] = useState<DesktopBrowserState[]>([])
   const browserAvailable =
     typeof window !== 'undefined' &&
     typeof window.codePilotXDesktop?.createOrRestoreDesktopBrowser === 'function'
@@ -905,6 +907,47 @@ export function DesktopLayout(): React.ReactNode {
     openRightDockTab({ id: 'file-browser', kind: 'file-browser' })
   }, [openRightDockTab])
 
+  /** 激活既有内置浏览器标签所在的面板，不新建标签。 */
+  const handleActivateBrowserTab = useCallback(
+    (tabId: string): void => {
+      if (!browserAvailable) return
+      const record = desktopBrowserClient.getTab(tabId)
+      if (!record?.open) return
+      openRightDockTab({ id: `browser:${tabId}`, kind: 'browser', tabId, title: record.title })
+    },
+    [browserAvailable, openRightDockTab],
+  )
+
+  const handleOpenArtifact = useCallback(
+    (artifact: ThreadArtifactPreviewInput): void => {
+      if (!sessionId) return
+      void import('../../session/attachments/attachmentPreviewDescriptor.js').then(
+        ({ createThreadArtifactPreviewTab }) => {
+          openRightDockTab(createThreadArtifactPreviewTab(sessionId, artifact))
+        },
+      )
+    },
+    [openRightDockTab, sessionId],
+  )
+
+  const handleSetGoalStatus = useCallback(
+    (status: 'active' | 'paused'): void => {
+      if (!sessionId) return
+      desktopClient
+        .setSessionGoal(sessionId, { status })
+        .catch((error) => setErrorMessage(error instanceof Error ? error.message : String(error)))
+    },
+    [sessionId],
+  )
+
+  const handleGoalPause = useCallback((): void => {
+    handleSetGoalStatus('paused')
+  }, [handleSetGoalStatus])
+
+  const handleGoalResume = useCallback((): void => {
+    handleSetGoalStatus('active')
+  }, [handleSetGoalStatus])
+
   const handleOpenThreadAttachment = useCallback(
     (attachment: Attachment): void => {
       void import('../../session/attachments/attachmentPreviewDescriptor.js').then(
@@ -1414,8 +1457,18 @@ export function DesktopLayout(): React.ReactNode {
   useEffect(() => {
     desktopBrowserClient.setContext(sessionId)
     if (!desktopBrowserClient.available) return
-    const synchronize = (tabs: DesktopBrowserState[]) =>
+    const synchronize = (tabs: DesktopBrowserState[]) => {
+      // 标签快照每次都会产生新数组；按 revision 去重，避免无关快照触发重渲染。
+      const signature = tabs
+        .map((tab) => `${tab.tabId ?? ''}:${tab.revision ?? 0}`)
+        .join('|')
+      setBrowserTabs((current) =>
+        current.map((tab) => `${tab.tabId ?? ''}:${tab.revision ?? 0}`).join('|') === signature
+          ? current
+          : tabs,
+      )
       setWorkbenchPanelState((current) => mergeBrowserWorkbench(current, tabs))
+    }
     const unsubscribe = desktopBrowserClient.onTabsChange(synchronize)
     void desktopBrowserClient
       .listTabs()
@@ -3169,6 +3222,12 @@ export function DesktopLayout(): React.ReactNode {
             onOpenFileReference: handleOpenMarkdownFileReference,
             onOpenAttachment: handleOpenThreadAttachment,
             onOpenLocalContext: handleOpenThreadLocalContext,
+            onOpenArtifact: handleOpenArtifact,
+            onActivateBrowserTab: handleActivateBrowserTab,
+            browserTabs,
+            threadGoal: activeSessionItem?.threadGoal ?? null,
+            onGoalPause: handleGoalPause,
+            onGoalResume: handleGoalResume,
             onSubmitEditedUserMessage: handleSubmitEditedUserMessage,
             onAppendComposerText: handleAppendComposerText,
             onAppendSideChatText: handleAppendSideChatText,
