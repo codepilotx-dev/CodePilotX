@@ -306,7 +306,15 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
             title="默认权限"
             description="默认情况下，CodePilotX 可以自动读取工作区内容；写入文件、运行命令、联网和 MCP 请求需要你授权。"
             autoSave
-            control={<ToggleSwitch checked disabled onChange={() => {}} ariaLabel="默认权限" />}
+            control={(aria) => (
+              <ToggleSwitch
+                checked
+                disabled
+                onChange={() => {}}
+                ariaLabelledby={aria.labelledby}
+                ariaDescribedby={aria.describedby}
+              />
+            )}
           />
           <SettingsRow
             title="自动审核"
@@ -317,13 +325,14 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
                 会自动审核额外访问权限请求。自动审核可能会出错。
               </>
             }
-            control={
+            control={(aria) => (
               <ToggleSwitch
                 checked={enableAutoReviewPermissionMode ?? false}
                 onChange={handleAutoApprove}
-                ariaLabel="自动审核"
+                ariaLabelledby={aria.labelledby}
+                ariaDescribedby={aria.describedby}
               />
-            }
+            )}
           />
           <SettingsRow
             title="完全访问权限"
@@ -334,13 +343,14 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
                 以完全访问权限运行时，无需你批准，即可自动放行所有权限工具，编辑你的电脑上的任何文件并运行联网命令。这会显著增加数据丢失、泄露或意外行为的风险。
               </>
             }
-            control={
+            control={(aria) => (
               <ToggleSwitch
                 checked={enableFullAccessPermissionMode ?? false}
                 onChange={handleFullAccess}
-                ariaLabel="完全访问权限"
+                ariaLabelledby={aria.labelledby}
+                ariaDescribedby={aria.describedby}
               />
-            }
+            )}
           />
         </SettingsSection>
 
@@ -389,13 +399,14 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
           <SettingsRow
             title="需按 ^ + 回车键发送长文本提示"
             description="启用后，长文本提示需按 ^ + 回车键发送。"
-            control={
+            control={(aria) => (
               <ToggleSwitch
                 checked={longPromptShortcut}
                 onChange={setLongPromptShortcut}
-                ariaLabel="需按快捷键发送长文本提示"
+                ariaLabelledby={aria.labelledby}
+                ariaDescribedby={aria.describedby}
               />
-            }
+            )}
           />
           <SettingsRow
             title="速度"
@@ -414,13 +425,14 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
             title="允许普通模式提问"
             description="开启后，主 Agent 可在普通模式中通过结构化问题卡向你提问。计划模式始终允许。"
             autoSave
-            control={
+            control={(aria) => (
               <ToggleSwitch
                 checked={defaultModeRequestUserInput}
                 onChange={setDefaultModeRequestUserInput}
-                ariaLabel="允许普通模式提问"
+                ariaLabelledby={aria.labelledby}
+                ariaDescribedby={aria.describedby}
               />
-            }
+            )}
           />
           <SettingsRow
             title="代码审查"
@@ -449,13 +461,14 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
           <SettingsRow
             title="建议提示"
             description="搜索项目文件和已连接应用，建议下一步操作"
-            control={
+            control={(aria) => (
               <ToggleSwitch
                 checked={suggestPrompts}
                 onChange={setSuggestPrompts}
-                ariaLabel="建议提示"
+                ariaLabelledby={aria.labelledby}
+                ariaDescribedby={aria.describedby}
               />
-            }
+            )}
           />
           <SettingsRow
             title="从其他 AI 应用导入工作内容"
@@ -485,15 +498,16 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
             title="Rust Glob / Grep / Diff 内核"
             description="启用后，Rust sidecar 将执行文件遍历、内容搜索和 diff 计算，不再回退到 TS 路径。"
             autoSave
-            control={
+            control={(aria) => (
               <ToggleSwitch
                 checked={rustSearchAndDiffKernels}
                 onChange={(checked) => {
                   setRustSearchAndDiffKernels(checked)
                 }}
-                ariaLabel="Rust Glob Grep Diff 内核"
+                ariaLabelledby={aria.labelledby}
+                ariaDescribedby={aria.describedby}
               />
-            }
+            )}
           />
         </SettingsSection>
 
@@ -515,13 +529,14 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
           <SettingsRow
             title="默认使用无项目聊天"
             description="无需项目即可开始新聊天"
-            control={
+            control={(aria) => (
               <ToggleSwitch
                 checked={popupNoProjectChat}
                 onChange={setPopupNoProjectChat}
-                ariaLabel="默认使用无项目聊天"
+                ariaLabelledby={aria.labelledby}
+                ariaDescribedby={aria.describedby}
               />
-            }
+            )}
           />
         </SettingsSection>
 
@@ -546,35 +561,38 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
           <SettingsRow
             title="启用权限通知"
             description="在需要额外权限时显示系统通知"
-            control={
+            control={(aria) => (
               <ToggleSwitch
                 checked={notifications.permissions}
                 onChange={setPermissionNotifications}
-                ariaLabel="启用权限通知"
+                ariaLabelledby={aria.labelledby}
+                ariaDescribedby={aria.describedby}
               />
-            }
+            )}
           />
           <SettingsRow
             title="启用问题通知"
             description="需要输入才能继续时显示系统通知"
-            control={
+            control={(aria) => (
               <ToggleSwitch
                 checked={notifications.questions}
                 onChange={setQuestionNotifications}
-                ariaLabel="启用问题通知"
+                ariaLabelledby={aria.labelledby}
+                ariaDescribedby={aria.describedby}
               />
-            }
+            )}
           />
           <SettingsRow
             title="启用任务错误通知"
             description="任务执行失败时显示系统通知"
-            control={
+            control={(aria) => (
               <ToggleSwitch
                 checked={notifications.errors}
                 onChange={setErrorNotifications}
-                ariaLabel="启用任务错误通知"
+                ariaLabelledby={aria.labelledby}
+                ariaDescribedby={aria.describedby}
               />
-            }
+            )}
           />
         </SettingsSection>
 
@@ -583,13 +601,14 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
             title="显示上下文窗口使用量"
             description="在对话框底部栏显示上下文窗口使用量"
             autoSave
-            control={
+            control={(aria) => (
               <ToggleSwitch
                 checked={showContextUsage}
                 onChange={setShowContextUsage}
-                ariaLabel="显示上下文窗口使用量"
+                ariaLabelledby={aria.labelledby}
+                ariaDescribedby={aria.describedby}
               />
-            }
+            )}
           />
         </SettingsSection>
       </div>

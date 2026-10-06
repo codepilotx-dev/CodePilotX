@@ -81,6 +81,7 @@ export const enUS: Record<string, string> = {
   未找到匹配的设置: 'No matching settings',
   设置搜索结果: 'Settings search results',
   设置已保存: 'Settings saved',
+  设置加载中: 'Loading settings',
   '权限、语言、通知与应用行为': 'Permissions, language, notifications, and app behavior',
   '账户身份、头像和个人信息': 'Account identity, avatar, and personal details',
   '主题、颜色、字体、动效和差异标记': 'Themes, colors, fonts, motion, and diff markers',

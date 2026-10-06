@@ -21,7 +21,7 @@ type SlotProps = {
 }
 
 type ContentProps = SlotProps & {
-  surface?: 'plain' | 'card'
+  surface?: 'plain' | 'card' | 'flat'
 }
 
 export function SettingsSectionHeader({
@@ -65,7 +65,9 @@ export function SettingsSectionContent({
       className={
         surface === 'card'
           ? 'settings-section-content settings-card tw:min-w-0 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none'
-          : 'settings-section-content tw:min-w-0'
+          : surface === 'flat'
+            ? 'settings-section-content settings-flat tw:min-w-0 tw:border-y tw:border-app-border-subtle tw:bg-transparent'
+            : 'settings-section-content tw:min-w-0'
       }
       data-surface={surface}
     >

@@ -1,11 +1,15 @@
 import type React from 'react'
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { SettingsPage } from './SettingsPage.js'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
 import { useDesktopTheme } from '../theme/themeContext.js'
 import { createSettingsSaveShortcutHandler, useDesktopSettings } from './useDesktopSettings.js'
 import { SETTINGS_ITEMS } from './settingsRegistry.js'
+import {
+  resolveSettingsSectionVisibility,
+  useSettingsCapabilityState,
+} from './useSettingsSectionVisibility.js'
 import { NotFoundPage } from '../routing/NotFoundPage.js'
 import { useDesktopLayoutOutletContext } from '../layout/shell/desktopLayoutOutletContext.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
@@ -27,10 +31,22 @@ export function SettingsLayout({ activeTabOverride }: Props = {}): React.ReactNo
   const { t } = useLocale()
   const theme = useDesktopTheme()
   const { workspacePath, useSkill } = useDesktopLayoutOutletContext()
+  const navigate = useNavigate()
+  const capabilityState = useSettingsCapabilityState()
+  const activeItem = SETTINGS_ITEMS.find((item) => item.routeId === activeTab)
+  const visibility = resolveSettingsSectionVisibility(activeItem?.requires, {
+    workspacePath,
+    capabilityState,
+  })
 
   useEffect(() => {
     setErrorMessage(null)
   }, [activeTab])
+
+  useEffect(() => {
+    if (activeItem == null || visibility.visible || visibility.pending) return
+    navigate('/settings/general', { replace: true })
+  }, [activeItem, navigate, visibility.pending, visibility.visible])
 
   useEffect(() => {
     const saveSettings = async (): Promise<void> => {

@@ -5,18 +5,23 @@ import { cx } from '../../utils/cx.js'
 type Props = {
   checked: boolean
   onChange: (checked: boolean) => void
-  ariaLabel: string
+  ariaLabel?: string
+  /** 由 SettingsRow 的 control 渲染函数注入，可访问名来自行标题。 */
+  ariaLabelledby?: string
+  ariaDescribedby?: string | null
   disabled?: boolean
 }
 
 export const ToggleSwitch = forwardRef<HTMLButtonElement, Props>(function ToggleSwitch(
-  { checked, onChange, ariaLabel, disabled = false },
+  { checked, onChange, ariaLabel, ariaLabelledby, ariaDescribedby, disabled = false },
   ref,
 ) {
   return (
     <Switch.Root
       ref={ref}
+      aria-describedby={ariaDescribedby}
       aria-label={ariaLabel}
+      aria-labelledby={ariaLabelledby}
       className={cx(
         'toggle-switch tw:relative tw:box-border tw:h-5 tw:w-8 tw:shrink-0 tw:cursor-pointer tw:rounded-full tw:border tw:border-app-border tw:bg-app-text/10 tw:p-0',
         'tw:transition-[background-color,border-color,opacity] tw:duration-state tw:ease-standard',

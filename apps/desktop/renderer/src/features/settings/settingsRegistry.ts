@@ -1,3 +1,4 @@
+import type { ProtocolCapability } from '@codepilotx/agent-protocol'
 import {
   Archive,
   Blocks,
@@ -27,6 +28,13 @@ export type SettingsSearchRow = {
   description: string
 }
 
+export type SettingsSectionRequirement = {
+  /** 需要活动工作区上下文才可使用。 */
+  workspace?: boolean
+  /** 需要任一列出的运行时协议能力（任一满足即可见）。 */
+  capabilities?: readonly ProtocolCapability[]
+}
+
 export type SettingsSectionDefinition = {
   id: string
   routeId: string
@@ -34,6 +42,7 @@ export type SettingsSectionDefinition = {
   description: string
   icon: LucideIcon
   rows: readonly SettingsSearchRow[]
+  requires?: SettingsSectionRequirement
 }
 
 export type SettingsGroupDefinition = {
@@ -86,6 +95,7 @@ export const SETTINGS_GROUPS = [
         label: '语音',
         description: '查看本地语音模型状态、选择麦克风并使用听写快捷键',
         icon: Mic,
+        requires: { capabilities: ['speech.transcription.v1'] },
         rows: [
           row('本地语音模型', '查看本地离线转写模型的状态与安装进度'),
           row('输入设备', '选择听写使用的麦克风'),
@@ -257,6 +267,7 @@ export const SETTINGS_GROUPS = [
         label: '浏览器',
         description: '内置浏览器隔离会话和站点权限',
         icon: Square,
+        requires: { capabilities: ['browser.host.v1', 'browser.manage.v1'] },
         rows: [
           row('内置浏览器', '管理隔离的浏览器会话'),
           row('站点权限', '查看和管理网站访问权限'),
@@ -268,6 +279,7 @@ export const SETTINGS_GROUPS = [
         label: '电脑控制',
         description: '读取已运行应用的界面并执行操作',
         icon: MonitorSmartphone,
+        requires: { capabilities: ['computer.use.v1'] },
         rows: [
           row('启用电脑控制', '开启后 Agent 才能发现已运行的应用'),
           row('应用授权', '始终允许、拒绝或撤销单个应用'),
@@ -298,6 +310,7 @@ export const SETTINGS_GROUPS = [
         label: 'Local environment',
         description: '管理 setup、cleanup、Actions 与脚本执行信任',
         icon: SquareTerminal,
+        requires: { workspace: true },
         rows: [
           row('环境名称', '编辑 environment.jsonc 中的 name'),
           row('Setup 与 Cleanup', '按平台配置初始化和清理脚本'),
@@ -311,6 +324,7 @@ export const SETTINGS_GROUPS = [
         label: '托管 Worktrees',
         description: '创建、恢复、保留和清理 CodePilotX 工作树',
         icon: Trees,
+        requires: { workspace: true },
         rows: [
           row('创建 Worktree', '从分支或当前 working tree 创建隔离工作区'),
           row('Setup 进度', '查看输出并在失败后重试或跳过'),

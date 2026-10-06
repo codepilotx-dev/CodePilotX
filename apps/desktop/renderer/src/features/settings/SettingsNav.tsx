@@ -9,24 +9,49 @@ import {
   SETTINGS_SEARCH_DOCUMENTS,
   type SettingsSearchDocument,
 } from './settingsRegistry.js'
+import {
+  resolveSettingsSectionVisibility,
+  useSettingsCapabilityState,
+} from './useSettingsSectionVisibility.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
 import { moveFocusOnArrowKey } from '../../utils/arrowListFocus.js'
 
 type Props = {
   activeTab: string
+  workspacePath?: string | null
   onBack: () => void
   onTabChange: (tabId: string) => void
 }
 
-export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
+export function SettingsNav({ activeTab, workspacePath = null, onBack, onTabChange }: Props) {
   const { t, locale } = useLocale()
+  const capabilityState = useSettingsCapabilityState()
+  const itemVisibility = useMemo(() => {
+    const visibility = new Map<string, { visible: boolean; pending: boolean }>()
+    for (const group of SETTINGS_GROUPS) {
+      for (const item of group.items) {
+        visibility.set(
+          item.routeId,
+          resolveSettingsSectionVisibility('requires' in item ? item.requires : undefined, { workspacePath, capabilityState }),
+        )
+      }
+    }
+    return visibility
+  }, [capabilityState, workspacePath])
   const [searchQuery, setSearchQuery] = useState('')
   const [activeResultIndex, setActiveResultIndex] = useState(0)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const normalizedQuery = normalizeSearchText(searchQuery)
+  const searchableDocuments = useMemo(
+    () =>
+      SETTINGS_SEARCH_DOCUMENTS.filter(
+        (document) => itemVisibility.get(document.tabId)?.visible === true,
+      ),
+    [itemVisibility],
+  )
   const searchResults = useMemo(
-    () => searchSettings(normalizedQuery, t, locale),
-    [normalizedQuery, t, locale],
+    () => searchSettings(normalizedQuery, t, locale, searchableDocuments),
+    [normalizedQuery, t, locale, searchableDocuments],
   )
 
   useEffect(() => {
@@ -142,29 +167,46 @@ export function SettingsNav({ activeTab, onBack, onTabChange }: Props) {
             results={searchResults}
           />
         ) : (
-          SETTINGS_GROUPS.map((group) => (
-            <section className="settings-nav-group tw:grid" key={group.title}>
-              <div className="settings-nav-group-title-row tw:min-w-0 tw:px-2 tw:py-1">
-                <h2 className="settings-nav-group-title tw:m-0 tw:text-app-text-meta tw:type-row-title">{t(group.title)}</h2>
-              </div>
-              <div className="settings-nav-group-items tw:grid">
-                {group.items.map((item) => (
-                  <SidebarRow
-                    active={activeTab === item.routeId}
-                    asChild
-                    key={item.id}
-                    className="settings-nav-item tw:type-row-title tw:whitespace-nowrap"
-                    layout="flex"
-                    leading={<item.icon className="settings-nav-icon tw:text-current" />}
-                  >
-                    <button onClick={() => onTabChange(item.routeId)} type="button">
-                      <span>{t(item.label)}</span>
-                    </button>
-                  </SidebarRow>
-                ))}
-              </div>
-            </section>
-          ))
+          SETTINGS_GROUPS.map((group) => {
+            const visibleItems = group.items.filter(
+              (item) => itemVisibility.get(item.routeId)?.visible === true,
+            )
+            if (visibleItems.length === 0) return null
+            return (
+              <section className="settings-nav-group tw:grid" key={group.title}>
+                <div className="settings-nav-group-title-row tw:min-w-0 tw:px-2 tw:py-1">
+                  <h2 className="settings-nav-group-title tw:m-0 tw:text-app-text-meta tw:type-row-title">{t(group.title)}</h2>
+                </div>
+                <div className="settings-nav-group-items tw:grid">
+                  {visibleItems.map((item) => {
+                    const pending = itemVisibility.get(item.routeId)?.pending === true
+                    return (
+                      <SidebarRow
+                        active={activeTab === item.routeId}
+                        asChild
+                        className={
+                          pending
+                            ? 'settings-nav-item tw:type-row-title tw:whitespace-nowrap tw:opacity-50'
+                            : 'settings-nav-item tw:type-row-title tw:whitespace-nowrap'
+                        }
+                        key={item.id}
+                        layout="flex"
+                        leading={<item.icon className="settings-nav-icon tw:text-current" />}
+                      >
+                        <button
+                          disabled={pending}
+                          onClick={() => onTabChange(item.routeId)}
+                          type="button"
+                        >
+                          <span>{t(item.label)}</span>
+                        </button>
+                      </SidebarRow>
+                    )
+                  })}
+                </div>
+              </section>
+            )
+          })
         )}
       </div>
     </ScrollArea>
@@ -238,10 +280,11 @@ function searchSettings(
   query: string,
   t: (source: string) => string = (source) => source,
   locale = 'zh-CN',
+  documents: readonly SettingsSearchDocument[] = SETTINGS_SEARCH_DOCUMENTS,
 ): readonly SettingsSearchDocument[] {
   if (!query) return []
   const terms = query.split(' ')
-  return SETTINGS_SEARCH_DOCUMENTS.map((document) => ({
+  return documents.map((document) => ({
     document,
     score: Math.max(
       scoreSearchDocument(document, terms),
@@ -327,6 +370,22 @@ function scrollToSettingsTarget(result: SettingsSearchDocument): void {
     target.tabIndex = -1
     target.scrollIntoView({ behavior: 'auto', block: 'center' })
     target.focus({ preventScroll: true })
+    flashSettingsTarget(target)
   }
   window.setTimeout(locate, 0)
+}
+
+function flashSettingsTarget(target: HTMLElement): void {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  if (reduceMotion || typeof target.animate !== 'function') return
+  target
+    .animate(
+      [
+        { backgroundColor: 'var(--cpx-sys-color-hover)' },
+        { backgroundColor: 'var(--cpx-sys-color-hover)', offset: 0.35 },
+        { backgroundColor: 'transparent' },
+      ],
+      { duration: 450, easing: 'ease-out' },
+    )
+    .finished.catch(() => {})
 }

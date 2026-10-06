@@ -1,26 +1,7 @@
-import React from 'react'
+import React, { Suspense, lazy } from 'react'
 import type { DesktopInstalledSkill } from '../../../shared/types.js'
-import { SETTINGS_ITEMS } from './settingsRegistry.js'
-import { AppearanceSettings } from './AppearanceSettings.js'
-import { ArchivedConversationsSettings } from './ArchivedConversationsSettings.js'
-import { BrowserSettings } from './BrowserSettings.js'
-import { ComputerSettings } from './ComputerSettings.js'
-import { ConfigSettings } from './ConfigSettings.js'
-import { EnvironmentSettings } from './EnvironmentSettings.js'
-import { GeneralSettings } from './GeneralSettings.js'
-import { VoiceSettings } from './VoiceSettings.js'
-import { GitSettings } from './GitSettings.js'
-import { KeyboardShortcutsSettings } from './KeyboardShortcutsSettings.js'
-import { PluginsSettingsPage } from './plugins/PluginsSettingsPage.js'
-import { MemorySettings } from './MemorySettings.js'
-import { PetSettings } from './PetSettings.js'
-import { PersonalizationSettings } from './PersonalizationSettings.js'
-import { ProfileSettings } from './ProfileSettings.js'
-import { UsageBillingSettings } from './UsageBillingSettings.js'
-import { WorkspaceDependenciesSettings } from './WorkspaceDependenciesSettings.js'
-import { LocalEnvironmentSettings } from './local-environment/LocalEnvironmentSettings.js'
-import { WorktreeSettings } from '../worktree/WorktreeSettings.js'
-import { ProviderSettings } from '../models/ModelCenterView.js'
+import { SETTINGS_ITEMS, type SettingsTabId } from './settingsRegistry.js'
+import { SettingsPanelFallback } from './SettingsPanelFallback.js'
 
 type Props = {
   activeTab: string
@@ -28,6 +9,70 @@ type Props = {
   onUseSkill: (skill: DesktopInstalledSkill) => void
   onError: (message: string) => void
   onNotice?: (message: string) => void
+}
+
+type SettingsPanelProps = {
+  workspacePath: string | null
+  onUseSkill: (skill: DesktopInstalledSkill) => void
+  onError: (message: string) => void
+  onNotice: (message: string) => void
+}
+
+type SettingsPanel = React.ComponentType<SettingsPanelProps>
+
+const SETTINGS_PANELS: Record<SettingsTabId, SettingsPanel> = {
+  general: lazy(() =>
+    import('./GeneralSettings.js').then((m) => ({ default: m.GeneralSettings })),
+  ),
+  voice: lazy(() => import('./VoiceSettings.js').then((m) => ({ default: m.VoiceSettings }))),
+  profile: lazy(() => import('./ProfileSettings.js').then((m) => ({ default: m.ProfileSettings }))),
+  appearance: lazy(() =>
+    import('./AppearanceSettings.js').then((m) => ({ default: m.AppearanceSettings })),
+  ),
+  pets: lazy(() => import('./PetSettings.js').then((m) => ({ default: m.PetSettings }))),
+  config: lazy(() => import('./ConfigSettings.js').then((m) => ({ default: m.ConfigSettings }))),
+  personalization: lazy(() =>
+    import('./PersonalizationSettings.js').then((m) => ({ default: m.PersonalizationSettings })),
+  ),
+  memory: lazy(() => import('./MemorySettings.js').then((m) => ({ default: m.MemorySettings }))),
+  shortcuts: lazy(() =>
+    import('./KeyboardShortcutsSettings.js').then((m) => ({ default: m.KeyboardShortcutsSettings })),
+  ),
+  billing: lazy(() =>
+    import('./UsageBillingSettings.js').then((m) => ({ default: m.UsageBillingSettings })),
+  ),
+  providers: lazy(() =>
+    import('../models/ModelCenterView.js').then((m) => ({ default: m.ProviderSettings })),
+  ),
+  plugins: lazy(() =>
+    import('./plugins/PluginsSettingsPage.js').then((m) => ({ default: m.PluginsSettingsPage })),
+  ),
+  browser: lazy(() => import('./BrowserSettings.js').then((m) => ({ default: m.BrowserSettings }))),
+  computer: lazy(() =>
+    import('./ComputerSettings.js').then((m) => ({ default: m.ComputerSettings })),
+  ),
+  environment: lazy(() =>
+    import('./EnvironmentSettings.js').then((m) => ({ default: m.EnvironmentSettings })),
+  ),
+  'local-environment': lazy(() =>
+    import('./local-environment/LocalEnvironmentSettings.js').then((m) => ({
+      default: m.LocalEnvironmentSettings,
+    })),
+  ),
+  worktrees: lazy(() =>
+    import('../worktree/WorktreeSettings.js').then((m) => ({ default: m.WorktreeSettings })),
+  ),
+  dependencies: lazy(() =>
+    import('./WorkspaceDependenciesSettings.js').then((m) => ({
+      default: m.WorkspaceDependenciesSettings,
+    })),
+  ),
+  git: lazy(() => import('./GitSettings.js').then((m) => ({ default: m.GitSettings }))),
+  archived: lazy(() =>
+    import('./ArchivedConversationsSettings.js').then((m) => ({
+      default: m.ArchivedConversationsSettings,
+    })),
+  ),
 }
 
 export function SettingsPage({
@@ -40,42 +85,17 @@ export function SettingsPage({
   const resolvedTab = SETTINGS_ITEMS.some((item) => item.routeId === activeTab)
     ? activeTab
     : 'general'
-  let content: React.ReactNode
-  if (resolvedTab === 'general') content = <GeneralSettings onNotice={onNotice} />
-  else if (resolvedTab === 'providers') {
-    content = <ProviderSettings onError={onError} onNotice={onNotice ?? (() => {})} />
-  } else if (resolvedTab === 'voice') content = <VoiceSettings onNotice={onNotice} />
-  else if (resolvedTab === 'appearance') content = <AppearanceSettings onError={onError} />
-  else if (resolvedTab === 'config') content = <ConfigSettings />
-  else if (resolvedTab === 'plugins') {
-    content = (
-      <PluginsSettingsPage
+  const Panel = SETTINGS_PANELS[resolvedTab as SettingsTabId]
+  const label = SETTINGS_ITEMS.find((item) => item.routeId === resolvedTab)?.label
+  return (
+    <Suspense fallback={<SettingsPanelFallback label={label} />}>
+      <Panel
+        key={resolvedTab === 'memory' ? (workspacePath ?? 'no-workspace') : undefined}
         workspacePath={workspacePath}
         onUseSkill={onUseSkill}
         onError={onError}
-        onNotice={onNotice}
+        onNotice={onNotice ?? (() => {})}
       />
-    )
-  } else if (resolvedTab === 'git') content = <GitSettings />
-  else if (resolvedTab === 'environment') {
-    content = <EnvironmentSettings onError={onError} onNotice={onNotice} />
-  } else if (resolvedTab === 'local-environment')
-    content = <LocalEnvironmentSettings onError={onError} onNotice={onNotice} />
-  else if (resolvedTab === 'worktrees')
-    content = <WorktreeSettings onError={onError} onNotice={onNotice} />
-  else if (resolvedTab === 'profile') content = <ProfileSettings />
-  else if (resolvedTab === 'personalization')
-    content = <PersonalizationSettings onError={onError} onNotice={onNotice} />
-  else if (resolvedTab === 'memory') {
-    content = <MemorySettings key={workspacePath ?? 'no-workspace'} workspacePath={workspacePath} />
-  } else if (resolvedTab === 'pets') content = <PetSettings onError={onError} onNotice={onNotice} />
-  else if (resolvedTab === 'shortcuts') content = <KeyboardShortcutsSettings />
-  else if (resolvedTab === 'archived') content = <ArchivedConversationsSettings />
-  else if (resolvedTab === 'billing') content = <UsageBillingSettings />
-  else if (resolvedTab === 'browser') content = <BrowserSettings />
-  else if (resolvedTab === 'computer') content = <ComputerSettings />
-  else if (resolvedTab === 'dependencies')
-    content = <WorkspaceDependenciesSettings onError={onError} onNotice={onNotice} />
-  else content = <GeneralSettings onNotice={onNotice} />
-  return content
+    </Suspense>
+  )
 }
