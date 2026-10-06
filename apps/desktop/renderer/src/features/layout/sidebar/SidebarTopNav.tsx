@@ -305,7 +305,8 @@ export function SidebarHeader({
             aria-haspopup="dialog"
             className="sidebar-search-button tw:order-1 tw:text-app-text-meta"
             color="ghost"
-            size="icon"
+            iconSize="md"
+            size="compact"
             onClick={onOpenCommandMenu}
             title={t('搜索任务')}
           >
@@ -327,7 +328,8 @@ export function SidebarHeader({
                     active={sidebarTimelineEnabled}
                     className="sidebar-timeline-toggle-button tw:text-app-text-meta tw:data-[active=true]:bg-app-selected tw:data-[active=true]:text-app-text"
                     color="ghost"
-                    size="icon"
+                    iconSize="md"
+                    size="compact"
                     onClick={() => {
                       if (!sidebarActivityCoachmarkDismissed) {
                         setSidebarActivityCoachmarkDismissed(true)
