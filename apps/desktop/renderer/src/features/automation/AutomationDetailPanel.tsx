@@ -356,9 +356,9 @@ export function AutomationDetailPanel({
                     }
                   />
                 </FormField>
-                <FormField label="沙箱">
+                <FormField label="文件访问范围">
                   <Select
-                    ariaLabel="沙箱权限"
+                    ariaLabel="文件访问范围"
                     value={draft.permissionConfig.sandboxMode}
                     options={[
                       { value: 'read-only', label: '只读' },

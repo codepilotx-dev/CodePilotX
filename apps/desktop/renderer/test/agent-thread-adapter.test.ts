@@ -201,7 +201,7 @@ describe('agent thread adapter', () => {
     expect(desktopPermissionModeToPermissionConfig('full-access')).toEqual({
       sandboxMode: 'danger-full-access',
       approvalPolicy: 'never',
-      approvalsReviewer: 'auto_review',
+      approvalsReviewer: 'user',
     })
     expect(
       permissionModeFromPermissionConfig({

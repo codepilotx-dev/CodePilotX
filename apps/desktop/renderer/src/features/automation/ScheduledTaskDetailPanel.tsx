@@ -468,10 +468,10 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
                       onValueChange={(value) => update({ reasoningEffort: value || null })}
                     />
                   </Field>
-                  <Field label="沙箱">
+                  <Field label="文件访问范围">
                     <Select
                       triggerClassName={!editable ? 'automation-readonly-control' : undefined}
-                      ariaLabel="沙箱权限"
+                      ariaLabel="文件访问范围"
                       disabled={!editable}
                       value={draft.permissionConfig.sandboxMode}
                       options={[

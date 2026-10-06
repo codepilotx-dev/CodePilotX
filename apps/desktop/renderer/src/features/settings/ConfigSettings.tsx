@@ -228,7 +228,7 @@ export function ConfigSettings(): React.ReactNode {
             />
             <SettingsRow
               title="文件访问范围"
-              description="选择结构化文件工具的访问范围；终端命令始终在本机执行，并经过风险、Hook 和审批门禁。"
+              description="约束内建文件工具；Shell 始终在宿主机执行。网络授权属于审批范围，不提供网络隔离。"
               control={
                 <SettingsDropdown
                   width={260}

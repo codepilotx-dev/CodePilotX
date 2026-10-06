@@ -1,3 +1,4 @@
+import { FULL_ACCESS_PERMISSION_CONFIG } from '@codepilotx/shared/thread'
 import type { Automation, AutomationRun, AutomationSchedule } from '@codepilotx/shared/automation'
 import type { DesktopSessionListItem } from '../../../shared/types.js'
 
@@ -72,9 +73,8 @@ export function defaultAutomationDraft(input: {
     model: input.model,
     reasoningEffort: null,
     permissionConfig: {
+      ...FULL_ACCESS_PERMISSION_CONFIG,
       sandboxMode: 'workspace-write',
-      approvalPolicy: 'never',
-      approvalsReviewer: 'user',
     },
     schedule: template?.schedule ?? { mode: 'daily', time: '09:00' },
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',

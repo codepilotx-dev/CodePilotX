@@ -1,3 +1,8 @@
+import {
+  DEFAULT_PERMISSION_CONFIG,
+  AUTO_REVIEW_PERMISSION_CONFIG,
+  FULL_ACCESS_PERMISSION_CONFIG,
+} from '@codepilotx/shared/thread'
 import type {
   ApprovalRequest,
   Input,
@@ -42,19 +47,13 @@ export function agentQuestionIdFromRequestId(requestId: string): string | null {
 export function desktopPermissionModeToPermissionConfig(
   mode: DesktopPermissionMode | undefined,
 ): PermissionConfig {
-  if (mode === 'auto-review')
-    return {
-      sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
-      approvalsReviewer: 'auto_review',
-    }
-  if (mode === 'full-access')
-    return {
-      sandboxMode: 'danger-full-access',
-      approvalPolicy: 'never',
-      approvalsReviewer: 'auto_review',
-    }
-  return { sandboxMode: 'workspace-write', approvalPolicy: 'on-request', approvalsReviewer: 'user' }
+  return {
+    ...(mode === 'auto-review'
+      ? AUTO_REVIEW_PERMISSION_CONFIG
+      : mode === 'full-access'
+        ? FULL_ACCESS_PERMISSION_CONFIG
+        : DEFAULT_PERMISSION_CONFIG),
+  }
 }
 
 export function agentTurnStatusToDesktopStatus(

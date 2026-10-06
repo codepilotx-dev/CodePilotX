@@ -725,7 +725,7 @@ describe('desktop thread settings client', () => {
       permissionConfig: {
         sandboxMode: 'danger-full-access',
         approvalPolicy: 'never',
-        approvalsReviewer: 'auto_review',
+        approvalsReviewer: 'user',
       },
       taskMode: 'chat',
     })

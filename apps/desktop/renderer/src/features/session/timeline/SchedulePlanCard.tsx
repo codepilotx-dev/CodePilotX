@@ -296,7 +296,7 @@ export function SchedulePlanCard({ item }: { item: ToolItem }): React.ReactNode 
             />
           ) : null}
           <Select
-            ariaLabel="沙箱权限"
+            ariaLabel="文件访问范围"
             disabled={busy}
             value={defaults.permissionConfig.sandboxMode}
             options={[

@@ -1,3 +1,8 @@
+import {
+  DEFAULT_PERMISSION_CONFIG,
+  AUTO_REVIEW_PERMISSION_CONFIG,
+  FULL_ACCESS_PERMISSION_CONFIG,
+} from '@codepilotx/shared/thread'
 export type CodePilotXApprovalsReviewer = 'user' | 'auto_review'
 export type CodePilotXSandboxMode = 'read-only' | 'workspace-write' | 'danger-full-access'
 
@@ -87,30 +92,19 @@ export function isDesktopAgentPermissionMode(value: unknown): value is DesktopAg
 export function permissionPolicyForDesktopMode(
   mode: DesktopAgentPermissionMode | string | undefined,
 ): AgentPermissionPolicy {
-  switch (normalizeDesktopAgentPermissionMode(mode)) {
-    case 'auto-review':
-      return {
-        profile: ':workspace',
-        approvalMode: 'on-request',
-        approvalsReviewer: 'auto_review',
-        sandboxMode: 'workspace-write',
-        sandboxPolicy: ':workspace',
-      }
-    case 'full-access':
-      return {
-        profile: ':danger-full-access',
-        approvalMode: 'never',
-        approvalsReviewer: 'user',
-        sandboxMode: 'danger-full-access',
-        sandboxPolicy: ':danger-full-access',
-      }
-    default:
-      return {
-        profile: ':workspace',
-        approvalMode: 'on-request',
-        approvalsReviewer: 'user',
-        sandboxMode: 'workspace-write',
-        sandboxPolicy: ':workspace',
-      }
+  const normalized = normalizeDesktopAgentPermissionMode(mode)
+  const config =
+    normalized === 'full-access'
+      ? FULL_ACCESS_PERMISSION_CONFIG
+      : normalized === 'auto-review'
+        ? AUTO_REVIEW_PERMISSION_CONFIG
+        : DEFAULT_PERMISSION_CONFIG
+  const profile = config.sandboxMode === 'danger-full-access' ? ':danger-full-access' : ':workspace'
+  return {
+    profile,
+    sandboxPolicy: profile,
+    sandboxMode: config.sandboxMode,
+    approvalMode: config.approvalPolicy,
+    approvalsReviewer: config.approvalsReviewer,
   }
 }

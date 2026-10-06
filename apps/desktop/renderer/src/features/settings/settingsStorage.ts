@@ -1,3 +1,8 @@
+import {
+  DEFAULT_PERMISSION_CONFIG,
+  AUTO_REVIEW_PERMISSION_CONFIG,
+  FULL_ACCESS_PERMISSION_CONFIG,
+} from '@codepilotx/shared/thread'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import type {
   DesktopPermissionConfig,
@@ -29,7 +34,8 @@ export const PERMISSION_MODE_OPTIONS: Array<{
   {
     value: 'full-access',
     label: '完全访问权限',
-    detail: '所有工具以当前 Windows 用户权限执行，仅保留 hard-deny、规则和项目 Hook（风险很高）。',
+    detail:
+      '内建文件工具可访问工作区外路径；Shell 在宿主执行。保留硬拒绝、Plan、规则和 Hook；需要新增授权时拒绝执行。',
   },
   {
     value: 'custom',
@@ -89,12 +95,12 @@ export function permissionModeForConfig(config: DesktopPermissionConfig): Deskto
 }
 
 export function permissionConfigForMode(mode: DesktopPermissionMode): DesktopPermissionConfig {
-  if (mode === 'full-access')
-    return { sandboxMode: 'danger-full-access', approvalPolicy: 'never', approvalsReviewer: 'user' }
   return {
-    sandboxMode: 'workspace-write',
-    approvalPolicy: 'on-request',
-    approvalsReviewer: mode === 'auto-review' ? 'auto_review' : 'user',
+    ...(mode === 'full-access'
+      ? FULL_ACCESS_PERMISSION_CONFIG
+      : mode === 'auto-review'
+        ? AUTO_REVIEW_PERMISSION_CONFIG
+        : DEFAULT_PERMISSION_CONFIG),
   }
 }
 

@@ -1,3 +1,4 @@
+import { DEFAULT_PERMISSION_CONFIG } from '@codepilotx/shared/thread'
 import {
   DESKTOP_AGENT_PERMISSION_MODES,
   isDesktopAgentPermissionMode,
@@ -148,11 +149,7 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     enableFusionRouter: false,
     enableAutoReviewPermissionMode: false,
     enableFullAccessPermissionMode: false,
-    permissionConfig: {
-      sandboxMode: 'workspace-write',
-      approvalPolicy: 'on-request',
-      approvalsReviewer: 'user',
-    },
+    permissionConfig: { ...DEFAULT_PERMISSION_CONFIG },
     shellSecurityLevel: 'balanced',
     terminalProfileId: null,
     model: '',
