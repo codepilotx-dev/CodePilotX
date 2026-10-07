@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { createContext, useContext } from 'react'
 import type { ModelPreset } from '../../modelPresets.js'
-import type { DesktopUserMessageInput, DesktopGitStatus, DesktopPermissionDecision, DesktopPermissionMode, DesktopPermissionRequest, DesktopSessionStatus, DesktopWorkspace, DesktopThreadGoal, DesktopBrowserState } from '../../../shared/types.js'
+import type { DesktopReviewSource, DesktopUserMessageInput, DesktopGitStatus, DesktopPermissionDecision, DesktopPermissionMode, DesktopPermissionRequest, DesktopSessionStatus, DesktopWorkspace, DesktopThreadGoal, DesktopBrowserState } from '../../../shared/types.js'
 import type { OpenPlanInDockRequest } from './workflow/WorkflowPlanCard.js'
 import type { MarkdownFileOpenOptions, MarkdownFileReference } from '../markdown/index.js'
 import type { DesktopComposerProps } from './composer/DesktopComposer.js'
@@ -37,6 +37,9 @@ export type QuickChatContextValue = {
   branches: string[]
   diff: string
   gitStatus: DesktopGitStatus | null
+  gitDetection?: import('../../../shared/types.js').DesktopGitDetectionState
+  reviewSource?: DesktopReviewSource
+  reviewSummary?: import('../review/source/reviewAgentClient.js').ReviewSummarySnapshot | null
   recentWorkspaces: DesktopWorkspace[]
   recentTasks: NewSessionRecentTask[]
   titleRegenerating: boolean
@@ -47,7 +50,7 @@ export type QuickChatContextValue = {
   onCreateBranch: () => void
   onOpenAutomation: () => void
   onOpenWorkspacePath: () => void
-  onOpenRightDock: (tool: 'review') => void
+  onOpenRightDock: (tool: 'review', source?: DesktopReviewSource) => void
   onOpenPatchReview: (path?: string) => void
   onOpenPlanInRightDock: (plan: OpenPlanInDockRequest) => void
   onOpenFileReference: (reference: MarkdownFileReference, options: MarkdownFileOpenOptions) => void
@@ -74,6 +77,8 @@ export type QuickChatContextValue = {
   onToggleSidebar: () => void
   onToggleSessionPinned: () => void
   onCommitOrPush: () => void
+  onGitOperation?: (operation: 'commit' | 'push') => void
+  onOpenTerminal?: () => void
   onCreatePullRequest: () => void
   onChooseWorkspace: () => Promise<DesktopWorkspace | null>
   onCloneGithub: () => void

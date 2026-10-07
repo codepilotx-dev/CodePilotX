@@ -11,9 +11,51 @@ import {
   resolveWorkspaceGitProjection,
   type WorkspaceGitProjectionLoaders,
   workspaceIdentity,
+  shouldApplyWorkspaceGitProjection,
 } from '../src/features/workspace/useWorkspaceState.js'
 
 describe('workspace refresh coordination', () => {
+  test('publishes repository type before slow Review statistics finish', async () => {
+    let finish!: () => void
+    const pending = new Promise<void>((resolve) => { finish = resolve })
+    let detected: string | null = null
+    let completed = false
+    const result = resolveWorkspaceGitProjection(workspace(), {
+      loadGitStatus: async () => ({ ok: true, status: gitStatus('dev', []) }),
+      loadBranches: async () => [],
+      loadReviewSummary: async (source) => {
+        await pending
+        return reviewAgentSummaryResult(source.kind, [])
+      },
+    }, (projection) => { detected = projection.detection })
+    void result.then(() => { completed = true })
+    await Promise.resolve()
+    expect(detected).toBe('git')
+    expect(completed).toBe(false)
+    finish()
+    expect((await result).detection).toBe('git')
+  })
+  test('rejects results from previous projects and earlier requests, including A to B to A', () => {
+    const a = workspaceIdentity(workspace())
+    const b = workspaceIdentity(workspace({ projectId: 'other', path: 'C:\\Other' }))
+    expect(shouldApplyWorkspaceGitProjection(a, 1, a, 1)).toBe(true)
+    expect(shouldApplyWorkspaceGitProjection(b, 2, a, 1)).toBe(false)
+    expect(shouldApplyWorkspaceGitProjection(a, 3, b, 2)).toBe(false)
+    expect(shouldApplyWorkspaceGitProjection(a, 3, a, 1)).toBe(false)
+    expect(shouldApplyWorkspaceGitProjection(a, 4, a, 3)).toBe(false)
+    expect(shouldApplyWorkspaceGitProjection(null, 5, a, 4)).toBe(false)
+  })
+
+  test('an error message that mentions non-repository does not confirm non-Git', async () => {
+    const original = workspace({ isGitRepo: true })
+    const result = await resolveWorkspaceGitProjection(original, {
+      loadGitStatus: async () => ({ ok: false, error: 'REPOSITORY_NOT_FOUND' }),
+      loadBranches: async () => { throw new Error('must not load') },
+      loadReviewSummary: async () => { throw new Error('must not load') },
+    })
+    expect(result.detection).toBe('error')
+    expect(result.workspace).toBe(original)
+  })
   test('normalizes paths while preserving project and folder identity', () => {
     const first = workspace({
       path: 'C:\\Code\\Project\\',
@@ -139,7 +181,7 @@ describe('workspace refresh coordination', () => {
       {
         loadGitStatus: async () => {
           calls.gitStatus += 1
-          return { ok: false, error: 'REPOSITORY_NOT_FOUND' }
+          return { ok: false, error: '非仓库', errorCode: 'REPOSITORY_NOT_FOUND' }
         },
         loadBranches: async () => {
           calls.branches += 1
@@ -164,7 +206,7 @@ describe('workspace refresh coordination', () => {
     })
   })
 
-  test('non-Git git status rejection skips branches and both Review loaders', async () => {
+  test('Git status rejection is an error and preserves the known workspace type', async () => {
     const calls = { gitStatus: 0, branches: 0, unstaged: 0, staged: 0 }
     const result = await resolveWorkspaceGitProjection(workspace(), {
       loadGitStatus: async () => {
@@ -186,7 +228,8 @@ describe('workspace refresh coordination', () => {
     expect(calls.unstaged).toBe(0)
     expect(calls.staged).toBe(0)
     expect(result.gitStatus).toBeNull()
-    expect(result.workspace).toMatchObject({ isGitRepo: false, branches: [] })
+    expect(result.detection).toBe('error')
+    expect(result.workspace).toEqual(workspace())
   })
 
   test('Git repository loads branches and both Review summaries with merged stats', async () => {

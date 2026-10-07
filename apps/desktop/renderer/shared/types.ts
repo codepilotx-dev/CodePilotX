@@ -236,6 +236,7 @@ export type DesktopDiffSummary = {
 export type DesktopReviewScope = 'unstaged' | 'staged'
 
 export type DesktopReviewSource =
+  | { kind: 'uncommitted' }
   | { kind: 'unstaged' }
   | { kind: 'staged' }
   | { kind: 'branch'; baseBranch: string }
@@ -275,6 +276,8 @@ export type DesktopReviewDiffHunk = {
 }
 
 export type DesktopReviewDiffFile = {
+  partialHunks?: DesktopReviewDiffHunk[]
+  fullContext?: boolean
   path: string
   originalPath?: string
   status: string
@@ -374,7 +377,9 @@ export type DesktopGitStatus = {
 }
 
 export type DesktopGitStatusResult =
-  { ok: true; status: DesktopGitStatus } | { ok: false; error: string }
+  { ok: true; status: DesktopGitStatus } | { ok: false; error: string; errorCode?: string }
+
+export type DesktopGitDetectionState = 'loading' | 'git' | 'non-git' | 'error'
 
 export type CreateBranchInput = {
   projectId?: string

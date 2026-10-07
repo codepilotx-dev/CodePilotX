@@ -3,6 +3,7 @@ import React from 'react'
 import { AnimatePresence, motion, useIsPresent } from 'motion/react'
 import { useNavigate } from 'react-router-dom'
 import { Dropdown as DropdownMenu } from '../../../components/ui/floating/Dropdown.js'
+import { commandMenuActionStore } from '../../search/commandMenuActionStore.js'
 import {
   AppWindow,
   Archive,
@@ -81,6 +82,7 @@ import {
   resolveThreadSummaryAgentsAutoCollapse,
   THREAD_SUMMARY_AGENTS_AUTO_COLLAPSE_DELAY_MS,
 } from '../summary/threadSummaryState.js'
+import { useBranchReviewSummary } from '../summary/useBranchReviewSummary.js'
 import { deriveThreadSummaryViewModel } from '../summary/threadSummaryViewModel.js'
 import type { Item } from '@codepilotx/shared/thread'
 import {
@@ -146,8 +148,10 @@ export function ConversationPage(): React.ReactNode {
     workspacePath,
     branchName,
     branches,
-    diff,
     gitStatus,
+    gitDetection,
+    reviewSource,
+    reviewSummary,
     browserTabs,
     threadGoal,
     onGoalPause,
@@ -165,6 +169,8 @@ export function ConversationPage(): React.ReactNode {
     onToggleSessionPinned,
     onBranchSelect,
     onCommitOrPush,
+    onGitOperation,
+    onOpenTerminal,
     onCreatePullRequest,
     onDecidePermission,
     onOpenRightDock,
@@ -192,6 +198,10 @@ export function ConversationPage(): React.ReactNode {
     setSidebarSessionPins,
   } = useDesktopSettings()
   const canonicalConversation = useCanonicalThreadConversation(activeSessionId)
+  const environmentActions = React.useSyncExternalStore(commandMenuActionStore.subscribe,
+    commandMenuActionStore.getSnapshot, commandMenuActionStore.getServerSnapshot)
+  const handoffAction = environmentActions.find((action) =>
+    action.id === `environment.handoff.${activeSessionId}` && action.availability === 'available')
   const pendingPlanApproval = canonicalConversation.state?.pendingPlanApproval
   const planModel = composerProps?.modelPresets.find(
     (preset) => preset.id === composerProps.selectedModelPreset,
@@ -455,7 +465,8 @@ export function ConversationPage(): React.ReactNode {
     hasPlan: composerExecutionPlan !== null,
     changedFileCount: conversationChangeSummary.files.length,
   })
-  const workspaceDiffSummary = React.useMemo(() => summarizeDiff(diff), [diff])
+  const branchReviewState = useBranchReviewSummary(workspacePath, gitStatus, reviewSource, reviewSummary)
+  const branchReviewSummary = branchReviewState.snapshot
   const sourceLinks = canonicalAuxiliary.sourceLinks
   const canonicalAttachments = React.useMemo(
     () =>
@@ -481,14 +492,23 @@ export function ConversationPage(): React.ReactNode {
   const threadSummaryModel = React.useMemo(
     () =>
       deriveThreadSummaryViewModel({
+        repositoryRoot: branchReviewSummary?.repositoryRoot,
+        gitDetection,
         sessionId: activeSessionId,
         workspaceName,
         workspacePath,
         branchName,
         hasGitRepository: Boolean(gitStatus),
         changedFileCount: workspaceChangedFileCount,
-        additions: workspaceDiffSummary.additions,
-        deletions: workspaceDiffSummary.deletions,
+        additions: 0,
+        deletions: 0,
+        branchChanges: branchReviewSummary
+          ? {
+              fileCount: branchReviewSummary.totals.files,
+              additions: branchReviewSummary.totals.additions,
+              deletions: branchReviewSummary.totals.deletions,
+            }
+          : null,
         goal: threadGoal,
         attachments: canonicalAttachments,
         contextReferences: canonicalContextReferences,
@@ -502,8 +522,9 @@ export function ConversationPage(): React.ReactNode {
       workspaceName,
       branchName,
       gitStatus,
+    gitDetection,
       workspaceChangedFileCount,
-      workspaceDiffSummary,
+      branchReviewSummary,
       threadGoal,
       canonicalAttachments,
       canonicalContextReferences,
@@ -924,6 +945,10 @@ export function ConversationPage(): React.ReactNode {
     onArchiveSession()
   }
 
+  const openBranchReview = React.useCallback((): void => {
+    onOpenRightDock('review', { kind: 'branch', baseBranch: branchReviewState.source.baseBranch })
+  }, [onOpenRightDock, branchReviewState.source.baseBranch])
+
   const openReviewSidebar = React.useCallback((): void => {
     onRefreshDiff()
     onOpenRightDock('review')
@@ -1186,7 +1211,7 @@ export function ConversationPage(): React.ReactNode {
   ])
 
   const workspaceHeaderActions = React.useMemo(() => {
-    const summaryAvailable = threadSummaryModel.hasContent
+    const summaryAvailable = !isThreadLoading && threadSummaryModel.hasContent
     const summaryPanel = (
       <ThreadSummaryErrorBoundary>
         <ThreadSummaryPanel
@@ -1199,12 +1224,20 @@ export function ConversationPage(): React.ReactNode {
           onCommitOrPush={onCommitOrPush}
           onCreateBranch={onCreateBranch}
           onCreatePullRequest={onCreatePullRequest}
+          onCreateOutput={() => onAppendComposerText('请帮我创建文件或站点：')}
+          onGitOperation={onGitOperation}
+          onOpenEnvironmentSettings={() => navigate(`/settings/local-environment?threadId=${encodeURIComponent(activeSessionId ?? '')}`)}
+          onOpenTerminal={onOpenTerminal}
+          pushEnabled={Boolean(gitStatus?.branchName && (!gitStatus.upstream || gitStatus.ahead > 0))}
+          onMoveToWorktree={handoffAction ? () => { void handoffAction.execute() } : undefined}
           onGoalPause={onGoalPause}
           onGoalResume={onGoalResume}
           onOpenArtifact={onOpenArtifact}
           onOpenAttachment={onOpenAttachment}
           onOpenLocalContext={onOpenLocalContext}
-          onOpenReview={openReviewSidebar}
+          onOpenReview={openBranchReview}
+          onRetryGitDetection={onRefreshDiff}
+          changesLoading={branchReviewState.loading}
           onOpenSubagent={onOpenSubagent}
           onOpenWorkspacePath={onOpenWorkspacePath}
           onStopSubagent={handleStopSubagent}
@@ -1248,7 +1281,7 @@ export function ConversationPage(): React.ReactNode {
     return (
       <div className="chat-session-actions tw:inline-flex tw:flex-none tw:items-center tw:gap-1 tw:whitespace-nowrap">
         {threadSummary.displayMode === 'overlay' ? (
-          threadSummaryModel.hasContent ? (
+          summaryAvailable ? (
             <ThreadSummaryPopover
               open={threadSummary.isPopoverOpen}
               panel={summaryPanel}
@@ -1269,6 +1302,16 @@ export function ConversationPage(): React.ReactNode {
     activeSessionId,
     collapsedSections,
     toggleSummarySection,
+    isThreadLoading,
+    onRefreshDiff,
+    openBranchReview,
+    branchReviewState.loading,
+    onGitOperation,
+    onOpenTerminal,
+    gitStatus,
+    gitDetection,
+    handoffAction,
+    onAppendComposerText,
     handleStopSubagent,
     browserTabs,
     threadGoal,
@@ -1487,7 +1530,7 @@ export function ConversationPage(): React.ReactNode {
           ref={workflowMainRef}
           className="workflow-page__main tw:relative tw:flex tw:min-w-0 tw:min-h-0 tw:flex-1 tw:flex-col tw:bg-transparent"
           data-thread-summary-inline={
-            (threadSummary.shouldShowInline && threadSummaryModel.hasContent) || undefined
+            (!isThreadLoading && threadSummary.shouldShowInline && threadSummaryModel.hasContent) || undefined
           }
           data-thread-summary-mode={threadSummary.displayMode}
         >
@@ -1576,7 +1619,7 @@ export function ConversationPage(): React.ReactNode {
             </ThreadScrollLayout>
           </div>
           <AnimatePresence initial={false}>
-            {threadSummary.shouldShowInline && threadSummaryModel.hasContent ? (
+            {!isThreadLoading && threadSummary.shouldShowInline && threadSummaryModel.hasContent ? (
               <ThreadSummaryInlinePresence key="thread-summary-inline" reducedMotion={reduceMotion}>
                 <ThreadSummaryErrorBoundary>
                   <ThreadSummaryPanel
@@ -1589,12 +1632,20 @@ export function ConversationPage(): React.ReactNode {
                     onCommitOrPush={onCommitOrPush}
                     onCreateBranch={onCreateBranch}
                     onCreatePullRequest={onCreatePullRequest}
+                    onCreateOutput={() => onAppendComposerText('请帮我创建文件或站点：')}
+                    onGitOperation={onGitOperation}
+                    onOpenEnvironmentSettings={() => navigate(`/settings/local-environment?threadId=${encodeURIComponent(activeSessionId ?? '')}`)}
+                    onOpenTerminal={onOpenTerminal}
+                    pushEnabled={Boolean(gitStatus?.branchName && (!gitStatus.upstream || gitStatus.ahead > 0))}
+                    onMoveToWorktree={handoffAction ? () => { void handoffAction.execute() } : undefined}
                     onGoalPause={onGoalPause}
                     onGoalResume={onGoalResume}
                     onOpenArtifact={onOpenArtifact}
                     onOpenAttachment={onOpenAttachment}
                     onOpenLocalContext={onOpenLocalContext}
-                    onOpenReview={openReviewSidebar}
+                    onOpenReview={openBranchReview}
+          onRetryGitDetection={onRefreshDiff}
+                    changesLoading={branchReviewState.loading}
                     onOpenSubagent={onOpenSubagent}
                     onOpenWorkspacePath={onOpenWorkspacePath}
                     onStopSubagent={handleStopSubagent}
@@ -1730,22 +1781,4 @@ export function shouldShowComposerStatusSummary({
   changedFileCount: number
 }): boolean {
   return hasPlan || changedFileCount > 0
-}
-
-function summarizeDiff(diff: string): { additions: number; deletions: number } {
-  let additions = 0
-  let deletions = 0
-
-  for (const line of diff.split(/\r?\n/)) {
-    if (line.startsWith('+++') || line.startsWith('---')) continue
-    if (line.startsWith('+')) {
-      additions += 1
-      continue
-    }
-    if (line.startsWith('-')) {
-      deletions += 1
-    }
-  }
-
-  return { additions, deletions }
 }

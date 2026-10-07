@@ -1,4 +1,5 @@
 import type { Project } from '@codepilotx/shared'
+import { AgentRpcError } from '../agentRpcClient.js'
 import type { ProtocolCapability } from '@codepilotx/agent-protocol'
 import type {
   DesktopGithubAuthStatus,
@@ -264,7 +265,8 @@ export function createAgentGitApi({
           return { ok: true as const, status: desktopGitStatus(result.status) }
         })
       } catch (error) {
-        return { ok: false as const, error: operationError(error) }
+        return { ok: false as const, error: operationError(error),
+          ...(error instanceof AgentRpcError && error.errorCode ? { errorCode: error.errorCode } : {}) }
       }
     },
     checkoutWorkspaceBranch: async (workspacePath, branchName, projectId) =>

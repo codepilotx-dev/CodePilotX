@@ -83,6 +83,7 @@ export type ThreadSummaryArtifact = {
 }
 
 export type ThreadSummaryViewModel = {
+  gitDetection: import('../../../../shared/types.js').DesktopGitDetectionState
   hasContent: boolean
   environment: ThreadSummaryEnvironment | null
   changes: ThreadSummaryChanges | null
@@ -110,6 +111,8 @@ const AGENT_WAITING_STATUSES: ReadonlySet<SubagentStatus> = new Set([
 ])
 
 export type ThreadSummaryViewModelInput = {
+  gitDetection?: import('../../../../shared/types.js').DesktopGitDetectionState
+  repositoryRoot?: string | null
   sessionId: string | null
   workspaceName: string | null
   workspacePath: string | null
@@ -118,6 +121,7 @@ export type ThreadSummaryViewModelInput = {
   changedFileCount: number
   additions: number
   deletions: number
+  branchChanges?: ThreadSummaryChanges | null
   goal: ThreadGoal | null
   attachments: readonly Attachment[]
   contextReferences: readonly LocalContextReference[]
@@ -135,7 +139,8 @@ export function deriveThreadSummaryViewModel(
   const isGitRepository = input.hasGitRepository
   const environment = normalizedWorkspacePath
     ? {
-        workspaceName: input.workspaceName?.trim() || null,
+        workspaceName: (input.repositoryRoot?.trim() || normalizedWorkspacePath)
+          .replace(/[\\/]+$/, '').split(/[\\/]/).pop() || input.workspaceName?.trim() || null,
         workspacePath: normalizedWorkspacePath,
         isGitRepository,
         branchName: normalizedBranchName,
@@ -148,15 +153,22 @@ export function deriveThreadSummaryViewModel(
           : '创建拉取请求前需要先创建或检出 Git 分支',
       }
     : null
-  const changes = normalizedWorkspacePath
-    ? {
-        fileCount: input.changedFileCount,
-        additions: input.additions,
-        deletions: input.deletions,
-      }
-    : null
+  const changes =
+    input.branchChanges !== undefined
+      ? input.branchChanges
+      : normalizedWorkspacePath
+        ? {
+            fileCount: input.changedFileCount,
+            additions: input.additions,
+            deletions: input.deletions,
+          }
+        : null
   const agents = input.subagents.map(({ task, currentRun }) =>
-    threadSummaryAgentFromProjection(task.id, task.displayName, currentRun?.status ?? 'interrupted'),
+    threadSummaryAgentFromProjection(
+      task.id,
+      task.displayName,
+      currentRun?.status ?? 'interrupted',
+    ),
   )
   const browserTabs = collectThreadSummaryBrowserTabs(input.browserTabs, input.sessionId)
   const sources = collectThreadSummarySources(input)
@@ -173,13 +185,14 @@ export function deriveThreadSummaryViewModel(
 
   return {
     hasContent: Boolean(
-      environment ||
+      !isGitRepository || environment ||
         goal ||
         (agents.length > 0) ||
         (browserTabs.length > 0) ||
         (sources.length > 0) ||
         (artifacts.length > 0),
     ),
+    gitDetection: input.gitDetection ?? (isGitRepository ? 'git' : 'non-git'),
     environment,
     changes,
     goal,

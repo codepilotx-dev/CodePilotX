@@ -8,7 +8,7 @@ import { cx } from '../../../utils/cx.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
 
-export type GitWorkflowMode = 'branch' | 'commitPush' | 'pullRequest'
+export type GitWorkflowMode = 'branch' | 'commitPush' | 'commit' | 'push' | 'pullRequest'
 
 const EMPTY_CHANGES: DesktopGitStatus['files'] = []
 
@@ -56,7 +56,8 @@ export function GitWorkflowModal({
   const changedFiles = gitStatus?.files ?? EMPTY_CHANGES
   const { onCloseAutoFocus } = useDialogFocusRestore(open)
   const title =
-    mode === 'branch' ? '创建分支' : mode === 'pullRequest' ? '创建 Pull Request' : '提交或推送'
+    mode === 'branch' ? '创建分支' : mode === 'pullRequest' ? '创建 Pull Request'
+      : mode === 'commit' ? '提交' : mode === 'push' ? '推送' : '提交或推送'
 
   useEffect(() => {
     if (!open) return
@@ -202,8 +203,9 @@ export function GitWorkflowModal({
               </label>
             </div>
           ) : null}
-          {mode === 'commitPush' ? (
+          {mode === 'commitPush' || mode === 'commit' || mode === 'push' ? (
             <div className={cx('git-workflow-form', 'tw:grid', 'tw:gap-3')}>
+              {mode !== 'push' ? <>
               <label>
                 <span>提交信息</span>
                 <textarea
@@ -239,6 +241,8 @@ export function GitWorkflowModal({
                   )}
                 </div>
               </div>
+              </> : null}
+              {mode !== 'commit' ? <>
               <label className="git-workflow-check">
                 <input
                   checked={setUpstream}
@@ -257,6 +261,7 @@ export function GitWorkflowModal({
                   <span>使用 --force-with-lease</span>
                 </label>
               ) : null}
+              </> : null}
             </div>
           ) : null}
           {mode === 'pullRequest' ? (
@@ -291,8 +296,9 @@ export function GitWorkflowModal({
             <Dialog.Close asChild>
               <Button color="secondary">取消</Button>
             </Dialog.Close>
-            {mode === 'commitPush' ? (
+            {mode === 'commitPush' || mode === 'commit' || mode === 'push' ? (
               <>
+                {mode !== 'push' ? (
                 <Button
                   color="secondary"
                   disabled={isSubmitting || changedFiles.length === 0}
@@ -301,6 +307,8 @@ export function GitWorkflowModal({
                 >
                   提交选中文件
                 </Button>
+                ) : null}
+                {mode !== 'commit' ? (
                 <Button
                   color="primary"
                   disabled={isSubmitting}
@@ -309,6 +317,7 @@ export function GitWorkflowModal({
                 >
                   推送
                 </Button>
+                ) : null}
               </>
             ) : (
               <Button

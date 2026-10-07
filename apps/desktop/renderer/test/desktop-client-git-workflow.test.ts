@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test'
 import type { Project } from '@codepilotx/shared'
 import { createDesktopClient } from '../src/services/desktop-client/index.js'
+import { createAgentGitApi } from '../src/services/desktop-client/agent-git-api.js'
+import { AgentRpcError } from '../src/services/agentRpcClient.js'
 
 const workspacePath = 'F:\\CodeProject\\clones\\fixture'
 const project: Project = {
@@ -45,6 +47,24 @@ const rpc = (id: string | number, result: unknown) =>
   })
 
 describe('desktop git workflow client', () => {
+  test('Git status preserves RPC error classification without parsing message text', async () => {
+    for (const code of ['REPOSITORY_NOT_FOUND', 'CAPABILITY_NOT_SUPPORTED']) {
+      const client = createAgentGitApi({
+        environment: {} as never,
+        ensureDesktopProjectTrusted: async (value) => value,
+        invalidateProjectCache: () => {},
+        loadProjectById: async () => project,
+        loadProjectForPath: async () => project,
+        operationError: () => '检测失败',
+        requireAgentCapability: () => {},
+        rpc: { call: async () => { throw new Error('unused') } },
+        withRequiredAgent: async () => { throw new AgentRpcError('安全错误', -32000, { code }) },
+      })
+      expect(await client.getWorkspaceGitStatus(workspacePath)).toEqual({
+        ok: false, error: '检测失败', errorCode: code,
+      })
+    }
+  })
   test('Electron 克隆、创建分支和切换分支都调用真实 Agent RPC', async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = []
     const client = createDesktopClient({

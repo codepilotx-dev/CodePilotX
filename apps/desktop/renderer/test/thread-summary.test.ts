@@ -1,4 +1,7 @@
 import { describe, expect, test } from 'bun:test'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { ThreadSummaryPanel } from '../src/features/session/summary/ThreadSummaryPanel.js'
 
 import type { ToolItem } from '@codepilotx/shared/thread'
 
@@ -207,6 +210,28 @@ describe('thread summary view model', () => {
     }
   }
 
+  test('uses branch totals independently of uncommitted files and keeps unavailable totals empty', () => {
+    const branchChanges = { fileCount: 42, additions: 463433, deletions: 242501 }
+    const model = deriveThreadSummaryViewModel(
+      buildSummaryInput({
+        changedFileCount: 0,
+        branchChanges,
+      }),
+    )
+    expect(model.changes).toEqual(branchChanges)
+    expect(model.environment?.changedFileCount).toBe(0)
+    expect(
+      deriveThreadSummaryViewModel(buildSummaryInput({ branchChanges: null })).changes,
+    ).toBeNull()
+    expect(
+      deriveThreadSummaryViewModel(
+        buildSummaryInput({
+          branchChanges: { fileCount: 0, additions: 0, deletions: 0 },
+        }),
+      ).changes,
+    ).toEqual({ fileCount: 0, additions: 0, deletions: 0 })
+  })
+
   function toolItem(
     overrides: Partial<ToolItem> & Pick<ToolItem, 'id' | 'callID' | 'createdAt'>,
   ): ToolItem {
@@ -251,7 +276,7 @@ describe('thread summary view model', () => {
     )
 
     expect(model.environment).toEqual({
-      workspaceName: 'CodePilotX',
+      workspaceName: 'CodePilotX-Ts',
       workspacePath: 'F:\\CodeProject\\CodePilotX-Ts',
       isGitRepository: true,
       branchName: 'feature/summary',
@@ -318,6 +343,53 @@ describe('thread summary view model', () => {
       createPullRequestEnabled: false,
       createPullRequestDisabledReason: '创建拉取请求前需要先创建或检出 Git 分支',
     })
+  })
+
+  test('keeps review enabled without statistics and shows loading only while pending', () => {
+    const model = deriveThreadSummaryViewModel(buildSummaryInput({ branchChanges: null }))
+    const props = {
+      model, branches: [], collapsedSections: new Set<never>(),
+      onToggleSection: () => {}, onBranchSelect: async () => {},
+      onCommitOrPush: () => {}, onCreateBranch: () => {}, onCreatePullRequest: () => {},
+      onOpenReview: () => {}, onOpenWorkspacePath: () => {},
+    }
+    const html = renderToStaticMarkup(createElement(ThreadSummaryPanel, props))
+    const reviewButton = html.match(/<button[^>]*title="打开分支变更审查"[^>]*>/)?.[0]
+    expect(reviewButton).toBeDefined()
+    expect(reviewButton).not.toContain('disabled')
+    expect(html).not.toContain('暂不可用')
+    expect(html).not.toContain('正在加载变更统计')
+    expect(renderToStaticMarkup(createElement(ThreadSummaryPanel, {
+      ...props, changesLoading: true,
+    }))).toContain('正在加载变更统计')
+  })
+
+  test('shows output empty state only for confirmed non-Git, preserving sources during detection', () => {
+    for (const gitDetection of ['loading', 'error', 'non-git', 'git'] as const) {
+      const model = deriveThreadSummaryViewModel(buildSummaryInput({
+        gitDetection, hasGitRepository: gitDetection === 'git', branchChanges: null,
+        sourceLinks: [{ label: '资料', url: 'https://example.com' }],
+      }))
+      const html = renderToStaticMarkup(createElement(ThreadSummaryPanel, {
+        model, branches: [], collapsedSections: new Set<never>(),
+        onToggleSection: () => {}, onBranchSelect: async () => {},
+        onCommitOrPush: () => {}, onCreateBranch: () => {}, onCreatePullRequest: () => {},
+        onOpenReview: () => {}, onOpenWorkspacePath: () => {}, onRetryGitDetection: () => {},
+      }))
+      expect(html.includes('创建文件或站点')).toBe(gitDetection === 'non-git')
+      expect(html).not.toContain('正在检测仓库')
+      expect(html.includes('仓库检测失败')).toBe(gitDetection === 'error')
+      expect(html).toContain('资料')
+    }
+  })
+
+  test('uses the repository root name when the workspace is a subdirectory', () => {
+    const model = deriveThreadSummaryViewModel(buildSummaryInput({
+      workspaceName: '自定义项目名',
+      workspacePath: 'F:\\CodeProject\\CodePilotX\\apps\\desktop',
+      repositoryRoot: 'F:\\CodeProject\\CodePilotX',
+    }))
+    expect(model.environment?.workspaceName).toBe('CodePilotX')
   })
 
   test('dedupes sources by identity and excludes drafts by construction', () => {
@@ -512,7 +584,7 @@ describe('thread summary view model', () => {
     ])
   })
 
-  test('reports no content when every section is empty', () => {
+  test('keeps the output empty state available without a repository', () => {
     const model = deriveThreadSummaryViewModel(
       buildSummaryInput({
         workspaceName: null,
@@ -525,7 +597,7 @@ describe('thread summary view model', () => {
       }),
     )
 
-    expect(model.hasContent).toBe(false)
+    expect(model.hasContent).toBe(true)
     expect(model.environment).toBeNull()
     expect(model.changes).toBeNull()
     expect(model.goal).toBeNull()

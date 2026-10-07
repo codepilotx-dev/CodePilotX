@@ -453,6 +453,7 @@ export function DesktopLayout(): React.ReactNode {
     setDiff: setDiffState,
     gitStatus,
   } = workspace
+  const gitDetection = workspace.gitDetection
 
   const derivedDefaultBranch = useMemo(() => {
     if (!gitStatus?.upstream) return null
@@ -1350,6 +1351,13 @@ export function DesktopLayout(): React.ReactNode {
   const prevSessionIdRef = useRef<string | null>(null)
   const hasInitializedSessionSwitchRef = useRef(false)
   const attachmentPreviewTabRef = useRef<UserAttachmentPreviewTab | null>(null)
+  const [publishedReviewSummary, setPublishedReviewSummary] = useState<{
+    workspacePath: string | null
+    snapshot: import('../../review/source/reviewAgentClient.js').ReviewSummarySnapshot | null
+  } | null>(null)
+  const handleReviewSummaryChange = useCallback((snapshot: import('../../review/source/reviewAgentClient.js').ReviewSummarySnapshot | null) => {
+    setPublishedReviewSummary({ workspacePath: currentWorkspace?.path ?? null, snapshot })
+  }, [currentWorkspace?.path])
   const [reviewTabState, setReviewTabState] = useState<ReviewTabUiState>(
     createDefaultReviewTabUiState,
   )
@@ -1823,7 +1831,7 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const isConversationLoading =
-    isConversationRoute && (!sessionsHydrated || sessionId !== routedSessionId)
+    isConversationRoute && (!sessionsHydrated || sessionId !== routedSessionId || gitDetection === 'loading')
   const branchName = getDesktopComposerBranchName(currentWorkspace)
   const quickChatRecentTasks = useMemo(() => {
     const workspaceKey = currentWorkspace?.path.replace(/\\/g, '/').toLowerCase() ?? null
@@ -1895,8 +1903,11 @@ export function DesktopLayout(): React.ReactNode {
       return next
     })
     setRecentWorkspaces((current) => [...current.filter((entry) => project.projectId ? entry.projectId !== project.projectId : entry.path !== project.path), project])
-    if (selected && !currentWorkspace) setWorkspaceState(project)
-  }), [currentWorkspace, settings, setRecentWorkspaces, setWorkspaceState])
+    if (selected && !currentWorkspace) {
+      setWorkspaceState(project)
+      void refreshWorkspace(project, { force: true })
+    }
+  }), [currentWorkspace, refreshWorkspace, settings, setRecentWorkspaces, setWorkspaceState])
 
   const handleRemoveWorkspace = useCallback(
     (target: DesktopWorkspace): void => {
@@ -2224,11 +2235,6 @@ export function DesktopLayout(): React.ReactNode {
           onCloneGithub: () => setGithubRepositoryModalOpen(true),
           onClearWorkspace: handleClearWorkspace,
           onOpenMcpSettings: () => navigate('/settings/plugins?tab=mcps'),
-          onOpenComputerSettings: () =>
-            navigate(
-              '/settings/computer' +
-                (routedSessionId ? '?threadId=' + encodeURIComponent(routedSessionId) : ''),
-            ),
           onOpenModelSettings: () => navigate('/settings/providers'),
           onOpenSideChat: sideChatSupported ? handleOpenSideChat : undefined,
           onSkillTokenActivate: (invocation) => {
@@ -2393,9 +2399,6 @@ export function DesktopLayout(): React.ReactNode {
         onCloneGithub={() => setGithubRepositoryModalOpen(true)}
         onClearWorkspace={handleClearWorkspace}
         onOpenMcpSettings={() => navigate('/settings/plugins?tab=mcps')}
-        onOpenComputerSettings={() =>
-          navigate('/settings/computer?threadId=' + encodeURIComponent(tab.threadId))
-        }
         onOpenModelSettings={() => navigate('/settings/providers')}
         onSkillTokenActivate={(invocation) => {
           void handleActivateComposerSkill(invocation)
@@ -2824,6 +2827,8 @@ export function DesktopLayout(): React.ReactNode {
         minHeight={bottomPanelMinHeight}
         reviewView={reviewView}
         reviewTabState={reviewTabState}
+        onReviewSummaryChange={handleReviewSummaryChange}
+        onOpenReviewFile={(path) => handleOpenFileFromBrowser(target, { path, name: path.split(/[\\/]/).pop() ?? path, type: 'file', depth: 0 })}
         planContentByEventId={planContentByEventId}
         selectedFile={selectedFile}
         sessionId={sessionId}
@@ -3001,6 +3006,10 @@ export function DesktopLayout(): React.ReactNode {
         diffMarkerStyle,
         reviewView,
         reviewTabState,
+      handleReviewSummaryChange,
+      handleOpenFileFromBrowser,
+        onReviewSummaryChange: handleReviewSummaryChange,
+        onOpenReviewFile: (path) => handleOpenFileFromBrowser('right', { path, name: path.split(/[\\/]/).pop() ?? path, type: 'file', depth: 0 }),
         sessionStatus,
         workspacePath: currentWorkspace?.path ?? null,
         onAppendComposerText: handleAppendComposerText,
@@ -3326,6 +3335,9 @@ export function DesktopLayout(): React.ReactNode {
             branches: currentWorkspace?.branches ?? EMPTY_BRANCHES,
             diff: workspace.diff,
             gitStatus,
+            gitDetection,
+            reviewSource: reviewTabState.source,
+            reviewSummary: publishedReviewSummary?.workspacePath === currentWorkspace?.path ? publishedReviewSummary?.snapshot : null,
             recentWorkspaces,
             recentTasks: quickChatRecentTasks,
             onArchiveSession: () => {
@@ -3335,7 +3347,13 @@ export function DesktopLayout(): React.ReactNode {
             onCreateBranch: handleCreateBranch,
             onOpenAutomation: () => navigate('/automations'),
             onOpenWorkspacePath: handleOpenWorkspacePath,
-            onOpenRightDock: handleOpenReview,
+            onOpenRightDock: (_tool, source) => {
+              if (source) setReviewTabState((current) => ({
+                ...current, source, selectedFile: null, selectedCommentId: null,
+                scrollTop: 0, diffExpansion: { mode: 'all' },
+              }))
+              handleOpenReview()
+            },
             onOpenPatchReview: handleOpenPatchReview,
             onOpenPlanInRightDock: handleOpenPlanDock,
             canCopyFileReferenceContents: canCopyMarkdownFileReferenceContents,
@@ -3379,6 +3397,8 @@ export function DesktopLayout(): React.ReactNode {
               })
             },
             onCommitOrPush: handleCommitOrPush,
+            onGitOperation: (operation) => setGitWorkflowMode(operation),
+            onOpenTerminal: () => { if (!terminalVisible) toggleIntegratedTerminal() },
             onCreatePullRequest: handleCreatePullRequest,
             onChooseWorkspace: handleChooseWorkspace,
             onCloneGithub: () => setGithubRepositoryModalOpen(true),

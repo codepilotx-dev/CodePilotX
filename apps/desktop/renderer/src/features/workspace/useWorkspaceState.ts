@@ -10,6 +10,7 @@ import type {
   DesktopFilePreview,
   DesktopGitStatus,
   DesktopGitStatusResult,
+  DesktopGitDetectionState,
   DesktopReviewSource,
   DesktopRuntimeStatus,
   DesktopWorkspace,
@@ -51,6 +52,13 @@ export function workspaceIdentity(workspace: DesktopWorkspace): string {
     workspace.primaryFolderId ?? '',
     normalizeWorkspacePath(workspace.path),
   ].join(':')
+}
+
+export function shouldApplyWorkspaceGitProjection(
+  currentIdentity: string | null, currentSequence: number,
+  requestIdentity: string, requestSequence: number,
+): boolean {
+  return currentIdentity === requestIdentity && currentSequence === requestSequence
 }
 
 export function createWorkspaceRefreshCoordinator<T>(
@@ -103,9 +111,7 @@ export function mergeWorkspaceGitProjection(
     ...context,
     branchName,
     branches,
-    // Git status/branches/Review 全部不可用（如非 Git 项目返回
-    // REPOSITORY_NOT_FOUND）时必须投影为 isGitRepo=false，不能继承
-    // 旧会话的陈旧 Git 标记，否则会把非 Git 项目误判为 Git 项目。
+    // 此处 null 仅用于已确认的非 Git；加载和失败不改写仓库类型。
     isGitRepo: gitStatus ? true : false,
   }
 }
@@ -145,6 +151,7 @@ export type WorkspaceGitProjectionLoaders = {
 }
 
 export type WorkspaceGitProjectionResult = {
+  detection: DesktopGitDetectionState
   workspace: DesktopWorkspace
   gitStatus: DesktopGitStatus | null
 }
@@ -152,6 +159,7 @@ export type WorkspaceGitProjectionResult = {
 export async function resolveWorkspaceGitProjection(
   context: DesktopWorkspace,
   loaders: WorkspaceGitProjectionLoaders,
+  onDetected?: (projection: WorkspaceGitProjectionResult) => void,
 ): Promise<WorkspaceGitProjectionResult> {
   let gitStatusResult: DesktopGitStatusResult | null = null
   try {
@@ -160,16 +168,21 @@ export async function resolveWorkspaceGitProjection(
     gitStatusResult = null
   }
 
-  // 非 Git 是受支持状态：Git status 返回 ok=false（含 REPOSITORY_NOT_FOUND）
-  // 或 reject 时直接投影为空 Git 表面，绝不继续调用 branches/Review RPC，
-  // 也无需向全局 onError 上报。
   if (!gitStatusResult?.ok) {
+    const nonGit = gitStatusResult?.ok === false && gitStatusResult.errorCode === 'REPOSITORY_NOT_FOUND'
     return {
-      workspace: mergeWorkspaceGitProjection(context, null, []),
+      detection: nonGit ? 'non-git' : 'error',
+      workspace: nonGit ? mergeWorkspaceGitProjection(context, null, []) : context,
       gitStatus: null,
     }
   }
 
+  onDetected?.({
+    detection: 'git',
+    workspace: mergeWorkspaceGitProjection(context, gitStatusResult.status,
+      (context.branches ?? []).map((name) => ({ name, remote: false }))),
+    gitStatus: gitStatusResult.status,
+  })
   const [branchesResult, unstagedResult, stagedResult] = await Promise.allSettled([
     loaders.loadBranches(),
     loaders.loadReviewSummary({ kind: 'unstaged' }),
@@ -181,6 +194,7 @@ export async function resolveWorkspaceGitProjection(
   const nextGitStatus = mergeWorkspaceReviewFileStats(gitStatusResult.status, summaries)
   const branches = branchesResult.status === 'fulfilled' ? branchesResult.value : []
   return {
+    detection: 'git',
     workspace: mergeWorkspaceGitProjection(context, nextGitStatus, branches),
     gitStatus: nextGitStatus,
   }
@@ -192,6 +206,7 @@ type WorkspaceRefreshResult = {
 }
 
 export type UseWorkspaceStateResult = {
+  gitDetection: DesktopGitDetectionState
   workspace: DesktopWorkspace | null
   authStatus: DesktopAuthStatus | null
   runtimeStatus: DesktopRuntimeStatus | null
@@ -222,6 +237,9 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
   const selectedFileRef = useRef<DesktopFilePreview | null>(null)
   const [diff, setDiff] = useState(NO_WORKSPACE_DIFF)
   const [gitStatus, setGitStatus] = useState<DesktopGitStatus | null>(null)
+  const [gitDetection, setGitDetection] = useState<DesktopGitDetectionState>('non-git')
+  const gitRequestSequenceRef = useRef(0)
+  const workspaceRequestSequenceRef = useRef(0)
   const activeSessionIdRef = useRef<string | null>(null)
   const appliedWorkspaceIdentityRef = useRef<string | null>(null)
   const onErrorRef = useRef(options.onError)
@@ -262,8 +280,19 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
   }, [])
 
   const setWorkspace = useCallback((nextWorkspace: DesktopWorkspace | null): void => {
-    setWorkspaceState(nextWorkspace)
-    appliedWorkspaceIdentityRef.current = nextWorkspace ? workspaceIdentity(nextWorkspace) : null
+    const identity = nextWorkspace ? workspaceIdentity(nextWorkspace) : null
+    if (identity !== appliedWorkspaceIdentityRef.current || !nextWorkspace) {
+      gitRequestSequenceRef.current += 1
+      workspaceRequestSequenceRef.current += 1
+      refreshCoordinatorRef.current?.reset()
+      setGitStatus(null)
+      setGitDetection(nextWorkspace ? 'loading' : 'non-git')
+    }
+    setWorkspaceState((previous) => nextWorkspace && previous && workspaceIdentity(previous) === identity
+      ? { ...nextWorkspace, isGitRepo: previous.isGitRepo,
+          branchName: previous.branchName, branches: previous.branches }
+      : nextWorkspace)
+    appliedWorkspaceIdentityRef.current = identity
     if (!nextWorkspace) {
       refreshCoordinatorRef.current?.reset()
       setGitStatus(null)
@@ -317,11 +346,16 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
         return
       }
       try {
+        if (workspaceIdentity(target) !== appliedWorkspaceIdentityRef.current) setWorkspace(target)
         const request = refreshCoordinatorRef.current?.load(target, {
           force: refreshOptions.force,
         })
         if (!request) return
+        gitRequestSequenceRef.current += 1
+        const requestSequence = ++workspaceRequestSequenceRef.current
         const result = await request
+        if (requestSequence !== workspaceRequestSequenceRef.current ||
+          workspaceIdentity(target) !== appliedWorkspaceIdentityRef.current) return
         if (
           refreshOptions.expectedSessionId !== undefined &&
           refreshOptions.expectedSessionId !== null &&
@@ -334,7 +368,6 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
           upsertRecentWorkspace(current, result.context),
         )
         setFiles(result.files)
-        setGitStatus(null)
         refreshCoordinatorRef.current?.markApplied(result.context)
         if (refreshOptions.clearSelectedFile ?? true) {
           setSelectedFile(null)
@@ -380,7 +413,19 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
 
   async function refreshWorkspaceGitProjection(target: DesktopWorkspace): Promise<void> {
     const identity = workspaceIdentity(target)
-    const { workspace: projected, gitStatus: nextGitStatus } = await resolveWorkspaceGitProjection(
+    if (appliedWorkspaceIdentityRef.current !== identity) return
+    const sequence = ++gitRequestSequenceRef.current
+    setGitDetection((previous) => previous === 'error' ? 'loading' : previous)
+    const applyProjection = ({ workspace: projected, gitStatus: nextGitStatus, detection }: WorkspaceGitProjectionResult) => {
+      if (!shouldApplyWorkspaceGitProjection(appliedWorkspaceIdentityRef.current,
+        gitRequestSequenceRef.current, identity, sequence)) return
+      setGitDetection(detection)
+      if (detection === 'error') return
+      setWorkspaceState(projected)
+      setGitStatus(nextGitStatus)
+      onRecentWorkspacesChangeRef.current((current) => upsertRecentWorkspace(current, projected))
+    }
+    const projection = await resolveWorkspaceGitProjection(
       target,
       {
         loadGitStatus: () => desktopClient.getWorkspaceGitStatus(target.path, target.projectId),
@@ -393,11 +438,9 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
             refresh: true,
           }),
       },
+      applyProjection,
     )
-    if (appliedWorkspaceIdentityRef.current !== identity) return
-    setWorkspaceState(projected)
-    setGitStatus(nextGitStatus)
-    onRecentWorkspacesChangeRef.current((current) => upsertRecentWorkspace(current, projected))
+    applyProjection(projection)
   }
 
   const chooseWorkspace = useCallback(async (): Promise<DesktopWorkspace | null> => {
@@ -446,6 +489,7 @@ export function useWorkspaceState(options: UseWorkspaceStateOptions): UseWorkspa
   )
 
   return {
+    gitDetection,
     workspace,
     authStatus,
     runtimeStatus,
