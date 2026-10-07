@@ -142,13 +142,9 @@ const NEW_SURFACE_COMMON_MODULES = [
 ] as const
 
 const NEW_SURFACE_MODULES: Record<string, readonly string[]> = {
-  coding: [
-    ...NEW_SURFACE_COMMON_MODULES,
-    'features/session/CodingHeadingTransition.tsx',
-    'features/session/NewSessionSuggestionPanel.tsx',
-  ],
-  working: [...NEW_SURFACE_COMMON_MODULES, 'features/session/WorkingNewSessionView.tsx'],
-  chat: [...NEW_SURFACE_COMMON_MODULES, 'features/session/ChatNewSessionView.tsx'],
+  coding: [...NEW_SURFACE_COMMON_MODULES, 'features/session/CodingHeadingTransition.tsx'],
+  working: NEW_SURFACE_COMMON_MODULES,
+  chat: NEW_SURFACE_COMMON_MODULES,
 }
 
 type BundleChunk = {
