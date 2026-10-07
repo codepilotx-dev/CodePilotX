@@ -172,7 +172,7 @@ export function SpecializedModelSelect({
 
   return (
     <SettingsDropdown
-      width={360}
+      size="lg"
       ariaLabel={label}
       value={displayValue}
       options={options}

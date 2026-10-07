@@ -1,21 +1,20 @@
 import type React from 'react'
-import * as RadixPopover from '@radix-ui/react-popover'
+import { Popover } from './floating/Popover.js'
 import { cx } from '../../utils/cx.js'
 import { useFloatingFocusModality } from '../../utils/floatingFocus.js'
 import { buildPopoverSizingStyle, type PopoverSizingProps } from './popoverSizing.js'
 
 export type AnchoredPopoverProps = PopoverSizingProps & {
-  align?: 'start' | 'center' | 'end'
   arrow?: boolean
+  align?: 'start' | 'center' | 'end'
   children: React.ReactNode
   className?: string
   collisionPadding?: number
   contentLabel?: string
   contentRole?: 'dialog'
   defaultOpen?: boolean
-  modal?: boolean
   onOpenChange?: (open: boolean) => void
-  onCloseAutoFocus?: React.ComponentProps<typeof RadixPopover.Content>['onCloseAutoFocus']
+  onCloseAutoFocus?: React.ComponentProps<typeof Popover.Content>['onCloseAutoFocus']
   open?: boolean
   side?: 'top' | 'right' | 'bottom' | 'left'
   sideOffset?: number
@@ -31,29 +30,28 @@ export function AnchoredPopover({
   contentLabel,
   contentRole,
   defaultOpen,
-  maxWidth,
-  modal = false,
   onOpenChange,
   onCloseAutoFocus,
   open,
   side = 'bottom',
   sideOffset = 4,
   trigger,
-  width,
+  size,
 }: AnchoredPopoverProps): React.ReactNode {
   const focusModality = useFloatingFocusModality()
   return (
-    <RadixPopover.Root
+    <Popover.Root
       defaultOpen={defaultOpen}
-      modal={modal}
+
       open={open}
       onOpenChange={onOpenChange}
     >
-      <RadixPopover.Trigger asChild {...focusModality.triggerInteractionProps}>
+      <Popover.Trigger asChild {...focusModality.triggerInteractionProps}>
         {trigger}
-      </RadixPopover.Trigger>
-      <RadixPopover.Portal>
-        <RadixPopover.Content
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          size={size ?? 'md'}
           onCloseAutoFocus={(event) => {
             onCloseAutoFocus?.(event)
             if (!event.defaultPrevented) focusModality.suppressFocusRingOnClose(event)
@@ -65,12 +63,12 @@ export function AnchoredPopover({
           role={contentRole}
           side={side}
           sideOffset={sideOffset}
-          style={buildPopoverSizingStyle({ maxWidth, width })}
+          style={buildPopoverSizingStyle({ size })}
         >
           {children}
-          {arrow ? <RadixPopover.Arrow className="popover-arrow" /> : null}
-        </RadixPopover.Content>
-      </RadixPopover.Portal>
-    </RadixPopover.Root>
+          {arrow ? <Popover.Arrow /> : null}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   )
 }

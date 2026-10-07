@@ -10,6 +10,7 @@ export interface ToastAction {
 
 export interface ToastItem {
   id: string
+  appearance?: 'action'
   tone: ToastTone
   message: React.ReactNode
   textKey: string
@@ -23,6 +24,7 @@ export interface ToastItem {
 
 export interface ShowToastOptions {
   id?: string
+  appearance?: 'action'
   tone?: ToastTone
   message: React.ReactNode
   duration?: number
@@ -163,6 +165,7 @@ export function createToastStore(options?: {
           ...existing,
           timestamp: now,
           message: toastOptions.message,
+          appearance: toastOptions.appearance,
           action: toastOptions.action,
           secondaryAction: toastOptions.secondaryAction,
         }
@@ -179,6 +182,7 @@ export function createToastStore(options?: {
     const existingByIdIndex = state.toasts.findIndex((t) => t.id === id)
     const newItem: ToastItem = {
       id,
+      appearance: toastOptions.appearance,
       tone,
       message: toastOptions.message,
       textKey,

@@ -1,5 +1,5 @@
 import type React from 'react'
-import * as Popover from '@radix-ui/react-popover'
+import { Popover as Popover } from '../../../components/ui/floating/Popover.js'
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import { cx } from '../../../utils/cx.js'
 import type { SidebarHoverCardOverlayRenderProps } from './SidebarHoverCard.js'
@@ -81,6 +81,7 @@ export function SidebarHoverCardSurface({
       />
       <Popover.Portal>
         <Popover.Content
+          size="md"
           asChild
           align="start"
           aria-label={ariaLabel}
@@ -130,7 +131,7 @@ export function SidebarHoverCardSurface({
         >
           <div
             className={cx(
-              'sidebar-hover-card-surface tw:z-tooltip tw:min-w-[220px] tw:max-w-[min(320px,calc(100vw-16px))] tw:rounded-xl tw:p-1 tw:text-left tw:text-app-text tw:pointer-events-auto tw:forced-colors:border tw:forced-colors:border-[CanvasText]',
+              'sidebar-hover-card-surface tw:z-tooltip tw:p-1 tw:text-left tw:text-app-text tw:pointer-events-auto tw:forced-colors:border tw:forced-colors:border-[CanvasText]',
               className,
             )}
           >

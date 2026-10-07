@@ -86,7 +86,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>): void => {
-      if (!isComposing) {
+      if (!isComposing && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) {
         if (event.key === 'Escape') {
           if (value.length > 0) {
             event.preventDefault()

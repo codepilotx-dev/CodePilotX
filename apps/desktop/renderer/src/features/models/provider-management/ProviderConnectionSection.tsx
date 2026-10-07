@@ -101,7 +101,9 @@ export function ProviderConnectionSection({
           <header className="model-center-detail-card-header tw:flex tw:items-center tw:justify-between tw:gap-3">
             <div>
               <h3 className="tw:m-0 tw:text-app-text tw:type-title-sm">此 Provider 暂不可用</h3>
-              <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">当前协议或 Endpoint 尚未适配，不能新增凭据或测试连接。</p>
+              <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">
+                当前协议或 Endpoint 尚未适配，不能新增凭据或测试连接。
+              </p>
             </div>
           </header>
         </section>
@@ -141,12 +143,17 @@ export function ProviderConnectionSection({
           <header className="model-center-detail-card-header tw:flex tw:items-center tw:justify-between tw:gap-3">
             <div>
               <h3 className="tw:m-0 tw:text-app-text tw:type-title-sm">Endpoint 连接配置</h3>
-              <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">自定义或本地服务的 API 地址。</p>
+              <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">
+                自定义或本地服务的 API 地址。
+              </p>
             </div>
           </header>
           <div className="model-center-detail-card-body tw:min-w-0">
             <div className="model-center-detail-field-row tw:flex tw:flex-wrap tw:items-end tw:gap-3">
-              <label className="model-center-detail-field tw:grid tw:min-w-0 tw:gap-2 tw:text-app-text tw:type-body" style={{ flex: 1 }}>
+              <label
+                className="model-center-detail-field tw:grid tw:min-w-0 tw:gap-2 tw:text-app-text tw:type-body"
+                style={{ flex: 1 }}
+              >
                 <span>Base URL</span>
                 <Input
                   className="tw:w-full tw:min-w-0"
@@ -173,7 +180,9 @@ export function ProviderConnectionSection({
           <header className="model-center-detail-card-header tw:flex tw:items-center tw:justify-between tw:gap-3">
             <div>
               <h3 className="tw:m-0 tw:text-app-text tw:type-title-sm">API 密钥凭据</h3>
-              <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">每个供应商支持保存多个 API Key；按优先级优先使用排在首位的活动凭据。</p>
+              <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">
+                每个供应商支持保存多个 API Key；按优先级优先使用排在首位的活动凭据。
+              </p>
             </div>
             <Button color="primary" onClick={onOpenNewKey}>
               <Plus aria-hidden size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -217,7 +226,9 @@ export function ProviderConnectionSection({
           <header className="model-center-detail-card-header tw:flex tw:items-center tw:justify-between tw:gap-3">
             <div>
               <h3 className="tw:m-0 tw:text-app-text tw:type-title-sm">OAuth 授权连接</h3>
-              <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">通过官方账号登录，连接此供应商。</p>
+              <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">
+                通过官方账号登录，连接此供应商。
+              </p>
             </div>
           </header>
           <div className="model-center-detail-card-body tw:min-w-0">
@@ -244,7 +255,10 @@ export function ProviderConnectionSection({
                 style={{ marginTop: 'var(--cpx-sys-space-3)' }}
               >
                 {oauthCredentials.map((connection) => (
-                  <div className="model-center-key-row tw:grid tw:min-w-0 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-3 tw:px-4 tw:py-3 tw:transition-[background-color,opacity] tw:duration-state tw:ease-standard tw:hover:bg-app-hover tw:data-[disabled=true]:opacity-62 tw:[&+&]:border-t tw:[&+&]:border-t-app-border-subtle tw:@max-[900px]:grid-cols-[auto_minmax(0,1fr)] tw:@max-[720px]:grid-cols-1 tw:@max-[720px]:items-stretch tw:@max-[720px]:p-4" key={connection.id}>
+                  <div
+                    className="model-center-key-row tw:grid tw:min-w-0 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-3 tw:px-4 tw:py-3 tw:transition-[background-color,opacity] tw:duration-state tw:ease-standard tw:hover:bg-app-hover tw:data-[disabled=true]:opacity-62 tw:[&+&]:border-t tw:[&+&]:border-t-app-border-subtle tw:@max-[900px]:grid-cols-[auto_minmax(0,1fr)] tw:@max-[720px]:grid-cols-1 tw:@max-[720px]:items-stretch tw:@max-[720px]:p-4"
+                    key={connection.id}
+                  >
                     <div className="tw:grid tw:min-w-0 tw:gap-1">
                       <strong className="tw:overflow-hidden tw:text-app-text tw:type-row-title tw:text-ellipsis tw:whitespace-nowrap">
                         {connection.label}
@@ -295,7 +309,9 @@ export function ProviderConnectionSection({
           <header className="model-center-detail-card-header tw:flex tw:items-center tw:justify-between tw:gap-3">
             <div>
               <h3 className="tw:m-0 tw:text-app-text tw:type-title-sm">用量与账单凭据</h3>
-              <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">绑定独立用量凭据以查看实时额度与消耗。</p>
+              <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">
+                绑定独立用量凭据以查看实时额度与消耗。
+              </p>
             </div>
           </header>
           <div className="model-center-detail-card-body tw:min-w-0">
@@ -344,7 +360,9 @@ export function ProviderConnectionSection({
           <header className="model-center-detail-card-header tw:flex tw:items-center tw:justify-between tw:gap-3">
             <div>
               <h3 className="tw:m-0 tw:text-app-text tw:type-title-sm">环境变量</h3>
-              <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">系统在运行环境中检测到以下可用凭据：</p>
+              <p className="tw:mt-1 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">
+                系统在运行环境中检测到以下可用凭据：
+              </p>
             </div>
           </header>
           <div className="model-center-detail-card-body tw:min-w-0">
@@ -354,7 +372,11 @@ export function ProviderConnectionSection({
                   className="tw:grid tw:min-h-10 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:py-2"
                   key={connection.id}
                 >
-                  <Cable className="tw:size-icon tw:text-app-text-soft" size={APP_ICON_SIZE} aria-hidden />
+                  <Cable
+                    className="tw:size-icon tw:text-app-text-soft"
+                    size={APP_ICON_SIZE}
+                    aria-hidden
+                  />
                   <span className="tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-sm)]">
                     {connection.label}
                   </span>
@@ -399,9 +421,13 @@ function ApiKeyRowItem({
   onToggleEnabled,
 }: ApiKeyRowItemProps): React.ReactNode {
   return (
-    <article className="model-center-key-row tw:grid tw:min-w-0 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-3 tw:px-4 tw:py-3 tw:transition-[background-color,opacity] tw:duration-state tw:ease-standard tw:hover:bg-app-hover tw:data-[disabled=true]:opacity-62 tw:[&+&]:border-t tw:[&+&]:border-t-app-border-subtle tw:@max-[900px]:grid-cols-[auto_minmax(0,1fr)] tw:@max-[720px]:grid-cols-1 tw:@max-[720px]:items-stretch tw:@max-[720px]:p-4" data-disabled={!keyItem.enabled || undefined}>
+    <article
+      className="model-center-key-row tw:grid tw:min-w-0 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-3 tw:px-4 tw:py-3 tw:transition-[background-color,opacity] tw:duration-state tw:ease-standard tw:hover:bg-app-hover tw:data-[disabled=true]:opacity-62 tw:[&+&]:border-t tw:[&+&]:border-t-app-border-subtle tw:@max-[900px]:grid-cols-[auto_minmax(0,1fr)] tw:@max-[720px]:grid-cols-1 tw:@max-[720px]:items-stretch tw:@max-[720px]:p-4"
+      data-disabled={!keyItem.enabled || undefined}
+    >
       <div className="model-center-key-order tw:grid tw:gap-1 tw:[&_button]:h-[30px] tw:[&_button]:min-h-[30px] tw:[&_button]:w-[30px] tw:[&_button]:min-w-[30px] tw:[&_svg]:size-icon-sm tw:@max-[720px]:flex">
-        <Button isIconOnly
+        <Button
+          isIconOnly
           color="ghostSecondary"
           disabled={busy || index <= 0}
           onClick={() => onMove(-1)}
@@ -410,7 +436,8 @@ function ApiKeyRowItem({
         >
           <ArrowUp size={APP_ICON_SIZES.sm} aria-hidden />
         </Button>
-        <Button isIconOnly
+        <Button
+          isIconOnly
           color="ghostSecondary"
           disabled={busy || last}
           onClick={() => onMove(1)}
@@ -423,8 +450,12 @@ function ApiKeyRowItem({
 
       <div className="model-center-key-main tw:grid tw:min-w-0 tw:gap-2">
         <div className="model-center-key-title tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-2">
-          <strong className="tw:min-w-0 tw:overflow-hidden tw:text-app-text tw:text-ellipsis tw:whitespace-nowrap tw:[font-size:var(--cpx-sys-font-size-md)] tw:type-weight-label">{keyItem.label}</strong>
-          <code className="tw:font-mono tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-xs)]">{keyItem.maskedValue}</code>
+          <strong className="tw:min-w-0 tw:overflow-hidden tw:text-app-text tw:text-ellipsis tw:whitespace-nowrap tw:[font-size:var(--cpx-sys-font-size-md)] tw:type-weight-label">
+            {keyItem.label}
+          </strong>
+          <code className="tw:font-mono tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-xs)]">
+            {keyItem.maskedValue}
+          </code>
           <span
             className="model-center-key-badge tw:inline-flex tw:min-h-[22px] tw:items-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:whitespace-nowrap tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-xs)] tw:type-weight-label tw:data-[tone=active]:border-app-accent-border tw:data-[tone=active]:bg-app-accent-subtle tw:data-[tone=active]:text-app-accent-fg tw:data-[tone=healthy]:border-app-success-border tw:data-[tone=healthy]:bg-app-success-subtle tw:data-[tone=healthy]:text-app-success tw:data-[tone=warning]:border-app-danger-border tw:data-[tone=warning]:bg-app-danger-subtle tw:data-[tone=warning]:text-app-danger"
             data-tone={keyItem.active ? 'active' : 'neutral'}
@@ -432,11 +463,17 @@ function ApiKeyRowItem({
             {keyItem.active ? '当前活动' : `优先级 #${index + 1}`}
           </span>
           {!keyItem.enabled ? (
-            <span className="model-center-key-badge tw:inline-flex tw:min-h-[22px] tw:items-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:whitespace-nowrap tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-xs)] tw:type-weight-label tw:data-[tone=active]:border-app-accent-border tw:data-[tone=active]:bg-app-accent-subtle tw:data-[tone=active]:text-app-accent-fg tw:data-[tone=healthy]:border-app-success-border tw:data-[tone=healthy]:bg-app-success-subtle tw:data-[tone=healthy]:text-app-success tw:data-[tone=warning]:border-app-danger-border tw:data-[tone=warning]:bg-app-danger-subtle tw:data-[tone=warning]:text-app-danger" data-tone="warning">
+            <span
+              className="model-center-key-badge tw:inline-flex tw:min-h-[22px] tw:items-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:whitespace-nowrap tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-xs)] tw:type-weight-label tw:data-[tone=active]:border-app-accent-border tw:data-[tone=active]:bg-app-accent-subtle tw:data-[tone=active]:text-app-accent-fg tw:data-[tone=healthy]:border-app-success-border tw:data-[tone=healthy]:bg-app-success-subtle tw:data-[tone=healthy]:text-app-success tw:data-[tone=warning]:border-app-danger-border tw:data-[tone=warning]:bg-app-danger-subtle tw:data-[tone=warning]:text-app-danger"
+              data-tone="warning"
+            >
               已停用
             </span>
           ) : null}
-          <span className="model-center-key-badge tw:inline-flex tw:min-h-[22px] tw:items-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:whitespace-nowrap tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-xs)] tw:type-weight-label tw:data-[tone=active]:border-app-accent-border tw:data-[tone=active]:bg-app-accent-subtle tw:data-[tone=active]:text-app-accent-fg tw:data-[tone=healthy]:border-app-success-border tw:data-[tone=healthy]:bg-app-success-subtle tw:data-[tone=healthy]:text-app-success tw:data-[tone=warning]:border-app-danger-border tw:data-[tone=warning]:bg-app-danger-subtle tw:data-[tone=warning]:text-app-danger" data-tone={healthTone(keyItem.health.status)}>
+          <span
+            className="model-center-key-badge tw:inline-flex tw:min-h-[22px] tw:items-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1 tw:whitespace-nowrap tw:text-app-text-soft tw:[font-size:var(--cpx-sys-font-size-xs)] tw:type-weight-label tw:data-[tone=active]:border-app-accent-border tw:data-[tone=active]:bg-app-accent-subtle tw:data-[tone=active]:text-app-accent-fg tw:data-[tone=healthy]:border-app-success-border tw:data-[tone=healthy]:bg-app-success-subtle tw:data-[tone=healthy]:text-app-success tw:data-[tone=warning]:border-app-danger-border tw:data-[tone=warning]:bg-app-danger-subtle tw:data-[tone=warning]:text-app-danger"
+            data-tone={healthTone(keyItem.health.status)}
+          >
             {HEALTH_LABELS[keyItem.health.status]}
           </span>
         </div>
@@ -457,7 +494,8 @@ function ApiKeyRowItem({
           align="end"
           className="popover-menu--flex"
           trigger={
-            <Button isIconOnly
+            <Button
+              isIconOnly
               color="ghostSecondary"
               disabled={busy}
               size="iconMd"
@@ -466,7 +504,7 @@ function ApiKeyRowItem({
               <MoreHorizontal size={APP_ICON_SIZES.sm} aria-hidden />
             </Button>
           }
-          width={180}
+          size="sm"
         >
           <PopoverItem disabled={keyItem.active || !keyItem.enabled} onClick={onSetActive}>
             设为当前活动

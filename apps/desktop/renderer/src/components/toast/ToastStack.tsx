@@ -1,7 +1,7 @@
 import type React from 'react'
 import { useSyncExternalStore, useState, useRef, useLayoutEffect, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { CheckCheck } from 'lucide-react'
+import { CheckCheck, X } from 'lucide-react'
 import { toastStore, calculateCardTransform, type ToastItem } from './toastState.js'
 import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
 import { Button } from '../ui/Button.js'
@@ -213,9 +213,10 @@ function ToastCardWrapper({
       }
     >
       <Toast
+        appearance={toast.appearance}
         role={isError ? 'alert' : 'status'}
         aria-live={isError ? 'assertive' : 'polite'}
-        className="toast-card tw:w-full tw:justify-between tw:max-h-[min(70vh,520px)]"
+        className={`toast-card tw:justify-between tw:max-h-[min(70vh,520px)] ${toast.appearance === 'action' ? 'tw:w-fit tw:max-w-full tw:mx-auto' : 'tw:w-full'}`}
       >
         <div className="toast-content tw:flex-1 tw:min-w-0 tw:max-h-[calc(min(70vh,520px)-12px)] tw:overflow-y-auto tw:text-left tw:whitespace-pre-wrap tw:break-words [overflow-wrap:anywhere]">
           {toast.message}
@@ -224,8 +225,8 @@ function ToastCardWrapper({
         <div className="toast-actions tw:flex tw:items-center tw:gap-1.5 tw:shrink-0">
           {toast.action ? (
             <Button
-              color="ghostSecondary"
-              size="compact"
+              variant={toast.appearance === 'action' ? 'secondary' : 'ghost'}
+              size={toast.appearance === 'action' ? 'sm' : 'compact'}
               disabled={toast.action.disabled}
               onClick={toast.action.onClick}
               type="button"
@@ -236,8 +237,8 @@ function ToastCardWrapper({
 
           {toast.secondaryAction ? (
             <Button
-              color="ghostSecondary"
-              size="compact"
+              variant={toast.appearance === 'action' ? 'primary' : 'ghost'}
+              size={toast.appearance === 'action' ? 'sm' : 'compact'}
               disabled={toast.secondaryAction.disabled}
               onClick={toast.secondaryAction.onClick}
               type="button"
@@ -249,13 +250,13 @@ function ToastCardWrapper({
           {toast.showCloseButton !== false ? (
             <Button isIconOnly
               color="ghostSecondary"
-              size="compact"
+              size={toast.appearance === 'action' ? 'sm' : 'compact'}
               title={isError ? '关闭错误提示' : '关闭'}
               aria-label={isError ? '关闭错误提示' : '关闭'}
               onClick={() => toastStore.dismiss(toast.id)}
               type="button"
             >
-              ×
+              {toast.appearance === 'action' ? <X aria-hidden="true" /> : '×'}
             </Button>
           ) : null}
         </div>

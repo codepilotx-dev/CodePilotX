@@ -441,7 +441,8 @@ export function PluginsView(): React.ReactNode {
       {target?.kind === 'plugin' ? null : (
         <WorkspaceHeaderItem align="end" id="plugins.actions" order={100} slot="right">
           <div className="plugins-header-actions tw:flex tw:min-w-0 tw:items-center tw:gap-2">
-            <Button isIconOnly
+            <Button
+              isIconOnly
               aria-busy={activeLoading}
               color="ghostSecondary"
               disabled={activeLoading}
@@ -462,7 +463,8 @@ export function PluginsView(): React.ReactNode {
                 strokeWidth={APP_ICON_STROKE_WIDTH}
               />
             </Button>
-            <Button isIconOnly
+            <Button
+              isIconOnly
               color="ghostSecondary"
               onClick={() => navigate('/settings/plugins')}
               size="toolbar"
@@ -615,7 +617,7 @@ function CatalogStatusMenu(props: CatalogStatusMenuProps): React.ReactNode {
           <ListFilter aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         </Button>
       }
-      width="14rem"
+      size="md"
     >
       <PopoverLabel>状态</PopoverLabel>
       <PopoverRadioGroup
@@ -671,7 +673,8 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
             已安装
           </h2>
           <span className="plugins-sr-status tw:sr-only">共 {props.installed.length} 个插件</span>
-          <Button isIconOnly
+          <Button
+            isIconOnly
             color="ghostSecondary"
             onClick={props.manage}
             size="toolbar"
@@ -690,14 +693,23 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
             <li key={item.id}>
               <button
                 aria-label={`查看 ${item.name} 详情`}
-                className={cx('plugins-included-overview__item tw:group tw:inline-flex tw:size-11 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-xl tw:border-0 tw:bg-transparent tw:p-1 tw:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus', FORCED_COLORS_SURFACE_CLASS, FORCED_COLORS_FOCUS_CLASS)}
+                className={cx(
+                  'plugins-included-overview__item tw:group tw:inline-flex tw:size-11 tw:cursor-pointer tw:items-center tw:justify-center tw:rounded-xl tw:border-0 tw:bg-transparent tw:p-1 tw:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-solid tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus',
+                  FORCED_COLORS_SURFACE_CLASS,
+                  FORCED_COLORS_FOCUS_CLASS,
+                )}
                 data-catalog-item-id={`plugin:${item.id}`}
                 data-plugin-tone={item.tone}
                 onClick={() => props.onOpenDetails(item)}
                 title={item.name}
                 type="button"
               >
-                <span className={cx('plugins-included-overview__logo tw:inline-flex tw:size-9 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-lg tw:border-[0.5px] tw:border-app-border-subtle tw:bg-app-raised tw:shadow-lg tw:transition-transform tw:duration-feedback tw:ease-standard tw:group-hover:-translate-y-1', FORCED_COLORS_SURFACE_CLASS)}>
+                <span
+                  className={cx(
+                    'plugins-included-overview__logo tw:inline-flex tw:size-9 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-lg tw:border-[0.5px] tw:border-app-border-subtle tw:bg-app-raised tw:shadow-lg tw:transition-transform tw:duration-feedback tw:ease-standard tw:group-hover:-translate-y-1',
+                    FORCED_COLORS_SURFACE_CLASS,
+                  )}
+                >
                   <PluginIcon
                     logoDarkSource={item.logoDarkSource}
                     logoSource={item.logoSource}
@@ -748,7 +760,10 @@ function PluginDirectory(props: PluginDirectoryProps): React.ReactNode {
       ) : (
         <div className="plugins-source-groups tw:grid tw:min-w-0 tw:gap-8">
           {props.groups.map((group) => (
-            <section className="plugins-source-group tw:grid tw:min-w-0 tw:gap-3" key={group.category}>
+            <section
+              className="plugins-source-group tw:grid tw:min-w-0 tw:gap-3"
+              key={group.category}
+            >
               <header className="plugins-section-heading tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-3">
                 <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">{group.label}</h2>
                 <span className="plugins-sr-status tw:sr-only">共 {group.items.length} 项</span>
@@ -814,7 +829,9 @@ function SkillDirectory(props: SkillDirectoryProps): React.ReactNode {
         <div className={cx('plugins-empty', PLUGINS_EMPTY_BASE)}>
           <AlertOctagon aria-hidden="true" size={APP_ICON_SIZE} />
           <h2 className="tw:m-0 tw:text-app-text tw:type-title-sm">技能目录暂不可用</h2>
-          <p className="tw:m-0 tw:text-app-text-meta tw:type-body-sm tw:wrap-anywhere">{props.error}</p>
+          <p className="tw:m-0 tw:text-app-text-meta tw:type-body-sm tw:wrap-anywhere">
+            {props.error}
+          </p>
           <ol className="plugins-empty-steps tw:m-0 tw:grid tw:list-decimal tw:gap-1 tw:pl-5 tw:text-left tw:type-body-sm">
             <li>在 Vercel 项目中启用 OIDC Federation。</li>
             <li>用该项目提供的 VERCEL_OIDC_TOKEN 启动 CodePilotX。</li>
@@ -923,8 +940,21 @@ function CatalogCallout({
   title: string
 }): React.ReactNode {
   return (
-    <div className={cx('plugins-callout', PLUGINS_CALLOUT_BASE, FORCED_COLORS_SURFACE_CLASS, 'tw:forced-colors:border-double')} data-tone="danger" role="status">
-      <AlertOctagon aria-hidden="true" className="tw:shrink-0 tw:text-app-danger" size={APP_ICON_SIZE} />
+    <div
+      className={cx(
+        'plugins-callout',
+        PLUGINS_CALLOUT_BASE,
+        FORCED_COLORS_SURFACE_CLASS,
+        'tw:forced-colors:border-double',
+      )}
+      data-tone="danger"
+      role="status"
+    >
+      <AlertOctagon
+        aria-hidden="true"
+        className="tw:shrink-0 tw:text-app-danger"
+        size={APP_ICON_SIZE}
+      />
       <div className="tw:grid tw:min-w-0 tw:flex-auto tw:gap-1">
         <strong>{title}</strong>
         <p className="tw:m-0 tw:text-app-text-meta tw:type-body-sm tw:wrap-anywhere">{message}</p>
@@ -944,7 +974,10 @@ function CatalogSkeleton({ label }: { label: string }): React.ReactNode {
     >
       {Array.from({ length: 6 }).map((_, index) => (
         <SkeletonBlock
-          className={cx('plugins-skeleton tw:min-h-[60px] tw:rounded-container tw:border tw:border-app-border-subtle', FORCED_COLORS_SURFACE_CLASS)}
+          className={cx(
+            'plugins-skeleton tw:min-h-[60px] tw:rounded-container tw:border tw:border-app-border-subtle',
+            FORCED_COLORS_SURFACE_CLASS,
+          )}
           key={index}
         />
       ))}

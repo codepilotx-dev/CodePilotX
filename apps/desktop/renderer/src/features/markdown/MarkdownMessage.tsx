@@ -659,7 +659,8 @@ function MarkdownTable({
   return (
     <figure className={cx('md-table-block', context.allowWideBlocks && 'md-wide-block')}>
       <div className="md-table-actions">
-        <Button isIconOnly
+        <Button
+          isIconOnly
           className={cx('md-table-copy', copied && 'is-copied')}
           color="ghostSecondary"
           size="toolbar"
@@ -1232,7 +1233,7 @@ function FileReferenceButton({
           </span>
         </button>
       }
-      width={240}
+      size="md"
     />
   )
 }

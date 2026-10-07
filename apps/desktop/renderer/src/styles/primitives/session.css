@@ -64,10 +64,6 @@
     --popover-overflow-y: hidden;
   }
 
-  .popover.popover-branch {
-    --popover-max-width: calc(100vw - 32px);
-  }
-
   .popover.popover-branch .popover-scroll-content,
   .popover.popover-thread-summary-branch .popover-scroll-content {
     display: flex;
@@ -112,7 +108,18 @@
     transform-origin: left center;
     transition:
       transform var(--cpx-sys-motion-enter) var(--cpx-sys-ease-linear)
-        (0, 0.398 10%, 0.682 20%, 0.843 30%, 0.925 40%, 0.972 50%, 1.004 60%, 1.008 70%, 1.003 80%, 1),
+        (
+          0,
+          0.398 10%,
+          0.682 20%,
+          0.843 30%,
+          0.925 40%,
+          0.972 50%,
+          1.004 60%,
+          1.008 70%,
+          1.003 80%,
+          1
+        ),
       opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out, var(--cpx-sys-ease-out)),
       background-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-out, var(--cpx-sys-ease-out));
   }
@@ -611,7 +618,6 @@
   }
 
   @media (max-height: 720px) {
-
     .coding-chat-view .quick-chat-hero-region {
       min-height: 260px;
       padding-bottom: var(--cpx-sys-space-4);

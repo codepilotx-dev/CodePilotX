@@ -3,7 +3,7 @@ import React from 'react'
 import { decodeThreadPatchDiff } from '@codepilotx/agent-protocol'
 import { FileMutationDiffBody } from '../timeline/FileMutationDiffBody.js'
 import { ArrowDown, ArrowUp, ChevronDown, X } from 'lucide-react'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import { Dropdown as DropdownMenu } from '../../../components/ui/floating/Dropdown.js'
 import type {
   DesktopPermissionDecision,
   DesktopPermissionGrantScope,
@@ -12,6 +12,7 @@ import type {
 } from '../../../../shared/types.js'
 import { Button } from '../../../components/ui/Button.js'
 import { Dropdown } from '../../../components/ui/Dropdown.js'
+import { PopoverRadioItem } from '../../../components/ui/PopoverItem.js'
 import { AskUserQuestionApproval } from './AskUserQuestionApproval.js'
 import { useQuestionSkipCapability } from './useQuestionSkipCapability.js'
 import { ASK_USER_QUESTION_NAV_BUTTON_CLASS, RequestCard } from './RequestCard.js'
@@ -232,7 +233,8 @@ export function InlineApprovalCard({
       ) : null}
       {isPermissionGrant && scopeOptions.length > 1 ? (
         <Dropdown
-          width="auto"
+          className="popover-menu--flex"
+          size="md"
           align="end"
           trigger={
             <button
@@ -254,14 +256,13 @@ export function InlineApprovalCard({
             }}
           >
             {scopeOptions.map((option) => (
-              <DropdownMenu.RadioItem
-                className="popover-item"
+              <PopoverRadioItem
                 key={option.scope}
                 value={option.scope}
                 disabled={disabled}
               >
                 {option.label}
-              </DropdownMenu.RadioItem>
+              </PopoverRadioItem>
             ))}
           </DropdownMenu.RadioGroup>
         </Dropdown>
@@ -300,7 +301,7 @@ export function InlineApprovalCard({
       </Button>
       {grantOptions.some((option) => option.scope === 'session') ? (
         <Dropdown
-          width="auto"
+          size="md"
           align="end"
           trigger={
             <button
@@ -465,10 +466,14 @@ export function InlineApprovalCard({
           <div className="inline-approval-permission-grant tw:grid tw:gap-2 tw:px-3">
             {permissionGroups.map((group) => (
               <div className="inline-approval-permission-group tw:grid tw:gap-1" key={group.title}>
-                <span className="inline-approval-permission-group-title tw:text-app-text-soft tw:type-label">{group.title}</span>
+                <span className="inline-approval-permission-group-title tw:text-app-text-soft tw:type-label">
+                  {group.title}
+                </span>
                 <ul className="inline-approval-permission-group-items tw:m-0 tw:grid tw:list-none tw:gap-1 tw:rounded-lg tw:bg-app-editor tw:px-3 tw:py-2 tw:text-app-text-soft tw:type-code tw:break-all">
                   {group.items.map((item) => (
-                    <li className="tw:min-w-0 tw:truncate" key={item}>{item}</li>
+                    <li className="tw:min-w-0 tw:truncate" key={item}>
+                      {item}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -491,8 +496,8 @@ export function InlineApprovalCard({
     >
       {request.description && request.description !== approvalTitle ? (
         <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere">
-            {request.description}
-          </p>
+          {request.description}
+        </p>
       ) : null}
       {request.autoReviewFallbackReason ? (
         <p className="inline-approval-target">
@@ -500,10 +505,10 @@ export function InlineApprovalCard({
         </p>
       ) : null}
       {reviewSummary ? (
-          <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere">
-            {reviewSummary}
-          </p>
-        ) : null}
+        <p className="inline-approval-target tw:m-0 tw:px-2 tw:text-app-text-soft tw:type-body-sm tw:wrap-anywhere">
+          {reviewSummary}
+        </p>
+      ) : null}
 
       {fileDiffs.map((diff) => (
         <details key={diff.path} className="request-card-content">
@@ -579,7 +584,9 @@ export function InlineApprovalCard({
         onAction={() => setDetailsOpen(false)}
         onCancel={() => setDetailsOpen(false)}
         description={
-          <pre className="inline-approval-command tw:block tw:w-full tw:min-w-0 tw:overflow-auto tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:type-code tw:whitespace-pre-wrap tw:break-all">{JSON.stringify(request.toolInput ?? request.input, null, 2)}</pre>
+          <pre className="inline-approval-command tw:block tw:w-full tw:min-w-0 tw:overflow-auto tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:type-code tw:whitespace-pre-wrap tw:break-all">
+            {JSON.stringify(request.toolInput ?? request.input, null, 2)}
+          </pre>
         }
       />
 
@@ -621,10 +628,14 @@ function elicitationConfirmationDetails(value: unknown): React.ReactNode {
           <div key={index}>
             <strong>{change.label}</strong>
             {typeof change.before === 'string' ? (
-              <pre className="inline-approval-command tw:block tw:w-full tw:min-w-0 tw:overflow-auto tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:type-code tw:whitespace-pre-wrap tw:break-all">{change.before}</pre>
+              <pre className="inline-approval-command tw:block tw:w-full tw:min-w-0 tw:overflow-auto tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:type-code tw:whitespace-pre-wrap tw:break-all">
+                {change.before}
+              </pre>
             ) : null}
             {typeof change.after === 'string' ? (
-              <pre className="inline-approval-command tw:block tw:w-full tw:min-w-0 tw:overflow-auto tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:type-code tw:whitespace-pre-wrap tw:break-all">{change.after}</pre>
+              <pre className="inline-approval-command tw:block tw:w-full tw:min-w-0 tw:overflow-auto tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:type-code tw:whitespace-pre-wrap tw:break-all">
+                {change.after}
+              </pre>
             ) : null}
           </div>
         )

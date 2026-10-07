@@ -4,7 +4,7 @@ import { useCallback, useMemo, useRef } from 'react'
 // 对恢复目标以 focusVisible:false 重聚焦，避免"鼠标打开 → Esc 关闭"这类鼠标
 // 操作流在触发器上突兀地显示键盘焦点框（Esc 会把 Chromium 的 focus-visible
 // modality 切到键盘，辅助技术模式下脚本聚焦一律匹配 :focus-visible）。
-// 键盘打开的浮层不做干预，保持 Radix 默认恢复行为，确保键盘用户焦点可见。
+// 键盘打开的浮层不做干预，保持 浮层默认恢复行为，确保键盘用户焦点可见。
 export function useFloatingFocusModality() {
   const openedByPointerRef = useRef(false)
 
@@ -18,7 +18,7 @@ export function useFloatingFocusModality() {
 
   const suppressFocusRingOnClose = useCallback((event: Event) => {
     if (!openedByPointerRef.current) return
-    // Radix 先把焦点恢复到打开前位置；下一帧对同一元素以 focusVisible:false
+    // 浮层先把焦点恢复到打开前位置；下一帧对同一元素以 focusVisible:false
     // 重聚焦，仅抑制焦点环，不改变恢复目标。
     window.requestAnimationFrame(() => {
       const active = document.activeElement

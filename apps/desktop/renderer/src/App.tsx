@@ -66,7 +66,7 @@ export function App(): React.ReactNode {
           <AppContextMenu
             actions={[]}
             layout="flex"
-            width={240}
+            size="md"
             trigger={
               <div className="app-global-context-menu-trigger">
                 {errorModalMounted ? (

@@ -188,7 +188,7 @@ export function ScheduledTaskDetailPanel(props: Props): React.ReactNode {
 
   return (
     <section
-      className="automation-detail tw:grid tw:min-h-0 tw:min-w-0 tw:max-h-[min(35rem,calc(100vh-60px),var(--radix-popover-content-available-height))] tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[auto_minmax(0,1fr)_auto] tw:bg-transparent"
+      className="automation-detail tw:grid tw:min-h-0 tw:min-w-0 tw:max-h-[min(35rem,calc(100vh-60px),var(--popover-available-height))] tw:grid-cols-[minmax(0,1fr)] tw:grid-rows-[auto_minmax(0,1fr)_auto] tw:bg-transparent"
       aria-label={props.creating ? '创建任务' : '计划任务详情'}
     >
       <header className="automation-detail-header tw:flex tw:min-h-[calc(var(--cpx-sys-space-8)+var(--cpx-sys-space-3))] tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:p-3">

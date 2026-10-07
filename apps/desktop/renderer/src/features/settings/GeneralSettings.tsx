@@ -53,7 +53,11 @@ const REVIEW_DELIVERY_OPTIONS: Array<{
 
 function renderOpenTargetIcon(target: DesktopOpenTarget): React.ReactNode {
   return (
-    <OpenTargetIcon className="settings-open-target-icon tw:size-icon tw:shrink-0 tw:rounded-md tw:object-contain" kind={target.kind} targetId={target.id} />
+    <OpenTargetIcon
+      className="settings-open-target-icon tw:size-icon tw:shrink-0 tw:rounded-md tw:object-contain"
+      kind={target.kind}
+      targetId={target.id}
+    />
   )
 }
 
@@ -298,7 +302,9 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
     <SettingsContentArea className="">
       <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
         <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">常规</h2>
+          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">
+            常规
+          </h2>
         </div>
 
         <SettingsSection title="权限">
@@ -360,7 +366,7 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
             description="默认打开文件和文件夹的位置"
             control={
               <SettingsDropdown
-                width={220}
+                size="sm"
                 value={defaultOpenTargetId}
                 options={openTargetOptions}
                 onChange={setDefaultOpenTargetId}
@@ -373,7 +379,7 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
             description="选择要在集成终端中打开的 Shell。"
             control={
               <SettingsDropdown
-                width={220}
+                size="sm"
                 value={terminalProfileId ?? 'auto'}
                 options={terminalProfileOptions}
                 onChange={setTerminalProfileId}
@@ -386,7 +392,7 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
             description={t('应用 UI 语言')}
             control={
               <SettingsDropdown
-                width={240}
+                size="md"
                 value={language}
                 options={LANGUAGE_OPTIONS.map((option) => ({ ...option, label: t(option.label) }))}
                 onChange={setLanguage}
@@ -413,7 +419,7 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
             description="选择用于聊天、子智能体和压缩的推理层级"
             control={
               <SettingsDropdown
-                width={260}
+                size="md"
                 value={speed}
                 options={SPEED_OPTIONS}
                 onChange={setSpeed}
@@ -546,7 +552,7 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
             description="设置 CodePilotX 完成任务时是否显示系统通知"
             control={
               <SettingsDropdown
-                width={260}
+                size="md"
                 value={notifications.completion}
                 options={[
                   { value: 'always', label: '总是' },

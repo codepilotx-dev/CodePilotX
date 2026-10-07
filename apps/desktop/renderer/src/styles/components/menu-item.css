@@ -3,6 +3,28 @@
  * flattening its nesting: the renderer no longer compiles Sass.
  */
 @layer primitives {
+  /* Submenu rows reclaim an empty icon column; actual icons remain visible. */
+  [data-menu-subcontent] :is(.popover-item-leading, .sidebar-context-menu-leading):empty {
+    display: none;
+  }
+  [data-menu-subcontent]
+    :where(.popover-item, .sidebar-context-menu-item, .sidebar-context-menu-sub-trigger):has(
+      > :is(.popover-item-leading, .sidebar-context-menu-leading):empty
+    )
+    > :is(.popover-item-label, .sidebar-context-menu-label) {
+    flex: 1 1 auto;
+  }
+  [data-menu-subcontent]:is(.popover-menu--grid, .app-context-menu--grid)
+    :where(.popover-item, .sidebar-context-menu-item, .sidebar-context-menu-sub-trigger):has(
+      > :where(.popover-item-leading, .sidebar-context-menu-leading):empty
+    )
+    > :where(.popover-item-label, .sidebar-context-menu-label) {
+    grid-column: 1 / span 2;
+  }
+  [data-menu-subcontent] .popover-item-trailing {
+    margin-left: auto;
+  }
+
   /* ===== Unified Menu / Dropdown Item Layout (residue) =====
      Shared geometry and interaction states live in interactive-row.scss.
 

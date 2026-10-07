@@ -159,7 +159,10 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
             </Button>
           </div>
           {actions.map((action, index) => (
-            <article className="settings-card tw:grid tw:gap-2 tw:p-3 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none" key={index}>
+            <article
+              className="settings-card tw:grid tw:gap-2 tw:p-3 tw:overflow-hidden tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none"
+              key={index}
+            >
               <div className="tw:grid tw:grid-cols-2 tw:gap-2">
                 {(['name', 'icon', 'command', 'windows', 'macos', 'linux'] as const).map(
                   (field) => (
@@ -233,10 +236,10 @@ function SetupVariablesPopover(): React.ReactNode {
       arrow
       className="tw:grid tw:gap-3 tw:p-3"
       collisionPadding={8}
-      maxWidth="calc(100vw - 2rem)"
+
       sideOffset={6}
       trigger={<Button color="secondary">变量</Button>}
-      width={320}
+      size="lg"
     >
       <div>
         <strong className="tw:type-control">设置脚本环境变量</strong>
@@ -261,7 +264,9 @@ function EnvironmentVariable({
   return (
     <div className="tw:grid tw:gap-1">
       <span className="tw:type-caption tw:text-app-text-soft">{description}</span>
-      <code className="local-environment-code tw:bg-app-canvas tw:px-2 tw:py-1 tw:type-code">{name}</code>
+      <code className="local-environment-code tw:bg-app-canvas tw:px-2 tw:py-1 tw:type-code">
+        {name}
+      </code>
     </div>
   )
 }

@@ -25,33 +25,25 @@
     --cpx-floating-offset-x: 0px;
     --cpx-floating-offset-y: 0px;
 
-    transform-origin: var(
-      --radix-select-content-transform-origin,
-      var(
-        --radix-dropdown-menu-content-transform-origin,
-        var(
-          --radix-context-menu-content-transform-origin,
-          var(
-            --radix-menubar-content-transform-origin,
-            var(--radix-popover-content-transform-origin, center)
-          )
-        )
-      )
-    );
+    transform-origin: var(--radix-menubar-content-transform-origin, center);
 
     &[data-side='top'] {
+      transform-origin: bottom center;
       --cpx-floating-offset-y: var(--cpx-sys-space-1);
     }
 
     &[data-side='bottom'] {
+      transform-origin: top center;
       --cpx-floating-offset-y: calc(var(--cpx-sys-space-1) * -1);
     }
 
     &[data-side='left'] {
+      transform-origin: center right;
       --cpx-floating-offset-x: var(--cpx-sys-space-1);
     }
 
     &[data-side='right'] {
+      transform-origin: center left;
       --cpx-floating-offset-x: calc(var(--cpx-sys-space-1) * -1);
     }
 

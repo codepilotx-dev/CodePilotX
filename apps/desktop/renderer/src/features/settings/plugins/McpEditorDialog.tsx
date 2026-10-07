@@ -330,7 +330,8 @@ export function McpEditorDialog({
               </Button>
             </span>
             <Dialog.Close asChild>
-              <Button isIconOnly
+              <Button
+                isIconOnly
                 color="ghostSecondary"
                 ref={closeRef}
                 size="toolbar"
@@ -481,7 +482,7 @@ export function McpEditorDialog({
               <FormRow label="配置范围">
                 <SettingsDropdown
                   value={form.scope}
-                  width={260}
+                  size="md"
                   disabled={Boolean(server)}
                   options={SCOPE_OPTIONS.map((option) => ({
                     ...option,
@@ -590,7 +591,7 @@ export function McpEditorDialog({
                   <SettingsDropdown
                     ariaLabel="默认 MCP 工具审批模式"
                     value={form.defaultToolsApprovalMode}
-                    width={260}
+                    size="md"
                     options={APPROVAL_MODE_OPTIONS}
                     onChange={(value) =>
                       update((current) => ({
@@ -810,7 +811,8 @@ function ValueListField({
                 )
               }
             />
-            <Button isIconOnly
+            <Button
+              isIconOnly
               aria-label={`删除${label} ${index + 1}`}
               disabled={rows.length === 1 && !row.value}
               color="ghostSecondary"
@@ -879,7 +881,8 @@ function MapListField({
                 onChange(updateMapRow(rows, row.id, { value: event.target.value }))
               }
             />
-            <Button isIconOnly
+            <Button
+              isIconOnly
               aria-label={`删除${label} ${index + 1}`}
               className="tw:max-[640px]:col-start-2 tw:max-[640px]:row-start-1"
               disabled={rows.length === 1 && !row.key && !row.value}
@@ -936,12 +939,13 @@ function ToolApprovalListField({
               <SettingsDropdown
                 ariaLabel={`工具审批模式 ${index + 1}`}
                 value={isApprovalMode(row.value) ? row.value : 'auto'}
-                width={260}
+                size="md"
                 options={APPROVAL_MODE_OPTIONS}
                 onChange={(value) => onChange(updateMapRow(rows, row.id, { value }))}
               />
             </div>
-            <Button isIconOnly
+            <Button
+              isIconOnly
               className="tw:max-[640px]:col-start-2 tw:max-[640px]:row-start-1"
               disabled={rows.length === 1 && !row.key}
               color="ghostSecondary"

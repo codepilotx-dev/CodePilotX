@@ -2,7 +2,7 @@ import { APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import type { CalendarOccurrence } from '@codepilotx/shared/calendar'
-import * as Popover from '@radix-ui/react-popover'
+import { Popover as Popover } from '../../components/ui/floating/Popover.js'
 import { Calendar, ChevronDown, ChevronLeft, ChevronRight, MessageSquare, Play } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import {
@@ -273,13 +273,15 @@ export function AutomationCalendar({
             </Popover.Trigger>
             <Popover.Portal>
               <Popover.Content
-                className="popover-surface automation-calendar__month-picker-popover tw:flex tw:w-64 tw:flex-col tw:gap-3 tw:p-3"
+                size="md"
+                className="popover-surface automation-calendar__month-picker-popover tw:flex tw:flex-col tw:gap-3 tw:p-3"
                 side="bottom"
                 align="start"
                 sideOffset={6}
               >
                 <div className="automation-calendar__year-nav tw:flex tw:items-center tw:justify-between tw:gap-2">
-                  <Button isIconOnly
+                  <Button
+                    isIconOnly
                     size="iconSm"
                     color="ghost"
                     title="上一年"
@@ -291,7 +293,8 @@ export function AutomationCalendar({
                   <span className="automation-calendar__year-label tw:type-label tw:text-app-text">
                     {pickerYear}年
                   </span>
-                  <Button isIconOnly
+                  <Button
+                    isIconOnly
                     size="iconSm"
                     color="ghost"
                     title="下一年"
@@ -344,7 +347,8 @@ export function AutomationCalendar({
             </Popover.Trigger>
             <Popover.Portal>
               <Popover.Content
-                className="popover-surface automation-calendar__tasks-popover tw:flex tw:max-h-88 tw:w-88 tw:flex-col tw:gap-2 tw:p-3"
+                size="md"
+                className="popover-surface automation-calendar__tasks-popover tw:flex tw:max-h-88 tw:flex-col tw:gap-2 tw:p-3"
                 side="bottom"
                 align="start"
                 sideOffset={6}
@@ -415,7 +419,8 @@ export function AutomationCalendar({
           ) : null}
         </div>
         <div className="automation-calendar__nav tw:flex tw:shrink-0 tw:items-end tw:gap-1">
-          <Button isIconOnly
+          <Button
+            isIconOnly
             size="compact"
             color="ghost"
             title="上个月"
@@ -427,7 +432,8 @@ export function AutomationCalendar({
           <Button size="compact" color="secondary" onClick={handleToday}>
             今天
           </Button>
-          <Button isIconOnly
+          <Button
+            isIconOnly
             size="compact"
             color="ghost"
             title="下个月"
@@ -581,7 +587,8 @@ export function AutomationCalendar({
                 </div>
                 <div className="automation-calendar__agenda-actions tw:invisible tw:flex tw:shrink-0 tw:items-center tw:gap-1 tw:opacity-0 tw:transition-opacity tw:duration-feedback tw:ease-standard tw:group-hover:visible tw:group-hover:opacity-100 tw:group-focus-visible:visible tw:group-focus-visible:opacity-100">
                   {occurrence.source.kind === 'automation' && onRunOccurrence ? (
-                    <Button isIconOnly
+                    <Button
+                      isIconOnly
                       size="iconSm"
                       color="ghost"
                       title="立即运行"
@@ -595,7 +602,8 @@ export function AutomationCalendar({
                     </Button>
                   ) : null}
                   {occurrence.threadId && onOpenThread ? (
-                    <Button isIconOnly
+                    <Button
+                      isIconOnly
                       size="iconSm"
                       color="ghost"
                       title="查看会话"

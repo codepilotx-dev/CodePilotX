@@ -1,6 +1,6 @@
 import { APP_ICON_SIZE, APP_ICON_SIZES } from './iconTokens.js'
 import React from 'react'
-import * as Popover from '@radix-ui/react-popover'
+import { Popover as Popover } from './floating/Popover.js'
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cx } from '../../utils/cx.js'
 import { useLocale } from '../../features/i18n/LocaleProvider.js'
@@ -246,9 +246,10 @@ export function DatePicker({
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
+          size="lg"
           align="start"
           aria-label={`${t(ariaLabel)} ${t('日历')}`}
-          className="popover-surface ui-date-picker-content tw:z-popover tw:w-[min(304px,calc(100vw_-_var(--cpx-sys-space-4)))] tw:p-3"
+          className="popover-surface ui-date-picker-content tw:z-popover tw:p-3"
           collisionPadding={8}
           sideOffset={4}
           onEscapeKeyDown={() => requestAnimationFrame(() => triggerRef.current?.focus())}

@@ -160,8 +160,9 @@ function ColorControl({
   return (
     <div className="appearance-color-control tw:flex tw:h-7 tw:w-24 tw:shrink-0 tw:items-center tw:gap-2 tw:rounded-pill tw:border tw:border-app-border tw:bg-transparent tw:px-2 tw:text-app-text tw:has-[:focus-visible]:outline-solid tw:has-[:focus-visible]:outline-2 tw:has-[:focus-visible]:outline-offset-1 tw:has-[:focus-visible]:outline-app-focus">
       <AnchoredPopover
+        data-popover-size="md"
         align="end"
-        className="appearance-color-popover tw:w-auto tw:p-1"
+        className="appearance-color-popover tw:p-1"
         contentLabel={`${ariaLabel}颜色选项`}
         contentRole="dialog"
         trigger={
@@ -176,7 +177,7 @@ function ColorControl({
             type="button"
           />
         }
-        width="auto"
+        size="md"
       >
         <ColorPalette
           value={normalizedValue}
@@ -751,7 +752,7 @@ function VariantThemeEditor({
               triggerClassName="tw:w-45 tw:min-w-45 tw:max-[900px]:min-w-0"
               value={codeThemeId}
               variant="theme"
-              width={180}
+              size="sm"
               onChange={(nextId) => {
                 const nextCodeThemeId =
                   nextId as DesktopThemeSettings['codeThemeIds'][typeof variant]
@@ -795,7 +796,7 @@ function VariantThemeEditor({
                     showSelectedIndicator
                     triggerClassName="appearance-accent-select tw:h-7 tw:min-h-7 tw:w-auto tw:min-w-0 tw:max-w-[min(360px,48vw)] tw:rounded-pill"
                     value={accentPreset}
-                    width={180}
+                    size="sm"
                     onValueChange={(preset) =>
                       onUpdate((current) => ({
                         ...current,
@@ -958,7 +959,9 @@ export function AppearanceSettings({ onError }: Props): React.ReactNode {
     <SettingsContentArea>
       <div className="settings-content-inner appearance-settings tw:[&>.settings-section>.appearance-theme-editors]:mt-4 tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
         <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">{t('外观')}</h2>
+          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">
+            {t('外观')}
+          </h2>
         </div>
 
         <SettingsSection bare title="视觉样式">

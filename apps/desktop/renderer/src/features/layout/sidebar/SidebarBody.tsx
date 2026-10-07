@@ -1182,7 +1182,7 @@ function TimelinePriorityMenu(options: ActivityMenuProps): React.ReactNode {
       open={menuOpen}
       side="bottom"
       sideOffset={4}
-      width="sm"
+      size="sm"
       onOpenChange={setMenuOpen}
       trigger={
         <Button isIconOnly
@@ -1354,7 +1354,7 @@ function SidebarOrganizeMenu({
           <Ellipsis size={APP_ICON_SIZE} />
         </Button>
       }
-      width="sm"
+      size="sm"
       onOpenChange={setOpen}
     >
       <DropdownActions actions={[
@@ -1394,7 +1394,7 @@ function SidebarPinnedSortMenu({
           <Ellipsis size={APP_ICON_SIZE} />
         </Button>
       }
-      width="sm"
+      size="sm"
       onOpenChange={setOpen}
     >
       <PopoverRadioGroup
@@ -1694,7 +1694,7 @@ function SidebarCustomSection({
                   <Ellipsis size={APP_ICON_SIZE} />
                 </Button>
               }
-              width="sm"
+              size="sm"
               onOpenChange={setMenuOpen}
             >
               <PopoverLabel className="popover-sidebar-organize-heading tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label">排序方式</PopoverLabel>

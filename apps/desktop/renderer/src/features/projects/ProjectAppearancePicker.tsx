@@ -43,7 +43,7 @@ export function ProjectAppearancePicker({
 
   return (
     <AnchoredPopover
-      className="project-appearance-popover tw:z-popover tw:w-[16.25rem] tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-2 tw:text-app-text tw:outline-none"
+      className="project-appearance-popover tw:z-popover tw:rounded-xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-2 tw:text-app-text tw:outline-none"
       contentLabel="项目图标和颜色"
       open={open}
       trigger={
@@ -56,7 +56,7 @@ export function ProjectAppearancePicker({
           <ProjectAppearanceGlyph appearance={appearance} size={glyphSize} />
         </button>
       }
-      width="auto"
+      size="md"
       onOpenChange={setOpen}
     >
       <RadioGroup.Root
@@ -80,11 +80,7 @@ export function ProjectAppearancePicker({
             value={color}
           >
             <RadioGroup.Indicator>
-              <Check
-                aria-hidden="true"
-                className="tw:text-app-canvas"
-                size={APP_ICON_SIZES.sm}
-              />
+              <Check aria-hidden="true" className="tw:text-app-canvas" size={APP_ICON_SIZES.sm} />
             </RadioGroup.Indicator>
           </RadioGroup.Item>
         ))}

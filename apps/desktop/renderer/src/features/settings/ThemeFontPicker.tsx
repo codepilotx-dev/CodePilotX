@@ -158,7 +158,7 @@ export function ThemeFontPicker({
           onChange={() => undefined}
           options={buildStyleOptions({ faces: [], currentFace: face })}
           value={selectedStyleValue({ faces: [], currentFace: face })}
-          width={100}
+          size="sm"
         />
       )
     }
@@ -202,7 +202,10 @@ export function ThemeFontPicker({
         ]
 
   return (
-    <div aria-busy={fontsState === 'loading'} className="appearance-theme-font-row tw:inline-flex tw:w-max tw:max-w-full tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-2">
+    <div
+      aria-busy={fontsState === 'loading'}
+      className="appearance-theme-font-row tw:inline-flex tw:w-max tw:max-w-full tw:min-w-0 tw:flex-wrap tw:items-center tw:gap-2"
+    >
       {controls !== 'style' ? (
         <SettingsDropdown
           ariaLabel={`${ariaLabel}字体家族`}
@@ -211,8 +214,8 @@ export function ThemeFontPicker({
           searchable
           triggerClassName="appearance-font-family"
           value={currentFamilyValue}
-          width={240}
-          maxWidth="min(320px, calc(100vw - 16px))"
+          size="md"
+
           onChange={(familyValue) => {
             if (fontsState !== 'ready') return
             if (familyValue === family) {
@@ -244,7 +247,7 @@ export function ThemeFontPicker({
             faces: selectedFamilyFaces,
             currentFace: face,
           })}
-          width={100}
+          size="sm"
           onOpenChange={handleOpenChange}
           onChange={(faceValue) => {
             if (fontsState !== 'ready' || family == null) return

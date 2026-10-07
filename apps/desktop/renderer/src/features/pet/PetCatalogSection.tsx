@@ -175,7 +175,8 @@ export function PetCatalogSection({
         />
       </WorkspaceHeaderItem>
       <WorkspaceHeaderItem align="end" id="pets.refresh" order={100} slot="right">
-        <Button isIconOnly
+        <Button
+          isIconOnly
           aria-busy={loading}
           color="ghostSecondary"
           disabled={loading}
@@ -208,7 +209,7 @@ export function PetCatalogSection({
               ]}
               showSelectedIndicator
               value={category}
-              width={180}
+              size="sm"
             />
             <SettingsDropdown
               ariaLabel="宠物图集版本"
@@ -222,7 +223,7 @@ export function PetCatalogSection({
               ]}
               showSelectedIndicator
               value={String(version)}
-              width={180}
+              size="sm"
             />
           </div>
 
@@ -388,16 +389,18 @@ export function PetCatalogSection({
                       <div className="pet-catalog-card-body tw:grid tw:min-w-0 tw:grid-rows-[auto_auto_minmax(3.5em,1fr)_auto_auto] tw:gap-2 tw:p-3">
                         <div className="pet-catalog-card-heading tw:flex tw:items-center tw:justify-between tw:gap-2 tw:text-app-text">
                           <strong>{pet.displayName}</strong>
-                          <span className="tw:shrink-0 tw:type-caption tw:text-app-text-meta">v{pet.spriteVersionNumber}</span>
+                          <span className="tw:shrink-0 tw:type-caption tw:text-app-text-meta">
+                            v{pet.spriteVersionNumber}
+                          </span>
                         </div>
                         {pet.author ? (
                           <p className="pet-catalog-author tw:m-0 tw:type-body-sm tw:text-app-text-meta">
-                          作者：{pet.author}
-                        </p>
+                            作者：{pet.author}
+                          </p>
                         ) : (
                           <p className="pet-catalog-author tw:m-0 tw:type-body-sm tw:text-app-text-meta">
-                          自定义来源
-                        </p>
+                            自定义来源
+                          </p>
                         )}
                         <p className="pet-catalog-description tw:m-0 tw:line-clamp-3 tw:type-body-sm tw:text-app-text-meta">
                           {pet.description || '这个宠物还没有介绍。'}
@@ -450,7 +453,9 @@ export function PetCatalogSection({
               <span>
                 “{licensePet.displayName}”由 {licensePet.author} 提供。
               </span>
-              <span className="pet-license-confirmation-text tw:max-h-28 tw:overflow-auto tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:whitespace-pre-wrap">{licensePet.license}</span>
+              <span className="pet-license-confirmation-text tw:max-h-28 tw:overflow-auto tw:rounded-md tw:border tw:border-app-border tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:whitespace-pre-wrap">
+                {licensePet.license}
+              </span>
               <span>请仅在上述许可允许的范围内使用和分发。</span>
             </span>
           ) : undefined

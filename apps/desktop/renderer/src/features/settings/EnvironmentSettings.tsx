@@ -145,7 +145,9 @@ function EnvironmentList({ onError, routeBase }: Props & { routeBase: string }):
           <strong>{project.name}</strong>
           <span title={project.path}>{project.path}</span>
         </span>
-        <span className="environment-project-meta tw:text-app-text-soft tw:type-body-sm tw:whitespace-nowrap tw:@max-[720px]:hidden">{project.folders?.length ?? 1} 个目录</span>
+        <span className="environment-project-meta tw:text-app-text-soft tw:type-body-sm tw:whitespace-nowrap tw:@max-[720px]:hidden">
+          {project.folders?.length ?? 1} 个目录
+        </span>
         <ChevronRight
           aria-hidden="true"
           size={APP_ICON_SIZES.sm}
@@ -200,7 +202,9 @@ function EnvironmentList({ onError, routeBase }: Props & { routeBase: string }):
         >
           <div className="environment-settings environment-primary-content tw:min-h-0 tw:min-w-0">
             {loading ? (
-              <div className="environment-primary-empty tw:flex tw:min-h-64 tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0 tw:[&>p]:type-body">正在载入项目…</div>
+              <div className="environment-primary-empty tw:flex tw:min-h-64 tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0 tw:[&>p]:type-body">
+                正在载入项目…
+              </div>
             ) : projects.length === 0 ? (
               <div className="environment-primary-empty tw:flex tw:min-h-64 tw:flex-col tw:items-center tw:justify-center tw:gap-2 tw:text-center tw:text-app-text-soft tw:[&>h2]:m-0 tw:[&>h2]:text-app-text tw:[&>h2]:type-title-sm tw:[&>p]:m-0 tw:[&>p]:type-body">
                 <h2>暂无项目</h2>
@@ -219,7 +223,10 @@ function EnvironmentList({ onError, routeBase }: Props & { routeBase: string }):
               </div>
             ) : (
               <div className="environment-primary-projects tw:@container">
-                <div className="environment-primary-projects__header tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:px-3 tw:py-2 tw:text-app-text-meta tw:type-caption" aria-hidden="true">
+                <div
+                  className="environment-primary-projects__header tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:gap-4 tw:border-b tw:border-b-app-border-subtle tw:px-3 tw:py-2 tw:text-app-text-meta tw:type-caption"
+                  aria-hidden="true"
+                >
                   <span>项目</span>
                   <span>目录</span>
                 </div>
@@ -237,8 +244,12 @@ function EnvironmentList({ onError, routeBase }: Props & { routeBase: string }):
       <div className="settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)] tw:[&_.settings-section-content]:overflow-visible">
         <header className="settings-page-header environment-page-heading tw:mt-0 tw:mx-0 tw:mb-8 tw:flex tw:items-start tw:justify-between tw:gap-5 tw:[&>div]:min-w-0 tw:@max-[720px]:flex-col">
           <div>
-            <h1 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">环境</h1>
-            <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">管理项目的项目指令和共享来源。</p>
+            <h1 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">
+              环境
+            </h1>
+            <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">
+              管理项目的项目指令和共享来源。
+            </p>
           </div>
         </header>
 
@@ -482,8 +493,13 @@ function EnvironmentDetail({
 
         <header className="settings-page-header environment-page-heading tw:mt-0 tw:mx-0 tw:mb-8 tw:flex tw:items-start tw:justify-between tw:gap-5 tw:[&>div]:min-w-0 tw:@max-[720px]:flex-col">
           <div>
-            <h1 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">编辑本地环境</h1>
-            <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm" title={project.path}>
+            <h1 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">
+              编辑本地环境
+            </h1>
+            <p
+              className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm"
+              title={project.path}
+            >
               {project.path}
             </p>
           </div>
@@ -513,7 +529,7 @@ function EnvironmentDetail({
               showSelectedIndicator
               triggerClassName="environment-settings-dropdown tw:w-full tw:bg-app-canvas"
               value={executionEnvironment}
-              width={240}
+              size="md"
               onChange={(value) => setExecutionEnvironment(value === 'local' ? 'local' : 'auto')}
             />
           </div>
@@ -569,7 +585,7 @@ function EnvironmentDetail({
           <div className="environment-source-reference">
             <SettingsDropdown
               ariaLabel="来源所属目录"
-              maxWidth="calc(100vw - 32px)"
+
               options={(project.folders ?? []).map((folder) => ({
                 value: folder.id,
                 label: `${folder.name}${folder.role === 'primary' ? '（主目录）' : ''}`,
@@ -577,7 +593,7 @@ function EnvironmentDetail({
               showSelectedIndicator
               triggerClassName="environment-settings-dropdown tw:w-full tw:bg-app-canvas"
               value={sourceFolderId}
-              width={280}
+              size="md"
               onChange={setSourceFolderId}
             />
             <input
@@ -624,7 +640,8 @@ function EnvironmentDetail({
                   >
                     {sourceStatusLabel(source.status)}
                   </span>
-                  <Button isIconOnly
+                  <Button
+                    isIconOnly
                     color="ghostSecondary"
                     disabled={busy !== null || source.status !== 'available'}
                     size="toolbar"
@@ -634,7 +651,8 @@ function EnvironmentDetail({
                   >
                     <Eye size={APP_ICON_SIZE} />
                   </Button>
-                  <Button isIconOnly
+                  <Button
+                    isIconOnly
                     color="ghostSecondary"
                     disabled={
                       busy !== null ||
@@ -654,7 +672,8 @@ function EnvironmentDetail({
                   >
                     <RefreshCw size={APP_ICON_SIZE} />
                   </Button>
-                  <Button isIconOnly
+                  <Button
+                    isIconOnly
                     color="ghostSecondary"
                     disabled={busy !== null}
                     size="toolbar"
@@ -681,7 +700,8 @@ function EnvironmentDetail({
             <div className="environment-source-preview">
               <header>
                 <strong>{preview.source.name}</strong>
-                <Button isIconOnly
+                <Button
+                  isIconOnly
                   color="ghostSecondary"
                   size="toolbar"
                   title="关闭来源预览"
@@ -713,7 +733,11 @@ function EnvironmentDetail({
 }
 
 function EnvironmentEmpty({ children }: { children: React.ReactNode }): React.ReactNode {
-  return <p className="environment-empty tw:m-0 tw:px-4 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-body-sm">{children}</p>
+  return (
+    <p className="environment-empty tw:m-0 tw:px-4 tw:py-6 tw:text-center tw:text-app-text-soft tw:type-body-sm">
+      {children}
+    </p>
+  )
 }
 
 function sourceStatusLabel(status: DesktopProjectSource['status']): string {

@@ -104,7 +104,7 @@ export function OAuthConnection({
             detail: option.description,
           }))}
           value={auth.value}
-          width={320}
+          size="lg"
         />
       ) : (
         <Input
@@ -152,7 +152,10 @@ export function OAuthConnection({
 
       <div className="model-center-oauth-body tw:grid tw:min-w-0 tw:gap-4">
         {status ? (
-          <div className="model-center-oauth-status tw:flex tw:items-start tw:gap-3 tw:text-app-text tw:[&>.ui-spinner]:mt-1 tw:[&>.ui-spinner]:shrink-0 tw:[&>svg]:mt-1 tw:[&>svg]:shrink-0" role="status">
+          <div
+            className="model-center-oauth-status tw:flex tw:items-start tw:gap-3 tw:text-app-text tw:[&>.ui-spinner]:mt-1 tw:[&>.ui-spinner]:shrink-0 tw:[&>svg]:mt-1 tw:[&>svg]:shrink-0"
+            role="status"
+          >
             {active || auth.busy ? <Spinner /> : <Check size={APP_ICON_SIZES.sm} aria-hidden />}
             <div>
               <strong className="tw:type-row-title">{t(status)}</strong>

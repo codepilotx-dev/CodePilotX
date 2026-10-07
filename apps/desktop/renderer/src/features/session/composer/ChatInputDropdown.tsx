@@ -76,8 +76,7 @@ export function ChatInputDropdown({
   open,
   onClose,
   side = 'top',
-  width,
-  maxWidth,
+  size,
   children,
   suggestion = false,
 }: Props): React.ReactNode | null {
@@ -136,7 +135,7 @@ export function ChatInputDropdown({
     }
   }, [open, onClose])
 
-  const style: React.CSSProperties = buildPopoverSizingStyle({ width, maxWidth })
+  const style: React.CSSProperties = buildPopoverSizingStyle({ size })
   if (maxHeight !== null) {
     style.maxHeight = `${maxHeight}px`
     style.overflowY = suggestion ? 'hidden' : 'auto'
@@ -150,6 +149,7 @@ export function ChatInputDropdown({
       {open ? (
         <ChatInputDropdownSurface
           key="chat-input-dropdown"
+          size={size}
           maxHeightStyle={style}
           ref={ref}
           side={side}
@@ -165,11 +165,13 @@ export function ChatInputDropdown({
 function ChatInputDropdownSurface({
   children,
   maxHeightStyle,
+  size,
   ref,
   side,
   suggestion,
 }: {
   children: React.ReactNode
+  size: PopoverSizingProps['size']
   maxHeightStyle: React.CSSProperties
   ref: React.Ref<HTMLDivElement>
   side: 'top' | 'bottom'
@@ -192,6 +194,7 @@ function ChatInputDropdownSurface({
             ? DROPDOWN_BOTTOM_CLASS
             : DROPDOWN_CLASS
       }
+      data-popover-size={size}
       data-presence={isPresent ? 'present' : 'exiting'}
       data-theme-component="dropdown-surface"
       exit={{

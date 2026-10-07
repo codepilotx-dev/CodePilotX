@@ -117,8 +117,12 @@ export function ConfigSettings(): React.ReactNode {
     <SettingsContentArea className="">
       <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
         <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">配置</h2>
-          <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">配置审批策略和命令执行范围。</p>
+          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">
+            配置
+          </h2>
+          <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">
+            配置审批策略和命令执行范围。
+          </p>
         </div>
 
         <SettingsSection>
@@ -129,7 +133,7 @@ export function ConfigSettings(): React.ReactNode {
           <div className="config-settings-source-toolbar tw:mb-3 tw:flex tw:min-w-0 tw:items-center tw:justify-between tw:gap-3 tw:max-[600px]:flex-col tw:max-[600px]:items-start">
             <div className="config-settings-source-controls tw:flex tw:min-w-0 tw:items-center tw:gap-2 tw:max-[600px]:w-full tw:max-[600px]:flex-wrap">
               <SettingsDropdown
-                width={180}
+                size="sm"
                 ariaLabel="活动 Profile"
                 disabled={!configProfiles}
                 value={configRead?.profileState.selectedProfile ?? ''}
@@ -152,7 +156,7 @@ export function ConfigSettings(): React.ReactNode {
                 }}
               />
               <SettingsDropdown
-                width={160}
+                size="sm"
                 ariaLabel="配置层"
                 value={configLayer}
                 options={[
@@ -209,7 +213,7 @@ export function ConfigSettings(): React.ReactNode {
               description="快速选择默认权限、自动审查、完全访问或自定义策略。"
               control={
                 <SettingsDropdown
-                  width={260}
+                  size="md"
                   ariaLabel="权限预设"
                   value={permissionModeForConfig(draft.values.permissionConfig)}
                   options={PERMISSION_MODE_OPTIONS.map((option) => ({
@@ -231,7 +235,7 @@ export function ConfigSettings(): React.ReactNode {
               description="约束内建文件工具；Shell 始终在宿主机执行。网络授权属于审批范围，不提供网络隔离。"
               control={
                 <SettingsDropdown
-                  width={260}
+                  size="md"
                   ariaLabel="文件访问范围"
                   value={
                     draft.values.permissionConfig.sandboxMode === 'read-only'
@@ -280,7 +284,7 @@ export function ConfigSettings(): React.ReactNode {
               description="调整 Shell 静态风险处理，不改变文件或网络权限范围；审批时机为“从不”时，需要审批的命令会直接拒绝。"
               control={
                 <SettingsDropdown
-                  width={260}
+                  size="md"
                   ariaLabel="Shell 安全级别"
                   value={draft.values.shellSecurityLevel}
                   options={[
@@ -312,7 +316,7 @@ export function ConfigSettings(): React.ReactNode {
               description="选择 CodePilotX 何时请求批准。"
               control={
                 <SettingsDropdown
-                  width={260}
+                  size="md"
                   ariaLabel="审批时机"
                   value={
                     typeof draft.values.permissionConfig.approvalPolicy === 'object'
@@ -354,7 +358,7 @@ export function ConfigSettings(): React.ReactNode {
               description="选择由你还是独立 Guardian 处理需要审批的操作。"
               control={
                 <SettingsDropdown
-                  width={260}
+                  size="md"
                   ariaLabel="审批执行者"
                   value={draft.values.permissionConfig.approvalsReviewer}
                   options={[
@@ -457,7 +461,9 @@ export function ConfigSettings(): React.ReactNode {
               className="config-settings-prompt-preview tw:max-h-[min(32rem,60vh)] tw:overflow-auto tw:border-t-[0.5px] tw:border-t-app-border tw:p-4"
               role="region"
             >
-              <pre className="settings-code-block tw:m-0 tw:min-w-max tw:whitespace-pre tw:text-app-text-soft tw:type-code">{promptPreview}</pre>
+              <pre className="settings-code-block tw:m-0 tw:min-w-max tw:whitespace-pre tw:text-app-text-soft tw:type-code">
+                {promptPreview}
+              </pre>
             </div>
           ) : null}
         </SettingsSection>

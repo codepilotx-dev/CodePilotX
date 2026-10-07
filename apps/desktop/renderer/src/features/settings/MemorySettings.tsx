@@ -173,8 +173,12 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
     <SettingsContentArea className="memory-settings-page">
       <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
         <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">记忆</h2>
-          <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">管理当前工作区的自动长期记忆和召回时间线。</p>
+          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">
+            记忆
+          </h2>
+          <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">
+            管理当前工作区的自动长期记忆和召回时间线。
+          </p>
         </div>
 
         <SettingsSection title="记忆状态">
@@ -255,10 +259,12 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                   showSelectedIndicator
                   triggerClassName="memory-settings-filter tw:w-auto tw:min-w-0 tw:px-2 tw:py-1"
                   value={typeFilter}
-                  width={160}
+                  size="sm"
                   onChange={(value) => setTypeFilter(value as MemoryTypeFilter)}
                 />
-                <span className="memory-settings-count tw:ml-auto tw:text-app-text-soft tw:type-caption tw:whitespace-nowrap">{filteredMemories.length} 条</span>
+                <span className="memory-settings-count tw:ml-auto tw:text-app-text-soft tw:type-caption tw:whitespace-nowrap">
+                  {filteredMemories.length} 条
+                </span>
               </div>
               {error ? <p className="settings-row-error">{error}</p> : null}
               <div className="memory-settings-grid tw:grid tw:min-h-120 tw:grid-cols-[minmax(260px,1fr)_minmax(380px,1.6fr)] tw:gap-3 tw:p-3">
@@ -279,7 +285,9 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                           onClick={() => void openMemory(memory.relativePath)}
                           type="button"
                         >
-                          <span className="memory-settings-item-name tw:truncate tw:text-app-text tw:type-row-title">{memory.relativePath}</span>
+                          <span className="memory-settings-item-name tw:truncate tw:text-app-text tw:type-row-title">
+                            {memory.relativePath}
+                          </span>
                           <span className="memory-settings-item-meta tw:flex tw:min-w-0 tw:items-center tw:gap-2">
                             <span className="memory-settings-item-type tw:inline-flex tw:shrink-0 tw:items-center tw:rounded-full tw:bg-app-hover tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-caption">
                               {memory.type ?? 'unknown'}
@@ -291,7 +299,9 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                         </button>
                       ))}
                       {filteredMemories.length === 0 ? (
-                        <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">暂无记忆</div>
+                        <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">
+                          暂无记忆
+                        </div>
                       ) : null}
                     </div>
                   </div>
@@ -338,7 +348,9 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                           }
                         />
                       ) : (
-                        <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">选择一条记忆查看内容</div>
+                        <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">
+                          选择一条记忆查看内容
+                        </div>
                       )}
                     </div>
                   </div>
@@ -346,7 +358,9 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
               </div>
             </>
           ) : (
-            <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">请先打开工作区后管理项目记忆</div>
+            <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">
+              请先打开工作区后管理项目记忆
+            </div>
           )}
         </SettingsSection>
 
@@ -354,9 +368,13 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
           <div className="memory-recall-list-scroll-area tw:max-h-90 tw:min-h-0 tw:overflow-x-hidden tw:overflow-y-auto">
             <div className="memory-recall-list-scroll-content tw:min-w-0">
               {!hasWorkspace ? (
-                <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">请先打开工作区后查看召回记录</div>
+                <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">
+                  请先打开工作区后查看召回记录
+                </div>
               ) : recalls.length === 0 ? (
-                <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">暂无召回记录</div>
+                <div className="settings-empty-state tw:m-0 tw:p-5 tw:text-app-text-soft tw:type-body-sm">
+                  暂无召回记录
+                </div>
               ) : (
                 recalls.map((recall, index) => (
                   <article
@@ -366,7 +384,9 @@ export function MemorySettings({ workspacePath }: Props): React.ReactNode {
                     <span className="memory-recall-time tw:text-app-text tw:type-label">
                       {new Date(recall.createdAt).toLocaleString()}
                     </span>
-                    <span className="memory-recall-summary tw:text-app-text tw:type-body">{recall.querySummary}</span>
+                    <span className="memory-recall-summary tw:text-app-text tw:type-body">
+                      {recall.querySummary}
+                    </span>
                     <span className="memory-recall-files tw:truncate tw:text-app-text-soft tw:type-caption">
                       {recall.memories
                         .map(

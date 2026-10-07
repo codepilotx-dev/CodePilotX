@@ -4,7 +4,7 @@ import {
   APP_ICON_SIZE,
 } from '../../../components/ui/iconTokens.js'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import * as Popover from '@radix-ui/react-popover'
+import { Popover as Popover } from '../../../components/ui/floating/Popover.js'
 import { ChevronDown, ChevronLeft, Plus, Search, X } from 'lucide-react'
 import type { DesktopModelProviderSummary, ModelProviderID } from '../../../../shared/types.js'
 import type { ModelPreset } from '../../../modelPresets.js'
@@ -23,13 +23,9 @@ import { ReasoningMenu } from './ReasoningMenu.js'
  * raises the weight, which cannot be a utility next to the `font` shorthand
  * roles), and the provider/model lists hide their scrollbar there too.
  */
-const PANEL_CONTENT_CLASS = cx(
-  'composer-model-panel-content tw:z-popover tw:origin-bottom-right tw:overflow-hidden tw:rounded-prominent',
-  'tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-lg',
-  'tw:animate-[composer-panel-in_var(--cpx-sys-motion-enter)_var(--cpx-sys-ease-standard)_both]',
-)
+const PANEL_CONTENT_CLASS = 'composer-model-panel-content tw:overflow-hidden'
 const PANEL_CLASS =
-  'composer-model-panel tw:flex tw:h-97.5 tw:w-99 tw:max-w-[calc(100vw-2rem)] tw:select-none tw:overflow-hidden'
+  'composer-model-panel tw:flex tw:h-97.5 tw:w-full tw:select-none tw:overflow-hidden'
 const PROVIDER_RAIL_CLASS = cx(
   'composer-provider-rail tw:flex tw:h-full tw:w-14 tw:shrink-0 tw:flex-col tw:items-center tw:justify-between',
   'tw:border-r tw:border-app-border-subtle tw:bg-transparent tw:px-1.5 tw:py-2.5',
@@ -430,10 +426,12 @@ export function ModelPickerPopover({
       <Popover.Trigger asChild>{trigger}</Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
+          size="lg"
           align={align}
           side={side}
           sideOffset={sideOffset}
           className={PANEL_CONTENT_CLASS}
+          style={{ padding: 0 }}
         >
           <div className={PANEL_CLASS}>
             {/* Left provider rail */}

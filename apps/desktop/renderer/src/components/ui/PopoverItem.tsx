@@ -1,5 +1,5 @@
 import type React from 'react'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import { Dropdown as DropdownMenu } from './floating/Dropdown.js'
 import { Check, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react'
 import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from './iconTokens.js'
 import { Tooltip } from './Tooltip.js'

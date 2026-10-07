@@ -166,8 +166,7 @@ function AppMenu({
   onRequestClose,
   triggerRef,
   value,
-  width,
-  maxWidth,
+  size,
 }: AppMenuProps): React.ReactNode {
   const focusModality = useFloatingFocusModality()
   return (
@@ -193,6 +192,7 @@ function AppMenu({
       </Menubar.Trigger>
       <Menubar.Portal>
         <Menubar.Content
+          data-popover-size={size}
           data-theme-component="dropdown-surface"
           align="start"
           className={cx(
@@ -206,7 +206,7 @@ function AppMenu({
           data-edit-command-preserve-target
           onCloseAutoFocus={focusModality.suppressFocusRingOnClose}
           sideOffset={4}
-          style={buildPopoverSizingStyle({ width, maxWidth })}
+          style={buildPopoverSizingStyle({ size })}
         >
           {children}
         </Menubar.Content>
@@ -335,7 +335,8 @@ export function MenuBar({
     >
       <div className="menubar-titlebar tw:flex tw:h-chrome tw:w-full tw:items-center tw:justify-between tw:gap-2 tw:pl-2">
         <div className="menubar-left tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:gap-1 tw:overflow-visible">
-          <Button isIconOnly
+          <Button
+            isIconOnly
             data-app-shell-sidebar-trigger
             onClick={onToggleSidebar}
             color="ghost"
@@ -348,7 +349,8 @@ export function MenuBar({
               <PanelLeftClose size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
             )}
           </Button>
-          <Button isIconOnly
+          <Button
+            isIconOnly
             disabled={!canNavigateBack}
             color="ghost"
             onClick={() => onViewMenuAction('back')}
@@ -357,7 +359,8 @@ export function MenuBar({
           >
             <ChevronLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </Button>
-          <Button isIconOnly
+          <Button
+            isIconOnly
             disabled={!canNavigateForward}
             color="ghost"
             onClick={() => onViewMenuAction('forward')}
@@ -381,7 +384,7 @@ export function MenuBar({
                 menuTriggerRefs.current.file = ref
               }}
               value="file"
-              width={240}
+              size="md"
             >
               <MenuItem
                 disabled={!isFileActionEnabled('close')}
@@ -442,7 +445,7 @@ export function MenuBar({
                 menuTriggerRefs.current.edit = ref
               }}
               value="edit"
-              width={240}
+              size="md"
             >
               <MenuItem
                 disabled={!editMenuCapabilities.undo}
@@ -504,7 +507,7 @@ export function MenuBar({
                 menuTriggerRefs.current.view = ref
               }}
               value="view"
-              width={260}
+              size="md"
             >
               <MenuItem
                 disabled={!isViewActionEnabled('toggleSidebar')}
@@ -623,7 +626,7 @@ export function MenuBar({
                 menuTriggerRefs.current.window = ref
               }}
               value="window"
-              width={240}
+              size="md"
             >
               <MenuItem
                 disabled={!isWindowActionEnabled('minimize')}
@@ -656,7 +659,7 @@ export function MenuBar({
                 menuTriggerRefs.current.help = ref
               }}
               value="help"
-              width={260}
+              size="md"
             >
               <MenuItem
                 disabled={!isHelpActionEnabled('codepilotxDocumentation')}

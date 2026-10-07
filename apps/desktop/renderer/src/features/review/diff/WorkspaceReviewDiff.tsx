@@ -155,7 +155,7 @@ export function reviewFileDiffLoadMode(input: {
 }
 
 export const REVIEW_FILE_TREE_PANEL_DEFAULT_WIDTH = 340
-export const REVIEW_FILE_TREE_PANEL_MIN_WIDTH = 240
+export const REVIEW_FILE_TREE_PANEL_MIN_WIDTH = 200
 export const REVIEW_FILE_TREE_PANEL_MAX_WIDTH = 520
 export const REVIEW_FILE_TREE_PANEL_KEYBOARD_STEP = 24
 export const REVIEW_DIFF_PREVIEW_MIN_WIDTH = 260
@@ -1144,9 +1144,9 @@ export function VirtualDiffSplitRow({
 export function clampReviewFileTreePanelWidth(width: number, containerWidth?: number): number {
   const containerMax =
     typeof containerWidth === 'number' && Number.isFinite(containerWidth)
-      ? Math.max(REVIEW_FILE_TREE_PANEL_MIN_WIDTH, containerWidth - REVIEW_DIFF_PREVIEW_MIN_WIDTH)
+      ? Math.max(REVIEW_FILE_TREE_PANEL_MIN_WIDTH, Math.min(containerWidth * 0.6, containerWidth - REVIEW_DIFF_PREVIEW_MIN_WIDTH))
       : REVIEW_FILE_TREE_PANEL_MAX_WIDTH
-  const maxWidth = Math.min(REVIEW_FILE_TREE_PANEL_MAX_WIDTH, containerMax)
+  const maxWidth = containerMax
   return Math.round(Math.min(Math.max(width, REVIEW_FILE_TREE_PANEL_MIN_WIDTH), maxWidth))
 }
 

@@ -4,14 +4,69 @@
  */
 @layer primitives {
   :root {
-    --popover-width-extra: 0px;
     --popover-default-max-width: min(360px, calc(100vw - 16px));
     --popover-surface-padding: var(--cpx-comp-menu-surface-padding);
   }
 
+  /* UI-Design: one frame and three widths for every floating menu/popover. */
+  [data-popover-size='sm'] {
+    --popover-width: 220px;
+  }
+  [data-popover-size='md'] {
+    --popover-width: 280px;
+  }
+  [data-popover-size='lg'] {
+    --popover-width: 360px;
+  }
+
+  [data-popover-size]:is(
+    .popover-surface,
+    .sidebar-context-menu-content,
+    .sidebar-hover-card-surface,
+    .thread-summary-popover
+  ) {
+    width: var(--popover-width);
+    min-width: 0;
+    max-width: calc(100vw - 16px);
+    border: 1px solid var(--cpx-comp-dropdown-menu-border, var(--cpx-sys-color-border-default));
+    border-radius: var(--cpx-comp-dropdown-menu-radius);
+    background: var(--cpx-comp-dropdown-menu-bg, var(--cpx-comp-surface-floating));
+    backdrop-filter: var(--cpx-comp-dropdown-menu-backdrop-filter, blur(16px));
+    box-shadow: var(--cpx-comp-dropdown-menu-shadow, var(--cpx-sys-shadow-floating));
+  }
+
+  .popover-arrow {
+    position: absolute;
+    fill: var(--cpx-comp-dropdown-menu-bg);
+    pointer-events: none;
+  }
+  .popover-surface:has(> .popover-arrow) {
+    --popover-overflow-x: visible;
+    --popover-overflow-y: visible;
+  }
+  [data-side='bottom'] > .popover-arrow {
+    top: -5px;
+    left: calc(var(--popover-arrow-x, 50%) - 5px);
+  }
+  [data-side='top'] > .popover-arrow {
+    bottom: -5px;
+    left: calc(var(--popover-arrow-x, 50%) - 5px);
+    transform: rotate(180deg);
+  }
+  [data-side='left'] > .popover-arrow {
+    right: -7px;
+    top: calc(var(--popover-arrow-y, 50%) - 3px);
+    transform: rotate(90deg);
+  }
+  [data-side='right'] > .popover-arrow {
+    left: -7px;
+    top: calc(var(--popover-arrow-y, 50%) - 3px);
+    transform: rotate(-90deg);
+  }
+
   /* Developer-themeable Dropdown family contract. The data attributes mark only
    * dropdown/select surfaces; generic popovers, dialogs and tooltips stay intact. */
-  [data-theme-component="dropdown-trigger"]:not(.interactive-row, .sidebar-row, .ui-button) {
+  [data-theme-component='dropdown-trigger']:not(.interactive-row, .sidebar-row, .ui-button) {
     --cpx-comp-row-bg: var(--cpx-comp-dropdown-trigger-bg);
     --cpx-comp-row-fg: var(--cpx-comp-dropdown-trigger-fg);
     --cpx-comp-row-hover-bg: var(--cpx-comp-dropdown-trigger-hover-bg);
@@ -23,27 +78,35 @@
     color: var(--cpx-comp-dropdown-trigger-fg);
   }
 
-  [data-theme-component="dropdown-trigger"]:not(.interactive-row, .sidebar-row, .ui-button):hover:not(:where(:disabled, [data-disabled], [aria-disabled="true"])) {
+  [data-theme-component='dropdown-trigger']:not(
+      .interactive-row,
+      .sidebar-row,
+      .ui-button
+    ):hover:not(:where(:disabled, [data-disabled], [aria-disabled='true'])) {
     background: var(--cpx-comp-dropdown-trigger-hover-bg);
   }
 
-  [data-theme-component="dropdown-trigger"]:not(.interactive-row, .sidebar-row, .ui-button):where([data-state="open"],
-  [aria-expanded="true"]) {
+  [data-theme-component='dropdown-trigger']:not(.interactive-row, .sidebar-row, .ui-button):where(
+      [data-state='open'],
+      [aria-expanded='true']
+    ) {
     background: var(--cpx-comp-dropdown-trigger-open-bg);
   }
 
-  [data-theme-component="dropdown-trigger"]:where(:disabled,
-  [data-disabled],
-  [aria-disabled="true"]) {
+  [data-theme-component='dropdown-trigger']:where(
+    :disabled,
+    [data-disabled],
+    [aria-disabled='true']
+  ) {
     color: var(--cpx-comp-dropdown-trigger-disabled-fg);
   }
 
-  [data-theme-component="dropdown-trigger"]:focus-visible {
+  [data-theme-component='dropdown-trigger']:focus-visible {
     outline: 2px solid var(--cpx-comp-dropdown-focus-border);
     outline-offset: 1px;
   }
 
-  .popover-surface[data-theme-component="dropdown-surface"] {
+  .popover-surface[data-theme-component='dropdown-surface'] {
     --cpx-comp-row-bg: transparent;
     --cpx-comp-row-fg: var(--cpx-comp-dropdown-menu-fg);
     --cpx-comp-row-hover-bg: var(--cpx-comp-dropdown-item-hover-bg);
@@ -56,12 +119,15 @@
     background: var(--cpx-comp-dropdown-menu-bg);
   }
 
-  .popover-surface[data-theme-component="dropdown-surface"] :where(.popover-item,
-  .popover-sub-trigger,
-  .menubar-item,
-  .settings-dropdown-item,
-  .permission-select-item,
-  .chat-input__dropdown-item):focus-visible {
+  .popover-surface[data-theme-component='dropdown-surface']
+    :where(
+      .popover-item,
+      .popover-sub-trigger,
+      .menubar-item,
+      .settings-dropdown-item,
+      .permission-select-item,
+      .chat-input__dropdown-item
+    ):focus-visible {
     box-shadow: inset 0 0 0 1px var(--cpx-comp-dropdown-focus-border);
   }
 
@@ -71,10 +137,17 @@
   .permission-select-content,
   .appearance-color-popover,
   .thread-summary-popover {
+    --popover-available-height: calc(100vh - 96px);
     z-index: var(--cpx-sys-z-popover);
-    width: var(--popover-width, max-content);
+    width: var(--popover-width, 280px);
     max-width: var(--popover-max-width, var(--popover-default-max-width));
-    max-height: var(--popover-max-height, min(420px, var(--radix-select-content-available-height, var(--radix-dropdown-menu-content-available-height, var(--radix-context-menu-content-available-height, var(--radix-popover-content-available-height, calc(100vh - 96px)))))));
+    max-height: var(
+      --popover-max-height,
+      min(
+        420px,
+        var(--popover-available-height, calc(100vh - 96px))
+      )
+    );
     overflow-x: var(--popover-overflow-x, hidden);
     overflow-y: var(--popover-overflow-y, auto);
     overscroll-behavior: contain;
@@ -88,13 +161,15 @@
     -webkit-app-region: no-drag;
   }
 
-  :where(.popover-surface,
-  .sidebar-context-menu-content,
-  .settings-dropdown-content,
-  .permission-select-content,
-  .appearance-color-popover,
-  .thread-summary-popover,
-  .sidebar-hover-card-surface) {
+  :where(
+    .popover-surface,
+    .sidebar-context-menu-content,
+    .settings-dropdown-content,
+    .permission-select-content,
+    .appearance-color-popover,
+    .thread-summary-popover,
+    .sidebar-hover-card-surface
+  ) {
     border: var(--cpx-comp-surface-edge);
     background: var(--cpx-comp-dropdown-menu-bg, var(--cpx-comp-surface-floating));
     backdrop-filter: var(--cpx-comp-dropdown-menu-backdrop-filter, blur(16px));
@@ -102,19 +177,21 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    :where(.popover-surface,
-    .sidebar-context-menu-content,
-    .settings-dropdown-content,
-    .permission-select-content,
-    .appearance-color-popover,
-    .thread-summary-popover,
-    .sidebar-hover-card-surface) {
+    :where(
+      .popover-surface,
+      .sidebar-context-menu-content,
+      .settings-dropdown-content,
+      .permission-select-content,
+      .appearance-color-popover,
+      .thread-summary-popover,
+      .sidebar-hover-card-surface
+    ) {
       backdrop-filter: none;
       background: var(--cpx-comp-surface-floating);
     }
   }
   .popover-surface {
-    border: var(--cpx-comp-dropdown-menu-border, var(--cpx-comp-surface-edge));
+    border: 1px solid var(--cpx-comp-dropdown-menu-border, var(--cpx-sys-color-border-default));
     background: var(--cpx-comp-dropdown-menu-bg, var(--cpx-comp-surface-floating));
     backdrop-filter: var(--cpx-comp-dropdown-menu-backdrop-filter, blur(16px));
     box-shadow: var(--cpx-comp-dropdown-menu-shadow, var(--cpx-sys-shadow-floating));
@@ -132,10 +209,6 @@
     padding: var(--popover-surface-padding);
   }
 
-  .thread-summary-popover {
-    --popover-max-width: min(390px, calc(100vw - 32px));
-  }
-
   .popover {
     z-index: var(--cpx-sys-z-popover);
     display: inline-block;
@@ -143,13 +216,7 @@
 
   /* The per-side floating offsets, transform-origin and enter/exit keyframes live
    * with the shared motion residue in styles/primitives/overlays.css. */
-  [data-radix-popper-content-wrapper]:has(.popover),
-  [data-radix-popper-content-wrapper]:has(.sidebar-context-menu-content),
-  [data-radix-popper-content-wrapper]:has(.settings-dropdown-content),
-  [data-radix-popper-content-wrapper]:has(.permission-select-content),
-  [data-radix-popper-content-wrapper]:has(.appearance-color-popover),
-  [data-radix-popper-content-wrapper]:has(.thread-summary-popover),
-  [data-radix-popper-content-wrapper]:has(.composer-model-panel-content) {
+  [data-radix-popper-content-wrapper]:has(.menubar-content) {
     z-index: var(--cpx-sys-z-popover) !important;
     border-radius: var(--cpx-comp-dropdown-menu-radius);
     background: transparent;
@@ -167,7 +234,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--cpx-comp-row-gap-y, 2px);
-    width: var(--popover-width, max-content);
+    width: var(--popover-width, 280px);
     max-width: var(--popover-max-width, var(--popover-default-max-width));
     padding: var(--cpx-comp-menu-surface-padding);
   }
@@ -180,7 +247,7 @@
     min-width: 200px;
   }
 
-  .sidebar-context-menu-item[data-color="red"] {
+  .sidebar-context-menu-item[data-color='red'] {
     color: var(--cpx-sys-color-danger);
   }
 
@@ -209,9 +276,8 @@
     width: var(--cpx-sys-icon-size-sm);
     height: var(--cpx-sys-icon-size-sm);
     stroke-width: var(--cpx-comp-icon-stroke-width);
-      color: var(--cpx-sys-color-fg-tertiary);
-  
-}
+    color: var(--cpx-sys-color-fg-tertiary);
+  }
 
   .sidebar-context-menu-trailing {
     min-width: 0;
@@ -220,7 +286,6 @@
     gap: 8px;
     justify-self: end;
   }
-
 
   .sidebar-context-menu-shortcut {
     color: var(--cpx-sys-color-fg-tertiary);
@@ -249,7 +314,9 @@
   .settings-dropdown-item,
   .permission-select-item,
   .chat-input__dropdown-item {
-    transition: background var(--cpx-sys-motion-instant) var(--cpx-sys-ease-standard), color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
+    transition:
+      background var(--cpx-sys-motion-instant) var(--cpx-sys-ease-standard),
+      color var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-standard);
   }
 
   .popover-sub-content {
@@ -264,12 +331,12 @@
   }
 
   .popover-section,
-  .popover-surface [role="radiogroup"],
-  .popover-surface [role="group"] {
+  .popover-surface [role='radiogroup'],
+  .popover-surface [role='group'] {
     display: flex;
     flex-direction: column;
     gap: var(--cpx-comp-row-gap-y, 2px);
-    padding: var(--cpx-sys-space-1) 0;
+    padding: 0;
   }
 
   .popover-empty {
@@ -406,13 +473,15 @@
   /* Tooltip surface, arrow fill and the floating enter/exit keyframes are
    * expressed in components/ui/Tooltip.tsx and styles/primitives/overlays.css. */
   @media (forced-colors: active) {
-    :is(.popover-item,
-    .popover-sub-trigger,
-    .sidebar-context-menu-item,
-    .sidebar-context-menu-sub-trigger,
-    .settings-dropdown-item,
-    .permission-select-item,
-    .menubar-item):is([data-highlighted], :focus-visible) {
+    :is(
+      .popover-item,
+      .popover-sub-trigger,
+      .sidebar-context-menu-item,
+      .sidebar-context-menu-sub-trigger,
+      .settings-dropdown-item,
+      .permission-select-item,
+      .menubar-item
+    ):is([data-highlighted], :focus-visible) {
       outline: 2px solid Highlight;
       outline-offset: -2px;
     }

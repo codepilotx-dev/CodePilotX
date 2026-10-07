@@ -114,7 +114,7 @@ export function ComposerStatusOverlay({
   const quotas = criticalQuotaWindows(usageSource, 3)
 
   return (
-    <ChatInputDropdown open={open} onClose={onClose} side={side} width="100%" maxWidth="100%">
+    <ChatInputDropdown open={open} onClose={onClose} side={side} size="lg">
       <div className="composer-status-content tw:p-0">
         {/* Header */}
         <div className="composer-status-header tw:flex tw:items-center tw:justify-between tw:border-b tw:border-app-border tw:px-4 tw:pt-3 tw:pb-2">

@@ -1,5 +1,5 @@
 import type React from 'react'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import { Dropdown as DropdownMenu } from './floating/Dropdown.js'
 import { useFloatingFocusModality } from '../../utils/floatingFocus.js'
 import { buildPopoverSizingStyle, type PopoverSizingProps } from './popoverSizing.js'
 
@@ -14,7 +14,6 @@ type Props = {
   collisionPadding?: number
   avoidCollisions?: boolean
   textMode?: 'nowrap' | 'wrap'
-  modal?: boolean
   onOpenChange?: (open: boolean) => void
 } & PopoverSizingProps
 
@@ -29,19 +28,18 @@ export function Dropdown({
   collisionPadding = 6,
   avoidCollisions = true,
   textMode = 'nowrap',
-  modal = false,
-  width,
-  maxWidth,
+  size,
   onOpenChange,
 }: Props): React.ReactNode {
   const focusModality = useFloatingFocusModality()
   return (
-    <DropdownMenu.Root modal={modal} open={open} onOpenChange={onOpenChange}>
+    <DropdownMenu.Root mode="menu" open={open} onOpenChange={onOpenChange}>
       <DropdownMenu.Trigger asChild {...focusModality.triggerInteractionProps}>
         {trigger}
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
+          size={size ?? 'md'}
           data-theme-component="dropdown-surface"
           align={align}
           className={[
@@ -56,9 +54,9 @@ export function Dropdown({
           onCloseAutoFocus={focusModality.suppressFocusRingOnClose}
           side={side}
           sideOffset={sideOffset}
-          style={buildPopoverSizingStyle({ width, maxWidth })}
+          style={buildPopoverSizingStyle({ size })}
         >
-          <div className="popover-scroll-content tw:flex tw:min-w-0 tw:max-w-full tw:flex-col tw:gap-0.5 tw:p-1 tw:overflow-x-hidden tw:overflow-y-auto">
+          <div className="popover-scroll-content tw:flex tw:min-w-0 tw:max-w-full tw:flex-col tw:gap-0.5">
             {children}
           </div>
         </DropdownMenu.Content>

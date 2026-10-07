@@ -50,17 +50,15 @@ export function SessionGroupSwitcherPopover({
   }, [disabled, open])
 
   const options = useMemo(() => {
-    const keyword = search.trim().toLocaleLowerCase()
-    const filtered = keyword
-      ? groups.filter((group) =>
-          `${group.name} ${group.description}`.toLocaleLowerCase().includes(keyword),
-        )
-      : groups
     return [
-      { value: '__none__', group: null },
-      ...filtered.map((group) => ({ value: group.id, group })),
+      { value: '__none__', group: null, filter: false },
+      ...groups.map((group) => ({
+        value: group.id,
+        group,
+        textValue: group.name + ' ' + group.description,
+      })),
     ]
-  }, [groups, search])
+  }, [groups])
 
   return (
     <SearchablePopoverContent
@@ -116,7 +114,7 @@ export function SessionGroupSwitcherPopover({
       selectedValue={value ?? '__none__'}
       side={side}
       trigger={trigger}
-      width={280}
+      size="md"
       onOpenChange={onOpenChange}
       onSearchChange={setSearch}
       onSelect={async (option) => {

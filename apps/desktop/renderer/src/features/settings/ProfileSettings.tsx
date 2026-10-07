@@ -1,6 +1,6 @@
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import * as Popover from '@radix-ui/react-popover'
+import { Popover as Popover } from '../../components/ui/floating/Popover.js'
 import { Edit3, GitFork, Globe, Mail, MapPin, RefreshCw, Star, User } from 'lucide-react'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { useNavigate } from 'react-router-dom'
@@ -149,7 +149,10 @@ export function ProfileSettings(): React.ReactNode {
             <>
               <section className="profile-hero tw:mx-auto tw:flex tw:max-w-[732px] tw:flex-col tw:items-center tw:text-center tw:[&>h1]:m-0 tw:[&>h1]:w-full tw:[&>h1]:truncate tw:[&>h1]:px-2 tw:[&>h1]:text-app-text tw:[&>h1]:type-title-xl tw:[&>h1]:tracking-[0.003em]">
                 <div className="profile-avatar-wrap tw:relative tw:mx-auto tw:mt-0 tw:mb-4 tw:size-20">
-                  <div className="profile-avatar tw:inline-flex tw:size-20 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-pill tw:bg-app-accent tw:text-app-text tw:text-[length:var(--cpx-sys-font-size-3xl)] tw:[&_img]:block tw:[&_img]:size-full tw:[&_img]:object-cover tw:[&_svg]:size-3.5" aria-hidden="true">
+                  <div
+                    className="profile-avatar tw:inline-flex tw:size-20 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-pill tw:bg-app-accent tw:text-app-text tw:text-[length:var(--cpx-sys-font-size-3xl)] tw:[&_img]:block tw:[&_img]:size-full tw:[&_img]:object-cover tw:[&_svg]:size-3.5"
+                    aria-hidden="true"
+                  >
                     {user?.avatarUrl ? (
                       <RemoteImage
                         alt=""
@@ -162,7 +165,8 @@ export function ProfileSettings(): React.ReactNode {
                   </div>
                   {user ? (
                     <Popover.Trigger asChild>
-                      <Button isIconOnly
+                      <Button
+                        isIconOnly
                         className="profile-avatar-badge tw:absolute tw:-right-1.5 tw:-bottom-0.5 tw:w-7.5 tw:inline-flex tw:items-center tw:justify-center tw:rounded-pill tw:border-[3px] tw:border-app-canvas tw:bg-app-raised tw:text-app-text tw:text-[length:var(--cpx-sys-space-5)] tw:cursor-pointer tw:shadow-none tw:focus-visible:outline-solid tw:focus-visible:outline-1 tw:focus-visible:outline-offset-2 tw:focus-visible:outline-app-focus"
                         color="ghostSecondary"
                         onClick={openStatusEditor}
@@ -180,15 +184,22 @@ export function ProfileSettings(): React.ReactNode {
                   {user ? `@${user.login}` : '未登录 GitHub'}
                   {githubOverview ? (
                     <>
-                      <span aria-hidden="true" className="profile-identity-separator tw:text-app-text-meta">
+                      <span
+                        aria-hidden="true"
+                        className="profile-identity-separator tw:text-app-text-meta"
+                      >
                         ·
                       </span>
-                      <span className="profile-account-label tw:h-6 tw:rounded-md tw:border tw:border-app-border-subtle tw:px-2 tw:py-1 tw:type-caption">GitHub</span>
+                      <span className="profile-account-label tw:h-6 tw:rounded-md tw:border tw:border-app-border-subtle tw:px-2 tw:py-1 tw:type-caption">
+                        GitHub
+                      </span>
                     </>
                   ) : null}
                 </div>
                 {githubOverview?.user.bio ? (
-                  <p className="profile-bio tw:mx-auto tw:mt-3 tw:mb-0 tw:max-w-[540px] tw:text-app-text tw:type-reading">{githubOverview.user.bio}</p>
+                  <p className="profile-bio tw:mx-auto tw:mt-3 tw:mb-0 tw:max-w-[540px] tw:text-app-text tw:type-reading">
+                    {githubOverview.user.bio}
+                  </p>
                 ) : null}
                 {currentStatus?.message ? (
                   <div className="profile-status-line tw:mt-3 tw:inline-flex tw:max-w-[560px] tw:items-center tw:gap-2 tw:rounded-full tw:border tw:border-app-border-subtle tw:px-3 tw:py-2 tw:text-app-text tw:type-caption tw:[&>strong]:pl-2 tw:[&>strong]:text-app-text-soft tw:[&>strong]:type-weight-label">
@@ -225,7 +236,10 @@ export function ProfileSettings(): React.ReactNode {
 
               {githubOverview ? (
                 <>
-                  <section className="profile-stat-strip tw:mx-auto tw:mt-10 tw:flex tw:min-h-15 tw:max-w-[732px] tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none tw:max-[760px]:grid tw:max-[760px]:grid-cols-2" aria-label="GitHub 统计">
+                  <section
+                    className="profile-stat-strip tw:mx-auto tw:mt-10 tw:flex tw:min-h-15 tw:max-w-[732px] tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:shadow-none tw:max-[760px]:grid tw:max-[760px]:grid-cols-2"
+                    aria-label="GitHub 统计"
+                  >
                     <ProfileMetric label="公开仓库" value={githubOverview.user.repositoryCount} />
                     <ProfileMetric
                       label="Starred"
@@ -318,7 +332,9 @@ export function ProfileSettings(): React.ReactNode {
                         <ProfileRepositoryRow key={repository.id} repository={repository} />
                       ))}
                       {repositories.length === 0 ? (
-                        <p className="profile-empty-copy tw:mt-3 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">暂无可显示的数据。</p>
+                        <p className="profile-empty-copy tw:mt-3 tw:mb-0 tw:text-app-text-soft tw:type-body-sm">
+                          暂无可显示的数据。
+                        </p>
                       ) : null}
                     </div>
                   </section>
@@ -357,9 +373,11 @@ export function ProfileSettings(): React.ReactNode {
       </SettingsContentArea>
       <Popover.Portal>
         <Popover.Content
+          size="lg"
           align="center"
           aria-label="设置 GitHub 状态"
-          className="popover-surface profile-status-popover tw:z-popover tw:w-[min(384px,calc(100vw-16px))] tw:max-w-[min(384px,calc(100vw-16px))]"
+          className="popover-surface profile-status-popover tw:z-popover"
+          style={{ padding: 0 }}
           collisionPadding={8}
           side="bottom"
           sideOffset={8}
@@ -367,7 +385,13 @@ export function ProfileSettings(): React.ReactNode {
           <div className="profile-status-popover-header tw:flex tw:items-center tw:justify-between tw:border-b tw:border-b-app-border tw:p-3">
             <strong>设置 GitHub 状态</strong>
             <Popover.Close asChild>
-              <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭状态设置" type="button">
+              <Button
+                isIconOnly
+                color="ghostSecondary"
+                size="toolbar"
+                title="关闭状态设置"
+                type="button"
+              >
                 ×
               </Button>
             </Popover.Close>
@@ -381,7 +405,7 @@ export function ProfileSettings(): React.ReactNode {
                 showSelectedIndicator
                 triggerClassName="profile-status-select tw:w-full tw:h-8 tw:min-h-8 tw:bg-app-canvas"
                 value={statusEmoji}
-                width={240}
+                size="md"
                 onChange={setStatusEmoji}
               />
               <input
@@ -452,7 +476,10 @@ function ProfileLoadingSkeleton(): React.ReactNode {
           ))}
         </div>
       </section>
-      <section className="profile-loading-lower tw:grid tw:grid-cols-2 tw:gap-10 tw:max-[980px]:grid-cols-1 tw:max-[980px]:gap-7 tw:[&>div]:flex tw:[&>div]:flex-col tw:[&>div]:gap-2" aria-hidden="true">
+      <section
+        className="profile-loading-lower tw:grid tw:grid-cols-2 tw:gap-10 tw:max-[980px]:grid-cols-1 tw:max-[980px]:gap-7 tw:[&>div]:flex tw:[&>div]:flex-col tw:[&>div]:gap-2"
+        aria-hidden="true"
+      >
         <div>
           {Array.from({ length: 5 }, (_, index) => (
             <SkeletonBlock key={index} />
@@ -519,7 +546,9 @@ function ProfileRepositoryRow({
           backgroundColor: repository.primaryLanguage?.color ?? 'var(--cpx-sys-color-fg-secondary)',
         }}
       />
-      <span className="profile-repository-name tw:min-w-0 tw:flex-1 tw:truncate tw:text-app-text">{repository.fullName}</span>
+      <span className="profile-repository-name tw:min-w-0 tw:flex-1 tw:truncate tw:text-app-text">
+        {repository.fullName}
+      </span>
       <span className="profile-repository-count tw:inline-flex tw:shrink-0 tw:items-center tw:gap-1 tw:text-app-text-soft tw:tabular-nums tw:[&_svg]:size-icon-sm">
         <Star size={APP_ICON_SIZE} />
         {repository.stargazerCount.toLocaleString()}

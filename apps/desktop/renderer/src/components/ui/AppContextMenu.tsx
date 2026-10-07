@@ -1,5 +1,5 @@
 import { useMemo, useState, type MouseEvent, type ReactNode } from 'react'
-import * as ContextMenu from '@radix-ui/react-context-menu'
+import { ContextMenu as ContextMenu } from './floating/Menu.js'
 import { Check, ChevronRight } from 'lucide-react'
 import type { DesktopEditAction } from '@codepilotx/shared/desktop-edit-ipc'
 import { cx } from '../../utils/cx.js'
@@ -36,12 +36,12 @@ export type AppContextMenuProps = {
   trigger: ReactNode
   actions: AppContextMenuAction[]
   layout: AppContextMenuLayout
-  size?: '1' | '2'
+  itemSize?: '1' | '2'
   variant?: 'solid' | 'soft'
   onOpenChange?: (open: boolean) => void
   includeEditActions?: boolean
-} & Omit<PopoverSizingProps, 'width'> & {
-    width?: PopoverSizingProps['width']
+} & Omit<PopoverSizingProps, 'size'> & {
+    size?: PopoverSizingProps['size']
   }
 
 /*
@@ -74,10 +74,9 @@ export function AppContextMenu({
   trigger,
   actions,
   layout,
-  size = '1',
+  itemSize = '1',
   variant = 'soft',
-  width = 'sm',
-  maxWidth,
+  size = 'sm',
   onOpenChange,
   includeEditActions = true,
 }: AppContextMenuProps): ReactNode {
@@ -124,15 +123,16 @@ export function AppContextMenu({
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
         <ContextMenu.Content
+          size={size}
           className={`app-context-menu-content app-context-menu-root sidebar-context-menu-content app-context-menu--${layout}`}
           collisionPadding={6}
-          data-size={size}
+          data-size={itemSize}
           data-variant={variant}
           onCloseAutoFocus={(event) => {
             setEditContext(null)
             focusModality.suppressFocusRingOnClose(event)
           }}
-          style={buildPopoverSizingStyle({ width, maxWidth })}
+          style={buildPopoverSizingStyle({ size })}
         >
           {mergedActions.map((action, index) => renderAction(action, index, layout))}
         </ContextMenu.Content>
@@ -198,11 +198,12 @@ function renderAction(
           </ContextMenu.SubTrigger>
           <ContextMenu.Portal>
             <ContextMenu.SubContent
-              alignOffset={-4}
+              size="sm"
+
               className={`app-context-menu-content app-context-menu-sub-content sidebar-context-menu-content app-context-menu--${action.layout}`}
               collisionPadding={6}
               sideOffset={4}
-              style={buildPopoverSizingStyle({ width: 'sm' })}
+              style={buildPopoverSizingStyle({ size: 'sm' })}
             >
               {action.children.map((child, childKey) =>
                 renderAction(child, childKey, action.layout),

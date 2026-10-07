@@ -1,5 +1,5 @@
 import type React from 'react'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import { Dropdown as DropdownMenu } from '../../../components/ui/floating/Dropdown.js'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import type { DesktopReviewSource } from '../../../../shared/types.js'
 import {
@@ -50,7 +50,7 @@ export function ReviewSourceMenu({
       open={open}
       side="bottom"
       sideOffset={4}
-      width={200}
+      size="sm"
       trigger={
         <button
           aria-label="切换变更范围"
@@ -155,12 +155,12 @@ function ReviewCommitSourceSubmenu({ children }: { children: React.ReactNode }):
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal>
         <DropdownMenu.SubContent
+          size="lg"
           data-theme-component="dropdown-surface"
-          alignOffset={-4}
           className="popover-surface popover popover-sub-content popover-review-commits popover-menu--flex tw:max-h-[min(320px,calc(100vh-96px))] tw:overflow-hidden"
           collisionPadding={6}
           sideOffset={4}
-          style={buildPopoverSizingStyle({ width: 320 })}
+          style={buildPopoverSizingStyle({ size: 'lg' })}
         >
           {children}
         </DropdownMenu.SubContent>

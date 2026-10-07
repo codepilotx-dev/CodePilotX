@@ -474,7 +474,7 @@ function WorkspaceFileTreeContent({
         ]}
         layout="flex"
         trigger={treeItem}
-        width={220}
+        size="sm"
       />
     )
   }

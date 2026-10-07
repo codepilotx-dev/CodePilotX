@@ -110,7 +110,7 @@ export function ApiKeyEditorForm({
                 ariaLabel="Provider"
                 searchable
                 searchPlaceholder="搜索 Provider"
-                width="var(--radix-select-trigger-width)"
+                size="lg"
                 value={providerId}
                 options={providers.map((provider) => ({
                   value: provider.providerID,

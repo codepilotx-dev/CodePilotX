@@ -98,7 +98,7 @@ function ProjectDetailsTrigger({
       <AnchoredPopover
         align="start"
         className="sidebar-hover-card-surface sidebar-project-hover-card"
-        width="auto"
+        size="md"
         contentLabel="项目详情"
         contentRole="dialog"
         open={open}
@@ -110,7 +110,8 @@ function ProjectDetailsTrigger({
           triggerRef.current?.focus()
         }}
         trigger={
-          <Button isIconOnly
+          <Button
+            isIconOnly
             ref={triggerRef}
             className="chat-session-project-details tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center"
             color="ghostSecondary"

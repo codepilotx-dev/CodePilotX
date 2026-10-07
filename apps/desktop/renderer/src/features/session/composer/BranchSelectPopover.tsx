@@ -35,8 +35,7 @@ export function BranchSelectPopover({
   side,
   sideOffset,
   trigger,
-  width,
-  maxWidth,
+  size,
   onBranchSearchChange,
   onBranchSelect,
   onCreateBranch,
@@ -51,11 +50,8 @@ export function BranchSelectPopover({
     ) {
       branchSet.add(currentBranchName)
     }
-    const keyword = branchSearch.trim().toLowerCase()
-    const availableBranches = [...branchSet]
-    if (!keyword) return availableBranches
-    return availableBranches.filter((branch) => branch.toLowerCase().includes(keyword))
-  }, [branchSearch, branches, currentBranchName])
+    return [...branchSet]
+  }, [branches, currentBranchName])
   const options = React.useMemo(
     () => visibleBranches.map((branch) => ({ value: branch })),
     [visibleBranches],
@@ -92,7 +88,10 @@ export function BranchSelectPopover({
           <span className="popover-item-label">
             {currentBranchDetail && selected ? (
               <span className="environment-branch-label tw:flex tw:min-w-0 tw:flex-col tw:gap-1">
-                <span className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap" title={option.value}>
+                <span
+                  className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap"
+                  title={option.value}
+                >
                   {option.value}
                 </span>
                 <small className="tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text-soft tw:type-caption">
@@ -115,8 +114,8 @@ export function BranchSelectPopover({
       side={side}
       sideOffset={sideOffset}
       trigger={trigger}
-      width={width}
-      maxWidth={maxWidth}
+      size={size}
+
       onOpenChange={onOpenChange}
       onSearchChange={onBranchSearchChange}
       onSelect={(option) => {

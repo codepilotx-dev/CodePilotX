@@ -1,36 +1,16 @@
 import type React from 'react'
 
-export type PopoverSize = number | string
+export type PopoverSize = 'sm' | 'md' | 'lg'
+export type PopoverSizingProps = { size?: PopoverSize }
 
-export type PopoverSizingProps = {
-  width: PopoverSize
-  maxWidth?: PopoverSize
-}
-
-type PopoverSizingStyle = React.CSSProperties & {
-  '--popover-width'?: string
-  '--popover-max-width'?: string
-}
-
-const POPOVER_PRESET_WIDTHS = { sm: '220px', md: '280px', lg: '360px' } as const
+export const POPOVER_PRESET_WIDTHS = { sm: 220, md: 280, lg: 360 } as const
 
 export function formatPopoverSize(size: PopoverSize): string {
-  if (size === 'sm' || size === 'md' || size === 'lg') return POPOVER_PRESET_WIDTHS[size]
-  return typeof size === 'number' ? `${size}px` : size
+  return `${POPOVER_PRESET_WIDTHS[size]}px`
 }
 
 export function buildPopoverSizingStyle({
-  width,
-  maxWidth,
-}: Partial<PopoverSizingProps> = {}): PopoverSizingStyle {
-  if (width === undefined) {
-    throw new Error('Popover width is required. Pass a number, CSS size, or "auto".')
-  }
-
-  const style: PopoverSizingStyle = {}
-  style['--popover-width'] = formatPopoverSize(width)
-  if (maxWidth !== undefined) {
-    style['--popover-max-width'] = formatPopoverSize(maxWidth)
-  }
-  return style
+  size = 'md',
+}: Partial<PopoverSizingProps> = {}): React.CSSProperties & { '--popover-width': string } {
+  return { '--popover-width': formatPopoverSize(size) }
 }

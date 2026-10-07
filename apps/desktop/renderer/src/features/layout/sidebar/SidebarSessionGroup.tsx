@@ -577,7 +577,7 @@ function SidebarSessionGroupComponent({
         key={session.id}
         actions={getSessionContextMenuActions(session)}
         layout="grid"
-        width="md"
+        size="md"
         trigger={row}
       />
     )

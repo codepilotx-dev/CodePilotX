@@ -71,11 +71,19 @@ export function PluginProductDetailsView({
   )
 
   return (
-    <section className={cx('catalog-details-view catalog-plugin-details tw:grid tw:mx-auto tw:w-[min(var(--page-content-max-width),100%)] tw:gap-8')}>
+    <section
+      className={cx(
+        'catalog-details-view catalog-plugin-details tw:grid tw:mx-auto tw:w-[min(var(--page-content-max-width),100%)] tw:gap-8',
+      )}
+    >
       <header className="catalog-details-view__header tw:grid tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-4">
         <span
           aria-hidden="true"
-          className={cx('catalog-details-view__icon', DETAILS_ICON_CLASS, FORCED_COLORS_SURFACE_CLASS)}
+          className={cx(
+            'catalog-details-view__icon',
+            DETAILS_ICON_CLASS,
+            FORCED_COLORS_SURFACE_CLASS,
+          )}
           data-plugin-tone={item.tone}
         >
           <PluginIcon
@@ -94,7 +102,7 @@ export function PluginProductDetailsView({
               align="end"
               open={moreOpen}
               onOpenChange={setMoreOpen}
-              width={180}
+              size="sm"
               trigger={
                 <Button isIconOnly color="ghostSecondary" size="toolbar" title="更多插件操作">
                   <MoreHorizontal
@@ -158,7 +166,10 @@ export function PluginProductDetailsView({
                   name={item.iconName}
                 />
                 <span>
-                  <strong className="tw:text-app-accent-fg tw:type-weight-label">{item.name}</strong> {prompt}
+                  <strong className="tw:text-app-accent-fg tw:type-weight-label">
+                    {item.name}
+                  </strong>{' '}
+                  {prompt}
                 </span>
               </span>
               <ArrowRight
@@ -176,7 +187,10 @@ export function PluginProductDetailsView({
       </p>
 
       {skills.length ? (
-        <section aria-labelledby="catalog-plugin-skills" className={cx('catalog-details-section', DETAILS_SECTION_CLASS)}>
+        <section
+          aria-labelledby="catalog-plugin-skills"
+          className={cx('catalog-details-section', DETAILS_SECTION_CLASS)}
+        >
           <div className={cx('catalog-details-section__heading', DETAILS_SECTION_HEADING_CLASS)}>
             <h2 className={DETAILS_SECTION_TITLE_CLASS} id="catalog-plugin-skills">
               技能 {skills.length}
@@ -208,7 +222,9 @@ export function PluginProductDetailsView({
                     {skills.length === 1 && skill.id === item.id ? item.name : skill.name}
                   </h3>
                   {skill.description ? (
-                    <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm">{skill.description}</p>
+                    <p className="tw:m-0 tw:text-app-text-soft tw:type-body-sm">
+                      {skill.description}
+                    </p>
                   ) : null}
                 </div>
                 {skills.length === 1 && index === 0 && primaryAction.kind === 'toggle-plugin'
@@ -220,11 +236,14 @@ export function PluginProductDetailsView({
         </section>
       ) : null}
 
-      <section aria-labelledby="catalog-plugin-information" className={cx('catalog-details-section', DETAILS_SECTION_CLASS)}>
+      <section
+        aria-labelledby="catalog-plugin-information"
+        className={cx('catalog-details-section', DETAILS_SECTION_CLASS)}
+      >
         <div className={cx('catalog-details-section__heading', DETAILS_SECTION_HEADING_CLASS)}>
           <h2 className={DETAILS_SECTION_TITLE_CLASS} id="catalog-plugin-information">
-              信息
-            </h2>
+            信息
+          </h2>
         </div>
         <dl className={cx('plugin-details-metadata', DETAILS_METADATA_CLASS)}>
           {details?.displayCapabilities.length ? (
@@ -237,7 +256,13 @@ export function PluginProductDetailsView({
           />
           {item.version ? <InformationRow label="版本" value={item.version} /> : null}
           {item.externalURL ? (
-            <div className={cx('plugin-details-metadata__row', DETAILS_METADATA_ROW_CLASS, 'tw:border-b-0')}>
+            <div
+              className={cx(
+                'plugin-details-metadata__row',
+                DETAILS_METADATA_ROW_CLASS,
+                'tw:border-b-0',
+              )}
+            >
               <dt className={DETAILS_METADATA_LABEL_CLASS}>网站</dt>
               <dd className={DETAILS_METADATA_VALUE_CLASS}>
                 <Button
@@ -325,11 +350,7 @@ function InformationRow({
 }): React.ReactNode {
   return (
     <div
-      className={cx(
-        'plugin-details-metadata__row',
-        DETAILS_METADATA_ROW_CLASS,
-        'tw:border-b-0',
-      )}
+      className={cx('plugin-details-metadata__row', DETAILS_METADATA_ROW_CLASS, 'tw:border-b-0')}
     >
       <dt className={DETAILS_METADATA_LABEL_CLASS}>{label}</dt>
       <dd className={DETAILS_METADATA_VALUE_CLASS}>{value}</dd>

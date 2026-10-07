@@ -481,7 +481,9 @@ export function ProviderEditorDialog({
               <div className="provider-editor-tab-panel tw:grid tw:gap-4">
                 {managed ? (
                   <div className="settings-management-dialog-card provider-editor-basic-card">
-                    <div className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS)}>
+                    <div
+                      className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS)}
+                    >
                       <span>API 协议</span>
                       <SegmentedControl<DeepSeekProtocol>
                         ariaLabel="DeepSeek API 协议"
@@ -496,7 +498,13 @@ export function ProviderEditorDialog({
                         切换后所有 DeepSeek 模型从下一次请求开始使用新协议，正在进行的请求不会中断。
                       </p>
                     </div>
-                    <label className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
+                    <label
+                      className={cx(
+                        'settings-management-dialog-row',
+                        PROVIDER_EDITOR_FIELD_CLASS,
+                        PROVIDER_EDITOR_FIELD_MONO_CLASS,
+                      )}
+                    >
                       <span>Endpoint</span>
                       <Input readOnly value={deepSeekProtocolOption(protocol).endpoint} />
                       <p>端点由所选协议决定，由系统自动管理。</p>
@@ -532,7 +540,13 @@ export function ProviderEditorDialog({
 
                 {!managed ? (
                   <div className="settings-management-dialog-card provider-editor-basic-card">
-                    <label className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
+                    <label
+                      className={cx(
+                        'settings-management-dialog-row',
+                        PROVIDER_EDITOR_FIELD_CLASS,
+                        PROVIDER_EDITOR_FIELD_MONO_CLASS,
+                      )}
+                    >
                       <span>
                         Provider ID
                         {editing ? <small>（不可修改）</small> : null}
@@ -544,7 +558,9 @@ export function ProviderEditorDialog({
                         onChange={(event) => setId(event.target.value)}
                       />
                     </label>
-                    <label className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS)}>
+                    <label
+                      className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS)}
+                    >
                       <span>显示名称</span>
                       <Input
                         placeholder="如：Ollama 本地服务"
@@ -552,7 +568,13 @@ export function ProviderEditorDialog({
                         onChange={(event) => setName(event.target.value)}
                       />
                     </label>
-                    <label className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
+                    <label
+                      className={cx(
+                        'settings-management-dialog-row',
+                        PROVIDER_EDITOR_FIELD_CLASS,
+                        PROVIDER_EDITOR_FIELD_MONO_CLASS,
+                      )}
+                    >
                       <span>Base URL</span>
                       <Input
                         placeholder="https://example.com/v1"
@@ -561,7 +583,9 @@ export function ProviderEditorDialog({
                       />
                       <p>端点 URL，例如本地服务 http://localhost:11434/v1 或官方 API 路径。</p>
                     </label>
-                    <label className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS)}>
+                    <label
+                      className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS)}
+                    >
                       <span>认证方式</span>
                       <SettingsDropdown
                         ariaLabel="认证方式"
@@ -570,11 +594,17 @@ export function ProviderEditorDialog({
                           { value: 'none', label: '无需认证（本地/公开服务）' },
                         ]}
                         value={auth}
-                        width="100%"
+                        size="lg"
                         onChange={(value) => setAuth(value as 'api-key' | 'none')}
                       />
                     </label>
-                    <label className={cx('settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS, PROVIDER_EDITOR_FIELD_MONO_CLASS)}>
+                    <label
+                      className={cx(
+                        'settings-management-dialog-row',
+                        PROVIDER_EDITOR_FIELD_CLASS,
+                        PROVIDER_EDITOR_FIELD_MONO_CLASS,
+                      )}
+                    >
                       <span>凭据环境变量（逗号分隔）</span>
                       <Input
                         placeholder="如：OLLAMA_API_KEY, CUSTOM_API_KEY"
@@ -651,7 +681,9 @@ export function ProviderEditorDialog({
                             }
                           />
                           <span>{String(candidate.id)}</span>
-                          <span className="provider-editor-model-card-badge tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-xs)]">{candidate.api}</span>
+                          <span className="provider-editor-model-card-badge tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-xs)]">
+                            {candidate.api}
+                          </span>
                         </label>
                       ))}
                     </div>
@@ -663,7 +695,9 @@ export function ProviderEditorDialog({
                     {models.map((model) => (
                       <div className="settings-management-dialog-row" key={model.editorKey}>
                         <span>{model.id}</span>
-                        <span className="provider-editor-model-card-badge tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-xs)]">{protocol}</span>
+                        <span className="provider-editor-model-card-badge tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-xs)]">
+                          {protocol}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -699,7 +733,9 @@ export function ProviderEditorDialog({
                 <div className="settings-management-dialog-card">
                   <div className="settings-management-dialog-row provider-editor-switch-card tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:rounded-none tw:border-0 tw:bg-transparent tw:px-4 tw:py-3">
                     <div className="provider-editor-switch-info tw:grid tw:min-w-0 tw:gap-1">
-                      <strong className="tw:text-app-text tw:type-row-title">启用此 Provider</strong>
+                      <strong className="tw:text-app-text tw:type-row-title">
+                        启用此 Provider
+                      </strong>
                       <span className="tw:text-app-text-soft tw:type-body-sm">
                         在模型选择菜单与 Agent 会话中允许调用此 Provider
                       </span>
@@ -712,7 +748,9 @@ export function ProviderEditorDialog({
                   </div>
                   <div className="settings-management-dialog-row provider-editor-switch-card tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:items-center tw:gap-4 tw:rounded-none tw:border-0 tw:bg-transparent tw:px-4 tw:py-3">
                     <div className="provider-editor-switch-info tw:grid tw:min-w-0 tw:gap-1">
-                      <strong className="tw:text-app-text tw:type-row-title">允许非 loopback 明文 HTTP</strong>
+                      <strong className="tw:text-app-text tw:type-row-title">
+                        允许非 loopback 明文 HTTP
+                      </strong>
                       <span className="tw:text-app-text-soft tw:type-body-sm">
                         允许连接局域网或远程非 localhost 的 http:// 端点
                       </span>
@@ -726,7 +764,10 @@ export function ProviderEditorDialog({
                 </div>
 
                 {isRemoteHttp && !allowInsecureHttp ? (
-                  <div className="provider-editor-alert tw:flex tw:items-start tw:gap-3 tw:rounded-md tw:px-4 tw:py-3 tw:type-body-sm tw:[&_svg]:size-icon tw:[&_svg]:shrink-0 tw:[&_svg]:mt-1 tw:data-[tone=warning]:border tw:data-[tone=warning]:border-app-warning-border tw:data-[tone=warning]:bg-app-warning-subtle tw:data-[tone=warning]:text-app-warning tw:data-[tone=danger]:border tw:data-[tone=danger]:border-app-danger-border tw:data-[tone=danger]:bg-app-danger-subtle tw:data-[tone=danger]:text-app-danger tw:data-[tone=info]:border tw:data-[tone=info]:border-app-info-border tw:data-[tone=info]:bg-app-info-subtle tw:data-[tone=info]:text-app-info-fg" data-tone="warning">
+                  <div
+                    className="provider-editor-alert tw:flex tw:items-start tw:gap-3 tw:rounded-md tw:px-4 tw:py-3 tw:type-body-sm tw:[&_svg]:size-icon tw:[&_svg]:shrink-0 tw:[&_svg]:mt-1 tw:data-[tone=warning]:border tw:data-[tone=warning]:border-app-warning-border tw:data-[tone=warning]:bg-app-warning-subtle tw:data-[tone=warning]:text-app-warning tw:data-[tone=danger]:border tw:data-[tone=danger]:border-app-danger-border tw:data-[tone=danger]:bg-app-danger-subtle tw:data-[tone=danger]:text-app-danger tw:data-[tone=info]:border tw:data-[tone=info]:border-app-info-border tw:data-[tone=info]:bg-app-info-subtle tw:data-[tone=info]:text-app-info-fg"
+                    data-tone="warning"
+                  >
                     <AlertTriangle size={APP_ICON_SIZE} aria-hidden />
                     <div>
                       <strong>检测到非本地明文 HTTP 端点</strong>
@@ -738,7 +779,12 @@ export function ProviderEditorDialog({
                   </div>
                 ) : null}
 
-                <label className={cx('settings-management-dialog-card settings-management-dialog-row', PROVIDER_EDITOR_FIELD_CLASS)}>
+                <label
+                  className={cx(
+                    'settings-management-dialog-card settings-management-dialog-row',
+                    PROVIDER_EDITOR_FIELD_CLASS,
+                  )}
+                >
                   <span>
                     全局非敏感 Headers
                     <small>每行 name: value</small>
@@ -800,7 +846,10 @@ const ProviderModelCard = memo(function ProviderModelCard({
   const contentId = useId()
 
   return (
-    <div className="provider-editor-model-card tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:transition-[border-color] tw:duration-state tw:ease-standard tw:data-[expanded=true]:border-app-accent-border" data-expanded={expanded}>
+    <div
+      className="provider-editor-model-card tw:overflow-hidden tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-panel tw:transition-[border-color] tw:duration-state tw:ease-standard tw:data-[expanded=true]:border-app-accent-border"
+      data-expanded={expanded}
+    >
       <div className="provider-editor-model-card-header tw:flex tw:items-center tw:justify-between tw:gap-0 tw:bg-app-panel">
         <button
           aria-controls={contentId}
@@ -816,11 +865,17 @@ const ProviderModelCard = memo(function ProviderModelCard({
               <ChevronRight aria-hidden size={APP_ICON_SIZES.sm} />
             )}
           </span>
-          <code className="tw:font-mono tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-sm)] tw:type-weight-label">{model.id || '(未命名模型)'}</code>
+          <code className="tw:font-mono tw:text-app-text tw:[font-size:var(--cpx-sys-font-size-sm)] tw:type-weight-label">
+            {model.id || '(未命名模型)'}
+          </code>
           {model.name && model.name !== model.id ? (
-            <span className="provider-editor-model-card-name tw:text-app-text-soft tw:type-caption">({model.name})</span>
+            <span className="provider-editor-model-card-name tw:text-app-text-soft tw:type-caption">
+              ({model.name})
+            </span>
           ) : null}
-          <span className="provider-editor-model-card-badge tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-xs)]">{model.api}</span>
+          <span className="provider-editor-model-card-badge tw:rounded-full tw:bg-app-editor tw:px-2 tw:py-1 tw:text-app-text-soft tw:font-mono tw:[font-size:var(--cpx-sys-font-size-xs)]">
+            {model.api}
+          </span>
           {model.reasoning ? (
             <span className="provider-editor-model-card-tag tw:inline-flex tw:items-center tw:gap-1 tw:rounded-full tw:px-2 tw:py-1 tw:[font-size:var(--cpx-sys-font-size-xs)] provider-editor-model-tag--reasoning">
               <Brain aria-hidden size={APP_ICON_SIZE} /> Reasoning
@@ -897,7 +952,7 @@ function ModelEditor({
             ariaLabel="模型 API"
             options={[...API_OPTIONS]}
             value={model.api}
-            width="100%"
+            size="lg"
             onChange={(value) => onChange({ ...model, api: value as Api })}
           />
         </label>

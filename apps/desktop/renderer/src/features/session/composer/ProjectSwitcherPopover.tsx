@@ -39,23 +39,19 @@ export function ProjectSwitcherPopover({
   side,
   align,
   sideOffset,
-  width,
-  maxWidth,
+  size,
 }: Props): React.ReactNode {
   const [search, setSearch] = useState('')
-  const filtered = useMemo(() => {
-    const keyword = search.trim().toLowerCase()
-    if (!keyword) return recentWorkspaces
-    return recentWorkspaces.filter((item) =>
-      [item.name, item.path, item.branchName ?? ''].join(' ').toLowerCase().includes(keyword),
-    )
-  }, [recentWorkspaces, search])
   const options = useMemo(
     () => [
-      ...filtered.map((item) => ({ value: item.path, workspace: item })),
-      { value: '__no_workspace__', workspace: null },
+      ...recentWorkspaces.map((item) => ({
+        value: item.path,
+        workspace: item,
+        textValue: [item.name, item.path, item.branchName ?? ''].join(' '),
+      })),
+      { value: '__no_workspace__', workspace: null, filter: false },
     ],
-    [filtered],
+    [recentWorkspaces],
   )
 
   return (
@@ -117,8 +113,8 @@ export function ProjectSwitcherPopover({
       side={side}
       sideOffset={sideOffset}
       trigger={trigger}
-      width={width}
-      maxWidth={maxWidth}
+      size={size}
+
       onOpenChange={onOpenChange}
       onSearchChange={setSearch}
       onSelect={(option) => {

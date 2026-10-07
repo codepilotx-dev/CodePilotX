@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
-import * as Popover from '@radix-ui/react-popover'
+import { Popover as Popover } from '../../components/ui/floating/Popover.js'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   AlarmClock,
@@ -225,7 +225,7 @@ function AutomationViewContent(): React.ReactNode {
             target?.getBoundingClientRect() ??
             new DOMRect(window.innerWidth - 32, 72, 0, 0)
           anchorRectRef.current = rect
-          const width = Math.min(400, window.innerWidth - 32)
+          const width = Math.min(360, window.innerWidth - 16)
           const height = Math.min(560, window.innerHeight - 60)
           const preferred =
             rect.right + 12 + width <= window.innerWidth - 16
@@ -465,7 +465,7 @@ function AutomationViewContent(): React.ReactNode {
         <PopoverMenu
           align="end"
           open={createMenuOpen}
-          width="15rem"
+          size="md"
           onOpenChange={setCreateMenuOpen}
           trigger={
             <Button ref={createButtonRef} color="primary">
@@ -662,7 +662,7 @@ function AutomationViewContent(): React.ReactNode {
         )}
       </PrimaryPageLayout>
 
-      <Popover.Root modal open={surfaceOpen}>
+      <Popover.Root  open={surfaceOpen}>
         <Popover.Anchor virtualRef={detailAnchor} />
         <Popover.Portal>
           <div>
@@ -673,8 +673,9 @@ function AutomationViewContent(): React.ReactNode {
               onClick={() => closeDetail(true)}
             />
             <Popover.Content
+              size="lg"
               ref={surfaceRef}
-              className="popover-surface ui-dialog-surface automation-focus-shell tw:z-modal tw:grid tw:min-w-0 tw:w-[min(25rem,calc(100vw-var(--cpx-sys-space-8)))] tw:max-w-[min(25rem,calc(100vw-var(--cpx-sys-space-8)))] tw:max-h-[min(35rem,calc(100vh-60px),var(--radix-popover-content-available-height))] tw:overflow-hidden tw:rounded-floating tw:animate-none tw:transition-none tw:backdrop-blur-none tw:text-app-text tw:forced-colors:border tw:forced-colors:border-[CanvasText]"
+              className="popover-surface ui-dialog-surface automation-focus-shell tw:z-modal tw:grid tw:max-h-[min(35rem,calc(100vh-60px),var(--popover-available-height))] tw:overflow-hidden tw:rounded-floating tw:animate-none tw:transition-none tw:backdrop-blur-none tw:text-app-text tw:forced-colors:border tw:forced-colors:border-[CanvasText]"
               side="bottom"
               align="start"
               sideOffset={0}
@@ -705,7 +706,7 @@ function AutomationViewContent(): React.ReactNode {
                 restoreFocus()
               }}
             >
-              <div className="automation-focus-dialog tw:grid tw:min-h-0 tw:min-w-0 tw:max-h-[min(35rem,calc(100vh-60px),var(--radix-popover-content-available-height))] tw:grid-cols-[minmax(0,1fr)]">
+              <div className="automation-focus-dialog tw:grid tw:min-h-0 tw:min-w-0 tw:max-h-[min(35rem,calc(100vh-60px),var(--popover-available-height))] tw:grid-cols-[minmax(0,1fr)]">
                 {(creating || controller.selected) && controller.draft ? (
                   <AutomationDetailPanel
                     creating={creating}
@@ -875,7 +876,9 @@ function AutomationRunsList({
           >
             <CalendarClock size={APP_ICON_SIZES.lg} aria-hidden="true" />
             <h2 className="tw:m-0 tw:type-title-sm tw:text-app-text">暂无执行记录</h2>
-            <p className="tw:m-0 tw:type-body">任务在计划时间或手动触发运行后，执行记录会显示在这里。</p>
+            <p className="tw:m-0 tw:type-body">
+              任务在计划时间或手动触发运行后，执行记录会显示在这里。
+            </p>
           </div>
         ) : !filteredRuns.length ? (
           <div
@@ -1045,10 +1048,11 @@ function AutomationRow({
       <PopoverMenu
         align="end"
         open={menuOpen}
-        width="12rem"
+        size="sm"
         onOpenChange={onMenuOpenChange}
         trigger={
-          <Button isIconOnly
+          <Button
+            isIconOnly
             className="automation-row-menu tw:justify-self-center tw:opacity-0 tw:group-hover:opacity-100 tw:group-focus-within:opacity-100 tw:focus-visible:opacity-100"
             color="ghostSecondary"
             size="toolbar"

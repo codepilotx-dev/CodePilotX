@@ -1,6 +1,6 @@
 import * as React from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
-import * as Popover from '@radix-ui/react-popover'
+import { Popover as Popover } from '../../../components/ui/floating/Popover.js'
 import {
   Bot,
   ChevronDown,
@@ -48,22 +48,18 @@ import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
  * 置顶摘要的宽度契约：行在浮层里靠 `--thread-summary-inline-width` 取得与内联
  * 面板一致的宽度，浮层挂在 Portal 上，必须自己再声明一次该变量。
  */
-const THREAD_SUMMARY_WIDTH_CLASS = 'tw:w-[var(--thread-summary-inline-width)] tw:max-w-full'
+const THREAD_SUMMARY_WIDTH_CLASS = 'tw:w-full'
 
 const SUMMARY_ROW_CLASS =
   'interactive-row interactive-row--nav thread-summary-row tw:grid tw:w-[calc(100%+16px)] tw:min-w-0 tw:-mx-2 tw:grid-cols-[16px_minmax(0,1fr)_max-content] tw:text-left tw:no-underline tw:type-body'
 
-const SUMMARY_ROW_LABEL_CLASS = 'tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap'
+const SUMMARY_ROW_LABEL_CLASS =
+  'tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap'
 
 const SUMMARY_ROW_ICON_CLASS = 'tw:text-app-text'
 
 export type ThreadSummarySectionId =
-  | 'environment'
-  | 'goal'
-  | 'agents'
-  | 'browser'
-  | 'sources'
-  | 'artifacts'
+  'environment' | 'goal' | 'agents' | 'browser' | 'sources' | 'artifacts'
 
 type ThreadSummaryActions = {
   onActivateBrowserTab?: (tabId: string) => void
@@ -121,6 +117,7 @@ export function ThreadSummaryPopover({
       <Popover.Trigger asChild>{children}</Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
+          size="lg"
           align="end"
           aria-label="置顶摘要"
           className={`thread-summary-popover ${THREAD_SUMMARY_WIDTH_CLASS} tw:max-h-[min(680px,calc(100vh-80px))]`}
@@ -231,8 +228,7 @@ export function ThreadSummaryPanel({
   }
   const environment = model.environment
 
-  const isSectionExpanded = (id: ThreadSummarySectionId): boolean =>
-    !collapsedSections.has(id)
+  const isSectionExpanded = (id: ThreadSummarySectionId): boolean => !collapsedSections.has(id)
   const toggleSection = (id: ThreadSummarySectionId): void => onToggleSection(id)
 
   return (
@@ -245,7 +241,9 @@ export function ThreadSummaryPanel({
           collapsedSummary={
             changes.fileCount > 0 ? (
               <span className="thread-summary-diff tw:inline-flex tw:gap-1 tw:type-caption tw:tabular-nums">
-                <strong className="tw:text-app-success tw:type-weight-body">+{changes.additions}</strong>
+                <strong className="tw:text-app-success tw:type-weight-body">
+                  +{changes.additions}
+                </strong>
                 <em className="tw:text-app-danger tw:not-italic">-{changes.deletions}</em>
               </span>
             ) : null
@@ -263,9 +261,7 @@ export function ThreadSummaryPanel({
             onClick={onOpenWorkspacePath}
           >
             <Laptop className={SUMMARY_ROW_ICON_CLASS} aria-hidden="true" size={APP_ICON_SIZE} />
-            <span className={SUMMARY_ROW_LABEL_CLASS}>
-              {environment.workspaceName ?? '本地'}
-            </span>
+            <span className={SUMMARY_ROW_LABEL_CLASS}>{environment.workspaceName ?? '本地'}</span>
           </button>
           <button
             className={SUMMARY_ROW_CLASS}
@@ -273,12 +269,18 @@ export function ThreadSummaryPanel({
             type="button"
             onClick={onOpenReview}
           >
-            <SquarePlus className={SUMMARY_ROW_ICON_CLASS} aria-hidden="true" size={APP_ICON_SIZE} />
+            <SquarePlus
+              className={SUMMARY_ROW_ICON_CLASS}
+              aria-hidden="true"
+              size={APP_ICON_SIZE}
+            />
             <span className={SUMMARY_ROW_LABEL_CLASS}>变更</span>
             {changes.fileCount > 0 ? (
               <small className="thread-summary-change-summary tw:inline-flex tw:items-center tw:justify-end tw:gap-2 tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption">
                 <span className="thread-summary-diff tw:inline-flex tw:gap-1 tw:type-caption tw:tabular-nums">
-                  <strong className="tw:text-app-success tw:type-weight-body">+{changes.additions}</strong>
+                  <strong className="tw:text-app-success tw:type-weight-body">
+                    +{changes.additions}
+                  </strong>
                   <em className="tw:text-app-danger tw:not-italic">-{changes.deletions}</em>
                 </span>
               </small>
@@ -296,7 +298,7 @@ export function ThreadSummaryPanel({
                 open={branchPopoverOpen}
                 side="left"
                 sideOffset={8}
-                width={220}
+                size="sm"
                 onBranchSearchChange={setBranchSearch}
                 onBranchSelect={onBranchSelect}
                 onCreateBranch={onCreateBranch}
@@ -410,9 +412,7 @@ export function ThreadSummaryPanel({
                 <small
                   className={cx(
                     'tw:whitespace-nowrap tw:type-caption',
-                    agent.state === 'finished'
-                      ? 'tw:text-app-text-meta'
-                      : 'tw:text-app-accent-fg',
+                    agent.state === 'finished' ? 'tw:text-app-text-meta' : 'tw:text-app-accent-fg',
                   )}
                 >
                   {subagentStatusLabel(agent.status)}
@@ -559,7 +559,11 @@ function GoalHeaderAction({
   )
 }
 
-function AgentSectionMeta({ agents }: { agents: ThreadSummaryViewModel['agents'] }): React.ReactNode {
+function AgentSectionMeta({
+  agents,
+}: {
+  agents: ThreadSummaryViewModel['agents']
+}): React.ReactNode {
   const running = agents.filter((agent) => agent.state === 'running').length
   const waiting = agents.filter((agent) => agent.state === 'waiting').length
   const finished = agents.length - running - waiting
@@ -832,7 +836,10 @@ function ThreadSummarySection({
             type="button"
             onClick={() => onToggle(id)}
           >
-            <span className="tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap" id={headingId}>
+            <span
+              className="tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap"
+              id={headingId}
+            >
               {title}
             </span>
             {!expanded ? collapsedSummary : null}
