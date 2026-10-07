@@ -20,6 +20,8 @@
 
 ### Changed
 
+- [desktop/renderer] 会话表格参考 Codex 紧凑排版，将复制与 CSV 下载移至表头右侧并预留空间，单元格间距随字号缩放、弱化正文分隔线并移除末行底线，保留横向滚动与导出反馈。
+
 - [desktop/renderer] 工具摘要统一次级字色与图文对齐，完成命令增加“已运行”前缀、弱化耗时，移除工具组底部重复间距并修复分组摘要悬停提亮，保留运行和错误语义。
 
 - [desktop/renderer] 统一工具调用卡片与会话正文代码块规范：工具执行卡片统一为单个带容器圆角（--cpx-sys-radius-container）的代码卡片，输入与输出在卡片内通过轻量分割线连贯展示，避免命令与结果拆散成独立方块；全局 .md-code-surface 补齐容器圆角，消除直角；输入与输出移除 details 折叠截断，支持换行控制与复制；非命令行工具（如 ComputerRead、文件读取等）不再误标 Shell 标签，自动识别 JSON 入参及结果并启用语法高亮；彻底去重避免输出与 resultBlocks 文本块重复展示。
@@ -57,6 +59,8 @@
 - [desktop/renderer] 淘汰独立的 IconButton 组件，全仓 60 处图标按钮调用点统一重构为 <Button isIconOnly ... /> 并彻底移除 IconButton.tsx。
 
 ### Fixed
+
+- [desktop/renderer] 生命周期工具、思考与已回答问题摘要复用普通工具行的字号和几何规则，消除更新计划等条目的额外缩进与高度差，统一 16px 图标并保留状态与展开交互。
 
 - [desktop/renderer] 工具摘要行改用网格布局，消除行内按钮的基线留白；工具组标题到首项与组内条目统一使用 4px 间隔。
 
