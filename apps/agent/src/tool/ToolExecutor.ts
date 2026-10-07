@@ -227,7 +227,16 @@ export class ToolExecutor {
     catalog: ToolCatalog = this.registry,
   ) {
     const definitions = this.exposurePlan(input, catalog).deferred.map((name) => catalog.get(name))
-    return frozenDeferredEnvelope(definitions, input.frozenDeferredToolNames)
+    const unavailable = new Set(
+      catalog
+        .all()
+        .filter((tool) => tool.available?.() === false)
+        .map((tool) => tool.sdkName),
+    )
+    return frozenDeferredEnvelope(
+      definitions,
+      input.frozenDeferredToolNames?.filter((name) => !unavailable.has(name)),
+    )
   }
 
   async previewApproval(

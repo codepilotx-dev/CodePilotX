@@ -14,6 +14,7 @@ import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import { ComputerPolicyService } from './ComputerPolicyService'
 import type { PermissionConfig } from '@codepilotx/shared/thread'
+import type { PluginManagementService } from '../plugin/PluginManagementService'
 
 type Identity = { threadID: string; turnID: string; agentID?: string; toolCallID?: string }
 /**
@@ -54,15 +55,21 @@ export class ComputerUseService {
   private readonly policy: ComputerPolicyService
   private readonly unsubscribePolicy: () => void
   private readonly unsubscribeConfig: () => void
+  private readonly unsubscribePlugins: () => void
   constructor(
     private readonly config: ConfigService,
     private readonly db: AgentDatabase,
     private readonly hub: EventHub,
+    private readonly plugins: PluginManagementService,
     policy?: ComputerPolicyService,
   ) {
     this.policy = policy ?? new ComputerPolicyService(config)
     this.unsubscribePolicy = this.policy.subscribe(() => this.stop())
-    let previousEnabled = this.enabled()
+    this.unsubscribePlugins = plugins.subscribe((pluginId) => {
+      if (pluginId !== 'computer-use') return
+      if (!this.enabled()) this.stop()
+      else this.changed()
+    })
     let previousPermissions = this.permissions()
     this.unsubscribeConfig = config.subscribe((event) => {
       if (
@@ -70,10 +77,7 @@ export class ComputerUseService {
         event.changedKeyPaths.some(
           (path) =>
             path[0] === 'desktop' &&
-            (!path[1] ||
-              ['computerUseEnabled', 'computerAppPermissions', 'computerAppApprovalsV2'].includes(
-                path[1],
-              )),
+            (!path[1] || ['computerAppPermissions', 'computerAppApprovalsV2'].includes(path[1])),
         )
       ) {
         const next = this.permissions()
@@ -95,8 +99,7 @@ export class ComputerUseService {
         )
         for (const granted of this.grants.values())
           for (const entry of [...revoked, ...denied]) granted.delete(entry.appId)
-        if ((previousEnabled && !this.enabled()) || revoked.length || denied.length) this.stop()
-        previousEnabled = this.enabled()
+        if (revoked.length || denied.length) this.stop()
         previousPermissions = next
         this.changed()
       }
@@ -175,7 +178,7 @@ export class ComputerUseService {
       }
     return policy
   }
-  enabled = () => this.desktop()?.computerUseEnabled === true
+  enabled = () => this.plugins.isEnabled('computer-use')
   available = () =>
     Boolean(this.enabled() && this.host?.available && Date.now() - this.host.seenAt < HOST_STALE_MS)
   state(): ComputerState {
@@ -207,8 +210,6 @@ export class ComputerUseService {
     decision?: 'allow' | 'deny' | 'remove' | 'session'
   }) {
     const edits: Array<{ keyPath: string[]; value: any }> = []
-    if (input.enabled !== undefined)
-      edits.push({ keyPath: ['desktop', 'computerUseEnabled'], value: input.enabled })
     if (input.decision) {
       if (!input.appId) throw new AgentError('INVALID_REQUEST', '缺少应用身份', 400)
       const known =
@@ -237,6 +238,12 @@ export class ComputerUseService {
             throw new AgentError('PERMISSION_DENIED', '请先撤销此应用的永久拒绝记录', 403)
           if (!input.threadId || !this.db.getThread(input.threadId))
             throw new AgentError('INVALID_REQUEST', '请选择有效的当前聊天', 400)
+          if (input.enabled !== undefined)
+            await this.plugins.setEnabled({
+              pluginId: 'computer-use',
+              enabled: input.enabled,
+              operationId: randomUUID(),
+            })
           const granted = this.grants.get(input.threadId) ?? new Map<string, string>()
           granted.set(input.appId, known.name)
           this.grants.set(input.threadId, granted)
@@ -259,6 +266,12 @@ export class ComputerUseService {
         for (const granted of this.grants.values()) granted.delete(input.appId)
     }
     if (edits.length) await this.config.batchWrite({ target: { kind: 'user' }, edits })
+    if (input.enabled !== undefined)
+      await this.plugins.setEnabled({
+        pluginId: 'computer-use',
+        enabled: input.enabled,
+        operationId: randomUUID(),
+      })
     if (input.enabled === false || input.decision === 'remove' || input.decision === 'deny')
       this.stop()
     this.changed()
@@ -559,6 +572,7 @@ export class ComputerUseService {
     this.changed()
   }
   dispose() {
+    this.unsubscribePlugins()
     this.unsubscribe()
     this.unsubscribeConfig()
     this.unsubscribePolicy()

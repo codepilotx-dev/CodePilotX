@@ -21,6 +21,8 @@ import { PermissionDecisionEngine } from '../src/permission/PermissionDecisionEn
 import type { ToolInvocation } from '../src/domain'
 import type { ComputerCommand, ComputerResult, ComputerWindow } from '@codepilotx/agent-protocol'
 import { removeFixturePaths } from './fixture-cleanup'
+import { PluginManagementService } from '../src/plugin/PluginManagementService'
+import { PluginSettingsRepository } from '../src/storage/repositories/plugin-settings-repository'
 
 const paths: string[] = []
 const cleanups: Array<() => void> = []
@@ -80,14 +82,20 @@ async function fixture(options: { enabled?: boolean } = {}) {
   } as unknown as ConfigService
   const hub = await Effect.runPromise(EventHub.make)
   const policy = new ComputerPolicyService(config, join(root, 'requirements.toml'))
-  const computer = new ComputerUseService(config, db, hub, policy)
+  const plugins = new PluginManagementService(new PluginSettingsRepository(db), {
+    builtinPluginsRoot: join(import.meta.dir, '../resources/plugins'),
+    userHome: root,
+  })
+  plugins.initializeComputerUse(options.enabled ?? true)
+  await plugins.list()
+  const computer = new ComputerUseService(config, db, hub, plugins, policy)
   await computer.initialize()
   cleanups.push(() => {
     computer.dispose()
     db.close()
   })
   computer.register(HOST.instanceId, HOST.connectionId, true, true)
-  return { db, computer, configuration, policy, root, hub }
+  return { db, computer, configuration, policy, root, hub, plugins }
 }
 
 const computerTools = (registry: ToolRegistry, mode: 'chat' | 'plan') =>
@@ -564,6 +572,73 @@ describe('ComputerUseService', () => {
     const registry = new ToolRegistry()
     for (const definition of computerToolDefinitions(computer)) registry.register(definition)
     expect(computerTools(registry, 'chat')).toEqual([])
+  })
+
+  test('插件与电脑设置共用状态，禁用停止在途命令并保留应用授权', async () => {
+    const { computer, plugins, db, configuration, root } = await fixture()
+    const identity = { threadID: db.createThread('插件').id, turnID: 'turn:plugin' }
+    const signal = new AbortController().signal
+    await discover(computer, identity, signal)
+    await computer.configure({ appId: APP.appId, decision: 'allow' })
+    const permissions = computer.state().permissions
+    const registry = new ToolRegistry()
+    for (const definition of computerToolDefinitions(computer)) registry.register(definition)
+    const executor = new ToolExecutor(registry)
+    const exposure = {
+      taskMode: 'chat' as const,
+      sandboxMode: 'danger-full-access' as const,
+      approvalPolicy: 'never' as const,
+    }
+    const frozenDeferredToolNames = executor
+      .deferredDefinitions(exposure)
+      .map((tool) => tool.sdkName)
+    const pending = computer.list(identity, signal)
+    const rejected = pending.catch((error: Error) => error)
+    const command = await take(computer)
+    await plugins.setEnabled({
+      pluginId: 'computer-use',
+      enabled: false,
+      operationId: 'plugin-off',
+    })
+    expect(((await rejected) as Error).message).toContain('电脑控制已停止')
+    expect(computer.state()).toMatchObject({
+      enabled: false,
+      busy: false,
+      ownerTurnId: null,
+      permissions,
+    })
+    expect(computerTools(registry, 'chat')).toEqual([])
+    expect(
+      executor
+        .deferredDefinitions({ ...exposure, frozenDeferredToolNames })
+        .map((tool) => tool.sdkName),
+    ).toEqual(frozenDeferredToolNames.filter((name) => !name.startsWith('Computer')))
+    expect(() => computer.inspect(identity, REF, false)).toThrow('请开启电脑控制')
+    computer.complete(command.requestId, command.generation, { text: '旧结果' })
+    await expect(
+      executor.execute(
+        'ComputerApps',
+        {},
+        {
+          ...identity,
+          taskMode: 'chat',
+          signal,
+          permissionConfig: FULL_ACCESS,
+          workspace: await WorkspaceService.open(root),
+          frozenDeferredToolNames,
+        },
+      ),
+    ).rejects.toThrow('请开启电脑控制')
+    await computer.configure({ enabled: true })
+    expect(
+      (await plugins.list()).plugins.find((plugin) => plugin.id === 'computer-use')?.enabled,
+    ).toBe(true)
+    expect(configuration.desktop.computerUseEnabled).toBe(true)
+    await computer.configure({ enabled: false })
+    // The legacy configuration is preserved and can no longer override the plugin choice.
+    plugins.initializeComputerUse(configuration.desktop.computerUseEnabled)
+    expect(computer.enabled()).toBe(false)
+    expect(computer.state().permissions).toEqual(permissions)
   })
 
   test('未完成握手的宿主动作被拒绝', async () => {

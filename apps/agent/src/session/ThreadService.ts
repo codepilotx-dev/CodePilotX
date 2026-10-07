@@ -1,4 +1,6 @@
 import { Effect } from 'effect'
+import type { PluginManagementService } from '../plugin/PluginManagementService'
+import { pluginReferenceData } from '../plugin/plugin-references'
 import { Model } from '@codepilotx/model-schema'
 import type { Thread, ThreadSettings } from '@codepilotx/shared/thread'
 import type { AgentModelCatalog } from '../provider/AgentModelCatalog'
@@ -145,6 +147,7 @@ export class ThreadService {
     private readonly sessionGroups?: SessionGroupService,
     private readonly threadGoals?: ThreadGoalService,
     private readonly computerControl?: { enabled(): boolean; available(): boolean },
+    private readonly plugins?: PluginManagementService,
   ) {
     this.resumeCheckpoints =
       resumeCheckpoints ??
@@ -262,9 +265,17 @@ export class ThreadService {
         throw new AgentError('OPERATION_ID_CONFLICT', 'operationId 已用于其他会话创建请求', 409)
       return { id: duplicate.threadID }
     }
-    const emptyProjectID = input.workspace.kind === 'project' && this.db.getProject(input.workspace.projectID)?.folders.length === 0
-      ? input.workspace.projectID : null
-    if (emptyProjectID && input.workspace.kind === 'project' && input.workspace.execution?.kind === 'worktree') throw new AgentError('INVALID_REQUEST', '无源文件夹项目不能创建工作树', 400)
+    const emptyProjectID =
+      input.workspace.kind === 'project' &&
+      this.db.getProject(input.workspace.projectID)?.folders.length === 0
+        ? input.workspace.projectID
+        : null
+    if (
+      emptyProjectID &&
+      input.workspace.kind === 'project' &&
+      input.workspace.execution?.kind === 'worktree'
+    )
+      throw new AgentError('INVALID_REQUEST', '无源文件夹项目不能创建工作树', 400)
     if (input.workspace.kind === 'project' && !emptyProjectID) {
       const projectID = input.workspace.projectID
       let groupEvent: EventEnvelope | null = null
@@ -305,7 +316,9 @@ export class ThreadService {
     const allocation = await this.workspaceResolver.allocateProjectless({
       workspaceID: crypto.randomUUID(),
       threadID,
-      ...(input.workspace.kind === 'projectless' && input.workspace.prompt !== undefined ? { prompt: input.workspace.prompt } : {}),
+      ...(input.workspace.kind === 'projectless' && input.workspace.prompt !== undefined
+        ? { prompt: input.workspace.prompt }
+        : {}),
     })
     let groupEvent: EventEnvelope | null = null
     try {
@@ -439,9 +452,7 @@ export class ThreadService {
           } | null)
         : null
     const projectSourceCatalog =
-      projectID !== null
-        ? ((await this.projectSources?.catalog(projectID!)) ?? null)
-        : null
+      projectID !== null ? ((await this.projectSources?.catalog(projectID!)) ?? null) : null
     const skillService = this.skillManagement?.runtimeService() ?? new SkillService()
     const skills = await skillService.scan({
       workspaceRoot: runtime.workspaceRoot,
@@ -936,11 +947,19 @@ export class ThreadService {
         }
       }
       const skillData = await skills.invocationData(input.content, input.skills)
+      const pluginData = await pluginReferenceData(
+        input.content,
+        this.plugins,
+        (await this.workspaceResolver.resolve(threadID)).workspaceRoot,
+        skills.list(),
+      )
       this.db.repositories.runtimeCompositions.recordReferencedSkills(
         turnID,
         skills.referencedSkills(),
       )
-      const content = [...textAttachments, ...skillData, input.content].filter(Boolean).join('\n\n')
+      const content = [...textAttachments, ...skillData, ...pluginData, input.content]
+        .filter(Boolean)
+        .join('\n\n')
       const images = attachments.flatMap((attachment) =>
         attachment.kind === 'image'
           ? [{ type: 'image' as const, data: attachment.base64, mimeType: attachment.mediaType }]
@@ -1204,9 +1223,7 @@ export class ThreadService {
         })
       }
       const projectSourceCatalog =
-        projectID !== null
-          ? ((await this.projectSources?.catalog(projectID!)) ?? null)
-          : null
+        projectID !== null ? ((await this.projectSources?.catalog(projectID!)) ?? null) : null
       const skillService = this.skillManagement?.runtimeService() ?? new SkillService()
       const skillCatalog = await skillService.scan({
         workspaceRoot: runtime.workspaceRoot,
@@ -1216,6 +1233,12 @@ export class ThreadService {
       })
       mcpLease = await this.mcp?.acquire(runtime.workspaceRoot)
       const invokedSkillData = await skillService.invocationData(content, input.skills)
+      const referencedPluginData = await pluginReferenceData(
+        content,
+        this.plugins,
+        runtime.workspaceRoot,
+        skillCatalog.skills,
+      )
       workspace = workspace.withReadOnlyPaths(
         skillCatalog.skills.map((skill) => ({ path: skill.root, kind: 'directory' as const })),
       )
@@ -1280,6 +1303,7 @@ export class ThreadService {
           ),
           ...hookFeedback,
           ...invokedSkillData,
+          ...referencedPluginData,
           ...(sideEffectRecovery
             ? [
                 `<untrusted_evidence type="side-effect-recovery">\n上一模型 attempt 在上下文超限前已完成以下副作用。它们只作为恢复证据；不要重复执行相同 tool call：\n${JSON.stringify(sideEffectRecovery.completed ?? [])}\n</untrusted_evidence>`,
@@ -1532,9 +1556,7 @@ export class ThreadService {
         ? null
         : this.memory.enqueue({
             threadID,
-            ...(projectID !== null
-              ? { projectKey: projectMemoryKey(projectID) }
-              : {}),
+            ...(projectID !== null ? { projectKey: projectMemoryKey(projectID) } : {}),
             transcript: `用户任务：\n${content}\n\nAgent 结果：\n${result.output}`,
           })
       if (memoryJob)

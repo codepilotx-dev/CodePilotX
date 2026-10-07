@@ -15,6 +15,7 @@ export type PluginRuntimeState = {
 type SettingsDatabase = {
   getSetting<T>(key: string): T | null
   setSetting(key: string, value: unknown): void
+  profileSqlite: { transaction<T>(work: () => T): () => T }
 }
 
 const SETTINGS_KEY = 'plugins.runtime.v1'
@@ -63,6 +64,27 @@ export class PluginSettingsRepository {
 
   state() {
     return normalizeState(this.database.getSetting<PluginRuntimeState>(SETTINGS_KEY))
+  }
+
+  initializeComputerUse(legacyEnabled: boolean) {
+    this.database.profileSqlite.transaction(() => {
+      const marker = 'plugins.computer-use.initialized.v1'
+      const raw = this.database.getSetting<PluginRuntimeState>(SETTINGS_KEY)
+      if (raw && raw.version !== 1) throw new Error('不支持的插件设置版本')
+      if (this.database.getSetting(marker) === true) return
+      const state = this.state()
+      const explicitlyConfigured =
+        state.disabledPluginIds.includes('computer-use') ||
+        state.operations.some((operation) => operation.pluginId === 'computer-use')
+      if (!explicitlyConfigured && !legacyEnabled) {
+        this.setEnabled({
+          pluginId: 'computer-use',
+          enabled: false,
+          operationId: 'migration:computer-use:v1',
+        })
+      }
+      this.database.setSetting(marker, true)
+    })()
   }
 
   setEnabled(input: { pluginId: string; enabled: boolean; operationId: string }) {

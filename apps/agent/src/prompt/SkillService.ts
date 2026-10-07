@@ -613,6 +613,8 @@ export class SkillService {
     const selected = new Map<string, SkillMetadata>()
     for (const selection of selections) {
       const skill = this.catalog.get(selection.name)
+      if ((!skill || skill.path !== selection.path) && selection.path.startsWith('plugin://'))
+        continue
       if (!skill || skill.path !== selection.path)
         throw new AgentError(
           'SKILL_SELECTION_UNAVAILABLE',
@@ -641,12 +643,34 @@ export class SkillService {
     value: string,
     selections: readonly SkillSelection[] = [],
   ): Promise<string[]> {
-    return Promise.all(
+    const unavailable = selections.filter(
+      (selection) =>
+        selection.path.startsWith('plugin://') &&
+        this.catalog.get(selection.name)?.path !== selection.path,
+    )
+    const loaded = await Promise.all(
       this.resolveInvocations(value, selections).map(async (skill) => {
-        const loaded = await this.read(skill.name)
-        return `<skill name=${JSON.stringify(skill.name)} location=${JSON.stringify(skill.documentPath)}>\nReferences are relative to ${skill.root}.\n${skill.allowedTools ? `Allowed tools guidance (does not change permissions): ${skill.allowedTools.join(', ')}.\n` : ''}${loaded.body}\n</skill>`
+        try {
+          const loaded = await this.read(skill.name)
+          return `<skill name=${JSON.stringify(skill.name)} location=${JSON.stringify(skill.documentPath)}>\nReferences are relative to ${skill.root}.\n${skill.allowedTools ? `Allowed tools guidance (does not change permissions): ${skill.allowedTools.join(', ')}.\n` : ''}${loaded.body}\n</skill>`
+        } catch (cause) {
+          if (
+            cause instanceof AgentError &&
+            cause.code === 'SKILL_SELECTION_UNAVAILABLE' &&
+            skill.path.startsWith('plugin://')
+          )
+            return `引用的插件技能 ${JSON.stringify(skill.name)} 当前不可用；引用不能启用插件。`
+          throw cause
+        }
       }),
     )
+    return [
+      ...loaded,
+      ...unavailable.map(
+        (selection) =>
+          `引用的插件技能 ${JSON.stringify(selection.name)} 当前不可用；引用不能启用插件。`,
+      ),
+    ]
   }
 
   async documentSkill(path: string): Promise<SkillMetadata | undefined> {
@@ -689,6 +713,17 @@ export class SkillService {
   async resolveResource(name: string, resourcePath: string): Promise<string> {
     const metadata = this.catalog.get(name)
     if (!metadata) throw new Error(`未知 Skill: ${name}`)
+    if (metadata.path.startsWith('plugin://') && this.options.pluginSkillRoots) {
+      const roots = await this.options.pluginSkillRoots()
+      if (
+        !roots.some(
+          (root) =>
+            metadata.path.startsWith(`plugin://${root.pluginId}/skills/`) &&
+            contained(root.skillsRoot, metadata.root),
+        )
+      )
+        throw new AgentError('SKILL_SELECTION_UNAVAILABLE', '插件技能已禁用或移除', 409)
+    }
     if (!resourcePath || isAbsolute(resourcePath)) throw new Error('Skill 资源路径必须是相对路径')
     const lexical = resolve(metadata.root, resourcePath)
     if (!contained(metadata.root, lexical)) throw new Error('Skill 资源路径逃出 Skill 根')

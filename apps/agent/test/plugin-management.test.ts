@@ -4,8 +4,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PluginGetDetailsResultSchema, PluginListResultSchema } from '@codepilotx/agent-protocol'
 import { Schema } from 'effect'
+import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { PluginManagementService } from '../src/plugin/PluginManagementService'
 import { SkillService } from '../src/prompt/SkillService'
+import { extractPluginReferences, pluginReferenceData } from '../src/plugin/plugin-references'
 import type { RpcRouter } from '../src/transport/rpc/RpcRouter'
 import { pluginHandlers } from '../src/transport/rpc/handlers/plugins'
 import {
@@ -29,6 +31,11 @@ const settingsDatabase = () => {
   const values = new Map<string, unknown>()
   return {
     values,
+    profileSqlite: {
+      transaction<T>(work: () => T) {
+        return work
+      },
+    },
     getSetting<T>(key: string) {
       return (values.get(key) as T | undefined) ?? null
     },
@@ -100,6 +107,80 @@ const writePlugin = async (input: {
 }
 
 describe('PluginManagementService', () => {
+  test('rolls back plugin initialization and its marker together in the profile database', async () => {
+    const db = new AgentDatabase(join(await temporaryRoot(), 'history.sqlite'))
+    try {
+      const repository = new PluginSettingsRepository({
+        profileSqlite: db.profileSqlite,
+        getSetting: <T>(key: string) => db.getSetting<T>(key),
+        setSetting: (key, value) => {
+          if (key === 'plugins.computer-use.initialized.v1') throw new Error('marker failed')
+          db.setSetting(key, value)
+        },
+      })
+      expect(() => repository.initializeComputerUse(false)).toThrow('marker failed')
+      expect(db.getSetting('plugins.runtime.v1')).toBeNull()
+      expect(db.getSetting('plugins.computer-use.initialized.v1')).toBeNull()
+    } finally {
+      db.close()
+    }
+  })
+
+  test('initializes computer control once and preserves explicit plugin choices', () => {
+    for (const enabled of [false, true]) {
+      const database = settingsDatabase()
+      const repository = new PluginSettingsRepository(database)
+      repository.initializeComputerUse(enabled)
+      expect(repository.state().disabledPluginIds.includes('computer-use')).toBe(!enabled)
+      new PluginSettingsRepository(database).initializeComputerUse(!enabled)
+      expect(repository.state().disabledPluginIds.includes('computer-use')).toBe(!enabled)
+    }
+    const repository = new PluginSettingsRepository(settingsDatabase())
+    repository.setEnabled({ pluginId: 'computer-use', enabled: true, operationId: 'explicit' })
+    repository.initializeComputerUse(false)
+    expect(repository.state().disabledPluginIds).toEqual([])
+  })
+
+  test('resolves stable plugin references and rejects disabled or forged resource paths', async () => {
+    const root = await temporaryRoot()
+    await writePlugin({ root, id: 'computer-use', extension: true })
+    const service = new PluginManagementService(new PluginSettingsRepository(settingsDatabase()), {
+      builtinPluginsRoot: root,
+      userHome: root,
+    })
+    const skills = new SkillService({ pluginSkillRoots: () => service.enabledSkillRoots() })
+    await skills.scan({ workspaceRoot: root, dataRoot: root, userHome: root })
+    const content = '[@名称](plugin://computer-use) [@名称](<plugin://computer-use>)'
+    expect(extractPluginReferences(content)).toEqual(['computer-use'])
+    expect(
+      extractPluginReferences(
+        '`[@名称](plugin://computer-use)`\n```md\n[@名称](plugin://computer-use)\n```',
+      ),
+    ).toEqual([])
+    expect(
+      extractPluginReferences(
+        '[@名称](plugin://computer-use/../../secret) ![图](plugin://computer-use)',
+      ),
+    ).toEqual([])
+    expect((await pluginReferenceData(content, service, root, skills.list())).join('')).toContain(
+      'Read',
+    )
+    const selection = {
+      name: 'computer-use',
+      path: 'plugin://computer-use/skills/computer-use/SKILL.md',
+    }
+    await service.setEnabled({ pluginId: 'computer-use', enabled: false, operationId: 'disable' })
+    // An already scanned service must not read a disabled plugin from its frozen catalog.
+    await expect(skills.read('computer-use')).rejects.toThrow('插件技能已禁用')
+    expect((await pluginReferenceData(content, service, root, skills.list())).join('')).toContain(
+      '当前不可用',
+    )
+    await skills.scan({ workspaceRoot: root, dataRoot: root, userHome: root })
+    expect(skills.resolveInvocations('继续', [selection])).toEqual([])
+    expect((await skills.invocationData('继续', [selection])).join('')).toContain('当前不可用')
+    expect(await service.enabledSkillRoots()).toEqual([])
+  })
+
   test('discovers a default-installed bundled plugin and contributes its Skill root', async () => {
     const root = await temporaryRoot()
     const builtinPluginsRoot = join(root, 'plugins')
@@ -192,6 +273,9 @@ describe('PluginManagementService', () => {
         emitted.push({ method, params })
       },
     } as unknown as RpcRouter
+    service.subscribe((_id, generation) => {
+      void runtime.emit('plugins/updated', { generation })
+    })
 
     const handlerDetails = await pluginHandlers.handle(
       runtime,

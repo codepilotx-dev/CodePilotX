@@ -128,12 +128,33 @@ const normalizePolicy = (
 export class PluginManagementService {
   private readonly userHome: string
   private readonly knownPlugins = new Map<string, DiscoveredPlugin>()
+  private readonly listeners = new Set<(pluginId: string, generation: number) => void>()
 
   constructor(
     private readonly settings: PluginSettingsRepository,
     private readonly roots: PluginRoots,
   ) {
     this.userHome = resolve(roots.userHome ?? homedir())
+  }
+
+  initializeComputerUse(legacyEnabled: boolean) {
+    this.settings.initializeComputerUse(legacyEnabled)
+  }
+
+  isEnabled(pluginId: string) {
+    const plugin = this.knownPlugins.get(pluginId)?.summary
+    return (
+      plugin?.installed === true &&
+      plugin.status === 'ready' &&
+      !this.settings.state().disabledPluginIds.includes(pluginId)
+    )
+  }
+
+  subscribe(listener: (pluginId: string, generation: number) => void) {
+    this.listeners.add(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
   }
 
   async list(
@@ -170,8 +191,10 @@ export class PluginManagementService {
     }
     try {
       const result = this.settings.setEnabled(input)
-      const summary = { ...plugin.summary, enabled: input.enabled }
+      const summary = { ...plugin.summary, enabled: this.isEnabled(input.pluginId) }
       this.knownPlugins.set(input.pluginId, { ...plugin, summary })
+      if (result.changed)
+        for (const listener of this.listeners) listener(input.pluginId, result.state.generation)
       return {
         result: {
           plugin: summary,
@@ -203,6 +226,7 @@ export class PluginManagementService {
     return plugins.flatMap((plugin) =>
       plugin.summary.installed &&
       plugin.summary.enabled &&
+      !this.settings.state().disabledPluginIds.includes(plugin.summary.id) &&
       plugin.summary.status === 'ready' &&
       plugin.skillRoot
         ? [plugin.skillRoot]

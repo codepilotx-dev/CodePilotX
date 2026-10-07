@@ -34,11 +34,6 @@ export const pluginHandlers = {
           return plugins.getDetails(decodeGetDetails(rawParams))
         case 'plugin/setEnabled': {
           const result = await plugins.setEnabled(decodeSetEnabled(rawParams))
-          if (result.changed) {
-            await runtime.emit('plugins/updated', {
-              generation: result.result.generation,
-            })
-          }
           return result.result
         }
         default:

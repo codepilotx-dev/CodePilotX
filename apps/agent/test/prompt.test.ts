@@ -722,10 +722,9 @@ describe('电脑控制提示', () => {
     expect(instructions).toContain('本机电脑控制已就绪')
     expect(instructions).toContain('ToolSearch')
     expect(instructions).toContain('ComputerApps')
-    expect(instructions).toContain('never 策略只允许已有应用授权')
-    expect(instructions).toContain('请求批准和帮我批准模式')
-    expect(instructions).toContain('首次应用授权由用户确认')
-    expect(instructions).toContain('无需先去设置逐个添加')
+    expect(instructions).toContain('Read')
+    expect(instructions).toContain('computer-use SKILL.md')
+    expect(instructions).toContain('插件启用不改变应用授权与工具权限')
     expect(instructions).not.toContain('未开启')
   })
 

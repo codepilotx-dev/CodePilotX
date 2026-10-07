@@ -344,6 +344,18 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       builtinPluginsRoot: config.builtinPluginsRoot,
       userHome: homedir(),
     })
+    plugins.initializeComputerUse(
+      (
+        configService.snapshotLayers().find((layer) => layer.kind === 'user')?.config.desktop as
+          Record<string, unknown> | undefined
+      )?.computerUseEnabled === true,
+    )
+    yield* Effect.promise(() => plugins.list())
+    const unsubscribePlugins = plugins.subscribe((_pluginId, generation) => {
+      void publishAgentEvent(db, hub, null, null, 'plugins/updated', { generation }).catch(() =>
+        logger.warn('plugins.status.publish.failed', { error: 'PLUGIN_STATUS_PUBLISH_FAILED' }),
+      )
+    })
     let minimaxCli: MiniMaxCliIntegrationService
     const skills = new SkillManagementService(
       new SkillSettingsRepository(db),
@@ -512,7 +524,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
     })
     const browser = new BrowserService(db, hub, configService)
     const tools = new ToolRegistry()
-    const computer = new ComputerUseService(configService, db, hub)
+    const computer = new ComputerUseService(configService, db, hub, plugins)
     yield* Effect.promise(() => computer.initialize())
     for (const definition of computerToolDefinitions(computer)) tools.register(definition)
     if (browser.available())
@@ -771,6 +783,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       sessionGroups,
       threadGoals,
       computer,
+      plugins,
     )
     const automationStorage = probeAutomationStorageCapabilities(db.sqlite)
     const planApprovals = new PlanApprovalService(db, hub, threads)
@@ -1085,6 +1098,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       if (disposed) return
       disposed = true
       computer.dispose()
+      unsubscribePlugins()
       browser.dispose()
       await speech.dispose()
       automationScheduler?.dispose()
