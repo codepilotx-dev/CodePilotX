@@ -249,7 +249,8 @@ export function BrowserManagementControls({
           <span aria-live="polite">
             {findResult.activeMatchOrdinal}/{findResult.matches}
           </span>
-          <Button isIconOnly
+          <Button
+            isIconOnly
             color="ghostSecondary"
             size="toolbar"
             title="上一项"
@@ -258,7 +259,8 @@ export function BrowserManagementControls({
           >
             <ChevronUp size={APP_ICON_SIZE} />
           </Button>
-          <Button isIconOnly
+          <Button
+            isIconOnly
             color="ghostSecondary"
             size="toolbar"
             title="下一项"
@@ -267,7 +269,13 @@ export function BrowserManagementControls({
           >
             <ChevronDown size={APP_ICON_SIZE} />
           </Button>
-          <Button isIconOnly color="ghostSecondary" size="toolbar" title="关闭查找" onClick={closeFind}>
+          <Button
+            isIconOnly
+            color="ghostSecondary"
+            size="toolbar"
+            title="关闭查找"
+            onClick={closeFind}
+          >
             <X size={APP_ICON_SIZE} />
           </Button>
         </form>
@@ -334,7 +342,8 @@ export function BrowserManagementControls({
               应用
             </Button>
           </form>
-          <Button isIconOnly
+          <Button
+            isIconOnly
             color="ghostSecondary"
             size="toolbar"
             title="切换横竖屏"
@@ -350,7 +359,8 @@ export function BrowserManagementControls({
           >
             <RotateCw size={APP_ICON_SIZE} />
           </Button>
-          <Button isIconOnly
+          <Button
+            isIconOnly
             color="ghostSecondary"
             size="toolbar"
             title="关闭设备工具栏"
@@ -377,12 +387,13 @@ export function BrowserManagementControls({
     <>
       <PopoverMenu
         className="popover-menu--text-only browser-more-menu"
-        width={264}
+        size="md"
         open={menuOpen}
         onOpenChange={setMenuOpen}
         align="end"
         trigger={
-          <Button isIconOnly
+          <Button
+            isIconOnly
             className="browser-more-trigger"
             color="ghostSecondary"
             size="toolbar"
@@ -413,7 +424,8 @@ export function BrowserManagementControls({
           aria-label="网页缩放"
         >
           <span className="tw:flex-1">缩放</span>
-          <Button isIconOnly
+          <Button
+            isIconOnly
             color="ghostSecondary"
             size="toolbar"
             title="缩小网页"
@@ -430,7 +442,8 @@ export function BrowserManagementControls({
           >
             {Math.round((state.zoomFactor ?? 1) * 100)}%
           </button>
-          <Button isIconOnly
+          <Button
+            isIconOnly
             color="ghostSecondary"
             size="toolbar"
             title="放大网页"
@@ -487,10 +500,11 @@ export function BrowserManagementControls({
             onCloseAutoFocus={onCloseAutoFocus}
           >
             <header>
-              <Dialog.Title className="tw:m-0 tw:type-title-sm">{
-                view === 'history' ? '浏览历史' : view === 'downloads' ? '下载' : '清除浏览数据'
-              }</Dialog.Title>
-              <Button isIconOnly
+              <Dialog.Title className="tw:m-0 tw:type-title-sm">
+                {view === 'history' ? '浏览历史' : view === 'downloads' ? '下载' : '清除浏览数据'}
+              </Dialog.Title>
+              <Button
+                isIconOnly
                 color="ghostSecondary"
                 size="toolbar"
                 title="关闭"
@@ -735,7 +749,11 @@ export function BrowserManagementControls({
                   </p>
                 ) : null}
                 {clearResult?.map((result) => (
-                  <p className="tw:m-0 tw:type-body-sm tw:text-app-text-soft" role="status" key={result.category}>
+                  <p
+                    className="tw:m-0 tw:type-body-sm tw:text-app-text-soft"
+                    role="status"
+                    key={result.category}
+                  >
                     {categoryNames[result.category]}：
                     {result.ok ? (result.message ?? '已清理') : result.message}
                   </p>

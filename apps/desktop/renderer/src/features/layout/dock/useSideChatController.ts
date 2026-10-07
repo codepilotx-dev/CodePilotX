@@ -9,6 +9,7 @@ import type {
 } from '../../../../shared/types.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { sessionModelSelections } from '../../session/state/sessionModelSelectionStore.js'
+import { forgetThreadScrollState } from '../../session/conversation/useThreadScrollController.js'
 import type {
   ComposerDeliveryIntent,
   ComposerDraftContentSnapshot,
@@ -40,6 +41,20 @@ type PendingClose = {
 }
 
 const SKIP_CLOSE_CONFIRMATION_KEY = 'side-chat.skip-close-confirmation'
+
+export function reusePendingSideChatCreation<T>(
+  pending: Map<string, Promise<T>>,
+  key: string,
+  create: () => Promise<T>,
+): Promise<T> {
+  const existing = pending.get(key)
+  if (existing) return existing
+  const request = Promise.resolve().then(create).finally(() => {
+    if (pending.get(key) === request) pending.delete(key)
+  })
+  pending.set(key, request)
+  return request
+}
 
 export function useSideChatController({
   activeTab,
@@ -77,6 +92,7 @@ export function useSideChatController({
   const initialSettingsRef = useRef(initialSettings)
   const modelLoadsRef = useRef(new Map<string, Promise<SideChatComposerSettings>>())
   const creatingTabIdsRef = useRef(new Set<string>())
+  const pendingCreationsRef = useRef(new Map<string, Promise<SideChatTab | null>>())
   const cancelledCreatingTabIdsRef = useRef(new Set<string>())
   const activeComposerKeyRef = useRef<string | null>(null)
   const pendingCloseRef = useRef<PendingClose | null>(null)
@@ -180,7 +196,7 @@ export function useSideChatController({
     [sideChatTabsVersion, sourceThreadId],
   )
 
-  const createSideChat = useCallback(
+  const createSideChatRequest = useCallback(
     async (referenceText?: string): Promise<SideChatTab | null> => {
       if (!sourceThreadId) {
         onError('请先打开一个任务，再创建侧边聊天。')
@@ -274,6 +290,16 @@ export function useSideChatController({
     ],
   )
 
+  const createSideChat = useCallback(
+    (referenceText?: string): Promise<SideChatTab | null> =>
+      reusePendingSideChatCreation(
+        pendingCreationsRef.current,
+        JSON.stringify([sourceThreadId, referenceText?.trim() ?? '']),
+        () => createSideChatRequest(referenceText),
+      ),
+    [createSideChatRequest, sourceThreadId],
+  )
+
   const handleAppendSideChatText = useCallback(
     (text: string): void => {
       if (!text.trim()) return
@@ -340,6 +366,7 @@ export function useSideChatController({
             continue
           }
           await desktopClient.discardSideChat({ threadId: tab.threadId })
+          forgetThreadScrollState(tab.threadId)
           draftsRef.current.delete(tab.id)
           visibleTurnCountsRef.current.delete(tab.threadId)
           statusesRef.current.delete(tab.threadId)

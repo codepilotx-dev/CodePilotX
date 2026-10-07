@@ -137,6 +137,7 @@ import { DesktopComposer } from '../../session/composer/DesktopComposer.js'
 import { buildCommandMenuTasks } from '../../search/commandMenuModel.js'
 import { GlobalErrorModal } from '../../../components/GlobalErrorModal.js'
 import { toastStore } from '../../../components/toast/toastState.js'
+import { Archive } from 'lucide-react'
 import { toUserErrorMessage } from '../../../utils/errors.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import type { ThreadArtifactPreviewInput } from '../../session/attachments/attachmentPreviewDescriptor.js'
@@ -297,6 +298,7 @@ export function DesktopLayout(): React.ReactNode {
       commitMessagePrompt,
       pullRequestPrompt,
       sidebarSessionPins,
+      sidebarProductMode,
     },
     permissionMode,
     settingsLoaded,
@@ -306,6 +308,7 @@ export function DesktopLayout(): React.ReactNode {
     setReviewView,
     setSidebarSessionPins,
     setSidebarTimelineEnabled,
+    setSidebarProductMode,
   } = settings
   useSystemNotifications(settingsLoaded ? settings.values.notifications : undefined)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -386,6 +389,7 @@ export function DesktopLayout(): React.ReactNode {
     closeTabsToRight,
     pinTab,
     setFileMarkdownViewMode,
+    setFileViewState,
   } = useWorkbenchShellController({ activePane: activeSidebarPane })
   const [rightResizePhase, setRightResizePhase] = useState<ResizePhase>('idle')
   const mainRouteRef = useRef<HTMLDivElement>(null)
@@ -2162,6 +2166,8 @@ export function DesktopLayout(): React.ReactNode {
           input,
           messages: isConversationRoute ? [] : messages,
           placement: isQuickChatPage ? 'new-session' : 'thread',
+          productMode: sidebarProductMode,
+          onProductModeChange: setSidebarProductMode,
           layout: 'multiline',
           radiusVariant: 'default',
           utilityBarVariant: isQuickChatPage ? 'home' : 'default',
@@ -2927,6 +2933,8 @@ export function DesktopLayout(): React.ReactNode {
         onReorderTab={reorderPanelTab}
         onPinTab={pinTab}
         onSetFileMarkdownViewMode={setFileMarkdownViewMode}
+        onSetFileViewState={setFileViewState}
+        onAskInSideChat={sideChatSupported ? handleAppendSideChatText : undefined}
         onSetHeight={handleSetBottomPanelHeight}
         onSetWidth={handleSetRightDockWidth}
         onResizeRawSize={target === 'right' ? handleRightDockResizeRaw : undefined}
@@ -3030,6 +3038,8 @@ export function DesktopLayout(): React.ReactNode {
         onAddComposerFiles: handleAddComposerFiles,
         onPinFileTab: pinTab,
         onSetFileMarkdownViewMode: setFileMarkdownViewMode,
+        onSetFileViewState: setFileViewState,
+        onAskInSideChat: sideChatSupported ? handleAppendSideChatText : undefined,
         onLoadError: (tab, error, phase) =>
           handleFileLoadError({ error, phase, tab, target: 'right' }),
       },
@@ -3099,6 +3109,7 @@ export function DesktopLayout(): React.ReactNode {
       gitStatus,
       handleAddComposerFiles,
       handleAppendComposerText,
+      handleAppendSideChatText,
       mainComposerDraftKey,
       handleBrowserImage,
       handleOpenBrowser,
@@ -3128,6 +3139,7 @@ export function DesktopLayout(): React.ReactNode {
       setBrowserState,
       setErrorMessage,
       setFileMarkdownViewMode,
+      setFileViewState,
       setReviewTabState,
       setReviewView,
       sideChatFocusVersion,
@@ -3412,16 +3424,11 @@ export function DesktopLayout(): React.ReactNode {
                   rightDockOpen={effectiveRightDockVisible}
                   shellControls={
                     <WorkspaceShellControls
-                      canCreateWorkspaceTab={browserAvailability === 'available'}
-                      createWorkspaceTabReason="当前桌面运行环境没有提供内置浏览器能力。"
-                      hasWorkspaceTabs={workbenchPanelState.right.tabIds.length > 0}
-                      rightDockState={visibleRightDockState}
                       terminalAvailable={terminalAvailable}
                       terminalVisible={terminalVisible}
                       workspaceLayout={workspaceLayout}
                       showBottomPanel={isHomeOrConversationRoute}
                       showRightPanel={isHomeOrConversationRoute}
-                      onCreateWorkspaceTab={handleOpenBrowser}
                       onStepWorkspaceLayout={stepWorkspaceLayout}
                       onToggleTerminal={toggleIntegratedTerminal}
                     />
@@ -3520,8 +3527,21 @@ function ArchiveConversationNotice({
     const id = toastStore.show({
       id: 'archive-conversation-notice',
       tone: 'status',
-      message: '聊天已归档',
-      action: onUndo
+      appearance: 'action',
+      dedupeKey: 'archive-conversation-notice',
+      message: (
+        <span className="tw:inline-flex tw:items-center tw:gap-3 tw:px-1.5 tw:type-heading-sm tw:whitespace-nowrap">
+          <Archive aria-hidden="true" className="tw:size-4 tw:shrink-0" />
+          已归档的聊天
+        </span>
+      ),
+      action: {
+        label: '查看',
+        onClick: () => {
+          onOpenSettingsRef.current()
+        },
+      },
+      secondaryAction: onUndo
         ? {
             label: '撤销',
             disabled: undoing,
@@ -3530,12 +3550,6 @@ function ArchiveConversationNotice({
             },
           }
         : undefined,
-      secondaryAction: {
-        label: '设置',
-        onClick: () => {
-          onOpenSettingsRef.current()
-        },
-      },
       onDismiss: () => {
         onCloseRef.current()
       },

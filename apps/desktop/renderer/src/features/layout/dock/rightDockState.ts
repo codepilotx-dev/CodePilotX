@@ -1,3 +1,5 @@
+import type { FileEditorViewState } from '../../editor/FileEditor.js'
+
 export type WorkbenchPanelTarget = 'right' | 'bottom' | 'sidebar'
 
 export type WorkbenchFocusArea = 'main' | 'right-panel' | 'bottom-panel' | 'sidebar-panel'
@@ -92,6 +94,7 @@ export type WorkbenchTabDescriptor =
       relativePath: string
       preview: boolean
       markdownViewMode?: MarkdownFileViewMode
+      viewState?: FileEditorViewState
       line?: number
       column?: number
       endLine?: number
@@ -242,6 +245,11 @@ export type WorkbenchPanelAction =
       tabId: WorkbenchTabId
     }
   | { type: 'pinTab'; tabId: WorkbenchTabId }
+  | {
+      type: 'setFileViewState'
+      tabId: WorkbenchTabId
+      viewState: FileEditorViewState
+    }
   | {
       type: 'setFileMarkdownViewMode'
       tabId: WorkbenchTabId
@@ -494,10 +502,11 @@ function reduceWorkbenchPanelAction(
       const reopenedTab =
         existing?.kind === 'file-preview' &&
         action.tab.kind === 'file-preview' &&
-        existing.markdownViewMode
+        (existing.markdownViewMode || existing.viewState)
           ? {
               ...action.tab,
               markdownViewMode: existing.markdownViewMode,
+              viewState: existing.viewState,
             }
           : action.tab
       const tab =
@@ -607,6 +616,12 @@ function reduceWorkbenchPanelAction(
         [tab.id]: { ...tab, preview: false },
       },
     }
+  }
+
+  if (action.type === 'setFileViewState') {
+    const tab = state.tabsById[action.tabId]
+    if (tab?.kind !== 'file-preview') return state
+    return { ...state, tabsById: { ...state.tabsById, [tab.id]: { ...tab, viewState: action.viewState } } }
   }
 
   if (action.type === 'setFileMarkdownViewMode') {

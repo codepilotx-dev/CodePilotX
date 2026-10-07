@@ -17,6 +17,21 @@ import { createMarkdownRichExtensions } from './markdownRichExtensions.js'
 const CODE_FONT_FALLBACK =
   'ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace'
 
+export type FileEditorViewState = {
+  scrollTop: number
+  scrollLeft: number
+  anchor: number
+  head: number
+}
+
+export function readEditorSelectedText(state: EditorState): string {
+  return state.selection.ranges.map(({ from, to }) => state.sliceDoc(from, to)).join('\n')
+}
+
+export function clampEditorSelection(position: number, length: number): number {
+  return Math.max(0, Math.min(Math.trunc(position), length))
+}
+
 export type FileEditorProps = {
   ariaLabel?: string
   className?: string
@@ -24,6 +39,9 @@ export type FileEditorProps = {
   language?: string
   onChange: (value: string) => void
   onSave?: () => void | Promise<void>
+  onSelectionChange?: (text: string) => void
+  viewState?: FileEditorViewState
+  onViewStateChange?: (state: FileEditorViewState) => void
   path?: string
   presentation?: 'source' | 'markdown-rich'
   readonly?: boolean
@@ -39,6 +57,9 @@ export function FileEditor({
   language,
   onChange,
   onSave,
+  onSelectionChange,
+  viewState,
+  onViewStateChange,
   path,
   presentation = 'source',
   readonly = false,
@@ -57,6 +78,9 @@ export function FileEditor({
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
   const onSaveRef = useRef(onSave)
+  const onSelectionChangeRef = useRef(onSelectionChange)
+  const onViewStateChangeRef = useRef(onViewStateChange)
+  const initialViewStateRef = useRef(viewState)
   const applyingExternalValueRef = useRef(false)
   const readonlyRef = useRef(readonly)
   const readonlyCompartmentRef = useRef(new Compartment())
@@ -67,6 +91,8 @@ export function FileEditor({
 
   onChangeRef.current = onChange
   onSaveRef.current = onSave
+  onSelectionChangeRef.current = onSelectionChange
+  onViewStateChangeRef.current = onViewStateChange
   readonlyRef.current = readonly
 
   useEffect(() => {
@@ -78,11 +104,23 @@ export function FileEditor({
     const languageCompartment = languageCompartmentRef.current
     const presentationCompartment = presentationCompartmentRef.current
     const themeCompartment = themeCompartmentRef.current
+    const snapshot = initialViewStateRef.current
     const view = new EditorView({
       parent: hostRef.current,
       state: EditorState.create({
         doc: value,
+        selection: snapshot ? {
+          anchor: clampEditorSelection(snapshot.anchor, value.length),
+          head: clampEditorSelection(snapshot.head, value.length),
+        } : undefined,
         extensions: [
+          EditorView.updateListener.of((update) => {
+            if (update.selectionSet || update.docChanged) {
+              onSelectionChangeRef.current?.(
+                readEditorSelectedText(update.state),
+              )
+            }
+          }),
           ...createCodeMirrorExtensions({
             onChange: (nextValue) => {
               if (!applyingExternalValueRef.current) {
@@ -105,6 +143,13 @@ export function FileEditor({
       }),
     })
     viewRef.current = view
+    if (snapshot) {
+      view.requestMeasure({ read: () => snapshot, write: () => {
+        view.scrollDOM.scrollTop = snapshot.scrollTop
+        view.scrollDOM.scrollLeft = snapshot.scrollLeft
+      } })
+      onSelectionChangeRef.current?.(readEditorSelectedText(view.state))
+    }
     const unregisterEditTarget = registerTarget(view.contentDOM, {
       get readonly() {
         return readonlyRef.current
@@ -143,6 +188,12 @@ export function FileEditor({
     })
 
     return () => {
+      onViewStateChangeRef.current?.({
+        scrollTop: view.scrollDOM.scrollTop,
+        scrollLeft: view.scrollDOM.scrollLeft,
+        anchor: view.state.selection.main.anchor,
+        head: view.state.selection.main.head,
+      })
       unregisterEditTarget()
       viewRef.current = null
       view.destroy()

@@ -2,7 +2,7 @@ import type React from 'react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ComposerDraftKey } from '../session/composer/composerTypes.js'
 import { useBrowserAnnotations } from './useBrowserAnnotations.js'
-import { ArrowLeft, ArrowRight, Globe2, MessageSquarePlus, Plus, RefreshCw } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Globe2, MessageSquarePlus, Plus, RefreshCw, Square } from 'lucide-react'
 import type { DesktopBrowserState } from '../../../shared/types.js'
 import type { DesktopBrowserClient } from '../../services/desktop-client/desktop-browser-client.js'
 import { formatBrowserDisplayURL } from './browserDisplayURL.js'
@@ -53,10 +53,8 @@ export function DesktopBrowserPanel({
   const syncBrowserBoundsRef = useRef<() => Promise<void>>(async () => undefined)
 
   useEffect(() => {
-    if (state.url) {
-      setAddress(state.url)
-    }
-  }, [state.url])
+    if (!addressFocused) setAddress(state.url)
+  }, [addressFocused, state.url])
 
   useEffect(() => client.onBrowserStateChange(onStateChange), [client, onStateChange])
 
@@ -152,8 +150,8 @@ export function DesktopBrowserPanel({
 
   return (
     <section className="right-dock-browser" aria-label="内置浏览器">
-      <div className="browser-commandbar tw:grid tw:min-h-10 tw:min-w-0 tw:shrink-0 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:border-b tw:border-app-border-subtle tw:bg-app-panel tw:p-2 tw:@max-[440px]:gap-1 tw:@max-[440px]:px-1">
-        <div className="browser-navigation tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:justify-self-start tw:gap-2 tw:@max-[440px]:gap-0">
+      <div className="browser-commandbar tw:grid tw:h-12 tw:min-h-12 tw:min-w-0 tw:shrink-0 tw:grid-cols-[auto_minmax(0,1fr)_auto] tw:items-center tw:gap-2 tw:border-b tw:border-app-border-subtle tw:bg-app-dock tw:p-2 tw:@max-[440px]:gap-1 tw:@max-[440px]:px-1">
+        <div className="browser-navigation tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:justify-self-start tw:gap-1 tw:@max-[440px]:gap-0">
           <Button isIconOnly
             color="ghostSecondary"
             disabled={!state.canGoBack}
@@ -173,7 +171,7 @@ export function DesktopBrowserPanel({
             <ArrowRight size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
           </Button>
           <Button isIconOnly
-            className="tw:@max-[440px]:hidden"
+            className="tw:shrink-0"
             color="ghostSecondary"
             size="toolbar"
             title={state.loading ? '停止加载' : '重新加载'}
@@ -181,11 +179,11 @@ export function DesktopBrowserPanel({
               void runBrowserAction(state.loading ? client.stopBrowser : client.reloadBrowser)
             }
           >
-            <RefreshCw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+            <span className="tw:inline-flex">{state.loading ? <Square size={APP_ICON_SIZES.sm} /> : <RefreshCw size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />}</span>
           </Button>
         </div>
         <form
-          className="browser-address-form tw:relative tw:flex tw:w-full tw:min-w-0 tw:items-center tw:justify-self-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0"
+          className="browser-address-form tw:relative tw:flex tw:h-7 tw:w-full tw:max-w-[770px] tw:min-w-0 tw:items-center tw:justify-self-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0"
           title={addressStatus}
           onSubmit={(event) => {
             event.preventDefault()
@@ -199,7 +197,18 @@ export function DesktopBrowserPanel({
             value={compactAddress}
             onBlur={() => setAddressFocused(false)}
             onChange={(event) => setAddress(event.target.value)}
-            onFocus={() => setAddressFocused(true)}
+            onFocus={(event) => { setAddressFocused(true); event.currentTarget.select() }}
+            onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing) {
+                if (event.key === 'Enter') event.preventDefault()
+                return
+              }
+              if (event.key === 'Escape') {
+                event.preventDefault()
+                setAddress(state.url)
+                event.currentTarget.blur()
+              }
+            }}
           />
           {state.loading ? (
             <span className="browser-address-state tw:absolute tw:top-1/2 tw:right-0.5 tw:-translate-y-1/2 tw:translate-x-full tw:whitespace-nowrap tw:type-caption tw:text-app-text-meta tw:@max-[440px]:hidden">

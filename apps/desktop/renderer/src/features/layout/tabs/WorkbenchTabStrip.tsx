@@ -127,7 +127,7 @@ export function WorkbenchTabStrip({
       <div className="right-dock-tabs-viewport tw:relative tw:flex tw:min-w-0 tw:h-full tw:grow tw:shrink tw:basis-auto tw:items-center tw:overflow-x-auto tw:overflow-y-hidden tw:scroll-px-1">
         <div
           aria-label={target === 'right' ? '右侧面板标签' : '底部面板标签'}
-          className="right-dock-tab-list tw:flex tw:h-full tw:w-max tw:min-w-full tw:grow-0 tw:shrink-0 tw:basis-auto tw:items-center tw:gap-1"
+          className="right-dock-tab-list tw:flex tw:h-full tw:w-full tw:min-w-full tw:grow tw:shrink-0 tw:basis-auto tw:items-center tw:gap-1"
           role="tablist"
         >
           {state.tabIds.map((tabId, index) => {
@@ -205,7 +205,7 @@ export function WorkbenchTabStrip({
                   trigger={
                     <div
                       className={cx(
-                        'right-dock-tab-wrap tw:group tw:relative tw:inline-flex tw:h-7 tw:min-w-22.5 tw:max-w-40 tw:items-center tw:overflow-visible tw:rounded-control tw:border-b-2 tw:border-b-transparent tw:px-2 tw:py-1 tw:shadow-none tw:transition-[background-color,border-color,color] tw:duration-state tw:ease-standard tw:[&.dragging]:opacity-50',
+                        'right-dock-tab-wrap tw:group tw:relative tw:flex tw:h-7 tw:min-w-22.5 tw:max-w-39 tw:flex-[1_1_156px] tw:items-center tw:overflow-hidden tw:rounded-lg tw:border tw:border-transparent tw:px-2 tw:py-1 tw:shadow-none tw:transition-[background-color,border-color,color] tw:duration-state tw:ease-standard tw:[&.dragging]:opacity-50',
                         active
                           ? 'active tw:bg-app-selected tw:text-app-text'
                           : 'tw:text-app-text-meta tw:hover:bg-app-hover tw:hover:text-app-text-soft tw:focus-within:bg-app-hover tw:focus-within:text-app-text-soft',
@@ -244,7 +244,7 @@ export function WorkbenchTabStrip({
                         aria-controls={`workbench-panel-${target}-${domId(tab.id)}`}
                         aria-selected={active}
                         className={cx(
-                          'right-dock-tab tw:relative tw:inline-flex tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:items-center tw:gap-2 tw:overflow-hidden tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:whitespace-nowrap tw:type-label tw:focus-visible:outline-app-accent/72',
+                          'right-dock-tab tw:pr-5 tw:relative tw:inline-flex tw:min-w-0 tw:grow tw:shrink tw:basis-auto tw:items-center tw:gap-2 tw:overflow-hidden tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-inherit tw:whitespace-nowrap tw:type-control tw:focus-visible:outline-app-accent/72',
                           active && 'active',
                           tab.kind === 'file-preview' && tab.preview && 'preview tw:italic',
                         )}
@@ -261,6 +261,9 @@ export function WorkbenchTabStrip({
                         }}
                         onKeyDown={(event) => handleTabKeyDown(event, index, tab.id)}
                         onMouseDown={(event) => {
+                          if (event.button === 1) event.preventDefault()
+                        }}
+                        onAuxClick={(event) => {
                           if (event.button !== 1) return
                           event.preventDefault()
                           event.stopPropagation()
@@ -270,13 +273,14 @@ export function WorkbenchTabStrip({
                         <span className="right-dock-tab-icon tw:inline-flex tw:size-icon tw:items-center tw:justify-center tw:[&>svg]:size-icon">
                           {tabIcon}
                         </span>
-                        <span className="right-dock-tab-title tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap">
+                        <span className="right-dock-tab-title tw:min-w-0 tw:flex-1 tw:overflow-hidden tw:whitespace-nowrap">
                           {tabTitle}
                         </span>
                       </button>
-                      <Button isIconOnly
+                      <Button
+                        isIconOnly
                         className={cx(
-                          'right-dock-tab-close tw:relative tw:z-local tw:ml-1 tw:inline-flex tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text-meta tw:transition-[background-color,color,opacity] tw:duration-feedback tw:ease-standard tw:group-hover:opacity-100 tw:group-hover:pointer-events-auto tw:group-focus-within:opacity-100 tw:group-focus-within:pointer-events-auto tw:focus-visible:pointer-events-auto tw:focus-visible:bg-app-hover tw:focus-visible:text-app-text tw:focus-visible:opacity-100 tw:focus-visible:outline-app-accent/72',
+                          'right-dock-tab-close tw:absolute tw:right-1 tw:top-1/2 tw:-translate-y-1/2 tw:z-local tw:inline-flex tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text-meta tw:transition-[background-color,color,opacity] tw:duration-feedback tw:ease-standard tw:group-hover:opacity-100 tw:group-hover:pointer-events-auto tw:group-focus-within:opacity-100 tw:group-focus-within:pointer-events-auto tw:focus-visible:pointer-events-auto tw:focus-visible:bg-app-hover tw:focus-visible:text-app-text tw:focus-visible:opacity-100 tw:focus-visible:outline-app-accent/72',
                           active
                             ? 'tw:pointer-events-auto tw:opacity-100'
                             : 'tw:pointer-events-none tw:opacity-0',
@@ -298,13 +302,14 @@ export function WorkbenchTabStrip({
                       </Button>
                     </div>
                   }
-                  width="auto"
+                  size="md"
                 />
               </Fragment>
             )
           })}
           {target === 'bottom' ? (
-            <Button isIconOnly
+            <Button
+              isIconOnly
               className="right-dock-add-button tw:hover:shadow-none tw:focus-visible:outline-app-accent/72"
               color="ghostSecondary"
               size="toolbar"
@@ -322,9 +327,10 @@ export function WorkbenchTabStrip({
               open={menuOpen}
               side="bottom"
               sideOffset={4}
-              width={220}
+              size="sm"
               trigger={
-                <Button isIconOnly
+                <Button
+                  isIconOnly
                   className="right-dock-add-button tw:hover:shadow-none tw:focus-visible:outline-app-accent/72"
                   color="ghostSecondary"
                   size="toolbar"
@@ -392,7 +398,8 @@ export function WorkbenchTabStrip({
         </div>
       </div>
       {target === 'bottom' && onClosePanel ? (
-        <Button isIconOnly
+        <Button
+          isIconOnly
           className="bottom-panel-close tw:ml-1 tw:focus-visible:outline-app-accent/72"
           color="ghostSecondary"
           size="toolbar"

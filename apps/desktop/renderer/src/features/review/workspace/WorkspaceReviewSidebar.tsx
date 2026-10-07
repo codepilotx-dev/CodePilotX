@@ -4,6 +4,9 @@ import {
   Briefcase,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Info,
   Clipboard,
   Code2,
   Columns2,
@@ -121,6 +124,7 @@ import {
   ReviewDiffPreview,
   ReviewProjectEmptyState,
   attachComments,
+  clampReviewFileTreePanelWidth,
   buildReviewComposerPrompt,
   copyGitApplyCommand,
   errorMessageOf,
@@ -144,7 +148,7 @@ const REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH = REVIEW_FILE_TREE_PANEL_MIN_WIDTH + 8 
 const REVIEW_SIDEBAR_CLASS =
   'review-sidebar tw:@container tw:flex tw:h-full tw:min-h-0 tw:flex-col tw:overflow-hidden tw:border-l tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-none tw:in-[.workbench-panel]:flex-auto tw:in-[.workbench-panel]:w-full tw:in-[.workbench-panel]:min-w-0 tw:in-[.workbench-panel]:max-w-none tw:in-[.workbench-panel]:border-l-0'
 const REVIEW_SIDEBAR_TOOLBAR_CLASS =
-  'tw:box-border tw:flex tw:min-h-[calc(var(--chrome-h)_+_var(--cpx-sys-space-2))] tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:bg-app-panel tw:px-4 tw:py-1 tw:shadow-none'
+  'tw:box-border tw:flex tw:min-h-12 tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:bg-app-dock tw:px-2 tw:py-2 tw:shadow-none'
 const REVIEW_COUNTS_CLASS = 'tw:inline-flex tw:items-center tw:gap-2'
 const REVIEW_FOOTER_CLASS =
   'tw:absolute tw:bottom-2.5 tw:left-1/2 tw:z-local tw:flex tw:-translate-x-1/2 tw:items-center tw:justify-center tw:gap-4 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-1 tw:shadow-none'
@@ -173,7 +177,8 @@ const ReviewDiffExpansionToggle = React.memo(function ReviewDiffExpansionToggle(
   const allCollapsed = allPaths.length > 0 && allPaths.every((path) => !store.getSnapshot(path))
   return (
     <Tooltip content={allCollapsed ? '展开全部差异' : '折叠全部差异'}>
-      <Button isIconOnly
+      <Button
+        isIconOnly
         color="ghostSecondary"
         size="toolbar"
         title={allCollapsed ? '展开全部差异' : '折叠全部差异'}
@@ -286,7 +291,8 @@ function WorkspaceReviewSidebarImpl({
     },
     [onReviewTabStateChange],
   )
-  const fileTreePanelWidth = reviewTabState.fileTreeWidth
+  const [reviewContentWidth, setReviewContentWidth] = React.useState<number>()
+  const fileTreePanelWidth = clampReviewFileTreePanelWidth(reviewTabState.fileTreeWidth, reviewContentWidth)
   const {
     liveSize: liveFileTreePanelWidth,
     liveSizePixels: liveFileTreePanelWidthPixels,
@@ -1384,6 +1390,7 @@ function WorkspaceReviewSidebarImpl({
     const main = reviewMainRef.current
     if (!main || typeof ResizeObserver === 'undefined') return
     const updateAutoHide = (width: number): void => {
+      if (width > 0) setReviewContentWidth(width)
       const shouldHide = width > 0 && width < REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH
       setAutoHideFileList((current) => (current === shouldHide ? current : shouldHide))
     }
@@ -2143,6 +2150,8 @@ function WorkspaceReviewSidebarImpl({
     })
   }
 
+  const selectedFileIndex = visibleFiles.findIndex((file) => file.path === selectedPath)
+
   function handleSelectFile(path: string): void {
     setSelectedPath(path)
     if (largeWorkspaceMode) void loadFileDiff(path, 'selected')
@@ -2172,6 +2181,7 @@ function WorkspaceReviewSidebarImpl({
             source.kind === 'branch' && 'tw:flex-nowrap',
           )}
         >
+          <div className="tw:inline-flex tw:min-w-0 tw:shrink-0 tw:items-center tw:gap-2 tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1">
           <ReviewSourceMenu
             branches={branches}
             commits={commits}
@@ -2204,8 +2214,9 @@ function WorkspaceReviewSidebarImpl({
               —
             </span>
           )}
+          </div>
           {source.kind === 'branch' ? (
-            <div className="review-branch-range tw:flex tw:min-w-0 tw:flex-[1_1_180px] tw:items-center tw:gap-1 tw:text-app-text-soft tw:type-caption">
+            <div className="review-branch-range tw:flex tw:min-w-0 tw:flex-[1_1_180px] tw:items-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-1 tw:py-1 tw:gap-1 tw:text-app-text-soft tw:type-caption">
               <span
                 className="tw:min-w-0 tw:max-w-[38%] tw:overflow-hidden tw:px-2 tw:text-ellipsis tw:whitespace-nowrap"
                 title={gitStatus?.branchName ?? 'HEAD'}
@@ -2218,7 +2229,7 @@ function WorkspaceReviewSidebarImpl({
                 className="popover-review-branches popover-menu--flex"
                 open={branchPickerOpen}
                 sideOffset={4}
-                width={240}
+                size="md"
                 trigger={
                   <button
                     className="review-branch-range__trigger tw:inline-flex tw:min-w-0 tw:max-w-[54%] tw:items-center tw:gap-1 tw:rounded-md tw:px-2 tw:py-1 tw:text-app-text-soft tw:hover:bg-app-hover tw:hover:text-app-text tw:active:bg-app-selected"
@@ -2267,13 +2278,13 @@ function WorkspaceReviewSidebarImpl({
             </div>
           ) : null}
         </div>
-        <div className="review-sidebar-actions tw:inline-flex tw:flex-none tw:items-center tw:gap-1 tw:whitespace-nowrap">
+        <div className="review-sidebar-actions tw:inline-flex tw:flex-none tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-1 tw:whitespace-nowrap">
           <PopoverMenu
             align="end"
             className="popover-review-more popover-menu--grid"
             open={moreMenuOpen}
             sideOffset={4}
-            width={220}
+            size="sm"
             trigger={
               <Button isIconOnly color="ghostSecondary" size="toolbar" title="更多">
                 <Ellipsis size={APP_ICON_SIZE} />
@@ -2373,7 +2384,8 @@ function WorkspaceReviewSidebarImpl({
             onSetAllExpanded={setAllDiffsExpanded}
           />
           <Tooltip content="搜索文件">
-            <Button isIconOnly
+            <Button
+              isIconOnly
               iconSize="sm"
               className="review-sidebar-search-action tw:@max-[560px]:hidden"
               color="ghostSecondary"
@@ -2385,7 +2397,8 @@ function WorkspaceReviewSidebarImpl({
             </Button>
           </Tooltip>
           <Tooltip content={reviewView === 'inline' ? '切换到分离视图' : '切换到统一差异视图'}>
-            <Button isIconOnly
+            <Button
+              isIconOnly
               color={reviewView === 'inline' ? 'ghostSecondary' : 'ghostActive'}
               size="toolbar"
               title={reviewView === 'inline' ? '切换到拆分差异视图' : '切换到统一差异视图'}
@@ -2399,7 +2412,8 @@ function WorkspaceReviewSidebarImpl({
             </Button>
           </Tooltip>
           <Tooltip content={hideFileList ? '显示文件' : '隐藏文件'}>
-            <Button isIconOnly
+            <Button
+              isIconOnly
               ref={fileTreeToggleRef}
               aria-pressed={!hideFileList}
               color={!hideFileList ? 'ghostActive' : 'ghostSecondary'}
@@ -2444,6 +2458,23 @@ function WorkspaceReviewSidebarImpl({
           </Tooltip>
         </div>
       </div>
+
+      {largeWorkspaceMode && visibleFiles.length > 0 ? (
+        <div className="tw:mx-2 tw:mb-2 tw:flex tw:min-h-12 tw:shrink-0 tw:items-center tw:gap-3 tw:rounded-2xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-2 tw:type-control" role="status">
+          <Info className="tw:shrink-0 tw:text-app-accent" size={APP_ICON_SIZE} />
+          <span className="tw:min-w-0 tw:flex-1">此差异较大，每次仅显示一个文件</span>
+          <Tooltip content="上一个文件">
+            <Button isIconOnly aria-label="上一个文件" size="toolbar" disabled={selectedFileIndex <= 0} onClick={() => handleSelectFile(visibleFiles[selectedFileIndex - 1]!.path)}>
+              <ChevronLeft size={APP_ICON_SIZE} />
+            </Button>
+          </Tooltip>
+          <Tooltip content="下一个文件">
+            <Button isIconOnly aria-label="下一个文件" size="toolbar" disabled={selectedFileIndex >= visibleFiles.length - 1} onClick={() => handleSelectFile(visibleFiles[selectedFileIndex + 1]!.path)}>
+              <ChevronRight size={APP_ICON_SIZE} />
+            </Button>
+          </Tooltip>
+        </div>
+      ) : null}
 
       {error ? (
         <div
@@ -2516,11 +2547,11 @@ function WorkspaceReviewSidebarImpl({
           width={fileTreePanelWidth}
         >
           <div className="review-file-tree-panel-content tw:flex tw:min-w-0 tw:min-h-0 tw:flex-auto tw:flex-col">
-            <div className="review-file-search-region tw:shrink-0 tw:bg-app-panel tw:px-4 tw:pt-3 tw:pb-2">
+            <div className="review-file-search-region tw:shrink-0 tw:bg-app-dock tw:px-2 tw:pt-2 tw:pb-1">
               <SearchInput
                 ref={fileSearchInputRef}
                 aria-label="筛选文件"
-                className="review-file-search tw:w-full tw:min-h-8 tw:border tw:border-app-border-subtle tw:rounded-md tw:bg-app-raised"
+                className="review-file-search tw:w-full tw:min-h-7 tw:border tw:border-app-border-subtle tw:rounded-lg tw:bg-app-raised"
                 onChange={setSearch}
                 placeholder="筛选文件..."
                 value={search}
@@ -2671,7 +2702,7 @@ function WorkspaceReviewSidebarImpl({
         branchName={gitStatus?.branchName ?? 'HEAD'}
         deletions={totals.deletions}
         open={commitPopoverOpen}
-        width={384}
+        size="lg"
         onClose={() => setCommitPopoverOpen(false)}
         onCommit={handleCommit}
         onCommitAndPush={handleCommitAndPush}
@@ -2685,7 +2716,7 @@ function WorkspaceReviewSidebarImpl({
         defaultBranch={defaultBranch}
         deletions={totals.deletions}
         open={prPopoverOpen}
-        width={384}
+        size="lg"
         onClose={() => setPrPopoverOpen(false)}
         onCreateDraftPR={handleCreateDraftPR}
         onCreatePR={handleCreatePR}

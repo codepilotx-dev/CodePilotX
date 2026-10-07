@@ -1,4 +1,5 @@
 import type { DesktopComposerAttachment, DesktopReviewSource } from '../../../../shared/types.js'
+import type { FileEditorViewState } from '../../editor/FileEditor.js'
 import {
   createDefaultWorkbenchTabsState,
   inferWorkspaceView,
@@ -15,6 +16,20 @@ import { arePathsEqual } from '../../../utils/pathUtils.js'
 import { isRecord } from '@codepilotx/shared/guards'
 
 const STORAGE_PREFIX = 'conversation.ui-state.'
+
+export function readFileEditorViewState(value: unknown): FileEditorViewState | null {
+  if (!isRecord(value)) return null
+  const { scrollTop, scrollLeft, anchor, head } = value
+  if (![scrollTop, scrollLeft, anchor, head].every((field) =>
+    typeof field === 'number' && Number.isFinite(field) && field >= 0,
+  )) return null
+  return {
+    scrollTop: scrollTop as number,
+    scrollLeft: scrollLeft as number,
+    anchor: Math.trunc(anchor as number),
+    head: Math.trunc(head as number),
+  }
+}
 
 export type ReviewTabUiState = {
   source: DesktopReviewSource
@@ -327,8 +342,8 @@ function validateReviewTabUiState(value: unknown): ReviewTabUiState {
     fileTreeVisible:
       typeof value.fileTreeVisible === 'boolean' ? value.fileTreeVisible : defaults.fileTreeVisible,
     fileTreeWidth:
-      typeof value.fileTreeWidth === 'number' && Number.isFinite(value.fileTreeWidth)
-        ? Math.min(520, Math.max(240, value.fileTreeWidth))
+      typeof value.fileTreeWidth === 'number' && Number.isFinite(value.fileTreeWidth) && value.fileTreeWidth > 0
+        ? value.fileTreeWidth
         : defaults.fileTreeWidth,
     diffMode:
       value.diffMode === 'split' || value.diffMode === 'inline'
@@ -575,6 +590,7 @@ function validateTabDescriptor(
       sameWorkspacePath(scope.workspacePath, workspacePath),
     )
     if (options.fileScopes && !fileScope) return null
+    const viewState = readFileEditorViewState(tab.viewState)
     return {
       id: tab.id as `file:${string}`,
       kind: 'file-preview',
@@ -594,6 +610,7 @@ function validateTabDescriptor(
       ...(tab.markdownViewMode === 'rich' || tab.markdownViewMode === 'source'
         ? { markdownViewMode: tab.markdownViewMode }
         : {}),
+      ...(viewState ? { viewState } : {}),
       ...(isPositiveInteger(tab.line) ? { line: tab.line } : {}),
       ...(isPositiveInteger(tab.column) ? { column: tab.column } : {}),
       ...(isPositiveInteger(tab.endLine) ? { endLine: tab.endLine } : {}),

@@ -96,8 +96,8 @@ export function FileBreadcrumbToolbar({
   }, [absolutePath])
 
   return (
-    <header className="file-breadcrumb-toolbar">
-      <div aria-label={`文件路径：${path}`} className="file-breadcrumb-toolbar__path">
+    <header className="file-breadcrumb-toolbar tw:flex tw:h-10 tw:min-h-10 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:bg-app-dock tw:px-2">
+      <div aria-label={`文件路径：${path}`} className="file-breadcrumb-toolbar__path tw:flex tw:min-w-0 tw:flex-1 tw:items-center tw:overflow-hidden tw:type-control">
         {segments.map((segment, index) => {
           return (
             <span className="file-breadcrumb-toolbar__segment" key={segment.key}>
@@ -122,7 +122,7 @@ export function FileBreadcrumbToolbar({
           )
         })}
       </div>
-      <div className="file-breadcrumb-toolbar__actions">
+      <div className="file-breadcrumb-toolbar__actions tw:flex tw:shrink-0 tw:items-center tw:gap-1">
         {markdownViewMode && onToggleMarkdownViewMode ? (
           <SegmentedControl<MarkdownFileViewMode>
             ariaLabel="Markdown 查看模式"
@@ -137,7 +137,8 @@ export function FileBreadcrumbToolbar({
           />
         ) : null}
         {readonly ? <small>只读</small> : null}
-        <Button isIconOnly
+        <Button
+          isIconOnly
           ref={treeToggleRef}
           aria-pressed={treeVisible}
           className="file-breadcrumb-toolbar__action"
@@ -151,7 +152,8 @@ export function FileBreadcrumbToolbar({
           <FolderOpen aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
         </Button>
         <div className="file-breadcrumb-toolbar__open-group">
-          <Button isIconOnly
+          <Button
+            isIconOnly
             color="ghostSecondary"
             size="toolbar"
             className="file-breadcrumb-toolbar__open"
@@ -179,9 +181,10 @@ export function FileBreadcrumbToolbar({
             open={openTargetMenu}
             side="bottom"
             sideOffset={4}
-            width={220}
+            size="sm"
             trigger={
-              <Button isIconOnly
+              <Button
+                isIconOnly
                 className="file-breadcrumb-toolbar__open-menu"
                 color="ghostSecondary"
                 disabled={!absolutePath || openTargets.length === 0}

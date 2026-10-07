@@ -1,3 +1,4 @@
+import type { FileEditorViewState } from '../../editor/FileEditor.js'
 import type React from 'react'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
@@ -79,6 +80,8 @@ type Props = {
   onOpenWorkspacePath: () => void
   onOpenFileFromBrowser: (file: DesktopFileEntry) => void
   onPreviewFile: (file: DesktopFileEntry) => void
+  onAskInSideChat?: (text: string) => void
+  onSetFileViewState?: (tabId: WorkbenchTabId, viewState: FileEditorViewState) => void
   onAppendComposerText: (text: string) => void
   onAddComposerFiles: (filePaths: string[]) => void
   onRefreshReview: () => void
@@ -280,6 +283,8 @@ export function WorkbenchPanel({
   onOpenFileFromBrowser,
   onPreviewFile,
   onAppendComposerText,
+  onAskInSideChat,
+  onSetFileViewState,
   onAddComposerFiles,
   onRefreshReview,
   onReviewTabStateChange,
@@ -331,6 +336,8 @@ export function WorkbenchPanel({
   const stableOnOpenWorkspacePath = useStableEvent(onOpenWorkspacePath)
   const stableOnOpenFileFromBrowser = useStableEvent(onOpenFileFromBrowser)
   const stableOnPreviewFile = useStableEvent(onPreviewFile)
+  const stableOnAskInSideChat = useStableEvent((text: string) => onAskInSideChat?.(text))
+  const stableOnSetFileViewState = useStableEvent((tabId: WorkbenchTabId, state: FileEditorViewState) => onSetFileViewState?.(tabId, state))
   const stableOnAppendComposerText = useStableEvent(onAppendComposerText)
   const stableOnAddComposerFiles = useStableEvent(onAddComposerFiles)
   const stableOnRefreshReview = useStableEvent(onRefreshReview)
@@ -374,6 +381,8 @@ export function WorkbenchPanel({
         workspace,
         onOpenFileFromBrowser: stableOnOpenFileFromBrowser,
         onPreviewFile: stableOnPreviewFile,
+        onAskInSideChat: onAskInSideChat ? stableOnAskInSideChat : undefined,
+        onSetFileViewState: stableOnSetFileViewState,
         onAppendComposerText: stableOnAppendComposerText,
         onAddComposerFiles: stableOnAddComposerFiles,
         onPinFileTab: stableOnPinTab,
@@ -420,6 +429,9 @@ export function WorkbenchPanel({
       sessionStatus,
       terminalAvailable,
       sideChat,
+      onAskInSideChat,
+      stableOnAskInSideChat,
+      stableOnSetFileViewState,
       activeSideTaskId,
       sideTaskContent,
       subagentAvailability,

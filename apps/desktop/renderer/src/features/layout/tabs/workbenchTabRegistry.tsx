@@ -1,3 +1,4 @@
+import type { FileEditorViewState } from '../../editor/FileEditor.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import React, { Suspense, useEffect, useState, useCallback, type ReactNode } from 'react'
 import {
@@ -152,6 +153,8 @@ export type WorkbenchTabRenderContext = {
     workspace: DesktopWorkspace | null
     onOpenFileFromBrowser: (file: DesktopFileEntry) => void
     onPreviewFile: (file: DesktopFileEntry) => void
+    onAskInSideChat?: (text: string) => void
+    onSetFileViewState?: (tabId: WorkbenchTabDescriptor['id'], state: FileEditorViewState) => void
     onAppendComposerText?: (text: string) => void
     onAddComposerFiles?: (filePaths: string[]) => void
     onPinFileTab: (tabId: WorkbenchTabDescriptor['id']) => void
@@ -255,13 +258,13 @@ export function getWorkbenchLauncherPresentation(definition: WorkbenchTabDefinit
 const definitions: readonly WorkbenchTabDefinition[] = [
   {
     kind: 'review',
-    label: '审阅',
+    label: '变更',
     icon: <GitPullRequest size={iconSize} />,
     shortcut: 'Ctrl+Shift+G',
     launcher: true,
     lifecycle: 'unmount-when-hidden',
     launcherIcon: <SquarePlus size={iconSize} />,
-    getTitle: () => '审阅',
+    getTitle: () => '变更',
     render: (_tab, context) => <WorkspaceReviewSidebar {...context.review} />,
   },
   {
@@ -286,7 +289,7 @@ const definitions: readonly WorkbenchTabDefinition[] = [
     shortcut: 'Ctrl+Shift+E',
     launcher: true,
     lifecycle: 'unmount-when-hidden',
-    launcherLabel: '文件',
+    launcherLabel: '打开文件',
     launcherIcon: <Folder size={iconSize} />,
     launcherShortcut: 'Ctrl+P',
     getTitle: () => '打开文件',
@@ -323,6 +326,9 @@ const definitions: readonly WorkbenchTabDefinition[] = [
           revealLine={tab.line}
           previewTab={tab.preview}
           markdownViewMode={tab.markdownViewMode}
+          viewState={tab.viewState}
+          onViewStateChange={(state) => context.files.onSetFileViewState?.(tab.id, state)}
+          onAskInSideChat={context.files.onAskInSideChat}
           onSetMarkdownViewMode={(mode) => context.files.onSetFileMarkdownViewMode(tab.id, mode)}
           onPinTab={() => context.files.onPinFileTab(tab.id)}
           onLoadError={(error, phase) => context.files.onLoadError(tab, error, phase)}

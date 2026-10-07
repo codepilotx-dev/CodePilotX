@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { FileEditorViewState } from '../../editor/FileEditor.js'
 import type React from 'react'
 import { Check, Copy, Folder, FolderOpen, ListChecks } from 'lucide-react'
 import {
@@ -226,7 +227,8 @@ export function RightDockFilesPanel({
           </div>
           <div className="file-breadcrumb-toolbar__actions">
             {workspacePath ? (
-              <Button isIconOnly
+              <Button
+                isIconOnly
                 className="file-breadcrumb-toolbar__action"
                 color="ghostSecondary"
                 size="toolbar"
@@ -249,7 +251,8 @@ export function RightDockFilesPanel({
                 )}
               </Button>
             ) : null}
-            <Button isIconOnly
+            <Button
+              isIconOnly
               ref={treeToggleRef}
               aria-pressed={treeVisible}
               className="file-breadcrumb-toolbar__action"
@@ -349,6 +352,9 @@ export function RightDockFilePreviewPanel({
   revealLine,
   previewTab,
   markdownViewMode,
+  viewState,
+  onViewStateChange,
+  onAskInSideChat,
   files,
   workspace,
   onPinTab,
@@ -365,6 +371,9 @@ export function RightDockFilePreviewPanel({
   revealLine?: number
   previewTab: boolean
   markdownViewMode?: MarkdownFileViewMode
+  viewState?: FileEditorViewState
+  onViewStateChange?: (state: FileEditorViewState) => void
+  onAskInSideChat?: (text: string) => void
   files: DesktopFileEntry[]
   workspace: DesktopWorkspace | null
   onPinTab: () => void
@@ -526,6 +535,14 @@ export function RightDockFilePreviewPanel({
                       label: '发送到对话框',
                       onSelect: sendSelectedTextToComposer,
                     },
+                    ...(onAskInSideChat ? [{
+                      kind: 'item' as const,
+                      label: '在侧边聊天中询问',
+                      onSelect: () => {
+                        onAskInSideChat(buildFileSelectionPrompt({ path: expectedPath, selectedText }))
+                        setSelectedText('')
+                      },
+                    }] : []),
                   ]
                 : []
             }
@@ -533,7 +550,12 @@ export function RightDockFilePreviewPanel({
             trigger={
               <div
                 className="right-dock-file-selection-target tw:flex tw:min-h-0 tw:grow tw:shrink tw:basis-auto tw:flex-col tw:[&>*]:grow tw:[&>*]:shrink tw:[&>*]:basis-auto tw:[&>*]:min-h-0"
-                onContextMenu={() => setSelectedText(window.getSelection()?.toString() ?? '')}
+                onContextMenu={() => {
+                  if (resolvedMarkdownViewMode === 'rich') {
+                    const text = window.getSelection()?.toString()
+                    if (text) setSelectedText(text)
+                  }
+                }}
               >
                 <Suspense fallback={<WorkbenchPanelLoading label="正在加载文件编辑器…" />}>
                   {document.conflict ? (
@@ -580,6 +602,9 @@ export function RightDockFilePreviewPanel({
                       revealLine={revealLine}
                       saving={document.saving}
                       value={document.draftContent}
+                      viewState={viewState}
+                      onViewStateChange={onViewStateChange}
+                      onSelectionChange={setSelectedText}
                       onChange={(value) => {
                         if (previewTab) onPinTab()
                         updateFileDocument(workspacePath, expectedPath, value, documentScope)
@@ -592,7 +617,7 @@ export function RightDockFilePreviewPanel({
                 </Suspense>
               </div>
             }
-            width={220}
+            size="sm"
           />
           <EditorFileTreePresence
             focusReturnRef={treeToggleRef}

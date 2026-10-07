@@ -1,3 +1,4 @@
+import type { FileEditorViewState } from '../../editor/FileEditor.js'
 import { desktopBrowserClient } from '../../../services/desktop-client/desktop-browser-client.js'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { SIDEBAR_MAX_WIDTH, useDesktopLayout } from '../useDesktopLayout.js'
@@ -353,6 +354,13 @@ export function useWorkbenchShellController({
   const pinTab = useCallback(
     (tabId: WorkbenchTabId): void => {
       dispatchPanelAction({ type: 'pinTab', tabId })
+    },
+    [dispatchPanelAction],
+  )
+
+  const setFileViewState = useCallback(
+    (tabId: WorkbenchTabId, viewState: FileEditorViewState): void => {
+      dispatchPanelAction({ type: 'setFileViewState', tabId, viewState })
     },
     [dispatchPanelAction],
   )
@@ -827,6 +835,7 @@ export function useWorkbenchShellController({
     closeTabsToRight,
     pinTab,
     setFileMarkdownViewMode,
+    setFileViewState,
     workbenchLayoutState,
   }
 }
