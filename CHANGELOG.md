@@ -9,10 +9,28 @@
 
 ### Added
 
+- [desktop/renderer] 工具调用按语义分离命令、读取搜索与集成详情；命令卡片新增独立命令/日志复制、144px 输出视口、滚动渐隐及停止吸底后保持实时更新，展示已有退出码并保留日志缩进和末尾换行。
+
+- [desktop/renderer] 新增 Button 组件 `variant="text"` 纯文本变体（及 `color="text"` 映射）：严格对齐 UI-Design 规范，全生命周期无背景色与边框，静态呈现次级字色，Hover 与 Active 状态加深为主字色墨水对比度，无下划线，禁用点击微缩放，并保留各尺寸标准高度、内边距与无障碍高对比度适配。
+- [desktop] 会话导轨新增 Codex 风格书签：预览卡标题右侧提供添加/取消书签按钮，已收藏刻度全不透明并附带跟随刻度长度的 2px 圆点；书签按会话与输入 ID 存于 Agent 端（独立书签表、会话版本表、幂等记录与 54→55 前向迁移），通过 `thread.bookmarks.v1` capability 的 `thread/bookmarks/list`、`thread/bookmarks/set` RPC 与 `thread/bookmarks/updated` durable 事件实现跨窗口同步、重启恢复与删除级联清理；预览卡改为受控浮层，支持鼠标移入卡片保持打开、Escape 关闭并恢复键盘焦点；未协商 capability 时隐藏书签按钮，保留普通导轨导航。
+- [desktop/renderer] 会话正文对齐 Codex 阅读行高与间距，优化工具组滚动渐隐、标题和富文本层级；新增代码换行偏好及带公式保护的表格 CSV 下载，保留现有主题、复制和流式渲染能力。
+
 - [desktop/renderer] 引入 UI-Design 规范的 ButtonGroup 容器组件，支持 attached 边框折叠与 orientation 排布并级联透传按钮尺寸与视觉变体；Button 组件新增 isIconOnly、leftIcon、rightIcon、loadingText 与 asChild 委派渲染支持。
 - [desktop] 限制底部面板仅允许终端标签，支持点击加号启动多个终端，并约束底部与右侧栏仅在首页和会话中显示。
 
 ### Changed
+
+- [desktop/renderer] 工具摘要统一次级字色与图文对齐，完成命令增加“已运行”前缀、弱化耗时，移除工具组底部重复间距并修复分组摘要悬停提亮，保留运行和错误语义。
+
+- [desktop/renderer] 统一工具调用卡片与会话正文代码块规范：工具执行卡片统一为单个带容器圆角（--cpx-sys-radius-container）的代码卡片，输入与输出在卡片内通过轻量分割线连贯展示，避免命令与结果拆散成独立方块；全局 .md-code-surface 补齐容器圆角，消除直角；输入与输出移除 details 折叠截断，支持换行控制与复制；非命令行工具（如 ComputerRead、文件读取等）不再误标 Shell 标签，自动识别 JSON 入参及结果并启用语法高亮；彻底去重避免输出与 resultBlocks 文本块重复展示。
+- [desktop/renderer] 侧栏头部操作与行级悬浮按钮（项目与会话的置顶、归档、更多、新建对话及整理菜单触发器）切换为 Button `variant="text"` 纯文本变体，移除悬停灰底噪块；时间线 ToolCall 条目及处理过程折叠行移除 Hover 灰底，对齐 UI-Design 纯文本墨水加深规范。
+- [desktop/renderer] 外观设置页代码主题选择升级为分层下拉菜单，顶层选项为「CodePilotX」（映射 Codex(new)），其余代码高亮主题归入「Codex 主题」滚动二级子菜单，并采用圆形主题色徽标。
+
+- [desktop/renderer] 会话导轨按用户输入逐条导航，保留 Codex 细刻度、波峰与预览，增加长导轨虚拟化、完整历史批量加载与重试，并保持阅读锚点和实时队列。
+
+- [desktop/renderer] 底栏模型选择器切换不同长度模型名时平滑过渡宽度，复用布局动画并遵循减少动态效果设置。
+
+- [desktop/renderer] 推理思考、聊天排序及剩余用量弹层统一使用 sm（220px）尺寸。
 
 - [desktop/renderer] 移除输入框底栏工作模式和权限模式右侧的下拉箭头，保留菜单选择功能。
 
@@ -39,6 +57,14 @@
 - [desktop/renderer] 淘汰独立的 IconButton 组件，全仓 60 处图标按钮调用点统一重构为 <Button isIconOnly ... /> 并彻底移除 IconButton.tsx。
 
 ### Fixed
+
+- [desktop/renderer] 工具摘要行改用网格布局，消除行内按钮的基线留白；工具组标题到首项与组内条目统一使用 4px 间隔。
+
+- [desktop/renderer] 底栏思考强度标签按当前模型最长选项预留宽度，避免切换或预览不同强度时模型选择器宽度跳动。
+
+- [desktop/renderer] 模型选择胶囊高度从 36px 调整为 28px，与输入框底栏工作模式和权限控件保持一致。
+
+- [desktop/renderer] 修复模型选择器左侧服务商图标缺失尺寸及深色背景下品牌图标不可见的问题，统一继承文字颜色。
 
 - [desktop/renderer] 移除侧栏、右侧工作区和底部终端拖动手柄的附加线，悬停、聚焦和拖动时仅加深原有对应边框。
 
