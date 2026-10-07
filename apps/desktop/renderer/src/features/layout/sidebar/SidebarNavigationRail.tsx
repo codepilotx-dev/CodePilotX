@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Ellipsis, Home } from 'lucide-react'
 import { Button } from '../../../components/ui/Button.js'
 import { Tooltip } from '../../../components/ui/Tooltip.js'
+import { ScrollArea } from '../../../components/ui/ScrollArea.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
@@ -129,7 +130,10 @@ export function SidebarNavigationRail({
       className="sidebar-navigation-rail tw:flex tw:h-full tw:flex-col tw:items-center tw:py-2"
       aria-label={t('应用导航')}
     >
-      <div className="sidebar-rail-destinations tw:flex tw:w-full tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:gap-1 tw:overflow-y-auto tw:mb-3">
+      <ScrollArea
+        className="sidebar-rail-destinations tw:w-full tw:min-h-0 tw:flex-1 tw:mb-3"
+        contentClassName="tw:flex tw:flex-col tw:items-center tw:gap-1"
+      >
         {button(
           'home',
           '首页',
@@ -199,7 +203,7 @@ export function SidebarNavigationRail({
             ))}
           </PopoverMenu>
         ) : null}
-      </div>
+      </ScrollArea>
       <div className="sidebar-rail-bottom tw:flex tw:w-full tw:flex-col tw:items-center tw:gap-1">
         <SidebarFooter
           compact

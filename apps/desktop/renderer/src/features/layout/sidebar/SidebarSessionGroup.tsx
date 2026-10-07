@@ -776,7 +776,7 @@ function SidebarSessionTitle({
     <span
       aria-live="polite"
       className={cx(
-        'sidebar-session-title tw:block tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-app-text',
+        'sidebar-session-title tw:block tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap tw:text-app-text',
         presentation !== 'compact'
           ? 'tw:flex-none tw:type-body'
           : 'tw:grow tw:shrink tw:basis-auto tw:type-row-title',

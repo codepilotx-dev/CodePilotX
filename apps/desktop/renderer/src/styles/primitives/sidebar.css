@@ -20,6 +20,42 @@
  *   scripts/check-style-contracts.ts).
  */
 @layer primitives {
+  .sidebar-rail-destinations {
+    scrollbar-width: none;
+  }
+
+  .sidebar-rail-destinations::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Long titles dissolve into the action slot instead of hitting a hard edge. */
+  .sidebar-session-title {
+    text-overflow: ellipsis;
+  }
+
+  .sidebar-session-title[data-overflowing='true'] {
+    mask-image: linear-gradient(to right, black calc(100% - var(--cpx-sys-space-4)), transparent);
+    text-overflow: clip;
+  }
+
+  .sidebar-session-title[data-overflowing='true'][data-scrolling='true'] {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black var(--cpx-sys-space-2),
+      black calc(100% - var(--cpx-sys-space-4)),
+      transparent
+    );
+  }
+
+  @media (forced-colors: active) {
+    .sidebar-session-title[data-overflowing='true'],
+    .sidebar-session-title[data-overflowing='true'][data-scrolling='true'] {
+      mask-image: none;
+      text-overflow: ellipsis;
+    }
+  }
+
   /*
    * Sidebar density contract: outer gutter and row internals (8px gutter, 30px
    * row height, 10px row radius, 24px icon box, 16px section gap). Consumed by

@@ -709,7 +709,7 @@ function SidebarBodyContent({
   return (
     <SidebarHoverCardProvider>
       <ScrollArea
-        className="sidebar-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden tw:scroll-pb-2 tw:[mask-image:linear-gradient(to_bottom,transparent,currentColor_var(--cpx-sys-space-2),currentColor_calc(100%-var(--cpx-sys-space-6)),transparent)] tw:forced-colors:[mask-image:none] tw:forced-colors:[scrollbar-color:auto]"
+        className="sidebar-scroll-area tw:min-h-0 tw:flex-1 tw:overflow-x-hidden tw:scroll-pb-2 tw:forced-colors:[scrollbar-color:auto]"
         contentClassName="sidebar-scroll-content tw:min-w-0 tw:pb-2"
         viewportRef={scrollViewportRef}
         onScroll={onScroll}
