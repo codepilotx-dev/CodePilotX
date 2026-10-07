@@ -447,11 +447,11 @@ export function CanonicalUserInput({
 }
 
 /**
- * Disclosure summary row shared by the reasoning and question cards: 26px
- * control row, icon/label/chevron grid and the standard hover/focus states.
+ * Reasoning and question disclosures reuse the ordinary activity row geometry
+ * and hover/focus states.
  */
 export const PROCESS_CARD_SUMMARY_CLASS =
-  'canonical-process-card__summary tw:grid tw:w-fit tw:max-w-full tw:min-h-[26px] tw:grid-cols-[var(--cpx-sys-icon-size-sm)_minmax(0,auto)_var(--cpx-sys-icon-size-sm)] tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-sm tw:border-0 tw:bg-transparent tw:p-0.5 tw:px-2 tw:text-left tw:text-inherit tw:transition-colors tw:duration-state tw:ease-out tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus'
+  'canonical-process-card__summary cpx-agent-activity__item-header'
 
 export function CanonicalItemRenderer({
   disclosure,

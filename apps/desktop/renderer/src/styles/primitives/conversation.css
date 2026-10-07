@@ -587,6 +587,7 @@
   /* ── Process card ── */
 
   .canonical-process-card {
+    display: grid;
     min-width: 0;
     color: var(--cpx-sys-color-fg-secondary);
     font: inherit;
@@ -811,7 +812,8 @@
   }
 
   .cpx-agent-activity__header,
-  .cpx-agent-activity__item-header {
+  .cpx-agent-activity__item-header,
+  .canonical-lifecycle-tool {
     display: inline-flex;
     align-items: center;
     gap: var(--cpx-sys-space-2);
@@ -873,7 +875,7 @@
   }
 
   .cpx-agent-activity__header > svg:not(.cpx-agent-activity__chevron),
-  .cpx-agent-activity__item-header > svg:not(.cpx-agent-activity__chevron) {
+  .cpx-agent-activity__item-header > svg:not(.cpx-agent-activity__chevron, .canonical-process-card__chevron) {
     flex: 0 0 auto;
     width: var(--cpx-sys-icon-size-md);
     height: var(--cpx-sys-icon-size-md);
@@ -935,6 +937,13 @@
   .cpx-agent-activity__verb,
   .cpx-agent-activity__target {
     color: inherit;
+  }
+
+  .canonical-process-card__summary > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .cpx-agent-activity__duration {
@@ -1405,31 +1414,24 @@
   /* ── Lifecycle rows, patch card, question options, subagent card ── */
 
   .canonical-lifecycle-tool {
-    display: grid;
-    grid-template-columns: var(--cpx-sys-icon-size-sm) minmax(0, auto);
-    align-items: center;
-    gap: var(--cpx-sys-space-2);
-    width: fit-content;
-    max-width: 100%;
-    min-width: 0;
-    min-height: 28px;
-    padding: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
     color: var(--cpx-sys-color-fg-secondary);
-    font: inherit;
+    cursor: default;
   }
 
   .canonical-lifecycle-tool > svg,
   .canonical-lifecycle-tool__icon > svg {
-    width: var(--cpx-sys-icon-size-sm);
-    height: var(--cpx-sys-icon-size-sm);
+    width: var(--cpx-sys-icon-size-md);
+    height: var(--cpx-sys-icon-size-md);
+    flex: none;
     stroke-width: var(--cpx-sys-icon-stroke-width);
   }
 
   .canonical-lifecycle-tool__icon {
     position: relative;
     display: grid;
-    width: var(--cpx-sys-icon-size-sm);
-    height: var(--cpx-sys-icon-size-sm);
+    width: var(--cpx-sys-icon-size-md);
+    height: var(--cpx-sys-icon-size-md);
+    flex: none;
     overflow: hidden;
   }
 
