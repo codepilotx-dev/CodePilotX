@@ -1,6 +1,12 @@
 import type { EventEnvelope } from '@codepilotx/agent-protocol'
 import type { Turn } from '@codepilotx/shared/thread'
 
+/**
+ * 书签集合变更通过窗口事件广播给导轨 hook：书签不属于会话目录投影，
+ * 事件负载本身已携带最新集合，无需触发目录刷新。
+ */
+export const THREAD_BOOKMARKS_UPDATED_EVENT = 'codepilotx-thread-bookmarks-updated'
+
 const THREAD_CATALOG_EVENT_TYPES: ReadonlySet<EventEnvelope['type']> = new Set([
   'thread/created',
   'thread/updated',
@@ -79,6 +85,13 @@ export class SessionCatalogCoordinator {
           break
         case 'workspace/git/changed':
           this.#handlers.onWorkspaceGitChanged(event.payload)
+          break
+        case 'thread/bookmarks/updated':
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent(THREAD_BOOKMARKS_UPDATED_EVENT, { detail: event.payload }),
+            )
+          }
           break
       }
       if (THREAD_CATALOG_EVENT_TYPES.has(event.type)) {

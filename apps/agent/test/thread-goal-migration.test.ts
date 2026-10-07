@@ -59,7 +59,7 @@ describe('thread goal schema migration', () => {
     seeded.close()
 
     const migrated = new AgentDatabase(path)
-    expect(SCHEMA_VERSION).toBe(54)
+    expect(SCHEMA_VERSION).toBe(55)
     expect(migrated.sqlite.query('PRAGMA user_version').get()).toEqual({
       user_version: SCHEMA_VERSION,
     })

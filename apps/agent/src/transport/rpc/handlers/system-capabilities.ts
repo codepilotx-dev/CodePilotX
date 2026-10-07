@@ -47,6 +47,7 @@ export function filterAdvertisedCapabilities(db: AgentDatabase): ReadonlyArray<P
           db.repositories.threadGoalLedger.available() &&
           db.repositories.threadGoalContinuations.available() &&
           db.repositories.threadGoals.visibleGoalsValid())) &&
+      (capability !== 'thread.bookmarks.v1' || db.repositories.threadBookmarks.available()) &&
       (capability !== 'artifacts.read.v1' || itemArtifactsTable) &&
       (capability !== 'automation.manage.v1' || (automations && automationRuns)) &&
       (capability !== 'calendar.manage.v1' ||

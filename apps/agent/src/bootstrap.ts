@@ -109,6 +109,7 @@ import { ManagedWorktreeService } from './worktree/ManagedWorktreeService'
 import { ThreadExecutionPreparationService } from './worktree/ThreadExecutionPreparationService'
 import { SessionGroupService } from './session-group/SessionGroupService'
 import { DEFAULT_GOAL_TOKEN_BUDGET, ThreadGoalService } from './session/ThreadGoalService'
+import { ThreadBookmarkService } from './session/ThreadBookmarkService'
 import { createAutomationDefinitions } from './tool/Automation/definitions'
 import { createSchedulePlanDefinition } from './tool/SchedulePlan/definition'
 import {
@@ -262,6 +263,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         ? budget
         : DEFAULT_GOAL_TOKEN_BUDGET
     })
+    const threadBookmarks = new ThreadBookmarkService(db, hub)
     const speech = new SpeechTranscriptionService(config.storage.speechRoot, async (status) => {
       await publishAgentEvent(db, hub, null, null, 'speech/statusChanged', { status })
     })
@@ -1060,6 +1062,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       threadExecutions,
       sessionGroups,
       threadGoals,
+      threadBookmarks,
       automation,
       calendar,
       scheduledTasks,

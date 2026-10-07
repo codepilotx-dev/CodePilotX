@@ -47,7 +47,10 @@ import type {
   DesktopStoredSettings,
   DesktopSystemFontsResult,
   DesktopThemeSettings,
+  DesktopThreadBookmarkList,
 } from '../../../shared/types.js'
+
+export type { DesktopThreadBookmarkList }
 
 type DesktopClientWindow = {
   codePilotXDesktop?: {

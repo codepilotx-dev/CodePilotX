@@ -5083,6 +5083,24 @@ const fixtures = {
     },
     { threadId: 'thread:1', goalId: 'goal:1', clearedAt: 2 },
   ),
+  'thread/bookmarks/list': methodFixture(
+    'thread/bookmarks/list',
+    {
+      threadId: 'thread:1',
+    },
+    { threadId: 'thread:1', inputIds: ['input:1'], version: 1 },
+  ),
+  'thread/bookmarks/set': methodFixture(
+    'thread/bookmarks/set',
+    {
+      threadId: 'thread:1',
+      inputId: 'input:1',
+      bookmarked: true,
+      expectedVersion: 0,
+      operationId: 'operation:thread-bookmarks-set',
+    },
+    { threadId: 'thread:1', inputIds: ['input:1'], version: 1 },
+  ),
   'session-group/list': methodFixture(
     'session-group/list',
     {
@@ -5616,7 +5634,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(294)
+    expect(methods).toHaveLength(296)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )
@@ -5984,7 +6002,7 @@ describe('RPC method schema contracts', () => {
   })
 
   test('公共 runtime 方法表不包含 desktop host terminal schema', () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(273)
+    expect(Object.keys(RpcMethods)).toHaveLength(275)
     expect('terminal/host/context' in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain('terminal/host/context')
   })

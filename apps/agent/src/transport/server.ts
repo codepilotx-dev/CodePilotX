@@ -59,6 +59,7 @@ import type { SpeechTranscriptionService } from '../speech/SpeechTranscriptionSe
 import type { ThreadExecutionPreparationService } from '../worktree/ThreadExecutionPreparationService'
 import type { SessionGroupService } from '../session-group/SessionGroupService'
 import type { ThreadGoalService } from '../session/ThreadGoalService'
+import type { ThreadBookmarkService } from '../session/ThreadBookmarkService'
 import type { AutomationService } from '../automation'
 import type { CalendarService, SchedulePlanService, ScheduledTaskService } from '../calendar'
 import type { MemoryManager } from '../resource/MemoryManager'
@@ -119,6 +120,7 @@ export interface TransportDependencies {
   threadExecutions: ThreadExecutionPreparationService
   sessionGroups: SessionGroupService
   threadGoals: ThreadGoalService
+  threadBookmarks: ThreadBookmarkService
   automation: AutomationService
   calendar: CalendarService
   scheduledTasks: ScheduledTaskService
@@ -545,6 +547,7 @@ export const createApp = (dependencies: TransportDependencies) => {
     threadExecutions: dependencies.threadExecutions,
     sessionGroups: dependencies.sessionGroups,
     threadGoals: dependencies.threadGoals,
+    threadBookmarks: dependencies.threadBookmarks,
     automation: dependencies.automation,
     calendar: dependencies.calendar,
     scheduledTasks: dependencies.scheduledTasks,

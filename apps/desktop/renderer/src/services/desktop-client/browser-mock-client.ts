@@ -1470,6 +1470,16 @@ export function createBrowserMockDesktopClient(
       updatedAt: Date.now(),
     }),
     clearSessionGoal: async () => true,
+    listThreadBookmarks: async (sessionId) => ({
+      threadId: sessionId,
+      inputIds: [],
+      version: 0,
+    }),
+    setThreadBookmark: async (sessionId, input) => ({
+      threadId: sessionId,
+      inputIds: input.bookmarked ? [input.inputId] : [],
+      version: 1,
+    }),
     startSessionReview: async (sessionId, target) => ({
       threadId: sessionId,
       turnId: `mock-review-${Date.now()}`,

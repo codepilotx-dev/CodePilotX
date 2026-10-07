@@ -27,6 +27,7 @@ import { handoffHandlers } from './handlers/handoff'
 import { threadForkHandlers } from './handlers/thread-fork'
 import { sideChatHandlers } from './handlers/side-chat'
 import { threadGoalHandlers } from './handlers/thread-goal'
+import { threadBookmarkHandlers } from './handlers/thread-bookmark'
 import { threadHandlers } from './handlers/thread'
 import { toolingHandlers } from './handlers/tooling'
 import { usageHandlers } from './handlers/usage'
@@ -73,6 +74,7 @@ const groups: readonly RpcHandlerGroup[] = [
   threadForkHandlers,
   sideChatHandlers,
   threadGoalHandlers,
+  threadBookmarkHandlers,
   providerHandlers,
   toolingHandlers,
   usageHandlers,

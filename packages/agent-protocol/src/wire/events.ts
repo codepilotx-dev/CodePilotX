@@ -370,6 +370,18 @@ export const EventManifest = {
     capability: 'thread.goal.v1',
     reconcilesWith: 'thread/goal/get',
   }),
+  'thread/bookmarks/updated': defineEvent({
+    payload: Schema.Struct({
+      threadId: OpaqueIDSchema,
+      inputIds: Schema.Array(OpaqueIDSchema),
+      version: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+    }),
+    version: 1,
+    durability: 'durable',
+    stream: 'thread',
+    capability: 'thread.bookmarks.v1',
+    reconcilesWith: 'thread/bookmarks/list',
+  }),
   'turn/queued': defineEvent({
     payload: Schema.Struct({ turn: TurnSchema, input: InputSchema }),
     version: 2,

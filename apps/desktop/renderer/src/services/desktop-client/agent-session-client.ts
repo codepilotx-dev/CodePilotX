@@ -202,6 +202,7 @@ import type {
   DesktopPluginApi,
   DesktopRuntimeCapabilityApi,
   DesktopSpeechApi,
+  DesktopThreadBookmarkList,
 } from './types.js'
 
 // Start the two small message-input chunks while the desktop client initializes,
@@ -3813,6 +3814,31 @@ export function createAgentSessionDesktopClient(
             return true
           }),
         () => mockClient.clearSessionGoal(sessionId),
+      ),
+    listThreadBookmarks: (sessionId) =>
+      withAgentOrMock(
+        async () => {
+          // 未协商到书签 capability 时返回 null，导轨据此隐藏书签按钮。
+          if (!agentCapabilities.has('thread.bookmarks.v1')) return null
+          return rpc.call<DesktopThreadBookmarkList>('thread/bookmarks/list', {
+            threadId: sessionId,
+          })
+        },
+        () => mockClient.listThreadBookmarks(sessionId),
+      ),
+    setThreadBookmark: (sessionId, input) =>
+      withAgentOrMock(
+        async () => {
+          if (!agentCapabilities.has('thread.bookmarks.v1')) return null
+          return rpc.call<DesktopThreadBookmarkList>('thread/bookmarks/set', {
+            threadId: sessionId,
+            inputId: input.inputId,
+            bookmarked: input.bookmarked,
+            expectedVersion: input.expectedVersion,
+            operationId: crypto.randomUUID(),
+          })
+        },
+        () => mockClient.setThreadBookmark(sessionId, input),
       ),
     startSessionReview: (sessionId, target) =>
       withAgentOrMock(

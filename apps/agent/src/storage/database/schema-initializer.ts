@@ -9,6 +9,7 @@ import {
 } from '../repositories/thread-goal-repository'
 import { THREAD_GOAL_LEDGER_SCHEMA } from '../repositories/thread-goal-ledger-repository'
 import { THREAD_GOAL_CONTINUATION_SCHEMA } from '../repositories/thread-goal-continuation-repository'
+import { THREAD_BOOKMARK_SCHEMA } from '../repositories/thread-bookmark-repository'
 import { BROWSER_SCHEMA } from '../repositories/browser-repository'
 import { BROWSER_DATA_SCHEMA } from '../repositories/browser-data-repository'
 import { THREAD_WORKTREE_OPERATION_SCHEMA } from '../repositories/thread-worktree-operation-repository'
@@ -158,6 +159,7 @@ export const FINAL_SCHEMA = [
   ...THREAD_GOAL_SCHEMA,
   ...THREAD_GOAL_LEDGER_SCHEMA,
   ...THREAD_GOAL_CONTINUATION_SCHEMA,
+  ...THREAD_BOOKMARK_SCHEMA,
   ...THREAD_WORKTREE_OPERATION_SCHEMA,
   ...BROWSER_SCHEMA,
   ...BROWSER_DATA_SCHEMA,
@@ -1539,6 +1541,14 @@ class SchemaInitializer {
                 FINAL_SCHEMA.find((statement) =>
                   statement.startsWith('CREATE TABLE thread_project_memberships '),
                 )!.replace('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'),
+              ),
+            54: () =>
+              this.sqlite.exec(
+                THREAD_BOOKMARK_SCHEMA.map((statement) =>
+                  statement
+                    .replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS ')
+                    .replace('CREATE INDEX ', 'CREATE INDEX IF NOT EXISTS '),
+                ).join(';'),
               ),
             52: () =>
               this.sqlite.exec(

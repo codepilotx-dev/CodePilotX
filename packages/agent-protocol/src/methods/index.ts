@@ -8,6 +8,7 @@ import { CalendarRpcMethods } from './calendar'
 import { PlanApprovalRpcMethods } from './plan-approval'
 import { HandoffRpcMethods } from './handoff'
 import { ThreadGoalRpcMethods } from './goal'
+import { ThreadBookmarkRpcMethods } from './bookmarks'
 import { LocalEnvironmentRpcMethods } from './local-environment'
 import { ThreadForkRpcMethods } from './thread-fork'
 import { SideChatRpcMethods } from './side-chat'
@@ -26,6 +27,7 @@ export const RpcMethods = {
   ...PlanApprovalRpcMethods,
   ...HandoffRpcMethods,
   ...ThreadGoalRpcMethods,
+  ...ThreadBookmarkRpcMethods,
   ...LocalEnvironmentRpcMethods,
   ...ThreadForkRpcMethods,
   ...SideChatRpcMethods,
@@ -73,6 +75,7 @@ export * from './extended'
 export * from './git'
 export * from './github'
 export * from './goal'
+export * from './bookmarks'
 export * from './handoff'
 export * from './mcp'
 export * from './minimax-cli'

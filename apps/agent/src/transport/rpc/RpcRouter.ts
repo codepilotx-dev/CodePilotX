@@ -70,6 +70,7 @@ import type { SpeechTranscriptionService } from '../../speech/SpeechTranscriptio
 import type { ThreadExecutionPreparationService } from '../../worktree/ThreadExecutionPreparationService'
 import type { SessionGroupService } from '../../session-group/SessionGroupService'
 import type { ThreadGoalService } from '../../session/ThreadGoalService'
+import type { ThreadBookmarkService } from '../../session/ThreadBookmarkService'
 import type { AutomationService } from '../../automation'
 import type { CalendarService, SchedulePlanService, ScheduledTaskService } from '../../calendar'
 import type { ThreadMessageForkService } from '../../session/fork/ThreadMessageForkService'
@@ -180,6 +181,7 @@ export type RpcRouterDependencies = {
   threadExecutions: ThreadExecutionPreparationService
   sessionGroups: SessionGroupService
   threadGoals: ThreadGoalService
+  threadBookmarks: ThreadBookmarkService
   automation: AutomationService
   calendar?: CalendarService
   scheduledTasks?: ScheduledTaskService

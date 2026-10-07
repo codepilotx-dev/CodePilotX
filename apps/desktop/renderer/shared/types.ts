@@ -1357,6 +1357,12 @@ export type CreateDesktopSessionResult = {
 
 export type DesktopThreadGoal = ThreadGoal
 
+export type DesktopThreadBookmarkList = {
+  threadId: string
+  inputIds: string[]
+  version: number
+}
+
 export type DesktopRuntimePermissionProfile = {
   id: string
   description: string | null
@@ -2011,6 +2017,11 @@ export type DesktopApi = {
     },
   ): Promise<DesktopThreadGoal>
   clearSessionGoal(sessionId: string): Promise<boolean>
+  listThreadBookmarks(sessionId: string): Promise<DesktopThreadBookmarkList | null>
+  setThreadBookmark(
+    sessionId: string,
+    input: { inputId: string; bookmarked: boolean; expectedVersion: number },
+  ): Promise<DesktopThreadBookmarkList | null>
   startSessionReview(
     sessionId: string,
     target: DesktopAiReviewTarget,

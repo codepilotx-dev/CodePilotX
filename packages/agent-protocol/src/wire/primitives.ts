@@ -57,6 +57,7 @@ export const ApplicationErrorCodeSchema = Schema.Literals([
   'FILE_TOO_LARGE',
   'FILE_READONLY',
   'THREAD_NOT_FOUND',
+  'INPUT_NOT_FOUND',
   'TURN_NOT_FOUND',
   'TURN_ACTIVE',
   'TURN_ID_MISMATCH',
