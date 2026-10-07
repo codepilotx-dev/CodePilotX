@@ -14,6 +14,21 @@
 
 ### Changed
 
+- [desktop/renderer] 移除输入框底栏工作模式和权限模式右侧的下拉箭头，保留菜单选择功能。
+
+- [desktop/renderer] 右侧工作区默认宽度改为可用工作区的 40%，保留已保存的拖动宽度及现有最小尺寸约束。
+
+- [desktop/renderer] 排查全项目 Dropdown、Popover 与右键菜单，补齐 Portal 动作子菜单的独立行布局，避免 Popover 委派内容及资料状态面板叠加内边距。
+
+- [desktop/renderer] 侧栏「新聊天」改用标准幽灵按钮，头部高度统一为 36px，与左侧首页图标水平对齐。
+- [desktop/renderer] 右侧工作区采用 Codex 标签、变更胶囊工具栏、文件与浏览器导航样式，新增文件选区询问侧边聊天、创建请求去重及文件滚动/选区恢复，保留现有虚拟化、保存冲突和浏览器页面生命周期。
+
+- [desktop/renderer] 图标侧栏头像入口统一为 36×36px 的 MD 幽灵按钮，更新下载入口放在头像上方并使用与导航相同的 4px 间距。
+- [desktop/renderer] 迁入 UI-Design 原生 Dropdown、Popover 与 ContextMenu，统一选择器搜索、子菜单、定位及焦点恢复，移除四个对应 Radix 依赖并保留现有业务动作。
+- [desktop/renderer] 会话归档 Toast 复用 UI-Design 浮层样式，调整为归档图标、「已归档的聊天」、查看、强调撤销与关闭按钮，保留归档列表跳转和撤销行为。
+- [desktop/renderer] 侧边栏导航图标与更多入口统一使用 36×36px 的 MD 纯图标幽灵按钮，保留导航选中状态。
+- [desktop/renderer] 全项目 Dropdown、Select、Popover 与子菜单统一 UI-Design 浮层表面和 sm/md/lg 三档尺寸，移除任意宽度接口与调用处的自定义宽度，保留各类弹层内容及交互功能。
+
 - [desktop/renderer] 侧栏 dropdown 与右键子菜单取消自定义宽度，统一采用 UI-Design 的 sm（220px）、md（280px）尺寸，共用 lg（360px）预设。
 
 - [desktop/renderer] 全面升级 Button 核心视觉与交互契约：对齐 UI-Design 的 7 种设计变体（primary、secondary、outline、ghost、danger、danger-outline、subtle-accent）、4 档标准高宽规格（xs 24px、sm 30px、md 36px、lg 42px）、严谨圆角规范（5px/8px/10px 与 pill 胶囊圆角），全局启用 active:scale-[0.98] 触感微反馈与双层焦点环，并在底层平滑兼容旧版尺寸别名与配色。
@@ -25,6 +40,25 @@
 
 ### Fixed
 
+- [desktop/renderer] 移除侧栏、右侧工作区和底部终端拖动手柄的附加线，悬停、聚焦和拖动时仅加深原有对应边框。
+
+- [desktop/renderer] 移除右侧工作区顶部与全局工具栏重叠的半透明边框，统一左右横向分隔线的视觉强度，保留底部面板边框。
+
+- [desktop/renderer] 修复空右侧工作区开关直接创建浏览器标签的问题，展开时显示统一面板入口，已有标签仍恢复原选择。
+
+- [desktop/renderer] 工作区 header 底部分隔线贯穿整栏，移除概览与常驻面板按钮之间的竖线，让按钮连续并排。
+
+- [desktop/renderer] 清除工作区 header 伪元素顶部及左右两侧的默认粗边框，保留底部 1px 分隔线。
+
+- [desktop/renderer] 修复二级动作菜单选中项缺少右侧勾图标，统一回收下拉及右键子菜单的空图标占位，移除额外内层缩进并保留真实图标。
+
+- [desktop/renderer] Dropdown 搜索框按浮层可用宽度铺满并包含自身边框与内边距，修复窄尺寸溢出、宽尺寸搜索框过短的问题。
+
+- [desktop/renderer] 修复 Dropdown asChild 强加 flex 布局导致项目、工作流和分支标签居中；恢复可搜索菜单的三列对齐，动作菜单取消选择列表限高与重复滚动、内边距，保留账户菜单原有分隔。
+
+- [desktop/renderer] 模式和推理菜单改用 UI-Design Dropdown 原生选项布局，移除自绘大行与重复勾选；模型选择器取消新增的外层 padding，保留列表自身间距。
+
+- [desktop/renderer] 修复侧边栏出现双重「新聊天」的问题，移除重复的次级新建聊天导航行，并将侧栏头部升级为紧凑胶囊按钮与铃铛/搜索动作栏，对齐参考设计。
 - [desktop/renderer] 活动视图的优先事项与日期分组复用普通侧栏标题和内容样式，移除专用滚动裁切动画，修复首行聊天被遮挡的问题。
 
 - [desktop/renderer] 侧边栏「展开显示」与「折叠显示」操作按钮保留首字与会话标题左边界严格对齐，通过负外边距抵消左内边距并恢复标准紧凑按钮内边距，消除悬浮高亮气泡在文字边缘的裁切感。
