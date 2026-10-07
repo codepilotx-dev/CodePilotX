@@ -2,7 +2,7 @@ import { chooseSessionGroupForThread } from '../../session-groups/sessionGroupAc
 import React from 'react'
 import { AnimatePresence, motion, useIsPresent } from 'motion/react'
 import { useNavigate } from 'react-router-dom'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import { Dropdown as DropdownMenu } from '../../../components/ui/floating/Dropdown.js'
 import {
   AppWindow,
   Archive,
@@ -456,9 +456,7 @@ export function ConversationPage(): React.ReactNode {
   const sourceLinks = canonicalAuxiliary.sourceLinks
   const canonicalAttachments = React.useMemo(
     () =>
-      canonicalConversation.state
-        ? [...canonicalConversation.state.attachmentsById.values()]
-        : [],
+      canonicalConversation.state ? [...canonicalConversation.state.attachmentsById.values()] : [],
     [canonicalConversation.state],
   )
   const canonicalContextReferences = React.useMemo(
@@ -558,7 +556,8 @@ export function ConversationPage(): React.ReactNode {
     })
   }, [])
   const agentsActiveCount = React.useMemo(
-    () => subagents.filter(({ currentRun }) => !isFinishedSubagentStatus(currentRun?.status)).length,
+    () =>
+      subagents.filter(({ currentRun }) => !isFinishedSubagentStatus(currentRun?.status)).length,
     [subagents],
   )
   React.useEffect(() => {
@@ -1029,7 +1028,7 @@ export function ConversationPage(): React.ReactNode {
           align="start"
           className="popover-session-actions popover-menu--grid"
           open={sessionMenuOpen}
-          width={220}
+          size="sm"
           trigger={
             <Button isIconOnly color="ghostSecondary" size="toolbar" title="更多会话操作">
               <MoreHorizontal
@@ -1211,7 +1210,8 @@ export function ConversationPage(): React.ReactNode {
       </ThreadSummaryErrorBoundary>
     )
     const summaryToggle = (
-      <Button isIconOnly
+      <Button
+        isIconOnly
         color={
           threadSummary.displayMode === 'overlay'
             ? threadSummary.isPopoverOpen
@@ -1559,7 +1559,7 @@ export function ConversationPage(): React.ReactNode {
                     </div>
                   </div>
                 }
-                width={240}
+                size="md"
               />
             </ThreadScrollLayout>
           </div>
@@ -1688,12 +1688,12 @@ function SessionSubmenu({
       </DropdownMenu.SubTrigger>
       <DropdownMenu.Portal>
         <DropdownMenu.SubContent
+          size="sm"
           data-theme-component="dropdown-surface"
-          alignOffset={-4}
           className="popover-surface popover popover-sub-content popover-menu--grid"
           collisionPadding={6}
           sideOffset={4}
-          style={buildPopoverSizingStyle({ width: 'auto' })}
+          style={buildPopoverSizingStyle({ size: 'md' })}
         >
           {children}
         </DropdownMenu.SubContent>

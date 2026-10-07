@@ -10,9 +10,9 @@ import {
   useRef,
   useState,
 } from 'react'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import * as Popover from '@radix-ui/react-popover'
-import * as Select from '@radix-ui/react-select'
+import { Dropdown as DropdownMenu } from '../../../components/ui/floating/Dropdown.js'
+import { Popover as Popover } from '../../../components/ui/floating/Popover.js'
+import { Dropdown as Select } from '../../../components/ui/floating/Dropdown.js'
 import {
   Activity,
   Archive,
@@ -20,7 +20,6 @@ import {
   Box,
   Brain,
   Check,
-  ChevronDown,
   ChevronLeft,
   File,
   FileText,
@@ -64,6 +63,7 @@ import type {
   DesktopModelProviderSummary,
   LocalRouterMode,
   ModelProviderID,
+  SidebarProductMode,
 } from '../../../../shared/types.js'
 import type { ModelPreset } from '../../../modelPresets.js'
 import { Button } from '../../../components/ui/Button.js'
@@ -73,6 +73,7 @@ import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { SearchablePopoverContent } from '../../../components/ui/SearchablePopoverContent.js'
 import { buildPopoverSizingStyle } from '../../../components/ui/popoverSizing.js'
+import { ComposerModeSwitcher } from './ComposerModeSwitcher.js'
 import { ProjectSwitcherPopover } from './ProjectSwitcherPopover.js'
 import { ChatInputDropdown } from './ChatInputDropdown.js'
 import { BranchSelectPopover } from './BranchSelectPopover.js'
@@ -200,7 +201,6 @@ const PERMISSION_TRIGGER_CLASS = cx(
 const PERMISSION_TRIGGER_OPEN_CLASS = 'tw:bg-app-selected'
 const PERMISSION_TRIGGER_LABEL_CLASS =
   'permission-select-trigger-label tw:min-w-0 tw:truncate tw:@max-[480px]:hidden'
-const PERMISSION_TRIGGER_CHEVRON_CLASS = 'tw:@max-[440px]:hidden'
 const PERMISSION_ITEM_ICON_CLASS =
   'permission-select-item-icon tw:mt-0 tw:inline-flex tw:shrink-0 tw:items-center tw:justify-center tw:text-app-text tw:[&>svg]:block tw:[&>svg]:size-icon tw:[&>svg]:[stroke-width:var(--cpx-sys-icon-stroke-width)]'
 const PERMISSION_ITEM_BODY_CLASS =
@@ -384,6 +384,8 @@ type Props = {
   onCompositionEnd?: () => void
   submitShortcut?: ComposerSubmitShortcut
   surface?: ComposerSurface
+  productMode?: SidebarProductMode
+  onProductModeChange?: (mode: SidebarProductMode) => void
   layout?: ComposerLayout
   radiusVariant?: ComposerRadiusVariant
   utilityBarVariant?: ComposerUtilityBarVariant
@@ -511,12 +513,16 @@ export function ComposerCard({
   onCompositionEnd,
   submitShortcut = 'enter',
   surface,
+  productMode,
+  onProductModeChange,
   layout = 'multiline',
   radiusVariant = 'default',
   utilityBarVariant = 'default',
   workingPlugin,
   onWorkingPluginChange,
 }: Props): React.ReactNode {
+  const effectiveProductMode =
+    productMode ?? (surface === 'chat' ? 'chat' : surface === 'working' ? 'working' : 'coding')
   const editorRef = useRef<ComposerEditorHandle | null>(null)
   const menuId = useId()
   const menuItemId = (key: string): string => `${menuId}-item-${encodeURIComponent(key)}`
@@ -533,6 +539,8 @@ export function ComposerCard({
   const subagentMode = placement === 'side-task'
   const contextDropdownSide = contextDropdownSideOverride ?? 'top'
   const [openDropdown, setOpenDropdown] = useState<ComposerDropdown | null>(null)
+  const [contextPreviewOpen, setContextPreviewOpen] = useState(false)
+  const contextPreviewRef = useRef<HTMLDivElement>(null)
   const [fullAccessConfirmationOpen, setFullAccessConfirmationOpen] = useState(false)
   const [fullAccessSaving, setFullAccessSaving] = useState(false)
   const [fullAccessError, setFullAccessError] = useState('')
@@ -1394,8 +1402,8 @@ export function ComposerCard({
         <ChatInputDropdown
           open={unifiedMenuOpen}
           side={contextDropdownSide}
-          width="100%"
-          maxWidth="100%"
+          size="lg"
+
           suggestion
           onClose={closeDropdown}
         >
@@ -1411,7 +1419,9 @@ export function ComposerCard({
 
         <div className={TOOLBAR_CLASS}>
           <div className={TOOLBAR_LEFT_CLASS}>
-            <Button isIconOnly
+            <ComposerModeSwitcher mode={effectiveProductMode} onModeChange={onProductModeChange} />
+            <Button
+              isIconOnly
               active={buttonContextOpen}
               aria-expanded={buttonContextOpen}
               color={buttonContextOpen ? 'ghostActive' : 'ghostSecondary'}
@@ -1428,7 +1438,7 @@ export function ComposerCard({
             </Button>
             <Select.Root
               open={openDropdown === 'permission'}
-              value={permissionMode}
+              value={permissionMode as string}
               onOpenChange={(open) => setOpenDropdown(open ? 'permission' : null)}
               onValueChange={(value) => {
                 if (value === 'approval-rules') setApprovalRulesOpen(true)
@@ -1458,61 +1468,67 @@ export function ComposerCard({
                 <span className={PERMISSION_TRIGGER_LABEL_CLASS}>
                   {selectedPermission?.label ?? '默认权限'}
                 </span>
-                <Select.Icon asChild className={PERMISSION_TRIGGER_CHEVRON_CLASS}>
-                  <ChevronDown size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                </Select.Icon>
               </Select.Trigger>
               <Select.Portal>
                 <Select.Content
+                  size="lg"
                   align="start"
-                  className="popover-surface permission-select-content tw:min-w-0 tw:max-w-[var(--popover-max-width,min(calc(300px_+_var(--popover-width-extra)),calc(100vw_-_24px)))] tw:max-h-[min(320px,calc(100vh_-_96px))] tw:overflow-hidden"
+                  className="popover-surface permission-select-content tw:max-h-[min(320px,calc(100vh_-_96px))] tw:overflow-hidden"
                   data-theme-component="dropdown-surface"
                   collisionPadding={6}
-                  position="popper"
+
                   side="bottom"
                   sideOffset={4}
-                  style={buildPopoverSizingStyle({ width: 300 })}
+                  style={buildPopoverSizingStyle({ size: 'lg' })}
                 >
-                  <Select.Viewport className="permission-select-scroll-area tw:grid tw:max-h-[max(80px,calc(min(320px,calc(100vh-96px))-12px))] tw:overflow-x-hidden tw:overflow-y-auto">
+                  <div className="permission-select-scroll-area tw:grid tw:max-h-[max(80px,calc(min(320px,calc(100vh-96px))-12px))] tw:overflow-x-hidden tw:overflow-y-auto">
                     <div className="permission-select-scroll-content tw:grid tw:min-w-0">
                       {routedSessionId && workspace?.projectId && scopedGrantsSupported ? (
                         <Select.Item className="permission-select-item" value="approval-rules">
-                          <Select.ItemText>管理项目授权</Select.ItemText>
+                          <span>管理项目授权</span>
                         </Select.Item>
                       ) : null}
                       {permissionOptions.map((option) => (
                         <Select.Item
-                          className="permission-select-item"
+                          asChild
                           key={option.value}
                           value={option.value}
+                          textValue={option.label}
                         >
-                          <span className={PERMISSION_ITEM_ICON_CLASS}>
-                            {getPermissionIcon(option.value)}
-                          </span>
-                          <span className={PERMISSION_ITEM_BODY_CLASS}>
-                            <Select.ItemText>{option.label}</Select.ItemText>
-                            {option.detail ? (
-                              <span className={PERMISSION_ITEM_DETAIL_CLASS}>
-                                {option.value === 'auto-review' ? (
-                                  <>
-                                    <span>{option.detail.replace(/了解更多.*$/, '')}</span>
-                                    <span className="permission-select-item-detail-more tw:block tw:underline">
-                                      了解更多
-                                    </span>
-                                  </>
-                                ) : (
-                                  option.detail
-                                )}
+                          <div className="permission-select-item">
+                            <span className={PERMISSION_ITEM_ICON_CLASS}>
+                              {getPermissionIcon(option.value)}
+                            </span>
+                            <span className={PERMISSION_ITEM_BODY_CLASS}>
+                              <span>{option.label}</span>
+                              {option.detail ? (
+                                <span className={PERMISSION_ITEM_DETAIL_CLASS}>
+                                  {option.value === 'auto-review' ? (
+                                    <>
+                                      <span>{option.detail.replace(/了解更多.*$/, '')}</span>
+                                      <span className="permission-select-item-detail-more tw:block tw:underline">
+                                        了解更多
+                                      </span>
+                                    </>
+                                  ) : (
+                                    option.detail
+                                  )}
+                                </span>
+                              ) : null}
+                            </span>
+                            {permissionMode === option.value && (
+                              <span className={PERMISSION_ITEM_INDICATOR_CLASS}>
+                                <Check
+                                  size={APP_ICON_SIZES.sm}
+                                  strokeWidth={APP_ICON_STROKE_WIDTH}
+                                />
                               </span>
-                            ) : null}
-                          </span>
-                          <Select.ItemIndicator className={PERMISSION_ITEM_INDICATOR_CLASS}>
-                            <Check size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
-                          </Select.ItemIndicator>
+                            )}
+                          </div>
                         </Select.Item>
                       ))}
                     </div>
-                  </Select.Viewport>
+                  </div>
                 </Select.Content>
               </Select.Portal>
             </Select.Root>
@@ -1650,31 +1666,60 @@ export function ComposerCard({
 
           <div className={TOOLBAR_RIGHT_CLASS}>
             {showContextUsage ? (
-              <span
-                aria-label={`上下文窗口使用量：${contextUsage ? `已用 ${usedPercent}%，剩余 ${100 - usedPercent}%` : '暂无数据'}`}
-                className="context-usage-chip tw:group tw:relative tw:inline-flex tw:size-3 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:text-app-text-soft"
-                role="button"
-                tabIndex={0}
-                onClick={() => setOpenDropdown('status')}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter' && event.key !== ' ') return
-                  event.preventDefault()
-                  setOpenDropdown('status')
-                }}
-                style={
-                  {
-                    '--context-usage-progress': usedPercent,
-                  } as React.CSSProperties
-                }
-              >
-                <span className="chip-dot" />
-                <span
-                  className="context-usage-popover tw:pointer-events-none tw:absolute tw:right-0 tw:bottom-[calc(100%+var(--cpx-sys-space-2))] tw:z-tooltip tw:block tw:w-66 tw:translate-y-1 tw:rounded-floating tw:border tw:border-app-border tw:bg-app-raised tw:p-3 tw:text-left tw:text-app-text-meta tw:opacity-0 tw:shadow-lg tw:transition-[opacity,translate] tw:duration-state tw:ease-out tw:whitespace-normal tw:before:absolute tw:before:inset-x-0 tw:before:top-full tw:before:h-2 tw:before:content-[''] tw:group-hover:pointer-events-auto tw:group-hover:translate-y-0 tw:group-hover:opacity-100 tw:group-focus-visible:pointer-events-auto tw:group-focus-visible:translate-y-0 tw:group-focus-visible:opacity-100"
-                  role="tooltip"
-                >
-                  <ContextUsagePanel contextUsage={contextUsage} />
-                </span>
-              </span>
+              <Popover.Root open={contextPreviewOpen} onOpenChange={setContextPreviewOpen}>
+                <Popover.Anchor asChild>
+                  <span
+                    aria-label={`上下文窗口使用量：${contextUsage ? `已用 ${usedPercent}%，剩余 ${100 - usedPercent}%` : '暂无数据'}`}
+                    className="context-usage-chip tw:group tw:relative tw:inline-flex tw:size-3 tw:shrink-0 tw:cursor-pointer tw:items-center tw:justify-center tw:text-app-text-soft"
+                    role="button"
+                    tabIndex={0}
+                    onPointerEnter={() => setContextPreviewOpen(true)}
+                    onPointerLeave={(event) => {
+                      if (!contextPreviewRef.current?.contains(event.relatedTarget as Node | null))
+                        setContextPreviewOpen(false)
+                    }}
+                    onFocus={() => setContextPreviewOpen(true)}
+                    onBlur={(event) => {
+                      if (!contextPreviewRef.current?.contains(event.relatedTarget))
+                        setContextPreviewOpen(false)
+                    }}
+                    onClick={() => {
+                      setContextPreviewOpen(false)
+                      setOpenDropdown('status')
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return
+                      event.preventDefault()
+                      setContextPreviewOpen(false)
+                      setOpenDropdown('status')
+                    }}
+                    style={
+                      {
+                        '--context-usage-progress': usedPercent,
+                      } as React.CSSProperties
+                    }
+                  >
+                    <span className="chip-dot" />
+                  </span>
+                </Popover.Anchor>
+                <Popover.Portal>
+                  <Popover.Content
+                    ref={contextPreviewRef}
+                    size="md"
+                    side="top"
+                    align="end"
+                    aria-label="上下文窗口使用量"
+                    onOpenAutoFocus={(event) => event.preventDefault()}
+                    onCloseAutoFocus={(event) => event.preventDefault()}
+                    onPointerEnter={() => setContextPreviewOpen(true)}
+                    onPointerLeave={() => setContextPreviewOpen(false)}
+                    className="context-usage-popover tw:z-tooltip tw:overflow-visible tw:text-left tw:whitespace-normal tw:before:absolute tw:before:inset-x-0 tw:before:h-2 tw:before:content-[''] tw:data-[side=top]:before:top-full tw:data-[side=bottom]:before:bottom-full"
+                    role="tooltip"
+                  >
+                    <ContextUsagePanel contextUsage={contextUsage} />
+                  </Popover.Content>
+                </Popover.Portal>
+              </Popover.Root>
             ) : null}
             <ModelPickerPopover
               align="end"
@@ -1742,7 +1787,8 @@ export function ComposerCard({
               onThinkingPreviewChange={setThinkingPreviewMode}
             />
 
-            <Button isIconOnly
+            <Button
+              isIconOnly
               aria-label={submitting ? '正在发送' : isRunning && !canSubmit ? '停止' : '发送'}
               className={cx('send-button', submitting && 'is-submitting')}
               color="primary"
@@ -1794,7 +1840,7 @@ export function ComposerCard({
             <ProjectSwitcherPopover
               side="top"
               open={openDropdown === 'project'}
-              width={200}
+              size="sm"
               onOpenChange={(open) => setOpenDropdown(open ? 'project' : null)}
               recentWorkspaces={recentWorkspaces}
               workspace={workspace}
@@ -1853,7 +1899,7 @@ export function ComposerCard({
                   className="popover-goal popover-menu--grid"
                   open={openDropdown === 'goal'}
                   side="top"
-                  width={200}
+                  size="sm"
                   onOpenChange={(open) => setOpenDropdown(open ? 'goal' : null)}
                   trigger={
                     <MetaChip
@@ -1948,7 +1994,7 @@ export function ComposerCard({
                   currentBranchName={branchName}
                   open={openDropdown === 'branch'}
                   side="top"
-                  width={420}
+                  size="lg"
                   onBranchSearchChange={setBranchSearch}
                   onBranchSelect={onBranchSelect}
                   onCreateBranch={onCreateBranch}

@@ -214,6 +214,7 @@ export type UseDesktopRuntimeSettingsResult = Pick<
   | 'setReviewView'
   | 'setSidebarSessionPins'
   | 'setSidebarTimelineEnabled'
+  | 'setSidebarProductMode'
   | 'setSidebarCustomization'
   | 'syncExternalSettingsPatch'
 > & {
@@ -1035,6 +1036,7 @@ function useDesktopSettingsState(
       setReviewView,
       setSidebarSessionPins,
       setSidebarTimelineEnabled,
+      setSidebarProductMode,
       setSidebarCustomization,
       syncExternalSettingsPatch,
     }),
@@ -1043,6 +1045,7 @@ function useDesktopSettingsState(
       permissionMode,
       settingsLoaded,
       setPermissionMode,
+      setSidebarProductMode,
       setSidebarCustomization,
       syncExternalSettingsPatch,
     ],

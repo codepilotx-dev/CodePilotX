@@ -16,6 +16,7 @@ import type {
   DesktopWorkspace,
   LocalRouterMode,
   ModelProviderID,
+  SidebarProductMode,
 } from '../../../../shared/types.js'
 import { THINKING_MODE_OPTIONS } from '../../settings/settingsStorage.js'
 import type { ModelPreset } from '../../../modelPresets.js'
@@ -69,6 +70,8 @@ export type DesktopComposerProps = {
   capabilities?: Partial<ComposerCapabilities>
   submitShortcut?: ComposerSubmitShortcut
   surface?: ComposerSurface
+  productMode?: SidebarProductMode
+  onProductModeChange?: (mode: SidebarProductMode) => void
   layout?: ComposerLayout
   radiusVariant?: ComposerRadiusVariant
   utilityBarVariant?: ComposerUtilityBarVariant
@@ -185,6 +188,8 @@ export function DesktopComposer({
   capabilities,
   submitShortcut,
   surface,
+  productMode,
+  onProductModeChange,
   layout,
   radiusVariant,
   utilityBarVariant,
@@ -386,6 +391,8 @@ export function DesktopComposer({
       }}
       submitShortcut={submitShortcut}
       surface={surface}
+      productMode={productMode}
+      onProductModeChange={onProductModeChange}
       layout={layout}
       radiusVariant={radiusVariant}
       utilityBarVariant={utilityBarVariant}

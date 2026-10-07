@@ -2,18 +2,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import { AnimatePresence, motion, useIsPresent } from 'motion/react'
 import { useSearchParams } from 'react-router-dom'
-import type { DesktopWorkspace } from '../../../shared/types.js'
+import type { DesktopWorkspace, SidebarProductMode } from '../../../shared/types.js'
 import {
   getEffectiveReducedMotion,
   usePrefersReducedMotion,
 } from '../../hooks/usePrefersReducedMotion.js'
 import { useDesktopSettings } from '../settings/useDesktopSettings.js'
-import { normalizeNewSessionSurfaceSearch, parseNewSessionSurface } from './newSessionSurface.js'
+import {
+  normalizeNewSessionSurfaceSearch,
+  parseNewSessionSurface,
+  type NewSessionSurface,
+} from './newSessionSurface.js'
 import { DesktopComposer } from './composer/DesktopComposer.js'
 import { useQuickChatContext } from './QuickChatContext.js'
 import { enterTween, exitTween, motionTransition } from '../motion/motionTransitions.js'
-import { WorkingNewSessionView } from './WorkingNewSessionView.js'
-import { ChatNewSessionView } from './ChatNewSessionView.js'
 import { CodingHeadingTransition } from './CodingHeadingTransition.js'
 import { ProjectSwitcherPopover } from './composer/ProjectSwitcherPopover.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
@@ -38,22 +40,30 @@ export function QuickChatView(): React.ReactNode {
     setSidebarProductMode(urlSurface)
   }, [setSidebarProductMode, sidebarProductMode, urlSurface])
 
+  const handleModeChange = useCallback(
+    (mode: SidebarProductMode) => {
+      setSidebarProductMode(mode)
+      setSearchParams(normalizeNewSessionSurfaceSearch(search, mode), { replace: true })
+    },
+    [search, setSearchParams, setSidebarProductMode],
+  )
+
   return (
     <AnimatePresence initial={false} mode="wait">
-      <NewSessionPresence key={surface} kind="surface" reducedMotion={reducedMotion}>
-        {surface === 'working' ? (
-          <WorkingNewSessionView />
-        ) : surface === 'chat' ? (
-          <ChatNewSessionView />
-        ) : (
-          <CodingQuickChatView />
-        )}
+      <NewSessionPresence key="unified-home" kind="surface" reducedMotion={reducedMotion}>
+        <CodingQuickChatView onModeChange={handleModeChange} surface={surface} />
       </NewSessionPresence>
     </AnimatePresence>
   )
 }
 
-function CodingQuickChatView(): React.ReactNode {
+function CodingQuickChatView({
+  surface,
+  onModeChange,
+}: {
+  surface: NewSessionSurface
+  onModeChange?: (mode: SidebarProductMode) => void
+}): React.ReactNode {
   const { t } = useLocale()
   const {
     branchName,
@@ -107,31 +117,34 @@ function CodingQuickChatView(): React.ReactNode {
 
   const hasGitWorkspace = Boolean(branchName || gitStatus)
   const headingUsesProject = Boolean(currentWorkspace && workspaceName)
-  const headingKey = headingUsesProject
+  const baseHeadingKey = headingUsesProject
     ? `${hasGitWorkspace ? 'git' : 'project'}:${workspacePath}`
     : 'no-project'
-  const headingContent = headingUsesProject ? (
+  const headingKey = `${surface}:${baseHeadingKey}`
+
+  const projectTrigger = (
+    <button
+      aria-label={`${t('选择项目：')}${workspaceName}`}
+      className="project-name tw:inline-block tw:max-w-[min(40vw,18ch)] tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap tw:text-ellipsis tw:align-baseline tw:cursor-pointer tw:text-app-text tw:[font:inherit] tw:underline tw:decoration-dotted tw:decoration-1 tw:underline-offset-4 tw:hover:text-app-text-soft tw:hover:decoration-current tw:data-[state=open]:text-app-text-soft tw:data-[state=open]:decoration-current tw:aria-expanded:text-app-text-soft tw:aria-expanded:decoration-current tw:focus-visible:outline-offset-3"
+      title={workspaceName}
+      type="button"
+    >
+      {workspaceName}
+    </button>
+  )
+
+  const renderProjectSwitcher = (suffixText: string): React.ReactNode => (
     <>
       {t('你想让我们在 ')}
       <ProjectSwitcherPopover
         align="center"
         className="popover-project quick-chat-project-popover"
-        maxWidth="min(420px, calc(100vw - 48px))"
         open={projectMenuOpen}
         recentWorkspaces={recentWorkspaces}
         side="top"
         sideOffset={4}
-        trigger={
-          <button
-            aria-label={`${t('选择项目：')}${workspaceName}`}
-            className="project-name tw:inline-block tw:max-w-[min(40vw,18ch)] tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap tw:text-ellipsis tw:align-baseline tw:cursor-pointer tw:text-app-text tw:[font:inherit] tw:underline tw:decoration-dotted tw:decoration-1 tw:underline-offset-4 tw:hover:text-app-text-soft tw:hover:decoration-current tw:data-[state=open]:text-app-text-soft tw:data-[state=open]:decoration-current tw:aria-expanded:text-app-text-soft tw:aria-expanded:decoration-current tw:focus-visible:outline-offset-3"
-            title={workspaceName}
-            type="button"
-          >
-            {workspaceName}
-          </button>
-        }
-        width={200}
+        trigger={projectTrigger}
+        size="sm"
         workspace={currentWorkspace}
         onChooseWorkspace={() => {
           void onChooseWorkspace()
@@ -151,20 +164,34 @@ function CodingQuickChatView(): React.ReactNode {
           setProjectMenuOpen(false)
         }}
       />
-      {t(' 中构建什么?')}
+      {suffixText}
     </>
-  ) : (
-    t('我们该构建什么？')
   )
+
+  const headingContent =
+    surface === 'chat'
+      ? t('随时可以开始。')
+      : surface === 'working'
+        ? headingUsesProject
+          ? renderProjectSwitcher(t(' 中分析什么?'))
+          : t('写作与分析')
+        : headingUsesProject
+          ? renderProjectSwitcher(t(' 中构建什么?'))
+          : t('我们该构建什么？')
+
+  const composerPlaceholder =
+    surface === 'chat'
+      ? t('给 CodePilotX 发消息')
+      : surface === 'working'
+        ? t('使用 CodePilotX Working，描述你的任务')
+        : undefined
 
   return (
     <div
       ref={pageRef}
       className="quick-chat-workspace tw:flex tw:h-full tw:w-full tw:min-h-0 tw:overflow-hidden"
     >
-      <main
-        className="quick-chat-view coding-chat-view tw:flex tw:h-full tw:max-w-none tw:w-full tw:min-h-full tw:flex-col tw:items-stretch tw:justify-end tw:overflow-x-hidden tw:overflow-y-auto tw:px-8 tw:pb-4 tw:text-app-text tw:[scrollbar-gutter:stable]"
-      >
+      <main className="quick-chat-view coding-chat-view tw:flex tw:h-full tw:max-w-none tw:w-full tw:min-h-full tw:flex-col tw:items-stretch tw:justify-end tw:overflow-x-hidden tw:overflow-y-auto tw:px-8 tw:pb-4 tw:text-app-text tw:[scrollbar-gutter:stable]">
         <section className="quick-chat-hero-region tw:m-auto tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-center tw:justify-center tw:gap-5">
           <div className="quick-chat-hero tw:flex tw:w-[var(--quick-chat-surface-width)] tw:max-w-full tw:flex-col tw:items-center tw:gap-6 tw:text-center tw:text-app-text tw:type-display">
             <button
@@ -184,7 +211,13 @@ function CodingQuickChatView(): React.ReactNode {
         <section className="quick-chat-composer-region tw:flex tw:w-full tw:min-w-0 tw:flex-col tw:items-center tw:justify-end tw:gap-3">
           {composerProps ? (
             <div className="chat-composer tw:static tw:m-0 tw:flex tw:w-[var(--quick-chat-surface-width)] tw:max-w-full tw:flex-col tw:items-center tw:gap-3 tw:pointer-events-auto">
-              <DesktopComposer {...composerProps} surface="coding" />
+              <DesktopComposer
+                {...composerProps}
+                placeholder={composerPlaceholder}
+                productMode={surface}
+                onProductModeChange={onModeChange}
+                surface={surface}
+              />
             </div>
           ) : null}
         </section>

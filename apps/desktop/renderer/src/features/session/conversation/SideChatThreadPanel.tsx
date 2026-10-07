@@ -114,11 +114,11 @@ export function SideChatThreadPanel({
   return (
     <section
       aria-label={tab.title}
-      className="right-dock-side-chat"
+      className="right-dock-side-chat tw:flex tw:h-full tw:min-h-0 tw:w-full tw:flex-col tw:bg-app-dock"
       data-side-chat-thread-id={tab.threadId}
     >
       <ThreadScrollLayout
-        className="right-dock-side-chat__timeline"
+        className="right-dock-side-chat__timeline tw:min-h-0 tw:flex-1"
         footer={
           !creating && !expired ? (
             <ThreadComposerDock ref={surfaceRef}>
@@ -164,12 +164,12 @@ export function SideChatThreadPanel({
         scrollRef={scrollRef}
       >
         {creating ? (
-          <div className="right-dock-side-chat__empty" role="status">
+          <div className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-6 tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body" role="status">
             <LoaderCircle size={APP_ICON_SIZES.lg} className="canonical-spin" aria-hidden="true" />
             <strong>正在启动侧边聊天</strong>
           </div>
         ) : expired ? (
-          <div className="right-dock-side-chat__empty" role="status">
+          <div className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-6 tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body" role="status">
             <CirclePlus size={APP_ICON_SIZES.lg} aria-hidden="true" />
             <strong>侧边聊天已过期</strong>
             <span>此临时侧边聊天已不可用；请新建一个侧边聊天以继续。</span>
@@ -178,12 +178,12 @@ export function SideChatThreadPanel({
             </Button>
           </div>
         ) : conversation.loading && visibleTurnCount === 0 ? (
-          <div className="right-dock-side-chat__empty" role="status">
+          <div className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-6 tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body" role="status">
             <LoaderCircle size={APP_ICON_SIZES.lg} className="canonical-spin" aria-hidden="true" />
             <strong>正在启动侧边聊天</strong>
           </div>
         ) : visibleTurnCount === 0 && !conversation.error ? (
-          <div className="right-dock-side-chat__empty" role="status">
+          <div className="right-dock-side-chat__empty tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:items-center tw:justify-center tw:gap-3 tw:px-6 tw:py-8 tw:text-center tw:text-app-text-soft tw:type-body" role="status">
             <span className="right-dock-side-chat__empty-icon">
               <CirclePlus
                 aria-hidden="true"
