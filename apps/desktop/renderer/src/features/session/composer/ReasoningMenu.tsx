@@ -55,7 +55,7 @@ export function ReasoningMenu({
       <Dropdown.Trigger asChild>{trigger}</Dropdown.Trigger>
       <Dropdown.Portal>
         <Dropdown.Content
-          size="md"
+          size="sm"
           align={align}
           side={side}
           sideOffset={sideOffset}

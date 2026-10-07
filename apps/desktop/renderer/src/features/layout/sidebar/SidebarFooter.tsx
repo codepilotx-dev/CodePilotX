@@ -363,13 +363,13 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               </DropdownMenu.SubTrigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.SubContent
-                  size="md"
+                  size="sm"
                   data-theme-component="dropdown-surface"
                   aria-label={t('剩余用量详情')}
                   className="popover-surface popover popover-sub-content popover-usage-submenu tw:p-1 tw:[--popover-overflow-y:hidden]"
                   collisionPadding={6}
                   sideOffset={4}
-                  style={buildPopoverSizingStyle({ size: 'md',
+                  style={buildPopoverSizingStyle({ size: 'sm',
                   })}
                 >
                   <div className="popover-usage-content tw:flex tw:min-w-0 tw:flex-col tw:gap-1">

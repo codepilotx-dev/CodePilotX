@@ -47,11 +47,6 @@ const HUB_TRIGGER_BUTTON_CLASS = cx(
   'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
   'tw:hover:bg-app-hover tw:hover:text-app-text',
 )
-const PROVIDER_LOGO_CLASS = cx(
-  'composer-provider-logo tw:inline-flex tw:size-4.5 tw:shrink-0 tw:items-center tw:justify-center tw:text-inherit',
-  'tw:[&>svg]:block tw:[&>svg]:size-full',
-)
-const PROVIDER_LOGO_IMAGE_CLASS = 'composer-provider-logo-image tw:[&>img]:object-contain'
 const HUB_TRIGGER_WRAP_CLASS = cx(
   'composer-hub-trigger-wrap tw:mt-1 tw:flex tw:w-full tw:shrink-0 tw:flex-col tw:items-center',
   'tw:border-t tw:border-app-border-subtle tw:pt-2',
@@ -121,9 +116,7 @@ const MODEL_ROW_SELECTED_CLASS =
 const MODEL_ROW_MAIN_CLASS =
   'composer-model-row-main tw:flex tw:min-w-0 tw:items-center tw:gap-2.5 tw:pr-0.5'
 const MODEL_ROW_ICON_CLASS =
-  'composer-model-row-icon tw:size-icon-md tw:shrink-0 tw:transition-opacity tw:duration-feedback tw:ease-standard'
-const MODEL_ROW_ICON_IDLE_CLASS = 'tw:opacity-70 tw:group-hover:opacity-100'
-const MODEL_ROW_ICON_ACTIVE_CLASS = 'is-active tw:opacity-100'
+  'composer-model-row-icon tw:size-icon-md tw:shrink-0 tw:text-app-text'
 const MODEL_ROW_TRAILING_CLASS =
   'composer-model-row-trailing tw:flex tw:shrink-0 tw:items-center tw:gap-2'
 const MODEL_DOT_CLASS = cx(
@@ -631,14 +624,7 @@ export function ModelPickerPopover({
                             className={cx(MODEL_ROW_CLASS, isSelected && MODEL_ROW_SELECTED_CLASS)}
                           >
                             <div className={MODEL_ROW_MAIN_CLASS}>
-                              <span
-                                className={cx(
-                                  MODEL_ROW_ICON_CLASS,
-                                  isSelected
-                                    ? MODEL_ROW_ICON_ACTIVE_CLASS
-                                    : MODEL_ROW_ICON_IDLE_CLASS,
-                                )}
-                              >
+                              <span className={MODEL_ROW_ICON_CLASS}>
                                 <ProviderLogo logoURL={currentProvider.logoURL} />
                               </span>
                               <span className="composer-model-name tw:truncate tw:tracking-[-0.01em] tw:text-app-text">

@@ -1,9 +1,12 @@
 import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
 import React, { useState } from 'react'
+import { motion } from 'motion/react'
 import { ChevronDown } from 'lucide-react'
 import { cx } from '../../../utils/cx.js'
 import { ReasoningMenu } from './ReasoningMenu.js'
 import type { ThinkingOption } from './ThinkingLevelPopover.js'
+import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
+import { layoutTween, motionTransition } from '../../motion/motionTransitions.js'
 
 /*
  * Capsule trigger for the integrated model picker. The chevron follows the
@@ -11,7 +14,7 @@ import type { ThinkingOption } from './ThinkingLevelPopover.js'
  * descendant selector.
  */
 const CAPSULE_CLASS = cx(
-  'composer-model-trigger-capsule tw:group tw:inline-flex tw:h-9 tw:cursor-pointer tw:select-none tw:items-center tw:gap-1.5',
+  'composer-model-trigger-capsule tw:group tw:inline-flex tw:h-7 tw:cursor-pointer tw:select-none tw:items-center tw:gap-1.5',
   'tw:rounded-pill tw:pl-3 tw:pr-2 tw:text-app-text-soft',
   'tw:transition-[background-color,color] tw:duration-feedback tw:ease-standard',
   'tw:hover:bg-app-hover tw:hover:text-app-text',
@@ -75,17 +78,23 @@ export const ModelSelectTrigger = React.forwardRef<HTMLDivElement, ModelSelectTr
     ref,
   ) {
     const [effortMenuOpen, setEffortMenuOpen] = useState(false)
+    const reducedMotion = usePrefersReducedMotion()
+    const transition = motionTransition(reducedMotion, layoutTween)
 
     const active = isOpen || effortMenuOpen
 
     return (
-      <div
+      <motion.div
+        layout
+        transition={transition}
         ref={ref}
         id={id}
         className={cx(CAPSULE_CLASS, active ? CAPSULE_ACTIVE_CLASS : CAPSULE_IDLE_CLASS, className)}
         onClick={onToggleOpen}
       >
-        <button
+        <motion.button
+          layout="position"
+          transition={transition}
           type="button"
           aria-expanded={isOpen}
           aria-haspopup="dialog"
@@ -105,10 +114,10 @@ export const ModelSelectTrigger = React.forwardRef<HTMLDivElement, ModelSelectTr
           }}
         >
           <span className={NAME_CLASS}>{modelName}</span>
-        </button>
+        </motion.button>
 
         {showThinkingOptions && thinkingLabel && onThinkingChange ? (
-          <div className={EFFORT_WRAP_CLASS} onClick={(event) => event.stopPropagation()}>
+          <motion.div layout="position" transition={transition} className={EFFORT_WRAP_CLASS} onClick={(event) => event.stopPropagation()}>
             <ReasoningMenu
               open={effortMenuOpen}
               onOpenChange={setEffortMenuOpen}
@@ -127,21 +136,28 @@ export const ModelSelectTrigger = React.forwardRef<HTMLDivElement, ModelSelectTr
                   title="点击选择推理思考强度"
                   aria-label={`推理思考强度：${thinkingLabel}`}
                 >
-                  <span>{thinkingLabel}</span>
+                  <span className="tw:grid tw:text-center tw:whitespace-nowrap">
+                    <span className="tw:col-start-1 tw:row-start-1">{thinkingLabel}</span>
+                    {['默认', ...thinkingOptions.map((option) => option.label)].map((label, index) => (
+                      <span key={index} aria-hidden="true" className="tw:invisible tw:col-start-1 tw:row-start-1">
+                        {label}
+                      </span>
+                    ))}
+                  </span>
                 </button>
               }
             />
-          </div>
+          </motion.div>
         ) : null}
 
-        <span aria-hidden="true" className={CHEVRON_WRAP_CLASS}>
+        <motion.span layout="position" transition={transition} aria-hidden="true" className={CHEVRON_WRAP_CLASS}>
           <ChevronDown
             size={APP_ICON_SIZES.sm}
             strokeWidth={APP_ICON_STROKE_WIDTH}
             className={cx(CHEVRON_CLASS, isOpen && CHEVRON_OPEN_CLASS)}
           />
-        </span>
-      </div>
+        </motion.span>
+      </motion.div>
     )
   },
 )
