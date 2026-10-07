@@ -25,6 +25,30 @@ function draft(overrides: Partial<ComposerDraft> = {}): ComposerDraft {
 }
 
 describe('composer submit transaction', () => {
+  test('serializes plugin-only references with stable identity and preserves stale drafts', () => {
+    const store = new ComposerDraftStore(() => 'plugin-draft')
+    store.update('home', (current) => ({
+      ...current,
+      document: {
+        text: '',
+        tokens: [
+          {
+            id: 'plugin:computer-use',
+            kind: 'plugin',
+            label: '电脑[控制]',
+            value: 'plugin://computer-use',
+            from: 0,
+            to: 0,
+          },
+        ],
+      },
+    }))
+    const prepared = prepareComposerSubmission(store.get('home'))
+    expect('input' in prepared && prepared.input.text).toBe(
+      '[@电脑\\[控制\\]](plugin://computer-use)',
+    )
+    expect(store.get('home').document.tokens[0]?.kind).toBe('plugin')
+  })
   test.each([false, true])('Goal 首轮完整提交，new-session=%s', async (isNew) => {
     const source = draft({
       goalModeEnabled: true,

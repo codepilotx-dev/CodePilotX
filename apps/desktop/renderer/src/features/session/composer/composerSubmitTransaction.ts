@@ -75,8 +75,14 @@ export function prepareComposerSubmission(
 
 export function serializeComposerDocument(document: ComposerDraft['document']): string {
   const references = document.tokens
-    .filter((token) => token.kind === 'thread' || token.kind === 'browser')
-    .map((token) => `[${escapeMarkdownLabel(token.label)}](<${token.value.replace(/>/gu, '%3E')}>)`)
+    .filter(
+      (token) => token.kind === 'thread' || token.kind === 'browser' || token.kind === 'plugin',
+    )
+    .map((token) =>
+      token.kind === 'plugin'
+        ? `[@${escapeMarkdownLabel(token.label)}](${token.value})`
+        : `[${escapeMarkdownLabel(token.label)}](<${token.value.replace(/>/gu, '%3E')}>)`,
+    )
   if (references.length === 0) return document.text
   return `${references.join(' ')}${document.text.trim() ? `\n\n${document.text}` : ''}`
 }

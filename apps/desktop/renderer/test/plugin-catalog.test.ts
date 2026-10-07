@@ -37,6 +37,18 @@ function catalog(
   return mergePluginCatalog(PLUGIN_CATALOG_DESCRIPTORS, plugins, error)
 }
 
+test('computer control replaces its placeholder with one manageable plugin', () => {
+  const computer = { ...taskPlanning(false), id: 'computer-use', name: 'Computer Use' }
+  const entries = catalog([computer]).filter((item) => item.id === 'computer-use')
+  expect(entries).toHaveLength(1)
+  expect(entries[0]).toMatchObject({
+    status: 'disabled',
+    iconName: 'computer-use',
+    installed: true,
+    actionKind: 'toggle-plugin',
+  })
+})
+
 const miniMaxInstalled: MiniMaxCliStatus = {
   installationStatus: 'installed',
   installedVersion: '1.2.3',

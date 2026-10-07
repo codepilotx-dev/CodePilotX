@@ -134,6 +134,7 @@ export const PLUGIN_CATALOG_DESCRIPTORS = [
 ] as const satisfies readonly PluginCatalogDescriptor[]
 
 function runtimeIconName(id: string): PluginIconName {
+  if (id === 'computer-use') return 'computer-use'
   return id === 'task-planning' ? 'task-planning' : 'plugin'
 }
 
@@ -216,7 +217,8 @@ export function mergePluginCatalog(
         : {}),
     ...(!plugin.installed ? { availabilityLabel: '即将推出' } : {}),
   }))
-  return [...staticItems, ...runtimeItems]
+  const runtimeIds = new Set(runtimeItems.map((item) => item.id))
+  return [...staticItems.filter((item) => !runtimeIds.has(item.id)), ...runtimeItems]
 }
 
 export function filterPluginCatalog(

@@ -134,7 +134,6 @@ export type DesktopComposerProps = {
   onCloneGithub: () => void
   onClearWorkspace: () => void
   onOpenMcpSettings?: () => void
-  onOpenComputerSettings?: () => void
   onOpenModelSettings?: () => void
   onOpenSideChat?: () => void
   onForkConversation?: () => void
@@ -246,7 +245,6 @@ export function DesktopComposer({
   onCloneGithub,
   onClearWorkspace,
   onOpenMcpSettings,
-  onOpenComputerSettings,
   onOpenModelSettings,
   onOpenSideChat,
   onForkConversation,
@@ -467,7 +465,6 @@ export function DesktopComposer({
         onCloneGithub={onCloneGithub}
         onClearWorkspace={onClearWorkspace}
         onOpenMcpSettings={onOpenMcpSettings}
-        onOpenComputerSettings={onOpenComputerSettings}
         onOpenModelSettings={onOpenModelSettings}
         onOpenSideChat={onOpenSideChat}
         onForkConversation={onForkConversation}

@@ -9,6 +9,7 @@ import {
   skillInvocationFromComposerDocument,
   skillInvocationsFromComposerDocument,
 } from '../src/features/session/composer/composerSkillToken.js'
+import { contextTokensFromDocument } from '../src/features/session/composer/useDesktopComposerController.js'
 
 describe('composer skill inline token', () => {
   test('多个 Skill 标签往返保留身份与顺序，正文不携带命令', () => {
@@ -80,10 +81,41 @@ describe('composer skill inline token', () => {
           from: 2,
           to: 2,
         },
+        {
+          id: 'plugin:computer-use',
+          kind: 'plugin' as const,
+          label: 'Computer Use',
+          value: 'plugin://computer-use',
+          from: 2,
+          to: 2,
+        },
       ],
     }
 
     const proseMirrorDocument = composerDocumentToProseMirrorDocument(document)
     expect(composerDocumentFromProseMirrorDocument(proseMirrorDocument)).toEqual(document)
+  })
+
+  test('草稿收集保留插件引用 token，不随技能 token 一起丢弃', () => {
+    const tokens = [
+      {
+        id: 'skill-1',
+        kind: 'skill' as const,
+        name: 'review',
+        label: 'review',
+        value: 'skills/review',
+        from: 0,
+        to: 0,
+      },
+      {
+        id: 'plugin:computer-use',
+        kind: 'plugin' as const,
+        label: 'Computer Use',
+        value: 'plugin://computer-use',
+        from: 0,
+        to: 0,
+      },
+    ]
+    expect(contextTokensFromDocument(tokens)).toEqual([tokens[1]])
   })
 })

@@ -66,7 +66,7 @@ export const composerSchema = new Schema({
       toDOM: (node) => [
         'span',
         {
-          'aria-label': `${node.attrs.kind === 'browser' ? '网页' : '任务'}引用 ${node.attrs.label}`,
+          'aria-label': `${node.attrs.kind === 'browser' ? '网页' : node.attrs.kind === 'plugin' ? '插件' : '任务'}引用 ${node.attrs.label}`,
           'data-composer-token': node.attrs.kind,
           'data-token-id': node.attrs.id,
           contenteditable: 'false',
@@ -452,7 +452,8 @@ function textFromDocument(doc: EditorState['doc']): string {
 
 function composerTokenFromNode(node: ProseMirrorNode): ComposerDocumentToken | null {
   if (node.type.name === 'context_token') {
-    const kind = node.attrs.kind === 'browser' ? 'browser' : 'thread'
+    const kind =
+      node.attrs.kind === 'browser' || node.attrs.kind === 'plugin' ? node.attrs.kind : 'thread'
     return {
       id: String(node.attrs.id),
       kind,
@@ -483,7 +484,7 @@ function composerTokenNode(token: ComposerDocumentToken): ProseMirrorNode {
       value: token.value,
     })
   }
-  if (token.kind === 'thread' || token.kind === 'browser') {
+  if (token.kind === 'thread' || token.kind === 'browser' || token.kind === 'plugin') {
     return composerSchema.nodes.context_token.create({
       id: token.id,
       kind: token.kind,

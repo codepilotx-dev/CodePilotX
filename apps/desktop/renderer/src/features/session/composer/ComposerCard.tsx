@@ -83,7 +83,7 @@ import { resolveThinkingLabel, resolveThinkingOptions } from './ThinkingLevelPop
 import { ComposerStatusOverlay } from './ComposerStatusOverlay.js'
 import { ContextUsagePanel } from './ContextUsagePanel.js'
 import { ComputerControlChip } from './ComputerControlChip.js'
-import { useComputerState } from './useComputerState.js'
+import { usePluginCatalog } from '../../plugins/usePluginCatalog.js'
 import type { ComposerEditorHandle, ComposerEditorProps } from './ComposerEditor.js'
 import {
   DEFAULT_COMPOSER_CAPABILITIES,
@@ -344,7 +344,6 @@ type Props = {
   onCloneGithub?: () => void
   onClearWorkspace: () => void
   onOpenMcpSettings?: () => void
-  onOpenComputerSettings?: () => void
   onOpenModelSettings?: () => void
   onOpenSideChat?: () => void
   onForkConversation?: () => void
@@ -475,7 +474,6 @@ export function ComposerCard({
   onCloneGithub,
   onClearWorkspace,
   onOpenMcpSettings,
-  onOpenComputerSettings,
   onOpenModelSettings,
   onOpenSideChat,
   onForkConversation,
@@ -817,10 +815,14 @@ export function ComposerCard({
     [branchName, branches, onStartReview],
   )
 
-  const { state: computerState, supported: computerSupported } = useComputerState()
+  const { plugins } = usePluginCatalog(workspace?.path)
   const mentionMenuItems = useMemo((): ComposerMenuItem[] => {
     if (!activeContextRequest) return []
-    const insertReference = (kind: 'thread' | 'browser', label: string, value: string): void => {
+    const insertReference = (
+      kind: 'thread' | 'browser' | 'plugin',
+      label: string,
+      value: string,
+    ): void => {
       editorRef.current?.replaceTextRangeWithToken(
         activeContextRequest.start,
         activeContextRequest.end,
@@ -862,24 +864,25 @@ export function ComposerCard({
       ...attachmentActions,
       ...contextActions.filter((item) => item.command?.id === 'plan'),
     ]
-    const planning = skillCommands.find((command) => command.skill.name === 'task-planning')
-    if (capabilities.skills && !subagentMode)
-      items.push({
-        ...(planning
-          ? composerCommandMenuItem(planning, executeCommand, onSkillSelect)
-          : {
-              key: 'plugin:task-planning',
-              icon: <Brain size={APP_ICON_SIZE} />,
-              matchText: '规划任务 task planning',
-              onSelect: () => {},
-            }),
-        section: '插件',
-        label: '规划任务',
-        description:
-          planning?.description ??
-          (skillCatalogLoading ? '正在加载插件技能…' : '请先在插件设置中启用 task-planning'),
-        disabled: !planning,
-      })
+    if (!subagentMode)
+      items.push(
+        ...(plugins ?? [])
+          .filter((plugin) => plugin.installed && plugin.enabled && plugin.status === 'ready')
+          .map((plugin): ComposerMenuItem => ({
+            key: `plugin:${plugin.id}`,
+            section: '插件',
+            label: plugin.name,
+            description: plugin.description,
+            icon:
+              plugin.id === 'computer-use' ? (
+                <MonitorSmartphone size={APP_ICON_SIZE} />
+              ) : (
+                <Box size={APP_ICON_SIZE} />
+              ),
+            matchText: `${plugin.name} ${plugin.id} ${plugin.description}`,
+            onSelect: () => insertReference('plugin', plugin.name, `plugin://${plugin.id}`),
+          })),
+      )
     const threadItems: ComposerMenuItem[] = contextTasks.slice(0, 5).map((task) => ({
       key: `thread:${task.id}`,
       section: '引用会话',
@@ -890,32 +893,6 @@ export function ComposerCard({
       onSelect: () =>
         insertReference('thread', `任务：${task.title}`, buildThreadDeepLink(task.id)),
     }))
-    if (onOpenComputerSettings && computerSupported) {
-      items.push({
-        key: 'computer:use',
-        section: '插件',
-        label: '电脑操控',
-        description: !computerState?.enabled
-          ? '请先在电脑控制设置中开启功能。'
-          : computerState.policy?.valid === false
-            ? computerState.policy.reason
-            : !computerState.available
-              ? 'Windows 原生运行时尚未就绪，请查看设置。'
-              : permissionMode === 'full-access'
-                ? '直接读取和操作已运行应用。'
-                : '首次使用应用时，在聊天中确认授权。',
-        icon: <MonitorSmartphone size={APP_ICON_SIZE} />,
-        matchText: 'computer 电脑 控制 应用 窗口',
-        onSelect: () => {
-          editorRef.current?.replaceTextRange(
-            activeContextRequest.start,
-            activeContextRequest.end,
-            '使用电脑控制读取并操作已运行应用：',
-          )
-          closeDropdown()
-        },
-      })
-    }
     items.push(...threadItems)
     if (browserContext && !buttonContextOpen) {
       items.push({
@@ -1043,13 +1020,11 @@ export function ComposerCard({
     }
     return items
   }, [
+    plugins,
     builtinSlashCommands,
     executeCommand,
     onSkillSelect,
     buttonContextOpen,
-    skillCommands,
-    skillCatalogLoading,
-    capabilities.skills,
     subagentMode,
     onAddFiles,
     activeContextRequest,
@@ -1062,11 +1037,6 @@ export function ComposerCard({
     contextEntriesLoading,
     contextTasks,
     reloadContext,
-    onOpenComputerSettings,
-    computerSupported,
-    computerState,
-    onPermissionChange,
-    permissionMode,
     onAddFilePaths,
     workspace,
   ])

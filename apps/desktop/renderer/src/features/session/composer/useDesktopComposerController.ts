@@ -350,9 +350,13 @@ export function useDesktopComposerController({
     const unsubscribe = desktopClient.onRuntimeSkillsUpdated(() => {
       void load(true)
     })
+    const unsubscribePlugins = desktopClient.onPluginsUpdated(() => {
+      void load(true)
+    })
     return () => {
       cancelled = true
       unsubscribe()
+      unsubscribePlugins()
     }
   }, [draftKey, subagentMode, workspace?.path, skillsReloadVersion])
 
@@ -598,10 +602,12 @@ export function useDesktopComposerController({
   }
 }
 
-function contextTokensFromDocument(
+export function contextTokensFromDocument(
   tokens: readonly ComposerDocumentToken[],
 ): ComposerDocumentToken[] {
-  return tokens.filter((token) => token.kind === 'thread' || token.kind === 'browser')
+  return tokens.filter(
+    (token) => token.kind === 'thread' || token.kind === 'browser' || token.kind === 'plugin',
+  )
 }
 
 function sameContextTokens(
