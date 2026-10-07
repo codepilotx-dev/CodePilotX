@@ -32,7 +32,7 @@ export type ToolActivityIconKind =
   | 'tool'
 
 export type ToolActivitySegment =
-  | { kind: 'verb' | 'text' | 'target'; text: string }
+  | { kind: 'verb' | 'text' | 'target' | 'duration'; text: string }
   | { kind: 'file'; text: string; workspacePath?: string }
 
 export type ToolSemanticSummary = {
@@ -116,15 +116,8 @@ function commandStateSegments(
   target: readonly ToolActivitySegment[],
   duration: string | null,
 ): ToolActivitySegment[] {
-  if (item.state === 'completed') {
-    const segments: ToolActivitySegment[] = [...target]
-    if (duration) {
-      segments.push({ kind: 'text', text: ` · ${duration}` })
-    }
-    return segments
-  }
   const verb = stateVerb(item, {
-    completed: '',
+    completed: '已运行',
     error: '运行失败',
     interrupted: '已停止执行',
     running: '正在运行',
@@ -134,7 +127,7 @@ function commandStateSegments(
     segments.push({ kind: 'verb', text: `${verb} ` })
   }
   segments.push(...target)
-  if (duration) segments.push({ kind: 'text', text: ` · ${duration}` })
+  if (duration) segments.push({ kind: 'duration', text: ` · ${duration}` })
   return segments
 }
 
@@ -290,7 +283,7 @@ export function buildToolSemanticSummary(
       }
       if (special) {
         const duration = commandDuration(item, options.nowMs)
-        if (duration) segments.push({ kind: 'text', text: ` · ${duration}` })
+        if (duration) segments.push({ kind: 'duration', text: ` · ${duration}` })
       }
       return summary(
         segments,
@@ -464,7 +457,9 @@ export function ToolActivityLabel({
                   ? 'cpx-agent-activity__target'
                   : segment.kind === 'target'
                     ? 'cpx-agent-activity__target'
-                    : undefined
+                    : segment.kind === 'duration'
+                      ? 'cpx-agent-activity__duration'
+                      : undefined
             }
             key={key}
           >

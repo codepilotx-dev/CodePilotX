@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 import React, { useContext, useEffect, useRef, useState } from 'react'
-import { Check, Copy, Pencil } from 'lucide-react'
+import { Check, Copy, Pencil, WrapText } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 
 import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
@@ -12,10 +12,12 @@ import { formatSyntaxLanguageLabel, normalizeSyntaxLanguage } from './language.j
 import type { SyntaxHighlightResult, SyntaxToken } from './types.js'
 import { resolveThemeId } from './theme.js'
 import { useHighlightedCode } from './useHighlightedCode.js'
+import { useCodeWrapPreference } from './wrapPreference.js'
 
 const COPY_FEEDBACK_DURATION_MS = 2_000
 
 export type CodeBlockProps = {
+  showWrapControl?: boolean
   collapsible?: boolean
   surface?: 'standalone' | 'embedded'
   ariaLabel?: string
@@ -31,6 +33,7 @@ export type CodeBlockProps = {
 }
 
 export function CodeBlock({
+  showWrapControl = false,
   collapsible = false,
   surface = 'standalone',
   ariaLabel,
@@ -44,6 +47,8 @@ export function CodeBlock({
   onChangeCode,
   onChangeLanguage,
 }: CodeBlockProps): ReactNode {
+  const [wrapPreference, setWrapPreference] = useCodeWrapPreference()
+  const wrapped = showWrapControl && wrapPreference
   const themeContext = useContext(DesktopThemeContext)
   const variant: DesktopThemeVariant =
     themeContext?.activeTheme.variant ??
@@ -135,7 +140,7 @@ export function CodeBlock({
         'tw:max-w-full',
         'tw:font-mono',
         !wrapContent && 'tw:overflow-x-auto',
-        'tw:whitespace-pre',
+        wrapped ? 'tw:whitespace-pre-wrap' : 'tw:whitespace-pre',
         onChangeCode && !isEditingCode && 'tw:cursor-text',
       )}
     >
@@ -191,6 +196,7 @@ export function CodeBlock({
 
   return (
     <figure
+      data-wrapped={wrapped}
       data-surface={surface}
       aria-label={ariaLabel ?? `${languageLabel} 代码块`}
       className={cx(
@@ -249,6 +255,18 @@ export function CodeBlock({
         </figcaption>
       ) : null}
       <span className="md-code-actions tw:flex tw:items-center">
+        {showWrapControl ? (
+          <button
+            className="md-code-wrap tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-control tw:border-0 tw:text-app-text-soft tw:cursor-pointer tw:focus-visible:ring-1 tw:focus-visible:ring-app-accent"
+            type="button"
+            aria-label="代码自动换行"
+            title="代码自动换行"
+            aria-pressed={wrapped}
+            onClick={() => setWrapPreference(!wrapPreference)}
+          >
+            <WrapText aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          </button>
+        ) : null}
         {onChangeCode && !isEditingCode ? (
           <Button isIconOnly
             color="ghostSecondary"
@@ -323,6 +341,6 @@ export function syntaxTokenStyle(token: SyntaxToken): CSSProperties {
   return style
 }
 
-async function copyCodeText(code: string): Promise<void> {
+export async function copyCodeText(code: string): Promise<void> {
   await desktopClipboard.writeText(code)
 }

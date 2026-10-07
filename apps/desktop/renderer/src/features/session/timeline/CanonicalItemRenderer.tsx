@@ -72,6 +72,8 @@ import {
 import { isSchedulePlanTool, SchedulePlanCard } from './SchedulePlanCard.js'
 import { QuestionItemView } from './QuestionItemView.js'
 import { CopyButton } from './CopyButton.js'
+import { isShellTool, ToolCommandCard, toolDetailKind } from './ToolCommandCard.js'
+export { isShellTool } from './ToolCommandCard.js'
 import { cx } from '../../../utils/cx.js'
 import { ResultCardView } from './ResultCardView.js'
 import { safeCitationUrl } from './citationUrl.js'
@@ -208,11 +210,17 @@ export function CanonicalUserInput({
   attachments,
   contextReferences,
   input,
+  registerInputRow,
 }: {
   attachments: readonly Attachment[]
   contextReferences: readonly LocalContextReference[]
   input: Input
+  registerInputRow?: (inputId: string, node: HTMLElement | null) => void
 }): React.ReactNode {
+  const inputRef = React.useCallback(
+    (node: HTMLElement | null) => registerInputRow?.(input.id, node),
+    [input.id, registerInputRow],
+  )
   const {
     canCopyFileReferenceContents,
     onCopyFileReferenceContents,
@@ -303,7 +311,11 @@ export function CanonicalUserInput({
 
   if (editing) {
     return (
-      <article className="canonical-user-message canonical-user-message--editing">
+      <article
+        ref={inputRef}
+        data-input-navigation-id={input.id}
+        className="canonical-user-message canonical-user-message--editing"
+      >
         <div className="canonical-user-message__editor-surface">
           {retainedAttachments.length > 0 ? (
             <React.Suspense fallback={null}>
@@ -382,7 +394,7 @@ export function CanonicalUserInput({
   }
 
   return (
-    <article className="canonical-user-message">
+    <article ref={inputRef} data-input-navigation-id={input.id} className="canonical-user-message">
       {attachments.length > 0 ? (
         <React.Suspense fallback={null}>
           <LazyThreadAttachmentRows attachments={attachments} onOpen={onOpenAttachment} />
@@ -418,7 +430,8 @@ export function CanonicalUserInput({
       <div className="canonical-message-actions" aria-label="用户消息操作">
         <CopyButton text={displayText} />
         <Tooltip content="修改并重新发送">
-          <Button isIconOnly
+          <Button
+            isIconOnly
             aria-label="修改并重新发送"
             color="ghostSecondary"
             size="toolbar"
@@ -438,7 +451,7 @@ export function CanonicalUserInput({
  * control row, icon/label/chevron grid and the standard hover/focus states.
  */
 export const PROCESS_CARD_SUMMARY_CLASS =
-  'canonical-process-card__summary tw:grid tw:w-fit tw:max-w-full tw:min-h-[26px] tw:grid-cols-[var(--cpx-sys-icon-size-sm)_minmax(0,auto)_var(--cpx-sys-icon-size-sm)] tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-sm tw:border-0 tw:bg-transparent tw:p-0.5 tw:px-2 tw:text-left tw:text-inherit tw:transition-colors tw:duration-state tw:ease-out tw:hover:bg-app-hover tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus'
+  'canonical-process-card__summary tw:grid tw:w-fit tw:max-w-full tw:min-h-[26px] tw:grid-cols-[var(--cpx-sys-icon-size-sm)_minmax(0,auto)_var(--cpx-sys-icon-size-sm)] tw:cursor-pointer tw:items-center tw:gap-2 tw:rounded-sm tw:border-0 tw:bg-transparent tw:p-0.5 tw:px-2 tw:text-left tw:text-inherit tw:transition-colors tw:duration-state tw:ease-out tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-offset-1 tw:focus-visible:outline-app-focus'
 
 export function CanonicalItemRenderer({
   disclosure,
@@ -589,6 +602,7 @@ function TextItemView({
     >
       <ConversationMarkdownErrorBoundary contentKey={`${item.id}:${text}`}>
         <MarkdownMessage
+          presentation="conversation"
           canCopyFileReferenceContents={canCopyFileReferenceContents}
           cwd={workspacePath}
           onCopyFileReferenceContents={onCopyFileReferenceContents}
@@ -602,7 +616,8 @@ function TextItemView({
           <CopyButton text={item.text} />
           {item.placement === 'result' && item.status === 'completed' && onForkFromMessage ? (
             <Tooltip content="在新聊天中继续">
-              <Button isIconOnly
+              <Button
+                isIconOnly
                 aria-label="在新聊天中继续"
                 color="ghostSecondary"
                 size="toolbar"
@@ -691,7 +706,11 @@ function ReasoningItemView({
         mountPolicy="until-exit"
       >
         <ConversationMarkdownErrorBoundary contentKey={`${item.id}:${text}`}>
-          <MarkdownMessage text={text || '正在整理思路…'} streaming={streaming} />
+          <MarkdownMessage
+            presentation="conversation"
+            text={text || '正在整理思路…'}
+            streaming={streaming}
+          />
         </ConversationMarkdownErrorBoundary>
       </DisclosureContent>
     </div>
@@ -878,6 +897,7 @@ export function ToolItemView({
         mountPolicy="until-exit"
       >
         <ToolExecutionCard
+          expanded={expanded}
           item={item}
           presentation={presentation}
           threadId={threadId}
@@ -888,7 +908,7 @@ export function ToolItemView({
   )
 }
 
-export function resolveShellTag(item: ToolItem): string {
+export function resolveShellTag(item: ToolItem): string | null {
   const rawTool = (item.tool ?? '').trim().toLowerCase()
   const toolLeaf = rawTool.split(/[./]/).at(-1) ?? ''
 
@@ -916,23 +936,100 @@ export function resolveShellTag(item: ToolItem): string {
   if (toolLeaf === 'cmd') return 'cmd'
   if (toolLeaf === 'fish') return 'fish'
   if (toolLeaf === 'bash') return 'bash'
+  if (
+    toolLeaf === 'shell' ||
+    toolLeaf === 'exec' ||
+    toolLeaf === 'terminal' ||
+    toolLeaf === 'run_command' ||
+    toolLeaf === 'execute_command'
+  ) {
+    return 'Shell'
+  }
 
-  return 'Shell'
+  if (command) return 'Shell'
+
+  return null
+}
+
+export function resolveToolContentLanguage(
+  item: ToolItem,
+  content: string,
+): { language: string; headerLabel: string | null } {
+  const shellTag = resolveShellTag(item)
+  if (shellTag) {
+    const lang =
+      shellTag === 'pwsh' ? 'powershell' : shellTag === 'cmd' ? 'bat' : 'shellscript'
+    return { language: lang, headerLabel: shellTag }
+  }
+  const trimmed = (content ?? '').trim()
+  if (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  ) {
+    try {
+      JSON.parse(trimmed)
+      return { language: 'json', headerLabel: 'json' }
+    } catch {
+      // not valid JSON
+    }
+  }
+  return { language: 'text', headerLabel: null }
+}
+
+export function resolveToolResultLanguage(resultText: string): {
+  language: string
+  headerLabel: string | null
+} {
+  const trimmed = (resultText ?? '').trim()
+  if (
+    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+    (trimmed.startsWith('[') && trimmed.endsWith(']'))
+  ) {
+    try {
+      JSON.parse(trimmed)
+      return { language: 'json', headerLabel: 'json' }
+    } catch {
+      // not valid JSON
+    }
+  }
+  return { language: 'text', headerLabel: null }
 }
 
 export const ToolExecutionCard = React.memo(function ToolExecutionCard({
+  expanded = true,
   item,
   presentation = 'standalone',
   threadId,
   view,
 }: {
+  expanded?: boolean
   item: ToolItem
   presentation?: CanonicalItemRendererProps['presentation']
   threadId?: string
   view: ToolItemDisplay
 }): React.ReactNode {
   const embedded = presentation === 'grouped'
-  const shellTag = resolveShellTag(item)
+  const executionLang = resolveToolContentLanguage(item, view.executionContent)
+  const resultLang = view.resultText ? resolveToolResultLanguage(view.resultText) : null
+  const detailKind = toolDetailKind(item)
+  if (detailKind === 'command') {
+    return (
+      <ToolCommandCard
+        key={`${threadId ?? ''}:${item.id}`}
+        item={item}
+        command={item.command?.trim() ? item.command : view.executionContent}
+        output={view.resultText}
+        statusLabel={view.statusLabel}
+        expanded={expanded}
+        grouped={embedded}
+      >
+        {item.resultBlocks?.length ? (
+          <ToolResultBlocksView item={item} renderedResultText={view.resultText} threadId={threadId} />
+        ) : null}
+      </ToolCommandCard>
+    )
+  }
+
   return (
     <article
       className={cx(
@@ -942,32 +1039,39 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
       data-state={item.state}
     >
       <div className="canonical-command-shell__body tw:flex tw:min-w-0 tw:flex-col">
-        <CodeBlock
+        {detailKind !== 'result' ? <CodeBlock
           surface="embedded"
-          collapsible
+          showWrapControl
           ariaLabel="执行内容"
-          headerLabel={shellTag}
+          headerLabel={executionLang.headerLabel}
           copyLabel="复制执行内容"
           code={view.executionContent}
-          language="text"
+          language={executionLang.language}
           streaming={view.active}
-        />
-        {view.resultText ? (
-          <CodeBlock
-            surface="embedded"
-            ariaLabel="返回结果"
-            headerLabel={null}
-            copyLabel="复制返回结果"
-            code={view.resultText}
-            language="text"
-            streaming={view.active}
-            wrapContent={(content) => (
-              <CommandShellEmbeddedScroll>{content}</CommandShellEmbeddedScroll>
-            )}
-          />
+        /> : null}
+        {view.resultText && resultLang ? (
+          <div className="canonical-command-shell__result tw:border-t tw:border-app-border-subtle">
+            <CodeBlock
+              surface="embedded"
+              showWrapControl
+              ariaLabel="返回结果"
+              headerLabel={resultLang.headerLabel}
+              copyLabel="复制返回结果"
+              code={view.resultText}
+              language={resultLang.language}
+              streaming={view.active}
+              wrapContent={(content) => (
+                <CommandShellEmbeddedScroll>{content}</CommandShellEmbeddedScroll>
+              )}
+            />
+          </div>
         ) : null}
         {item.resultBlocks?.length ? (
-          <ToolResultBlocksView item={item} threadId={threadId} />
+          <ToolResultBlocksView
+            item={item}
+            renderedResultText={view.resultText}
+            threadId={threadId}
+          />
         ) : null}
       </div>
       <footer className="canonical-command-shell__footer tw:flex tw:min-h-6 tw:items-center tw:justify-end tw:border-t-0 tw:bg-transparent tw:px-3 tw:pt-0 tw:pb-2">
@@ -986,19 +1090,13 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
   )
 })
 
-/**
- * 分组呈现时把 command shell 输出包进滚动边界 frame：内层负责滚动，
- * 外层顶部与底部伪元素按滚动状态显示固定的静态渐隐。
- */
-function wrapEmbeddedOutput(embedded: boolean, output: React.ReactNode): React.ReactNode {
-  return embedded ? <CommandShellEmbeddedScroll>{output}</CommandShellEmbeddedScroll> : output
-}
-
 function ToolResultBlocksView({
   item,
+  renderedResultText,
   threadId,
 }: {
   item: ToolItem
+  renderedResultText?: string | null
   threadId?: string
 }): React.ReactNode {
   const blocks = item.resultBlocks ?? []
@@ -1011,6 +1109,17 @@ function ToolResultBlocksView({
     if (block.type === 'text') {
       if (isProcessEnvelope(block.text)) {
         return false
+      }
+      if (renderedResultText) {
+        const blockText = block.text.trim()
+        const resultText = renderedResultText.trim()
+        if (
+          blockText &&
+          (blockText === resultText ||
+            resultText.split('\n').some((line) => line.trim() === blockText))
+        ) {
+          return false
+        }
       }
     }
     return true
@@ -1501,7 +1610,7 @@ export function buildToolItemDisplay(item: ToolItem, nowMs?: number): ToolItemDi
     structuredDetail?.executionContent ?? command ?? safeInput ?? fallbackExecution
   const rawResultText = structuredDetail
     ? structuredDetail.resultText
-    : appendToolError(nonBlank(item.output), nonBlank(item.error))
+    : appendToolError(cleanCommandOutput(nonBlank(item.output)), nonBlank(item.error))
   const resultText = cleanCommandOutput(rawResultText)
   const active = isActiveToolState(item.state)
   const terminal = !active
@@ -1509,7 +1618,9 @@ export function buildToolItemDisplay(item: ToolItem, nowMs?: number): ToolItemDi
 
   return {
     active,
-    canExpand: terminal || resultText !== null,
+    canExpand: toolDetailKind(item) === 'result'
+      ? resultText !== null || Boolean(item.resultBlocks?.length)
+      : terminal || resultText !== null,
     collapsedLabel: semanticSummary.collapsedLabel,
     executionContent,
     expandedLabel: semanticSummary.expandedLabel,
@@ -1676,7 +1787,7 @@ function parsedToolOutput(output: string | null): ParsedToolOutput {
 }
 
 function appendToolError(result: string | null, error: string | null): string | null {
-  if (result && error) return `${result}\n${error}`
+  if (result && error && result.trim() !== error.trim()) return `${result}${result.endsWith('\n') ? '' : '\n'}${error}`
   return result ?? error
 }
 
@@ -1742,14 +1853,6 @@ export function isProcessEnvelope(value: unknown): boolean {
   return false
 }
 
-export function isShellTool(tool: string | null | undefined): boolean {
-  if (!tool) return false
-  const leaf = tool.split(/[./]/).at(-1)?.toLowerCase() ?? ''
-  return /^(shell|bash|powershell|pwsh|cmd|exec|terminal|command|run_command|execute_command)/i.test(
-    leaf,
-  )
-}
-
 /**
  * 清洗工具执行输出：
  * 若输出为底层进程通信包装的 JSON（含 exitCode / stdout / stderr / timedOut 等），
@@ -1769,10 +1872,11 @@ export function cleanCommandOutput(rawText: string | null): string | null {
     try {
       const parsed = JSON.parse(cleanStr)
       if (isProcessEnvelope(parsed)) {
-        const stdout = typeof parsed.stdout === 'string' ? parsed.stdout.trim() : ''
-        const stderr = typeof parsed.stderr === 'string' ? parsed.stderr.trim() : ''
-        const combined = [stdout, stderr].filter(Boolean).join('\n')
-        return combined || null
+        const record = parsed.result && typeof parsed.result === 'object' ? parsed.result : parsed
+        const stdout = typeof record.stdout === 'string' ? record.stdout : ''
+        const stderr = typeof record.stderr === 'string' ? record.stderr : ''
+        const combined = stdout + (stdout && stderr && !stdout.endsWith('\n') ? '\n' : '') + stderr
+        return combined.trim() ? combined : null
       }
     } catch {
       // 保持原样文本

@@ -397,6 +397,7 @@
   /* System Radius (Semantic Roles) */
   --cpx-sys-radius-indicator: var(--cpx-sys-radius-xs);
   --cpx-sys-radius-compact: var(--cpx-sys-radius-xs);
+  --cpx-sys-radius-inline-code: 6px;
   --cpx-sys-radius-item: var(--cpx-sys-radius-sm);
   --cpx-sys-radius-control: var(--cpx-sys-radius-md);
   --cpx-sys-radius-item-lg: var(--cpx-sys-radius-md);
@@ -441,6 +442,7 @@
   --cpx-sys-line-height-normal: var(--cpx-sys-line-height-body);
   --cpx-sys-line-height-relaxed: var(--cpx-sys-line-height-body-lg);
   --cpx-sys-line-height-reading: var(--cpx-sys-line-height-body);
+  --cpx-sys-line-height-prose: 1.625;
   --cpx-sys-line-height-code: 1.5;
 
   --cpx-sys-letter-spacing-caption: 0;

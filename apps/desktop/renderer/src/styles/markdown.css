@@ -295,13 +295,13 @@
     top: var(--cpx-sys-space-2);
   }
   .md-code-block[data-surface="embedded"] > .md-code-header + .md-code-actions {
-    top: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-2));
+    top: 0;
   }
 
   .md-code-surface {
     overflow: hidden;
     border: 1px solid var(--cpx-sys-color-border-subtle);
-    border-radius: 0;
+    border-radius: var(--cpx-sys-radius-container);
     background: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent);
   }
 
@@ -691,6 +691,95 @@
     margin: 8px 0 0;
   }
 
+  /* 会话排版只消费公共刻度，不改变其他宿主的 reading 角色。 */
+  .md-body--conversation {
+    line-height: var(--cpx-sys-line-height-prose);
+    letter-spacing: var(--cpx-sys-letter-spacing-code);
+  }
+  .md-body--conversation :is(p, blockquote, ul, ol, dl) {
+    margin-block: 1em;
+  }
+  .md-body--conversation :is(h1, h2, h3) {
+    font-family: inherit;
+    font-weight: var(--cpx-sys-font-weight-bold);
+    line-height: var(--cpx-sys-line-height-heading-sm);
+    letter-spacing: inherit;
+  }
+  .md-body--conversation h1 {
+    font-size: calc(var(--cpx-sys-font-size-md) * 1.5);
+    margin-block: var(--cpx-sys-font-size-md) calc(var(--cpx-sys-font-size-md) / 2);
+  }
+  .md-body--conversation h2 {
+    font-size: calc(var(--cpx-sys-font-size-md) * 1.25);
+    margin-block: var(--cpx-sys-font-size-md) calc(var(--cpx-sys-font-size-md) / 4);
+  }
+  .md-body--conversation h3 {
+    font-size: calc(var(--cpx-sys-font-size-md) * 1.125);
+    margin-block: var(--cpx-sys-font-size-md) calc(var(--cpx-sys-font-size-md) / 4);
+  }
+  .md-body--conversation li + li {
+    margin-top: calc(var(--cpx-sys-space-1) * 1.5);
+  }
+  .md-body--conversation li > :is(ul, ol) {
+    margin-top: var(--cpx-sys-space-1);
+  }
+  .md-body--conversation blockquote {
+    padding: 0 var(--cpx-sys-space-3);
+    background: transparent;
+  }
+  .md-body--conversation :not(pre) > code {
+    padding: 1px 6px;
+    border-radius: var(--cpx-sys-radius-inline-code);
+    font-size: 0.92em;
+  }
+  .md-body--conversation .md-code-block {
+    margin-block: var(--cpx-sys-space-4);
+    border-radius: var(--cpx-sys-radius-container);
+  }
+  .md-body--conversation > :first-child {
+    margin-top: 0;
+  }
+  .md-body--conversation > :last-child {
+    margin-bottom: 0;
+  }
+  .md-body--conversation .md-table-block table {
+    font-size: 0.875em;
+    line-height: var(--cpx-sys-line-height-prose);
+  }
+  .md-body--conversation .md-table-actions {
+    position: static;
+    display: flex;
+    justify-content: flex-end;
+    min-height: var(--cpx-sys-space-8);
+  }
+  .md-body--conversation .md-table-actions > button {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .md-body--conversation .md-table-block:is(:hover, :focus-within) .md-table-actions > button {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .md-body--conversation .md-table-status {
+    margin: 0;
+    color: var(--cpx-sys-color-fg-secondary);
+    font: var(--cpx-sys-type-caption);
+  }
+  .md-code-block[data-wrapped='true'] .md-code-content {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .md-code-block[data-wrapped='true'] .md-code-editor-textarea {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .md-code-wrap {
+    background: transparent;
+  }
+  .md-code-wrap:is(:hover, [aria-pressed='true']) {
+    background: var(--cpx-sys-color-hover);
+    color: var(--cpx-sys-color-fg-primary);
+  }
   .md-streaming-fragment {
     display: inline;
     animation: md-streaming-fade var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out);

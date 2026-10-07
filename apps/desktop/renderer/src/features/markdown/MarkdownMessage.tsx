@@ -7,6 +7,7 @@ import {
   Check,
   Code2,
   Copy,
+  Download,
   FileText,
   FolderOpen,
   Info,
@@ -68,6 +69,7 @@ export function handleMarkdownThreadLinkClick(
 }
 
 export type MarkdownMessageProps = {
+  presentation?: 'default' | 'conversation'
   allowBasicHtml?: boolean
   allowWideBlocks?: boolean
   cwd?: string | null
@@ -83,6 +85,7 @@ export type MarkdownMessageProps = {
 }
 
 type RenderContext = {
+  presentation: 'default' | 'conversation'
   allowBasicHtml: boolean
   allowWideBlocks: boolean
   cwd: string | null
@@ -102,6 +105,7 @@ type RenderContext = {
 }
 
 export function MarkdownMessage({
+  presentation = 'default',
   allowBasicHtml = false,
   allowWideBlocks = true,
   cwd = null,
@@ -132,6 +136,7 @@ export function MarkdownMessage({
   }, [sourceText, streaming])
   const context = useMemo<RenderContext>(
     () => ({
+      presentation,
       allowBasicHtml,
       allowWideBlocks,
       cwd,
@@ -148,6 +153,7 @@ export function MarkdownMessage({
       streamingFragment: '',
     }),
     [
+      presentation,
       allowWideBlocks,
       allowBasicHtml,
       cwd,
@@ -164,7 +170,11 @@ export function MarkdownMessage({
   )
   if (blocks.length === 0) return null
   return (
-    <div className={streaming ? 'md-body is-streaming' : 'md-body'}>
+    <div className={cx(
+      'md-body',
+      presentation === 'conversation' && 'md-body--conversation',
+      streaming && 'is-streaming',
+    )}>
       {blocks.map((block) => (
         <MemoizedMarkdownBlock block={block} context={context} key={block.id} />
       ))}
@@ -519,7 +529,12 @@ function renderCode(
       }
       key={key}
     >
-      <CodeBlock code={code} language={normalizedLanguage} streaming={streaming} />
+      <CodeBlock
+        code={code}
+        language={normalizedLanguage}
+        streaming={streaming}
+        showWrapControl={context.presentation === 'conversation'}
+      />
     </LazyRender>
   )
 }
@@ -644,7 +659,17 @@ function MarkdownTable({
   table: Tokens.Table
 }): React.ReactNode {
   const [copied, setCopied] = React.useState(false)
+  const [downloadStatus, setDownloadStatus] = React.useState('')
   const html = tableToHtml(table)
+
+  async function downloadTable(): Promise<void> {
+    try {
+      await saveMarkdownTableCsv(table)
+      setDownloadStatus('已下载表格')
+    } catch {
+      setDownloadStatus('下载失败，请重试')
+    }
+  }
 
   async function copyTable(): Promise<void> {
     try {
@@ -659,6 +684,19 @@ function MarkdownTable({
   return (
     <figure className={cx('md-table-block', context.allowWideBlocks && 'md-wide-block')}>
       <div className="md-table-actions">
+        {context.presentation === 'conversation' ? (
+          <Button
+            isIconOnly
+            color="ghostSecondary"
+            size="toolbar"
+            aria-label="下载 CSV"
+            title="下载 CSV"
+            type="button"
+            onClick={() => void downloadTable()}
+          >
+            <Download aria-hidden="true" size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+          </Button>
+        ) : null}
         <Button
           isIconOnly
           className={cx('md-table-copy', copied && 'is-copied')}
@@ -675,6 +713,7 @@ function MarkdownTable({
           )}
         </Button>
       </div>
+      {downloadStatus ? <p className="md-table-status" role="status">{downloadStatus}</p> : null}
       <div className="md-table-scroll" tabIndex={0}>
         <table>
           <thead>
@@ -978,6 +1017,28 @@ function tableToHtml(table: Tokens.Table): string {
 
 function tableCellText(cell: Tokens.TableCell): string {
   return cell.tokens.map(tokenText).join('')
+}
+
+export function markdownTableToCsv(table: Tokens.Table): string {
+  const rows = [table.header, ...table.rows]
+  return '\uFEFF' + rows.map((row) =>
+    row.map((cell) => {
+      const value = tableCellText(cell)
+      // CSV 单元格会被 Excel 解释为公式；沿用 ZCode 的前缀保护，保留原 Markdown。
+      const safeValue = /^[\t\r\n]/u.test(value) || /^[\s]*[=+\-@]/u.test(value) ? `'${value}` : value
+      return /[",\r\n]/u.test(safeValue) ? `"${safeValue.replaceAll('"', '""')}"` : safeValue
+    }).join(','),
+  ).join('\r\n')
+}
+
+export function saveMarkdownTableCsv(table: Tokens.Table) {
+  return desktopClient.saveAttachmentToDownloads({
+    kind: 'text',
+    name: 'table.csv',
+    mediaType: 'text/csv',
+    encoding: 'utf8',
+    data: markdownTableToCsv(table),
+  })
 }
 
 function tokenText(token: Token): string {

@@ -71,7 +71,7 @@ describe('collapsible user Markdown', () => {
     expect(attributes.has('aria-hidden')).toBe(false)
   })
 
-  test('does not set margin-block space-3 token on user message markdown p', async () => {
+  test('shares conversation paragraph rhythm without duplicating the old space-3 override', async () => {
     const fs = await import('node:fs/promises')
     const path = await import('node:path')
     const scssPath = path.resolve(
@@ -80,14 +80,14 @@ describe('collapsible user Markdown', () => {
     )
     const content = await fs.readFile(scssPath, 'utf-8')
 
-    // 用户消息气泡共享列表与首尾节点节奏；space-3 段落间距只属于
-    // process/result 文本项，气泡不参与该段落规则（原 SCSS 嵌套块检查的
-    // 等价形式：读取段落规则的 selector 列表）。
+    const markdown = await fs.readFile(path.resolve(import.meta.dir, '../src/styles/markdown.css'), 'utf-8')
+    // 会话用户消息与助手回复共享一个字号的段落间距，测量容器同步实际行高。
     const paragraphMarginSelectors = content.match(
       /([^{}]+)\{\s*p\s*\{[^}]*margin-block:\s*var\(--cpx-sys-space-3\);[^}]*\}/,
     )?.[1]
-    expect(paragraphMarginSelectors).toBeDefined()
-    expect(paragraphMarginSelectors).toContain('.canonical-text-item--process > .md-body')
-    expect(paragraphMarginSelectors).not.toContain('.canonical-user-message__bubble')
+    expect(paragraphMarginSelectors).toBeUndefined()
+    expect(markdown).toContain('.md-body--conversation :is(p, blockquote, ul, ol, dl)')
+    expect(markdown).toContain('margin-block: 1em;')
+    expect(content).toContain('line-height: var(--cpx-sys-line-height-prose);')
   })
 })

@@ -30,11 +30,11 @@ export function setCodeWrapPreference(nextValue: boolean): void {
 }
 
 export function useCodeWrapPreference(): readonly [boolean, (nextValue: boolean) => void] {
-  const value = useSyncExternalStore(subscribe, readCodeWrapPreference, () => false)
+  const value = useSyncExternalStore(subscribeCodeWrapPreference, readCodeWrapPreference, () => false)
   return [value, setCodeWrapPreference] as const
 }
 
-function subscribe(listener: () => void): () => void {
+export function subscribeCodeWrapPreference(listener: () => void): () => void {
   listeners.add(listener)
   if (typeof window === 'undefined') {
     return () => listeners.delete(listener)

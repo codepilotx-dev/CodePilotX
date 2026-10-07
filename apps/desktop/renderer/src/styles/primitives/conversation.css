@@ -39,8 +39,8 @@
     --thread-scroll-content-bottom-gap: 24px;
     --conversation-shift-offset: 0px;
     --conversation-rail-inline-start: var(--cpx-sys-space-2);
-    --conversation-rail-width: var(--cpx-sys-space-8);
-    --conversation-rail-gap: var(--cpx-sys-space-2);
+    --conversation-rail-width: 36px;
+    --conversation-rail-gap: var(--cpx-sys-space-1);
     --conversation-content-inline-start: calc(
       var(--conversation-rail-inline-start) + var(--conversation-rail-width) +
         var(--conversation-rail-gap)
@@ -49,7 +49,7 @@
     --session-content-w: calc(
       100% - var(--conversation-content-inline-start) - var(--conversation-content-inline-end)
     );
-    --conversation-item-gap: var(--cpx-sys-space-3);
+    --conversation-item-gap: var(--cpx-sys-space-4);
     --conversation-grouped-item-gap: 4px;
     --thread-resource-row-padding-x: 12px;
   }
@@ -91,7 +91,8 @@
     --conversation-shift-offset: 0px;
   }
 
-  .conversation-page .workflow-page__main[data-thread-summary-inline='true'][data-thread-summary-mode='shift'] {
+  .conversation-page
+    .workflow-page__main[data-thread-summary-inline='true'][data-thread-summary-mode='shift'] {
     --conversation-shift-offset: -154px;
   }
 
@@ -183,7 +184,7 @@
     contain-intrinsic-block-size: auto 420px;
     container-type: inline-size;
     display: grid;
-    gap: var(--cpx-sys-space-3);
+    gap: var(--cpx-sys-space-4);
     width: min(var(--page-content-max-width), var(--session-content-w));
     max-width: var(--page-content-max-width);
     min-width: 0;
@@ -219,7 +220,7 @@
   }
 
   .canonical-turn__process {
-    gap: var(--cpx-sys-space-3);
+    gap: var(--cpx-sys-space-4);
   }
 
   .canonical-turn__process > .cpx-agent-activity > .cpx-agent-activity__header,
@@ -501,7 +502,8 @@
     margin: 0;
   }
 
-  .canonical-user-message__editor-surface .composer-editor-content[data-placeholder].is-empty::before {
+  .canonical-user-message__editor-surface
+    .composer-editor-content[data-placeholder].is-empty::before {
     position: absolute;
     color: var(--cpx-sys-color-fg-tertiary);
     content: attr(data-placeholder);
@@ -524,6 +526,10 @@
    * getComputedStyle on this element, so the reading rhythm must stay reachable
    * from the bubble down to every markdown node.
    */
+  .user-message-markdown {
+    line-height: var(--cpx-sys-line-height-prose);
+    letter-spacing: var(--cpx-sys-letter-spacing-code);
+  }
   .user-message-markdown__measurement .md-body {
     color: inherit;
     font-size: inherit;
@@ -566,42 +572,6 @@
   .canonical-text-item:hover .canonical-message-actions,
   .canonical-text-item:focus-within .canonical-message-actions {
     opacity: 1;
-  }
-
-  /* ── Narrative markdown rhythm ── */
-
-  .canonical-user-message__bubble .md-body,
-  .canonical-text-item--process > .md-body,
-  .canonical-text-item--result > .md-body {
-    blockquote,
-    ul,
-    ol,
-    dl {
-      margin-block: var(--cpx-sys-space-3);
-    }
-
-    li + li {
-      margin-top: calc(var(--cpx-sys-space-1) / 2);
-    }
-
-    > :first-child {
-      margin-top: 0;
-    }
-
-    > :last-child {
-      margin-bottom: 0;
-    }
-  }
-
-  .canonical-text-item--process > .md-body,
-  .canonical-text-item--result > .md-body {
-    p {
-      margin-block: var(--cpx-sys-space-3);
-    }
-  }
-
-  .canonical-text-item--process > .md-body {
-    font: inherit;
   }
 
   /*
@@ -688,10 +658,6 @@
     white-space: nowrap;
   }
 
-  .cpx-agent-activity[data-expanded='true'] > .cpx-agent-activity__header {
-    color: var(--cpx-sys-color-fg-primary);
-  }
-
   .cpx-agent-activity[data-expandable='false'] > .cpx-agent-activity__header {
     cursor: default;
   }
@@ -700,18 +666,16 @@
     display: none;
   }
 
-  .cpx-agent-activity[data-expanded='true'] > .cpx-agent-activity__header > .cpx-agent-activity__chevron {
+  .cpx-agent-activity[data-expanded='true']
+    > .cpx-agent-activity__header
+    > .cpx-agent-activity__chevron {
     opacity: 1;
     transform: rotate(90deg);
   }
 
   .cpx-agent-activity__content {
     min-width: 0;
-    margin-block: var(--cpx-sys-space-1) var(--cpx-sys-space-2);
-  }
-
-  .cpx-agent-activity[data-expanded='true'] .cpx-agent-activity__list-content::before {
-    transform: scaleY(1);
+    margin-block: var(--conversation-grouped-item-gap, var(--cpx-sys-space-1)) 0;
   }
 
   .cpx-agent-activity[data-state='failed'] > .cpx-agent-activity__header {
@@ -722,20 +686,6 @@
     color: var(--cpx-sys-color-accent-fg);
   }
 
-  /* Grouped timeline rail: static rule drawn by a pseudo-element. */
-  .cpx-agent-activity__list-content::before {
-    position: absolute;
-    inset-block: 6px;
-    left: 0;
-    width: 1px;
-    background: var(--cpx-sys-color-border-subtle);
-    content: '';
-    pointer-events: none;
-    transform: scaleY(0);
-    transform-origin: top;
-    transition: transform var(--cpx-sys-motion-panel) var(--cpx-sys-ease-disclosure);
-  }
-
   .cpx-agent-activity__edge-fade,
   .execution-plan-card__edge-fade {
     position: relative;
@@ -744,7 +694,33 @@
 
   .cpx-agent-activity__edge-fade::before,
   .cpx-agent-activity__edge-fade::after {
-    display: none;
+    position: absolute;
+    z-index: var(--cpx-sys-z-local);
+    inset-inline: 0;
+    height: var(--cpx-sys-space-6);
+    content: '';
+    pointer-events: none;
+    opacity: 0;
+  }
+  .cpx-agent-activity__edge-fade::before {
+    top: 0;
+    background: linear-gradient(
+      to bottom,
+      var(--edge-fade-fill, var(--cpx-sys-color-surface-canvas)),
+      transparent
+    );
+  }
+  .cpx-agent-activity__edge-fade::after {
+    bottom: 0;
+    background: linear-gradient(
+      to top,
+      var(--edge-fade-fill, var(--cpx-sys-color-surface-canvas)),
+      transparent
+    );
+  }
+  .cpx-agent-activity__edge-fade[data-scrollable='true'][data-at-start='false']::before,
+  .cpx-agent-activity__edge-fade[data-scrollable='true'][data-at-end='false']::after {
+    opacity: 1;
   }
 
   .right-dock-side-chat .cpx-agent-activity__edge-fade {
@@ -775,23 +751,10 @@
     color: var(--cpx-sys-color-accent-fg);
   }
 
-  .cpx-agent-activity__path-step[data-state='running'] .cpx-agent-activity__icon,
-  .cpx-agent-activity__path-step[data-state='running'] .cpx-agent-activity__verb,
-  .cpx-agent-activity__path-step[data-state='running'] .cpx-agent-activity__target,
-  .cpx-agent-activity__path-step[data-state='running'] .cpx-agent-activity__file-link {
-    color: var(--cpx-sys-color-accent-fg);
-  }
-
-  .cpx-agent-activity__path-step[data-state='completed']
-    > :is(.cpx-agent-activity__item, .cpx-agent-activity__file-changes)
-    .cpx-agent-activity__item-header,
   .cpx-agent-activity__path-step[data-state='completed']
     > .canonical-process-card
     > .canonical-process-card__summary,
-  .cpx-agent-activity__path-step[data-state='completed'] > .canonical-subagent-card,
-  .cpx-agent-activity__path-step[data-state='completed'] .cpx-agent-activity__verb,
-  .cpx-agent-activity__path-step[data-state='completed'] .cpx-agent-activity__target,
-  .cpx-agent-activity__path-step[data-state='completed'] .cpx-agent-activity__file-link {
+  .cpx-agent-activity__path-step[data-state='completed'] > .canonical-subagent-card {
     color: var(--cpx-sys-color-fg-secondary);
   }
 
@@ -805,11 +768,7 @@
   .cpx-agent-activity__path-step[data-state='failed']
     > .canonical-process-card
     > .canonical-process-card__summary,
-  .cpx-agent-activity__path-step[data-state='failed'] > .canonical-subagent-card,
-  .cpx-agent-activity__path-step[data-state='failed'] .cpx-agent-activity__icon,
-  .cpx-agent-activity__path-step[data-state='failed'] .cpx-agent-activity__verb,
-  .cpx-agent-activity__path-step[data-state='failed'] .cpx-agent-activity__target,
-  .cpx-agent-activity__path-step[data-state='failed'] .cpx-agent-activity__file-link {
+  .cpx-agent-activity__path-step[data-state='failed'] > .canonical-subagent-card {
     color: var(--cpx-sys-color-danger);
   }
 
@@ -819,6 +778,7 @@
    * variants cannot express from the child element.
    */
   .cpx-agent-activity__item {
+    display: grid;
     min-width: 0;
     color: var(--cpx-sys-color-fg-secondary);
     font: inherit;
@@ -856,15 +816,16 @@
     align-items: center;
     gap: var(--cpx-sys-space-2);
     min-width: 0;
-    min-height: 26px;
+    min-height: 1lh;
     width: fit-content;
     max-width: 100%;
-    padding: calc(var(--cpx-sys-space-1) / 2) var(--cpx-sys-space-2);
+    padding: 0;
     border: 0;
     border-radius: var(--cpx-sys-radius-sm);
     background: transparent;
     color: inherit;
-    font: inherit;
+    font: var(--cpx-sys-type-body-sm);
+    letter-spacing: var(--cpx-sys-letter-spacing-code);
     text-align: left;
     cursor: pointer;
     list-style: none;
@@ -884,8 +845,12 @@
   }
 
   .cpx-agent-activity__header:hover,
-  .cpx-agent-activity__item-header:hover {
-    background: var(--cpx-sys-color-hover);
+  .cpx-agent-activity__header:focus-visible,
+  .cpx-agent-activity__header:active,
+  .cpx-agent-activity__item-header:hover,
+  .cpx-agent-activity__item-header:focus-within,
+  .cpx-agent-activity__item-header:active {
+    background: transparent;
     color: var(--cpx-sys-color-fg-primary);
   }
 
@@ -910,8 +875,8 @@
   .cpx-agent-activity__header > svg:not(.cpx-agent-activity__chevron),
   .cpx-agent-activity__item-header > svg:not(.cpx-agent-activity__chevron) {
     flex: 0 0 auto;
-    width: var(--cpx-sys-icon-size-sm);
-    height: var(--cpx-sys-icon-size-sm);
+    width: var(--cpx-sys-icon-size-md);
+    height: var(--cpx-sys-icon-size-md);
   }
 
   .cpx-agent-activity__item-header--tool {
@@ -955,8 +920,8 @@
 
   .cpx-agent-activity__icon {
     flex: 0 0 auto;
-    width: var(--cpx-sys-icon-size-sm);
-    height: var(--cpx-sys-icon-size-sm);
+    width: var(--cpx-sys-icon-size-md);
+    height: var(--cpx-sys-icon-size-md);
     color: inherit;
   }
 
@@ -967,23 +932,17 @@
     white-space: nowrap;
   }
 
-  .cpx-agent-activity__verb {
-    color: var(--cpx-sys-color-fg-secondary);
-    transition: color var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
-  }
-
-  .cpx-agent-activity__item-header:hover .cpx-agent-activity__verb,
-  .cpx-agent-activity__item-header:focus-within .cpx-agent-activity__verb {
+  .cpx-agent-activity__verb,
+  .cpx-agent-activity__target {
     color: inherit;
   }
 
-  .cpx-agent-activity__item-header:has(.cpx-agent-activity__file-link:hover)
-    .cpx-agent-activity__verb {
-    color: var(--cpx-sys-color-fg-secondary);
+  .cpx-agent-activity__duration {
+    color: var(--cpx-sys-color-fg-tertiary);
   }
 
-  .cpx-agent-activity__target {
-    color: var(--cpx-sys-color-fg-primary);
+  .cpx-agent-activity__item[data-state='error'] > .cpx-agent-activity__item-header {
+    color: var(--cpx-sys-color-danger);
   }
 
   .cpx-agent-activity__file-link {
@@ -993,7 +952,7 @@
     border: 0;
     border-radius: var(--cpx-sys-radius-sm);
     background: transparent;
-    color: var(--cpx-sys-color-fg-primary);
+    color: inherit;
     font: inherit;
     text-decoration-line: underline;
     text-decoration-style: dotted;
@@ -1064,6 +1023,97 @@
   }
 
   /* ── Command shell ── */
+
+  .canonical-command-shell {
+    overflow: hidden;
+    border-radius: var(--cpx-sys-radius-container);
+  }
+
+  .canonical-command-shell .md-code-block {
+    margin: 0;
+  }
+
+  .canonical-command-card {
+    min-width: 0;
+    margin-block: var(--cpx-sys-space-2);
+    border: 1px solid var(--cpx-sys-color-border-strong);
+    background: color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, var(--cpx-sys-color-surface-canvas));
+  }
+  .canonical-command-card.canonical-command-shell--embedded {
+    margin-block: var(--cpx-sys-space-1);
+  }
+  .canonical-command-card__command {
+    position: relative;
+    display: flex;
+    gap: var(--cpx-sys-space-2);
+    padding: var(--cpx-sys-space-2);
+    padding-right: calc(var(--cpx-sys-space-8) + var(--cpx-sys-space-2));
+    font: var(--cpx-sys-type-code);
+  }
+  .canonical-command-card__command pre {
+    min-width: 0;
+    margin: 0;
+    font: inherit;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .canonical-command-shell__prompt {
+    color: var(--cpx-sys-color-fg-tertiary);
+  }
+  .canonical-command-card__copy,
+  .canonical-command-card__actions {
+    position: absolute;
+    top: var(--cpx-sys-space-1);
+    right: var(--cpx-sys-space-1);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .canonical-command-card__actions {
+    display: flex;
+    gap: var(--cpx-sys-space-1);
+  }
+  .canonical-command-card__command:is(:hover, :focus-within) .canonical-command-card__copy,
+  .canonical-command-card__output:is(:hover, :focus-within) .canonical-command-card__actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .canonical-command-card__output {
+    position: relative;
+    min-width: 0;
+  }
+  .canonical-command-card__output-text {
+    width: max-content;
+    min-width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: var(--cpx-sys-space-2);
+    padding-right: calc(var(--cpx-sys-space-8) * 2 + var(--cpx-sys-space-3));
+    color: var(--cpx-sys-color-fg-secondary);
+    font: var(--cpx-sys-type-code);
+    white-space: pre;
+  }
+  .canonical-command-card__output-text[data-wrapped='true'] {
+    width: 100%;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .canonical-command-card .canonical-command-shell__scroller {
+    max-height: 144px;
+  }
+  .canonical-command-card .canonical-command-shell__edge-fade[data-at-start='false'] {
+    mask-image: linear-gradient(to bottom, transparent, black var(--cpx-sys-space-8));
+  }
+  .canonical-command-card .canonical-command-shell__edge-fade[data-at-end='false'] {
+    mask-image: linear-gradient(to top, transparent, black var(--cpx-sys-space-8));
+  }
+  .canonical-command-card .canonical-command-shell__edge-fade[data-at-start='false'][data-at-end='false'] {
+    mask-image: linear-gradient(to bottom, transparent, black var(--cpx-sys-space-8), black calc(100% - var(--cpx-sys-space-8)), transparent);
+  }
+  .canonical-command-card > .canonical-command-shell__footer {
+    display: flex;
+    padding: var(--cpx-sys-space-2);
+    padding-top: 0;
+  }
 
   /* Scrollbar plus the tool-result scroll override inside the shell. */
   .canonical-command-shell__scroll-content .md-code-pre {
