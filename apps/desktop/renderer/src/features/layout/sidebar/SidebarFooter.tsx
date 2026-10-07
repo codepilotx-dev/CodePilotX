@@ -9,7 +9,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import { Dropdown as DropdownMenu } from '../../../components/ui/floating/Dropdown.js'
 import {
   ArrowUpRight,
   ChevronRight,
@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { buildPopoverSizingStyle } from '../../../components/ui/popoverSizing.js'
+import { Button } from '../../../components/ui/Button.js'
 import { RemoteImage } from '../../../components/ui/RemoteImage.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import type { DesktopUpdateStatus, ModelProviderID } from '../../../../shared/types.js'
@@ -207,6 +208,35 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
     navigate(path)
   }
 
+  const accountAvatar = (
+    <span
+      className="sidebar-account-avatar tw:relative tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-full tw:bg-app-hover tw:text-app-text tw:[&_.ui-remote-image-content]:object-cover"
+      aria-hidden="true"
+    >
+      {!githubAuthenticated ? (
+        compact ? (
+          <CircleUser data-icon-kind="artwork" size={14} />
+        ) : (
+          <Settings data-icon-kind="artwork" size={14} />
+        )
+      ) : githubUser?.avatarUrl ? (
+        <RemoteImage
+          alt=""
+          fallback={<CircleUser data-icon-kind="artwork" size={14} />}
+          src={githubUser.avatarUrl}
+        />
+      ) : (
+        <CircleUser data-icon-kind="artwork" size={14} />
+      )}
+      {!compact && updateIndicator.visible ? (
+        <span
+          className="sidebar-account-update-dot tw:absolute tw:right-0 tw:bottom-0 tw:size-2 tw:rounded-full tw:border tw:border-app-border tw:bg-app-success"
+          aria-hidden="true"
+        />
+      ) : null}
+    </span>
+  )
+
   return (
     <footer
       className={cx(
@@ -217,57 +247,57 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
       )}
       ref={ref}
     >
+      {compact && updateIndicator.visible ? (
+        <Button
+          isIconOnly
+          variant="ghost"
+          size="md"
+          aria-label={t(updateIndicator.ariaLabel)}
+          title={t(updateIndicator.ariaLabel)}
+          disabled={updateIndicator.disabled}
+          onClick={() => {
+            void runDesktopUpdateIndicatorAction(
+              desktopClient,
+              updateIndicator.action ?? 'check',
+            ).catch(() => {
+              setUpdateStatus({ phase: 'error', message: '更新操作失败，请稍后重试' })
+            })
+          }}
+        >
+          <Download size={APP_ICON_SIZE} />
+        </Button>
+      ) : null}
       <PopoverMenu
         className="popover-menu--grid"
         open={menuOpen}
         side={compact ? 'right' : 'top'}
         align="end"
-        width="sm"
-        maxWidth="calc(100vw - 16px)"
-        trigger={
+        size="sm"
+
+        trigger={compact ? (
+          <Button
+            isIconOnly
+            variant="ghost"
+            size="md"
+            active={settingsActive || menuOpen}
+            ref={accountMenuTriggerRef}
+            aria-label={accountTriggerName}
+            className="sidebar-settings-link tw:data-[active=true]:bg-app-selected tw:data-[active=true]:text-app-text"
+          >
+            {accountAvatar}
+          </Button>
+        ) : (
           <SidebarRow
             active={settingsActive || menuOpen}
             ref={accountMenuTriggerRef}
             asChild
             className={cx(
               'sidebar-settings-link tw:text-app-text tw:type-body tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus',
-              // 图标栏底部：36px 方形入口，只保留头像并居中，隐藏文字行。
-              // 行本身保持 grid（SidebarRow 基础类），这里让头像槽横跨整格并居中，
-              // 避免与基础 display/grid-template-columns 互相覆盖。
-              compact
-                ? 'tw:size-9 tw:min-w-9 tw:min-h-9 tw:flex-none tw:rounded-md tw:p-0 tw:[&>.sidebar-row-main]:hidden tw:[&>.sidebar-row-leading]:col-span-full tw:[&>.sidebar-row-leading]:w-full tw:[&>.sidebar-row-leading]:justify-center'
-                : 'tw:min-h-[var(--sidebar-row-height)] tw:w-full tw:min-w-0 tw:grow tw:shrink tw:basis-auto',
+              'tw:min-h-[var(--sidebar-row-height)] tw:w-full tw:min-w-0 tw:grow tw:shrink tw:basis-auto',
             )}
             labelClassName={cx('sidebar-settings-label', 'tw:min-w-0')}
             layout="flex"
-            leading={
-              <span
-                className="sidebar-account-avatar tw:relative tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-full tw:bg-app-hover tw:text-app-text tw:[&_.ui-remote-image-content]:object-cover"
-                aria-hidden="true"
-              >
-                {!githubAuthenticated ? (
-                  compact ? (
-                    <CircleUser data-icon-kind="artwork" size={14} />
-                  ) : (
-                    <Settings data-icon-kind="artwork" size={14} />
-                  )
-                ) : githubUser?.avatarUrl ? (
-                  <RemoteImage
-                    alt=""
-                    fallback={<CircleUser data-icon-kind="artwork" size={14} />}
-                    src={githubUser.avatarUrl}
-                  />
-                ) : (
-                  <CircleUser data-icon-kind="artwork" size={14} />
-                )}
-                {updateIndicator.visible ? (
-                  <span
-                    className="sidebar-account-update-dot tw:absolute tw:right-0 tw:bottom-0 tw:size-2 tw:rounded-full tw:border tw:border-app-border tw:bg-app-success"
-                    aria-hidden="true"
-                  />
-                ) : null}
-              </span>
-            }
+            leading={accountAvatar}
           >
             <button
               aria-label={
@@ -278,10 +308,10 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               className="sidebar-footer-trigger tw:w-full tw:min-w-0 tw:overflow-hidden tw:border-0 tw:text-left tw:text-inherit tw:whitespace-nowrap tw:cursor-pointer tw:[font:inherit]"
               type="button"
             >
-              <span className={compact ? 'tw:sr-only' : undefined}>{accountTriggerName}</span>
+              <span>{accountTriggerName}</span>
             </button>
           </SidebarRow>
-        }
+        )}
         onOpenChange={setMenuOpen}
       >
         <div className="popover-section">
@@ -333,15 +363,13 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
               </DropdownMenu.SubTrigger>
               <DropdownMenu.Portal>
                 <DropdownMenu.SubContent
+                  size="md"
                   data-theme-component="dropdown-surface"
-                  alignOffset={-4}
                   aria-label={t('剩余用量详情')}
                   className="popover-surface popover popover-sub-content popover-usage-submenu tw:p-1 tw:[--popover-overflow-y:hidden]"
                   collisionPadding={6}
                   sideOffset={4}
-                  style={buildPopoverSizingStyle({
-                    width: 280,
-                    maxWidth: 'calc(100vw - 16px)',
+                  style={buildPopoverSizingStyle({ size: 'md',
                   })}
                 >
                   <div className="popover-usage-content tw:flex tw:min-w-0 tw:flex-col tw:gap-1">
@@ -451,12 +479,13 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
             </DropdownMenu.SubTrigger>
             <DropdownMenu.Portal>
               <DropdownMenu.SubContent
+                size="sm"
                 data-theme-component="dropdown-surface"
                 aria-label={t('帮助')}
                 className="popover-surface popover popover-sub-content popover-menu--grid"
                 collisionPadding={6}
                 sideOffset={4}
-                style={buildPopoverSizingStyle({ width: 200, maxWidth: 'calc(100vw - 16px)' })}
+                style={buildPopoverSizingStyle({ size: 'sm' })}
               >
                 <PopoverItem
                   icon={<Sparkles size={APP_ICON_SIZE} />}

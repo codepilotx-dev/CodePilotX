@@ -90,8 +90,8 @@ export function DesktopWorkspaceHeader({
     <header
       className={cx(
         'desktop-workspace-header tw:group tw:absolute tw:inset-x-0 tw:top-0 tw:z-dock tw:h-[var(--workspace-header-height)] tw:w-full tw:min-w-0 tw:pointer-events-none',
-        // `::before` 是 route 宽度的透明背板，仅在有分隔线时画 1px 下边框。
-        'tw:before:absolute tw:before:inset-y-0 tw:before:left-0 tw:before:-z-local tw:before:w-[var(--workspace-header-route-width)] tw:before:bg-transparent tw:before:content-[""]',
+        // `::before` 是整栏宽度的透明背板，仅在有分隔线时画 1px 下边框。
+        'tw:before:absolute tw:before:inset-y-0 tw:before:left-0 tw:before:-z-local tw:before:w-full tw:before:bg-transparent tw:before:border-0 tw:before:content-[""]',
         'tw:data-[divider]:before:border-b tw:data-[divider]:before:border-solid tw:data-[divider]:before:border-app-border-subtle',
         'tw:forced-colors:data-[divider]:before:border-b-[color:CanvasText]',
         className,

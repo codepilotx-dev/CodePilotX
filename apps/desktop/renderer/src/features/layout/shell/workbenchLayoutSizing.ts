@@ -83,18 +83,12 @@ export function resolveRightDockDragLayout(
   return 'split'
 }
 
+/** 默认占工作区宽度 40%，仍遵守右栏与主内容区的最小宽度。 */
 export function getResponsiveRightDockDefaultWidth(
   mainContentWidth: number,
-  shellHeight: number,
+  _shellHeight: number,
 ): number {
-  const safeWidth = normalizeDimension(mainContentWidth)
-  const safeHeight = normalizeDimension(shellHeight)
-  const computed = Math.max(
-    RIGHT_DOCK_MIN_WIDTH,
-    Math.min(safeHeight * 1.6, safeWidth - 500),
-    Math.min(640, safeWidth - RIGHT_DOCK_MAIN_MIN_WIDTH),
-  )
-  return Math.round(clamp(computed, RIGHT_DOCK_MIN_WIDTH, getRightDockMaxWidth(safeWidth)))
+  return rightDockWidthFromRatio(0.4, mainContentWidth)
 }
 
 export function bottomPanelHeightFromRatio(ratio: number, workspaceHeight: number): number {

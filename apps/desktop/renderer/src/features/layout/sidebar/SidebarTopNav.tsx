@@ -6,7 +6,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   Bell,
   Blocks,
-  ChevronDown,
   Clock3,
   FolderKanban,
   MessagesSquare,
@@ -22,9 +21,7 @@ import { newSessionPath } from '../../session/newSessionSurface.js'
 import type { NewSessionSurface } from '../../session/newSessionSurface.js'
 
 import { Tooltip } from '../../../components/ui/Tooltip.js'
-import { PopoverRadioGroup, PopoverRadioItem } from '../../../components/ui/PopoverItem.js'
-import * as Popover from '@radix-ui/react-popover'
-import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
+import { Popover as Popover } from '../../../components/ui/floating/Popover.js'
 import { cx } from '../../../utils/cx.js'
 import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 import { useLocale } from '../../i18n/LocaleProvider.js'
@@ -239,84 +236,53 @@ export function SidebarHeader({
   showActions = true,
   hasUnread = false,
   unreadActivityCount = 0,
+  scrollOverlapping = false,
   onOpenCommandMenu,
 }: {
   showActions?: boolean
   hasUnread?: boolean
   unreadActivityCount?: number
+  scrollOverlapping?: boolean
   onOpenCommandMenu: () => void
 }): React.ReactNode {
-  const [modeMenuOpen, setModeMenuOpen] = useState(false)
   const { t } = useLocale()
   const navigate = useNavigate()
   const {
     sidebarProductMode,
-    setSidebarProductMode,
     sidebarTimelineEnabled,
     setSidebarTimelineEnabled,
     sidebarActivityCoachmarkDismissed,
     setSidebarActivityCoachmarkDismissed,
   } = useDesktopSettings()
-  const activeMode = SIDEBAR_PRODUCT_MODE_META[sidebarProductMode]
   const timelineToggleLabel = t(sidebarTimelineEnabled ? '关闭活动视图' : '查看活动')
   const timelineToggleTitle = `${timelineToggleLabel} (Ctrl+Alt+U)`
 
-  const handleModeChange = (value: SidebarProductMode): void => {
-    setSidebarProductMode(value)
-    // 模式切换直接导航到对应 Surface 新建页；正在查看的 thread 任务不会被删除或归档
-    navigate(newSessionPath(value))
+  const handleNewChat = (): void => {
+    navigate(newSessionPath(sidebarProductMode))
   }
 
   return (
-    <header className="sidebar-header tw:mx-2 tw:my-0 tw:flex tw:min-h-13 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between">
-      <PopoverMenu
-        align="start"
-        className="popover-menu--no-icons sidebar-product-mode-menu"
-        maxWidth="calc(100vw - 24px)"
-        open={modeMenuOpen}
-        side="bottom"
-        width="sm"
-        trigger={
-          <button
-            aria-label={`${t('切换工作模式，当前为')} ${activeMode.label}`}
-            className="sidebar-product-mode-trigger tw:inline-flex tw:h-8 tw:min-w-0 tw:items-center tw:gap-2 tw:rounded-xl tw:border-transparent tw:bg-transparent tw:px-2 tw:text-left tw:text-app-text tw:type-row-title tw:whitespace-nowrap tw:hover:bg-app-hover tw:data-[state=open]:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-offset-0 tw:focus-visible:outline-app-focus tw:[&>svg]:shrink-0 tw:[&>svg]:text-app-text-meta"
-            type="button"
-          >
-            <span className="sidebar-product-mode-label tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap">
-              {activeMode.label}
-            </span>
-            <ChevronDown aria-hidden="true" size={APP_ICON_SIZES.sm} />
-          </button>
-        }
-        onOpenChange={setModeMenuOpen}
-      >
-        <PopoverRadioGroup
-          value={sidebarProductMode}
-          onValueChange={(value) => handleModeChange(value as SidebarProductMode)}
+    <header
+      className="sidebar-header tw:mx-2 tw:my-0 tw:flex tw:h-9 tw:min-h-9 tw:shrink-0 tw:min-w-0 tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-b-transparent tw:data-[scroll-overlap=true]:border-b-app-border-subtle"
+      data-scroll-overlap={scrollOverlapping ? 'true' : 'false'}
+    >
+      <div className="sidebar-header-left tw:flex tw:min-w-0 tw:flex-1 tw:items-center">
+        <Button
+          aria-label={t('新建聊天')}
+          className="sidebar-new-chat-button tw:w-full tw:min-w-0 tw:justify-start tw:text-app-text tw:type-row-title tw:whitespace-nowrap"
+          variant="ghost"
+          size="md"
+          onClick={handleNewChat}
+          title={t('新建聊天')}
         >
-          {SIDEBAR_PRODUCT_MODE_ORDER.map((value) => {
-            const option = SIDEBAR_PRODUCT_MODE_META[value]
-            return (
-              <PopoverRadioItem description={t(option.description)} key={value} value={value}>
-                {option.label}
-              </PopoverRadioItem>
-            )
-          })}
-        </PopoverRadioGroup>
-      </PopoverMenu>
+          <SquarePen aria-hidden="true" size={APP_ICON_SIZE} />
+          <span className="sidebar-new-chat-label tw:min-w-0 tw:overflow-hidden tw:whitespace-nowrap">
+            {t('新聊天')}
+          </span>
+        </Button>
+      </div>
       {showActions ? (
-        <div className="sidebar-header-actions tw:ml-2 tw:flex tw:min-w-0 tw:items-center tw:gap-1 tw:pr-2">
-          <Button isIconOnly
-            aria-haspopup="dialog"
-            className="sidebar-search-button tw:order-1 tw:text-app-text-meta"
-            color="ghost"
-            iconSize="md"
-            size="compact"
-            onClick={onOpenCommandMenu}
-            title={t('搜索任务')}
-          >
-            <Search size={APP_ICON_SIZE} />
-          </Button>
+        <div className="sidebar-header-actions tw:flex tw:min-w-0 tw:shrink-0 tw:items-center tw:gap-1">
           <Popover.Root
             open={
               !sidebarActivityCoachmarkDismissed &&
@@ -330,12 +296,13 @@ export function SidebarHeader({
             <Popover.Anchor asChild>
               <div className="tw:inline-flex">
                 <Tooltip content={timelineToggleTitle} side="bottom">
-                  <Button isIconOnly
+                  <Button
+                    isIconOnly
                     aria-label={timelineToggleLabel}
                     aria-keyshortcuts="Control+Alt+U"
                     aria-pressed={sidebarTimelineEnabled}
                     active={sidebarTimelineEnabled}
-                    className="sidebar-timeline-toggle-button tw:text-app-text-meta tw:data-[active=true]:bg-app-selected tw:data-[active=true]:text-app-text"
+                    className="sidebar-timeline-toggle-button tw:text-app-text-meta tw:hover:text-app-text tw:data-[active=true]:bg-app-selected tw:data-[active=true]:text-app-text"
                     color="ghost"
                     iconSize="md"
                     size="compact"
@@ -364,15 +331,17 @@ export function SidebarHeader({
             </Popover.Anchor>
             <Popover.Portal>
               <Popover.Content
+                size="md"
                 align="start"
                 side="right"
                 sideOffset={12}
-                className="popover-surface sidebar-activity-coachmark tw:z-50 tw:w-64 tw:border tw:border-app-border tw:p-3.5 tw:outline-none"
+                className="sidebar-activity-coachmark tw:z-50 tw:outline-none"
               >
                 <div className="tw:flex tw:flex-col tw:gap-2">
                   <div className="tw:flex tw:items-start tw:justify-between tw:gap-3">
                     <span className="tw:type-row-title tw:text-app-text">{t('查看活动')}</span>
-                    <Button isIconOnly
+                    <Button
+                      isIconOnly
                       aria-label={t('关闭')}
                       title={t('关闭')}
                       color="ghost"
@@ -390,6 +359,18 @@ export function SidebarHeader({
               </Popover.Content>
             </Popover.Portal>
           </Popover.Root>
+          <Button
+            isIconOnly
+            aria-haspopup="dialog"
+            className="sidebar-search-button tw:text-app-text-meta tw:hover:text-app-text"
+            color="ghost"
+            iconSize="md"
+            size="compact"
+            onClick={onOpenCommandMenu}
+            title={t('搜索任务')}
+          >
+            <Search size={APP_ICON_SIZE} />
+          </Button>
         </div>
       ) : null}
     </header>

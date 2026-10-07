@@ -1,7 +1,6 @@
 import { sortSessionsByRecency } from '../session/state/sessionSorting.js'
 import { mergeCatalogProjects } from './sidebar/useSidebarProjectCatalog.js'
 import type React from 'react'
-import { useLocation } from 'react-router-dom'
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopRemovedWorkspace,
@@ -21,7 +20,7 @@ import type {
   WorkbenchTabId,
   WorkbenchTabsState,
 } from './dock/rightDockState.js'
-import { SidebarHeader, SidebarNewTaskNav } from './sidebar/SidebarTopNav.js'
+import { SidebarHeader } from './sidebar/SidebarTopNav.js'
 import {
   buildSidebarViewModel,
   buildSidebarTimelineModel,
@@ -148,7 +147,6 @@ export function DesktopSidebar({
   onOpenFile,
   onAddComposerFiles,
 }: Props): React.ReactNode {
-  const location = useLocation()
   const [relativeNow, setRelativeNow] = useState(() => Date.now())
   const [sidebarScrollOverlapping, setSidebarScrollOverlapping] = useState(false)
   const sidebarScrollPositionsRef = useRef<Map<SidebarScrollModeKey, number>>(new Map())
@@ -379,14 +377,6 @@ export function DesktopSidebar({
       setArchiveAttentionOpen(false)
     }
   }, [activitySessions, archiveAttentionTargets, archivingAttention, archiveSessions, onReport])
-
-  function isActiveView(view: AppView): boolean {
-    if (view === 'new') return location.pathname === '/new'
-    if (view === 'sessionGroups') return location.pathname.startsWith('/workflows')
-    if (view === 'projects') return location.pathname.startsWith('/projects')
-    if (view === 'pullRequests') return location.pathname.startsWith('/pull-requests')
-    return location.pathname === `/${view}`
-  }
 
   const previousActiveSessionIdRef = useRef<string | null | undefined>(undefined)
   const pendingContainerRevealIdRef = useRef<string | null>(activeSessionId)
@@ -722,10 +712,6 @@ export function DesktopSidebar({
         hasUnread={hasUnread}
         unreadActivityCount={unreadActivityCount}
         onOpenCommandMenu={onOpenCommandMenu}
-      />
-      <SidebarNewTaskNav
-        label="新聊天"
-        isActiveView={isActiveView}
         scrollOverlapping={sidebarScrollOverlapping}
       />
       <SidebarBody

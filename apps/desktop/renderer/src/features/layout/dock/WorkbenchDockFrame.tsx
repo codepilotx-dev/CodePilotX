@@ -31,8 +31,8 @@ export const WorkbenchDockFrame = forwardRef<HTMLElement, WorkbenchDockFrameProp
         aria-hidden={!open || undefined}
         className={cx(
           target === 'right'
-            ? 'right-dock tw:border-l tw:border-app-border tw:forced-colors:border-l-[CanvasText]'
-            : 'bottom-panel tw:border-t tw:border-app-border tw:forced-colors:border-t-[CanvasText]',
+            ? 'right-dock tw:has-[.right-dock-resize-handle:hover]:border-l-app-border-strong tw:has-[.right-dock-resize-handle:focus-visible]:border-l-app-border-strong tw:has-[.right-dock-resize-handle[data-resize-phase]]:border-l-app-border-strong tw:border-l tw:border-app-border tw:forced-colors:border-l-[CanvasText]'
+            : 'bottom-panel tw:has-[.bottom-panel-resize-handle:hover]:border-t-app-border-strong tw:has-[.bottom-panel-resize-handle:focus-visible]:border-t-app-border-strong tw:has-[.bottom-panel-resize-handle[data-resize-phase]]:border-t-app-border-strong tw:border-t tw:border-app-border tw:forced-colors:border-t-[CanvasText]',
           'workbench-panel tw:relative tw:flex tw:h-full tw:w-full tw:min-h-0 tw:min-w-0 tw:flex-col tw:overflow-hidden tw:rounded-none tw:bg-app-dock tw:text-app-text tw:shadow-none',
           className,
         )}

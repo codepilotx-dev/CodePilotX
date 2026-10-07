@@ -50,7 +50,7 @@ export function WorkbenchShellView({
     >
       <div className="desktop-menubar tw:h-chrome tw:shrink-0 tw:bg-app-titlebar">{menuBar}</div>
       <div
-        className="app-body tw:relative tw:flex tw:min-h-0 tw:flex-1 tw:overflow-hidden tw:bg-app-underlay"
+        className="app-body tw:[&:has(.desktop-sidebar.is-docked.is-resizing)_.desktop-main]:border-l-app-border-strong tw:[&:has(.desktop-sidebar.is-docked_.sidebar-resizer:hover)_.desktop-main]:border-l-app-border-strong tw:[&:has(.desktop-sidebar.is-docked_.sidebar-resizer:focus-visible)_.desktop-main]:border-l-app-border-strong tw:relative tw:flex tw:min-h-0 tw:flex-1 tw:overflow-hidden tw:bg-app-underlay"
         ref={appBodyRef}
       >
         {primarySidebar}

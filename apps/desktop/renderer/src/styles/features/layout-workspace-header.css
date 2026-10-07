@@ -19,7 +19,6 @@
       var(--workspace-header-shell-width, 0px),
       var(--workspace-right-panel-live-width, 0px)
     );
-    --workspace-header-route-width: calc(100% - var(--workspace-header-route-end-inset));
   }
 
   .desktop-workspace-header-center {
@@ -41,13 +40,6 @@
     padding: 0 var(--cpx-sys-space-2) 0 var(--cpx-sys-space-1);
   }
 
-  .workspace-shell-controls__divider {
-    width: 1px;
-    height: 14px;
-    background: var(--cpx-sys-color-border-subtle);
-    flex-shrink: 0;
-  }
-
   .workspace-shell-control-button {
     border: 0;
     background: transparent;
@@ -67,9 +59,6 @@
   }
 
   @media (forced-colors: active) {
-    .workspace-shell-controls__divider {
-      background: CanvasText;
-    }
     .workspace-shell-control-button[aria-pressed="true"] {
       outline: 1px solid CanvasText;
       outline-offset: -1px;

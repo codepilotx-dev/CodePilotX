@@ -127,6 +127,7 @@ export const THREAD_SCROLL_STATE_CACHE_TTL_MS = 10 * 60 * 1_000
 
 export type ThreadScrollStateCache = {
   clear(): void
+  delete(sessionKey: string): void
   get(sessionKey: string): SavedThreadScrollState | null
   set(sessionKey: string, state: SavedThreadScrollState): void
   size(): number
@@ -159,6 +160,9 @@ export function createThreadScrollStateCache(
   return {
     clear(): void {
       entries.clear()
+    },
+    delete(sessionKey: string): void {
+      entries.delete(sessionKey)
     },
     get(sessionKey: string): SavedThreadScrollState | null {
       const timestamp = now()
@@ -195,6 +199,10 @@ export function createThreadScrollStateCache(
 }
 
 const savedThreadScrollStates = createThreadScrollStateCache()
+
+export function forgetThreadScrollState(sessionKey: string): void {
+  savedThreadScrollStates.delete(sessionKey)
+}
 
 type ThreadScrollController = {
   beginProgrammaticScroll: (smooth: boolean) => boolean

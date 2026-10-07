@@ -195,7 +195,7 @@ export function SidebarFrame({
           'tw:left-[var(--sidebar-rail-width)] tw:w-[calc(var(--sidebar-current-width)-var(--sidebar-rail-width))]',
           `is-${shell.mode}`,
           floating
-            ? 'is-floating tw:z-composer tw:rounded-xl tw:border-r tw:border-app-border tw:bg-app-raised tw:shadow-lg'
+            ? 'is-floating tw:[&.is-resizing]:border-r-app-border-strong tw:has-[.sidebar-resizer:hover]:border-r-app-border-strong tw:has-[.sidebar-resizer:focus-visible]:border-r-app-border-strong tw:z-composer tw:rounded-xl tw:border-r tw:border-app-border tw:bg-app-raised tw:shadow-lg'
             : 'tw:z-dock',
           !floating && docked ? 'is-docked tw:bg-app-main' : undefined,
           !floating && !docked ? 'tw:bg-app-sidebar' : undefined,

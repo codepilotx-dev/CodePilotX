@@ -22,47 +22,6 @@
  */
 @layer primitives {
   /* --- panel + file tree resize handles -------------------------------- */
-  .right-dock-resize-handle::after {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 1px;
-    background: linear-gradient(
-      to bottom,
-      transparent,
-      color-mix(in srgb, var(--cpx-sys-color-fg-primary) 25%, transparent),
-      transparent
-    );
-    content: '';
-    opacity: 0;
-    transition: opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-standard);
-  }
-
-  .right-dock-resize-handle:hover::after,
-  .right-dock-resize-handle:focus-visible::after,
-  .right-dock-resize-handle[data-resize-phase='dragging']::after,
-  .right-dock-resize-handle[data-resize-phase='settling']::after {
-    opacity: 1;
-  }
-
-  .bottom-panel-resize-handle::after {
-    position: absolute;
-    top: 5px;
-    right: 0;
-    left: 0;
-    height: 2px;
-    background: transparent;
-    content: '';
-  }
-
-  .bottom-panel-resize-handle:hover::after,
-  .bottom-panel-resize-handle:focus-visible::after,
-  .bottom-panel-resize-handle[data-resize-phase='dragging']::after,
-  .bottom-panel-resize-handle[data-resize-phase='settling']::after {
-    background: var(--cpx-sys-color-border-default);
-  }
-
   .right-dock-editor-tree-resize-handle::after {
     position: absolute;
     inset-block: 0;
@@ -79,6 +38,10 @@
   }
 
   /* --- right dock tab strip ------------------------------------------- */
+  .right-dock-tab-title {
+    mask-image: linear-gradient(to right, black calc(100% - 20px), transparent);
+  }
+
   .right-dock-tabs-viewport {
     scrollbar-width: none;
   }

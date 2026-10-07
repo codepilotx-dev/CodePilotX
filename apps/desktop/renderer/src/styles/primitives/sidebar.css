@@ -100,23 +100,6 @@
   }
 
   /* --- Resizer ------------------------------------------------------- */
-  .sidebar-resizer::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 2px;
-    width: 2px;
-    height: 100%;
-    background: transparent;
-    transition: background var(--cpx-sys-motion-feedback) var(--cpx-sys-ease-out);
-  }
-
-  .sidebar-resizer:hover::after,
-  .sidebar-resizer:focus-visible::after,
-  .desktop-sidebar.is-resizing .sidebar-resizer::after {
-    background: var(--cpx-sys-color-border-default);
-  }
-
   .desktop-sidebar.is-collapsed .sidebar-resizer {
     display: none;
   }

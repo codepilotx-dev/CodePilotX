@@ -104,20 +104,19 @@ export function SidebarNavigationRail({
         setTooltipId((current) => (open ? id : current === id ? null : current))
       }
     >
-      <Button isIconOnly
+      <Button
+        isIconOnly
         title={t(label)}
         nativeTitle={false}
         aria-label={t(label)}
         aria-current={selected ? 'page' : undefined}
         aria-controls={pane ? 'desktop-sidebar-pane' : undefined}
         active={selected}
-        className="sidebar-rail-button tw:size-9 tw:min-w-9 tw:flex-none tw:rounded-md tw:data-[active=true]:bg-app-selected tw:data-[active=true]:text-app-text tw:[&>svg]:size-icon-lg"
-        color="ghost"
-        size="icon"
+        className="sidebar-rail-button tw:flex-none tw:data-[active=true]:bg-app-selected tw:data-[active=true]:text-app-text"
+        variant="ghost"
+        size="md"
         onClick={onClick}
-        onPointerEnter={
-          pane ? (event) => shell.onRailItemEnter(pane, event) : undefined
-        }
+        onPointerEnter={pane ? (event) => shell.onRailItemEnter(pane, event) : undefined}
         onPointerLeave={pane ? (event) => shell.onRailItemLeave(event) : undefined}
       >
         {icon}
@@ -164,19 +163,20 @@ export function SidebarNavigationRail({
             align="start"
             open={moreOpen}
             side="right"
-            width="sm"
-            maxWidth="calc(100vw - 16px)"
+            size="sm"
+
             onOpenChange={setMoreOpen}
             trigger={
-              <Button isIconOnly
+              <Button
+                isIconOnly
                 ref={moreTriggerRef}
                 title={t('更多')}
                 nativeTitle={false}
                 aria-label={t('更多')}
                 active={moreOpen}
-                className="sidebar-rail-button tw:size-9 tw:min-w-9 tw:flex-none tw:rounded-md tw:data-[active=true]:bg-app-selected tw:data-[active=true]:text-app-text tw:[&>svg]:size-icon-lg"
-                color="ghost"
-                size="icon"
+                className="sidebar-rail-button tw:flex-none tw:data-[active=true]:bg-app-selected tw:data-[active=true]:text-app-text"
+                variant="ghost"
+                size="md"
               >
                 <Ellipsis size={APP_ICON_SIZE} />
               </Button>
