@@ -687,7 +687,7 @@ function MarkdownTable({
         {context.presentation === 'conversation' ? (
           <Button
             isIconOnly
-            color="ghostSecondary"
+            variant="text"
             size="toolbar"
             aria-label="下载 CSV"
             title="下载 CSV"
@@ -700,7 +700,7 @@ function MarkdownTable({
         <Button
           isIconOnly
           className={cx('md-table-copy', copied && 'is-copied')}
-          color="ghostSecondary"
+          variant={context.presentation === 'conversation' ? 'text' : 'ghost'}
           size="toolbar"
           title={copied ? '已复制' : '复制表格'}
           type="button"
@@ -713,7 +713,6 @@ function MarkdownTable({
           )}
         </Button>
       </div>
-      {downloadStatus ? <p className="md-table-status" role="status">{downloadStatus}</p> : null}
       <div className="md-table-scroll" tabIndex={0}>
         <table>
           <thead>
@@ -734,6 +733,7 @@ function MarkdownTable({
           </tbody>
         </table>
       </div>
+      {downloadStatus ? <p className="md-table-status" role="status">{downloadStatus}</p> : null}
     </figure>
   )
 }

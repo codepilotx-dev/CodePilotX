@@ -743,20 +743,56 @@
     margin-bottom: 0;
   }
   .md-body--conversation .md-table-block table {
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 0.875em;
     line-height: var(--cpx-sys-line-height-prose);
   }
+  .md-body--conversation .md-table-block tbody tr {
+    border: 0;
+  }
+  .md-body--conversation .md-table-block :is(th, td) {
+    padding-inline-end: 1.5em;
+  }
+  .md-body--conversation .md-table-block th {
+    padding-block: 0.5em;
+    font-weight: var(--cpx-sys-font-weight-bold);
+  }
+  .md-body--conversation .md-table-block td {
+    padding-block: 0.625em;
+  }
+  .md-body--conversation .md-table-block tbody tr:not(:last-child) td {
+    border-bottom: 1px solid color-mix(in srgb, var(--cpx-sys-color-border-subtle) 60%, transparent);
+  }
+  .md-body--conversation .md-table-block th:last-child {
+    padding-inline-end: calc(var(--cpx-sys-space-8) * 2 + var(--cpx-sys-space-4));
+  }
+  .md-body--conversation .md-table-block td:last-child {
+    padding-inline-end: 0;
+  }
+  .md-body--conversation .md-table-block tbody tr:last-child td {
+    padding-bottom: 1.5em;
+  }
   .md-body--conversation .md-table-actions {
-    position: static;
+    top: 0;
+    right: 0;
     display: flex;
-    justify-content: flex-end;
-    min-height: var(--cpx-sys-space-8);
+    align-items: center;
+    gap: var(--cpx-sys-space-1);
   }
   .md-body--conversation .md-table-actions > button {
     opacity: 0;
     pointer-events: none;
   }
   .md-body--conversation .md-table-block:is(:hover, :focus-within) .md-table-actions > button {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .md-body--conversation .md-table-copy {
+    border-color: transparent;
+    border-radius: var(--cpx-sys-radius-control);
+  }
+  .md-body--conversation .md-table-copy.is-copied {
     opacity: 1;
     pointer-events: auto;
   }
