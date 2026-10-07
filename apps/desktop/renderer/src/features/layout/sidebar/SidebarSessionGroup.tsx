@@ -488,7 +488,7 @@ function SidebarSessionGroupComponent({
                 {session.pinnedAt ? (
                   <Button isIconOnly
                     className="sidebar-session-action-button"
-                    color="ghostSecondary"
+                    variant="text"
                     iconSize="md"
                     onClick={() => onUnpinSession(session)}
                     size="compact"
@@ -499,7 +499,7 @@ function SidebarSessionGroupComponent({
                 ) : (
                   <Button isIconOnly
                     className="sidebar-session-action-button"
-                    color="ghostSecondary"
+                    variant="text"
                     iconSize="md"
                     onClick={() => onPinSession(session)}
                     size="compact"
@@ -510,7 +510,7 @@ function SidebarSessionGroupComponent({
                 )}
                 <Button isIconOnly
                   className="sidebar-session-action-button"
-                  color="ghostSecondary"
+                  variant="text"
                   iconSize="md"
                   onClick={() => setConfirmArchiveSessionId(session.id)}
                   size="compact"

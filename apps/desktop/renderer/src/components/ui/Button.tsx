@@ -20,6 +20,7 @@ export type ButtonVariant =
   | 'secondary'
   | 'outline'
   | 'ghost'
+  | 'text'
   | 'danger'
   | 'danger-outline'
   | 'subtle-accent'
@@ -39,6 +40,7 @@ export type ButtonColor =
   | 'outline'
   | 'primary'
   | 'secondary'
+  | 'text'
 
 export type ButtonContentLayout = 'default' | 'balanced'
 export type ButtonShape = 'default' | 'pill'
@@ -342,6 +344,17 @@ const GHOST_STATE_CLASS = cx(
   'tw:[&:active:not(:disabled)]:bg-app-active',
 )
 
+const TEXT_STATE_CLASS = cx(
+  'tw:[&:enabled:hover]:text-app-text',
+  'tw:[&:enabled:hover]:bg-transparent',
+  'tw:data-[state=open]:text-app-text',
+  'tw:data-[state=open]:bg-transparent',
+  'tw:data-[active]:text-app-text',
+  'tw:data-[active]:bg-transparent',
+  'tw:[&:active:not(:disabled)]:text-app-text',
+  'tw:[&:active:not(:disabled)]:bg-transparent',
+)
+
 const SUBTLE_ACCENT_STATE_CLASS = cx(
   'tw:[&:enabled:hover]:bg-app-accent-subtle-hover',
   'tw:data-[state=open]:bg-app-accent-subtle-hover',
@@ -381,6 +394,7 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
     OUTLINE_STATE_CLASS,
   ),
   ghost: cx('tw:border-transparent tw:bg-transparent tw:text-app-text-soft', GHOST_STATE_CLASS),
+  text: cx('tw:border-transparent tw:bg-transparent tw:text-app-text-soft', TEXT_STATE_CLASS),
   danger: cx(
     'tw:border-transparent tw:bg-app-danger tw:text-app-on-accent tw:shadow-xs',
     DANGER_STATE_CLASS,
@@ -402,7 +416,6 @@ const BASE_CLASS = cx(
   'tw:transition-[background-color,border-color,color,opacity,transform,box-shadow] tw:duration-150 tw:ease-out',
   'tw:[&>svg]:block tw:[&>svg]:shrink-0',
   'tw:focus-visible:outline-none tw:focus-visible:ring-2 tw:focus-visible:ring-app-accent tw:focus-visible:ring-offset-2 tw:focus-visible:ring-offset-app-main',
-  'tw:active:scale-[0.98]',
   'tw:disabled:cursor-not-allowed tw:disabled:opacity-40 tw:disabled:active:scale-100 tw:disabled:pointer-events-none',
   'tw:aria-disabled:cursor-not-allowed tw:aria-disabled:opacity-40 tw:aria-disabled:active:scale-100 tw:aria-disabled:pointer-events-none',
   'tw:aria-pressed:bg-app-selected tw:aria-pressed:text-app-text',
@@ -411,6 +424,7 @@ const BASE_CLASS = cx(
 function resolveVariant(variant?: ButtonVariant, color?: ButtonColor): ButtonVariant {
   if (variant) return variant
   if (!color) return 'secondary'
+  if (color === 'text') return 'text'
   if (color === 'primary') return 'primary'
   if (color === 'accent') return 'accent'
   if (color === 'accentSubtle') return 'subtle-accent'
@@ -497,6 +511,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 
   const baseClasses = cx(
     BASE_CLASS,
+    variant !== 'text' && 'tw:active:scale-[0.98]',
     contentLayout === 'balanced' ? 'tw:grid tw:grid-cols-[1fr_auto_1fr]' : 'tw:inline-flex',
     sizeClass,
     radiusClass,

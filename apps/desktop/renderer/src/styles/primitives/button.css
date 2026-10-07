@@ -45,6 +45,13 @@
       border-color: ButtonText;
       background: transparent;
     }
+
+    .ui-button[data-color='text'],
+    .ui-button[data-variant='text'] {
+      border-color: transparent;
+      background: transparent;
+      color: ButtonText;
+    }
   }
 
   /*

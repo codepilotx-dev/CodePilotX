@@ -874,7 +874,7 @@ function SidebarBodyContent({
                             onSortChange={onProjectSortChange}
                           />
                           <Button isIconOnly
-                            color="ghostSecondary"
+                            variant="text"
                             onClick={onChooseWorkspace}
                             iconSize="md"
                             size="compact"
@@ -942,7 +942,7 @@ function SidebarBodyContent({
                       onSortChange={onSessionSortChange}
                     />
                     <Button isIconOnly
-                      color="ghostSecondary"
+                      variant="text"
                       onClick={() => onCreateSession(null)}
                       iconSize="md"
                       size="compact"
@@ -1350,7 +1350,7 @@ function SidebarOrganizeMenu({
       side="bottom"
       sideOffset={4}
       trigger={
-        <Button isIconOnly color="ghostSecondary" iconSize="md" size="compact" title="整理侧栏">
+        <Button isIconOnly variant="text" iconSize="md" size="compact" title="整理侧栏">
           <Ellipsis size={APP_ICON_SIZE} />
         </Button>
       }
@@ -1390,7 +1390,7 @@ function SidebarPinnedSortMenu({
       side="bottom"
       sideOffset={4}
       trigger={
-        <Button isIconOnly color="ghostSecondary" iconSize="md" size="compact" title="置顶排序">
+        <Button isIconOnly variant="text" iconSize="md" size="compact" title="置顶排序">
           <Ellipsis size={APP_ICON_SIZE} />
         </Button>
       }
@@ -1690,7 +1690,7 @@ function SidebarCustomSection({
               side="bottom"
               sideOffset={4}
               trigger={
-                <Button isIconOnly color="ghostSecondary" iconSize="md" size="compact" title="分组操作">
+                <Button isIconOnly variant="text" iconSize="md" size="compact" title="分组操作">
                   <Ellipsis size={APP_ICON_SIZE} />
                 </Button>
               }

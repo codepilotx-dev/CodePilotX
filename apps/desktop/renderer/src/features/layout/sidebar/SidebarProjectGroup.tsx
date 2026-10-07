@@ -315,7 +315,7 @@ function SidebarProjectGroupComponent({
                       <Button
                         isIconOnly
                         className="sidebar-project-action-button"
-                        color="ghostSecondary"
+                        variant="text"
                         iconSize="md"
                         size="compact"
                         title="更多"
@@ -331,7 +331,7 @@ function SidebarProjectGroupComponent({
                     isIconOnly
                     aria-label="新建对话"
                     className="sidebar-project-action-button"
-                    color="ghostSecondary"
+                    variant="text"
                     iconSize="md"
                     disabled={isUnavailable}
                     size="compact"
