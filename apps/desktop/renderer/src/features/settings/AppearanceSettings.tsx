@@ -30,13 +30,13 @@ import {
   mergeChromeThemeSeed,
   applyChromeThemeAccentPreset,
 } from '../theme/codeThemeSeed.js'
-import { deriveThemeVariables, ensureThemePreviewContrast } from '../theme/themeVariables.js'
+import { deriveThemeVariables } from '../theme/themeVariables.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
-import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { ThemeFontPicker } from './ThemeFontPicker.js'
+import { ThemePickerDropdown } from './ThemePickerDropdown.js'
 import { useDesktopSettings } from './useDesktopSettings.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
 
@@ -677,34 +677,6 @@ function VariantThemeEditor({
     }
   }, [themes, variant, section])
 
-  const codeThemeOptions = useMemo(
-    () =>
-      themes.map((theme) => {
-        const seed = themeSeeds[theme.slug]
-        return {
-          value: theme.slug,
-          label: theme.label,
-          icon: (
-            <span
-              aria-hidden="true"
-              className="appearance-theme-seed tw:inline-flex tw:size-7 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-panel tw:text-app-accent-fg tw:type-label"
-              style={
-                seed
-                  ? {
-                      backgroundColor: seed.surface,
-                      color: ensureThemePreviewContrast(seed),
-                      borderColor: `color-mix(in srgb, ${seed.ink} 18%, transparent)`,
-                    }
-                  : undefined
-              }
-            >
-              Aa
-            </span>
-          ),
-        }
-      }),
-    [themeSeeds, themes],
-  )
 
   const updateChromeTheme = (patch: Partial<DesktopChromeTheme>): void => {
     onUpdate((current) => {
@@ -745,14 +717,8 @@ function VariantThemeEditor({
         title={`${variantLabel}主题`}
         control={
           section === 'visual' ? (
-            <SettingsDropdown
+            <ThemePickerDropdown
               ariaLabel={`${variantLabel}代码主题`}
-              options={codeThemeOptions}
-              showSelectedIndicator
-              triggerClassName="tw:w-45 tw:min-w-45 tw:max-[900px]:min-w-0"
-              value={codeThemeId}
-              variant="theme"
-              size="sm"
               onChange={(nextId) => {
                 const nextCodeThemeId =
                   nextId as DesktopThemeSettings['codeThemeIds'][typeof variant]
@@ -777,6 +743,10 @@ function VariantThemeEditor({
                     onError(error instanceof Error ? error.message : '无法加载代码主题')
                   })
               }}
+              themeSeeds={themeSeeds}
+              themes={themes}
+              value={codeThemeId}
+              variant={variant}
             />
           ) : undefined
         }
