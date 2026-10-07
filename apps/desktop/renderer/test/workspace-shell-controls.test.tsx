@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test'
+import type { ReactElement } from 'react'
+import { applyWorkbenchPanelAction, createDefaultWorkbenchTabsState } from '../src/features/layout/dock/rightDockState.js'
 import { renderToStaticMarkup } from 'react-dom/server'
 import {
   BottomPanelToggleIcon,
@@ -12,10 +14,6 @@ function renderControls(
 ): string {
   return renderToStaticMarkup(
     <WorkspaceShellControls
-      canCreateWorkspaceTab={true}
-      createWorkspaceTabReason="当前桌面运行环境没有提供内置浏览器能力。"
-      hasWorkspaceTabs={false}
-      onCreateWorkspaceTab={() => {}}
       onStepWorkspaceLayout={() => {}}
       onToggleTerminal={() => {}}
       showBottomPanel={true}
@@ -29,34 +27,46 @@ function renderControls(
 }
 
 describe('WorkspaceShellControls', () => {
-  test('renders divider and both bottom panel and right panel controls', () => {
+  test('renders both panel controls without a divider', () => {
     const html = renderControls()
 
     expect(html).toContain('workspace-shell-controls')
-    expect(html).toContain('workspace-shell-controls__divider')
+    expect(html).not.toContain('workspace-shell-controls__divider')
     expect(html).toContain('aria-label="打开底部面板 (Ctrl+`)"')
     expect(html).toContain('title="打开底部面板 (Ctrl+`)"')
-    expect(html).toContain('aria-label="新建标签页 (Ctrl+Shift+B)"')
+    expect(html).toContain('aria-label="显示标签页 (Ctrl+Shift+B)"')
     expect(html).not.toContain('aria-label="进入完整视图"')
     expect(html).not.toContain('disabled=""')
   })
 
-  test('disables the empty workspace entry when no tab can be created', () => {
-    const html = renderControls({ canCreateWorkspaceTab: false })
-
-    expect(html).toContain('title="当前桌面运行环境没有提供内置浏览器能力。"')
-    expect(html).toContain('disabled=""')
+  test('empty workspace toggle reveals launcher without creating a browser tab', () => {
+    let state = createDefaultWorkbenchTabsState()
+    state = applyWorkbenchPanelAction(state, { type: 'setWorkspaceLayout', layout: 'chat' })
+    const toggle = () => { state = applyWorkbenchPanelAction(state, { type: 'stepWorkspaceLayout' }) }
+    const element = WorkspaceShellControls({
+      workspaceLayout: 'chat', terminalAvailable: false, terminalVisible: false,
+      showBottomPanel: false, showRightPanel: true,
+      onToggleTerminal: () => {}, onStepWorkspaceLayout: toggle,
+    }) as ReactElement<{ children: ReactElement<{ onClick: () => void; disabled?: boolean }>[] }>
+    const control = element.props.children[1]!
+    expect(control.props.onClick).toBe(toggle)
+    expect(control.props.disabled).not.toBe(true)
+    control.props.onClick()
+    expect(state.right.open).toBe(true)
+    expect(state.right.tabIds).toEqual([])
+    expect(state.tabsById).toEqual({})
+    expect(renderControls({ terminalAvailable: false, showBottomPanel: false })).not.toContain('disabled=""')
   })
 
   test('keeps tab entries hidden while the workspace shows the chat surface', () => {
-    const html = renderControls({ hasWorkspaceTabs: true, workspaceLayout: 'chat' })
+    const html = renderControls({ workspaceLayout: 'chat' })
 
     expect(html).toContain('aria-label="显示标签页 (Ctrl+Shift+B)"')
     expect(html).toContain('aria-pressed="false"')
   })
 
   test('split view only offers hiding tabs', () => {
-    const html = renderControls({ hasWorkspaceTabs: true, workspaceLayout: 'split' })
+    const html = renderControls({ workspaceLayout: 'split' })
 
     expect(html).toContain('aria-label="隐藏标签页 (Ctrl+Shift+B)"')
     expect(html).toContain('title="隐藏标签页 (Ctrl+Shift+B)"')
@@ -65,15 +75,11 @@ describe('WorkspaceShellControls', () => {
   })
 
   test('presentation helper stays in sync with the observable layout', () => {
-    expect(resolveWorkspaceControlPresentation('chat', false)).toEqual({
-      label: '新建标签页',
-      pressed: false,
-    })
-    expect(resolveWorkspaceControlPresentation('chat', true)).toEqual({
+    expect(resolveWorkspaceControlPresentation('chat')).toEqual({
       label: '显示标签页',
       pressed: false,
     })
-    expect(resolveWorkspaceControlPresentation('split', true)).toEqual({
+    expect(resolveWorkspaceControlPresentation('split')).toEqual({
       label: '隐藏标签页',
       pressed: true,
     })

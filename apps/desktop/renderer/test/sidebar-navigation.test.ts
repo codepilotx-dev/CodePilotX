@@ -141,6 +141,8 @@ describe('Codex 侧栏导航', () => {
     )
     expect(header).toContain('搜索任务')
     expect(header).toContain('查看活动')
+    expect(header).toContain('新聊天')
+    expect(header).toContain('sidebar-new-chat-button')
     const newChat = render(
       createElement(SidebarNewTaskNav, {
         label: '新聊天',

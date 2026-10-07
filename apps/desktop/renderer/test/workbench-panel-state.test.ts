@@ -234,10 +234,10 @@ describe('workbench dynamic tab state', () => {
       'side-chat',
     ])
     expect(presentation.map((item) => item.label)).toEqual([
-      '审阅',
+      '变更',
       '终端',
       '浏览器',
-      '文件',
+      '打开文件',
       '侧边聊天',
     ])
     expect(presentation.map((item) => item.shortcut)).toEqual([
@@ -906,7 +906,7 @@ describe('workbench dynamic tab state', () => {
       },
       viewedRevisions: { 'src/main.ts': 'revision-1' },
       fileTreeVisible: false,
-      fileTreeWidth: 520,
+      fileTreeWidth: 9_999,
       diffMode: 'split',
       wrapLines: false,
       showWordDiff: false,
@@ -1572,10 +1572,13 @@ function restoreLocalStorage(): void {
 }
 
 describe('workbench right panel sizing', () => {
-  test('使用 Codex 动态公式计算默认宽度并按可用工作区夹紧', () => {
+  test('默认宽度为工作区的 40% 并遵守最小尺寸', () => {
     expect(RIGHT_DOCK_DEFAULT_WIDTH).toBe(600)
-    expect(getResponsiveRightDockDefaultWidth(1_500, 800)).toBe(1_000)
-    expect(getResponsiveRightDockDefaultWidth(700, 800)).toBe(348)
+    expect(getResponsiveRightDockDefaultWidth(1_500, 800)).toBe(600)
+    expect(getResponsiveRightDockDefaultWidth(700, 800)).toBe(320)
+
+    expect(getResponsiveRightDockDefaultWidth(1_000, 400)).toBe(400)
+    expect(getResponsiveRightDockDefaultWidth(1_000, 900)).toBe(400)
 
     const ratio = rightDockWidthToRatio(700, 1_500)
     expect(rightDockWidthFromRatio(ratio, 1_500)).toBe(700)

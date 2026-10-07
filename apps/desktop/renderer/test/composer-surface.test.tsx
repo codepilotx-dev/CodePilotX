@@ -292,6 +292,25 @@ describe('composer surface variant', () => {
     expect(html).toContain(errorMsg)
     expect(html).not.toContain('重新加载模型')
   })
+
+  test('ComposerCard 底栏最左侧渲染模式切换胶囊，支持 Coding/Working/Chat', () => {
+    const coding = renderToStaticMarkup(
+      <ComposerCard {...composerCardProps({ productMode: 'coding' })} />,
+    )
+    const chat = renderToStaticMarkup(
+      <ComposerCard {...composerCardProps({ productMode: 'chat' })} />,
+    )
+    const working = renderToStaticMarkup(
+      <ComposerCard {...composerCardProps({ productMode: 'working' })} />,
+    )
+
+    expect(coding).toContain('composer-mode-trigger')
+    expect(coding).toContain('>Coding</span>')
+    expect(chat).toContain('composer-mode-trigger')
+    expect(chat).toContain('>Chat</span>')
+    expect(working).toContain('composer-mode-trigger')
+    expect(working).toContain('>Working</span>')
+  })
 })
 
 function canSubmitInput(

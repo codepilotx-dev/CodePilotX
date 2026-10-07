@@ -1,7 +1,22 @@
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { Dropdown, matchesDropdownSearch } from '../src/components/ui/floating/Dropdown.js'
+import { ContextMenu, menuKeyDown, selectMenuItem } from '../src/components/ui/floating/Menu.js'
+import { computeFloatingPosition } from '../src/components/ui/floating/useFloatingPosition.js'
+import { buildPopoverSizingStyle } from '../src/components/ui/popoverSizing.js'
+import { ComposerModeSwitcher } from '../src/features/session/composer/ComposerModeSwitcher.js'
+import { ReasoningMenu } from '../src/features/session/composer/ReasoningMenu.js'
+import { DropdownActions } from '../src/components/ui/DropdownActions.js'
 import { describe, expect, test } from 'bun:test'
 import { expectSourceContains, expectSourceNotContains } from './source-contract.js'
 
 describe('Codex CPX design system token contract', () => {
+  test('floating surfaces share the three UI-Design widths', () => {
+    expect(buildPopoverSizingStyle({ size: 'sm' })).toEqual({ '--popover-width': '220px' })
+    expect(buildPopoverSizingStyle({ size: 'md' })).toEqual({ '--popover-width': '280px' })
+    expect(buildPopoverSizingStyle({ size: 'lg' })).toEqual({ '--popover-width': '360px' })
+    expect(buildPopoverSizingStyle()).toEqual(buildPopoverSizingStyle({ size: 'md' }))
+  })
   test('guards interaction semantics and visual ownership without broad exceptions', async () => {
     const [checker, manifestText] = await Promise.all([
       Bun.file(new URL('../scripts/check-style-contracts.ts', import.meta.url)).text(),
@@ -91,7 +106,9 @@ describe('Codex CPX design system token contract', () => {
         Bun.file(new URL('../src/styles/popover.css', import.meta.url)).text(),
         Bun.file(new URL('../src/styles/components/interactive-row.css', import.meta.url)).text(),
         Bun.file(new URL('../src/components/ui/Select.tsx', import.meta.url)).text(),
-        Bun.file(new URL('../src/components/ui/SearchablePopoverContent.tsx', import.meta.url)).text(),
+        Bun.file(
+          new URL('../src/components/ui/SearchablePopoverContent.tsx', import.meta.url),
+        ).text(),
         Bun.file(
           new URL('../src/features/session/composer/ProjectSwitcherPopover.tsx', import.meta.url),
         ).text(),
@@ -126,11 +143,17 @@ describe('Codex CPX design system token contract', () => {
       rows,
       '):where([data-highlighted]:not(:hover):not(:focus-visible):not(:active))',
     )
-    expectSourceContains(select, 'data-highlighted={activeIndex === index || undefined}')
+    expectSourceContains(select, '<Dropdown.Root')
+    expectSourceNotContains(select, 'activeIndex')
     expectSourceNotContains(select, 'data-state=')
     // The searchable gutter moved from popover.scss into the component it
     // belongs to; `tw:p-1` is the shared 4px menu surface padding.
-    expectSourceContains(searchablePopover, 'className="popover-search-region tw:flex-none tw:bg-transparent tw:p-1"')
+    expectSourceContains(
+      await Bun.file(new URL('../src/components/ui/floating/Dropdown.tsx', import.meta.url)).text(),
+      'className="popover-search-region tw:flex-none tw:bg-transparent tw:p-1"',
+    )
+    expectSourceContains(searchablePopover, 'onSearchValueChange={onSearchChange}')
+    expectSourceNotContains(searchablePopover, 'handleKeyDown')
     expectSourceNotContains(projectSwitcher, 'listClassName="popover-section"')
     expectSourceContains(branchSwitcher, 'listClassName="branch-popover-list-scroll"')
     expectSourceNotContains(branchSwitcher, 'branch-popover-list-scroll popover-section')
@@ -253,31 +276,26 @@ describe('Codex CPX design system token contract', () => {
   })
 
   test('keeps provider and extension management on shared settings geometry', async () => {
-    const [
-      settings,
-      providerCatalog,
-      plugins,
-      extensionRow,
-      skillDialog,
-      mcpDialog,
-      pluginDialog,
-    ] = await Promise.all([
-      Bun.file(new URL('../src/styles/primitives/settings.css', import.meta.url)).text(),
-      Bun.file(new URL('../src/features/models/ProviderCatalog.tsx', import.meta.url)).text(),
-      Bun.file(
-        new URL('../src/features/settings/plugins/PluginsSettingsPage.tsx', import.meta.url),
-      ).text(),
-      Bun.file(
-        new URL('../src/features/settings/plugins/ExtensionManagementRow.tsx', import.meta.url),
-      ).text(),
-      Bun.file(
-        new URL('../src/features/settings/plugins/SkillDetailsDialog.tsx', import.meta.url),
-      ).text(),
-      Bun.file(
-        new URL('../src/features/settings/plugins/McpEditorDialog.tsx', import.meta.url),
-      ).text(),
-      Bun.file(new URL('../src/features/plugins/PluginDetailsDialog.tsx', import.meta.url)).text(),
-    ])
+    const [settings, providerCatalog, plugins, extensionRow, skillDialog, mcpDialog, pluginDialog] =
+      await Promise.all([
+        Bun.file(new URL('../src/styles/primitives/settings.css', import.meta.url)).text(),
+        Bun.file(new URL('../src/features/models/ProviderCatalog.tsx', import.meta.url)).text(),
+        Bun.file(
+          new URL('../src/features/settings/plugins/PluginsSettingsPage.tsx', import.meta.url),
+        ).text(),
+        Bun.file(
+          new URL('../src/features/settings/plugins/ExtensionManagementRow.tsx', import.meta.url),
+        ).text(),
+        Bun.file(
+          new URL('../src/features/settings/plugins/SkillDetailsDialog.tsx', import.meta.url),
+        ).text(),
+        Bun.file(
+          new URL('../src/features/settings/plugins/McpEditorDialog.tsx', import.meta.url),
+        ).text(),
+        Bun.file(
+          new URL('../src/features/plugins/PluginDetailsDialog.tsx', import.meta.url),
+        ).text(),
+      ])
 
     expectSourceContains(settings, '.settings-management-list')
     expectSourceContains(settings, '.settings-management-dialog-row')
@@ -401,9 +419,7 @@ describe('Codex CPX design system token contract', () => {
       Bun.file(new URL('../src/styles/tailwind.css', import.meta.url)).text(),
       Bun.file(new URL('../src/components/ui/Button.tsx', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/features/composer-shell.css', import.meta.url)).text(),
-      Bun.file(
-        new URL('../src/styles/primitives/conversation.css', import.meta.url),
-      ).text(),
+      Bun.file(new URL('../src/styles/primitives/conversation.css', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/primitives/session.css', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/components/card.css', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/features/layout-right-dock.css', import.meta.url)).text(),
@@ -504,9 +520,7 @@ describe('Codex CPX design system token contract', () => {
   test('keeps user messages and inline summaries on dedicated semantics', async () => {
     const [systemTokens, conversation, summary, threadSummary] = await Promise.all([
       Bun.file(new URL('../src/styles/design-system/tokens.css', import.meta.url)).text(),
-      Bun.file(
-        new URL('../src/styles/primitives/conversation.css', import.meta.url),
-      ).text(),
+      Bun.file(new URL('../src/styles/primitives/conversation.css', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/primitives/session.css', import.meta.url)).text(),
       Bun.file(
         new URL('../src/features/session/summary/ThreadSummaryPanel.tsx', import.meta.url),
@@ -528,17 +542,11 @@ describe('Codex CPX design system token contract', () => {
     expect(summary).not.toMatch(
       /\.workflow-page__main\[data-thread-summary-inline=['"]true['"]\][\s\S]*?padding-inline-end:/,
     )
-    // 内联面板与浮层共用同一条宽度契约：两者都通过
-    // `--thread-summary-inline-width` 的 utility 取宽，浮层挂在 Portal 上，
-    // 由共享常量再声明一次（原 `.thread-summary-inline` / `.thread-summary-popover`
-    // 宽度规则）。
+    // 内联面板保留布局宽度；浮层使用 UI-Design 尺寸，内容填满容器。
     const inlinePanelClass =
       threadSummary.match(/className="(thread-summary-inline [^"]*)"/)?.[1] ?? ''
     expect(inlinePanelClass).toContain('tw:w-[var(--thread-summary-inline-width)]')
-    expectSourceContains(
-      threadSummary,
-      "const THREAD_SUMMARY_WIDTH_CLASS = 'tw:w-[var(--thread-summary-inline-width)] tw:max-w-full'",
-    )
+    expectSourceContains(threadSummary, "const THREAD_SUMMARY_WIDTH_CLASS = 'tw:w-full'")
     expectSourceContains(threadSummary, 'thread-summary-popover ${THREAD_SUMMARY_WIDTH_CLASS}')
     expect(summary).not.toMatch(/width:\s*(?:260|272|300)px/)
   })
@@ -570,15 +578,19 @@ describe('Codex CPX design system token contract', () => {
         new URL('../src/features/layout/shell/WorkbenchShellView.tsx', import.meta.url),
       ).text(),
       Bun.file(new URL('../src/styles/features/layout-workbench.css', import.meta.url)).text(),
-      Bun.file(new URL('../src/features/layout/tabs/WorkbenchTabStrip.tsx', import.meta.url)).text(),
-      Bun.file(new URL('../src/features/layout/dock/WorkbenchDockFrame.tsx', import.meta.url)).text(),
+      Bun.file(
+        new URL('../src/features/layout/tabs/WorkbenchTabStrip.tsx', import.meta.url),
+      ).text(),
+      Bun.file(
+        new URL('../src/features/layout/dock/WorkbenchDockFrame.tsx', import.meta.url),
+      ).text(),
       Bun.file(
         new URL('../src/features/layout/panels/WorkbenchPanelSurface.tsx', import.meta.url),
       ).text(),
       Bun.file(new URL('../src/styles/modal.css', import.meta.url)).text(),
       Bun.file(new URL('../src/styles/popover.css', import.meta.url)).text(),
       Bun.file(new URL('../src/components/ui/Tooltip.tsx', import.meta.url)).text(),
-      ])
+    ])
 
     // Window chrome and workspace regions stay independently addressable while
     // panels follow the workspace surface by default.
@@ -654,5 +666,293 @@ describe('Codex CPX design system token contract', () => {
     // raised 表面与 floating 阴影。
     expectSourceContains(tooltip, 'tw:bg-app-raised')
     expectSourceContains(tooltip, 'tw:shadow-lg')
+  })
+})
+
+describe('UI-Design native floating behavior', () => {
+  test('action definitions render the selected check in the trailing cell', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        Dropdown.Root,
+        { mode: 'menu' },
+        createElement(DropdownActions, {
+          actions: [
+            { kind: 'item', label: '手动排序', checked: true, onSelect: () => {} },
+            { kind: 'item', label: '最近更新', checked: false, onSelect: () => {} },
+          ],
+        }),
+      ),
+    )
+    expect(html.match(/\bpopover-item-check\b/g)).toHaveLength(1)
+    expect(html).toMatch(/popover-item-trailing[^>]*>\s*<svg/)
+  })
+  test('search fills the available frame width at every preset without intrinsic sizing', () => {
+    for (const size of ['sm', 'md', 'lg'] as const) {
+      const html = renderToStaticMarkup(
+        createElement(
+          Dropdown.Root,
+          { defaultOpen: true },
+          createElement(
+            Dropdown.Content,
+            { size, showSearch: true },
+            createElement(Dropdown.Item, { value: 'a' }, 'A'),
+          ),
+        ),
+      )
+      expect(html).toContain(`data-popover-size="${size}"`)
+      expect(html).toContain('tw:w-full tw:max-w-full tw:box-border')
+    }
+  })
+  test('action menus do not inherit the select list height cap', () => {
+    const render = (mode: 'menu' | 'select') =>
+      renderToStaticMarkup(
+        createElement(
+          Dropdown.Root,
+          { mode, defaultOpen: true },
+          createElement(Dropdown.Content, null, createElement(Dropdown.Item, { value: 'a' }, 'A')),
+        ),
+      )
+    expect(render('menu')).not.toContain('tw:max-h-[220px]')
+    expect(render('select')).toContain('tw:max-h-[220px]')
+  })
+  test('asChild delegates row layout instead of spreading native flex spacing into rich rows', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        Dropdown.Root,
+        { value: 'project' },
+        createElement(
+          Dropdown.Item,
+          { value: 'project', asChild: true },
+          createElement('div', { className: 'interactive-row popover-item' }, '项目'),
+        ),
+      ),
+    )
+    expect(html).toContain('interactive-row popover-item')
+    expect(html).toContain('role="option"')
+    expect(html).toContain('aria-selected="true"')
+    expect(html).not.toContain('tw:justify-between')
+    expect(html).not.toContain('tw:flex')
+    expect(html).not.toContain('tw:px-2.5')
+  })
+  test('composer mode and reasoning use native selection menus; model panel keeps a flush frame', async () => {
+    const mode = renderToStaticMarkup(createElement(ComposerModeSwitcher, { mode: 'coding' }))
+    const reasoning = renderToStaticMarkup(
+      createElement(ReasoningMenu, {
+        trigger: createElement('button', null, '默认'),
+        thinkingMode: 'default',
+        thinkingOptions: [{ value: 'default', label: '默认' }],
+        onThinkingChange: () => {},
+      }),
+    )
+    expect(mode).toContain('aria-haspopup="listbox"')
+    expect(reasoning).toContain('aria-haspopup="listbox"')
+    const model = await Bun.file(
+      new URL('../src/features/session/composer/ModelPickerPopover.tsx', import.meta.url),
+    ).text()
+    expectSourceContains(model, 'style={{ padding: 0 }}')
+  })
+  test('portal action submenus own their layout and delegated popovers do not add padding', async () => {
+    const [actions, popover, profile] = await Promise.all([
+      Bun.file(new URL('../src/components/ui/DropdownActions.tsx', import.meta.url)).text(),
+      Bun.file(new URL('../src/components/ui/floating/Popover.tsx', import.meta.url)).text(),
+      Bun.file(new URL('../src/features/settings/ProfileSettings.tsx', import.meta.url)).text(),
+    ])
+    expect(actions).toContain('popover-surface popover popover-menu--grid tw:text-app-text')
+    expect(popover).toContain("asChild ? '' : 'tw:p-3.5'")
+    expect(profile).toContain('style={{ padding: 0 }}')
+  })
+  test('search filters text and descriptions, supports Chinese and clearing', () => {
+    expect(matchesDropdownSearch('  FEAT ', 'feature/项目')).toBe(true)
+    expect(matchesDropdownSearch('项目', 'feature/项目')).toBe(true)
+    expect(matchesDropdownSearch('工作目录', '项目', '工作目录说明')).toBe(true)
+    expect(matchesDropdownSearch('unknown', '项目', '工作目录说明')).toBe(false)
+    expect(matchesDropdownSearch('', '项目')).toBe(true)
+  })
+
+  test('selection updates values; actions do not; cancelling keeps the menu open', () => {
+    const calls: string[] = []
+    selectMenuItem(
+      () => calls.push('action'),
+      () => calls.push('close'),
+    )
+    expect(calls).toEqual(['action', 'close'])
+    calls.length = 0
+    selectMenuItem(
+      (event) => event.preventDefault(),
+      () => calls.push('close'),
+      () => calls.push('value'),
+    )
+    expect(calls).toEqual(['value'])
+    calls.length = 0
+    selectMenuItem(
+      undefined,
+      () => calls.push('close'),
+      () => calls.push('value'),
+    )
+    expect(calls).toEqual(['value', 'close'])
+  })
+
+  test('native roles distinguish action menus, selects, disabled items and check/radio state', () => {
+    const select = renderToStaticMarkup(
+      createElement(
+        Dropdown.Root,
+        { disabled: true },
+        createElement(Dropdown.Trigger, null, '选择'),
+        createElement(Dropdown.Item, { value: 'a', disabled: true }, 'A'),
+      ),
+    )
+    expect(select).toContain('aria-haspopup="listbox"')
+    expect(select).toContain('role="option"')
+    expect(select).toContain('aria-disabled="true"')
+    const menu = renderToStaticMarkup(
+      createElement(
+        Dropdown.Root,
+        { mode: 'menu' },
+        createElement(Dropdown.Trigger, null, '动作'),
+        createElement(Dropdown.Item, null, '执行'),
+        createElement(
+          ContextMenu.CheckboxItem,
+          { checked: true },
+          createElement(ContextMenu.ItemIndicator, null, '勾选'),
+        ),
+        createElement(
+          ContextMenu.RadioGroup,
+          { value: 'b' },
+          createElement(
+            ContextMenu.RadioItem,
+            { value: 'a' },
+            createElement(ContextMenu.ItemIndicator, null, '未选'),
+          ),
+          createElement(
+            ContextMenu.RadioItem,
+            { value: 'b' },
+            createElement(ContextMenu.ItemIndicator, null, '单选'),
+          ),
+        ),
+      ),
+    )
+    expect(menu).toContain('aria-haspopup="menu"')
+    expect(menu).toContain('role="menuitem"')
+    expect(menu).toContain('role="menuitemcheckbox" aria-checked="true"')
+    expect(menu).toContain('勾选')
+    expect(menu).toContain('单选')
+    expect(menu).not.toContain('未选')
+  })
+
+  test('menu keyboard navigation excludes nested menus and leaves inputs and IME alone', () => {
+    const previousDocument = globalThis.document
+    const fakeDocument = { activeElement: null as unknown }
+    Object.defineProperty(globalThis, 'document', { configurable: true, value: fakeDocument })
+    try {
+      let clicks = 0
+      const surface = { querySelectorAll: () => [first, second, nested] }
+      const item = (parent: unknown) => ({
+        closest: () => parent,
+        matches: () => false,
+        getAttribute: () => 'menuitem',
+        focus() {
+          fakeDocument.activeElement = this
+        },
+        click() {
+          clicks++
+        },
+      })
+      const first = item(surface),
+        second = item(surface),
+        nested = item({})
+      const key = (
+        key: string,
+        target: unknown = fakeDocument.activeElement ?? first,
+        composing = false,
+      ) => {
+        let prevented = false
+        menuKeyDown({
+          key,
+          target,
+          currentTarget: surface,
+          defaultPrevented: false,
+          nativeEvent: { isComposing: composing, keyCode: 0 },
+          preventDefault() {
+            prevented = true
+          },
+        } as Parameters<typeof menuKeyDown>[0])
+        return prevented
+      }
+      key('Home')
+      expect(fakeDocument.activeElement).toBe(first)
+      key('End')
+      expect(fakeDocument.activeElement).toBe(second)
+      key('ArrowDown')
+      expect(fakeDocument.activeElement).toBe(first)
+      key('ArrowUp')
+      expect(fakeDocument.activeElement).toBe(second)
+      key('Enter')
+      key(' ')
+      expect(clicks).toBe(2)
+      expect(key('ArrowDown', second, true)).toBe(false)
+      expect(key('ArrowDown', { matches: () => true })).toBe(false)
+      expect(fakeDocument.activeElement).toBe(second)
+    } finally {
+      if (previousDocument === undefined) delete (globalThis as { document?: Document }).document
+      else
+        Object.defineProperty(globalThis, 'document', {
+          configurable: true,
+          value: previousDocument,
+        })
+    }
+  })
+
+  test('positions external anchors, flips vertically/horizontally and respects boundary padding', () => {
+    const base = {
+      anchorRect: { left: 700, right: 760, top: 550, bottom: 580, width: 60, height: 30 },
+      contentWidth: 280,
+      contentHeight: 200,
+      viewportWidth: 800,
+      viewportHeight: 600,
+    }
+    expect(computeFloatingPosition({ ...base, placement: 'bottom-end' })).toEqual({
+      top: 344,
+      left: 480,
+      actualPlacement: 'top-end',
+    })
+    expect(computeFloatingPosition({ ...base, placement: 'right-start' })).toEqual({
+      top: 392,
+      left: 414,
+      actualPlacement: 'left-start',
+    })
+    expect(
+      computeFloatingPosition({ ...base, placement: 'bottom-start', avoidCollisions: false }),
+    ).toEqual({ top: 586, left: 700, actualPlacement: 'bottom-start' })
+    expect(
+      computeFloatingPosition({
+        ...base,
+        placement: 'bottom-start',
+        collisionPadding: { right: 20 },
+      }).left,
+    ).toBe(500)
+  })
+
+  test('native layered dismissal, controlled search and submenu focus stay in shared components', async () => {
+    const [primitives, dropdown, menus, manifest, overlays] = await Promise.all([
+      Bun.file(new URL('../src/components/ui/floating/primitives.tsx', import.meta.url)).text(),
+      Bun.file(new URL('../src/components/ui/floating/Dropdown.tsx', import.meta.url)).text(),
+      Bun.file(new URL('../src/components/ui/floating/Menu.tsx', import.meta.url)).text(),
+      Bun.file(new URL('../package.json', import.meta.url)).text(),
+      Bun.file(new URL('../src/styles/primitives/overlays.css', import.meta.url)).text(),
+    ])
+    expect(primitives).toContain('layers[layers.length - 1] !== layer')
+    expect(primitives).toContain('handlers.current.additionalRefs.some')
+    expect(primitives).toContain('event.isComposing || event.keyCode === 229')
+    expect(primitives).toContain('onCloseAutoFocus')
+    expect(primitives).toContain('element.showPopover()')
+    expect(primitives).toContain('shieldedEscapes.has(event)')
+    expect(primitives).toContain('event.defaultPrevented')
+    expect(dropdown).toContain("useControllableState(searchValue, '', onSearchValueChange)")
+    expect(dropdown).toContain('role="status"')
+    expect(menus).toContain('next ? 120 : 140')
+    expect(menus).toContain('sub.triggerRef.current?.focus()')
+    expect(overlays).toContain(":root[data-reduce-motion='on']")
+    for (const name of ['dropdown-menu', 'popover', 'context-menu', 'select'])
+      expect(manifest).not.toContain(`@radix-ui/react-${name}`)
   })
 })

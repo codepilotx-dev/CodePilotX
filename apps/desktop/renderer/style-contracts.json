@@ -21,18 +21,8 @@
     "src/styles/lazy/terminal.css": "vendor"
   },
   "customPropertyReferenceAllowlist": [
-    "--popover-overflow-x",
-    "--radix-context-menu-content-transform-origin",
-    "--radix-context-menu-content-available-height",
-    "--radix-dropdown-menu-content-transform-origin",
-    "--radix-dropdown-menu-content-available-height",
     "--radix-menubar-content-transform-origin",
     "--radix-menubar-content-available-height",
-    "--radix-popover-content-transform-origin",
-    "--radix-popover-content-available-height",
-    "--radix-select-content-transform-origin",
-    "--radix-select-content-available-height",
-    "--radix-select-trigger-width",
     "--radix-tooltip-content-transform-origin",
     "--sidebar-collapse-target-size"
   ],

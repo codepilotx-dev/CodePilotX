@@ -21,7 +21,7 @@ describe('settings dropdown trigger contract', () => {
     expect(html).not.toContain('<input')
   })
 
-  test('renders a focusable Radix Select trigger with its selected label', () => {
+  test('renders a focusable UI-Design Dropdown trigger with its selected label', () => {
     const html = renderToStaticMarkup(
       <SettingsDropdown
         ariaLabel="示例选择"
@@ -30,7 +30,7 @@ describe('settings dropdown trigger contract', () => {
           { value: 'second', label: '第二项' },
         ]}
         value="second"
-        width={200}
+        size="sm"
         onChange={() => {}}
       />,
     )
@@ -50,7 +50,7 @@ describe('settings dropdown trigger contract', () => {
         options={[{ value: 'item', label: '可搜索项' }]}
         searchable
         value="item"
-        width={240}
+        size="md"
         onChange={() => {}}
       />,
     )
@@ -69,7 +69,7 @@ describe('settings dropdown trigger contract', () => {
         ariaLabel="空值选择"
         options={[{ value: '', label: '继承默认值' }]}
         value=""
-        width={200}
+        size="sm"
         onChange={() => {}}
       />,
     )
