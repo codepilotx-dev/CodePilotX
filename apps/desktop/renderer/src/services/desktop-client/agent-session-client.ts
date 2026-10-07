@@ -140,6 +140,8 @@ export const RENDERER_CAPABILITIES = [
   'thread.creation-surface.v1',
   'git.review.v1',
   'git.review.batch.v1',
+  'git.review.context.v1',
+  'git.review.uncommitted.v1',
   'git.workspace.v1',
   'ai.review.v1',
   'github.oauth.v1',

@@ -892,6 +892,8 @@ describe('workbench dynamic tab state', () => {
         showWordDiff: false,
         hideWhitespace: true,
         richPreview: false,
+      loadFullFiles: true,
+      hideImports: false,
       },
     })
 
@@ -912,6 +914,8 @@ describe('workbench dynamic tab state', () => {
       showWordDiff: false,
       hideWhitespace: true,
       richPreview: false,
+      loadFullFiles: true,
+      hideImports: false,
     })
     expect(state.schemaVersion).toBe(4)
   })

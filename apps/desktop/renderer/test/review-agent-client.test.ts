@@ -475,3 +475,21 @@ function createReviewApiForBatchTest(supportsReviewBatch: boolean, calls: string
     withAgentOrMock: (agentOperation) => agentOperation(),
   })
 }
+
+
+test('full context keeps hunk identity and import filtering keeps mixed code edits', async () => {
+  expect(pickDefaultReviewBaseBranch([
+    { name: 'origin/main', sha: 'main', current: false, remote: true },
+    { name: 'origin/release', sha: 'release', current: false, remote: true, default: true },
+  ])).toBe('origin/release')
+  const { unifiedPatchToDesktopHunks, expandReviewContext, hideImportOnlyHunks } = await import('../src/features/review/diff/reviewDiffAdapter.js')
+  const patch = '@@ -2,1 +2,1 @@\n-import x from "old"\n+import x from "new"\n'
+  const hunks = unifiedPatchToDesktopHunks(patch, [{ id: 'canonical', header: '@@ -2,1 +2,1 @@', oldStart: 2, oldLines: 1, newStart: 2, newLines: 1, patch }])
+  const full = expandReviewContext(hunks, '@@ -1,3 +1,3 @@\n // before\n-import x from "old"\n+import x from "new"\n // after\n')
+  expect(full[0]?.id).toBe('canonical')
+  expect(full[0]?.patch).toBe(patch)
+  expect(full[0]?.lines.map((line) => line.content)).toEqual(['// before', 'import x from "old"', 'import x from "new"', '// after'])
+  expect(hideImportOnlyHunks(full)).toEqual([])
+  const mixed = [{ ...full[0]!, lines: [...full[0]!.lines, { id: 'logic', type: 'added' as const, oldLine: null, newLine: 4, content: 'run()', raw: '+run()' }] }]
+  expect(hideImportOnlyHunks(mixed)).toEqual(mixed)
+})

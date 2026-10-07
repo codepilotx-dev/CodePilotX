@@ -7,13 +7,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
-  Clipboard,
-  Code2,
   Columns2,
   Ellipsis,
   Eye,
   ExternalLink,
-  File,
   FileDiff,
   GitCommitHorizontal,
   GitFork,
@@ -24,7 +21,6 @@ import {
   RotateCcw,
   Rows2,
   Search,
-  Type,
   Undo2,
   WrapText,
   createLucideIcon,
@@ -101,6 +97,7 @@ import {
   type ReviewLoadState,
   type ReviewSummarySnapshot,
 } from '../source/reviewAgentClient.js'
+import { ReviewOptionsMenu } from './ReviewOptionsMenu.js'
 import { ReviewSourceMenu } from '../source/ReviewSourceMenu.js'
 import {
   reportReviewDiagnostic,
@@ -135,6 +132,7 @@ import {
   type ReviewFileLoadState,
 } from '../diff/WorkspaceReviewDiff.js'
 import { filterStatusForFile, type ReviewFilter } from './reviewFileStatus.js'
+import { hideImportOnlyHunks } from '../diff/reviewDiffAdapter.js'
 import { cx } from '../../../utils/cx.js'
 
 const REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH = REVIEW_FILE_TREE_PANEL_MIN_WIDTH + 8 + 260
@@ -148,7 +146,7 @@ const REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH = REVIEW_FILE_TREE_PANEL_MIN_WIDTH + 8 
 const REVIEW_SIDEBAR_CLASS =
   'review-sidebar tw:@container tw:flex tw:h-full tw:min-h-0 tw:flex-col tw:overflow-hidden tw:border-l tw:border-app-border-subtle tw:bg-app-panel tw:text-app-text tw:shadow-none tw:in-[.workbench-panel]:flex-auto tw:in-[.workbench-panel]:w-full tw:in-[.workbench-panel]:min-w-0 tw:in-[.workbench-panel]:max-w-none tw:in-[.workbench-panel]:border-l-0'
 const REVIEW_SIDEBAR_TOOLBAR_CLASS =
-  'tw:box-border tw:flex tw:min-h-12 tw:items-center tw:justify-between tw:gap-2 tw:border-b tw:border-app-border-subtle tw:bg-app-dock tw:px-2 tw:py-2 tw:shadow-none'
+  'tw:box-border tw:grid tw:grid-cols-[minmax(0,1fr)_auto] tw:min-h-12 tw:items-start tw:gap-2 tw:border-b tw:border-app-border-subtle tw:bg-app-dock tw:px-2 tw:py-2 tw:shadow-none'
 const REVIEW_COUNTS_CLASS = 'tw:inline-flex tw:items-center tw:gap-2'
 const REVIEW_FOOTER_CLASS =
   'tw:absolute tw:bottom-2.5 tw:left-1/2 tw:z-local tw:flex tw:-translate-x-1/2 tw:items-center tw:justify-center tw:gap-4 tw:rounded-lg tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-1 tw:shadow-none'
@@ -206,6 +204,8 @@ export type WorkspaceReviewSidebarProps = {
   sessionStatus: DesktopSessionStatus
   workspacePath: string | null
   onAppendComposerText?: (text: string) => void
+  onReviewSummaryChange?: (summary: ReviewSummarySnapshot | null) => void
+  onOpenReviewFile?: (path: string) => void
   onClose: () => void
   onCreateBranch: () => void
   onOpenWorkspacePath: () => void
@@ -228,6 +228,8 @@ function WorkspaceReviewSidebarImpl({
   sessionStatus,
   workspacePath,
   onAppendComposerText,
+  onReviewSummaryChange,
+  onOpenReviewFile,
   onClose,
   onCreateBranch,
   onOpenWorkspacePath,
@@ -235,6 +237,19 @@ function WorkspaceReviewSidebarImpl({
   onReviewTabStateChange,
   onToggleReviewView,
 }: WorkspaceReviewSidebarProps): React.ReactNode {
+  const [reviewCapabilities, setReviewCapabilities] = React.useState<readonly string[]>([])
+  React.useEffect(() => {
+    let active = true
+    void desktopClient
+      .getRuntimeCapabilities()
+      .then((capabilities) => {
+        if (active) setReviewCapabilities(capabilities)
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [])
   const source = reviewTabState.source
   const summaryIdentity = createReviewSummaryIdentity(projectId, workspacePath, source)
   const commentIdentity = createReviewCommentIdentity(summaryIdentity, activeSessionId)
@@ -246,6 +261,9 @@ function WorkspaceReviewSidebarImpl({
   const summaryStateIdentityRef = React.useRef(summaryIdentity)
   const summary = summaryStateIdentityRef.current === summaryIdentity ? summaryState : null
   const reviewDiff = summaryStateIdentityRef.current === summaryIdentity ? reviewDiffState : null
+  React.useEffect(() => {
+    onReviewSummaryChange?.(summary)
+  }, [summary, onReviewSummaryChange])
   const [loadedDiffs, setLoadedDiffs] = React.useState<ReadonlyMap<string, ReviewFileDiff>>(
     () => new Map(),
   )
@@ -292,7 +310,10 @@ function WorkspaceReviewSidebarImpl({
     [onReviewTabStateChange],
   )
   const [reviewContentWidth, setReviewContentWidth] = React.useState<number>()
-  const fileTreePanelWidth = clampReviewFileTreePanelWidth(reviewTabState.fileTreeWidth, reviewContentWidth)
+  const fileTreePanelWidth = clampReviewFileTreePanelWidth(
+    reviewTabState.fileTreeWidth,
+    reviewContentWidth,
+  )
   const {
     liveSize: liveFileTreePanelWidth,
     liveSizePixels: liveFileTreePanelWidthPixels,
@@ -310,6 +331,7 @@ function WorkspaceReviewSidebarImpl({
     [onReviewTabStateChange],
   )
   const [scopeMenuOpen, setScopeMenuOpen] = React.useState(false)
+  const [branchSearch, setBranchSearch] = React.useState('')
   const [branchPickerOpen, setBranchPickerOpen] = React.useState(false)
   const [commitPopoverOpen, setCommitPopoverOpen] = React.useState(false)
   const [prPopoverOpen, setPrPopoverOpen] = React.useState(false)
@@ -318,10 +340,15 @@ function WorkspaceReviewSidebarImpl({
   const wordWrap = reviewTabState.wrapLines
   const richDiffPreview = reviewTabState.richPreview
   const textDiff = reviewTabState.showWordDiff
-  const showWhitespace = !reviewTabState.hideWhitespace
   const updateReviewBoolean = React.useCallback(
     (
-      key: 'wrapLines' | 'richPreview' | 'showWordDiff' | 'hideWhitespace',
+      key:
+        | 'wrapLines'
+        | 'richPreview'
+        | 'showWordDiff'
+        | 'hideWhitespace'
+        | 'loadFullFiles'
+        | 'hideImports',
       value: boolean | ((current: boolean) => boolean),
     ) => {
       onReviewTabStateChange((current) => ({
@@ -333,22 +360,6 @@ function WorkspaceReviewSidebarImpl({
   )
   const setWordWrap = React.useCallback(
     (value: boolean | ((current: boolean) => boolean)) => updateReviewBoolean('wrapLines', value),
-    [updateReviewBoolean],
-  )
-  const setRichDiffPreview = React.useCallback(
-    (value: boolean | ((current: boolean) => boolean)) => updateReviewBoolean('richPreview', value),
-    [updateReviewBoolean],
-  )
-  const setTextDiff = React.useCallback(
-    (value: boolean | ((current: boolean) => boolean)) =>
-      updateReviewBoolean('showWordDiff', value),
-    [updateReviewBoolean],
-  )
-  const setShowWhitespace = React.useCallback(
-    (value: boolean | ((current: boolean) => boolean)) =>
-      updateReviewBoolean('hideWhitespace', (current) =>
-        typeof value === 'function' ? !value(!current) : !value,
-      ),
     [updateReviewBoolean],
   )
   const selectSource = React.useCallback(
@@ -389,8 +400,8 @@ function WorkspaceReviewSidebarImpl({
     }
   }, [branchPickerOpen, scopeMenuOpen, sourceOptionsRetry, projectId, workspacePath])
 
-  const commitButtonRef = React.useRef<HTMLButtonElement | null>(null)
-  const prButtonRef = React.useRef<HTMLButtonElement | null>(null)
+  const moreButtonRef = React.useRef<HTMLButtonElement | null>(null)
+  const wideActionsFocusRef = React.useRef(false)
   const reviewMainRef = React.useRef<HTMLDivElement | null>(null)
   const fileTreeToggleRef = React.useRef<HTMLButtonElement | null>(null)
   const reviewRootRef = React.useRef<HTMLElement | null>(null)
@@ -407,6 +418,7 @@ function WorkspaceReviewSidebarImpl({
   const activeDiffContextRef = React.useRef({
     generation: null as string | null,
     hideWhitespace: reviewTabState.hideWhitespace,
+    loadFullFiles: reviewTabState.loadFullFiles,
   })
   const expiredFilePathsRef = React.useRef(new Set<string>())
   const beginDiagnosticTimer = React.useCallback(
@@ -781,6 +793,7 @@ function WorkspaceReviewSidebarImpl({
         currentSummary.generation,
         path,
         reviewTabState.hideWhitespace ? 'hide-whitespace' : 'standard',
+        reviewTabState.loadFullFiles ? 'full-context' : 'partial-context',
       ].join('\0')
       const beginRequest = (generation: string): ReviewRequestStamp => {
         const request = {
@@ -838,13 +851,6 @@ function WorkspaceReviewSidebarImpl({
               }
             : current,
         )
-        onReviewTabStateChange((current) => ({
-          ...current,
-          viewedRevisions: {
-            ...current.viewedRevisions,
-            [path]: loaded.revision,
-          },
-        }))
       }
       return fileRequestCoordinatorRef.current.schedule(
         requestKey,
@@ -871,6 +877,7 @@ function WorkspaceReviewSidebarImpl({
               path,
               reviewTabState.hideWhitespace,
               projectId ?? undefined,
+              reviewTabState.loadFullFiles,
             )
             initialDiagnosticTimer.succeed()
             commitLoaded(request, loaded, currentSummary)
@@ -947,6 +954,7 @@ function WorkspaceReviewSidebarImpl({
                     path,
                     reviewTabState.hideWhitespace,
                     projectId ?? undefined,
+                    reviewTabState.loadFullFiles,
                   )
                   retryDiagnosticTimer.succeed()
                 } catch (retryLoadError) {
@@ -1001,6 +1009,7 @@ function WorkspaceReviewSidebarImpl({
       projectId,
       recoverExpiredReview,
       reviewTabState.hideWhitespace,
+      reviewTabState.loadFullFiles,
       source,
       summaryIdentity,
       workspacePath,
@@ -1074,6 +1083,7 @@ function WorkspaceReviewSidebarImpl({
           paths,
           hideWhitespace,
           projectId ?? undefined,
+          reviewTabState.loadFullFiles,
         )
         diagnosticTimer.succeed({ resultType: result.type })
         if (
@@ -1154,13 +1164,6 @@ function WorkspaceReviewSidebarImpl({
             : current,
         )
         if (committed.size > 0) {
-          onReviewTabStateChange((current) => {
-            const viewedRevisions = { ...current.viewedRevisions }
-            for (const [path, loaded] of committed) {
-              viewedRevisions[path] = loaded.revision
-            }
-            return { ...current, viewedRevisions }
-          })
         }
       } catch (loadError) {
         diagnosticTimer.fail()
@@ -1233,6 +1236,7 @@ function WorkspaceReviewSidebarImpl({
     projectId,
     recoverExpiredReview,
     reviewTabState.hideWhitespace,
+    reviewTabState.loadFullFiles,
     source,
     summaryIdentity,
     workspacePath,
@@ -1331,11 +1335,13 @@ function WorkspaceReviewSidebarImpl({
     const nextContext = {
       generation: summary?.generation ?? null,
       hideWhitespace: reviewTabState.hideWhitespace,
+      loadFullFiles: reviewTabState.loadFullFiles,
     }
     const previousContext = activeDiffContextRef.current
     if (
       previousContext.generation === nextContext.generation &&
-      previousContext.hideWhitespace === nextContext.hideWhitespace
+      previousContext.hideWhitespace === nextContext.hideWhitespace &&
+      previousContext.loadFullFiles === nextContext.loadFullFiles
     ) {
       return
     }
@@ -1351,7 +1357,11 @@ function WorkspaceReviewSidebarImpl({
       }
       return next
     })
-    if (previousContext.hideWhitespace !== nextContext.hideWhitespace && summary) {
+    if (
+      (previousContext.hideWhitespace !== nextContext.hideWhitespace ||
+        previousContext.loadFullFiles !== nextContext.loadFullFiles) &&
+      summary
+    ) {
       loadedDiffsRef.current = new Map()
       loadedDiffOptionsRef.current.clear()
       setLoadedDiffs(new Map())
@@ -1365,7 +1375,7 @@ function WorkspaceReviewSidebarImpl({
           : current,
       )
     }
-  }, [reviewTabState.hideWhitespace, summary?.generation])
+  }, [reviewTabState.hideWhitespace, reviewTabState.loadFullFiles, summary?.generation])
 
   React.useEffect(() => {
     if (fileDiffLoadMode === 'selected' && selectedPath) {
@@ -1391,6 +1401,10 @@ function WorkspaceReviewSidebarImpl({
     if (!main || typeof ResizeObserver === 'undefined') return
     const updateAutoHide = (width: number): void => {
       if (width > 0) setReviewContentWidth(width)
+      if (width < 625 && wideActionsFocusRef.current && document.hasFocus()) {
+        wideActionsFocusRef.current = false
+        moreButtonRef.current?.focus()
+      }
       const shouldHide = width > 0 && width < REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH
       setAutoHideFileList((current) => (current === shouldHide ? current : shouldHide))
     }
@@ -1520,8 +1534,17 @@ function WorkspaceReviewSidebarImpl({
   const selectedFile =
     visibleFiles.find((file) => file.path === selectedPath) ?? visibleFiles[0] ?? null
   const previewFiles = React.useMemo(
-    () => (largeWorkspaceMode && selectedFile ? [selectedFile] : visibleFiles),
-    [largeWorkspaceMode, selectedFile, visibleFiles],
+    () =>
+      (largeWorkspaceMode && selectedFile ? [selectedFile] : visibleFiles).map((file) =>
+        reviewTabState.hideImports && /\.[cm]?[jt]sx?$/iu.test(file.path)
+          ? {
+              ...file,
+              hunks: hideImportOnlyHunks(file.hunks),
+              partialHunks: file.partialHunks ? hideImportOnlyHunks(file.partialHunks) : undefined,
+            }
+          : file,
+      ),
+    [largeWorkspaceMode, selectedFile, visibleFiles, reviewTabState.hideImports],
   )
   const totals = React.useMemo(
     () =>
@@ -2177,46 +2200,47 @@ function WorkspaceReviewSidebarImpl({
       >
         <div
           className={cx(
-            'review-sidebar-title tw:inline-flex tw:min-w-0 tw:flex-[1_1_auto] tw:items-center tw:gap-3 tw:overflow-hidden',
-            source.kind === 'branch' && 'tw:flex-nowrap',
+            'review-sidebar-title tw:flex tw:flex-wrap tw:min-w-0 tw:items-center tw:gap-2',
+            source.kind === 'branch' && 'tw:flex-wrap',
           )}
         >
           <div className="tw:inline-flex tw:min-w-0 tw:shrink-0 tw:items-center tw:gap-2 tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-2 tw:py-1">
-          <ReviewSourceMenu
-            branches={branches}
-            commits={commits}
-            open={scopeMenuOpen}
-            source={source}
-            sourceOptionsState={sourceOptionsState}
-            onOpenChange={setScopeMenuOpen}
-            onRetry={() => setSourceOptionsRetry((current) => current + 1)}
-            onSelectLastTurn={() => void handleLastTurnScope()}
-            onSelectSource={selectSource}
-          />
-          {summary ? (
-            totals.additions > 0 || totals.deletions > 0 ? (
-              <span className={cx('review-sidebar-counts', REVIEW_COUNTS_CLASS)}>
-                <>
-                  <strong className="tw:text-app-success tw:type-weight-label">
-                    +{formatPanelNumber(totals.additions)}
-                  </strong>
-                  <em className="tw:text-app-danger tw:not-italic tw:type-weight-label">
-                    -{formatPanelNumber(totals.deletions)}
-                  </em>
-                </>
+            <ReviewSourceMenu
+              branches={branches}
+              commits={commits}
+              open={scopeMenuOpen}
+              source={source}
+              supportsUncommitted={reviewCapabilities.includes('git.review.uncommitted.v1')}
+              sourceOptionsState={sourceOptionsState}
+              onOpenChange={setScopeMenuOpen}
+              onRetry={() => setSourceOptionsRetry((current) => current + 1)}
+              onSelectLastTurn={() => void handleLastTurnScope()}
+              onSelectSource={selectSource}
+            />
+            {summary ? (
+              totals.additions > 0 || totals.deletions > 0 ? (
+                <span className={cx('review-sidebar-counts', REVIEW_COUNTS_CLASS)}>
+                  <>
+                    <strong className="tw:text-app-success tw:type-weight-label">
+                      +{formatPanelNumber(totals.additions)}
+                    </strong>
+                    <em className="tw:text-app-danger tw:not-italic tw:type-weight-label">
+                      -{formatPanelNumber(totals.deletions)}
+                    </em>
+                  </>
+                </span>
+              ) : null
+            ) : (
+              <span
+                aria-label="变更统计不可用"
+                className={cx('review-sidebar-counts', REVIEW_COUNTS_CLASS)}
+              >
+                —
               </span>
-            ) : null
-          ) : (
-            <span
-              aria-label="变更统计不可用"
-              className={cx('review-sidebar-counts', REVIEW_COUNTS_CLASS)}
-            >
-              —
-            </span>
-          )}
+            )}
           </div>
           {source.kind === 'branch' ? (
-            <div className="review-branch-range tw:flex tw:min-w-0 tw:flex-[1_1_180px] tw:items-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-1 tw:py-1 tw:gap-1 tw:text-app-text-soft tw:type-caption">
+            <div className="review-branch-range tw:flex tw:min-w-0 tw:flex-[0_1_auto] tw:items-center tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-1 tw:py-1 tw:gap-1 tw:text-app-text-soft tw:type-caption">
               <span
                 className="tw:min-w-0 tw:max-w-[38%] tw:overflow-hidden tw:px-2 tw:text-ellipsis tw:whitespace-nowrap"
                 title={gitStatus?.branchName ?? 'HEAD'}
@@ -2243,151 +2267,84 @@ function WorkspaceReviewSidebarImpl({
                 }
                 onOpenChange={setBranchPickerOpen}
               >
-                {sourceOptionsState === 'loading' ? (
-                  <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-body-sm">
-                    正在加载分支…
-                  </div>
-                ) : sourceOptionsState === 'error' ? (
-                  <>
+                <SearchInput
+                  value={branchSearch}
+                  onChange={setBranchSearch}
+                  placeholder="搜索分支"
+                  aria-label="搜索基准分支"
+                />
+                <div className="tw:max-h-80 tw:overflow-y-auto">
+                  {sourceOptionsState === 'loading' ? (
                     <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-body-sm">
-                      无法加载分支
+                      正在加载分支…
                     </div>
-                    <PopoverItem onClick={() => setSourceOptionsRetry((current) => current + 1)}>
-                      重试
-                    </PopoverItem>
-                  </>
-                ) : (
-                  <PopoverRadioGroup
-                    value={source.baseBranch}
-                    onValueChange={(branchName) => {
-                      selectSource({
-                        kind: 'branch',
-                        baseBranch: branchName,
-                      })
-                      setBranchPickerOpen(false)
-                    }}
-                  >
-                    {branches.map((branch) => (
-                      <PopoverRadioItem key={`base-branch:${branch.name}`} value={branch.name}>
-                        {branch.name}
-                      </PopoverRadioItem>
-                    ))}
-                  </PopoverRadioGroup>
-                )}
+                  ) : sourceOptionsState === 'error' ? (
+                    <>
+                      <div className="review-source-submenu-message tw:p-2 tw:text-app-text-soft tw:type-body-sm">
+                        无法加载分支
+                      </div>
+                      <PopoverItem onClick={() => setSourceOptionsRetry((current) => current + 1)}>
+                        重试
+                      </PopoverItem>
+                    </>
+                  ) : (
+                    <PopoverRadioGroup
+                      value={source.baseBranch}
+                      onValueChange={(branchName) => {
+                        selectSource({
+                          kind: 'branch',
+                          baseBranch: branchName,
+                        })
+                        setBranchPickerOpen(false)
+                      }}
+                    >
+                      {branches
+                        .filter(
+                          (branch) =>
+                            !branch.current &&
+                            branch.name.toLowerCase().includes(branchSearch.toLowerCase()),
+                        )
+                        .map((branch) => (
+                          <PopoverRadioItem key={`base-branch:${branch.name}`} value={branch.name}>
+                            {branch.name}
+                          </PopoverRadioItem>
+                        ))}
+                    </PopoverRadioGroup>
+                  )}
+                </div>
               </PopoverMenu>
             </div>
           ) : null}
         </div>
         <div className="review-sidebar-actions tw:inline-flex tw:flex-none tw:items-center tw:gap-1 tw:rounded-full tw:border tw:border-app-border-subtle tw:bg-app-raised tw:p-1 tw:whitespace-nowrap">
-          <PopoverMenu
-            align="end"
-            className="popover-review-more popover-menu--grid"
+          <ReviewOptionsMenu
             open={moreMenuOpen}
-            sideOffset={4}
-            size="sm"
-            trigger={
-              <Button isIconOnly color="ghostSecondary" size="toolbar" title="更多">
-                <Ellipsis size={APP_ICON_SIZE} />
-              </Button>
-            }
             onOpenChange={setMoreMenuOpen}
-          >
-            <PopoverItem
-              icon={<RotateCcw size={APP_ICON_SIZE} />}
-              onClick={() => {
-                onRefreshDiff()
-                void refreshReviewDiff(true)
-                setMoreMenuOpen(false)
-              }}
-            >
-              刷新变更
-            </PopoverItem>
-            <PopoverItem
-              icon={<GitFork size={APP_ICON_SIZE} />}
-              onClick={() => {
-                setMoreMenuOpen(false)
-                onCreateBranch()
-              }}
-            >
-              创建分支
-            </PopoverItem>
-            <PopoverItem
-              icon={<GitPullRequestArrow size={APP_ICON_SIZE} />}
-              onClick={() => {
-                setMoreMenuOpen(false)
-                handlePullRequestScope()
-              }}
-            >
-              打开 GitHub Pull Request…
-            </PopoverItem>
-            <PopoverCheckboxItem
-              checked={wordWrap}
-              icon={<WrapText size={APP_ICON_SIZE} />}
-              onCheckedChange={(checked) => {
-                setWordWrap(checked)
-                setMoreMenuOpen(false)
-              }}
-            >
-              自动换行
-            </PopoverCheckboxItem>
-            <PopoverItem
-              icon={<File size={APP_ICON_SIZE} />}
-              onClick={() => {
-                setMoreMenuOpen(false)
-              }}
-            >
-              加载完整文件
-            </PopoverItem>
-            <PopoverCheckboxItem
-              checked={richDiffPreview}
-              icon={<Eye size={APP_ICON_SIZE} />}
-              onCheckedChange={(checked) => {
-                setRichDiffPreview(checked)
-                setMoreMenuOpen(false)
-              }}
-            >
-              富文本预览
-            </PopoverCheckboxItem>
-            <PopoverCheckboxItem
-              checked={textDiff}
-              icon={<Type size={APP_ICON_SIZE} />}
-              onCheckedChange={(checked) => {
-                setTextDiff(checked)
-                setMoreMenuOpen(false)
-              }}
-            >
-              文字差异
-            </PopoverCheckboxItem>
-            <PopoverCheckboxItem
-              checked={showWhitespace}
-              icon={<Code2 size={APP_ICON_SIZE} />}
-              onCheckedChange={(checked) => {
-                setShowWhitespace(checked)
-                setMoreMenuOpen(false)
-              }}
-            >
-              显示空白字符
-            </PopoverCheckboxItem>
-            <PopoverItem
-              icon={<Clipboard size={APP_ICON_SIZE} />}
-              onClick={() => {
-                void copyGitApplyCommand(reviewDiff?.files ?? [], scope)
-                setMoreMenuOpen(false)
-              }}
-            >
-              复制 git apply 命令
-            </PopoverItem>
-          </PopoverMenu>
-          <ReviewDiffExpansionToggle
-            allPaths={allFilePaths}
-            store={diffExpansionStore}
-            onSetAllExpanded={setAllDiffsExpanded}
+            buttonRef={moreButtonRef}
+            preferences={reviewTabState}
+            supportsFullContext={reviewCapabilities.includes('git.review.context.v1')}
+            onSetPreference={updateReviewBoolean}
+            onRefresh={() => {
+              onRefreshDiff()
+              void refreshReviewDiff(true)
+            }}
+            onCreateBranch={onCreateBranch}
+            onOpenPullRequest={handlePullRequestScope}
+            onToggleView={onToggleReviewView}
+            onToggleExpanded={() =>
+              setAllDiffsExpanded(reviewTabState.diffExpansion.mode === 'none')
+            }
+            onCommit={() => setCommitPopoverOpen(true)}
+            onCreatePullRequest={() => setPrPopoverOpen(true)}
+            onCopyPatch={() => {
+              void copyGitApplyCommand(reviewDiff?.files ?? [], scope)
+            }}
           />
           <Tooltip content="搜索文件">
             <Button
               isIconOnly
               iconSize="sm"
-              className="review-sidebar-search-action tw:@max-[560px]:hidden"
+              className="review-sidebar-search-action "
               color="ghostSecondary"
               size="toolbar"
               title="搜索文件"
@@ -2396,21 +2353,65 @@ function WorkspaceReviewSidebarImpl({
               <Search size={APP_ICON_SIZES.sm} />
             </Button>
           </Tooltip>
-          <Tooltip content={reviewView === 'inline' ? '切换到分离视图' : '切换到统一差异视图'}>
-            <Button
-              isIconOnly
-              color={reviewView === 'inline' ? 'ghostSecondary' : 'ghostActive'}
-              size="toolbar"
-              title={reviewView === 'inline' ? '切换到拆分差异视图' : '切换到统一差异视图'}
-              onClick={onToggleReviewView}
-            >
-              {reviewView === 'inline' ? (
-                <Columns2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              ) : (
-                <Rows2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
-              )}
-            </Button>
-          </Tooltip>
+          <div
+            className="tw:hidden tw:items-center tw:gap-1 tw:@min-[625px]:flex"
+            onFocusCapture={(event) => {
+              wideActionsFocusRef.current =
+                event.target instanceof HTMLElement && event.target.matches(':focus-visible')
+            }}
+            onBlurCapture={(event) => {
+              if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node))
+                wideActionsFocusRef.current = false
+            }}
+          >
+            <Tooltip content="刷新变更">
+              <Button
+                isIconOnly
+                color="ghostSecondary"
+                size="toolbar"
+                title="刷新变更"
+                onClick={() => {
+                  onRefreshDiff()
+                  void refreshReviewDiff(true)
+                }}
+              >
+                <RotateCcw size={APP_ICON_SIZE} />
+              </Button>
+            </Tooltip>
+            <Tooltip content="自动换行">
+              <Button
+                isIconOnly
+                color={wordWrap ? 'ghostActive' : 'ghostSecondary'}
+                size="toolbar"
+                title="自动换行"
+                aria-pressed={wordWrap}
+                onClick={() => setWordWrap((value) => !value)}
+              >
+                <WrapText size={APP_ICON_SIZE} />
+              </Button>
+            </Tooltip>
+            <ReviewDiffExpansionToggle
+              allPaths={allFilePaths}
+              store={diffExpansionStore}
+              onSetAllExpanded={setAllDiffsExpanded}
+            />
+
+            <Tooltip content={reviewView === 'inline' ? '切换到分离视图' : '切换到统一差异视图'}>
+              <Button
+                isIconOnly
+                color={reviewView === 'inline' ? 'ghostSecondary' : 'ghostActive'}
+                size="toolbar"
+                title={reviewView === 'inline' ? '切换到拆分差异视图' : '切换到统一差异视图'}
+                onClick={onToggleReviewView}
+              >
+                {reviewView === 'inline' ? (
+                  <Columns2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                ) : (
+                  <Rows2 size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
+                )}
+              </Button>
+            </Tooltip>
+          </div>
           <Tooltip content={hideFileList ? '显示文件' : '隐藏文件'}>
             <Button
               isIconOnly
@@ -2424,55 +2425,40 @@ function WorkspaceReviewSidebarImpl({
               <Briefcase size={APP_ICON_SIZE} />
             </Button>
           </Tooltip>
-          <Tooltip content="提交或推送">
-            <Button
-              iconSize="sm"
-              color="secondary"
-              aria-label="提交或推送"
-              className="review-sidebar-primary-action tw:@min-[640px]:min-w-6"
-              ref={commitButtonRef}
-              size="toolbar"
-              onClick={() => setCommitPopoverOpen((value) => !value)}
-            >
-              <GitCommitHorizontal size={APP_ICON_SIZES.sm} />
-              <span className="review-sidebar-action-label tw:hidden tw:type-control tw:@min-[640px]:inline">
-                提交或推送
-              </span>
-            </Button>
-          </Tooltip>
-          <Tooltip content="创建拉取请求">
-            <Button
-              iconSize="sm"
-              color="secondary"
-              aria-label="创建拉取请求"
-              className="review-sidebar-primary-action tw:@min-[640px]:min-w-6"
-              ref={prButtonRef}
-              size="toolbar"
-              onClick={() => setPrPopoverOpen((value) => !value)}
-            >
-              <GitPullRequestArrow size={APP_ICON_SIZES.sm} />
-              <span className="review-sidebar-action-label tw:hidden tw:type-control tw:@min-[640px]:inline">
-                创建拉取请求
-              </span>
-            </Button>
-          </Tooltip>
         </div>
       </div>
 
       {largeWorkspaceMode && visibleFiles.length > 0 ? (
-        <div className="tw:mx-2 tw:mb-2 tw:flex tw:min-h-12 tw:shrink-0 tw:items-center tw:gap-3 tw:rounded-2xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-2 tw:type-control" role="status">
+        <div
+          className="tw:mx-2 tw:mb-2 tw:flex tw:@max-[625px]:grid tw:@max-[625px]:grid-cols-[auto_minmax(0,1fr)] tw:min-h-12 tw:shrink-0 tw:items-center tw:gap-3 tw:rounded-2xl tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-4 tw:type-control"
+          role="status"
+        >
           <Info className="tw:shrink-0 tw:text-app-accent" size={APP_ICON_SIZE} />
           <span className="tw:min-w-0 tw:flex-1">此差异较大，每次仅显示一个文件</span>
-          <Tooltip content="上一个文件">
-            <Button isIconOnly aria-label="上一个文件" size="toolbar" disabled={selectedFileIndex <= 0} onClick={() => handleSelectFile(visibleFiles[selectedFileIndex - 1]!.path)}>
-              <ChevronLeft size={APP_ICON_SIZE} />
-            </Button>
-          </Tooltip>
-          <Tooltip content="下一个文件">
-            <Button isIconOnly aria-label="下一个文件" size="toolbar" disabled={selectedFileIndex >= visibleFiles.length - 1} onClick={() => handleSelectFile(visibleFiles[selectedFileIndex + 1]!.path)}>
-              <ChevronRight size={APP_ICON_SIZE} />
-            </Button>
-          </Tooltip>
+          <div className="tw:flex tw:items-center tw:gap-1 tw:@max-[625px]:col-start-2">
+            <Tooltip content="上一个文件">
+              <Button
+                isIconOnly
+                aria-label="上一个文件"
+                size="toolbar"
+                disabled={selectedFileIndex <= 0}
+                onClick={() => handleSelectFile(visibleFiles[selectedFileIndex - 1]!.path)}
+              >
+                <ChevronLeft size={APP_ICON_SIZE} />
+              </Button>
+            </Tooltip>
+            <Tooltip content="下一个文件">
+              <Button
+                isIconOnly
+                aria-label="下一个文件"
+                size="toolbar"
+                disabled={selectedFileIndex >= visibleFiles.length - 1}
+                onClick={() => handleSelectFile(visibleFiles[selectedFileIndex + 1]!.path)}
+              >
+                <ChevronRight size={APP_ICON_SIZE} />
+              </Button>
+            </Tooltip>
+          </div>
         </div>
       ) : null}
 
@@ -2508,6 +2494,19 @@ function WorkspaceReviewSidebarImpl({
             fileLoadStates={fileLoadStates}
             files={previewFiles}
             largeWorkspaceMode={largeWorkspaceMode}
+            viewedRevisions={reviewTabState.viewedRevisions}
+            readOnly={source.kind !== 'unstaged' && source.kind !== 'staged'}
+            richPreview={richDiffPreview}
+            branchReview={source.kind === 'branch'}
+            onToggleViewed={(path, revision) =>
+              onReviewTabStateChange((current) => {
+                const viewedRevisions = { ...current.viewedRevisions }
+                if (viewedRevisions[path] === revision) delete viewedRevisions[path]
+                else viewedRevisions[path] = revision
+                return { ...current, viewedRevisions }
+              })
+            }
+            onOpenReviewFile={onOpenReviewFile}
             pending={reviewMutationPending}
             summaryLoadState={loadState}
             scope={scope}
@@ -2698,7 +2697,7 @@ function WorkspaceReviewSidebarImpl({
 
       <CommitPopover
         additions={totals.additions}
-        anchorRef={commitButtonRef}
+        anchorRef={moreButtonRef}
         branchName={gitStatus?.branchName ?? 'HEAD'}
         deletions={totals.deletions}
         open={commitPopoverOpen}
@@ -2711,7 +2710,7 @@ function WorkspaceReviewSidebarImpl({
 
       <PullRequestPopover
         additions={totals.additions}
-        anchorRef={prButtonRef}
+        anchorRef={moreButtonRef}
         branchName={gitStatus?.branchName ?? null}
         defaultBranch={defaultBranch}
         deletions={totals.deletions}

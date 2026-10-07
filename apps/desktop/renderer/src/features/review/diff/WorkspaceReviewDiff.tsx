@@ -1,4 +1,5 @@
 import React from 'react'
+import { MarkdownMessage } from '../../markdown/index.js'
 import { VList } from 'virtua'
 import {
   Briefcase,
@@ -6,6 +7,7 @@ import {
   ChevronRight,
   Clipboard,
   Code2,
+  CheckCircle2,
   Columns2,
   Ellipsis,
   Eye,
@@ -271,6 +273,12 @@ export const ReviewDiffPreview = React.memo(
     fileLoadStates,
     files,
     largeWorkspaceMode,
+    readOnly = false,
+    richPreview = true,
+    viewedRevisions = {},
+    branchReview = false,
+    onToggleViewed,
+    onOpenReviewFile,
     pending,
     summaryLoadState,
     scope,
@@ -298,6 +306,12 @@ export const ReviewDiffPreview = React.memo(
     fileLoadStates: ReadonlyMap<string, ReviewFileLoadState>
     files: DesktopReviewDiffFile[]
     largeWorkspaceMode: boolean
+    readOnly?: boolean
+    richPreview?: boolean
+    viewedRevisions?: Record<string, string>
+    branchReview?: boolean
+    onToggleViewed?: (path: string, revision: string) => void
+    onOpenReviewFile?: (path: string) => void
     pending: boolean
     summaryLoadState: ReviewLoadState
     scope: DesktopReviewScope
@@ -431,6 +445,12 @@ export const ReviewDiffPreview = React.memo(
                 }
                 key={file.path}
                 largeWorkspaceMode={largeWorkspaceMode}
+                readOnly={readOnly}
+                richPreview={richPreview}
+                viewedRevisions={viewedRevisions}
+                branchReview={branchReview}
+                onToggleViewed={onToggleViewed}
+                onOpenReviewFile={onOpenReviewFile}
                 pending={pending}
                 summaryLoadState={summaryLoadState}
                 previewHeight={estimateFilePreviewHeight(file)}
@@ -464,6 +484,12 @@ export const ReviewDiffPreview = React.memo(
     previous.fileLoadStates === next.fileLoadStates &&
     previous.files === next.files &&
     previous.largeWorkspaceMode === next.largeWorkspaceMode &&
+    previous.readOnly === next.readOnly &&
+    previous.richPreview === next.richPreview &&
+    previous.viewedRevisions === next.viewedRevisions &&
+    previous.branchReview === next.branchReview &&
+    previous.onToggleViewed === next.onToggleViewed &&
+    previous.onOpenReviewFile === next.onOpenReviewFile &&
     previous.pending === next.pending &&
     previous.summaryLoadState === next.summaryLoadState &&
     previous.scope === next.scope &&
@@ -485,9 +511,15 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
   disclosureStore,
   diffMarkerStyle,
   draft,
-  file,
+  file: inputFile,
   fileLoadState,
   largeWorkspaceMode,
+  readOnly = false,
+  richPreview = true,
+  viewedRevisions = {},
+  branchReview = false,
+  onToggleViewed,
+  onOpenReviewFile,
   pending,
   summaryLoadState,
   previewHeight,
@@ -515,6 +547,12 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
   file: DesktopReviewDiffFile
   fileLoadState: ReviewFileLoadState
   largeWorkspaceMode: boolean
+  readOnly?: boolean
+  richPreview?: boolean
+  viewedRevisions?: Record<string, string>
+  branchReview?: boolean
+  onToggleViewed?: (path: string, revision: string) => void
+  onOpenReviewFile?: (path: string) => void
   pending: boolean
   summaryLoadState: ReviewLoadState
   previewHeight: number
@@ -537,6 +575,29 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
   onResolveComment: (commentId: string) => void
   onSaveDraft: (body: string) => void
 }): React.ReactNode {
+  // ponytail: one context disclosure per file; use per-gap disclosures if independent expansion is needed.
+  const [showFullContext, setShowFullContext] = React.useState(false)
+  const hiddenContextLines = inputFile.partialHunks
+    ? countReviewDiffLines([inputFile]) -
+      countReviewDiffLines([{ ...inputFile, hunks: inputFile.partialHunks }])
+    : 0
+  const file =
+    !showFullContext && inputFile.partialHunks
+      ? { ...inputFile, hunks: inputFile.partialHunks }
+      : inputFile
+  const [showRendered, setShowRendered] = React.useState(true)
+  const canRender =
+    richPreview &&
+    file.fullContext &&
+    file.status !== 'deleted' &&
+    /\.(md|mdx|markdown)$/iu.test(file.path)
+  const markdown = canRender
+    ? inputFile.hunks
+        .flatMap((hunk) => hunk.lines)
+        .filter((line) => line.type !== 'removed')
+        .map((line) => line.content)
+        .join('\n')
+    : ''
   const hasContent = file.hunks.some((hunk) => hunk.lines.length > 0)
   const isExpanded = useDisclosureExpanded(disclosureStore, file.path)
   const isCollapsed = !isExpanded
@@ -571,6 +632,12 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
         style={{ height: previewHeight }}
       />
     )
+  } else if (canRender && showRendered) {
+    diffBody = (
+      <div className="tw:px-4 tw:py-3">
+        <MarkdownMessage text={markdown} cwd={workspacePath} />
+      </div>
+    )
   } else if (virtualize) {
     diffBody = (
       <div
@@ -592,6 +659,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
           file={file}
           flattenedRows={flattenedRows}
           intralineByLineId={intralineByLineId}
+          mutationsDisabled={readOnly}
           pending={pending}
           scope={scope}
           view={view}
@@ -650,6 +718,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
         draft={draft}
         file={file}
         intralineByLineId={intralineByLineId}
+        mutationsDisabled={readOnly}
         pending={pending}
         scope={scope}
         wrapLines={wrapLines}
@@ -669,6 +738,7 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
         draft={draft}
         file={file}
         intralineByLineId={intralineByLineId}
+        mutationsDisabled={readOnly}
         pending={pending}
         scope={scope}
         wrapLines={wrapLines}
@@ -740,14 +810,14 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
         </button>
         <div
           className={cx(
-            'review-file-actions review-file-actions-primary tw:ml-1',
-            FILE_ACTIONS_CLASS,
+            'review-file-actions review-file-actions-primary tw:ml-1 tw:inline-flex tw:items-center tw:gap-1',
           )}
           role="group"
           aria-label="文件查看操作"
         >
           <Tooltip content={isCollapsed ? '展开文件差异' : '折叠文件差异'}>
-            <Button isIconOnly
+            <Button
+              isIconOnly
               aria-controls={diffBodyId}
               aria-expanded={!isCollapsed}
               className="review-file-toggle"
@@ -766,14 +836,56 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
               />
             </Button>
           </Tooltip>
+          {branchReview && file.revision && onToggleViewed ? (
+            <Tooltip
+              content={
+                viewedRevisions[file.path] === file.revision ? '标记为未审阅' : '标记为已审阅'
+              }
+            >
+              <Button
+                isIconOnly
+                color="ghostSecondary"
+                size="iconMd"
+                aria-label={
+                  viewedRevisions[file.path] === file.revision ? '标记为未审阅' : '标记为已审阅'
+                }
+                aria-pressed={viewedRevisions[file.path] === file.revision}
+                onClick={() => onToggleViewed(file.path, file.revision!)}
+              >
+                {viewedRevisions[file.path] === file.revision ? (
+                  <CheckCircle2 size={REVIEW_FILE_ACTION_ICON_SIZE} />
+                ) : (
+                  <Eye size={REVIEW_FILE_ACTION_ICON_SIZE} />
+                )}
+              </Button>
+            </Tooltip>
+          ) : null}
+          {canRender ? (
+            <Tooltip content={showRendered ? '显示源码' : '渲染预览'}>
+              <Button
+                isIconOnly
+                color="ghostSecondary"
+                size="iconMd"
+                aria-label={showRendered ? '显示源码' : '渲染预览'}
+                onClick={() => setShowRendered((value) => !value)}
+              >
+                <Code2 size={REVIEW_FILE_ACTION_ICON_SIZE} />
+              </Button>
+            </Tooltip>
+          ) : null}
           <Tooltip content="打开文件">
-            <Button isIconOnly
+            <Button
+              isIconOnly
               aria-disabled={!workspacePath}
               className="review-file-open"
               color="ghostSecondary"
               size="iconMd"
               title="打开文件"
               onClick={() => {
+                if (onOpenReviewFile) {
+                  onOpenReviewFile(file.path)
+                  return
+                }
                 if (!workspacePath) return
                 void desktopClient.openPathWithDefaultTarget(
                   `${workspacePath.replace(/[\\/]$/, '')}/${file.path}`,
@@ -784,67 +896,85 @@ export const ReviewDiffFilePreview = React.memo(function ReviewDiffFilePreview({
             </Button>
           </Tooltip>
         </div>
-        <div
-          className={cx(
-            'review-file-actions review-file-actions-secondary tw:ml-auto',
-            FILE_ACTIONS_CLASS,
-          )}
-          role="group"
-          aria-label="文件 Git 操作"
-        >
-          <Tooltip content={file.isUntracked ? '删除未跟踪文件' : '还原文件'}>
-            <Button isIconOnly
-              aria-disabled={pending}
-              color="ghostSecondary"
-              size="iconMd"
-              title={file.isUntracked ? '删除未跟踪文件' : '还原文件'}
-              onClick={() => {
-                if (pending) return
-                onApplyOperation('revert', { type: 'file', path: file.path })
-              }}
-            >
-              {file.isUntracked ? (
-                <Trash2 size={REVIEW_FILE_ACTION_ICON_SIZE} />
-              ) : (
-                <Undo2 size={REVIEW_FILE_ACTION_ICON_SIZE} />
-              )}
-            </Button>
-          </Tooltip>
-          {scope === 'unstaged' ? (
-            <Tooltip content="暂存文件">
-              <Button isIconOnly
+        {!readOnly ? (
+          <div
+            className={cx(
+              'review-file-actions review-file-actions-secondary tw:ml-auto',
+              FILE_ACTIONS_CLASS,
+            )}
+            role="group"
+            aria-label="文件 Git 操作"
+          >
+            <Tooltip content={file.isUntracked ? '删除未跟踪文件' : '还原文件'}>
+              <Button
+                isIconOnly
                 aria-disabled={pending}
                 color="ghostSecondary"
                 size="iconMd"
-                title="暂存文件"
+                title={file.isUntracked ? '删除未跟踪文件' : '还原文件'}
                 onClick={() => {
                   if (pending) return
-                  onApplyOperation('stage', { type: 'file', path: file.path })
+                  onApplyOperation('revert', { type: 'file', path: file.path })
                 }}
               >
-                <Plus size={REVIEW_FILE_ACTION_ICON_SIZE} />
+                {file.isUntracked ? (
+                  <Trash2 size={REVIEW_FILE_ACTION_ICON_SIZE} />
+                ) : (
+                  <Undo2 size={REVIEW_FILE_ACTION_ICON_SIZE} />
+                )}
               </Button>
             </Tooltip>
-          ) : (
-            <Tooltip content="取消暂存文件">
-              <Button isIconOnly
-                aria-disabled={pending}
-                color="ghostSecondary"
-                size="iconMd"
-                title="取消暂存文件"
-                onClick={() => {
-                  if (pending) return
-                  onApplyOperation('unstage', { type: 'file', path: file.path })
-                }}
-              >
-                <Minus size={REVIEW_FILE_ACTION_ICON_SIZE} />
-              </Button>
-            </Tooltip>
-          )}
-        </div>
+            {scope === 'unstaged' ? (
+              <Tooltip content="暂存文件">
+                <Button
+                  isIconOnly
+                  aria-disabled={pending}
+                  color="ghostSecondary"
+                  size="iconMd"
+                  title="暂存文件"
+                  onClick={() => {
+                    if (pending) return
+                    onApplyOperation('stage', { type: 'file', path: file.path })
+                  }}
+                >
+                  <Plus size={REVIEW_FILE_ACTION_ICON_SIZE} />
+                </Button>
+              </Tooltip>
+            ) : (
+              <Tooltip content="取消暂存文件">
+                <Button
+                  isIconOnly
+                  aria-disabled={pending}
+                  color="ghostSecondary"
+                  size="iconMd"
+                  title="取消暂存文件"
+                  onClick={() => {
+                    if (pending) return
+                    onApplyOperation('unstage', { type: 'file', path: file.path })
+                  }}
+                >
+                  <Minus size={REVIEW_FILE_ACTION_ICON_SIZE} />
+                </Button>
+              </Tooltip>
+            )}
+          </div>
+        ) : null}
       </div>
       <div className="review-diff-file-body tw:contents" id={diffBodyId}>
         {diffBody}
+        {!isCollapsed && hiddenContextLines > 0 && (!canRender || !showRendered) ? (
+          <button
+            type="button"
+            aria-expanded={showFullContext}
+            className="tw:mx-2 tw:mb-2 tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:border-0 tw:bg-app-raised tw:px-3 tw:py-2 tw:text-left tw:text-app-text-meta tw:type-body-sm tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
+            onClick={() => setShowFullContext((value) => !value)}
+          >
+            <ChevronDown size={REVIEW_FILE_ACTION_ICON_SIZE} />
+            {showFullContext
+              ? '折叠未修改代码'
+              : `${formatPanelNumber(hiddenContextLines)} 行未修改代码`}
+          </button>
+        ) : null}
       </div>
     </section>
   )
@@ -862,6 +992,7 @@ export function ReviewVirtualDiffRows({
   pending,
   scope,
   view,
+  mutationsDisabled = false,
   readOnly = false,
   onApplyOperation,
   onCancelDraft,
@@ -879,6 +1010,7 @@ export function ReviewVirtualDiffRows({
   pending: boolean
   scope: DesktopReviewScope
   view: DesktopReviewView
+  mutationsDisabled?: boolean
   readOnly?: boolean
   onApplyOperation: (
     action: 'stage' | 'unstage' | 'revert',
@@ -915,7 +1047,7 @@ export function ReviewVirtualDiffRows({
               hunk={row.hunk}
               key={`hunk-${row.hunk.id}`}
               pending={pending}
-              readOnly={readOnly}
+              readOnly={readOnly || mutationsDisabled}
               scope={scope}
               unmodifiedLines={row.unmodifiedLines}
               onApplyOperation={onApplyOperation}
@@ -1144,7 +1276,10 @@ export function VirtualDiffSplitRow({
 export function clampReviewFileTreePanelWidth(width: number, containerWidth?: number): number {
   const containerMax =
     typeof containerWidth === 'number' && Number.isFinite(containerWidth)
-      ? Math.max(REVIEW_FILE_TREE_PANEL_MIN_WIDTH, Math.min(containerWidth * 0.6, containerWidth - REVIEW_DIFF_PREVIEW_MIN_WIDTH))
+      ? Math.max(
+          REVIEW_FILE_TREE_PANEL_MIN_WIDTH,
+          Math.min(containerWidth * 0.6, containerWidth - REVIEW_DIFF_PREVIEW_MIN_WIDTH),
+        )
       : REVIEW_FILE_TREE_PANEL_MAX_WIDTH
   const maxWidth = containerMax
   return Math.round(Math.min(Math.max(width, REVIEW_FILE_TREE_PANEL_MIN_WIDTH), maxWidth))

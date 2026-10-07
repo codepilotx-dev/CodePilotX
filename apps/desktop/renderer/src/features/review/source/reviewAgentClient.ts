@@ -4,7 +4,7 @@ import type {
   DesktopReviewDiffHunk,
   DesktopReviewSource,
 } from '../../../../shared/types.js'
-import { unifiedPatchToDesktopHunks } from '../diff/reviewDiffAdapter.js'
+import { expandReviewContext, unifiedPatchToDesktopHunks } from '../diff/reviewDiffAdapter.js'
 import { AgentRpcError } from '../../../services/agentRpcClient.js'
 import {
   desktopClient,
@@ -58,6 +58,7 @@ export type ReviewFileDiff = {
   file: ReviewFileSummary
   revision: string
   patch: string
+  contextPatch?: string
   hunks: Array<{
     id: string
     header: string
@@ -89,6 +90,7 @@ export type ReviewBranch = {
   sha: string
   current: boolean
   remote: boolean
+  default?: boolean
 }
 
 export type ReviewCommit = {
@@ -131,6 +133,7 @@ export const reviewAgentClient = {
     path: string,
     hideWhitespace: boolean,
     projectId?: string,
+    loadFullFiles = false,
   ): Promise<ReviewFileDiff> {
     return desktopClient.getAgentReviewFileDiff({
       ...(projectId ? { projectId } : {}),
@@ -139,6 +142,7 @@ export const reviewAgentClient = {
       generation,
       path,
       hideWhitespace,
+      loadFullFiles,
     })
   },
 
@@ -171,6 +175,7 @@ export const reviewAgentClient = {
     paths: readonly string[],
     hideWhitespace: boolean,
     projectId?: string,
+    loadFullFiles = false,
   ): Promise<ReviewFileDiffsResult> {
     const result = await desktopClient.getAgentReviewFileDiffs({
       ...(projectId ? { projectId } : {}),
@@ -179,6 +184,7 @@ export const reviewAgentClient = {
       generation,
       paths,
       hideWhitespace,
+      loadFullFiles,
     })
     return result.type === 'large'
       ? { ...result }
@@ -466,6 +472,7 @@ export function retainCurrentReviewFileDiffs(
 
 export function reviewSourceKey(source: DesktopReviewSource): string {
   switch (source.kind) {
+    case 'uncommitted':
     case 'unstaged':
     case 'staged':
       return source.kind
@@ -482,6 +489,8 @@ export function reviewSourceKey(source: DesktopReviewSource): string {
 
 export function reviewSourceLabel(source: DesktopReviewSource): string {
   switch (source.kind) {
+    case 'uncommitted':
+      return '未提交'
     case 'unstaged':
       return '未暂存'
     case 'staged':
@@ -499,6 +508,8 @@ export function reviewSourceLabel(source: DesktopReviewSource): string {
 
 export function pickDefaultReviewBaseBranch(branches: readonly ReviewBranch[]): string | null {
   if (branches.length === 0) return null
+  const repositoryDefault = branches.find((branch) => branch.default)
+  if (repositoryDefault) return repositoryDefault.name
   const preferredNames = [
     'origin/main',
     'upstream/main',
@@ -541,6 +552,11 @@ export function summaryFileToDesktop(
   loaded?: ReviewFileDiff,
 ): DesktopReviewDiffFile {
   return {
+    partialHunks:
+      loaded?.contextPatch !== undefined
+        ? unifiedPatchToDesktopHunks(loaded.patch, loaded.hunks)
+        : undefined,
+    fullContext: loaded?.contextPatch !== undefined || file.status === 'untracked',
     path: file.path,
     ...(file.previousPath ? { originalPath: file.previousPath } : {}),
     status: file.status,
@@ -556,7 +572,7 @@ export function summaryFileToDesktop(
 
 function parseReviewFileDiff(diff: ReviewFileDiff): DesktopReviewDiffHunk[] {
   if (!diff.renderable) return []
-  return unifiedPatchToDesktopHunks(diff.patch, diff.hunks)
+  return expandReviewContext(unifiedPatchToDesktopHunks(diff.patch, diff.hunks), diff.contextPatch)
 }
 
 function toDesktopComment(comment: DesktopReviewAgentComment): DesktopReviewComment {

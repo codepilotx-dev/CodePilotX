@@ -10,6 +10,7 @@ import {
 } from '../wire/primitives'
 
 export const ReviewSourceSchema = Schema.Union([
+  Schema.Struct({ kind: Schema.Literal('uncommitted') }),
   Schema.Struct({ kind: Schema.Literal('unstaged') }),
   Schema.Struct({ kind: Schema.Literal('staged') }),
   Schema.Struct({ kind: Schema.Literal('branch'), baseBranch: NonEmptyStringSchema }),
@@ -118,12 +119,14 @@ export const ReviewFileDiffParamsSchema = Schema.Struct({
   generation: NonEmptyStringSchema,
   path: NonEmptyStringSchema,
   hideWhitespace: Schema.optional(Schema.Boolean),
+  loadFullFiles: Schema.optional(Schema.Boolean),
 })
 
 export const ReviewFileDiffResultSchema = Schema.Struct({
   file: ReviewFileSummarySchema,
   revision: NonEmptyStringSchema,
   patch: Schema.String,
+  contextPatch: Schema.optional(Schema.String),
   hunks: Schema.Array(ReviewHunkSchema),
   renderable: Schema.Boolean,
   tooLargeReason: Schema.NullOr(Schema.Literals(['changed-lines', 'changed-bytes', 'line-bytes'])),
@@ -136,6 +139,7 @@ export const ReviewFileDiffsParamsSchema = Schema.Struct({
   generation: NonEmptyStringSchema,
   paths: Schema.Array(NonEmptyStringSchema).check(Schema.isMinLength(1), Schema.isMaxLength(128)),
   hideWhitespace: Schema.optional(Schema.Boolean),
+  loadFullFiles: Schema.optional(Schema.Boolean),
 })
 
 export const ReviewFileDiffsResultSchema = Schema.Union([
@@ -211,6 +215,7 @@ export const ReviewBranchesResultSchema = Schema.Struct({
       sha: NonEmptyStringSchema,
       current: Schema.Boolean,
       remote: Schema.Boolean,
+      default: Schema.optional(Schema.Boolean),
     }),
   ),
 })

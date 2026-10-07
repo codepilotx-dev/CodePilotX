@@ -550,6 +550,8 @@ export class GitReviewService {
   ): Promise<ResolvedSource> {
     const headSha = await this.optionalGit(rootPath, ['rev-parse', '--verify', 'HEAD'])
     switch (source.kind) {
+      case 'uncommitted':
+        return { source, args: [headSha ?? EMPTY_TREE_SHA], headSha, baseSha: headSha }
       case 'unstaged':
         return { source, args: [], headSha, baseSha: null }
       case 'staged':
@@ -786,7 +788,7 @@ export class GitReviewService {
     const rawEntries = metadata.rawEntries
     const numstats = metadata.numstats
 
-    if (resolved.source.kind === 'branch') {
+    if (resolved.source.kind === 'branch' || resolved.source.kind === 'uncommitted') {
       const untracked = (
         await this.git(rootPath, ['ls-files', '--others', '--exclude-standard', '-z'])
       ).stdout
@@ -809,7 +811,9 @@ export class GitReviewService {
     }
 
     const worktreeHashes =
-      resolved.source.kind === 'unstaged' || resolved.source.kind === 'branch'
+      resolved.source.kind === 'uncommitted' ||
+      resolved.source.kind === 'unstaged' ||
+      resolved.source.kind === 'branch'
         ? await this.hashWorktreeFiles(
             rootPath,
             rawEntries.map((entry) => entry.path),
@@ -996,7 +1000,10 @@ export class GitReviewService {
         baseSha: resolved.baseSha,
         files,
         totals: { files: files.length, additions, deletions, changedLines, changedBytes },
-        largeDiffMode: files.length > LARGE_FILE_COUNT || changedLines > LARGE_CHANGED_LINES,
+        largeDiffMode:
+          files.length > LARGE_FILE_COUNT ||
+          changedLines > LARGE_CHANGED_LINES ||
+          changedBytes > MAX_BATCH_DIFF_BYTES,
       }
       return {
         rootPath,
@@ -1177,13 +1184,16 @@ export class GitReviewService {
     if (entry && !entry.stale) {
       const currentEntry = entry
       const indexChanged =
-        source.kind === 'unstaged' || source.kind === 'staged' || source.kind === 'branch'
+        source.kind === 'uncommitted' ||
+        source.kind === 'unstaged' ||
+        source.kind === 'staged' ||
+        source.kind === 'branch'
           ? (await fileState(resolve(currentEntry.gitDirectory, 'index'))) !==
             currentEntry.indexState
           : false
       const worktreePaths = paths === undefined ? [] : typeof paths === 'string' ? [paths] : paths
       const worktreeChanged =
-        (source.kind === 'unstaged' || source.kind === 'branch') &&
+        (source.kind === 'uncommitted' || source.kind === 'unstaged' || source.kind === 'branch') &&
         (
           await Promise.all(
             worktreePaths.map(
@@ -1261,6 +1271,7 @@ export class GitReviewService {
     files: readonly ReviewFileSummary[],
     hideWhitespace: boolean,
     maxOutputBytes: number,
+    fullContext = false,
   ): Promise<Map<string, string>> {
     if (files.length === 0) return new Map()
     const whitespaceArgs = hideWhitespace ? ['-w'] : []
@@ -1278,6 +1289,7 @@ export class GitReviewService {
         '--no-color',
         '--full-index',
         ...whitespaceArgs,
+        ...(fullContext ? ['--unified=2147483647'] : []),
         ...entry.resolved.args,
         '--',
         ...paths,
@@ -1350,7 +1362,40 @@ export class GitReviewService {
     generation: string
     path: string
     hideWhitespace?: boolean | undefined
+    loadFullFiles?: boolean | undefined
   }): Promise<ReviewFileDiffResult> {
+    if (input.loadFullFiles) {
+      const result = await this.fileDiff({ ...input, loadFullFiles: false })
+      if (!result.renderable || result.file.binary || result.file.status === 'untracked')
+        return result
+      const entry = await this.snapshotForGeneration(
+        input.projectId,
+        input.source,
+        input.generation,
+        input.path,
+      )
+      try {
+        const patches = await this.trackedPatches(
+          entry,
+          [result.file],
+          input.hideWhitespace === true,
+          UNRENDERABLE_CHANGED_BYTES,
+          true,
+        )
+        await this.snapshotForGeneration(
+          input.projectId,
+          input.source,
+          input.generation,
+          input.path,
+        )
+        const contextPatch = patches.get(result.file.path) ?? ''
+        if (contextPatch.split('\n').length > UNRENDERABLE_CHANGED_LINES) return result
+        return { ...result, contextPatch }
+      } catch (cause) {
+        if (!this.isGitOutputTooLarge(cause)) throw cause
+        return result
+      }
+    }
     const startedAt = performance.now()
     let path: string | undefined
     let phase = 'validate'
@@ -1463,7 +1508,21 @@ export class GitReviewService {
     generation: string
     paths: readonly string[]
     hideWhitespace?: boolean | undefined
+    loadFullFiles?: boolean | undefined
   }): Promise<ReviewFileDiffsResult> {
+    if (input.loadFullFiles) {
+      const result = await this.fileDiffs({ ...input, loadFullFiles: false })
+      if (result.type !== 'success') return result
+      const files: ReviewFileDiffResult[] = []
+      let contextBytes = 0
+      for (const file of result.files) {
+        const expanded = await this.fileDiff({ ...input, path: file.file.path })
+        contextBytes += Buffer.byteLength(expanded.contextPatch ?? expanded.patch, 'utf8')
+        if (contextBytes > MAX_BATCH_DIFF_BYTES) return result
+        files.push(expanded)
+      }
+      return { ...result, files }
+    }
     const startedAt = performance.now()
     const hideWhitespace = input.hideWhitespace === true
     let phase = 'validate'
@@ -1651,6 +1710,11 @@ export class GitReviewService {
       'refs/heads',
       'refs/remotes',
     ])
+    const defaultRef = await this.optionalGit(rootPath, [
+      'symbolic-ref',
+      '--quiet',
+      'refs/remotes/origin/HEAD',
+    ])
     const branches = output.stdout
       .split(/\r?\n/)
       .filter(Boolean)
@@ -1664,6 +1728,7 @@ export class GitReviewService {
             sha,
             current: marker === '*',
             remote,
+            default: refname === defaultRef,
           },
         ]
       })

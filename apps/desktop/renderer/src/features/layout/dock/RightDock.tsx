@@ -59,6 +59,8 @@ type Props = {
   maxHeight?: number
   minHeight?: number
   reviewView: DesktopReviewView
+  onReviewSummaryChange?: WorkbenchTabRenderContext['review']['onReviewSummaryChange']
+  onOpenReviewFile?: (path: string) => void
   reviewTabState: ReviewTabUiState
   selectedFile: DesktopFilePreview | null
   sessionId: string | null
@@ -262,6 +264,8 @@ export function WorkbenchPanel({
   minHeight,
   reviewView,
   reviewTabState,
+  onReviewSummaryChange,
+  onOpenReviewFile,
   selectedFile,
   sessionId,
   sessionStatus,
@@ -358,6 +362,8 @@ export function WorkbenchPanel({
         diffMarkerStyle,
         reviewView,
         reviewTabState,
+        onReviewSummaryChange,
+        onOpenReviewFile,
         sessionStatus,
         workspacePath: workspace?.path ?? null,
         onAppendComposerText: stableOnAppendComposerText,
@@ -424,6 +430,9 @@ export function WorkbenchPanel({
       isRefreshingReview,
       planContentByEventId,
       reviewView,
+      reviewTabState,
+      onReviewSummaryChange,
+      onOpenReviewFile,
       selectedFile,
       sessionId,
       sessionStatus,

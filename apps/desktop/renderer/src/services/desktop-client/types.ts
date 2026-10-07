@@ -150,6 +150,7 @@ export type DesktopReviewAgentFileDiff = {
   file: DesktopReviewAgentFileSummary
   revision: string
   patch: string
+  contextPatch?: string
   hunks: Array<{
     id: string
     header: string
@@ -195,6 +196,7 @@ export type DesktopAgentReviewApi = {
     generation: string
     path: string
     hideWhitespace?: boolean
+    loadFullFiles?: boolean
   }): Promise<DesktopReviewAgentFileDiff>
   getAgentReviewFileDiffs(input: {
     projectId?: string
@@ -203,6 +205,7 @@ export type DesktopAgentReviewApi = {
     generation: string
     paths: readonly string[]
     hideWhitespace?: boolean
+    loadFullFiles?: boolean
   }): Promise<RpcResult<'review/file-diffs'>>
   applyAgentReviewOperation(input: {
     projectId?: string
@@ -233,6 +236,7 @@ export type DesktopAgentReviewApi = {
       sha: string
       current: boolean
       remote: boolean
+    default?: boolean
     }>
   >
   getAgentReviewCommits(

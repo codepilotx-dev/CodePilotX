@@ -208,9 +208,11 @@ export function ReviewDiffInline({
   onDeleteComment,
   onResolveComment,
   onSaveDraft,
+  mutationsDisabled = false,
   readOnly = false,
 }: ReviewDiffBodyProps & {
   ariaLabel?: string
+  mutationsDisabled?: boolean
   readOnly?: boolean
 }): React.ReactNode {
   const rows = buildUnifiedDiffRows(file)
@@ -232,6 +234,7 @@ export function ReviewDiffInline({
         intralineByLineId={intralineByLineId}
         pane="unified"
         pending={pending}
+        mutationsDisabled={mutationsDisabled}
         readOnly={readOnly}
         rows={rows}
         scope={scope}
@@ -255,6 +258,7 @@ export function ReviewDiffSplit({
   file,
   intralineByLineId,
   pending,
+  mutationsDisabled = false,
   readOnly = false,
   scope,
   syntaxThemeId,
@@ -267,6 +271,7 @@ export function ReviewDiffSplit({
   onSaveDraft,
 }: ReviewDiffBodyProps & {
   ariaLabel?: string
+  mutationsDisabled?: boolean
   readOnly?: boolean
 }): React.ReactNode {
   const { leftRows, rightRows } = React.useMemo(() => buildSplitDiffRows(file), [file])
@@ -295,6 +300,7 @@ export function ReviewDiffSplit({
         intralineByLineId={intralineByLineId}
         pane="deletions"
         pending={pending}
+        mutationsDisabled={mutationsDisabled}
         readOnly={readOnly}
         rows={leftRows}
         scope={scope}
@@ -313,6 +319,7 @@ export function ReviewDiffSplit({
         intralineByLineId={intralineByLineId}
         pane="additions"
         pending={pending}
+        mutationsDisabled={mutationsDisabled}
         readOnly={readOnly}
         rows={rightRows}
         scope={scope}
@@ -335,6 +342,7 @@ export function ReviewDiffCodePane({
   intralineByLineId,
   pane,
   pending,
+  mutationsDisabled = false,
   readOnly = false,
   rows,
   scope,
@@ -347,6 +355,7 @@ export function ReviewDiffCodePane({
   onSaveDraft,
 }: Omit<ReviewDiffBodyProps, 'diffMarkerStyle' | 'syntaxThemeId' | 'wrapLines'> & {
   pane: 'unified' | 'deletions' | 'additions'
+  mutationsDisabled?: boolean
   readOnly?: boolean
   rows: CodexDiffPaneRow[]
   syntaxByLineId: ReviewSyntaxByLineId
@@ -409,7 +418,7 @@ export function ReviewDiffCodePane({
                   <span data-separator-content="">
                     {formatUnmodifiedLines(row.unmodifiedLines)}
                   </span>
-                  {readOnly || pane === 'additions' ? null : (
+                  {readOnly || mutationsDisabled || pane === 'additions' ? null : (
                     <ReviewHunkActions
                       file={file}
                       hunk={row.hunk}

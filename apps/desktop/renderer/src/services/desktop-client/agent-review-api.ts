@@ -67,6 +67,11 @@ export function createAgentReviewApi({
       return withAgentOrMock(
         async () => {
           requireReviewCapability()
+          if (
+            input.source.kind === 'uncommitted' &&
+            !(await rpc.ensureInitialized()).capabilities.includes('git.review.uncommitted.v1')
+          )
+            unsupportedReviewOperation()
           const project = await loadProject(input.workspacePath, input.projectId)
           await preparePullRequestReview(project.id, input.source, input.refresh === true)
           return rpc.call<DesktopReviewAgentSummaryResult>(
@@ -83,6 +88,11 @@ export function createAgentReviewApi({
       return withAgentOrMock(
         async () => {
           requireReviewCapability()
+          if (
+            input.source.kind === 'uncommitted' &&
+            !(await rpc.ensureInitialized()).capabilities.includes('git.review.uncommitted.v1')
+          )
+            unsupportedReviewOperation()
           const project = await loadProject(input.workspacePath, input.projectId)
           return rpc.call<DesktopReviewAgentFileDiff>('review/fileDiff', {
             projectId: project.id,
@@ -90,6 +100,9 @@ export function createAgentReviewApi({
             generation: input.generation,
             path: input.path,
             hideWhitespace: input.hideWhitespace,
+            ...((await rpc.ensureInitialized()).capabilities.includes('git.review.context.v1')
+              ? { loadFullFiles: input.loadFullFiles }
+              : {}),
           })
         },
         async () => unsupportedReviewOperation(),
@@ -111,6 +124,11 @@ export function createAgentReviewApi({
       return withAgentOrMock(
         async () => {
           requireReviewCapability()
+          if (
+            input.source.kind === 'uncommitted' &&
+            !(await rpc.ensureInitialized()).capabilities.includes('git.review.uncommitted.v1')
+          )
+            unsupportedReviewOperation()
           if (!(await rpc.ensureInitialized()).capabilities.includes('git.review.batch.v1')) {
             unsupportedReviewOperation()
           }
@@ -121,6 +139,9 @@ export function createAgentReviewApi({
             generation: input.generation,
             paths: [...input.paths],
             hideWhitespace: input.hideWhitespace,
+            ...((await rpc.ensureInitialized()).capabilities.includes('git.review.context.v1')
+              ? { loadFullFiles: input.loadFullFiles }
+              : {}),
           })
         },
         async () => unsupportedReviewOperation(),
@@ -181,6 +202,7 @@ export function createAgentReviewApi({
                   sha: string
                   current: boolean
                   remote: boolean
+                  default?: boolean
                 }>
               }>('review/branches', { projectId: project.id })
               return result.branches

@@ -18,6 +18,7 @@ import {
 } from './reviewAgentClient.js'
 
 type ReviewSourceMenuProps = {
+  supportsUncommitted?: boolean
   branches: readonly ReviewBranch[]
   commits: readonly ReviewCommit[]
   open: boolean
@@ -30,6 +31,7 @@ type ReviewSourceMenuProps = {
 }
 
 export function ReviewSourceMenu({
+  supportsUncommitted = false,
   branches,
   commits,
   open,
@@ -40,7 +42,8 @@ export function ReviewSourceMenu({
   onSelectLastTurn,
   onSelectSource,
 }: ReviewSourceMenuProps): React.ReactNode {
-  const defaultBaseBranch = pickDefaultReviewBaseBranch(branches)
+  const defaultBaseBranch =
+    source.kind === 'branch' ? source.baseBranch : pickDefaultReviewBaseBranch(branches)
 
   return (
     <PopoverMenu
@@ -72,9 +75,14 @@ export function ReviewSourceMenu({
         <PopoverRadioItem value="last-turn">上一轮</PopoverRadioItem>
       </PopoverRadioGroup>
       <DropdownMenu.Separator className="review-source-menu-separator tw:my-1 tw:h-px tw:bg-app-border-subtle" />
-      <DropdownMenu.Label className="review-source-menu-label tw:flex tw:items-center tw:px-2 tw:py-1 tw:text-app-text-meta tw:type-label tw:outline-none">
-        未提交
-      </DropdownMenu.Label>
+      {supportsUncommitted ? (
+        <PopoverRadioGroup
+          value={source.kind === 'uncommitted' ? 'uncommitted' : ''}
+          onValueChange={() => onSelectSource({ kind: 'uncommitted' })}
+        >
+          <PopoverRadioItem value="uncommitted">未提交</PopoverRadioItem>
+        </PopoverRadioGroup>
+      ) : null}
       <PopoverRadioGroup
         value={source.kind === 'unstaged' || source.kind === 'staged' ? source.kind : ''}
         onValueChange={(kind) => onSelectSource({ kind: kind as 'unstaged' | 'staged' })}
@@ -148,7 +156,7 @@ function ReviewCommitSourceSubmenu({ children }: { children: React.ReactNode }):
   return (
     <DropdownMenu.Sub>
       <DropdownMenu.SubTrigger className="popover-item popover-sub-trigger" tabIndex={-1}>
-        <span className="popover-item-label">提交</span>
+        <span className="popover-item-label">已提交</span>
         <span className="popover-item-trailing">
           <ChevronRight className="popover-item-arrow" size={APP_ICON_SIZES.sm} />
         </span>

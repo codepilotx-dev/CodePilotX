@@ -24,6 +24,50 @@ export function unifiedPatchToDesktopHunks(
   })
 }
 
+export function expandReviewContext(
+  hunks: DesktopReviewDiffHunk[],
+  contextPatch: string | undefined,
+): DesktopReviewDiffHunk[] {
+  if (!contextPatch || hunks.length === 0) return hunks
+  const context = parsePatchLines(contextPatch)
+    .flatMap((hunk) => hunk.lines)
+    .filter((line) => line.type === 'context')
+  return hunks.map((hunk, index) => {
+    const start = index === 0 ? 1 : hunks[index - 1]!.oldStart + hunks[index - 1]!.oldLines
+    const prefix = context.filter((line) => line.oldLine! >= start && line.oldLine! < hunk.oldStart)
+    const suffix =
+      index === hunks.length - 1
+        ? context.filter((line) => line.oldLine! >= hunk.oldStart + hunk.oldLines)
+        : []
+    const lines = [...prefix, ...hunk.lines, ...suffix]
+    return {
+      ...hunk,
+      oldStart: prefix[0]?.oldLine ?? hunk.oldStart,
+      newStart: prefix[0]?.newLine ?? hunk.newStart,
+      oldLines: lines.filter((line) => line.type !== 'added').length,
+      newLines: lines.filter((line) => line.type !== 'removed').length,
+      lines: lines.map((line, row) => ({ ...line, id: `${hunk.id}:context:${row}` })),
+    }
+  })
+}
+
+export function hideImportOnlyHunks(hunks: DesktopReviewDiffHunk[]): DesktopReviewDiffHunk[] {
+  // ponytail: only complete JS/TS import statements; use a syntax parser if other languages are needed.
+  const imports =
+    /^(?:\s*import\s+(?:type\s+)?(?:[\w$*{},\s]+\s+from\s+)?['"][^'"\r\n]+['"]\s*;?\s*)+$/u
+  return hunks.filter((hunk) => {
+    const changed = hunk.lines.filter((line) => line.type !== 'context')
+    if (changed.length === 0) return true
+    return !(['added', 'removed'] as const).every((type) => {
+      const text = changed
+        .filter((line) => line.type === type)
+        .map((line) => line.content)
+        .join('\n')
+      return !text.trim() || imports.test(text)
+    })
+  })
+}
+
 function parsePatchLines(patch: string): Array<{ header: string; lines: DesktopReviewDiffLine[] }> {
   const result: Array<{ header: string; lines: DesktopReviewDiffLine[] }> = []
   let current: { header: string; lines: DesktopReviewDiffLine[] } | null = null

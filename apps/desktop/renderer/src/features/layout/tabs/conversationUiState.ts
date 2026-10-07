@@ -45,6 +45,8 @@ export type ReviewTabUiState = {
   showWordDiff: boolean
   hideWhitespace: boolean
   richPreview: boolean
+  loadFullFiles: boolean
+  hideImports: boolean
 }
 
 export type ReviewDiffExpansion =
@@ -125,6 +127,8 @@ export function createDefaultReviewTabUiState(): ReviewTabUiState {
     showWordDiff: true,
     hideWhitespace: false,
     richPreview: true,
+    loadFullFiles: true,
+    hideImports: false,
   }
 }
 
@@ -354,6 +358,8 @@ function validateReviewTabUiState(value: unknown): ReviewTabUiState {
       typeof value.showWordDiff === 'boolean' ? value.showWordDiff : defaults.showWordDiff,
     hideWhitespace:
       typeof value.hideWhitespace === 'boolean' ? value.hideWhitespace : defaults.hideWhitespace,
+    loadFullFiles: typeof value.loadFullFiles === 'boolean' ? value.loadFullFiles : defaults.loadFullFiles,
+    hideImports: typeof value.hideImports === 'boolean' ? value.hideImports : defaults.hideImports,
     richPreview: typeof value.richPreview === 'boolean' ? value.richPreview : defaults.richPreview,
   }
 }
@@ -373,7 +379,7 @@ function validateReviewDiffExpansion(
 
 function validateReviewSource(value: unknown): DesktopReviewSource | null {
   if (!isRecord(value) || typeof value.kind !== 'string') return null
-  if (value.kind === 'unstaged' || value.kind === 'staged') {
+  if (value.kind === 'uncommitted' || value.kind === 'unstaged' || value.kind === 'staged') {
     return { kind: value.kind }
   }
   if (value.kind === 'branch' && typeof value.baseBranch === 'string') {
