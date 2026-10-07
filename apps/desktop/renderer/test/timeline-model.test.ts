@@ -7,7 +7,10 @@ import {
 } from '../src/features/session/conversation/ConversationTurnNavRail.js'
 import { ConversationTurnRowRegistry } from '../src/features/session/conversation/useConversationTurnRowVisibility.js'
 
-type NavTurn = Pick<RenderTurnEntry, 'id' | 'userInputs' | 'assistantResultItems' | 'patchItems'>
+type NavTurn = Pick<
+  RenderTurnEntry,
+  'id' | 'userItems' | 'userInputs' | 'turn' | 'assistantResultItems' | 'patchItems'
+>
 
 function navTurn({
   assistantTexts = [],
@@ -20,8 +23,11 @@ function navTurn({
   id: string
   userTexts?: string[]
 }): RenderTurnEntry {
+  const inputs = userTexts.map((content, index) => ({ id: `${id}-input-${index}`, content }))
   return {
     id,
+    turn: { status: 'completed' },
+    userItems: inputs,
     userInputs: userTexts.map((content, index) => ({
       id: `${id}-input-${index}`,
       content,
@@ -69,29 +75,47 @@ describe('canonical conversation navigation', () => {
       }),
     ])
 
-    expect(navItems).toEqual([
+    expect(navItems).toMatchObject([
       {
-        id: 'turn-1',
+        id: 'turn-1-input-0',
+        turnId: 'turn-1',
         rowIndex: 0,
-        userText: '修改主题\n同时整理高对比主题',
-        assistantText: '已完成 token 调整\n并更新组件样式',
-        outputs: [
-          { type: 'file', label: 'theme.ts', path: 'src/theme.ts' },
-          {
-            type: 'file',
-            label: 'Button.tsx',
-            path: 'src\\components\\Button.tsx',
-          },
-          { type: 'file', label: 'panel.tsx', path: 'src/panel.tsx' },
-        ],
+        userText: '修改主题',
+        isRunning: false,
       },
       {
-        id: 'turn-2',
+        id: 'turn-1-input-1',
+        turnId: 'turn-1',
+        rowIndex: 0,
+        userText: '同时整理高对比主题',
+        isRunning: false,
+      },
+      {
+        id: 'turn-2-input-0',
+        turnId: 'turn-2',
         rowIndex: 1,
         userText: '',
         assistantText: null,
         outputs: [],
       },
+    ])
+    expect(navItems[0]!.assistantText).toBe('已完成 token 调整\n并更新组件样式')
+    expect(navItems[0]!.outputs).toEqual([
+      { type: 'file', label: 'theme.ts', path: 'src/theme.ts' },
+      { type: 'file', label: 'Button.tsx', path: 'src\\components\\Button.tsx' },
+      { type: 'file', label: 'panel.tsx', path: 'src/panel.tsx' },
+    ])
+    expect(navItems[1]!.outputs).toBe(navItems[0]!.outputs)
+  })
+
+  test('excludes goal continuation and emphasizes only the last visible running input', () => {
+    const entry = navTurn({ id: 'running', userTexts: ['', '追加要求', '系统继续'] })
+    entry.turn = { ...entry.turn, status: 'running' }
+    entry.userItems[0] = { ...entry.userItems[0]!, attachmentIds: ['attachment-1'] }
+    entry.userItems[2] = { ...entry.userItems[2]!, origin: 'goal-continuation' }
+    expect(deriveConversationTurnNavItems([entry])).toMatchObject([
+      { id: 'running-input-0', userText: '', isRunning: false },
+      { id: 'running-input-1', userText: '追加要求', isRunning: true },
     ])
   })
 
@@ -102,8 +126,8 @@ describe('canonical conversation navigation', () => {
     ]
 
     expect(deriveConversationTurnNavItems(recentTurns)).toMatchObject([
-      { id: 'turn-2', rowIndex: 0 },
-      { id: 'turn-3', rowIndex: 1 },
+      { id: 'turn-2-input-0', rowIndex: 0 },
+      { id: 'turn-3-input-0', rowIndex: 1 },
     ])
     expect(
       deriveConversationTurnNavItems([
@@ -111,9 +135,9 @@ describe('canonical conversation navigation', () => {
         ...recentTurns,
       ]),
     ).toMatchObject([
-      { id: 'turn-1', rowIndex: 0 },
-      { id: 'turn-2', rowIndex: 1 },
-      { id: 'turn-3', rowIndex: 2 },
+      { id: 'turn-1-input-0', rowIndex: 0 },
+      { id: 'turn-2-input-0', rowIndex: 1 },
+      { id: 'turn-3-input-0', rowIndex: 2 },
     ])
   })
 

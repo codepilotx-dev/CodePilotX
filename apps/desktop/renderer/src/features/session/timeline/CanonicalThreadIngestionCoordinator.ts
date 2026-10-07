@@ -129,6 +129,23 @@ export class CanonicalThreadIngestionCoordinator {
     this.#commit(prependOlderThreadPage(this.#state, page))
   }
 
+  prependOlderDirectory(page: ThreadHistoryPageLike): void {
+    this.#assertPageThread(page)
+    this.#flushPending()
+    if (!this.#state) return
+    // 批量读取期间实时事件可能已创建或更新实体；目录仅补充尚未装载的轮次。
+    this.#commit(
+      prependOlderThreadPage(this.#state, {
+        ...page,
+        queue: undefined,
+        turns: page.turns.filter((bundle) => !this.#state!.turnsById.has(bundle.turn.id)),
+        subagents: page.subagents.filter(
+          (projection) => !this.#state!.subagentsByTaskId.has(projection.task.id),
+        ),
+      }),
+    )
+  }
+
   /**
    * 立即提交已入队事件并清空尾部缓冲。线程切换、卸载、历史读取前调用，
    * 保证 canonical 与尾部缓冲之间不残留未提交的 delta。

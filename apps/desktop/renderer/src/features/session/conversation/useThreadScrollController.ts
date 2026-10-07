@@ -205,6 +205,7 @@ export function forgetThreadScrollState(sessionKey: string): void {
 }
 
 type ThreadScrollController = {
+  pauseFollowing: () => void
   beginProgrammaticScroll: (smooth: boolean) => boolean
   bottomSentinelRef: (node: HTMLDivElement | null) => void
   handleScroll: (scrollTop: number) => void
@@ -402,6 +403,15 @@ export function useThreadScrollController({
     },
     [reducedMotion],
   )
+
+  const pauseFollowing = React.useCallback(() => {
+    if (scrollFrameRef.current !== null) {
+      cancelAnimationFrame(scrollFrameRef.current)
+      scrollFrameRef.current = null
+    }
+    explicitReturnInProgressRef.current = false
+    setMode('static')
+  }, [setMode])
 
   const scrollToEnd = React.useCallback(
     (smooth: boolean, explicitReturn = false): void => {
@@ -923,6 +933,7 @@ export function useThreadScrollController({
   )
 
   return {
+    pauseFollowing,
     beginProgrammaticScroll,
     bottomSentinelRef: setBottomSentinel,
     canReturnToBottom: canReturnToThreadBottom(hasMeasuredBottom, isAtBottom),

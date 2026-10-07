@@ -69,6 +69,7 @@ import { ThreadComposerDock } from './ThreadComposerDock.js'
 import { ThreadScrollLayout } from './ThreadScrollLayout.js'
 import { ConversationTurnNavRail, type TurnNavigationReason } from './ConversationTurnNavRail.js'
 import { useConversationTurnRowVisibility } from './useConversationTurnRowVisibility.js'
+import { useThreadBookmarks } from './useThreadBookmarks.js'
 import {
   ThreadSummaryErrorBoundary,
   ThreadSummaryPanel,
@@ -128,13 +129,6 @@ function isFinishedSubagentStatus(status: string | null | undefined): boolean {
     status === 'stopped' ||
     status === 'interrupted'
   )
-}
-
-function escapeCssAttributeValue(value: string): string {
-  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
-    return CSS.escape(value)
-  }
-  return value.replace(/\\/gu, '\\\\').replace(/"/gu, '\\"')
 }
 
 export function ConversationPage(): React.ReactNode {
@@ -265,6 +259,9 @@ export function ConversationPage(): React.ReactNode {
     () => deriveConversationTurnNavItems(canonicalConversation.turns),
     [canonicalConversation.turns],
   )
+  const { bookmarks: threadBookmarks, toggle: toggleThreadBookmark } = useThreadBookmarks(
+    activeSessionId ?? '',
+  )
   const latestConversationForkPoint = React.useMemo(
     () => findLatestConversationForkPoint(canonicalConversation.turns),
     [canonicalConversation.turns],
@@ -309,6 +306,46 @@ export function ConversationPage(): React.ReactNode {
   const [isRefreshingDiff, setIsRefreshingDiff] = React.useState(false)
   const timelineListRef = React.useRef<import('virtua').VirtualizerHandle | null>(null)
   const timelineNavigationRef = React.useRef<ThreadTimelineNavigationHandle | null>(null)
+  const [hasRailInlineClearance, setHasRailInlineClearance] = React.useState(false)
+  const directoryAttemptRef = React.useRef<string | null>(null)
+  const loadDirectoryPreservingAnchor = React.useCallback(
+    () =>
+      canonicalConversation.loadAllOlder(
+        () => timelineNavigationRef.current?.captureHistoryAnchor() ?? (() => undefined),
+      ),
+    [canonicalConversation.loadAllOlder],
+  )
+  const historyGeneration = canonicalConversation.state?.history.generation
+  const loadOlderPreservingAnchor = React.useCallback(
+    () =>
+      canonicalConversation.loadOlder(
+        () => timelineNavigationRef.current?.captureHistoryAnchor() ?? (() => undefined),
+      ),
+    [canonicalConversation.loadOlder],
+  )
+  const historyCursor = canonicalConversation.state?.history.olderCursor
+  React.useEffect(() => {
+    if (
+      !hasRailInlineClearance ||
+      !canonicalConversation.hasOlder ||
+      canonicalConversation.loadingOlder ||
+      canonicalConversation.loadingDirectory
+    )
+      return
+    const key = `${activeSessionId}:${historyGeneration}:${historyCursor}`
+    if (directoryAttemptRef.current === key) return
+    directoryAttemptRef.current = key
+    void loadDirectoryPreservingAnchor()
+  }, [
+    activeSessionId,
+    canonicalConversation.hasOlder,
+    canonicalConversation.loadingOlder,
+    canonicalConversation.loadingDirectory,
+    hasRailInlineClearance,
+    historyCursor,
+    historyGeneration,
+    loadDirectoryPreservingAnchor,
+  ])
   const [timelineBottomState, setTimelineBottomState] = React.useState<{
     sessionId: string | null
     canReturnToBottom: boolean
@@ -350,44 +387,10 @@ export function ConversationPage(): React.ReactNode {
 
   const handleTurnNavigate = React.useCallback(
     (item: ConversationTurnNavItem, reason: TurnNavigationReason): void => {
-      const didNavigate = timelineNavigationRef.current?.revealTurn(item.rowIndex, 'instant')
-      if (!didNavigate) return
-      if (reduceMotion) return
-
-      let remainingAttempts = 6
-      const flashTurn = (): void => {
-        const root = threadScrollRef.current
-        const selector = `[data-turn-navigation-id="${escapeCssAttributeValue(item.id)}"]`
-        const row = root?.querySelector<HTMLElement>(selector)
-        if (!row) {
-          remainingAttempts -= 1
-          if (remainingAttempts > 0) window.requestAnimationFrame(flashTurn)
-          return
-        }
-        const highlightTarget = row.querySelector<HTMLElement>('[data-user-message-bubble]') ?? row
-        highlightTarget.animate?.(
-          [
-            {
-              backgroundColor:
-                'color-mix(in srgb, var(--cpx-sys-color-fg-primary) 14%, transparent)',
-            },
-            {
-              backgroundColor:
-                'color-mix(in srgb, var(--cpx-sys-color-fg-primary) 14%, transparent)',
-              offset: 0.35,
-            },
-            {
-              backgroundColor:
-                'color-mix(in srgb, var(--cpx-sys-color-fg-primary) 5%, transparent)',
-            },
-          ],
-          {
-            duration: 100,
-            easing: 'cubic-bezier(0.23, 1, 0.32, 1)',
-          },
-        )
-      }
-      window.requestAnimationFrame(flashTurn)
+      timelineNavigationRef.current?.revealInput(
+        { turnId: item.turnId, inputId: item.id, rowIndex: item.rowIndex },
+        reduceMotion || reason === 'scrub' ? 'instant' : 'smooth',
+      )
     },
     [reduceMotion],
   )
@@ -1396,10 +1399,15 @@ export function ConversationPage(): React.ReactNode {
         listRef={timelineListRef}
         navigationRef={timelineNavigationRef}
         loading={canonicalConversation.loading}
-        loadingOlder={canonicalConversation.loadingOlder}
+        loadingOlder={canonicalConversation.loadingOlder || canonicalConversation.loadingDirectory}
+        historyError={canonicalConversation.directoryError}
         onCanReturnToBottomChange={handleCanReturnToBottomChange}
         onApplyPatch={applyThreadPatch}
-        onLoadOlder={canonicalConversation.loadOlder}
+        onLoadOlder={
+          canonicalConversation.directoryError
+            ? loadDirectoryPreservingAnchor
+            : loadOlderPreservingAnchor
+        }
         onOpenPatchReview={onOpenPatchReview}
         onOpenPlanInRightDock={onOpenPlanInRightDock}
         onOpenSubagent={onOpenSubagent}
@@ -1485,9 +1493,13 @@ export function ConversationPage(): React.ReactNode {
         >
           <div className="workflow-main-scroll-frame tw:relative tw:flex tw:min-w-0 tw:min-h-0 tw:flex-1 tw:overflow-hidden">
             <ConversationTurnNavRail
+              key={activeSessionId}
               items={turnNavItems}
               onNavigate={handleTurnNavigate}
               visibilityStore={visibilityStore}
+              onInlineClearanceChange={setHasRailInlineClearance}
+              bookmarkedInputIds={threadBookmarks?.inputIds ?? null}
+              onToggleBookmark={toggleThreadBookmark}
             />
             <ThreadScrollLayout
               className="workflow-main-scroll-area tw:flex tw:min-h-0 tw:flex-1 tw:flex-col tw:overflow-hidden"

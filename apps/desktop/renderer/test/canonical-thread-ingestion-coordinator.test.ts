@@ -1,3 +1,4 @@
+import { loadOlderThreadDirectory } from '../src/features/session/timeline/loadOlderThreadDirectory.js'
 import { describe, expect, test } from 'bun:test'
 import type { DurableEventEnvelope } from '@codepilotx/agent-protocol'
 import type { Thread, Turn } from '@codepilotx/shared/thread'
@@ -339,5 +340,100 @@ describe('canonical batch terminal reconciliation', () => {
 
     expect(performed).toBe(false)
     expect(readCalls).toBe(0)
+  })
+})
+
+describe('complete navigation history', () => {
+  function initialCoordinator() {
+    const coordinator = new CanonicalThreadIngestionCoordinator({ threadId: thread.id })
+    coordinator.rehydrate({
+      ...historyPage(),
+      queue: { ...historyPage().queue, version: 7 },
+      olderCursor: 'cursor-1',
+      hasOlder: true,
+    })
+    return coordinator
+  }
+
+  test('reads all pages then commits once, preserving live entities, queue and stream cursor', async () => {
+    const coordinator = initialCoordinator()
+    const initial = coordinator.getSnapshot()!
+    let commits = 0
+    coordinator.subscribe(() => commits++)
+    const requested: string[] = []
+    const page = await loadOlderThreadDirectory({
+      initial,
+      getCurrent: coordinator.getSnapshot,
+      readPage: async (before) => {
+        requested.push(before)
+        const result = historyPage()
+        result.turns[0]!.turn = { ...turn, id: before === 'cursor-1' ? 'older-2' : 'older-1' }
+        if (before === 'cursor-1') await coordinator.deliverBatch([statusEvent()])
+        return {
+          ...result,
+          olderCursor: before === 'cursor-1' ? 'cursor-2' : null,
+          hasOlder: before === 'cursor-1',
+        }
+      },
+    })
+    expect(requested).toEqual(['cursor-1', 'cursor-2'])
+    expect(commits).toBe(1) // only the concurrent live event
+    const live = coordinator.getSnapshot()!
+    const queue = live.queue
+    coordinator.prependOlderDirectory({
+      ...page!,
+      turns: [...page!.turns, historyPage().turns[0]!],
+    })
+    const next = coordinator.getSnapshot()!
+    expect(commits).toBe(2)
+    expect(next.turnOrder).toEqual(['older-1', 'older-2', turn.id])
+    expect(next.turnsById.get(turn.id)?.status).toBe('completed')
+    expect(next.queue).toEqual(queue)
+    expect(next.stream.appliedSequence).toBe(live.stream.appliedSequence)
+    expect(next.history.hasOlder).toBe(false)
+  })
+
+  test('failed second page and non-advancing cursor leave the current projection intact', async () => {
+    for (const fail of [true, false]) {
+      const coordinator = initialCoordinator()
+      const initial = coordinator.getSnapshot()!
+      await expect(
+        loadOlderThreadDirectory({
+          initial,
+          getCurrent: coordinator.getSnapshot,
+          readPage: async (before) => {
+            if (fail && before === 'cursor-2') throw new Error('unavailable')
+            return { ...historyPage(), olderCursor: fail ? 'cursor-2' : 'cursor-1', hasOlder: true }
+          },
+        }),
+      ).rejects.toThrow()
+      expect(coordinator.getSnapshot()).toBe(initial)
+    }
+  })
+
+  test('rejects results after switching thread or rehydrating the current history generation', async () => {
+    const coordinator = initialCoordinator()
+    const initial = coordinator.getSnapshot()!
+    const result = await loadOlderThreadDirectory({
+      initial,
+      getCurrent: coordinator.getSnapshot,
+      readPage: async () => {
+        coordinator.rehydrate(historyPage())
+        return historyPage()
+      },
+    })
+    expect(result).toBeNull()
+    let reads = 0
+    expect(
+      await loadOlderThreadDirectory({
+        initial,
+        getCurrent: () => null,
+        readPage: async () => {
+          reads++
+          return historyPage()
+        },
+      }),
+    ).toBeNull()
+    expect(reads).toBe(0)
   })
 })

@@ -111,7 +111,11 @@ export function useConversationTurnRowVisibility(
     const firstVisibleIndex = itemOrder.findIndex((id) => visibleIds.has(id))
     const nextVisibleIds =
       firstVisibleIndex < 0
-        ? new Set(itemOrder.at(-1) ? [itemOrder.at(-1)!] : [])
+        ? new Set(
+            [...visibilityStoreRef.current!.getSnapshot()].filter((id) =>
+              validIdsRef.current.has(id),
+            ),
+          )
         : new Set(
             itemOrder.slice(
               firstVisibleIndex,
@@ -147,7 +151,7 @@ export function useConversationTurnRowVisibility(
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          const turnId = entry.target.getAttribute('data-turn-navigation-id')
+          const turnId = entry.target.getAttribute('data-input-navigation-id')
           if (!turnId || !validIdsRef.current.has(turnId)) continue
           if (entry.isIntersecting) visibleIdsRef.current.add(turnId)
           else visibleIdsRef.current.delete(turnId)

@@ -10,7 +10,9 @@ export type ConversationTurnNavOutput = {
 
 export type ConversationTurnNavItem = {
   id: string
+  turnId: string
   rowIndex: number
+  isRunning: boolean
   userText: string
   assistantText: string | null
   outputs: ConversationTurnNavOutput[]
@@ -19,26 +21,33 @@ export type ConversationTurnNavItem = {
 export function deriveConversationTurnNavItems(
   turns: readonly RenderTurnEntry[],
 ): ConversationTurnNavItem[] {
-  return turns.map((turn, rowIndex) => {
+  return turns.flatMap((turn, rowIndex) => {
     const assistantText = turn.assistantResultItems
       .map((item) => item.text)
       .join('\n')
       .trim()
 
-    return {
-      id: turn.id,
+    const inputs = turn.userItems.filter((input) => input.origin !== 'goal-continuation')
+    const outputs = collectFileOutputs(turn)
+    return inputs.map((input, index) => ({
+      id: input.id,
+      turnId: turn.id,
       rowIndex,
-      userText: turn.userInputs
-        .map((input) =>
-          input.skills?.length
-            ? desktopUserMessageInputToPreviewText({ text: input.content, skills: input.skills })
-            : input.content,
-        )
-        .join('\n')
-        .trim(),
+      isRunning:
+        [
+          'running',
+          'waiting-permission',
+          'waiting-question',
+          'waiting-subagents',
+          'queued',
+        ].includes(turn.turn.status) && index === inputs.length - 1,
+      userText: (input.skills?.length
+        ? desktopUserMessageInputToPreviewText({ text: input.content, skills: input.skills })
+        : input.content
+      ).trim(),
       assistantText: assistantText || null,
-      outputs: collectFileOutputs(turn),
-    }
+      outputs,
+    }))
   })
 }
 

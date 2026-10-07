@@ -14,6 +14,7 @@ import { AGENT_LIVE_EVENT_FILTERS } from '../../../services/desktop-client/event
 import { canonicalThreadCache } from '../state/canonicalThreadCache.js'
 import { installStreamingPerfHarness } from '../state/streamingPerfHarness.js'
 import { CanonicalThreadIngestionCoordinator } from './CanonicalThreadIngestionCoordinator.js'
+import { loadOlderThreadDirectory } from './loadOlderThreadDirectory.js'
 
 const INITIAL_TURN_PAGE_SIZE = 10
 const MAIN_CONVERSATION_SCOPE = { type: 'main' } as const
@@ -26,7 +27,10 @@ export type CanonicalThreadConversation = {
   loadingOlder: boolean
   error: string | null
   hasOlder: boolean
-  loadOlder: () => Promise<void>
+  loadOlder: (beforeCommit?: () => () => void) => Promise<void>
+  loadAllOlder: (beforeCommit?: () => () => void) => Promise<void>
+  loadingDirectory: boolean
+  directoryError: string | null
   reload: () => Promise<void>
 }
 
@@ -99,6 +103,12 @@ export function useCanonicalThreadConversation(
   scope: ThreadConversationScope = MAIN_CONVERSATION_SCOPE,
 ): CanonicalThreadConversation {
   const [loadingOlderThreadId, setLoadingOlderThreadId] = React.useState<string | null>(null)
+  const historyRequestRef = React.useRef<object | null>(null)
+  const [directoryState, setDirectoryState] = React.useState<{
+    threadId: string | null
+    loading: boolean
+    error: string | null
+  }>({ threadId: null, loading: false, error: null })
   const [errorState, setErrorState] = React.useState<{
     threadId: string
     message: string
@@ -158,6 +168,8 @@ export function useCanonicalThreadConversation(
     unsubscribeRef.current?.()
     unsubscribeRef.current = null
     setLoadingOlderThreadId(null)
+    historyRequestRef.current = null
+    setDirectoryState({ threadId: requestedThreadId, loading: false, error: null })
     if (!requestedThreadId || !coordinator) {
       setErrorState(null)
       return
@@ -254,61 +266,119 @@ export function useCanonicalThreadConversation(
     return installStreamingPerfHarness(coordinator)
   }, [coordinator])
 
-  const loadOlder = React.useCallback(async (): Promise<void> => {
-    const current = coordinator?.getSnapshot() ?? null
-    const cursor = current?.history.olderCursor
-    const requestedThreadId = threadId
-    const generation = generationRef.current
-    if (
-      !requestedThreadId ||
-      !coordinator ||
-      !current ||
-      current.thread.id !== requestedThreadId ||
-      !current.history.hasOlder ||
-      !cursor ||
-      loadingOlderThreadId === requestedThreadId
-    ) {
-      return
-    }
-    setLoadingOlderThreadId(requestedThreadId)
-    try {
-      const page = await desktopClient.readThreadHistoryPage({
-        threadId: requestedThreadId,
-        before: cursor,
-        limit: INITIAL_TURN_PAGE_SIZE,
-      })
+  const loadOlder = React.useCallback(
+    async (beforeCommit?: () => () => void): Promise<void> => {
+      const current = coordinator?.getSnapshot() ?? null
+      const cursor = current?.history.olderCursor
+      const requestedThreadId = threadId
+      const generation = generationRef.current
       if (
-        !isCurrentCanonicalThreadRequest(
+        !requestedThreadId ||
+        !coordinator ||
+        !current ||
+        current.thread.id !== requestedThreadId ||
+        !current.history.hasOlder ||
+        !cursor ||
+        historyRequestRef.current !== null
+      ) {
+        return
+      }
+      setLoadingOlderThreadId(requestedThreadId)
+      const request = {}
+      historyRequestRef.current = request
+      try {
+        const page = await desktopClient.readThreadHistoryPage({
+          threadId: requestedThreadId,
+          before: cursor,
+          limit: INITIAL_TURN_PAGE_SIZE,
+        })
+        if (
+          !isCurrentCanonicalThreadRequest(
+            activeThreadIdRef.current,
+            generationRef.current,
+            requestedThreadId,
+            generation,
+          )
+        ) {
+          return
+        }
+        const restore = beforeCommit?.()
+        coordinator.prependOlder(page)
+        restore?.()
+      } catch (cause) {
+        if (
+          !isCurrentCanonicalThreadRequest(
+            activeThreadIdRef.current,
+            generationRef.current,
+            requestedThreadId,
+            generation,
+          )
+        ) {
+          return
+        }
+        setErrorState({
+          threadId: requestedThreadId,
+          message: cause instanceof Error ? cause.message : String(cause),
+        })
+      } finally {
+        if (historyRequestRef.current === request) {
+          historyRequestRef.current = null
+          setLoadingOlderThreadId((currentThreadId) =>
+            currentThreadId === requestedThreadId ? null : currentThreadId,
+          )
+        }
+      }
+    },
+    [coordinator, threadId],
+  )
+
+  const loadAllOlder = React.useCallback(
+    async (beforeCommit?: () => () => void): Promise<void> => {
+      const initial = coordinator?.getSnapshot()
+      if (!threadId || !coordinator || !initial?.history.hasOlder || historyRequestRef.current)
+        return
+      const requestedThreadId = threadId
+      const generation = generationRef.current
+      const request = {}
+      historyRequestRef.current = request
+      setDirectoryState({ threadId, loading: true, error: null })
+      const getCurrent = () =>
+        isCurrentCanonicalThreadRequest(
           activeThreadIdRef.current,
           generationRef.current,
           requestedThreadId,
           generation,
         )
-      ) {
-        return
+          ? coordinator.getSnapshot()
+          : null
+      try {
+        const page = await loadOlderThreadDirectory({
+          initial,
+          getCurrent,
+          readPage: (before) =>
+            desktopClient.readThreadHistoryPage({ threadId: requestedThreadId, before, limit: 50 }),
+        })
+        if (page && getCurrent()) {
+          const restore = beforeCommit?.()
+          coordinator.prependOlderDirectory(page)
+          restore?.()
+        }
+      } catch {
+        if (getCurrent())
+          setDirectoryState({
+            threadId: requestedThreadId,
+            loading: false,
+            error: '更早的消息加载失败，请重试。',
+          })
+      } finally {
+        if (historyRequestRef.current === request) {
+          historyRequestRef.current = null
+          if (getCurrent()) setDirectoryState((current) => ({ ...current, loading: false }))
+        }
       }
-      coordinator.prependOlder(page)
-    } catch (cause) {
-      if (
-        !isCurrentCanonicalThreadRequest(
-          activeThreadIdRef.current,
-          generationRef.current,
-          requestedThreadId,
-          generation,
-        )
-      ) {
-        return
-      }
-      setErrorState({
-        threadId: requestedThreadId,
-        message: cause instanceof Error ? cause.message : String(cause),
-      })
-    } finally {
-      setLoadingOlderThreadId((currentThreadId) =>
-        currentThreadId === requestedThreadId ? null : currentThreadId,
-      )
-    }
-  }, [coordinator, loadingOlderThreadId, threadId])
+    },
+    [coordinator, threadId],
+  )
 
   const visibleError = errorState?.threadId === threadId ? errorState.message : null
   const visibleState = visibleError ? null : selectVisibleCanonicalState(state, threadId)
@@ -327,6 +397,9 @@ export function useCanonicalThreadConversation(
     error: visibleError,
     hasOlder: Boolean(visibleState?.history.hasOlder),
     loadOlder,
+    loadAllOlder,
+    loadingDirectory: directoryState.threadId === threadId && directoryState.loading,
+    directoryError: directoryState.threadId === threadId ? directoryState.error : null,
     reload,
   }
 }

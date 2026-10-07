@@ -95,6 +95,26 @@
 
   /* --- Conversation turn navigation --------------------------------- */
 
+  .conversation-turn-nav-list {
+    --rail-fade-start: 0px;
+    --rail-fade-end: 0px;
+
+    mask-image: linear-gradient(
+      to bottom,
+      transparent,
+      var(--cpx-sys-color-fg-primary) var(--rail-fade-start),
+      var(--cpx-sys-color-fg-primary) calc(100% - var(--rail-fade-end)),
+      transparent
+    );
+  }
+
+  .conversation-turn-nav-list[data-fade-start] {
+    --rail-fade-start: 40px;
+  }
+  .conversation-turn-nav-list[data-fade-end] {
+    --rail-fade-end: 40px;
+  }
+
   .conversation-turn-nav-marker {
     --marker-progress: 0;
 
@@ -102,154 +122,77 @@
     width: 26px;
     height: 2px;
     border-radius: var(--cpx-sys-radius-indicator);
-    background: var(--cpx-sys-color-fg-tertiary, var(--cpx-sys-color-fg-secondary));
+    background: var(--cpx-sys-color-fg-tertiary);
     opacity: 0.4;
     transform: scaleX(calc(0.2308 + 0.7692 * var(--marker-progress)));
     transform-origin: left center;
     transition:
-      transform var(--cpx-sys-motion-enter) var(--cpx-sys-ease-linear)
-        (
-          0,
-          0.398 10%,
-          0.682 20%,
-          0.843 30%,
-          0.925 40%,
-          0.972 50%,
-          1.004 60%,
-          1.008 70%,
-          1.003 80%,
-          1
-        ),
-      opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out, var(--cpx-sys-ease-out)),
-      background-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-out, var(--cpx-sys-ease-out));
+      transform var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out),
+      opacity var(--cpx-sys-motion-state) var(--cpx-sys-ease-out),
+      background-color var(--cpx-sys-motion-state) var(--cpx-sys-ease-out);
+  }
+
+  .conversation-turn-nav-bookmark-dot {
+    --marker-progress: 0;
+
+    flex: none;
+    width: 2px;
+    height: 2px;
+    border-radius: var(--cpx-sys-radius-indicator);
+    background: var(--cpx-sys-color-fg-primary);
+
+    /* 刻度布局宽度 26px 不随 scaleX 收缩；圆点沿视觉末端位移。 */
+    transform: translateX(calc((var(--marker-progress) - 1) * 20px));
+    transition: transform var(--cpx-sys-motion-enter) var(--cpx-sys-ease-out);
   }
 
   .conversation-turn-nav-item[aria-current='true'] .conversation-turn-nav-marker {
+    background: var(--cpx-sys-color-fg-primary);
     opacity: 0.6;
   }
 
-  .conversation-turn-nav-item:is(:focus-visible, [data-scrub-target])
-    .conversation-turn-nav-marker {
-    --marker-progress: 1;
-
-    opacity: 1;
-    background: var(--cpx-sys-color-fg-primary, var(--cpx-sys-color-fg-primary));
+  .conversation-turn-nav-item[data-running] .conversation-turn-nav-marker {
+    opacity: 0.72;
   }
-
-  /* Scrubbing expands the target and its three nearest neighbours. */
-  :where(.conversation-turn-nav-item)[data-scrub-target]
-    + :where(.conversation-turn-nav-item)
-    .conversation-turn-nav-marker,
-  :where(.conversation-turn-nav-item):has(+ :where(.conversation-turn-nav-item)[data-scrub-target])
-    .conversation-turn-nav-marker {
+  .conversation-turn-nav-item[data-neighbor-distance='1'] :is(.conversation-turn-nav-marker, .conversation-turn-nav-bookmark-dot) {
     --marker-progress: 0.7;
   }
-
-  :where(.conversation-turn-nav-item)[data-scrub-target]
-    + :where(.conversation-turn-nav-item)
-    + :where(.conversation-turn-nav-item)
-    .conversation-turn-nav-marker,
-  :where(.conversation-turn-nav-item):has(
-      + :where(.conversation-turn-nav-item) + :where(.conversation-turn-nav-item)[data-scrub-target]
-    )
-    .conversation-turn-nav-marker {
+  .conversation-turn-nav-item[data-neighbor-distance='2'] :is(.conversation-turn-nav-marker, .conversation-turn-nav-bookmark-dot) {
     --marker-progress: 0.4;
   }
-
-  :where(.conversation-turn-nav-item)[data-scrub-target]
-    + :where(.conversation-turn-nav-item)
-    + :where(.conversation-turn-nav-item)
-    + :where(.conversation-turn-nav-item)
-    .conversation-turn-nav-marker,
-  :where(.conversation-turn-nav-item):has(
-      + :where(.conversation-turn-nav-item)
-        + :where(.conversation-turn-nav-item)
-        + :where(.conversation-turn-nav-item)[data-scrub-target]
-    )
-    .conversation-turn-nav-marker {
+  .conversation-turn-nav-item[data-neighbor-distance='3'] :is(.conversation-turn-nav-marker, .conversation-turn-nav-bookmark-dot) {
     --marker-progress: 0.2;
   }
 
-  .conversation-turn-nav-list[data-scrubbing] .conversation-turn-nav-marker {
+  .conversation-turn-nav-item[data-interaction-target] :is(.conversation-turn-nav-marker, .conversation-turn-nav-bookmark-dot) {
+    --marker-progress: 1;
+
+    opacity: 1;
+    background: var(--cpx-sys-color-fg-primary);
+  }
+
+  :where(.conversation-turn-nav-list:has([data-interaction-target]))
+    .conversation-turn-nav-item[aria-current='true']:not([data-interaction-target])
+    .conversation-turn-nav-marker {
+    opacity: 0.4;
+    background: var(--cpx-sys-color-fg-tertiary);
+  }
+
+  /* 已收藏刻度保持全不透明，圆点颜色跟随主前景。 */
+  .conversation-turn-nav-list
+    .conversation-turn-nav-item
+    .conversation-turn-nav-marker[data-bookmarked] {
+    opacity: 1;
+  }
+
+  .conversation-turn-nav-list[data-scrubbing] :is(.conversation-turn-nav-marker, .conversation-turn-nav-bookmark-dot) {
     transition: none;
   }
 
-  :where(
-      .conversation-turn-nav-list[data-scrubbing]
-        .conversation-turn-nav-item[aria-current='true']:not([data-scrub-target])
-    )
-    .conversation-turn-nav-marker {
-    background: var(--cpx-sys-color-fg-tertiary, var(--cpx-sys-color-fg-secondary));
-    opacity: 0.4;
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    :where(
-        .conversation-turn-nav-list:not([data-scrubbing]):hover
-          .conversation-turn-nav-item[aria-current='true']:not(:hover):not(:focus-visible)
-      )
-      .conversation-turn-nav-marker {
-      background: var(--cpx-sys-color-fg-tertiary, var(--cpx-sys-color-fg-secondary));
-      opacity: 0.4;
-    }
-
-    :where(.conversation-turn-nav-list:not([data-scrubbing]) .conversation-turn-nav-item:hover)
-      .conversation-turn-nav-marker {
-      --marker-progress: 1;
-
-      background: var(--cpx-sys-color-fg-primary);
-      opacity: 1;
-    }
-
-    :where(
-        .conversation-turn-nav-list:not([data-scrubbing])
-          .conversation-turn-nav-item:hover
-          + .conversation-turn-nav-item
-      )
-      .conversation-turn-nav-marker,
-    :where(
-        .conversation-turn-nav-list:not([data-scrubbing])
-          .conversation-turn-nav-item:has(+ .conversation-turn-nav-item:hover)
-      )
-      .conversation-turn-nav-marker {
-      --marker-progress: 0.7;
-    }
-
-    :where(
-        .conversation-turn-nav-list:not([data-scrubbing])
-          .conversation-turn-nav-item:hover
-          + .conversation-turn-nav-item
-          + .conversation-turn-nav-item
-      )
-      .conversation-turn-nav-marker,
-    :where(
-        .conversation-turn-nav-list:not([data-scrubbing])
-          .conversation-turn-nav-item:has(
-            + .conversation-turn-nav-item + .conversation-turn-nav-item:hover
-          )
-      )
-      .conversation-turn-nav-marker {
-      --marker-progress: 0.4;
-    }
-
-    :where(
-        .conversation-turn-nav-list:not([data-scrubbing])
-          .conversation-turn-nav-item:hover
-          + .conversation-turn-nav-item
-          + .conversation-turn-nav-item
-          + .conversation-turn-nav-item
-      )
-      .conversation-turn-nav-marker,
-    :where(
-        .conversation-turn-nav-list:not([data-scrubbing])
-          .conversation-turn-nav-item:has(
-            + .conversation-turn-nav-item
-              + .conversation-turn-nav-item
-              + .conversation-turn-nav-item:hover
-          )
-      )
-      .conversation-turn-nav-marker {
-      --marker-progress: 0.2;
+  @media (prefers-reduced-motion: reduce) {
+    .conversation-turn-nav-marker,
+    .conversation-turn-nav-bookmark-dot {
+      transition: none;
     }
   }
 
@@ -672,6 +615,11 @@
     }
 
     .conversation-turn-nav-marker {
+      background: ButtonText;
+      forced-color-adjust: none;
+    }
+
+    .conversation-turn-nav-bookmark-dot {
       background: ButtonText;
       forced-color-adjust: none;
     }

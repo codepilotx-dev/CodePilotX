@@ -29,7 +29,11 @@ import {
 } from './CanonicalItemRenderer.js'
 import { isExplorationToolActivity, toolSemanticIcon } from './ToolActivityPresentation.js'
 import { ConversationTurnErrorBoundary } from '../conversation/ConversationTurnErrorBoundary.js'
-import { SessionTimelineView, type ThreadTimelineNavigationHandle } from './SessionTimelineView.js'
+import {
+  SessionTimelineView,
+  captureThreadHistoryAnchor,
+  type ThreadTimelineNavigationHandle,
+} from './SessionTimelineView.js'
 import {
   isProcessItemActive,
   processItemPathState,
@@ -82,6 +86,7 @@ export type CanonicalThreadViewProps = {
   loadingOlder: boolean
   hasOlder: boolean
   error: string | null
+  historyError?: string | null
   initialScrollOffset?: number
   layoutResizeActive?: boolean
   listRef: React.RefObject<VirtualizerHandle | null>
@@ -89,7 +94,7 @@ export type CanonicalThreadViewProps = {
   scrollRef: React.RefObject<HTMLElement | null>
   onScroll?: (scrollTop: number) => void
   onCanReturnToBottomChange: (canReturnToBottom: boolean) => void
-  onLoadOlder: () => Promise<void>
+  onLoadOlder: (beforeCommit?: () => () => void) => Promise<void>
   onReload: () => Promise<void>
   onApplyPatch?: (itemId: string, action: PatchAction, expectedVersion: number) => Promise<void>
   onOpenPatchReview?: (path?: string) => void
@@ -192,13 +197,13 @@ export function CanonicalProcessGroup({
           data-scrollable={edge.scrollable}
         >
           <div
-              className="cpx-agent-activity__list tw:max-h-56 tw:overflow-x-hidden tw:overflow-y-auto tw:[overflow-anchor:none] tw:[scrollbar-gutter:stable]"
-              ref={itemsRef}
-            >
+            className="cpx-agent-activity__list tw:max-h-56 tw:overflow-x-hidden tw:overflow-y-auto tw:[overflow-anchor:none] tw:[scrollbar-gutter:stable]"
+            ref={itemsRef}
+          >
             <div
-                className="cpx-agent-activity__list-content tw:relative tw:grid tw:gap-[var(--conversation-grouped-item-gap,var(--cpx-sys-space-1))] tw:ml-2 tw:pl-3"
-                ref={itemsContentRef}
-              >
+              className="cpx-agent-activity__list-content tw:relative tw:grid tw:gap-[var(--conversation-grouped-item-gap,var(--cpx-sys-space-1))]"
+              ref={itemsContentRef}
+            >
               {children}
             </div>
           </div>
@@ -507,6 +512,7 @@ function CanonicalThreadViewComponent({
   loadingOlder,
   hasOlder,
   error,
+  historyError,
   initialScrollOffset,
   layoutResizeActive,
   listRef,
@@ -527,18 +533,7 @@ function CanonicalThreadViewComponent({
 }: CanonicalThreadViewProps): React.ReactNode {
   const disclosureState = useTimelineDisclosureState(threadId)
   const loadOlderPreservingAnchor = React.useCallback(async (): Promise<void> => {
-    const handle = listRef.current
-    const previousSize = handle?.scrollSize ?? 0
-    const previousOffset = handle?.scrollOffset ?? scrollRef.current?.scrollTop ?? 0
-    await onLoadOlder()
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const nextHandle = listRef.current
-        if (!nextHandle || previousSize <= 0) return
-        const delta = Math.max(0, nextHandle.scrollSize - previousSize)
-        nextHandle.scrollTo(previousOffset + delta)
-      })
-    })
+    await onLoadOlder(() => captureThreadHistoryAnchor(listRef.current, scrollRef.current))
   }, [listRef, onLoadOlder, scrollRef])
   const renderTurn = React.useCallback(
     (entry: RenderTurnEntry, index: number): React.ReactElement => (
@@ -621,9 +616,14 @@ function CanonicalThreadViewComponent({
                 aria-hidden="true"
               />
             ) : null}
-            {loadingOlder ? '正在加载' : '加载更早的对话'}
+            {loadingOlder ? '正在加载' : historyError ? '重试加载更早的对话' : '加载更早的对话'}
           </button>
         </div>
+      ) : null}
+      {historyError ? (
+        <p role="status" className="tw:text-center tw:text-app-text-meta tw:type-caption">
+          {historyError}
+        </p>
       ) : null}
       <SessionTimelineView
         key={threadId}
@@ -673,16 +673,8 @@ const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
   readThreadPatchDiff?: ReadThreadPatchDiff
   threadId: string
 }): React.ReactNode {
-  const rowRef = React.useCallback(
-    (node: HTMLDivElement | null): void => {
-      registerTurnRow?.(entry.id, node)
-    },
-    [entry.id, registerTurnRow],
-  )
-
   return (
     <div
-      ref={rowRef}
       className="session-turn-row canonical-turn-row tw:mx-auto tw:w-full tw:min-w-0"
       data-component="conversation-turn"
       data-turn-navigation-id={entry.id}
@@ -693,6 +685,7 @@ const CanonicalTurnRow = React.memo(function CanonicalTurnRow({
           disclosureState={disclosureState}
           diffMarkerStyle={diffMarkerStyle}
           entry={entry}
+          registerInputRow={registerTurnRow}
           onApplyPatch={onApplyPatch}
           onOpenPatchReview={onOpenPatchReview}
           onOpenPlanInRightDock={onOpenPlanInRightDock}
@@ -710,6 +703,7 @@ function CanonicalConversationTurnComponent({
   disclosureState,
   diffMarkerStyle = 'color',
   entry,
+  registerInputRow,
   onApplyPatch,
   onOpenPatchReview,
   onOpenPlanInRightDock,
@@ -720,6 +714,7 @@ function CanonicalConversationTurnComponent({
 }: {
   disclosureState: KeyedDisclosureStore
   entry: RenderTurnEntry
+  registerInputRow?: RegisterConversationTurnRow
   diffMarkerStyle?: DesktopDiffMarkerStyle
   onApplyPatch?: CanonicalThreadViewProps['onApplyPatch']
   onOpenPatchReview?: CanonicalThreadViewProps['onOpenPatchReview']
@@ -856,6 +851,7 @@ function CanonicalConversationTurnComponent({
                 input.contextReferenceIds?.includes(reference.id),
               )}
               input={input}
+              registerInputRow={registerInputRow}
               key={input.id}
             />
           ))}
@@ -933,7 +929,11 @@ function CanonicalBlocker({
       data-state={blocker.approval.status}
     >
       <header className="tw:flex tw:items-start tw:gap-2">
-        <CircleAlert className="tw:flex-none tw:text-app-accent-fg" size={APP_ICON_SIZES.lg} aria-hidden="true" />
+        <CircleAlert
+          className="tw:flex-none tw:text-app-accent-fg"
+          size={APP_ICON_SIZES.lg}
+          aria-hidden="true"
+        />
         <strong>{blocker.approval.tool} 需要授权</strong>
       </header>
       <p className="tw:m-0 tw:text-app-text-soft">{blocker.approval.reason}</p>
