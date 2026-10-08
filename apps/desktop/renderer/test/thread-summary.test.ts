@@ -294,7 +294,7 @@ describe('thread summary view model', () => {
       tokenBudget: 100_000,
       tokensUsed: 42_000,
     })
-        // 完成的 Agent 保留为历史行且不可停止，活动的行可停止。
+    // 完成的 Agent 保留为历史行且不可停止，活动的行可停止。
     expect(model.agents).toEqual([
       {
         id: 'task-1',
@@ -345,13 +345,80 @@ describe('thread summary view model', () => {
     })
   })
 
+  test('摘要提供选择启动项和运行选中脚本，禁用的操作不可启动', () => {
+    const model = deriveThreadSummaryViewModel(buildSummaryInput({ branchChanges: null }))
+    const props = {
+      model,
+      branches: [],
+      collapsedSections: new Set<never>(),
+      onToggleSection: () => {},
+      onBranchSelect: async () => {},
+      onCommitOrPush: () => {},
+      onCreateBranch: () => {},
+      onCreatePullRequest: () => {},
+      onOpenReview: () => {},
+      onOpenWorkspacePath: () => {},
+      selectedActionId: 'agent',
+      workspaceActions: [
+        {
+          id: 'desktop',
+          group: 'workspace-actions' as const,
+          label: '运行桌面端',
+          keywords: [],
+          order: 0,
+          availability: 'available' as const,
+          execute: () => {},
+        },
+        {
+          id: 'agent',
+          group: 'workspace-actions' as const,
+          label: '运行agent',
+          keywords: [],
+          order: 1,
+          availability: 'available' as const,
+          execute: () => {},
+        },
+      ],
+    }
+    const html = renderToStaticMarkup(createElement(ThreadSummaryPanel, props))
+    const localHtml = renderToStaticMarkup(
+      createElement(ThreadSummaryPanel, {
+        ...props,
+        model: deriveThreadSummaryViewModel(
+          buildSummaryInput({ hasGitRepository: false, gitDetection: 'non-git', branchName: null }),
+        ),
+      }),
+    )
+    expect(localHtml).toContain('aria-label="运行 运行agent"')
+    expect(localHtml).not.toContain('打开分支变更审查')
+    expect(html).toContain('aria-label="操作"')
+    expect(html).toContain('aria-label="运行 运行agent"')
+    const disabled = renderToStaticMarkup(
+      createElement(ThreadSummaryPanel, {
+        ...props,
+        workspaceActions: props.workspaceActions.map((action) => ({
+          ...action,
+          availability: 'disabled' as const,
+        })),
+      }),
+    )
+    expect(disabled.match(/<button[^>]*aria-label="运行 运行agent"[^>]*>/)?.[0]).toContain(
+      'disabled',
+    )
+  })
   test('keeps review enabled without statistics and shows loading only while pending', () => {
     const model = deriveThreadSummaryViewModel(buildSummaryInput({ branchChanges: null }))
     const props = {
-      model, branches: [], collapsedSections: new Set<never>(),
-      onToggleSection: () => {}, onBranchSelect: async () => {},
-      onCommitOrPush: () => {}, onCreateBranch: () => {}, onCreatePullRequest: () => {},
-      onOpenReview: () => {}, onOpenWorkspacePath: () => {},
+      model,
+      branches: [],
+      collapsedSections: new Set<never>(),
+      onToggleSection: () => {},
+      onBranchSelect: async () => {},
+      onCommitOrPush: () => {},
+      onCreateBranch: () => {},
+      onCreatePullRequest: () => {},
+      onOpenReview: () => {},
+      onOpenWorkspacePath: () => {},
     }
     const html = renderToStaticMarkup(createElement(ThreadSummaryPanel, props))
     const reviewButton = html.match(/<button[^>]*title="打开分支变更审查"[^>]*>/)?.[0]
@@ -359,23 +426,41 @@ describe('thread summary view model', () => {
     expect(reviewButton).not.toContain('disabled')
     expect(html).not.toContain('暂不可用')
     expect(html).not.toContain('正在加载变更统计')
-    expect(renderToStaticMarkup(createElement(ThreadSummaryPanel, {
-      ...props, changesLoading: true,
-    }))).toContain('正在加载变更统计')
+    expect(
+      renderToStaticMarkup(
+        createElement(ThreadSummaryPanel, {
+          ...props,
+          changesLoading: true,
+        }),
+      ),
+    ).toContain('正在加载变更统计')
   })
 
   test('shows output empty state only for confirmed non-Git, preserving sources during detection', () => {
     for (const gitDetection of ['loading', 'error', 'non-git', 'git'] as const) {
-      const model = deriveThreadSummaryViewModel(buildSummaryInput({
-        gitDetection, hasGitRepository: gitDetection === 'git', branchChanges: null,
-        sourceLinks: [{ label: '资料', url: 'https://example.com' }],
-      }))
-      const html = renderToStaticMarkup(createElement(ThreadSummaryPanel, {
-        model, branches: [], collapsedSections: new Set<never>(),
-        onToggleSection: () => {}, onBranchSelect: async () => {},
-        onCommitOrPush: () => {}, onCreateBranch: () => {}, onCreatePullRequest: () => {},
-        onOpenReview: () => {}, onOpenWorkspacePath: () => {}, onRetryGitDetection: () => {},
-      }))
+      const model = deriveThreadSummaryViewModel(
+        buildSummaryInput({
+          gitDetection,
+          hasGitRepository: gitDetection === 'git',
+          branchChanges: null,
+          sourceLinks: [{ label: '资料', url: 'https://example.com' }],
+        }),
+      )
+      const html = renderToStaticMarkup(
+        createElement(ThreadSummaryPanel, {
+          model,
+          branches: [],
+          collapsedSections: new Set<never>(),
+          onToggleSection: () => {},
+          onBranchSelect: async () => {},
+          onCommitOrPush: () => {},
+          onCreateBranch: () => {},
+          onCreatePullRequest: () => {},
+          onOpenReview: () => {},
+          onOpenWorkspacePath: () => {},
+          onRetryGitDetection: () => {},
+        }),
+      )
       expect(html.includes('创建文件或站点')).toBe(gitDetection === 'non-git')
       expect(html).not.toContain('正在检测仓库')
       expect(html.includes('仓库检测失败')).toBe(gitDetection === 'error')
@@ -384,11 +469,13 @@ describe('thread summary view model', () => {
   })
 
   test('uses the repository root name when the workspace is a subdirectory', () => {
-    const model = deriveThreadSummaryViewModel(buildSummaryInput({
-      workspaceName: '自定义项目名',
-      workspacePath: 'F:\\CodeProject\\CodePilotX\\apps\\desktop',
-      repositoryRoot: 'F:\\CodeProject\\CodePilotX',
-    }))
+    const model = deriveThreadSummaryViewModel(
+      buildSummaryInput({
+        workspaceName: '自定义项目名',
+        workspacePath: 'F:\\CodeProject\\CodePilotX\\apps\\desktop',
+        repositoryRoot: 'F:\\CodeProject\\CodePilotX',
+      }),
+    )
     expect(model.environment?.workspaceName).toBe('CodePilotX')
   })
 
@@ -516,8 +603,20 @@ describe('thread summary view model', () => {
     )
 
     expect(model.artifacts).toEqual([
-      { artifactId: 'art-1', name: '新版本', mimeType: 'text/markdown', sizeBytes: 24, previewKind: 'text' },
-      { artifactId: 'art-2', name: '截图', mimeType: 'image/png', sizeBytes: 512, previewKind: 'image' },
+      {
+        artifactId: 'art-1',
+        name: '新版本',
+        mimeType: 'text/markdown',
+        sizeBytes: 24,
+        previewKind: 'text',
+      },
+      {
+        artifactId: 'art-2',
+        name: '截图',
+        mimeType: 'image/png',
+        sizeBytes: 512,
+        previewKind: 'image',
+      },
       {
         artifactId: 'art-3',
         name: '数据集',

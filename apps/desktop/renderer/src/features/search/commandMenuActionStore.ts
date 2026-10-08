@@ -10,6 +10,7 @@ export type CommandMenuActionRegistration = {
   description?: string
   keywords: readonly string[]
   icon?: ReactNode
+  selected?: boolean
   order: number
   availability: CommandMenuActionAvailability
   disabledReason?: string

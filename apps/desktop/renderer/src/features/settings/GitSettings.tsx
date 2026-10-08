@@ -17,7 +17,6 @@ import type {
 } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
-import { PrWatchSettings } from './PrWatchSettings.js'
 
 const PR_MERGE_OPTIONS: Array<{ value: 'merge' | 'squash'; label: string }> = [
   { value: 'merge', label: '合并' },
@@ -44,7 +43,6 @@ export function GitSettings(): React.ReactNode {
     gitPrMergeMethod,
     gitShowPrIconsInSidebar,
     gitDraftPullRequest,
-    reviewDelivery,
     allowForcePush,
     commitMessagePrompt,
     pullRequestPrompt,
@@ -225,23 +223,6 @@ export function GitSettings(): React.ReactNode {
               />
             }
           />
-          <SettingsRow
-            title="审查结果呈现方式"
-            description="在当前聊天中启动审查，或打开单独的审查聊天"
-            control={
-              <SegmentedControl
-                value={reviewDelivery}
-                options={[
-                  { value: 'inline', label: '内联' },
-                  { value: 'detached', label: '单独' },
-                ]}
-                onChange={(value) => {
-                  draft.setValue('reviewDelivery', value)
-                  void save(['reviewDelivery'])
-                }}
-              />
-            }
-          />
         </SettingsSection>
         {saveError ? (
           <p role="alert" className="tw:type-body-sm tw:text-app-danger">
@@ -283,7 +264,6 @@ export function GitSettings(): React.ReactNode {
           />
         </SettingsSection>
 
-        <PrWatchSettings />
         <SettingsSection
           title="GitHub 账号"
           description="登录后可在项目选择器中列出并克隆你有权限访问的 GitHub 仓库。"

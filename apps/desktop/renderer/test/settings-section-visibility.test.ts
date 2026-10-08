@@ -16,7 +16,10 @@ const UNAVAILABLE: SettingsCapabilityState = { status: 'unavailable', capabiliti
 describe('resolveSettingsSectionVisibility', () => {
   test('keeps ungated sections always visible', () => {
     expect(
-      resolveSettingsSectionVisibility(undefined, { workspacePath: null, capabilityState: UNKNOWN }),
+      resolveSettingsSectionVisibility(undefined, {
+        workspacePath: null,
+        capabilityState: UNKNOWN,
+      }),
     ).toEqual({ visible: true, pending: false })
   })
 
@@ -43,7 +46,10 @@ describe('resolveSettingsSectionVisibility', () => {
   test('shows capability-gated sections when any required capability is ready', () => {
     const requires = { capabilities: ['browser.host.v1', 'speech.transcription.v1'] as const }
     expect(
-      resolveSettingsSectionVisibility(requires, { workspacePath: null, capabilityState: READY_WITH }),
+      resolveSettingsSectionVisibility(requires, {
+        workspacePath: null,
+        capabilityState: READY_WITH,
+      }),
     ).toEqual({ visible: true, pending: false })
     expect(
       resolveSettingsSectionVisibility(requires, {
@@ -76,9 +82,11 @@ describe('settings registry gating declarations', () => {
     SETTINGS_GROUPS.flatMap((group) => group.items).map((item) => [item.routeId, item.requires]),
   )
 
-  test('workspace-scoped coding sections require an active workspace', () => {
-    expect(requiresByRouteId.get('local-environment')).toEqual({ workspace: true })
-    expect(requiresByRouteId.get('worktrees')).toEqual({ workspace: true })
+  test('environment entries are consolidated under global Worktrees and PR monitoring has its own page', () => {
+    expect(requiresByRouteId.has('environment')).toBe(false)
+    expect(requiresByRouteId.has('local-environment')).toBe(false)
+    expect(requiresByRouteId.get('worktrees')).toBeUndefined()
+    expect(requiresByRouteId.has('code-review')).toBe(true)
   })
 
   test('capability-scoped sections declare their runtime capabilities', () => {

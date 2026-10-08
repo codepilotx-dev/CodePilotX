@@ -42,6 +42,8 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
   const tab = params.get('tab') === 'environments' ? 'environments' : 'general'
   const tabs = (
     <SegmentedControl
+      ariaLabel="工作树设置"
+      semantics="tabs"
       value={tab}
       options={[
         { value: 'general', label: '常规' },
@@ -159,8 +161,15 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
     return (
       <SettingsContentArea>
         <div className="settings-content-inner tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
-          <h2 className="tw:type-title-xl tw:text-app-text">Worktrees</h2>
-          {tabs}
+          {!params.get('projectId') && !params.get('threadId') ? (
+            <>
+              <h2 className="tw:m-0 tw:mb-3 tw:type-title-xl tw:text-app-text">Worktrees</h2>
+              <p className="tw:m-0 tw:mb-6 tw:type-body-sm tw:text-app-text-soft">
+                本地环境用于设置项目工作树及启动操作。
+              </p>
+              <div className="tw:mb-8">{tabs}</div>
+            </>
+          ) : null}
           <React.Suspense fallback={<p>正在加载环境设置…</p>}>
             <EnvironmentProjects onError={onError} onNotice={onNotice} />
           </React.Suspense>
@@ -170,7 +179,7 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
   return (
     <SettingsContentArea>
       <div className="settings-content-inner tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
-        <h2 className="tw:type-title-xl tw:text-app-text">Worktrees</h2>
+        <h2 className="tw:m-0 tw:mb-6 tw:type-title-xl tw:text-app-text">Worktrees</h2>
         <div className="tw:mb-8">{tabs}</div>
         <WorktreePreferences onError={onError} />
         <div className="tw:my-6 tw:flex tw:items-center tw:gap-2">
@@ -256,7 +265,9 @@ export function WorktreeSettings({ onError, onNotice }: Props): React.ReactNode 
             {worktrees.length ? (
               [...new Set(entries.map((entry) => entry.worktree.projectId))].map((projectId) => (
                 <section key={projectId}>
-                  <h3 className="tw:type-row-title tw:text-app-text tw:break-words">{projects.find((project) => project.projectId === projectId)?.name ?? projectId}</h3>
+                  <h3 className="tw:type-row-title tw:text-app-text tw:break-words">
+                    {projects.find((project) => project.projectId === projectId)?.name ?? projectId}
+                  </h3>
                   {entries
                     .filter((entry) => entry.worktree.projectId === projectId)
                     .map(({ worktree, path, conversations }) => (

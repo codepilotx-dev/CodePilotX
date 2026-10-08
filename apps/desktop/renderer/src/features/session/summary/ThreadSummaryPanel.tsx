@@ -46,6 +46,7 @@ import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRest
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import { Spinner } from '../../../components/ui/Spinner.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
+import type { CommandMenuActionRegistration } from '../../search/commandMenuActionStore.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 
 /**
@@ -66,6 +67,10 @@ export type ThreadSummarySectionId =
   'environment' | 'goal' | 'agents' | 'browser' | 'sources' | 'artifacts'
 
 type ThreadSummaryActions = {
+  environmentChoices?: readonly CommandMenuActionRegistration[]
+  workspaceActions?: readonly CommandMenuActionRegistration[]
+  selectedActionId?: string
+  onSelectAction?: (id: string) => void
   onActivateBrowserTab?: (tabId: string) => void
   onBranchSelect: (branch: string) => Promise<void>
   onCommitOrPush: () => void
@@ -74,6 +79,7 @@ type ThreadSummaryActions = {
   onCreateOutput?: () => void
   onGitOperation?: (operation: 'commit' | 'push') => void
   onOpenEnvironmentSettings?: () => void
+  onAddEnvironmentAction?: () => void
   onOpenTerminal?: () => void
   onMoveToWorktree?: () => void
   onRetryGitDetection?: () => void
@@ -202,6 +208,10 @@ export class ThreadSummaryErrorBoundary extends React.Component<
 
 export function ThreadSummaryPanel({
   changesLoading = false,
+  workspaceActions = [],
+  environmentChoices = [],
+  selectedActionId,
+  onSelectAction,
   branches,
   collapsedSections,
   model,
@@ -212,6 +222,7 @@ export function ThreadSummaryPanel({
   onCreateOutput,
   onGitOperation,
   onOpenEnvironmentSettings,
+  onAddEnvironmentAction,
   onOpenTerminal,
   onMoveToWorktree,
   onRetryGitDetection,
@@ -226,6 +237,9 @@ export function ThreadSummaryPanel({
   onToggleSection,
   onStopSubagent,
 }: ThreadSummaryPanelProps): React.ReactNode {
+  const selectedAction =
+    workspaceActions.find((action) => action.id === selectedActionId) ?? workspaceActions[0]
+  const [environmentChoicesOpen, setEnvironmentChoicesOpen] = React.useState(false)
   const [branchPopoverOpen, setBranchPopoverOpen] = React.useState(false)
   const [gitMenuOpen, setGitMenuOpen] = React.useState(false)
   const [environmentMenuOpen, setEnvironmentMenuOpen] = React.useState(false)
@@ -257,14 +271,27 @@ export function ThreadSummaryPanel({
       aria-label="置顶摘要"
     >
       {model.gitDetection === 'error' ? (
-        <div className="tw:flex tw:items-center tw:gap-2 tw:px-4 tw:py-2 tw:text-app-text-meta tw:type-body-sm" role="status">
+        <div
+          className="tw:flex tw:items-center tw:gap-2 tw:px-4 tw:py-2 tw:text-app-text-meta tw:type-body-sm"
+          role="status"
+        >
           <>
             <span>仓库检测失败</span>
-            <Button variant="text" size="sm" onClick={onRetryGitDetection} disabled={!onRetryGitDetection}>重试</Button>
+            <Button
+              variant="text"
+              size="sm"
+              onClick={onRetryGitDetection}
+              disabled={!onRetryGitDetection}
+            >
+              重试
+            </Button>
           </>
         </div>
       ) : null}
-      {environment?.isGitRepository ? (
+      {environment &&
+      (environment.isGitRepository ||
+        workspaceActions.length > 0 ||
+        environmentChoices.length > 0) ? (
         <ThreadSummarySection
           collapsedSummary={
             changes.fileCount > 0 ? (
@@ -272,7 +299,9 @@ export function ThreadSummaryPanel({
                 <strong className="tw:text-app-success tw:type-weight-body">
                   +{formatReviewCount(changes.additions)}
                 </strong>
-                <em className="tw:text-app-danger tw:not-italic">-{formatReviewCount(changes.deletions)}</em>
+                <em className="tw:text-app-danger tw:not-italic">
+                  -{formatReviewCount(changes.deletions)}
+                </em>
               </span>
             ) : null
           }
@@ -281,100 +310,213 @@ export function ThreadSummaryPanel({
           id="environment"
           title={environment.workspaceName ?? '本地仓库'}
           meta={
-            <PopoverMenu open={environmentMenuOpen} onOpenChange={setEnvironmentMenuOpen}
-              side="left" align="start" size="md"
-              trigger={<button type="button" aria-label="操作" title="操作"
-                className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text-meta tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus">
-                <Ellipsis aria-hidden="true" size={APP_ICON_SIZE} />
-              </button>}>
-              <PopoverItem icon={<Plus size={APP_ICON_SIZE} />} disabled={!onOpenEnvironmentSettings} onClick={onOpenEnvironmentSettings}>设置本地环境</PopoverItem>
-              <PopoverItem icon={<Terminal size={APP_ICON_SIZE} />} disabled={!onOpenTerminal} onClick={onOpenTerminal}>打开终端</PopoverItem>
-              <div className="tw:my-1 tw:border-t tw:border-app-border-subtle" />
-              <PopoverItem disabled={!onMoveToWorktree} onClick={onMoveToWorktree}>移动到工作树</PopoverItem>
-            </PopoverMenu>
+            <div className="tw:flex tw:items-center tw:gap-1">
+              <PopoverMenu
+                open={environmentMenuOpen}
+                onOpenChange={setEnvironmentMenuOpen}
+                side="left"
+                align="start"
+                size="md"
+                trigger={
+                  <button
+                    type="button"
+                    aria-label="操作"
+                    title="操作"
+                    className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text-meta tw:cursor-pointer tw:hover:bg-app-hover tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
+                  >
+                    <Ellipsis aria-hidden="true" size={APP_ICON_SIZE} />
+                  </button>
+                }
+              >
+                <div className="tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-meta">操作</div>
+                {workspaceActions.map((action) => (
+                  <PopoverItem
+                    key={action.id}
+                    icon={<Play size={APP_ICON_SIZE} />}
+                    selected={action.id === selectedAction?.id}
+                    withCheck
+                    disabled={action.availability !== 'available'}
+                    onClick={() => onSelectAction?.(action.id)}
+                  >
+                    {action.label}
+                  </PopoverItem>
+                ))}
+                <PopoverItem
+                  icon={<Plus size={APP_ICON_SIZE} />}
+                  disabled={!onOpenEnvironmentSettings}
+                  onClick={onAddEnvironmentAction ?? onOpenEnvironmentSettings}
+                >
+                  添加操作
+                </PopoverItem>
+                <div className="tw:my-1 tw:border-t tw:border-app-border-subtle" />
+                <PopoverItem
+                  icon={<Plus size={APP_ICON_SIZE} />}
+                  disabled={!onOpenEnvironmentSettings}
+                  onClick={() => setEnvironmentChoicesOpen((value) => !value)}
+                  keepOpen
+                  withArrow
+                  arrowDirection={environmentChoicesOpen ? 'up' : 'down'}
+                >
+                  更改环境
+                </PopoverItem>
+                {environmentChoicesOpen ? (
+                  <>
+                    {environmentChoices.map((choice) => (
+                      <PopoverItem
+                        key={choice.id}
+                        selected={choice.selected}
+                        withCheck
+                        disabled={choice.availability !== 'available'}
+                        onClick={() => void choice.execute()}
+                      >
+                        {choice.label}
+                      </PopoverItem>
+                    ))}
+                    {!environmentChoices.length ? (
+                      <div className="tw:px-2 tw:py-1 tw:type-caption tw:text-app-text-meta">
+                        暂无环境
+                      </div>
+                    ) : null}
+                    <PopoverItem onClick={onOpenEnvironmentSettings}>环境设置</PopoverItem>
+                  </>
+                ) : null}
+                <PopoverItem
+                  icon={<Terminal size={APP_ICON_SIZE} />}
+                  disabled={!onOpenTerminal}
+                  onClick={onOpenTerminal}
+                >
+                  打开终端
+                </PopoverItem>
+                <div className="tw:my-1 tw:border-t tw:border-app-border-subtle" />
+                <PopoverItem disabled={!onMoveToWorktree} onClick={onMoveToWorktree}>
+                  移动到工作树
+                </PopoverItem>
+              </PopoverMenu>
+              <Button
+                isIconOnly
+                color="ghostSecondary"
+                size="toolbar"
+                title={selectedAction ? `运行 ${selectedAction.label}` : '添加启动操作'}
+                aria-label={selectedAction ? `运行 ${selectedAction.label}` : '运行脚本'}
+                disabled={!selectedAction || selectedAction.availability !== 'available'}
+                onClick={() => void selectedAction?.execute()}
+              >
+                <Play size={APP_ICON_SIZE} />
+              </Button>
+            </div>
           }
           onToggle={toggleSection}
         >
-          <div className="tw:group tw:relative tw:min-w-0">
-          <button
-            className={SUMMARY_ROW_CLASS}
-            title="打开分支变更审查"
-            type="button"
-            onClick={onOpenReview}
-          >
-            <SquarePlus
-              className={SUMMARY_ROW_ICON_CLASS}
-              aria-hidden="true"
-              size={APP_ICON_SIZE}
-            />
-            <span className={SUMMARY_ROW_LABEL_CLASS}>变更</span>
-            <span className={`tw:inline-flex tw:items-center tw:justify-end ${gitMenuOpen || branchPopoverOpen ? 'tw:invisible' : 'tw:group-hover:invisible tw:group-focus-within:invisible'}`}>
-            {changesLoading && !model.changes ? (
-              <Spinner label="正在加载变更统计" className="tw:text-app-text-meta" />
-            ) : model.changes && (changes.additions > 0 || changes.deletions > 0) ? (
-              <small className="thread-summary-change-summary tw:inline-flex tw:items-center tw:justify-end tw:gap-2 tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption">
-                <span className="thread-summary-diff tw:inline-flex tw:gap-1 tw:type-caption tw:tabular-nums">
-                  <strong className="tw:text-app-success tw:type-weight-body">
-                    +{formatReviewCount(changes.additions)}
-                  </strong>
-                  <em className="tw:text-app-danger tw:not-italic">-{formatReviewCount(changes.deletions)}</em>
-                </span>
-              </small>
-            ) : null}
-            </span>
-          </button>
-          <div className={`tw:absolute tw:right-0 tw:top-0 tw:bottom-0 tw:flex tw:items-center ${gitMenuOpen || branchPopoverOpen ? 'tw:opacity-100' : 'tw:opacity-0 tw:group-hover:opacity-100 tw:group-focus-within:opacity-100'}`}>
-            <PopoverMenu open={gitMenuOpen} onOpenChange={setGitMenuOpen} side="left" align="start" size="sm"
-              trigger={<button type="button" aria-label="Git 操作" title="Git 操作"
-                className="tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus">
-                <GitBranch aria-hidden="true" size={APP_ICON_SIZE} />
-              </button>}>
-              <PopoverItem disabled={!environment.changedFileCount} onClick={() => onGitOperation ? onGitOperation('commit') : onCommitOrPush()}>提交</PopoverItem>
-              <PopoverItem disabled={!pushEnabled} onClick={() => onGitOperation ? onGitOperation('push') : onCommitOrPush()}>推送</PopoverItem>
-              <PopoverItem onClick={onCreateBranch}>创建分支</PopoverItem>
-              <PopoverItem onClick={() => setBranchPopoverOpen(true)}>切换分支</PopoverItem>
-            </PopoverMenu>
-          </div>
           {environment.isGitRepository ? (
-            <>
-              <BranchSelectPopover
-                align="start"
-                branchSearch={branchSearch}
-                branches={branches}
-                className="popover-thread-summary-branch"
-                currentBranchDetail={`未提交：${environment.changedFileCount} 个文件`}
-                currentBranchName={environment.branchName ?? ''}
-                open={branchPopoverOpen}
-                side="left"
-                sideOffset={8}
-                size="sm"
-                onBranchSearchChange={setBranchSearch}
-                onBranchSelect={onBranchSelect}
-                onCreateBranch={onCreateBranch}
-                onOpenChange={setBranchPopoverOpen}
-                trigger={
-                  <button
-                    className="tw:absolute tw:right-0 tw:top-0 tw:size-7 tw:pointer-events-none tw:opacity-0"
-                    tabIndex={-1}
-                    data-state={branchPopoverOpen ? 'open' : 'closed'}
-                    title={environment.branchName ?? '未检测到 Git 分支'}
-                    type="button"
+            <div className="tw:group tw:relative tw:min-w-0">
+              <button
+                className={SUMMARY_ROW_CLASS}
+                title="打开分支变更审查"
+                type="button"
+                onClick={onOpenReview}
+              >
+                <SquarePlus
+                  className={SUMMARY_ROW_ICON_CLASS}
+                  aria-hidden="true"
+                  size={APP_ICON_SIZE}
+                />
+                <span className={SUMMARY_ROW_LABEL_CLASS}>变更</span>
+                <span
+                  className={`tw:inline-flex tw:items-center tw:justify-end ${gitMenuOpen || branchPopoverOpen ? 'tw:invisible' : 'tw:group-hover:invisible tw:group-focus-within:invisible'}`}
+                >
+                  {changesLoading && !model.changes ? (
+                    <Spinner label="正在加载变更统计" className="tw:text-app-text-meta" />
+                  ) : model.changes && (changes.additions > 0 || changes.deletions > 0) ? (
+                    <small className="thread-summary-change-summary tw:inline-flex tw:items-center tw:justify-end tw:gap-2 tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption">
+                      <span className="thread-summary-diff tw:inline-flex tw:gap-1 tw:type-caption tw:tabular-nums">
+                        <strong className="tw:text-app-success tw:type-weight-body">
+                          +{formatReviewCount(changes.additions)}
+                        </strong>
+                        <em className="tw:text-app-danger tw:not-italic">
+                          -{formatReviewCount(changes.deletions)}
+                        </em>
+                      </span>
+                    </small>
+                  ) : null}
+                </span>
+              </button>
+              <div
+                className={`tw:absolute tw:right-0 tw:top-0 tw:bottom-0 tw:flex tw:items-center ${gitMenuOpen || branchPopoverOpen ? 'tw:opacity-100' : 'tw:opacity-0 tw:group-hover:opacity-100 tw:group-focus-within:opacity-100'}`}
+              >
+                <PopoverMenu
+                  open={gitMenuOpen}
+                  onOpenChange={setGitMenuOpen}
+                  side="left"
+                  align="start"
+                  size="sm"
+                  trigger={
+                    <button
+                      type="button"
+                      aria-label="Git 操作"
+                      title="Git 操作"
+                      className="tw:inline-flex tw:size-7 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:text-app-text tw:cursor-pointer tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
+                    >
+                      <GitBranch aria-hidden="true" size={APP_ICON_SIZE} />
+                    </button>
+                  }
+                >
+                  <PopoverItem
+                    disabled={!environment.changedFileCount}
+                    onClick={() => (onGitOperation ? onGitOperation('commit') : onCommitOrPush())}
                   >
-                    <GitBranch
-                      className={SUMMARY_ROW_ICON_CLASS}
-                      aria-hidden="true"
-                      size={APP_ICON_SIZE}
-                    />
-                    <span className={SUMMARY_ROW_LABEL_CLASS}>
-                      {environment.branchName ?? '未检测到 Git 分支'}
-                    </span>
-                    <ChevronDown aria-hidden="true" size={APP_ICON_SIZES.sm} />
-                  </button>
-                }
-              />
-            </>
+                    提交
+                  </PopoverItem>
+                  <PopoverItem
+                    disabled={!pushEnabled}
+                    onClick={() => (onGitOperation ? onGitOperation('push') : onCommitOrPush())}
+                  >
+                    推送
+                  </PopoverItem>
+                  <PopoverItem onClick={onCreateBranch}>创建分支</PopoverItem>
+                  <PopoverItem onClick={() => setBranchPopoverOpen(true)}>切换分支</PopoverItem>
+                </PopoverMenu>
+              </div>
+              {environment.isGitRepository ? (
+                <>
+                  <BranchSelectPopover
+                    align="start"
+                    branchSearch={branchSearch}
+                    branches={branches}
+                    className="popover-thread-summary-branch"
+                    currentBranchDetail={`未提交：${environment.changedFileCount} 个文件`}
+                    currentBranchName={environment.branchName ?? ''}
+                    open={branchPopoverOpen}
+                    side="left"
+                    sideOffset={8}
+                    size="sm"
+                    onBranchSearchChange={setBranchSearch}
+                    onBranchSelect={onBranchSelect}
+                    onCreateBranch={onCreateBranch}
+                    onOpenChange={setBranchPopoverOpen}
+                    trigger={
+                      <button
+                        className="tw:absolute tw:right-0 tw:top-0 tw:size-7 tw:pointer-events-none tw:opacity-0"
+                        tabIndex={-1}
+                        data-state={branchPopoverOpen ? 'open' : 'closed'}
+                        title={environment.branchName ?? '未检测到 Git 分支'}
+                        type="button"
+                      >
+                        <GitBranch
+                          className={SUMMARY_ROW_ICON_CLASS}
+                          aria-hidden="true"
+                          size={APP_ICON_SIZE}
+                        />
+                        <span className={SUMMARY_ROW_LABEL_CLASS}>
+                          {environment.branchName ?? '未检测到 Git 分支'}
+                        </span>
+                        <ChevronDown aria-hidden="true" size={APP_ICON_SIZES.sm} />
+                      </button>
+                    }
+                  />
+                </>
+              ) : null}
+            </div>
           ) : null}
-          </div>
         </ThreadSummarySection>
       ) : null}
 
@@ -498,16 +640,18 @@ export function ThreadSummaryPanel({
           expanded={isSectionExpanded('artifacts')}
           id="artifacts"
           title="输出内容"
-          meta={onCreateOutput ? (
-            <button
-              aria-label="创建文件或站点"
-              className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:cursor-pointer tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
-              type="button"
-              onClick={onCreateOutput}
-            >
-              <Plus aria-hidden="true" size={APP_ICON_SIZE} />
-            </button>
-          ) : null}
+          meta={
+            onCreateOutput ? (
+              <button
+                aria-label="创建文件或站点"
+                className="tw:inline-flex tw:size-6 tw:items-center tw:justify-center tw:rounded-md tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-meta tw:cursor-pointer tw:hover:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
+                type="button"
+                onClick={onCreateOutput}
+              >
+                <Plus aria-hidden="true" size={APP_ICON_SIZE} />
+              </button>
+            ) : null
+          }
           onToggle={toggleSection}
         >
           {!artifactPreview.items.length ? (

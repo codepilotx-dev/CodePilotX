@@ -25,8 +25,12 @@ export function createEnvironmentDomainClient(rpc: Rpc) {
       }
     },
     readEnvironment: (threadId: string) => rpc.call('local-environment/read', { threadId }),
-    listProjectEnvironments: (projectId: string) =>
-      rpc.call('local-environment/project/list', { projectId }),
+    async listProjectEnvironments(projectId: string) {
+      const initialized = await rpc.ensureInitialized()
+      if (!initialized.capabilities.includes('local-environment.multiple.v1'))
+        throw new Error('当前 Agent 不支持多环境设置。请完整退出应用，并在更新 Agent 后重新启动。')
+      return rpc.call('local-environment/project/list', { projectId })
+    },
     readProjectEnvironment: (projectId: string, environmentId: string) =>
       rpc.call('local-environment/project/read', { projectId, environmentId }),
     createProjectEnvironment: (projectId: string, name: string) =>

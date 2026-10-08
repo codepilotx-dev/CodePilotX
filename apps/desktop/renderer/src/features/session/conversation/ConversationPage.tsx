@@ -203,6 +203,15 @@ export function ConversationPage(): React.ReactNode {
     commandMenuActionStore.getSnapshot,
     commandMenuActionStore.getServerSnapshot,
   )
+  const [selectedLaunchActionId, setSelectedLaunchActionId] = React.useState('')
+  const launchActions = environmentActions.filter(
+    (action) =>
+      action.id.startsWith(`environment.action.${activeSessionId}.`) &&
+      !action.id.endsWith('.loading'),
+  )
+  const environmentChoices = environmentActions.filter((action) =>
+    action.id.startsWith(`environment.choice.${activeSessionId}.`),
+  )
   const handoffAction = environmentActions.find(
     (action) =>
       action.id === `environment.handoff.${activeSessionId}` && action.availability === 'available',
@@ -1236,6 +1245,10 @@ export function ConversationPage(): React.ReactNode {
           branches={branches}
           collapsedSections={collapsedSections}
           model={threadSummaryModel}
+          workspaceActions={launchActions}
+          environmentChoices={environmentChoices}
+          selectedActionId={selectedLaunchActionId}
+          onSelectAction={setSelectedLaunchActionId}
           onActivateBrowserTab={onActivateBrowserTab}
           onBranchSelect={onBranchSelect}
           onCommitOrPush={onCommitOrPush}
@@ -1243,9 +1256,14 @@ export function ConversationPage(): React.ReactNode {
           onCreatePullRequest={onCreatePullRequest}
           onCreateOutput={() => onAppendComposerText('请帮我创建文件或站点：')}
           onGitOperation={onGitOperation}
+          onAddEnvironmentAction={() =>
+            navigate(
+              `/settings/worktrees?tab=environments&threadId=${encodeURIComponent(activeSessionId ?? '')}&mode=edit`,
+            )
+          }
           onOpenEnvironmentSettings={() =>
             navigate(
-              `/settings/local-environment?threadId=${encodeURIComponent(activeSessionId ?? '')}`,
+              `/settings/worktrees?tab=environments&threadId=${encodeURIComponent(activeSessionId ?? '')}`,
             )
           }
           onOpenTerminal={onOpenTerminal}
@@ -1363,6 +1381,9 @@ export function ConversationPage(): React.ReactNode {
     setSidebarSessionPins,
     threadSummary,
     threadSummaryModel,
+    launchActions,
+    environmentChoices,
+    selectedLaunchActionId,
     workspacePath,
   ])
 
@@ -1543,7 +1564,7 @@ export function ConversationPage(): React.ReactNode {
             workspacePath={workspacePath}
             onOpenEnvironmentSettings={() => {
               navigate(
-                `/settings/local-environment?threadId=${encodeURIComponent(activeSessionId)}`,
+                `/settings/worktrees?tab=environments&threadId=${encodeURIComponent(activeSessionId)}`,
               )
             }}
             onOpenWorktreeSettings={(projectId) => {
@@ -1664,6 +1685,10 @@ export function ConversationPage(): React.ReactNode {
                     branches={branches}
                     collapsedSections={collapsedSections}
                     model={threadSummaryModel}
+                    workspaceActions={launchActions}
+                    environmentChoices={environmentChoices}
+                    selectedActionId={selectedLaunchActionId}
+                    onSelectAction={setSelectedLaunchActionId}
                     onActivateBrowserTab={onActivateBrowserTab}
                     onBranchSelect={onBranchSelect}
                     onCommitOrPush={onCommitOrPush}
@@ -1671,9 +1696,14 @@ export function ConversationPage(): React.ReactNode {
                     onCreatePullRequest={onCreatePullRequest}
                     onCreateOutput={() => onAppendComposerText('请帮我创建文件或站点：')}
                     onGitOperation={onGitOperation}
+                    onAddEnvironmentAction={() =>
+                      navigate(
+                        `/settings/worktrees?tab=environments&threadId=${encodeURIComponent(activeSessionId ?? '')}&mode=edit`,
+                      )
+                    }
                     onOpenEnvironmentSettings={() =>
                       navigate(
-                        `/settings/local-environment?threadId=${encodeURIComponent(activeSessionId ?? '')}`,
+                        `/settings/worktrees?tab=environments&threadId=${encodeURIComponent(activeSessionId ?? '')}`,
                       )
                     }
                     onOpenTerminal={onOpenTerminal}

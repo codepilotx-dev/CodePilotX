@@ -1,117 +1,182 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { ChevronRight, Folder, Plus } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import type { RpcResult } from '@codepilotx/agent-protocol'
 import type { DesktopWorkspace } from '../../../../shared/types.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { environmentDomainClient } from '../../../services/desktop-client/environment-domain-client.js'
 import { Button } from '../../../components/ui/Button.js'
-import { Input } from '../../../components/ui/Input.js'
-import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
-import { SettingsSection } from '../SettingsSection.js'
+import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
 import { LocalEnvironmentSettings } from './LocalEnvironmentSettings.js'
 
-type Props = { onError: (message: string) => void; onNotice?: (message: string) => void }
-type Environment = RpcResult<'local-environment/project/list'>['environments'][number]
+type Props = {
+  onlyProjectId?: string
+  onError: (message: string) => void
+  onNotice?: (message: string) => void
+}
+type Catalog = RpcResult<'local-environment/project/list'>
 
-export function LocalEnvironmentProjectSettings({ onError, onNotice }: Props): ReactNode {
+export function LocalEnvironmentProjectSettings({
+  onError,
+  onNotice,
+  onlyProjectId,
+}: Props): ReactNode {
   const [params, setParams] = useSearchParams()
-  const navigate = useNavigate()
   const [projects, setProjects] = useState<DesktopWorkspace[]>([])
   const [loading, setLoading] = useState(true)
-  const [revision, setRevision] = useState(0)
-  const projectId = params.get('projectId')
+  const projectId = params.get('projectId') ?? onlyProjectId
   const environmentId = params.get('environmentId')
+  const editing = params.get('mode') === 'edit'
+  const client = useMemo(() => environmentDomainClient(), [])
+  const threadId = params.get('threadId')
   useEffect(() => {
-    void desktopClient
-      .listProjects()
-      .then(setProjects)
+    if (!threadId) return
+    let active = true
+    void client
+      .projectForThread(threadId)
+      .then((id) => {
+        if (!active) return
+        if (!id) throw new Error('当前聊天未关联项目，请从项目列表配置环境。')
+        setParams((current) => {
+          current.delete('threadId')
+          current.set('projectId', id)
+          return current
+        })
+      })
       .catch((cause) => onError(message(cause)))
-      .finally(() => setLoading(false))
+    return () => {
+      active = false
+    }
+  }, [client, threadId, setParams, onError])
+  useEffect(() => {
+    if (!projectId || environmentId || threadId) return
+    let active = true
+    void client
+      .listProjectEnvironments(projectId)
+      .then((catalog) => {
+        if (!active) return
+        const selected =
+          catalog.environments.find((item) => item.id === catalog.selectedEnvironmentId) ??
+          catalog.environments[0]
+        if (!selected) throw new Error('项目环境不可用')
+        setParams((current) => {
+          current.set('environmentId', selected.id)
+          if (!selected.exists) current.set('mode', 'edit')
+          return current
+        })
+      })
+      .catch((cause) => onError(message(cause)))
+    return () => {
+      active = false
+    }
+  }, [client, projectId, environmentId, threadId, setParams, onError])
+  const project = projects.find((item) => item.projectId === projectId)
+  const load = useCallback(async () => {
+    try {
+      setProjects(await desktopClient.listProjects())
+    } catch (cause) {
+      onError(message(cause))
+    } finally {
+      setLoading(false)
+    }
   }, [onError])
-  if (projectId && environmentId)
+  useEffect(() => {
+    void load()
+  }, [load])
+  const open = (id: string, environment: string, edit: boolean) =>
+    setParams((current) => {
+      current.set('tab', 'environments')
+      current.set('projectId', id)
+      current.set('environmentId', environment)
+      if (edit) current.set('mode', 'edit')
+      else current.delete('mode')
+      return current
+    })
+  if (loading || threadId || (projectId && !environmentId))
+    return <p role="status">正在加载项目…</p>
+  if (projectId && environmentId && project)
     return (
-      <div className="tw:mt-6 tw:grid tw:gap-4">
-        <Button
-          color="secondary"
-          onClick={() =>
-            setParams((current) => {
-              current.delete('environmentId')
-              return current
-            })
-          }
+      <div className="tw:grid tw:gap-8">
+        <nav
+          aria-label="环境面包屑"
+          className="tw:flex tw:items-center tw:gap-2 tw:type-caption tw:text-app-text-meta"
         >
-          返回环境列表
-        </Button>
+          <Button
+            color="ghostSecondary"
+            size="toolbar"
+            onClick={() => setParams({ tab: 'environments' })}
+          >
+            环境
+          </Button>
+          <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />
+          <Button
+            color="ghostSecondary"
+            size="toolbar"
+            onClick={() => open(projectId, environmentId, false)}
+          >
+            {project.name}
+          </Button>
+          {editing ? (
+            <>
+              <ChevronRight aria-hidden="true" size={APP_ICON_SIZE} />
+              <span className="tw:text-app-text">编辑</span>
+            </>
+          ) : null}
+        </nav>
         <LocalEnvironmentSettings
-          key={projectId + environmentId}
+          key={`${projectId}:${environmentId}:${editing}`}
           projectId={projectId}
           environmentId={environmentId}
+          projectName={project.name}
+          readOnly={!editing}
+          onEdit={() => open(projectId, environmentId, true)}
+          onDeleted={() => setParams({ tab: 'environments' })}
+          onSaved={(savedId) => open(projectId, savedId ?? environmentId, false)}
           embedded
           onError={onError}
           onNotice={onNotice}
-          onSaved={() => setRevision((value) => value + 1)}
         />
       </div>
     )
   return (
-    <div className="tw:mt-6 tw:grid tw:gap-3">
-      <p className="tw:m-0 tw:type-body-sm tw:text-app-text-soft">
-        配置项目创建工作树时使用的初始化脚本、清理脚本和 Actions。
-      </p>
+    <div className="tw:grid tw:gap-3">
       <header className="tw:flex tw:items-center tw:justify-between tw:gap-3">
-        <h3 className="tw:type-row-title tw:text-app-text">选择项目</h3>
-        <Button color="secondary" onClick={() => navigate('/projects')}>
+        <h3 className="tw:m-0 tw:type-row-title tw:text-app-text">选择项目</h3>
+        <Button
+          color="secondary"
+          onClick={() =>
+            void desktopClient
+              .chooseWorkspace()
+              .then(() => load())
+              .catch((cause) => onError(message(cause)))
+          }
+        >
           添加项目
         </Button>
       </header>
-      {loading ? (
-        <p role="status">正在加载项目…</p>
-      ) : !projects.length ? (
-        <p>暂无项目，添加项目后即可配置环境。</p>
-      ) : (
-        projects
-          .filter((project) => project.projectId)
-          .map((project) => (
-            <ProjectEnvironmentCard
-              key={project.projectId}
-              project={project}
-              revision={revision}
-              onError={onError}
-              onOpen={(id) =>
-                setParams((current) => {
-                  current.set('projectId', project.projectId!)
-                  current.set('environmentId', id)
-                  current.set('tab', 'environments')
-                  return current
-                })
-              }
-            />
-          ))
-      )}
+      {projects
+        .filter((item) => item.projectId && (!onlyProjectId || item.projectId === onlyProjectId))
+        .map((item) => (
+          <ProjectCard key={item.projectId} project={item} onOpen={open} onError={onError} />
+        ))}
+      {!projects.length ? <p>暂无项目。</p> : null}
     </div>
   )
 }
 
-function ProjectEnvironmentCard({
+function ProjectCard({
   project,
-  revision,
   onOpen,
   onError,
 }: {
   project: DesktopWorkspace
-  revision: number
-  onOpen: (environmentId: string) => void
+  onOpen: (projectId: string, environmentId: string, edit: boolean) => void
   onError: (message: string) => void
-}): ReactNode {
+}) {
   const client = useMemo(() => environmentDomainClient(), [])
-  const [catalog, setCatalog] = useState<RpcResult<'local-environment/project/list'> | null>(null)
+  const [catalog, setCatalog] = useState<Catalog | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [creating, setCreating] = useState(false)
-  const [name, setName] = useState(project.name)
-  const [deleting, setDeleting] = useState<{ environment: Environment; revision: string } | null>(
-    null,
-  )
   const projectId = project.projectId!
   const refresh = useCallback(async () => {
     try {
@@ -123,144 +188,84 @@ function ProjectEnvironmentCard({
   }, [client, projectId])
   useEffect(() => {
     void refresh()
-  }, [refresh, revision])
-  const execute = async (action: () => Promise<void>) => {
+  }, [refresh])
+  const defaultEnvironment =
+    catalog?.environments.find((item) => item.id === catalog.selectedEnvironmentId) ??
+    catalog?.environments[0]
+  const add = async () => {
     if (busy) return
     setBusy(true)
     try {
-      await action()
-      await refresh()
+      if (defaultEnvironment && !defaultEnvironment.exists)
+        onOpen(projectId, defaultEnvironment.id, true)
+      else onOpen(projectId, 'new', true)
     } catch (cause) {
-      setError(message(cause))
       onError(message(cause))
     } finally {
       setBusy(false)
     }
   }
   return (
-    <SettingsSection
-      title={project.name}
-      description={project.path}
-      actions={
-        <Button
-          color="secondary"
-          disabled={busy || catalog === null}
-          onClick={() => setCreating(true)}
+    <article className="tw:rounded-container tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-4">
+      <div className="tw:flex tw:items-center tw:gap-3">
+        <button
+          type="button"
+          disabled={!defaultEnvironment || busy}
+          className="tw:flex tw:min-w-0 tw:flex-1 tw:cursor-pointer tw:items-center tw:gap-3 tw:border-0 tw:bg-transparent tw:p-0 tw:text-left tw:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
+          onClick={() =>
+            defaultEnvironment &&
+            onOpen(projectId, defaultEnvironment.id, !defaultEnvironment.exists)
+          }
         >
-          创建环境
+          <Folder aria-hidden="true" size={APP_ICON_SIZE} />
+          <span className="tw:min-w-0 tw:type-row-title">
+            {project.name}
+            <span className="tw:block tw:truncate tw:type-caption tw:text-app-text-meta">
+              {project.path}
+            </span>
+          </span>
+        </button>
+        <Button
+          isIconOnly
+          color="secondary"
+          size="toolbar"
+          title="添加环境"
+          disabled={busy || !catalog}
+          onClick={() => void add()}
+        >
+          <Plus size={APP_ICON_SIZE} />
         </Button>
-      }
-    >
+      </div>
+      {catalog?.environments
+        .filter((item) => item.exists)
+        .map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className="tw:mt-3 tw:flex tw:w-full tw:cursor-pointer tw:items-center tw:justify-between tw:gap-3 tw:border-0 tw:border-t tw:border-app-border-subtle tw:bg-transparent tw:pt-3 tw:text-left tw:text-app-text tw:focus-visible:outline-2 tw:focus-visible:outline-app-focus"
+            onClick={() => onOpen(projectId, item.id, false)}
+          >
+            <span className="tw:min-w-0 tw:type-row-title">
+              {item.name}
+              <span className="tw:block tw:truncate tw:type-caption tw:text-app-text-meta">
+                {item.inherited ? '继承 · ' : ''}
+                {item.path.split(/[\\/]/).pop()}
+              </span>
+            </span>
+            <ChevronRight size={APP_ICON_SIZE} />
+          </button>
+        ))}
       {error ? (
-        <div role="alert" className="tw:type-body-sm tw:text-app-danger">
+        <div role="alert" className="tw:mt-3 tw:type-caption tw:text-app-danger">
           {error}
-          <Button color="secondary" disabled={busy} onClick={() => void refresh()}>
+          <Button color="ghostSecondary" size="toolbar" onClick={() => void refresh()}>
             重试
           </Button>
         </div>
       ) : null}
-      {catalog?.environments.map((environment) => (
-        <div
-          key={environment.id}
-          className="tw:flex tw:items-center tw:justify-between tw:gap-3 tw:py-3 tw:[&+&]:border-t tw:[&+&]:border-app-border-subtle"
-        >
-          <div className="tw:min-w-0 tw:flex-1">
-            <div className="tw:type-row-title tw:text-app-text">
-              {environment.name}
-              {catalog.selectedEnvironmentId === environment.id ? ' · 默认' : ''}
-            </div>
-            <p className="tw:m-0 tw:type-caption tw:text-app-text-meta tw:break-words">
-              {environment.inherited ? '继承自 ' : ''}
-              {environment.path}
-              {environment.invalid ? ' · 配置无效' : !environment.exists ? ' · 尚未创建' : ''}
-            </p>
-          </div>
-          <div className="tw:flex tw:items-center tw:gap-2">
-            <Button color="secondary" disabled={busy} onClick={() => onOpen(environment.id)}>
-              编辑
-            </Button>
-            <Button
-              color="secondary"
-              disabled={
-                busy ||
-                !environment.exists ||
-                environment.invalid ||
-                catalog.selectedEnvironmentId === environment.id
-              }
-              onClick={() =>
-                void execute(async () => {
-                  await client.selectProjectEnvironment(projectId, environment.id)
-                })
-              }
-            >
-              设为默认
-            </Button>
-            <Button
-              color="danger"
-              disabled={
-                busy || !environment.exists || catalog.selectedEnvironmentId === environment.id
-              }
-              onClick={() =>
-                void execute(async () => {
-                  const current = await client.readProjectEnvironment(projectId, environment.id)
-                  setDeleting({ environment, revision: current.revision })
-                })
-              }
-            >
-              删除
-            </Button>
-          </div>
-        </div>
-      ))}
-      <ConfirmationDialog
-        open={creating}
-        title="创建环境"
-        description={
-          <Input
-            aria-label="环境名称"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-        }
-        actionLabel="创建"
-        actionDisabled={busy || !name.trim()}
-        onCancel={() => {
-          if (!busy) setCreating(false)
-        }}
-        onAction={() =>
-          void execute(async () => {
-            const created = await client.createProjectEnvironment(projectId, name)
-            setCreating(false)
-            onOpen(created.environmentId)
-          })
-        }
-      />
-      <ConfirmationDialog
-        open={deleting !== null}
-        title="删除环境？"
-        description="将删除环境配置文件；默认选择和工作树引用会阻止删除。"
-        actionLabel="删除"
-        tone="danger"
-        actionDisabled={busy}
-        onCancel={() => {
-          if (!busy) setDeleting(null)
-        }}
-        onAction={() =>
-          void execute(async () => {
-            if (!deleting) return
-            await client.deleteProjectEnvironment(
-              projectId,
-              deleting.environment.id,
-              deleting.revision,
-            )
-            setDeleting(null)
-          })
-        }
-      />
-    </SettingsSection>
+    </article>
   )
 }
-
 function message(cause: unknown) {
   return cause instanceof Error ? cause.message : '环境操作失败'
 }

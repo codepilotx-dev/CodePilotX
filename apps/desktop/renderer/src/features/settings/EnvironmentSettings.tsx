@@ -10,7 +10,7 @@ import {
   X,
 } from 'lucide-react'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type {
   DesktopProjectSource,
   DesktopProjectSourceReadResult,
@@ -37,6 +37,7 @@ import {
   ProjectAppearanceGlyph,
 } from '../projects/projectAppearance.js'
 import { notifyProjectCatalogChanged } from '../projects/projectCatalogEvents.js'
+import { LocalEnvironmentProjectSettings } from './local-environment/LocalEnvironmentProjectSettings.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsSection } from './SettingsSection.js'
@@ -51,14 +52,17 @@ import { errorMessageOf as errorMessage } from '@codepilotx/shared/errors'
 type Props = {
   onError: (message: string) => void
   onNotice?: (message: string) => void
+  embedded?: boolean
 }
 
 export function EnvironmentSettings(props: Props): React.ReactNode {
-  const { projectId } = useParams<{ projectId?: string }>()
+  const [query] = useSearchParams()
+  const { projectId: routeProjectId } = useParams<{ projectId?: string }>()
+  const projectId = routeProjectId ?? (props.embedded ? query.get('projectId') : null)
   const location = useLocation()
   const routeBase = location.pathname.startsWith('/projects')
     ? '/projects'
-    : '/settings/environment'
+    : '/settings/worktrees?tab=environments'
   return projectId ? (
     <EnvironmentDetail projectId={decodeURIComponent(projectId)} routeBase={routeBase} {...props} />
   ) : (
@@ -66,7 +70,11 @@ export function EnvironmentSettings(props: Props): React.ReactNode {
   )
 }
 
-function EnvironmentList({ onError, routeBase }: Props & { routeBase: string }): React.ReactNode {
+function EnvironmentList({
+  onError,
+  routeBase,
+  embedded,
+}: Props & { routeBase: string }): React.ReactNode {
   const navigate = useNavigate()
   const { projectAppearances } = useDesktopSettings()
   const [projects, setProjects] = useState<DesktopWorkspace[]>([])
@@ -96,7 +104,7 @@ function EnvironmentList({ onError, routeBase }: Props & { routeBase: string }):
       const project = await desktopClient.chooseWorkspace()
       if (project) notifyProjectCatalogChanged()
       if (project?.projectId) {
-        navigate(`${routeBase}/${encodeURIComponent(project.projectId)}`)
+        navigate(projectSettingsRoute(routeBase, project.projectId))
       } else if (project) {
         onError('所选工作区未返回稳定的项目标识。')
       }
@@ -128,7 +136,7 @@ function EnvironmentList({ onError, routeBase }: Props & { routeBase: string }):
             onError('该项目缺少稳定的项目标识。')
             return
           }
-          navigate(`${routeBase}/${encodeURIComponent(project.projectId)}`)
+          navigate(projectSettingsRoute(routeBase, project.projectId))
         }}
       >
         <span className="environment-project-icon tw:grid tw:size-8 tw:place-items-center tw:rounded-md tw:bg-app-hover tw:text-app-text-soft">
@@ -240,18 +248,22 @@ function EnvironmentList({ onError, routeBase }: Props & { routeBase: string }):
   }
 
   return (
-    <SettingsContentArea>
-      <div className="settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)] tw:[&_.settings-section-content]:overflow-visible">
-        <header className="settings-page-header environment-page-heading tw:mt-0 tw:mx-0 tw:mb-8 tw:flex tw:items-start tw:justify-between tw:gap-5 tw:[&>div]:min-w-0 tw:@max-[720px]:flex-col">
-          <div>
-            <h1 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">
-              环境
-            </h1>
-            <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">
-              管理项目的项目指令和共享来源。
-            </p>
-          </div>
-        </header>
+    <EnvironmentFrame embedded={embedded}>
+      <div
+        className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
+      >
+        {!embedded ? (
+          <header className="settings-page-header environment-page-heading tw:mt-0 tw:mx-0 tw:mb-8 tw:flex tw:items-start tw:justify-between tw:gap-5 tw:[&>div]:min-w-0 tw:@max-[720px]:flex-col">
+            <div>
+              <h1 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">
+                环境
+              </h1>
+              <p className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm">
+                管理项目的项目指令和共享来源。
+              </p>
+            </div>
+          </header>
+        ) : null}
 
         <SettingsSection
           actions={
@@ -267,13 +279,14 @@ function EnvironmentList({ onError, routeBase }: Props & { routeBase: string }):
           {projectList}
         </SettingsSection>
       </div>
-    </SettingsContentArea>
+    </EnvironmentFrame>
   )
 }
 
 function EnvironmentDetail({
   projectId,
   routeBase,
+  embedded,
   onError,
   onNotice,
 }: Props & { projectId: string; routeBase: string }): React.ReactNode {
@@ -449,18 +462,22 @@ function EnvironmentDetail({
 
   if (loading) {
     return (
-      <SettingsContentArea>
-        <div className="settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)] tw:[&_.settings-section-content]:overflow-visible">
+      <EnvironmentFrame embedded={embedded}>
+        <div
+          className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
+        >
           <EnvironmentEmpty>正在载入项目环境…</EnvironmentEmpty>
         </div>
-      </SettingsContentArea>
+      </EnvironmentFrame>
     )
   }
 
   if (!project) {
     return (
-      <SettingsContentArea>
-        <div className="settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)] tw:[&_.settings-section-content]:overflow-visible">
+      <EnvironmentFrame embedded={embedded}>
+        <div
+          className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
+        >
           <button
             className="environment-breadcrumb tw:mt-0 tw:mr-0 tw:mb-5 tw:ml-0 tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-2 tw:max-w-full tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:hover:text-app-text tw:[&>span]:truncate tw:[&>span]:text-app-text"
             type="button"
@@ -471,13 +488,35 @@ function EnvironmentDetail({
           </button>
           <EnvironmentEmpty>项目不存在、已移除或当前不可用。</EnvironmentEmpty>
         </div>
-      </SettingsContentArea>
+      </EnvironmentFrame>
     )
   }
 
+  if (embedded)
+    return (
+      <div className="tw:grid tw:gap-5">
+        <Button color="ghostSecondary" onClick={() => navigate(routeBase)}>
+          返回环境列表 · {project.name}
+        </Button>
+        <LocalEnvironmentProjectSettings
+          onlyProjectId={projectId}
+          onError={onError}
+          onNotice={onNotice}
+        />
+        <Button
+          color="secondary"
+          onClick={() => navigate(`/projects/${encodeURIComponent(projectId)}`)}
+        >
+          项目指令与共享来源
+        </Button>
+      </div>
+    )
+
   return (
-    <SettingsContentArea>
-      <div className="settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)] tw:[&_.settings-section-content]:overflow-visible">
+    <EnvironmentFrame embedded={embedded}>
+      <div
+        className={`settings-content-inner environment-settings tw:@container tw:w-full tw:min-w-0 tw:mx-auto ${embedded ? '' : 'tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]'} tw:[&_.settings-section-content]:overflow-visible`}
+      >
         <button
           className="environment-breadcrumb tw:mt-0 tw:mr-0 tw:mb-5 tw:ml-0 tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-2 tw:max-w-full tw:border-0 tw:bg-transparent tw:p-0 tw:text-app-text-soft tw:hover:text-app-text tw:[&>span]:truncate tw:[&>span]:text-app-text"
           type="button"
@@ -494,7 +533,7 @@ function EnvironmentDetail({
         <header className="settings-page-header environment-page-heading tw:mt-0 tw:mx-0 tw:mb-8 tw:flex tw:items-start tw:justify-between tw:gap-5 tw:[&>div]:min-w-0 tw:@max-[720px]:flex-col">
           <div>
             <h1 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">
-              编辑本地环境
+              项目环境
             </h1>
             <p
               className="settings-page-desc tw:m-0 tw:max-w-[68ch] tw:text-app-text-soft tw:type-body-sm"
@@ -728,7 +767,7 @@ function EnvironmentDetail({
           ) : null}
         </SettingsSection>
       </div>
-    </SettingsContentArea>
+    </EnvironmentFrame>
   )
 }
 
@@ -754,4 +793,19 @@ function sourceMediaType(source: DesktopProjectSource): string {
   if (extension === 'gif') return 'image/gif'
   if (extension === 'webp') return 'image/webp'
   return 'image/png'
+}
+
+function projectSettingsRoute(base: string, projectId: string) {
+  return base === '/projects'
+    ? `${base}/${encodeURIComponent(projectId)}`
+    : `${base}&projectId=${encodeURIComponent(projectId)}`
+}
+function EnvironmentFrame({
+  embedded,
+  children,
+}: {
+  embedded?: boolean
+  children: React.ReactNode
+}) {
+  return embedded ? <>{children}</> : <SettingsContentArea>{children}</SettingsContentArea>
 }

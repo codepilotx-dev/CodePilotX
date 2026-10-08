@@ -16,9 +16,7 @@ import {
   Square,
   User,
   Gauge,
-  FolderKanban,
   PawPrint,
-  SquareTerminal,
   Trees,
   type LucideIcon,
 } from 'lucide-react'
@@ -293,31 +291,6 @@ export const SETTINGS_GROUPS = [
     title: '编码',
     items: [
       {
-        id: 'environment',
-        routeId: 'environment',
-        label: '环境',
-        description: '管理项目上下文、指令和共享来源',
-        icon: FolderKanban,
-        rows: [
-          row('项目', '查看和打开最近使用的项目环境'),
-          row('项目指令', '为项目中的任务设置共享指令'),
-          row('共享来源', '管理托管文件与工作区文件来源'),
-        ],
-      },
-      {
-        id: 'local-environment',
-        routeId: 'local-environment',
-        label: 'Local environment',
-        description: '管理 setup、cleanup、Actions 与脚本执行信任',
-        icon: SquareTerminal,
-        rows: [
-          row('环境名称', '编辑 environment.jsonc 中的 name'),
-          row('Setup 与 Cleanup', '按平台配置初始化和清理脚本'),
-          row('Actions', '配置可在集成终端中运行的项目动作'),
-          row('执行信任', '确认或撤销当前配置 hash 的执行权限'),
-        ],
-      },
-      {
         id: 'worktrees',
         routeId: 'worktrees',
         label: '托管 Worktrees',
@@ -328,6 +301,7 @@ export const SETTINGS_GROUPS = [
           row('工作树根目录', '配置后续创建的目录；已有工作树保持原路径'),
           row('上游更新', '创建工作树前获取上游更新，失败时继续使用本地引用'),
           row('自动删除', '自动清理旧工作树并设置保留数量'),
+          row('项目指令与共享来源', '管理项目上下文、指令和共享文件'),
           row('多环境', '选择项目默认环境，管理 Setup、Cleanup 和 Actions'),
           row('Setup 进度', '查看输出并在失败后重试或跳过'),
           row('永久保留', '避免自动清理重要工作树'),
@@ -348,6 +322,18 @@ export const SETTINGS_GROUPS = [
         ],
       },
       {
+        id: 'code-review',
+        routeId: 'code-review',
+        label: '代码审查',
+        description: 'AI 审查呈现、PR 监控和自动修复',
+        icon: GitBranch,
+        rows: [
+          row('审查结果呈现方式', '在当前聊天内联审查或使用单独聊天'),
+          row('监控并修复 PR', '选择项目和 PR，管理独立修复聊天与工作树'),
+          row('自动合并', '通过 head SHA、CI、审查和权限检查后合并 PR'),
+        ],
+      },
+      {
         id: 'git',
         routeId: 'git',
         label: 'Git',
@@ -359,9 +345,6 @@ export const SETTINGS_GROUPS = [
           row('在侧边栏显示 PR 图标', '显示拉取请求状态'),
           row('始终强制推送', '推送时使用 --force-with-lease'),
           row('创建草稿拉取请求', '默认创建 Draft PR'),
-          row('审查结果呈现方式', '在当前聊天内联审查或使用单独聊天'),
-          row('监控并修复 PR', '后台检查 CI 和审查要求，使用独立聊天与工作树修复'),
-          row('自动合并', '通过 head SHA、CI、审查和权限检查后合并 PR'),
           row('提交指令', '设置提交信息生成指令'),
           row('拉取请求指令', '设置 PR 标题和描述生成指令'),
           row('GitHub 账号', '登录 GitHub 并管理 OAuth 状态'),

@@ -21,9 +21,7 @@ type SettingsPanelProps = {
 type SettingsPanel = React.ComponentType<SettingsPanelProps>
 
 const SETTINGS_PANELS: Record<SettingsTabId, SettingsPanel> = {
-  general: lazy(() =>
-    import('./GeneralSettings.js').then((m) => ({ default: m.GeneralSettings })),
-  ),
+  general: lazy(() => import('./GeneralSettings.js').then((m) => ({ default: m.GeneralSettings }))),
   voice: lazy(() => import('./VoiceSettings.js').then((m) => ({ default: m.VoiceSettings }))),
   profile: lazy(() => import('./ProfileSettings.js').then((m) => ({ default: m.ProfileSettings }))),
   appearance: lazy(() =>
@@ -36,7 +34,9 @@ const SETTINGS_PANELS: Record<SettingsTabId, SettingsPanel> = {
   ),
   memory: lazy(() => import('./MemorySettings.js').then((m) => ({ default: m.MemorySettings }))),
   shortcuts: lazy(() =>
-    import('./KeyboardShortcutsSettings.js').then((m) => ({ default: m.KeyboardShortcutsSettings })),
+    import('./KeyboardShortcutsSettings.js').then((m) => ({
+      default: m.KeyboardShortcutsSettings,
+    })),
   ),
   billing: lazy(() =>
     import('./UsageBillingSettings.js').then((m) => ({ default: m.UsageBillingSettings })),
@@ -51,14 +51,6 @@ const SETTINGS_PANELS: Record<SettingsTabId, SettingsPanel> = {
   computer: lazy(() =>
     import('./ComputerSettings.js').then((m) => ({ default: m.ComputerSettings })),
   ),
-  environment: lazy(() =>
-    import('./EnvironmentSettings.js').then((m) => ({ default: m.EnvironmentSettings })),
-  ),
-  'local-environment': lazy(() =>
-    import('./local-environment/LocalEnvironmentSettings.js').then((m) => ({
-      default: m.LocalEnvironmentSettings,
-    })),
-  ),
   worktrees: lazy(() =>
     import('../worktree/WorktreeSettings.js').then((m) => ({ default: m.WorktreeSettings })),
   ),
@@ -66,6 +58,9 @@ const SETTINGS_PANELS: Record<SettingsTabId, SettingsPanel> = {
     import('./WorkspaceDependenciesSettings.js').then((m) => ({
       default: m.WorkspaceDependenciesSettings,
     })),
+  ),
+  'code-review': lazy(() =>
+    import('./CodeReviewSettings.js').then((m) => ({ default: m.CodeReviewSettings })),
   ),
   git: lazy(() => import('./GitSettings.js').then((m) => ({ default: m.GitSettings }))),
   archived: lazy(() =>

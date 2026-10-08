@@ -3,6 +3,10 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { GitFork, Play, RefreshCw, X } from 'lucide-react'
 import type { LocalEnvironmentActionMetadata, ManagedWorktree } from '@codepilotx/agent-protocol'
 
+import {
+  subscribeProjectCatalogChanges,
+  notifyProjectCatalogChanged,
+} from '../../projects/projectCatalogEvents.js'
 import { GlobalErrorModal } from '../../../components/GlobalErrorModal.js'
 import { Spinner } from '../../../components/ui/Spinner.js'
 import { Button } from '../../../components/ui/Button.js'
@@ -51,7 +55,7 @@ export type GitEnvironmentLoaders = {
 
 export type GitEnvironmentProjectionResult =
   | { status: 'not-git' }
-  | { status: 'loaded'; snapshot: GitEnvironmentSnapshot }
+  | { status: 'loaded'; snapshot: GitEnvironmentSnapshot; warning?: string }
   | { status: 'stale' }
   | { status: 'failed'; error: string }
 
@@ -69,10 +73,21 @@ export async function loadGitEnvironmentProjection(
   if (!gitAvailable) return { status: 'not-git' }
   try {
     const actions = await loaders.listActions(threadId)
-    const projectId = await loaders.projectForThread(threadId)
-    const worktrees = projectId ? await loaders.listWorktrees(projectId) : []
+    let projectId: string | null = null
+    let worktrees: readonly ManagedWorktree[] = []
+    let warning: string | undefined
+    try {
+      projectId = await loaders.projectForThread(threadId)
+      worktrees = projectId ? await loaders.listWorktrees(projectId) : []
+    } catch (cause) {
+      warning = message(cause)
+    }
     if (!isCurrent()) return { status: 'stale' }
-    return { status: 'loaded', snapshot: { actions, worktrees, projectId } }
+    return {
+      status: 'loaded',
+      snapshot: { actions, worktrees, projectId },
+      ...(warning ? { warning } : {}),
+    }
   } catch (cause) {
     if (!isCurrent()) return { status: 'stale' }
     return { status: 'failed', error: message(cause) }
@@ -118,6 +133,9 @@ export function ConversationEnvironmentControls({
   const [actions, setActions] = React.useState<readonly LocalEnvironmentActionMetadata[]>([])
   const [worktrees, setWorktrees] = React.useState<readonly ManagedWorktree[]>([])
   const [projectId, setProjectId] = React.useState<string | null>(null)
+  const [environmentCatalog, setEnvironmentCatalog] = React.useState<Awaited<
+    ReturnType<typeof client.listProjectEnvironments>
+  > | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -147,7 +165,17 @@ export function ConversationEnvironmentControls({
   const refresh = React.useCallback(async () => {
     const generation = ++refreshGenerationRef.current
     if (!gitAvailableRef.current) {
-      setLoading(false)
+      try {
+        const localProjectId = await client.projectForThread(threadId)
+        const localActions = localProjectId ? await listTerminalActions(client, threadId) : []
+        if (generation !== refreshGenerationRef.current) return
+        setProjectId(localProjectId)
+        setActions(localActions)
+      } catch (cause) {
+        if (generation === refreshGenerationRef.current) setError(message(cause))
+      } finally {
+        if (generation === refreshGenerationRef.current) setLoading(false)
+      }
       return
     }
     setLoading(true)
@@ -173,11 +201,65 @@ export function ConversationEnvironmentControls({
       setLoading(false)
       return
     }
+    setError(result.warning ?? null)
     setActions(result.snapshot.actions)
     setProjectId(result.snapshot.projectId)
     setWorktrees(result.snapshot.worktrees)
     setLoading(false)
   }, [client, threadId])
+
+  React.useEffect(() => {
+    if (!projectId) {
+      setEnvironmentCatalog(null)
+      return
+    }
+    let active = true
+    const reload = () => {
+      void client
+        .listProjectEnvironments(projectId)
+        .then((value) => {
+          if (active) setEnvironmentCatalog(value)
+        })
+        .catch((cause) => {
+          if (active) setError(message(cause))
+        })
+    }
+    reload()
+    const unsubscribe = subscribeProjectCatalogChanges(reload)
+    return () => {
+      active = false
+      unsubscribe()
+    }
+  }, [client, projectId])
+  const switchEnvironment = React.useCallback(
+    async (environmentId: string) => {
+      if (!projectId || busy) return
+      setBusy(true)
+      try {
+        await client.selectProjectEnvironment(projectId, environmentId)
+        setEnvironmentCatalog(await client.listProjectEnvironments(projectId))
+        await refresh()
+        notifyProjectCatalogChanged()
+      } catch (cause) {
+        setError(message(cause))
+      } finally {
+        setBusy(false)
+      }
+    },
+    [client, projectId, busy, refresh],
+  )
+
+  React.useEffect(() => {
+    const reload = () => {
+      void refresh()
+    }
+    const unsubscribe = subscribeProjectCatalogChanges(reload)
+    window.addEventListener('focus', reload)
+    return () => {
+      unsubscribe()
+      window.removeEventListener('focus', reload)
+    }
+  }, [refresh])
 
   React.useEffect(() => {
     if (gitAvailable) {
@@ -189,6 +271,7 @@ export function ConversationEnvironmentControls({
     refreshGenerationRef.current += 1
     resumedThreadRef.current = null
     clearGitEnvironment()
+    void refresh()
   }, [clearGitEnvironment, gitAvailable, refresh])
 
   React.useEffect(() => {
@@ -320,6 +403,22 @@ export function ConversationEnvironmentControls({
       execute: () => executeAction(action),
     }))
 
+    registrations.push(
+      ...(environmentCatalog?.environments
+        .filter((environment) => environment.exists)
+        .map((environment, index) => ({
+          id: `environment.choice.${threadId}.${environment.id}`,
+          group: 'workspace-actions' as const,
+          label: environment.name,
+          keywords: ['环境', environment.name],
+          selected: environment.id === environmentCatalog.selectedEnvironmentId,
+          order: 200 + index,
+          availability:
+            busy || environment.invalid ? ('disabled' as const) : ('available' as const),
+          execute: () => switchEnvironment(environment.id),
+        })) ?? []),
+    )
+
     if (loading && actions.length === 0) {
       registrations.push({
         id: `environment.action.${threadId}.loading`,
@@ -350,7 +449,16 @@ export function ConversationEnvironmentControls({
     })
 
     return registrations
-  }, [actions, busy, executeAction, gitAvailable, loading, threadId])
+  }, [
+    actions,
+    busy,
+    executeAction,
+    gitAvailable,
+    loading,
+    threadId,
+    environmentCatalog,
+    switchEnvironment,
+  ])
 
   React.useEffect(() => {
     return registerCommandMenuActions(commandMenuActionStore, commandActions)
@@ -381,7 +489,8 @@ export function ConversationEnvironmentControls({
                 </Dialog.Description>
               </div>
               <Dialog.Close asChild>
-                <Button isIconOnly
+                <Button
+                  isIconOnly
                   color="ghostSecondary"
                   disabled={busy}
                   size="toolbar"

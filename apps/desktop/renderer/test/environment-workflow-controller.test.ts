@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { LocalEnvironmentActionMetadata, ManagedWorktree } from '@codepilotx/agent-protocol'
+import { createEnvironmentDomainClient } from '../src/services/desktop-client/environment-domain-client.js'
 import type { EnvironmentDomainClient } from '../src/services/desktop-client/environment-domain-client.js'
 import type { DesktopTerminalClient } from '../src/services/desktop-client/terminal-client.js'
 import {
@@ -405,3 +406,29 @@ function worktree(id: string): ManagedWorktree {
     deletedAt: null,
   }
 }
+
+test('旧 Agent 缺少多环境能力时不调用未知 RPC，返回重启说明', async () => {
+  let calls = 0
+  const rpc = {
+    ensureInitialized: async () => ({ capabilities: [] }),
+    call: async () => {
+      calls++
+      throw new Error('不应调用')
+    },
+  } as unknown as Parameters<typeof createEnvironmentDomainClient>[0]
+  await expect(
+    createEnvironmentDomainClient(rpc).listProjectEnvironments('project'),
+  ).rejects.toThrow('完整退出应用')
+  expect(calls).toBe(0)
+})
+
+
+test('工作树列表失败仍发布已经读到的启动操作', async () => {
+  const action = {name:'启动agent',icon:'run',availability:'available' as const}
+  const result = await loadGitEnvironmentProjection(true,'thread',{listActions:async()=>[action],projectForThread:async()=> 'project',listWorktrees:async()=>{throw new Error('工作树读取失败')}},()=>true)
+  expect(result.status).toBe('loaded')
+  if(result.status==='loaded') {
+    expect(result.snapshot.actions).toEqual([action])
+    expect(result.warning).toBe('工作树读取失败')
+  }
+})

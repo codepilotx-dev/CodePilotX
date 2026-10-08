@@ -77,7 +77,7 @@ export function PrWatchSettings(): React.ReactNode {
   return (
     <SettingsSection
       title="监控并修复 Pull Request"
-      description="每 5 分钟由宿主检查状态；需要修复时使用独立且持续复用的工作树与聊天。可在自动化列表查看运行记录和管理调度。"
+      description="选择项目和 PR 后持续检查 CI 与审查要求，需要修复时复用独立聊天与工作树。"
     >
       {error && (
         <p role="alert" className="tw:type-caption tw:text-app-danger tw:p-3">
@@ -107,7 +107,7 @@ export function PrWatchSettings(): React.ReactNode {
             aria-label="监控与修复说明"
             rows={4}
             value={draft.values.prWatchInstructions}
-            placeholder="添加修复约束与验证要求…"
+            placeholder="例如：修复失败的检查，运行项目测试，并说明修复结果…"
             onChange={(event) => draft.setValue('prWatchInstructions', event.target.value)}
             onKeyDown={(event) => {
               if (isSettingsSaveShortcut(event)) {
@@ -138,9 +138,10 @@ export function PrWatchSettings(): React.ReactNode {
         title="PR URL"
         variant="stacked"
         control={
-          <div className="tw:flex tw:gap-2">
+          <div className="tw:flex tw:flex-wrap tw:gap-2">
             <Input
               aria-label="PR URL"
+              className="tw:min-w-0 tw:flex-1"
               value={url}
               placeholder="https://github.com/owner/repository/pull/123"
               onChange={(event) => setUrl(event.target.value)}
@@ -168,7 +169,12 @@ export function PrWatchSettings(): React.ReactNode {
         }
       />
       <div className="tw:grid tw:gap-2 tw:p-3">
-        <Button color="secondary" disabled={busy} onClick={() => void operate(refresh)}>
+        <Button
+          color="ghostSecondary"
+          size="toolbar"
+          disabled={busy}
+          onClick={() => void operate(refresh)}
+        >
           刷新监控
         </Button>
         {watches.map((watch) => (

@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { SettingsPage } from './SettingsPage.js'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
 import { useDesktopTheme } from '../theme/themeContext.js'
@@ -32,6 +32,7 @@ export function SettingsLayout({ activeTabOverride }: Props = {}): React.ReactNo
   const theme = useDesktopTheme()
   const { workspacePath, useSkill } = useDesktopLayoutOutletContext()
   const navigate = useNavigate()
+  const location = useLocation()
   const capabilityState = useSettingsCapabilityState()
   const activeItem = SETTINGS_ITEMS.find((item) => item.routeId === activeTab)
   const visibility = resolveSettingsSectionVisibility(activeItem?.requires, {
@@ -65,6 +66,13 @@ export function SettingsLayout({ activeTabOverride }: Props = {}): React.ReactNo
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [settings.draft, theme.draft, t])
+
+  if (activeTab === 'environment' || activeTab === 'local-environment') {
+    const query = new URLSearchParams(location.search)
+    query.set('tab', 'environments')
+    if (projectId) query.set('projectId', projectId)
+    return <Navigate replace to={`/settings/worktrees?${query}`} />
+  }
 
   if (!SETTINGS_ITEMS.some((item) => item.routeId === activeTab)) {
     return <NotFoundPage />
