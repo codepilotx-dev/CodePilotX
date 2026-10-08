@@ -3,13 +3,13 @@ import type React from 'react'
 import type { ModelProviderID } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
-import { RemoteImage } from '../../components/ui/RemoteImage.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
 } from '../../components/ui/iconTokens.js'
+import { ProviderIcon } from './ProviderIcon.js'
 import type { ProviderCatalogFilter } from './modelCenterState.js'
 
 export type ProviderCatalogStatusTone = 'positive' | 'warning' | 'danger' | 'neutral'
@@ -116,13 +116,12 @@ export function ProviderCatalog({
                 >
                   <span className="provider-card-logo settings-management-row-icon">
                     {provider.logoURL ? (
-                      <RemoteImage
-                        alt=""
+                      <ProviderIcon
                         fallback={
                           <Server aria-hidden size={14} data-icon-kind="artwork" strokeWidth={2} />
                         }
                         imageClassName={PROVIDER_CARD_LOGO_IMAGE_CLASS}
-                        src={provider.logoURL}
+                        logoURL={provider.logoURL}
                       />
                     ) : (
                       <Server aria-hidden size={14} data-icon-kind="artwork" strokeWidth={2} />

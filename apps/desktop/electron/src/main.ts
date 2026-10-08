@@ -72,6 +72,9 @@ import {
   createThreadDeepLinkController,
   type ThreadDeepLinkController,
 } from './deep-link/thread-deep-link-controller.js'
+import { ProviderIconCacheService } from './ipc/provider-icon-cache-service.js'
+import { registerProviderIconIpc } from './ipc/register-provider-icon-ipc.js'
+import { DESKTOP_PROVIDER_ICON_IPC_CHANNELS } from '@codepilotx/shared/desktop-provider-icon-ipc'
 
 const moduleDirectory = dirname(fileURLToPath(import.meta.url))
 const configuredUserDataDirectory = process.env.CODEPILOTX_USER_DATA_DIR?.trim()
@@ -108,6 +111,7 @@ let terminalManager: TerminalManager | undefined
 let terminalHost: TerminalHostRpcClient | undefined
 let browserController: DesktopBrowserController | undefined
 let computerController: DesktopComputerController | undefined
+let providerIcons: ProviderIconCacheService | undefined
 let deepLinkController: ThreadDeepLinkController | undefined
 const rendererDeepLinkReady = new Set<number>()
 const rendererDeepLinkTracked = new Set<number>()
@@ -253,6 +257,14 @@ async function startDesktop(): Promise<void> {
     getDownloadsDirectory: () => app.getPath('downloads'),
   })
   const composerPathGrants = new ComposerPathGrantService()
+  providerIcons = new ProviderIconCacheService({
+    rootDirectory: join(app.getPath('userData'), 'provider-icons'),
+    logger,
+    publish: (change) => {
+      windows?.broadcast(DESKTOP_PROVIDER_ICON_IPC_CHANNELS.changed, change)
+    },
+  })
+  providerIcons.startExpirySweep()
   browserController = new DesktopBrowserController({
     getSupervisor: () => supervisor,
     publish: (owner, state) => {
@@ -312,6 +324,11 @@ async function startDesktop(): Promise<void> {
   registerTerminalIpc({
     manager: terminalManager,
     isMainWindowSender: (sender) => windows?.isApplicationSender(sender) === true,
+  })
+  registerProviderIconIpc({
+    ipc: ipcMain,
+    isMainWindowSender: (sender) => windows?.isApplicationSender(sender) === true,
+    providerIcons,
   })
   registerBrowserIpc({
     controller: browserController,
@@ -479,6 +496,7 @@ app.on('before-quit', (event) => {
     stopRuntime: () => {
       browserController?.dispose()
       computerController?.dispose()
+      providerIcons?.dispose()
       disposeDeepLinkController()
       return stopTerminalsBeforeSupervisor({
         manager: terminalManager,

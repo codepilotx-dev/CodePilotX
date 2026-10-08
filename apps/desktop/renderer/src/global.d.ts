@@ -9,6 +9,7 @@ import type { DesktopEditIpcBridge } from '@codepilotx/shared/desktop-edit-ipc'
 import type { DesktopUpdateIpcBridge } from '@codepilotx/shared/desktop-update-ipc'
 import type { DesktopTerminalIpcBridge } from '@codepilotx/shared/desktop-terminal-ipc'
 import type { DesktopNotificationIpcBridge } from '@codepilotx/shared/desktop-notification-ipc'
+import type { DesktopProviderIconIpcBridge } from '@codepilotx/shared/desktop-provider-icon-ipc'
 import type { DesktopAttachmentIpcBridge } from '@codepilotx/shared/desktop-attachment-ipc'
 import type { DesktopBrowserIpcBridge } from '@codepilotx/shared/desktop-browser-ipc'
 import type { DesktopWindowIpcBridge } from '@codepilotx/shared/desktop-window-ipc'
@@ -36,6 +37,7 @@ declare global {
       DesktopTerminalIpcBridge &
       DesktopUpdateIpcBridge &
       DesktopNotificationIpcBridge &
+      DesktopProviderIconIpcBridge &
       DesktopAttachmentIpcBridge &
       DesktopBrowserIpcBridge &
       DesktopWindowIpcBridge &

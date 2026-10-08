@@ -64,6 +64,7 @@ import type {
   DesktopSensitiveClipboardResult,
 } from '@codepilotx/shared/desktop-clipboard-ipc'
 import type { DesktopMicrophoneIpcBridge } from '@codepilotx/shared/desktop-microphone-ipc'
+import type { DesktopProviderIconIpcBridge } from '@codepilotx/shared/desktop-provider-icon-ipc'
 // 注意：preload.cjs 不参与打包，只能使用 type-only import；一旦引入运行时代码，
 // 编译产物会 require workspace 的 TS 源并导致 preload 加载失败（整个桥消失）。
 import type {
@@ -186,6 +187,11 @@ const DESKTOP_BROWSER_IPC_CHANNELS = {
 const DESKTOP_MICROPHONE_IPC_CHANNELS = {
   openPrivacySettings: 'desktop-microphone:open-privacy-settings',
 } as const satisfies typeof import('@codepilotx/shared/desktop-microphone-ipc').DESKTOP_MICROPHONE_IPC_CHANNELS
+
+const DESKTOP_PROVIDER_ICON_IPC_CHANNELS = {
+  resolve: 'desktop-provider-icon:resolve',
+  changed: 'desktop-provider-icon:changed',
+} as const satisfies typeof import('@codepilotx/shared/desktop-provider-icon-ipc').DESKTOP_PROVIDER_ICON_IPC_CHANNELS
 
 const DESKTOP_WINDOW_IPC_CHANNELS = {
   openWindow: 'window:open',
@@ -387,6 +393,22 @@ const desktop = {
   },
   openMicrophonePrivacySettings: (): Promise<void> =>
     ipcRenderer.invoke(DESKTOP_MICROPHONE_IPC_CHANNELS.openPrivacySettings),
+  resolveProviderIcon: (
+    input: import('@codepilotx/shared/desktop-provider-icon-ipc').DesktopProviderIconResolveInput,
+  ): Promise<import('@codepilotx/shared/desktop-provider-icon-ipc').DesktopProviderIconResolution> =>
+    ipcRenderer.invoke(DESKTOP_PROVIDER_ICON_IPC_CHANNELS.resolve, input),
+  onProviderIconChange: (
+    listener: (
+      change: import('@codepilotx/shared/desktop-provider-icon-ipc').DesktopProviderIconChange,
+    ) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      change: import('@codepilotx/shared/desktop-provider-icon-ipc').DesktopProviderIconChange,
+    ): void => listener(change)
+    ipcRenderer.on(DESKTOP_PROVIDER_ICON_IPC_CHANNELS.changed, handler)
+    return () => ipcRenderer.removeListener(DESKTOP_PROVIDER_ICON_IPC_CHANNELS.changed, handler)
+  },
   saveAttachmentToDownloads: (
     input: DesktopAttachmentSaveInput,
   ): Promise<DesktopAttachmentSaveResult> =>
@@ -657,6 +679,7 @@ const desktop = {
   DesktopAttachmentIpcBridge &
   DesktopBrowserIpcBridge &
   DesktopMicrophoneIpcBridge &
+  DesktopProviderIconIpcBridge &
   DesktopWindowIpcBridge &
   DesktopWorkspaceIpcBridge &
   DesktopShellIpcBridge &
