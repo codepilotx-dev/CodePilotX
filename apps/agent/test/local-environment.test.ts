@@ -23,6 +23,20 @@ import { LOCAL_ENVIRONMENT_SELECTION_SCHEMA, LocalEnvironmentRepository } from '
 
 const roots: string[] = []
 
+test('项目文件夹信任覆盖脚本版本，撤销后不允许旧摘要授权绕过', async () => {
+  const { root, runner, trust } = await fixture()
+  let trusted = true
+  const service = new LocalEnvironmentService(new LocalEnvironmentDiscovery(new GitCommandRunner({ timeoutMs: 10_000, maxOutputBytes: 64 * 1024 })), trust, runner, undefined, async () => trusted)
+  const initial = await service.read(root)
+  const saved = await service.update({ cwd: root, expectedRevision: initial.revision, edits: [{ keyPath: ['setup'], value: { script: 'echo ok' } }] })
+  expect(saved.executionTrusted).toBe(true)
+  expect((await service.read(root)).executionTrusted).toBe(true)
+  await service.confirmExecution(root, saved.configHash)
+  trusted = false
+  expect((await service.read(root)).executionTrusted).toBe(false)
+  await expect(service.runLifecycle({ cwd: root, bindingId: 'test', kind: 'setup' })).rejects.toMatchObject({ code: 'LOCAL_ENVIRONMENT_UNTRUSTED' })
+}, 30_000)
+
 const git = async (cwd: string, args: string[]) => {
   const child = Bun.spawn(['git', ...args], {
     cwd,
@@ -56,6 +70,34 @@ afterEach(async () => {
 })
 
 describe('LocalEnvironmentService', () => {
+  test('唯一 ID 环境可作为默认环境发现，操作列表使用相同配置；legacy 与显式选择优先', async () => {
+    const {root,service,discovery} = await fixture()
+    const directory = join(root,'.codepilotx','environments')
+    await mkdir(directory,{recursive:true})
+    const named = join(directory,'stable-id.jsonc')
+    await writeFile(named,JSON.stringify({schema_version:1,name:'启动',actions:[{name:'启动桌面',command:'bun run dev:desktop'},{name:'启动agent',command:'bun run dev:agent'}]}),'utf8')
+    expect((await discovery.discover(root)).filePath).toBe(named)
+    expect((await service.actionList(root)).actions.map((action)=>action.name)).toEqual(['启动桌面','启动agent'])
+    const legacy = join(root,LOCAL_ENVIRONMENT_RELATIVE_PATH)
+    await writeFile(legacy,'{"schema_version":1,"name":"旧默认","actions":[]}', 'utf8')
+    expect((await discovery.discover(root)).filePath).toBe(legacy)
+    const selected = new LocalEnvironmentDiscovery(new GitCommandRunner({maxOutputBytes:65536,timeoutMs:10000}),()=>({filePath:named}))
+    expect((await selected.discover(root)).filePath).toBe(named)
+  },30_000)
+
+  test('普通本地项目可读取并保存环境，但仍拒绝项目范围外的配置路径', async () => {
+    const root = await mkdtemp(join(tmpdir(),'codepilotx-local-folder-'))
+    roots.push(root)
+    const discovery = new LocalEnvironmentDiscovery(new GitCommandRunner({maxOutputBytes:65536,timeoutMs:10000}))
+    const service = new LocalEnvironmentService(discovery,new MemoryProjectTrustStore(),new LocalEnvironmentRunner(new EnvironmentDeltaStore(join(root,'.data')),30000))
+    const initial = await service.read(root)
+    expect(initial.exists).toBe(false)
+    await service.update({cwd:root,expectedRevision:initial.revision,edits:[{keyPath:['name'],value:'本地项目'},{keyPath:['setup','script'],value:'echo setup'}]})
+    expect((await service.read(root)).config.name).toBe('本地项目')
+    expect((await service.read(root)).executionTrusted).toBe(false)
+    await expect(service.read(root,join(dirname(root),'outside.jsonc'))).rejects.toMatchObject({code:'LOCAL_ENVIRONMENT_INVALID'})
+  }, 30_000)
+
   test('多环境继承、选择、冲突、信任撤销与冻结配置使用同一解析', async () => {
     const { root, trust, runner } = await fixture()
     const projectRoot = join(root, 'app')
@@ -73,25 +115,33 @@ describe('LocalEnvironmentService', () => {
     const catalog = new LocalEnvironmentCatalog(service,discovery,repository,() => projectRoot,join(root,'.snapshots'))
     const inherited = (await catalog.list('project')).environments[0]!
     expect(inherited.inherited).toBe(true)
-    const named = await catalog.create('project','名称不是路径/../环境')
+    await expect(catalog.create('project','名称不是路径/../环境')).rejects.toMatchObject({code:'LOCAL_ENVIRONMENT_INVALID'})
+    const named = await catalog.create('project','测试环境')
+    expect(repository.selection('project')?.config_path).toBe(join(root,LOCAL_ENVIRONMENT_RELATIVE_PATH))
     await catalog.select('project',named.environmentId)
     const selected = await service.read(projectRoot)
-    expect(selected.config.name).toBe('名称不是路径/../环境')
-    expect(selected.filePath).not.toContain('名称不是路径')
+    expect(selected.config.name).toBe('测试环境')
+    expect(selected.filePath).toEndWith('测试环境.jsonc')
+    await expect(catalog.create('project','测试环境')).rejects.toMatchObject({code:'LOCAL_ENVIRONMENT_CONFLICT'})
     await catalog.update({ projectId: 'project', environmentId: named.environmentId, expectedRevision: selected.revision, trust: { configHash: selected.configHash, decision: 'allow' } })
     expect((await service.read(projectRoot)).executionTrusted).toBe(true)
     await catalog.freeze('project','worktree',projectRoot)
     await catalog.update({ projectId: 'project', environmentId: named.environmentId, expectedRevision: selected.revision, edits: [{ keyPath: ['name'], value: '新配置' }] })
-    await expect(catalog.update({ projectId: 'project', environmentId: named.environmentId, expectedRevision: selected.revision, edits: [{ keyPath: ['name'], value: '旧草稿' }] })).rejects.toMatchObject({ code: 'LOCAL_ENVIRONMENT_CONFLICT' })
+    const renamedId = (await catalog.list('project')).environments.find((item)=>item.name==='新配置')!.id
+    expect(repository.selection('project')?.config_path).toEndWith('新配置.jsonc')
+    await expect(catalog.update({ projectId: 'project', environmentId: renamedId, expectedRevision: selected.revision, edits: [{ keyPath: ['name'], value: '旧草稿' }] })).rejects.toMatchObject({ code: 'LOCAL_ENVIRONMENT_CONFLICT' })
     expect((await service.read(projectRoot)).executionTrusted).toBe(false)
     await catalog.select('project',inherited.id)
     expect((await service.read(projectRoot)).config.name).toBe('继承环境')
     const frozen = await service.read(worktreeRoot)
-    expect(frozen.config.name).toBe('名称不是路径/../环境')
+    expect(frozen.config.name).toBe('测试环境')
     expect(frozen.executionTrusted).toBe(false)
-    const current = await catalog.read('project',named.environmentId)
-    await expect(catalog.delete('project',named.environmentId,current.revision)).rejects.toMatchObject({ code: 'LOCAL_ENVIRONMENT_CONFLICT' })
-    expect(await readFile(join(root,LOCAL_ENVIRONMENT_RELATIVE_PATH),'utf8')).toContain('// 保留注释')
+    const current = await catalog.read('project',renamedId)
+    await expect(catalog.delete('project',renamedId,current.revision)).rejects.toMatchObject({ code: 'LOCAL_ENVIRONMENT_CONFLICT' })
+    const inheritedSource = await service.read(projectRoot)
+    expect(inheritedSource.filePath).toEndWith('继承环境.jsonc')
+    expect(await readFile(inheritedSource.filePath,'utf8')).toContain('// 保留注释')
+    expect(inheritedSource.config.future).toBe(42)
     sqlite.close()
   }, 30_000)
   test('worktree setup 仅向创建期脚本注入权威源目录与目标目录变量', async () => {

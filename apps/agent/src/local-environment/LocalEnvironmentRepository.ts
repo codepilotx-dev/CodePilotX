@@ -67,10 +67,11 @@ export class LocalEnvironmentRepository {
     if (!this.available()) return null
     const rows = this.sqlite
       .query(
-        'SELECT snapshot.source_path, snapshot.snapshot_path, snapshot.revision, snapshot.trust_identity, worktree.path FROM worktree_environment_snapshots snapshot JOIN managed_worktrees worktree ON worktree.id = snapshot.worktree_id WHERE worktree.deleted_at IS NULL',
+        'SELECT snapshot.project_id, snapshot.source_path, snapshot.snapshot_path, snapshot.revision, snapshot.trust_identity, worktree.path FROM worktree_environment_snapshots snapshot JOIN managed_worktrees worktree ON worktree.id = snapshot.worktree_id WHERE worktree.deleted_at IS NULL',
       )
       .all() as Array<{
       source_path: string
+      project_id: string
       snapshot_path: string
       revision: string
       trust_identity: string
@@ -82,6 +83,16 @@ export class LocalEnvironmentRepository {
     return this.sqlite
       .query('SELECT 1 FROM worktree_environment_snapshots WHERE worktree_id = ?')
       .get(worktreeId)
+  }
+  renameSource(previous: string, next: string) {
+    this.sqlite.transaction(() => {
+      this.sqlite
+        .query('UPDATE local_environment_selections SET config_path = ? WHERE config_path = ?')
+        .run(next, previous)
+      this.sqlite
+        .query('UPDATE worktree_environment_snapshots SET source_path = ? WHERE source_path = ?')
+        .run(next, previous)
+    })()
   }
   referenced(configPath: string) {
     return Boolean(

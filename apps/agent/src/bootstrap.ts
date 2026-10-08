@@ -239,6 +239,11 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
           workspaceKind: context.workspaceKind,
         }
       },
+      async (cwd) => {
+        const snapshot = environmentRepository.snapshotForCwd(cwd)
+        const root = snapshot ? db.getProject(snapshot.project_id)?.rootPath : cwd
+        return root ? (await configService.trustRead(root)).trustLevel === 'trusted' : false
+      },
     )
     if (environmentRepository.available()) localEnvironment.catalog = new LocalEnvironmentCatalog(localEnvironment, environmentDiscovery, environmentRepository,
       (projectId) => db.getProject(projectId)?.rootPath ?? null, join(config.dataDir, 'managed-worktree-state', 'environments'))

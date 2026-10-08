@@ -44,6 +44,7 @@ export class LocalEnvironmentService {
     private readonly trust: ProjectTrustStore,
     private readonly runner: LocalEnvironmentRunner,
     private readonly resolveContext?: LocalEnvironmentContextResolver,
+    private readonly folderTrusted?: (cwd: string) => Promise<boolean>,
   ) {}
 
   async readForThread(threadId: string) {
@@ -80,10 +81,7 @@ export class LocalEnvironmentService {
       revision: loaded.revision,
       configHash: loaded.revision,
       config: loaded.raw,
-      executionTrusted: await this.trust.isExecutionTrusted(
-        loaded.projectIdentity,
-        loaded.revision,
-      ),
+      executionTrusted: await this.executionTrusted(cwd, loaded.projectIdentity, loaded.revision),
     }
   }
 
@@ -153,7 +151,7 @@ export class LocalEnvironmentService {
     } else if (input.trust?.decision === 'revoke') {
       await this.trust.revokeExecution(loaded.projectIdentity)
     }
-    const executionTrusted = await this.trust.isExecutionTrusted(loaded.projectIdentity, revision)
+    const executionTrusted = await this.executionTrusted(input.cwd, loaded.projectIdentity, revision)
     return {
       filePath: loaded.filePath,
       revision,
@@ -199,7 +197,7 @@ export class LocalEnvironmentService {
     const loaded = await this.load(input.cwd)
     const definition = input.kind === 'setup' ? loaded.config.setup : loaded.config.cleanup
     if (!definition) return null
-    await this.requireExecutionTrust(loaded.projectIdentity, loaded.revision)
+    await this.requireExecutionTrust(input.cwd, loaded.projectIdentity, loaded.revision)
     return this.runner.run({
       ...input,
       command: resolvePlatformCommand(definition, currentEnvironmentPlatform()),
@@ -222,7 +220,7 @@ export class LocalEnvironmentService {
   async hostResolveAction(threadId: string, actionName: string) {
     const context = await this.requireProjectContext(threadId)
     const loaded = await this.load(context.cwd)
-    await this.requireExecutionTrust(loaded.projectIdentity, loaded.revision)
+    await this.requireExecutionTrust(context.cwd, loaded.projectIdentity, loaded.revision)
     const action = loaded.config.actions.find((candidate) => candidate.name === actionName)
     if (!action)
       throw new AgentError('LOCAL_ENVIRONMENT_ACTION_NOT_FOUND', '本地环境 Action 不存在', 404)
@@ -250,9 +248,13 @@ export class LocalEnvironmentService {
     return context
   }
 
-  private async requireExecutionTrust(gitRoot: string, configHash: string) {
-    if (!(await this.trust.isExecutionTrusted(gitRoot, configHash))) {
-      throw new AgentError('LOCAL_ENVIRONMENT_UNTRUSTED', '本地环境配置需要确认后才能执行', 403)
+  private async executionTrusted(cwd: string, identity: string, revision: string) {
+    return this.folderTrusted ? this.folderTrusted(cwd) : this.trust.isExecutionTrusted(identity, revision)
+  }
+
+  private async requireExecutionTrust(cwd: string, identity: string, revision: string) {
+    if (!(await this.executionTrusted(cwd, identity, revision))) {
+      throw new AgentError('LOCAL_ENVIRONMENT_UNTRUSTED', '请先信任项目文件夹后再运行环境脚本', 403)
     }
   }
 
@@ -314,6 +316,7 @@ export class LocalEnvironmentService {
   private async load(cwd: string, configPath?: string) {
     const original = await this.discovery.discover(cwd, configPath)
     const discovered = { ...original, projectIdentity: localEnvironmentTrustIdentity(original) }
+    if (!discovered.frozen) await this.assertControlledTarget(discovered.gitRoot, discovered.filePath)
     if (!discovered.exists) {
       if (discovered.frozen) throw new AgentError('LOCAL_ENVIRONMENT_INVALID', '工作树环境快照缺失', 409)
       const raw: ConfigObject = {
@@ -329,7 +332,6 @@ export class LocalEnvironmentService {
         config: parseLocalEnvironmentConfig(raw),
       }
     }
-    if (!discovered.frozen) await this.assertControlledTarget(discovered.gitRoot, discovered.filePath)
     try {
       const source = await readFile(discovered.filePath, 'utf8')
       if (discovered.frozen && hash(source) !== discovered.frozenRevision) throw new AgentError('LOCAL_ENVIRONMENT_CONFLICT', '环境快照已被修改', 409)
