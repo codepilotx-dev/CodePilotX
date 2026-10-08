@@ -17,6 +17,9 @@ import {
 import { GitCommandRunner } from '../src/git/GitCommandRunner'
 import { LocalEnvironmentWorktreeLifecycle } from '../src/local-environment/WorktreeEnvironmentLifecycle'
 import { BindingHandoffWorkspace } from '../src/handoff/BindingHandoffWorkspace'
+import { Database } from 'bun:sqlite'
+import { LocalEnvironmentCatalog } from '../src/local-environment/LocalEnvironmentCatalog'
+import { LOCAL_ENVIRONMENT_SELECTION_SCHEMA, LocalEnvironmentRepository } from '../src/local-environment/LocalEnvironmentRepository'
 
 const roots: string[] = []
 
@@ -53,6 +56,44 @@ afterEach(async () => {
 })
 
 describe('LocalEnvironmentService', () => {
+  test('多环境继承、选择、冲突、信任撤销与冻结配置使用同一解析', async () => {
+    const { root, trust, runner } = await fixture()
+    const projectRoot = join(root, 'app')
+    const worktreeRoot = join(root, 'worktree')
+    await Promise.all([mkdir(projectRoot), mkdir(worktreeRoot), mkdir(join(root,'.codepilotx','environments'), { recursive: true })])
+    await writeFile(join(root, LOCAL_ENVIRONMENT_RELATIVE_PATH), '// 保留注释\n{"schema_version":1,"name":"继承环境","future":42,"actions":[]}', 'utf8')
+    const sqlite = new Database(':memory:')
+    sqlite.exec('CREATE TABLE projects (id TEXT PRIMARY KEY); CREATE TABLE managed_worktrees (id TEXT PRIMARY KEY,path TEXT,deleted_at INTEGER)')
+    sqlite.exec(LOCAL_ENVIRONMENT_SELECTION_SCHEMA.join(';'))
+    sqlite.query('INSERT INTO projects VALUES (?)').run('project')
+    sqlite.query('INSERT INTO managed_worktrees VALUES (?,?,NULL)').run('worktree',worktreeRoot)
+    const repository = new LocalEnvironmentRepository(sqlite)
+    const discovery = new LocalEnvironmentDiscovery(new GitCommandRunner({ maxOutputBytes: 64 * 1024, timeoutMs: 10_000 }), (cwd) => { const snapshot = repository.snapshotForCwd(cwd); if (snapshot) return { filePath: snapshot.snapshot_path, frozen: true, revision: snapshot.revision, trustIdentity: snapshot.trust_identity }; const selected = repository.selectedForCwd(cwd); return selected ? { filePath: selected.config_path } : null })
+    const service = new LocalEnvironmentService(discovery,trust,runner)
+    const catalog = new LocalEnvironmentCatalog(service,discovery,repository,() => projectRoot,join(root,'.snapshots'))
+    const inherited = (await catalog.list('project')).environments[0]!
+    expect(inherited.inherited).toBe(true)
+    const named = await catalog.create('project','名称不是路径/../环境')
+    await catalog.select('project',named.environmentId)
+    const selected = await service.read(projectRoot)
+    expect(selected.config.name).toBe('名称不是路径/../环境')
+    expect(selected.filePath).not.toContain('名称不是路径')
+    await catalog.update({ projectId: 'project', environmentId: named.environmentId, expectedRevision: selected.revision, trust: { configHash: selected.configHash, decision: 'allow' } })
+    expect((await service.read(projectRoot)).executionTrusted).toBe(true)
+    await catalog.freeze('project','worktree',projectRoot)
+    await catalog.update({ projectId: 'project', environmentId: named.environmentId, expectedRevision: selected.revision, edits: [{ keyPath: ['name'], value: '新配置' }] })
+    await expect(catalog.update({ projectId: 'project', environmentId: named.environmentId, expectedRevision: selected.revision, edits: [{ keyPath: ['name'], value: '旧草稿' }] })).rejects.toMatchObject({ code: 'LOCAL_ENVIRONMENT_CONFLICT' })
+    expect((await service.read(projectRoot)).executionTrusted).toBe(false)
+    await catalog.select('project',inherited.id)
+    expect((await service.read(projectRoot)).config.name).toBe('继承环境')
+    const frozen = await service.read(worktreeRoot)
+    expect(frozen.config.name).toBe('名称不是路径/../环境')
+    expect(frozen.executionTrusted).toBe(false)
+    const current = await catalog.read('project',named.environmentId)
+    await expect(catalog.delete('project',named.environmentId,current.revision)).rejects.toMatchObject({ code: 'LOCAL_ENVIRONMENT_CONFLICT' })
+    expect(await readFile(join(root,LOCAL_ENVIRONMENT_RELATIVE_PATH),'utf8')).toContain('// 保留注释')
+    sqlite.close()
+  }, 30_000)
   test('worktree setup 仅向创建期脚本注入权威源目录与目标目录变量', async () => {
     let lifecycleInput: Record<string, unknown> | null = null
     const lifecycle = new LocalEnvironmentWorktreeLifecycle({

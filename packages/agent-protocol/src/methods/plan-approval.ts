@@ -26,6 +26,26 @@ export const PlanApprovalResponseSchema = Schema.Union([
 ])
 
 export const PlanApprovalRpcMethods = {
+  'planApproval/implementFresh': defineMethod({
+    params: Schema.Struct({
+      threadId: OpaqueIDSchema,
+      approvalId: OpaqueIDSchema,
+      expectedVersion: PositiveIntSchema,
+      operationId: OpaqueIDSchema,
+      model: Schema.optional(Model.Ref),
+    }),
+    result: Schema.Struct({
+      approval: PlanApprovalSchema,
+      targetThreadId: OpaqueIDSchema,
+      nextTurnId: OpaqueIDSchema,
+      disposition: Schema.Literals(['applied', 'duplicate']),
+    }),
+    errors: PlanApprovalErrors,
+    capability: 'plan.approval.fresh.v1',
+    mutation: true,
+    exactParams: true,
+    exactResult: true,
+  }),
   'planApproval/read': defineMethod({
     params: Schema.Struct({ threadId: OpaqueIDSchema }),
     result: Schema.Struct({ approval: Schema.NullOr(PlanApprovalSchema) }),

@@ -145,7 +145,7 @@ export type DesktopComposerProps = {
     target: { type: 'uncommittedChanges' } | { type: 'baseBranch'; branch: string },
   ) => void
   onPermissionChange: (value: DesktopPermissionMode) => void | Promise<void>
-  onPlanModeChange: (active: boolean) => void
+  onPlanModeChange: (active: boolean) => void | Promise<void>
   onLocalRouterModeChange: (mode: LocalRouterMode) => void
   onThinkingChange: (value: DesktopThinkingMode) => void
   createSessionForWorkspace: (
@@ -338,17 +338,20 @@ export function DesktopComposer({
   }, [onWorkingPluginAvailabilityChange, taskPlanningAvailable])
 
   useEffect(() => {
-    if (workingPlugin && planModeActive) onPlanModeChange(false)
-  }, [onPlanModeChange, planModeActive, workingPlugin])
+    if (workingPlugin && planModeActive)
+      void Promise.resolve(onPlanModeChange(false)).catch((error: unknown) =>
+        onError?.(error instanceof Error ? error.message : '计划模式未更新'),
+      )
+  }, [onPlanModeChange, planModeActive, workingPlugin, onError])
 
   function handleWorkingPluginChange(plugin: WorkingPlugin | null): void {
     onWorkingPluginChange?.(plugin)
   }
 
-  function handlePlanModeChange(active: boolean): void {
+  async function handlePlanModeChange(active: boolean): Promise<void> {
+    await onPlanModeChange(active)
     if (active) setGoalModeEnabled(false)
     if (active && workingPlugin) onWorkingPluginChange?.(null)
-    onPlanModeChange(active)
   }
 
   function handleSkillSelectWithWorkingPluginClear(

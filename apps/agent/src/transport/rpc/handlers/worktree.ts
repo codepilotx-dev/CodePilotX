@@ -1,4 +1,5 @@
 import type { RpcMethod } from '@codepilotx/agent-protocol'
+import { Effect } from 'effect'
 import { AgentError } from '../../../domain'
 import { enumValue, stringParam, type RpcRouter } from '../RpcRouter'
 import { optionalRpcRecord as optionalRecord, rpcRecord as record } from '../decoders'
@@ -14,6 +15,9 @@ export const worktreeHandlers = {
   name: 'worktree',
   methods: [
     'worktree/eligibility',
+    'worktree/settings/list',
+    'worktree/settings/delete',
+    'worktree/settings/new-chat',
     'worktree/create',
     'worktree/list',
     'worktree/read',
@@ -33,6 +37,48 @@ export const worktreeHandlers = {
     const service = runtime.dependencies.worktrees
     const params = optionalRecord(rawParams)
     switch (method) {
+      case 'worktree/settings/list': {
+        const { config, db } = runtime.dependencies
+        const desktop = config.snapshot().desktop as Record<string, unknown> | undefined
+        const pins = (desktop?.sidebarSessionPins ?? {}) as Record<string, unknown>
+        return { worktrees: service.settingsList(typeof params.projectId === 'string' ? params.projectId : undefined).map((entry) => ({
+          ...entry, conversations: entry.conversations.map((thread) => ({
+            id: thread.id, title: thread.title, archived: thread.archived_at !== null,
+            pinned: Boolean(pins[thread.id]), active: db.activeTurn(thread.id) !== null,
+          })),
+        })) }
+      }
+      case 'worktree/settings/delete': {
+        const input = operation(params)
+        const { db, history, config, automation, scheduledTasks } = runtime.dependencies
+        return service.delete({ ...input, archiveConversations: async () => {
+          const entry = service.settingsList().find((entry) => entry.worktree.id === input.worktreeId)
+          if (!entry) throw new AgentError('WORKTREE_NOT_FOUND', '工作树不存在', 404)
+          const desktop = config.snapshot().desktop as Record<string, unknown> | undefined
+          const pins = (desktop?.sidebarSessionPins ?? {}) as Record<string, unknown>
+          if (entry.worktree.pinned || entry.conversations.some((thread) => pins[thread.id] || db.activeTurn(thread.id)))
+            throw new AgentError('WORKTREE_NOT_READY', '请先停止任务并取消关联聊天的置顶', 409)
+          for (const thread of entry.conversations.filter((thread) => thread.archived_at === null)) {
+            await automation.removeThreadSchedules(thread.id)
+            await scheduledTasks?.removeThreadSchedules(thread.id)
+            const paused = db.pauseQueue(thread.id, 'interrupted')
+            if (paused) await Effect.runPromise(runtime.dependencies.hub.publish(paused))
+            if (db.activeTurn(thread.id)) throw new AgentError('WORKTREE_NOT_READY', '关联聊天有正在运行的任务', 409)
+            await history.patch(thread.id, { archived: true })
+          }
+        } })
+      }
+      case 'worktree/settings/new-chat': {
+        const input = operation(params)
+        const worktree = service.read(input.worktreeId)
+        const { threads, threadExecutions } = runtime.dependencies
+        const prepared = await threadExecutions.prepare(worktree.projectId, { kind: 'worktree', worktreeId: worktree.id })
+        try {
+          const created = await threads.create({ title: '新对话', operationID: input.operationId, workspace: { kind: 'project', projectID: worktree.projectId }, bindExecution: prepared.bind })
+          await prepared.reconcile(created.id)
+          return { threadId: created.id }
+        } catch (cause) { await prepared.abort(); throw cause }
+      }
       case 'worktree/eligibility':
         return service.eligibility(stringParam(params, 'projectId'))
       case 'worktree/create': {

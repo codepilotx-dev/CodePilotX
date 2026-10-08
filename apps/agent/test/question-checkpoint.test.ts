@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'bun:test'
+import { afterEach, describe, expect, spyOn, test } from 'bun:test'
 import { Effect, Schema } from 'effect'
 import { RpcMethods, decodeServerRequestResult } from '@codepilotx/agent-protocol'
 import { ThreadReadViewRepository } from '../src/session/ThreadReadViewRepository'
@@ -10,6 +10,7 @@ import { EventHub } from '../src/storage/events/EventHub'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { Model, Provider } from '@codepilotx/model-schema'
 import { interactionQuestions, requestUserInputSchema } from '../src/session/QuestionInput'
+import { QuestionAutoResolutionScheduler } from '../src/interaction/QuestionAutoResolutionScheduler'
 
 const databases: AgentDatabase[] = []
 
@@ -56,6 +57,19 @@ describe('问题 checkpoint', () => {
       autoResolutionMs: 60_000,
       checkpoint: { state: '{"version":2}', interruption: { name: 'request_user_input' } },
     })
+    expect(
+      db.repositories.interactions.pendingQuestionPayload(id)?.autoResolutionMs,
+    ).toBeUndefined()
+    const scheduler = spyOn(QuestionAutoResolutionScheduler.prototype, 'track')
+    // Simulate a Plan checkpoint saved by an older build, including an expired deadline.
+    db.sqlite
+      .query(
+        "UPDATE question_requests SET payload = json_set(payload, '$.autoResolutionMs', 60000), created_at = 1 WHERE id = ?",
+      )
+      .run(id)
+    service.restoreAutoResolutions()
+    expect(scheduler).not.toHaveBeenCalled()
+    scheduler.mockRestore()
     await expect(service.pause(id, 99)).rejects.toThrow('版本')
     await service.pause(id, 2)
     expect(db.repositories.interactions.pendingQuestionPayload(id)).toMatchObject({

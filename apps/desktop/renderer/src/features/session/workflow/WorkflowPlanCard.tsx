@@ -1,13 +1,5 @@
 import React from 'react'
-import {
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  Download,
-  Maximize2,
-  PanelRight,
-} from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Copy, Download, Maximize2, PanelRight } from 'lucide-react'
 import type { StructuredPlan } from '@codepilotx/shared/thread'
 import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { MarkdownMessage } from '../../markdown/index.js'
@@ -15,7 +7,7 @@ import {
   createKeyedDisclosureStore,
   useDisclosureExpanded,
 } from '../../../components/ui/keyedDisclosureStore.js'
-import { desktopClipboard } from '../../../services/desktop-client/index.js'
+import { usePlanDocumentActions } from './planDocumentActions.js'
 
 export const planDisclosureStore = createKeyedDisclosureStore({ initialExpandedKeys: [] })
 
@@ -87,41 +79,7 @@ export function WorkflowPlanCard({
   const presentation = planCardPresentation({ streaming, isDocked })
   const plan = createPlanDockRequest({ eventId, title, content: summary, streaming })
   const [expanded, setExpanded] = usePlanExpanded(threadId, eventId)
-  const [copied, setCopied] = React.useState(false)
-  const copyTimeoutRef = React.useRef<number | null>(null)
-
-  React.useEffect(() => {
-    return () => {
-      if (copyTimeoutRef.current !== null) {
-        window.clearTimeout(copyTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  const handleCopy = React.useCallback(() => {
-    void desktopClipboard
-      .writeText(summary)
-      .then(() => {
-        setCopied(true)
-        if (copyTimeoutRef.current !== null) {
-          window.clearTimeout(copyTimeoutRef.current)
-        }
-        copyTimeoutRef.current = window.setTimeout(() => setCopied(false), 1400)
-      })
-      .catch(() => undefined)
-  }, [summary])
-
-  const handleExport = React.useCallback(() => {
-    const blob = new Blob([summary], { type: 'text/markdown;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'PLAN.md'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }, [summary])
+  const { copied, copy: handleCopy, exportMarkdown: handleExport } = usePlanDocumentActions(summary)
 
   if (presentation.compact) {
     return (
@@ -131,8 +89,12 @@ export function WorkflowPlanCard({
           type="button"
           onClick={() => onOpenInRightDock(plan)}
         >
-          <span className="workflow-plan-card__label tw:text-app-text-meta tw:type-label">{presentation.label}</span>
-          <span className="workflow-plan-card__compact-title tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:type-row-title">{title}</span>
+          <span className="workflow-plan-card__label tw:text-app-text-meta tw:type-label">
+            {presentation.label}
+          </span>
+          <span className="workflow-plan-card__compact-title tw:min-w-0 tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:type-row-title">
+            {title}
+          </span>
           <PanelRight size={APP_ICON_SIZES.sm} strokeWidth={APP_ICON_STROKE_WIDTH} />
         </button>
       </article>
@@ -145,7 +107,9 @@ export function WorkflowPlanCard({
       data-expanded={expanded ? 'true' : 'false'}
     >
       <header className="workflow-plan-card__header tw:flex tw:items-center tw:justify-between tw:gap-3">
-        <span className="workflow-plan-card__label tw:text-app-text-meta tw:type-label">{presentation.label}</span>
+        <span className="workflow-plan-card__label tw:text-app-text-meta tw:type-label">
+          {presentation.label}
+        </span>
         <div className="workflow-plan-card__actions tw:inline-flex tw:flex-none tw:items-center tw:gap-1">
           {!streaming ? (
             <>
@@ -228,7 +192,9 @@ export function WorkflowPlanCard({
 export function StructuredPlanView({ plan }: { plan: StructuredPlan }): React.ReactNode {
   return (
     <div className="workflow-plan-structured tw:flex tw:flex-col tw:gap-3 tw:text-app-text tw:type-reading">
-      <p className="workflow-plan-structured__summary tw:m-0 tw:text-app-text-soft">{plan.summary}</p>
+      <p className="workflow-plan-structured__summary tw:m-0 tw:text-app-text-soft">
+        {plan.summary}
+      </p>
       <StructuredPlanSection title="实现变更">
         {plan.changes.map((change, index) => (
           <div

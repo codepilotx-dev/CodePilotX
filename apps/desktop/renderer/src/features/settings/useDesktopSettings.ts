@@ -240,6 +240,7 @@ export type DesktopSettingsDraft = {
   saving: boolean
   setValue: DesktopSettingsDraftSetter
   save: (baseValues?: StoredDesktopSettings) => Promise<StoredDesktopSettings>
+  saveFields: (keys: readonly (keyof StoredDesktopSettings)[]) => Promise<StoredDesktopSettings>
   reset: () => void
   autoSave: () => void
 }
@@ -296,6 +297,16 @@ export function createDesktopSettingsDraft(
       dirtyKeys.clear()
       dirty = false
       return values
+    },
+    async saveFields(keys) {
+      const selected = new Set(keys)
+      const snapshot = mergeDesktopSettingsDraft(initialValues, values, selected)
+      const saved = await saveValues(snapshot)
+      for (const key of keys) if (JSON.stringify(values[key]) === JSON.stringify(snapshot[key])) dirtyKeys.delete(key)
+      initialValues = saved ? cloneDesktopSettings(saved) : snapshot
+      values = mergeDesktopSettingsDraft(initialValues, values, dirtyKeys)
+      dirty = dirtyKeys.size > 0
+      return initialValues
     },
     reset() {
       values = cloneDesktopSettings(initialValues)
@@ -637,6 +648,10 @@ function useDesktopSettingsState(
     () => ({
       language: committedDraftValues.language,
       sidebarLayout: committedDraftValues.sidebarLayout,
+      worktreeRoot: committedDraftValues.worktreeRoot,
+      worktreeFetchUpstream: committedDraftValues.worktreeFetchUpstream,
+      prWatchAutoMerge: committedDraftValues.prWatchAutoMerge,
+      prWatchInstructions: committedDraftValues.prWatchInstructions,
       enableParetoCodeRouter,
       enableFusionRouter,
       enableAutoReviewPermissionMode,
@@ -719,6 +734,10 @@ function useDesktopSettingsState(
     [
       committedDraftValues.language,
       committedDraftValues.sidebarLayout,
+      committedDraftValues.worktreeRoot,
+      committedDraftValues.worktreeFetchUpstream,
+      committedDraftValues.prWatchAutoMerge,
+      committedDraftValues.prWatchInstructions,
       enableParetoCodeRouter,
       enableFusionRouter,
       enableAutoReviewPermissionMode,
@@ -1001,6 +1020,26 @@ function useDesktopSettingsState(
   const saveDraftRef = useRef(saveDraft)
   saveDraftRef.current = saveDraft
 
+  const fieldSaveQueue = useRef<Promise<unknown>>(Promise.resolve())
+  const saveFields = useCallback((keys: readonly (keyof StoredDesktopSettings)[]) => {
+    if (access !== 'read-write') return Promise.reject(new Error('此窗口不允许保存桌面设置'))
+    const values = cloneDesktopSettings(draftValuesRef.current)
+    const pending = fieldSaveQueue.current.catch(() => undefined).then(async () => {
+      const current = await desktopClient.getDesktopSettings()
+      const saved = await desktopClient.saveDesktopSettings(
+        mergeDesktopSettingsDraft(current, values, new Set(keys)),
+      )
+      for (const key of keys) {
+        if (desktopSettingsValueEqual(draftValuesRef.current[key], values[key]))
+          draftDirtyKeysRef.current.delete(key)
+      }
+      syncExternalSettingsPatch(saved)
+      return saved
+    })
+    fieldSaveQueue.current = pending
+    return pending
+  }, [syncExternalSettingsPatch, access])
+
   const autoSave = useCallback(() => {
     setTimeout(() => {
       void saveDraftRef.current()
@@ -1014,10 +1053,11 @@ function useDesktopSettingsState(
       saving: draftSaving,
       setValue: setDraftValue,
       save: saveDraft,
+      saveFields,
       reset: resetDraft,
       autoSave,
     }),
-    [draftDirty, draftSaving, draftValues, resetDraft, saveDraft, setDraftValue, autoSave],
+    [draftDirty, draftSaving, draftValues, resetDraft, saveDraft, saveFields, setDraftValue, autoSave],
   )
 
   const runtime = useMemo<UseDesktopRuntimeSettingsResult>(

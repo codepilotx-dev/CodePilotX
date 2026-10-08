@@ -35,7 +35,7 @@ import {
   createComposerDocumentWithSkill,
   skillInvocationsFromComposerDocument,
 } from './composerSkillToken.js'
-import { skillToComposerCommand, type ComposerSkillCommand } from './composerSlashCommands.js'
+import { planTaskFromInput, skillToComposerCommand, type ComposerSkillCommand } from './composerSlashCommands.js'
 import { getDesktopComposerBranchName } from './composerWorkspacePresentation.js'
 
 type ControllerOptions = {
@@ -199,8 +199,7 @@ export function useDesktopComposerController({
     [selectedSkillTokens],
   )
   const composerDocument = useMemo(() => {
-    const base = createComposerDocumentWithSkill(input, activeSkills)
-    return { ...base, tokens: [...base.tokens, ...contextTokens] }
+    return createComposerDocumentWithSkill(input, activeSkills, contextTokens)
   }, [activeSkills, contextTokens, input])
   const workingPluginSkillUnavailable = false
 
@@ -361,6 +360,10 @@ export function useDesktopComposerController({
   }, [draftKey, subagentMode, workspace?.path, skillsReloadVersion])
 
   function handleSubmit(delivery: ComposerDeliveryIntent = 'default'): void {
+    if (subagentMode && planTaskFromInput(input) !== null) {
+      onError?.('子 Agent 不能切换计划模式')
+      return
+    }
     if (submittingRef.current || composingRef.current || !modelConfigured || !canSubmit) {
       return
     }
@@ -552,6 +555,7 @@ export function useDesktopComposerController({
     handleCompact,
     handleRemoveAttachment,
     handleComposerDocumentChange: (document: ComposerDraft['document']) => {
+      composerDraftStore.update(draftKey, (current) => ({ ...current, document }))
       setContextTokens(contextTokensFromDocument(document.tokens))
       const skills = skillInvocationsFromComposerDocument(document)
       const currentSkills = draftSkills(composerDraftStore.get(draftKey))
@@ -606,7 +610,7 @@ export function contextTokensFromDocument(
   tokens: readonly ComposerDocumentToken[],
 ): ComposerDocumentToken[] {
   return tokens.filter(
-    (token) => token.kind === 'thread' || token.kind === 'browser' || token.kind === 'plugin',
+    (token) => token.kind === 'skill' || token.kind === 'thread' || token.kind === 'browser' || token.kind === 'plugin',
   )
 }
 

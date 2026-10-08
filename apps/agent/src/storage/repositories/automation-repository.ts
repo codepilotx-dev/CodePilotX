@@ -383,7 +383,7 @@ export class AutomationRepository {
 
   bindExecution(
     runId: string,
-    binding: { threadId: string; turnId: string; worktreeId?: string | null },
+    binding: { threadId: string; turnId: string | null; worktreeId?: string | null },
     now: number,
   ) {
     const result = this.db.sqlite

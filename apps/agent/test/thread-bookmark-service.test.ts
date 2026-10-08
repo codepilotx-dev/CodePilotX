@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Effect } from 'effect'
 import { ThreadBookmarkService } from '../src/session/ThreadBookmarkService'
-import { AgentDatabase } from '../src/storage/database/AgentDatabase'
+import { AgentDatabase, SCHEMA_VERSION } from '../src/storage/database/AgentDatabase'
 import { EventHub } from '../src/storage/events/EventHub'
 import { filterAdvertisedCapabilities } from '../src/transport/rpc/handlers/system-capabilities'
 import { removeFixturePaths } from './fixture-cleanup'
@@ -293,7 +293,7 @@ describe('ThreadBookmarkService', () => {
 
     const reopened = new AgentDatabase(path)
     const version = reopened.sqlite.query('PRAGMA user_version').get() as { user_version: number }
-    expect(version.user_version).toBe(55)
+    expect(version.user_version).toBe(SCHEMA_VERSION)
     // 迁移保留既有书签、会话与未知对象。
     expect(
       new ThreadBookmarkService(reopened, await Effect.runPromise(EventHub.make)).list({

@@ -46,39 +46,61 @@ export class ThreadForkWorkspaceService {
       }
       return existing.bindingId
     }
+    const prepared = await this.prepareSame(source)
+    try {
+      prepared.bind(targetThreadID)
+      return prepared.bindingId
+    } catch (cause) {
+      await prepared.cleanup()
+      throw cause
+    }
+  }
+
+  /** Prepare filesystem work before the caller's thread/turn transaction. */
+  async prepareSame(source: ForkSourceWorkspace) {
     const targetBindingID = this.bindings.allocateBindingId()
     const environment = await this.environmentDeltas.copy(
       source.executionBinding.bindingId,
       targetBindingID,
       source.executionBinding.environmentRevision,
     )
-    try {
-      if (
-        source.executionBinding.kind === 'worktree' &&
-        source.executionBinding.projectId &&
-        source.executionBinding.worktreeId
-      ) {
-        this.bindings.bindWorktree({
-          threadId: targetThreadID,
-          projectId: source.executionBinding.projectId,
-          worktreeId: source.executionBinding.worktreeId,
-          bindingId: targetBindingID,
-          environmentRevision: environment.revision,
-        })
-      } else {
-        this.bindings.bindLocal({
-          threadId: targetThreadID,
-          projectId: source.executionBinding.projectId,
-          cwd: source.cwd,
-          bindingId: targetBindingID,
-          environmentRevision: environment.revision,
-        })
-      }
-      return targetBindingID
-    } catch (cause) {
-      await this.environmentDeltas.remove(targetBindingID)
-      throw cause
+    return {
+      bindingId: targetBindingID,
+      cleanup: () => this.environmentDeltas.remove(targetBindingID),
+      bind: (targetThreadID: string) => {
+        if (
+          source.executionBinding.kind === 'worktree' &&
+          source.executionBinding.projectId &&
+          source.executionBinding.worktreeId
+        ) {
+          this.bindings.bindWorktree({
+            threadId: targetThreadID,
+            projectId: source.executionBinding.projectId,
+            worktreeId: source.executionBinding.worktreeId,
+            bindingId: targetBindingID,
+            environmentRevision: environment.revision,
+          })
+        } else {
+          this.bindings.bindLocal({
+            threadId: targetThreadID,
+            projectId: source.executionBinding.projectId,
+            cwd: source.cwd,
+            bindingId: targetBindingID,
+            environmentRevision: environment.revision,
+          })
+        }
+      },
     }
+  }
+
+  assertCurrent(source: ForkSourceWorkspace) {
+    const current = this.bindings.read(source.executionBinding.threadId)
+    if (
+      current
+        ? JSON.stringify(current) !== JSON.stringify(source.executionBinding)
+        : source.executionBinding.createdAt !== 0
+    )
+      throw new AgentError('CONFLICT', '计划工作区绑定已变化，请刷新后重试', 409)
   }
 
   async bindNewWorktree(source: ForkSourceWorkspace, targetThreadID: string, worktreeID: string) {

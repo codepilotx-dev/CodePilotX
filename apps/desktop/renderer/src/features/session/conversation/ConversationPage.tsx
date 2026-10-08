@@ -198,14 +198,25 @@ export function ConversationPage(): React.ReactNode {
     setSidebarSessionPins,
   } = useDesktopSettings()
   const canonicalConversation = useCanonicalThreadConversation(activeSessionId)
-  const environmentActions = React.useSyncExternalStore(commandMenuActionStore.subscribe,
-    commandMenuActionStore.getSnapshot, commandMenuActionStore.getServerSnapshot)
-  const handoffAction = environmentActions.find((action) =>
-    action.id === `environment.handoff.${activeSessionId}` && action.availability === 'available')
+  const environmentActions = React.useSyncExternalStore(
+    commandMenuActionStore.subscribe,
+    commandMenuActionStore.getSnapshot,
+    commandMenuActionStore.getServerSnapshot,
+  )
+  const handoffAction = environmentActions.find(
+    (action) =>
+      action.id === `environment.handoff.${activeSessionId}` && action.availability === 'available',
+  )
   const pendingPlanApproval = canonicalConversation.state?.pendingPlanApproval
-  const planModel = composerProps?.modelPresets.find(
-    (preset) => preset.id === composerProps.selectedModelPreset,
-  )?.value
+  const [dismissedPlan, setDismissedPlan] = React.useState<string | null>(null)
+  const planKey = pendingPlanApproval
+    ? `${pendingPlanApproval.id}:${pendingPlanApproval.version}`
+    : null
+  const showPlanApproval = Boolean(pendingPlanApproval && dismissedPlan !== planKey)
+  const planModel =
+    composerProps?.selectedModelMetadata?.id ??
+    composerProps?.modelPresets.find((preset) => preset.id === composerProps.selectedModelPreset)
+      ?.value
   const planApproval = usePlanApprovalResponse(
     pendingPlanApproval,
     canonicalConversation.reload,
@@ -216,6 +227,7 @@ export function ConversationPage(): React.ReactNode {
           variant: composerProps.modelVariant,
         }
       : undefined,
+    (threadId) => navigate(`/threads/${encodeURIComponent(threadId)}`),
   )
   const subagents = React.useMemo(
     () =>
@@ -465,7 +477,12 @@ export function ConversationPage(): React.ReactNode {
     hasPlan: composerExecutionPlan !== null,
     changedFileCount: conversationChangeSummary.files.length,
   })
-  const branchReviewState = useBranchReviewSummary(workspacePath, gitStatus, reviewSource, reviewSummary)
+  const branchReviewState = useBranchReviewSummary(
+    workspacePath,
+    gitStatus,
+    reviewSource,
+    reviewSummary,
+  )
   const branchReviewSummary = branchReviewState.snapshot
   const sourceLinks = canonicalAuxiliary.sourceLinks
   const canonicalAttachments = React.useMemo(
@@ -522,7 +539,7 @@ export function ConversationPage(): React.ReactNode {
       workspaceName,
       branchName,
       gitStatus,
-    gitDetection,
+      gitDetection,
       workspaceChangedFileCount,
       branchReviewSummary,
       threadGoal,
@@ -1226,10 +1243,22 @@ export function ConversationPage(): React.ReactNode {
           onCreatePullRequest={onCreatePullRequest}
           onCreateOutput={() => onAppendComposerText('请帮我创建文件或站点：')}
           onGitOperation={onGitOperation}
-          onOpenEnvironmentSettings={() => navigate(`/settings/local-environment?threadId=${encodeURIComponent(activeSessionId ?? '')}`)}
+          onOpenEnvironmentSettings={() =>
+            navigate(
+              `/settings/local-environment?threadId=${encodeURIComponent(activeSessionId ?? '')}`,
+            )
+          }
           onOpenTerminal={onOpenTerminal}
-          pushEnabled={Boolean(gitStatus?.branchName && (!gitStatus.upstream || gitStatus.ahead > 0))}
-          onMoveToWorktree={handoffAction ? () => { void handoffAction.execute() } : undefined}
+          pushEnabled={Boolean(
+            gitStatus?.branchName && (!gitStatus.upstream || gitStatus.ahead > 0),
+          )}
+          onMoveToWorktree={
+            handoffAction
+              ? () => {
+                  void handoffAction.execute()
+                }
+              : undefined
+          }
           onGoalPause={onGoalPause}
           onGoalResume={onGoalResume}
           onOpenArtifact={onOpenArtifact}
@@ -1373,31 +1402,38 @@ export function ConversationPage(): React.ReactNode {
                 onInterrupt={composerProps.onInterrupt}
               />
             </ComposerFooterPresence>
-          ) : pendingPlanApproval ? (
+          ) : pendingPlanApproval && showPlanApproval ? (
             <ComposerFooterPresence key={pendingPlanApproval.id} reducedMotion={reduceMotion}>
               <PlanApprovalCard
                 approval={pendingPlanApproval}
                 disabledReason={planApproval.disabledReason}
                 onRespond={planApproval.respond}
+                freshAvailable={planApproval.freshAvailable}
+                onContinue={() => setDismissedPlan(planKey)}
               />
             </ComposerFooterPresence>
           ) : null}
         </AnimatePresence>
-        {!activePermissionRequest && !pendingPlanApproval ? (
-          <DesktopComposer
-            {...composerProps}
-            canForkConversation={Boolean(
-              conversationFork.onForkFromMessage && latestConversationForkPoint,
-            )}
-            onArchiveConversation={archiveCurrentSession}
-            onForkConversation={continueInNewConversation}
-            sessionStatus={effectiveSessionStatus}
-            contextUsage={canonicalAuxiliary.contextUsage}
-            queuedFollowUps={canonicalAuxiliary.queuedFollowUps}
-            queuePauseReason={canonicalAuxiliary.queuePauseReason}
-            hasConversationMessages={canonicalAuxiliary.hasConversationMessages}
-            messages={[]}
-          />
+        {!activePermissionRequest && (!pendingPlanApproval || !showPlanApproval) ? (
+          <>
+            {pendingPlanApproval ? (
+              <Button onClick={() => setDismissedPlan(null)}>查看计划批准操作</Button>
+            ) : null}
+            <DesktopComposer
+              {...composerProps}
+              canForkConversation={Boolean(
+                conversationFork.onForkFromMessage && latestConversationForkPoint,
+              )}
+              onArchiveConversation={archiveCurrentSession}
+              onForkConversation={continueInNewConversation}
+              sessionStatus={effectiveSessionStatus}
+              contextUsage={canonicalAuxiliary.contextUsage}
+              queuedFollowUps={canonicalAuxiliary.queuedFollowUps}
+              queuePauseReason={canonicalAuxiliary.queuePauseReason}
+              hasConversationMessages={canonicalAuxiliary.hasConversationMessages}
+              messages={[]}
+            />
+          </>
         ) : null}
       </ThreadComposerDock>
     ) : null
@@ -1530,7 +1566,8 @@ export function ConversationPage(): React.ReactNode {
           ref={workflowMainRef}
           className="workflow-page__main tw:relative tw:flex tw:min-w-0 tw:min-h-0 tw:flex-1 tw:flex-col tw:bg-transparent"
           data-thread-summary-inline={
-            (!isThreadLoading && threadSummary.shouldShowInline && threadSummaryModel.hasContent) || undefined
+            (!isThreadLoading && threadSummary.shouldShowInline && threadSummaryModel.hasContent) ||
+            undefined
           }
           data-thread-summary-mode={threadSummary.displayMode}
         >
@@ -1634,17 +1671,29 @@ export function ConversationPage(): React.ReactNode {
                     onCreatePullRequest={onCreatePullRequest}
                     onCreateOutput={() => onAppendComposerText('请帮我创建文件或站点：')}
                     onGitOperation={onGitOperation}
-                    onOpenEnvironmentSettings={() => navigate(`/settings/local-environment?threadId=${encodeURIComponent(activeSessionId ?? '')}`)}
+                    onOpenEnvironmentSettings={() =>
+                      navigate(
+                        `/settings/local-environment?threadId=${encodeURIComponent(activeSessionId ?? '')}`,
+                      )
+                    }
                     onOpenTerminal={onOpenTerminal}
-                    pushEnabled={Boolean(gitStatus?.branchName && (!gitStatus.upstream || gitStatus.ahead > 0))}
-                    onMoveToWorktree={handoffAction ? () => { void handoffAction.execute() } : undefined}
+                    pushEnabled={Boolean(
+                      gitStatus?.branchName && (!gitStatus.upstream || gitStatus.ahead > 0),
+                    )}
+                    onMoveToWorktree={
+                      handoffAction
+                        ? () => {
+                            void handoffAction.execute()
+                          }
+                        : undefined
+                    }
                     onGoalPause={onGoalPause}
                     onGoalResume={onGoalResume}
                     onOpenArtifact={onOpenArtifact}
                     onOpenAttachment={onOpenAttachment}
                     onOpenLocalContext={onOpenLocalContext}
                     onOpenReview={openBranchReview}
-          onRetryGitDetection={onRefreshDiff}
+                    onRetryGitDetection={onRefreshDiff}
                     changesLoading={branchReviewState.loading}
                     onOpenSubagent={onOpenSubagent}
                     onOpenWorkspacePath={onOpenWorkspacePath}

@@ -1,4 +1,6 @@
 import { ComputerUseService } from './computer/ComputerUseService'
+import { LocalEnvironmentRepository } from './local-environment/LocalEnvironmentRepository'
+import { LocalEnvironmentCatalog } from './local-environment/LocalEnvironmentCatalog'
 import { computerToolDefinitions } from './tool/Computer/definition'
 import { Effect } from 'effect'
 import { loadConfig } from './config/Config'
@@ -60,6 +62,8 @@ import { browserToolDefinitions } from './tool/Browser/definition'
 import { MemoryManager } from './resource/MemoryManager'
 import { GitReviewService } from './review/GitReviewService'
 import { GithubService } from './github/GithubService'
+import { PullRequestWatchService } from './github/PullRequestWatchService'
+import { AutomationHostAuditRepository } from './automation/AutomationHostAuditRepository'
 import { GitWorkspaceService } from './git/GitWorkspaceService'
 import type { Models } from '@earendil-works/pi-ai'
 import { registerBunOAuthFlows } from '@earendil-works/pi-ai/bun-oauth'
@@ -209,13 +213,21 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       environmentDeltas,
     )
     const localEnvironmentRunner = new LocalEnvironmentRunner(environmentDeltas)
-    const localEnvironment = new LocalEnvironmentService(
-      new LocalEnvironmentDiscovery(
+    const environmentRepository = new LocalEnvironmentRepository(db.sqlite)
+    const environmentDiscovery = new LocalEnvironmentDiscovery(
         new GitCommandRunner({
           maxOutputBytes: 64 * 1024,
           timeoutMs: 20_000,
         }),
-      ),
+        (cwd) => {
+          const frozen = environmentRepository.snapshotForCwd(cwd)
+          if (frozen) return { filePath: frozen.snapshot_path, frozen: true, revision: frozen.revision, trustIdentity: frozen.trust_identity }
+          const selected = environmentRepository.selectedForCwd(cwd)
+          return selected ? { filePath: selected.config_path } : null
+        },
+      )
+    const localEnvironment = new LocalEnvironmentService(
+      environmentDiscovery,
       new FileProjectTrustStore(config.dataDir),
       localEnvironmentRunner,
       async (threadId) => {
@@ -228,11 +240,17 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         }
       },
     )
+    if (environmentRepository.available()) localEnvironment.catalog = new LocalEnvironmentCatalog(localEnvironment, environmentDiscovery, environmentRepository,
+      (projectId) => db.getProject(projectId)?.rootPath ?? null, join(config.dataDir, 'managed-worktree-state', 'environments'))
     const worktrees = yield* Effect.promise(() =>
       ManagedWorktreeService.open({
         repository: worktreeRepository,
         managedRoot: join(config.dataDir, 'managed-worktrees'),
         stateRoot: join(config.dataDir, 'managed-worktree-state'),
+        settings: () => {
+          const desktop = configService.snapshot().desktop as Record<string, unknown> | undefined
+          return { root: typeof desktop?.worktreeRoot === 'string' ? desktop.worktreeRoot : '', fetchUpstream: desktop?.worktreeFetchUpstream === true }
+        },
         resolveProjectRoot: (projectId) => db.getProject(projectId)?.rootPath ?? null,
         environment: new LocalEnvironmentWorktreeLifecycle(localEnvironment),
         autoDeletePolicy: () => {
@@ -365,8 +383,8 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         builtinSkillsRoot: config.builtinSkillsRoot,
       },
       configService,
-      async () => [
-        ...(await plugins.enabledSkillRoots()),
+      async (workspace?: string) => [
+        ...(await plugins.enabledSkillRoots(workspace)),
         ...((await minimaxCli?.enabledSkillRoots()) ?? []),
       ],
     )
@@ -570,13 +588,15 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       browser,
     )
     let toolExecutor!: ToolExecutor
+    const hostToolAudit = new AutomationHostAuditRepository(db.sqlite)
+    const hostTurnInputs = new Map<string, Pick<NonNullable<ReturnType<AgentDatabase['getTurnInput']>>, 'taskMode' | 'permissionConfig' | 'model'>>()
     const hooks = new HookService(
       db,
       {
         run: async (input) => {
           if (!input.threadID || !input.turnID)
             throw new Error('Hook command 缺少 thread/turn 上下文')
-          const turn = db.getTurnInput(input.turnID)
+          const turn = db.getTurnInput(input.turnID) ?? hostTurnInputs.get(input.turnID)
           if (!turn) throw new Error('Hook command 无法解析权限快照')
           const runtime = await workspaceResolver.resolve(input.threadID)
           const workspace = runtime.workspace
@@ -634,14 +654,15 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
         normalizeShellSecurityLevel(configService.snapshot().shell_security_level),
       authorizeShell: (invocation, signal) => approvals.authorize(invocation, signal),
       recordToolCall: (invocation, status, output, error, startedAt) =>
-        db.upsertToolCall(invocation, status, output, error, startedAt),
-      completedToolCall: (toolCallID) => db.completedToolCall(toolCallID),
+        hostTurnInputs.has(invocation.turnID) ? hostToolAudit.record(invocation, status, output, error, startedAt) : db.upsertToolCall(invocation, status, output, error, startedAt),
+      completedToolCall: (toolCallID) => db.completedToolCall(toolCallID) ?? hostToolAudit.completed(toolCallID),
       logger,
       hooks,
       fileSaved: ({ workspaceRoot, filePath }) =>
         configService.notifyFileSaved(workspaceRoot, filePath),
-      recordMutation: (batch) => Promise.resolve(db.repositories.turnPatches.recordBatch(batch)),
+      recordMutation: (batch) => Promise.resolve(hostTurnInputs.has(batch.turnID) ? hostToolAudit.recordMutation(batch) : db.repositories.turnPatches.recordBatch(batch)),
       discardMutationEvidence: async ({ threadID, turnID }) => {
+        if (hostTurnInputs.has(turnID)) { hostToolAudit.discardMutationEvidence(turnID); return }
         const events = db.repositories.turnPatches.markIncomplete(threadID, turnID)
         for (const event of events) await Effect.runPromise(hub.publish(event))
       },
@@ -786,7 +807,17 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       plugins,
     )
     const automationStorage = probeAutomationStorageCapabilities(db.sqlite)
-    const planApprovals = new PlanApprovalService(db, hub, threads)
+    const planApprovals = new PlanApprovalService(
+      db,
+      hub,
+      threads,
+      new ThreadForkWorkspaceService(
+        workspaceResolver,
+        executionBindings,
+        worktreeRepository,
+        environmentDeltas,
+      ),
+    )
     const automationEnabled = automationStorage.automations && automationStorage.automationRuns
     const calendarStorage = probeScheduleCalendarStorageCapabilities(db.sqlite)
     const calendarEnabled =
@@ -799,20 +830,23 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       worktrees,
       threadExecutions,
     )
-    const automationRuns = new AutomationRunCoordinator(automationRepository, automationExecutor, {
+    let prWatches!: PullRequestWatchService
+    const automationRuns = new AutomationRunCoordinator(automationRepository, { start: (work, run) => prWatches.run(work, run) }, {
       getTurnStatus: (turnId) => {
         const status = db.repositories.executions.getTurnStatus(turnId)
         if (status === 'completed' || status === 'failed' || status === 'interrupted') return status
         if (status === 'queued' || status === 'running') return status
         return status ? 'waiting' : null
       },
-      runChanged: (run) =>
-        publishAgentEvent(db, hub, null, run.turnId, 'automation/runChanged', {
+      runChanged: async (run) => {
+        await prWatches?.onRunChanged(run)
+        await publishAgentEvent(db, hub, null, run.turnId, 'automation/runChanged', {
           automationId: run.automationId,
           runId: run.id,
           status: run.status,
           changedAt: Date.now(),
-        }).then(() => undefined),
+        })
+      },
     })
     const scheduledTaskRuns = new ScheduledTaskCoordinator(
       scheduledTaskRepository,
@@ -846,6 +880,18 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       claimed: (run) => automationRuns.startRun(run),
       wakeScheduler: () => automationScheduler?.wake(),
     })
+    prWatches = new PullRequestWatchService({ sqlite: db.sqlite, github, automation, repository: automationRepository, worktrees, executions: threadExecutions, threads, executor: automationExecutor,
+      projectRoot: (id) => db.getProject(id)?.rootPath ?? null,
+      preferences: () => { const desktop = configService.snapshot().desktop as Record<string, unknown> | undefined; return { autoMerge: desktop?.prWatchAutoMerge === true, instructions: typeof desktop?.prWatchInstructions === 'string' ? desktop.prWatchInstructions : '', mergeMethod: desktop?.gitPrMergeMethod === 'squash' ? 'squash' : 'merge' } },
+      execute: async (name, input, watch, work, runId) => {
+        const runtime = await workspaceResolver.resolve(watch.thread_id)
+        const turnID = `automation-host:${runId}`
+        hostTurnInputs.set(turnID, { taskMode: 'chat', permissionConfig: work.permissionConfig, model: work.model })
+        try { return await toolExecutor.execute(name, input, { threadID: watch.thread_id, turnID, taskMode: 'chat', signal: AbortSignal.timeout(120_000), workspace: runtime.workspace, defaultCwd: runtime.cwd, permissionConfig: work.permissionConfig, model: work.model, taskSummary: 'PR 监控宿主操作' }) }
+        finally { hostTurnInputs.delete(turnID) }
+      },
+    })
+    for (const definition of prWatches.definitions()) tools.register(definition)
     const scheduledTasks = new ScheduledTaskService(scheduledTaskRepository, automationRepository, {
       claimed: (task) => scheduledTaskRuns.startTask(task),
       wakeScheduler: () => automationScheduler?.wake(),
@@ -1048,6 +1094,7 @@ export const createBootstrap = (options: BootstrapOptions = {}) =>
       logger,
       review,
       github,
+      prWatches,
       git,
       tooling,
       pets,

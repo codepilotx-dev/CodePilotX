@@ -1,5 +1,6 @@
 import type {
   DesktopComposerAttachment,
+  DesktopGoalSubmission,
   DesktopUserMessageInput,
 } from '../../../../shared/types.js'
 
@@ -110,6 +111,14 @@ export type ComposerDocument = {
   tokens: ComposerDocumentToken[]
 }
 
+export function isComposerInputEmpty(
+  text: string,
+  tokens: readonly ComposerDocumentToken[],
+  attachments: readonly DesktopComposerAttachment[],
+): boolean {
+  return text.length === 0 && tokens.length === 0 && attachments.length === 0
+}
+
 export type ComposerContextTask = {
   id: string
   title: string
@@ -176,6 +185,7 @@ export type PreparedComposerSubmission = {
   clientId: string
   input: DesktopUserMessageInput
   sessionName?: string
+  goal?: DesktopGoalSubmission
 }
 
 export type ComposerAttachmentState =

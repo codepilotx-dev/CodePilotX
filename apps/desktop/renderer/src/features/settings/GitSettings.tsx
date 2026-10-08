@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
-import { useDesktopSettings } from './useDesktopSettings.js'
+import { isSettingsSaveShortcut, useDesktopSettings } from './useDesktopSettings.js'
 import {
   desktopClient,
   desktopClipboard,
@@ -17,6 +17,7 @@ import type {
 } from '../../../shared/types.js'
 import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
+import { PrWatchSettings } from './PrWatchSettings.js'
 
 const PR_MERGE_OPTIONS: Array<{ value: 'merge' | 'squash'; label: string }> = [
   { value: 'merge', label: '合并' },
@@ -24,14 +25,26 @@ const PR_MERGE_OPTIONS: Array<{ value: 'merge' | 'squash'; label: string }> = [
 ]
 
 export function GitSettings(): React.ReactNode {
-  const { draft } = useDesktopSettings()
+  const settings = useDesktopSettings()
+  const { draft } = settings
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const save = useCallback(
+    async (keys: Parameters<typeof draft.saveFields>[0]) => {
+      try {
+        await draft.saveFields(keys)
+        setSaveError(null)
+      } catch (cause) {
+        setSaveError(cause instanceof Error ? cause.message : '保存失败')
+      }
+    },
+    [draft.saveFields],
+  )
   const {
     gitBranchPrefix,
     gitPrMergeMethod,
     gitShowPrIconsInSidebar,
     gitDraftPullRequest,
-    gitAutoDeleteWorktree,
-    gitAutoDeleteWorktreeLimit,
+    reviewDelivery,
     allowForcePush,
     commitMessagePrompt,
     pullRequestPrompt,
@@ -39,6 +52,21 @@ export function GitSettings(): React.ReactNode {
   const [githubAuth, setGithubAuth] = useState<DesktopGithubAuthStatus | null>(null)
   const [githubLogin, setGithubLogin] = useState<DesktopGithubLoginStatus | null>(null)
   const [githubBusy, setGithubBusy] = useState(false)
+  useEffect(() => {
+    const keys = (['commitMessagePrompt', 'pullRequestPrompt'] as const).filter(
+      (key) => draft.values[key] !== settings[key],
+    )
+    if (!keys.length) return
+    const timer = window.setTimeout(() => void save(keys), 3000)
+    return () => window.clearTimeout(timer)
+  }, [
+    commitMessagePrompt,
+    pullRequestPrompt,
+    settings.commitMessagePrompt,
+    settings.pullRequestPrompt,
+    save,
+  ])
+
   useEffect(() => {
     let mounted = true
     void desktopClient.getGithubAuthStatus().then((status) => {
@@ -108,9 +136,19 @@ export function GitSettings(): React.ReactNode {
 
   return (
     <SettingsContentArea className="">
-      <div className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+      <div
+        className="settings-content-inner tw:@container tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]"
+        onKeyDown={(event) => {
+          if (isSettingsSaveShortcut(event)) {
+            event.preventDefault()
+            void save(['gitBranchPrefix', 'commitMessagePrompt', 'pullRequestPrompt'])
+          }
+        }}
+      >
         <div className="settings-page-header tw:mt-0 tw:mx-0 tw:mb-8 tw:grid tw:gap-2">
-          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">Git</h2>
+          <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">
+            Git
+          </h2>
         </div>
 
         <SettingsSection>
@@ -122,6 +160,7 @@ export function GitSettings(): React.ReactNode {
                 className="settings-input-narrow"
                 value={gitBranchPrefix}
                 placeholder="codepilotx/"
+                onBlur={() => void save(['gitBranchPrefix'])}
                 onChange={(event) => draft.setValue('gitBranchPrefix', event.target.value)}
               />
             }
@@ -136,7 +175,7 @@ export function GitSettings(): React.ReactNode {
                 options={PR_MERGE_OPTIONS}
                 onChange={(value) => {
                   draft.setValue('gitPrMergeMethod', value)
-                  draft.autoSave()
+                  void save(['gitPrMergeMethod'])
                 }}
               />
             }
@@ -150,7 +189,7 @@ export function GitSettings(): React.ReactNode {
                 checked={gitShowPrIconsInSidebar}
                 onChange={(value) => {
                   draft.setValue('gitShowPrIconsInSidebar', value)
-                  draft.autoSave()
+                  void save(['gitShowPrIconsInSidebar'])
                 }}
                 ariaLabel="在侧边栏显示 PR 图标"
               />
@@ -165,7 +204,7 @@ export function GitSettings(): React.ReactNode {
                 checked={allowForcePush}
                 onChange={(value) => {
                   draft.setValue('allowForcePush', value)
-                  draft.autoSave()
+                  void save(['allowForcePush'])
                 }}
                 ariaLabel="始终强制推送"
               />
@@ -180,54 +219,45 @@ export function GitSettings(): React.ReactNode {
                 checked={gitDraftPullRequest}
                 onChange={(value) => {
                   draft.setValue('gitDraftPullRequest', value)
-                  draft.autoSave()
+                  void save(['gitDraftPullRequest'])
                 }}
                 ariaLabel="创建草稿拉取请求"
               />
             }
           />
           <SettingsRow
-            title="自动删除旧工作树"
-            description="推荐大多数用户启用。仅当你需要手动管理旧工作树和磁盘使用空间时，再关闭此功能。"
-            autoSave
+            title="审查结果呈现方式"
+            description="在当前聊天中启动审查，或打开单独的审查聊天"
             control={
-              <ToggleSwitch
-                checked={gitAutoDeleteWorktree}
+              <SegmentedControl
+                value={reviewDelivery}
+                options={[
+                  { value: 'inline', label: '内联' },
+                  { value: 'detached', label: '单独' },
+                ]}
                 onChange={(value) => {
-                  draft.setValue('gitAutoDeleteWorktree', value)
-                  draft.autoSave()
-                }}
-                ariaLabel="自动删除旧工作树"
-              />
-            }
-          />
-          <SettingsRow
-            title="自动删除限制"
-            description="自动清理较旧工作树前保留的 CodePilotX 工作树数量。CodePilotX 会在删除前为工作树创建快照，因此被清理的工作树应始终可恢复。"
-            control={
-              <Input
-                className="settings-input-narrow"
-                type="number"
-                min={1}
-                step={1}
-                value={gitAutoDeleteWorktreeLimit}
-                onChange={(event) => {
-                  const next = Number(event.target.value)
-                  if (Number.isFinite(next)) {
-                    draft.setValue('gitAutoDeleteWorktreeLimit', Math.max(1, Math.floor(next)))
-                  }
+                  draft.setValue('reviewDelivery', value)
+                  void save(['reviewDelivery'])
                 }}
               />
             }
           />
+        </SettingsSection>
+        {saveError ? (
+          <p role="alert" className="tw:type-body-sm tw:text-app-danger">
+            {saveError}
+          </p>
+        ) : null}
+        <SettingsSection>
           <SettingsRow
             title="提交指令"
+            variant="stacked"
             description="已添加到提交信息生成提示中"
             control={
               <div className="settings-git-instruction-control tw:flex tw:flex-wrap tw:items-end tw:justify-end tw:gap-2 tw:[&_.settings-textarea]:min-w-0 tw:[&_.settings-textarea]:flex-[1_1_240px]">
                 <textarea
                   className="settings-textarea"
-                  rows={4}
+                  rows={6}
                   value={commitMessagePrompt}
                   placeholder="添加提交消息指引..."
                   onChange={(event) => draft.setValue('commitMessagePrompt', event.target.value)}
@@ -237,12 +267,13 @@ export function GitSettings(): React.ReactNode {
           />
           <SettingsRow
             title="拉取请求指令"
+            variant="stacked"
             description="已添加到 PR 标题/描述生成提示中"
             control={
               <div className="settings-git-instruction-control tw:flex tw:flex-wrap tw:items-end tw:justify-end tw:gap-2 tw:[&_.settings-textarea]:min-w-0 tw:[&_.settings-textarea]:flex-[1_1_240px]">
                 <textarea
                   className="settings-textarea"
-                  rows={4}
+                  rows={6}
                   value={pullRequestPrompt}
                   placeholder="添加拉取请求消息指引..."
                   onChange={(event) => draft.setValue('pullRequestPrompt', event.target.value)}
@@ -252,6 +283,7 @@ export function GitSettings(): React.ReactNode {
           />
         </SettingsSection>
 
+        <PrWatchSettings />
         <SettingsSection
           title="GitHub 账号"
           description="登录后可在项目选择器中列出并克隆你有权限访问的 GitHub 仓库。"
@@ -259,8 +291,12 @@ export function GitSettings(): React.ReactNode {
           {activeDeviceLogin ? (
             <div className="github-device-code-card tw:flex tw:items-center tw:justify-between tw:gap-4 tw:bg-app-raised tw:[&_p]:mt-2 tw:[&_p]:mb-0 tw:[&_p]:text-app-text-soft tw:[&_p]:type-body-sm tw:[&_p]:leading-[var(--cpx-sys-line-height-tight)] tw:border-b tw:border-b-app-border-subtle tw:p-4">
               <div>
-                <div className="github-device-code-label tw:mb-1 tw:text-app-text-soft tw:text-[length:var(--cpx-sys-font-size-xs)]">GitHub 设备验证码</div>
-                <div className="github-device-code-value tw:font-mono tw:text-[length:var(--cpx-sys-font-size-3xl)] tw:type-weight-heading tw:tracking-[0.08em] tw:text-app-text">{githubLogin.userCode}</div>
+                <div className="github-device-code-label tw:mb-1 tw:text-app-text-soft tw:text-[length:var(--cpx-sys-font-size-xs)]">
+                  GitHub 设备验证码
+                </div>
+                <div className="github-device-code-value tw:font-mono tw:text-[length:var(--cpx-sys-font-size-3xl)] tw:type-weight-heading tw:tracking-[0.08em] tw:text-app-text">
+                  {githubLogin.userCode}
+                </div>
                 <p>在 GitHub 打开的设备登录页面输入这个验证码，不是 OAuth Client ID。</p>
               </div>
               <div className="github-device-code-actions tw:flex tw:shrink-0 tw:items-center tw:gap-2">

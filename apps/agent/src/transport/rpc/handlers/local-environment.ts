@@ -1,4 +1,6 @@
 import type { RpcMethod } from '@codepilotx/agent-protocol'
+import { RpcMethods } from '@codepilotx/agent-protocol'
+import { AgentError } from '../../../domain'
 import {
   LocalEnvironmentActionListParamsSchema,
   LocalEnvironmentReadParamsSchema,
@@ -23,6 +25,12 @@ export const localEnvironmentHandlers = {
   name: 'local-environment',
   methods: [
     'local-environment/read',
+    'local-environment/project/list',
+    'local-environment/project/read',
+    'local-environment/project/create',
+    'local-environment/project/update',
+    'local-environment/project/select',
+    'local-environment/project/delete',
     'local-environment/update',
     'local-environment/action/list',
     'terminal/host/environment',
@@ -36,6 +44,43 @@ export const localEnvironmentHandlers = {
   ) {
     const service = runtime.dependencies.localEnvironment
     switch (method) {
+      case 'local-environment/project/list':
+      case 'local-environment/project/read':
+      case 'local-environment/project/create':
+      case 'local-environment/project/update':
+      case 'local-environment/project/select':
+      case 'local-environment/project/delete': {
+        const catalog = service.catalog
+        if (!catalog) throw new AgentError('INTERNAL_ERROR', '环境目录服务不可用', 500)
+        switch (method) {
+          case 'local-environment/project/list': {
+            const params = Schema.decodeUnknownSync(RpcMethods[method].params)(rawParams)
+            return catalog.list(params.projectId)
+          }
+          case 'local-environment/project/read': {
+            const params = Schema.decodeUnknownSync(RpcMethods[method].params)(rawParams)
+            return catalog.read(params.projectId, params.environmentId)
+          }
+          case 'local-environment/project/create': {
+            const params = Schema.decodeUnknownSync(RpcMethods[method].params)(rawParams)
+            return catalog.create(params.projectId, params.name)
+          }
+          case 'local-environment/project/update': {
+            const params = Schema.decodeUnknownSync(RpcMethods[method].params)(rawParams)
+            return catalog.update({ projectId: params.projectId, environmentId: params.environmentId, expectedRevision: params.expectedRevision, ...(params.edits ? { edits: params.edits.map((edit) => ({ keyPath: [...edit.keyPath], value: JSON.parse(JSON.stringify(edit.value)) as ConfigValue })) } : {}), ...(params.trust ? { trust: params.trust } : {}) })
+          }
+          case 'local-environment/project/select': {
+            const params = Schema.decodeUnknownSync(RpcMethods[method].params)(rawParams)
+            await catalog.select(params.projectId, params.environmentId)
+            return
+          }
+          case 'local-environment/project/delete': {
+            const params = Schema.decodeUnknownSync(RpcMethods[method].params)(rawParams)
+            await catalog.delete(params.projectId, params.environmentId, params.expectedRevision)
+            return
+          }
+        }
+      }
       case 'local-environment/read':
         return service.readForThread(decodeRpcParams(decodeRead, rawParams, method).threadId)
       case 'local-environment/update': {

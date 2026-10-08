@@ -85,14 +85,12 @@ export const threadHandlers = {
               ? params.projectId
               : undefined
         const archived = typeof params.archived === 'boolean' ? params.archived : undefined
-        return {
-          threads: runtime.projection.list({
+        return runtime.projection.listPage({
             ...(projectID !== undefined ? { projectID } : {}),
             ...(archived !== undefined ? { archived } : {}),
             limit: typeof params.limit === 'number' ? params.limit : 100,
-          }),
-          nextCursor: null,
-        }
+            ...(typeof params.cursor === 'string' ? { cursor: params.cursor } : {}),
+          })
       }
       case 'thread/create': {
         const workspaceValue = record(params.workspace, 'workspace')

@@ -59,6 +59,10 @@ export type ParsedSlashInvocation =
   | { kind: 'disabled'; command: ComposerSlashCommand; reason: string }
   | { kind: 'unknown' }
 
+export function planTaskFromInput(input: string): string | null {
+  return /^\/plan\s+([\s\S]*\S)\s*$/iu.exec(input)?.[1] ?? null
+}
+
 export function skillToComposerCommand(skill: DesktopInstalledSkill): ComposerSkillCommand {
   return {
     id: `skill:${skill.name}`,

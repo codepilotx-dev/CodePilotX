@@ -1,3 +1,4 @@
+import { AgentError } from '../domain'
 import type {
   ApprovalRequest,
   AgentExecution as WireAgentExecution,
@@ -1118,7 +1119,15 @@ export class ThreadProjection {
     }
   }
 
-  list(params: { projectID?: string; archived?: boolean; limit?: number } = {}) {
+  listPage(params: { projectID?: string; archived?: boolean; limit?: number; cursor?: string } = {}) {
+    const limit = Math.min(500, Math.max(1, params.limit ?? 100))
+    const rows = this.list({ ...params, limit: limit + 1 })
+    const threads = rows.slice(0, limit)
+    const last = threads.at(-1)
+    return { threads, nextCursor: rows.length > limit && last ? Buffer.from(JSON.stringify({ updatedAt: last.updatedAt, id: last.id })).toString('base64url') : null }
+  }
+
+  list(params: { projectID?: string; archived?: boolean; limit?: number; cursor?: string } = {}) {
     const where: string[] = [
       "t.kind = 'main'",
       '(t.archived_at IS NULL OR t.archived_at <> -1)',
@@ -1132,6 +1141,13 @@ export class ThreadProjection {
       )`,
     ]
     const values: Array<string | number | null> = []
+    if (params.cursor) {
+      let cursor: { updatedAt: number; id: string }
+      try { cursor = JSON.parse(Buffer.from(params.cursor, 'base64url').toString('utf8')); if (!Number.isSafeInteger(cursor.updatedAt) || cursor.updatedAt < 0 || typeof cursor.id !== 'string' || !cursor.id || cursor.id.length > 500) throw new Error() }
+      catch { throw new AgentError('INVALID_REQUEST', '聊天列表 cursor 无效', 400) }
+      where.push('(t.updated_at < ? OR (t.updated_at = ? AND t.id < ?))')
+      values.push(cursor.updatedAt, cursor.updatedAt, cursor.id)
+    }
     if (params.projectID !== undefined) {
       where.push(`${this.db.projectMembershipSql()} = ?`)
       values.push(params.projectID)
@@ -1167,6 +1183,7 @@ export class ThreadProjection {
       const executionEnvironment = this.resolveExecutionEnvironment(bindings, id, workspace)
       return {
         id,
+        storageSource: 'local',
         projectID: row.project_id == null ? null : String(row.project_id),
         gitBranch: row.git_branch == null ? null : String(row.git_branch),
         sessionGroupId,

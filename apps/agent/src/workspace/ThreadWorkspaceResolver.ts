@@ -34,6 +34,7 @@ export type ResolvedThreadWorkspace =
       kind: 'projectless'
       projectID: null
       outputDirectory: string
+      ownerThreadID: string
     })
 
 type RuntimeProject = {
@@ -164,8 +165,9 @@ export class ThreadWorkspaceResolver {
       }
     }
     try {
+      const ownerThreadID = this.db.projectlessWorkspaceOwner(threadID)
       const validated = await this.projectless.ensureActivePersisted({
-        threadID,
+        threadID: ownerThreadID,
         sessionRoot: descriptor.workspaceRoot,
         cwd: descriptor.cwd,
         outputDirectory: descriptor.outputDirectory,
@@ -174,6 +176,7 @@ export class ThreadWorkspaceResolver {
       const executionBinding = this.resolveExecutionBinding(threadID, descriptor)
       return {
         kind: 'projectless',
+        ownerThreadID,
         projectID: null,
         workspaceRoot: workspace.rootPath,
         cwd: validated.cwd,

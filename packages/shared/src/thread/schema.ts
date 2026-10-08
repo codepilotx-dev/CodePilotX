@@ -143,6 +143,7 @@ export type Thread = typeof ThreadSchema.Type
 
 export const ThreadListItemSchema = Schema.Struct({
   id: Schema.String,
+  storageSource: Schema.optional(Schema.Literal('local')),
   projectID: Schema.NullOr(Schema.String),
   /** Legacy read-only alias of `workflowId`; new clients use `workflowId` only. */
   sessionGroupId: Schema.optional(Schema.NullOr(Schema.String)),

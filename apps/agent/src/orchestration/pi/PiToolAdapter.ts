@@ -238,7 +238,7 @@ export function createLifecycleTools(
     add(
       lifecycleTool(
         'request_user_input',
-        '向用户提出 1 至 3 个必须回答的问题。每题提供 2 至 3 个选项，界面会自动允许自由输入。',
+        '向用户提出 1 至 3 个必须回答的问题，默认一次一题。每题提供 2 至 3 个选项，或空选项列表供纯文字回答；界面允许自由输入。Plan 模式必须等待用户回答，不设置 autoResolutionMs。',
         Type.Object({
           questions: Type.Array(
             Type.Object({
@@ -249,8 +249,9 @@ export function createLifecycleTools(
                 Type.Object({
                   label: Type.String({ minLength: 1 }),
                   description: Type.String({ minLength: 1 }),
+                  recommended: Type.Optional(Type.Boolean()),
                 }),
-                { minItems: 2, maxItems: 3 },
+                { maxItems: 3, anyOf: [{ maxItems: 0 }, { minItems: 2 }] },
               ),
               multiSelect: Type.Optional(Type.Boolean()),
             }),

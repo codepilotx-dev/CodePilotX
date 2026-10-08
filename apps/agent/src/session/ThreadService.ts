@@ -46,6 +46,14 @@ import { TurnRunner } from './TurnRunner'
 import type { ThreadTitleService } from './ThreadTitleService'
 import type { SessionGroupService } from '../session-group/SessionGroupService'
 import type { ThreadGoalService } from './ThreadGoalService'
+import type { ThreadForkWorkspaceService } from './fork/ThreadForkWorkspaceService'
+
+type TurnAdmissionTransition = {
+  beforeCreate: () => void
+  afterCreate: (turnID: string) => void
+  validationThreadID?: string
+  initialize?: () => ReturnType<AgentDatabase['createThread']>
+}
 
 type ThreadPromptSettingsSnapshot = {
   engine: 'prompt-engine-v2'
@@ -470,82 +478,93 @@ export class ThreadService {
       query: userMessage,
       ...(projectID !== null ? { projectKey: projectMemoryKey(projectID) } : {}),
     })
-    const exposedTools = this.orchestrator.toolExposure({
-      taskMode: thread.settings.taskMode,
-      sandboxMode: thread.settings.permissionConfig.sandboxMode,
-      approvalPolicy: thread.settings.permissionConfig.approvalPolicy,
-      profile: 'main',
-      hasSkillService: true,
-      ...(sideChat ? { delegationEnabled: false } : {}),
-      ...(projectID !== null && this.projectSources ? { hasProjectSources: true } : {}),
-    }).exposed
-    const sections = createPromptSections({
-      permissionInstructions: `Resolved permission config: ${JSON.stringify(thread.settings.permissionConfig)}.`,
-      mode: thread.settings.taskMode,
-      profile: 'main',
-      systemPrompt: stringSetting('systemPrompt'),
-      personality: stringSetting('personality'),
-      customInstructions: stringSetting('customInstructions'),
-      appendPrompt: stringSetting('appendPrompt') ?? stringSetting('appendSystemPrompt'),
-      environment: this.workspaceEnvironment(runtime),
-      projectInstructions: projectInstructions.sources,
-      skills: skills.skills,
-      memories: memories.map((entry) => `可能过期的参考记忆（${entry.scope}）：${entry.content}`),
-      stableExternalData:
-        projectSourceCatalog && projectSourceCatalog.total > 0
-          ? [projectSourceCatalog.content]
-          : [],
-      ...(this.computerControl ? { computerControl: this.computerControl } : {}),
-      userMessage,
-    })
-    const projectSettingsInstructions = project?.settings?.instructions?.trim()
-    if (projectSettingsInstructions) {
-      const projectInstructionIndex = sections.findIndex(({ id }) =>
-        id.startsWith('project-instruction.'),
-      )
-      sections.splice(
-        projectInstructionIndex >= 0 ? projectInstructionIndex : sections.length - 1,
-        0,
-        {
-          id: 'project.settings.instructions',
-          role: 'developer',
-          cache: 'session-stable',
-          authority: 'user',
-          source: { type: 'setting', name: 'projectInstructions' },
-          content: projectSettingsInstructions,
-        },
-      )
-    }
-    sections.splice(
-      sections.length - 1,
-      0,
-      ...(sideChat ? [sideChatSection(sideChat.referenceText)] : []),
-      ...(exposedTools.some((tool) => tool === 'Edit' || tool === 'Write' || tool === 'apply_patch')
-        ? [workspaceEditingSection()]
-        : []),
-      configurationScopeSection(),
-    )
-    const bundle = new PromptComposer().compose({
-      threadID,
-      mode: thread.settings.taskMode,
-      profile: 'main',
-      exposedTools,
-      sections,
-    })
-    let cacheMode = inferPromptCacheCapability('')
+    const mcpLease = await this.mcp?.acquire(runtime.workspaceRoot)
     try {
-      const latestModel = latest?.model_ref ? (JSON.parse(latest.model_ref) as Model.Ref) : null
-      const selected = await this.resolveAvailableModel([latestModel])
-      cacheMode = inferPromptCacheCapability(String(selected.providerID))
-    } catch {
-      // Preview must remain available even when the snapshotted model/provider is no longer configured.
+      const exposureInput = {
+        taskMode: thread.settings.taskMode,
+        sandboxMode: thread.settings.permissionConfig.sandboxMode,
+        approvalPolicy: thread.settings.permissionConfig.approvalPolicy,
+        profile: 'main' as const,
+        hasSkillService: true,
+        ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
+        ...(sideChat ? { delegationEnabled: false } : {}),
+        ...(projectID !== null && this.projectSources ? { hasProjectSources: true } : {}),
+      }
+      const exposedTools = this.orchestrator.toolExposure(exposureInput).exposed
+      const sections = createPromptSections({
+        permissionInstructions: `Resolved permission config: ${JSON.stringify(thread.settings.permissionConfig)}.`,
+        mode: thread.settings.taskMode,
+        profile: 'main',
+        systemPrompt: stringSetting('systemPrompt'),
+        personality: stringSetting('personality'),
+        customInstructions: stringSetting('customInstructions'),
+        appendPrompt: stringSetting('appendPrompt') ?? stringSetting('appendSystemPrompt'),
+        environment: this.workspaceEnvironment(runtime),
+        projectInstructions: projectInstructions.sources,
+        skills: skills.skills,
+        memories: memories.map((entry) => `可能过期的参考记忆（${entry.scope}）：${entry.content}`),
+        stableExternalData:
+          projectSourceCatalog && projectSourceCatalog.total > 0
+            ? [projectSourceCatalog.content]
+            : [],
+        ...(this.computerControl ? { computerControl: this.computerControl } : {}),
+        userMessage,
+      })
+      const projectSettingsInstructions = project?.settings?.instructions?.trim()
+      if (projectSettingsInstructions) {
+        const projectInstructionIndex = sections.findIndex(({ id }) =>
+          id.startsWith('project-instruction.'),
+        )
+        sections.splice(
+          projectInstructionIndex >= 0 ? projectInstructionIndex : sections.length - 1,
+          0,
+          {
+            id: 'project.settings.instructions',
+            role: 'developer',
+            cache: 'session-stable',
+            authority: 'user',
+            source: { type: 'setting', name: 'projectInstructions' },
+            content: projectSettingsInstructions,
+          },
+        )
+      }
+      sections.splice(
+        sections.length - 1,
+        0,
+        ...(sideChat ? [sideChatSection(sideChat.referenceText)] : []),
+        ...(exposedTools.some(
+          (tool) => tool === 'Edit' || tool === 'Write' || tool === 'apply_patch',
+        )
+          ? [workspaceEditingSection()]
+          : []),
+        configurationScopeSection(),
+        this.orchestrator.capabilityCatalog(exposureInput, mcpLease?.catalog),
+        ...createMcpInstructionSections(mcpLease?.serverInstructions ?? []),
+      )
+      const bundle = new PromptComposer().compose({
+        threadID,
+        mode: thread.settings.taskMode,
+        profile: 'main',
+        exposedTools,
+        sections,
+      })
+      let cacheMode = inferPromptCacheCapability('')
+      try {
+        const latestModel = latest?.model_ref ? (JSON.parse(latest.model_ref) as Model.Ref) : null
+        const selected = await this.resolveAvailableModel([latestModel])
+        cacheMode = inferPromptCacheCapability(String(selected.providerID))
+      } catch {
+        // Preview must remain available even when the snapshotted model/provider is no longer configured.
+      }
+      return secretScrubber.scrub({
+        ...bundle,
+        cacheMode,
+        sections,
+        baseline: new ContextManager(this.db).state(threadID),
+      })
+    } finally {
+      await mcpLease?.release()
     }
-    return secretScrubber.scrub({
-      ...bundle,
-      cacheMode,
-      sections,
-      baseline: new ContextManager(this.db).state(threadID),
-    })
   }
 
   async compact(threadID: string) {
@@ -759,19 +778,71 @@ export class ThreadService {
     )
   }
 
+  async startFreshPlanTurn(
+    sourceThreadID: string,
+    title: string,
+    input: SubmitMessage,
+    workspaces: ThreadForkWorkspaceService,
+    transition: Pick<TurnAdmissionTransition, 'beforeCreate' | 'afterCreate'>,
+  ) {
+    const source = await workspaces.source(sourceThreadID)
+    const prepared = await workspaces.prepareSame(source)
+    const targetThreadID = crypto.randomUUID()
+    try {
+      const current = await workspaces.source(sourceThreadID)
+      if (JSON.stringify(current.executionBinding) !== JSON.stringify(source.executionBinding))
+        throw new AgentError('CONFLICT', '计划工作区绑定已变化，请刷新后重试', 409)
+      const admission = await this.coordinator.exclusive(targetThreadID, () =>
+        this.startTurnLocked(targetThreadID, input, crypto.randomUUID(), [], [], {
+          ...transition,
+          validationThreadID: sourceThreadID,
+          initialize: () => {
+            workspaces.assertCurrent(source)
+            const thread = this.db.createThread({
+              id: targetThreadID,
+              title,
+              settings: { taskMode: 'chat', permissionConfig: input.permissionConfig },
+              workspace:
+                source.kind === 'project'
+                  ? { kind: 'project', projectID: source.projectID }
+                  : {
+                      kind: 'projectless',
+                      workspaceRoot: source.workspaceRoot,
+                      cwd: source.cwd,
+                      outputDirectory: source.outputDirectory,
+                    },
+            })
+            const projectID = this.db.projectMembership(sourceThreadID)
+            if (source.kind === 'projectless')
+              this.db.setProjectlessWorkspaceOwner(targetThreadID, source.ownerThreadID ?? sourceThreadID)
+            if (projectID && source.kind === 'projectless')
+              this.db.setProjectMembership(targetThreadID, projectID)
+            prepared.bind(targetThreadID)
+            return thread
+          },
+        }),
+      )
+      return { targetThreadId: targetThreadID, nextTurnId: admission.turnID }
+    } catch (cause) {
+      if (!this.db.getThread(targetThreadID)) await prepared.cleanup()
+      throw cause
+    }
+  }
+
   private async startTurnLocked(
     threadID: string,
     input: SubmitMessage,
     inputID: string,
     attachmentIDs: readonly string[],
     contextReferenceIDs: readonly string[],
-    transition?: { beforeCreate: () => void; afterCreate: (turnID: string) => void },
+    transition?: TurnAdmissionTransition,
     goal?: { objective: string; tokenBudget?: number | null; expectedVersion: number | null },
   ) {
     const duplicate = this.duplicateAdmission(threadID, inputID, input.content, input.skills)
     if (duplicate) return duplicate
-    await this.validateAdmission(threadID, input)
-    this.validateInputItems(threadID, attachmentIDs, contextReferenceIDs)
+    const validationThreadID = transition?.validationThreadID ?? threadID
+    await this.validateAdmission(validationThreadID, input)
+    this.validateInputItems(validationThreadID, attachmentIDs, contextReferenceIDs)
     const queued = this.db.sqlite
       .query("SELECT 1 FROM turns WHERE thread_id = ? AND status = 'queued' LIMIT 1")
       .get(threadID)
@@ -781,7 +852,9 @@ export class ThreadService {
     await this.validateInputAttachments(inputID, attachmentIDs, input.model)
     let created
     let goalEvent: EventEnvelope | null = null
+    let threadEvent: EventEnvelope | undefined
     created = this.db.transaction(() => {
+      threadEvent = transition?.initialize?.().event
       transition?.beforeCreate()
       if (goal) {
         if (!this.threadGoals)
@@ -796,6 +869,7 @@ export class ThreadService {
       this.localContextPaths?.repository.bindInput(threadID, inputID, contextReferenceIDs)
       return value
     })
+    if (threadEvent) await Effect.runPromise(this.hub.publish(threadEvent))
     await this.publishCreatedTurn(created)
     if (goalEvent) await Effect.runPromise(this.hub.publish(goalEvent))
     if (!this.sideChat(threadID))

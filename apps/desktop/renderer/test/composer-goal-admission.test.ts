@@ -48,6 +48,16 @@ function harness(status?: string) {
 }
 
 describe('goal and first-turn admission', () => {
+  test('显式 Plan 覆盖尚未更新的 Chat 设置，活动 Chat 不接受 Plan steer', async () => {
+    const { client, calls } = harness()
+    await client.submitMessage('thread', { text: '规划', taskMode: 'plan' }, 'start')
+    expect(calls.find((call) => call.method === 'turn/start')?.params.taskMode).toBe('plan')
+    const active = harness('running')
+    await expect(
+      active.client.submitMessage('thread', { text: '规划', taskMode: 'plan' }, 'steer'),
+    ).rejects.toThrow('等待结束')
+    expect(active.calls.some((call) => call.method === 'turn/steer')).toBe(false)
+  })
   test('目标与技能、附件、引用、模型和同一提交身份一起进入 turn/start', async () => {
     const { client, calls, failNext } = harness()
     const input = { text: '完成修复', skills: [{ name: 'repair', path: 'skills/repair' }] }

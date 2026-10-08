@@ -7,6 +7,7 @@ import { ComposerDraftStore } from '../src/features/session/composer/composerDra
 import {
   executeComposerSubmitTransaction,
   prepareComposerSubmission,
+  serializeComposerDocument,
 } from '../src/features/session/composer/composerSubmitTransaction.js'
 import type { ComposerDraft } from '../src/features/session/composer/composerTypes.js'
 import {
@@ -25,6 +26,73 @@ function draft(overrides: Partial<ComposerDraft> = {}): ComposerDraft {
 }
 
 describe('composer submit transaction', () => {
+  test('引用保留正文位置与同位置顺序，计划前缀移除不修改源草稿', () => {
+    const source = draft({
+      document: {
+        text: '/plan 前中后',
+        tokens: [
+          { id: 'a', kind: 'plugin', label: 'A', value: 'plugin://a', from: 7, to: 7 },
+          { id: 'b', kind: 'browser', label: 'B', value: 'https://b', from: 7, to: 7 },
+          { id: 'c', kind: 'thread', label: 'C', value: 'codepilotx://threads/c', from: 9, to: 9 },
+        ],
+      },
+    })
+    const prepared = prepareComposerSubmission(source)
+    expect('input' in prepared && prepared.input.text).toBe(
+      '前[@A](plugin://a)[B](<https://b>)中后[C](<codepilotx://threads/c>)',
+    )
+    expect(source.document.tokens[0]?.from).toBe(7)
+    expect(
+      serializeComposerDocument({
+        text: '前后',
+        tokens: [{ ...source.document.tokens[0]!, from: 0, to: 0 }],
+      }),
+    ).toBe('[@A](plugin://a)前后')
+  })
+  test('异步创建期间修改原草稿不改变已冻结的 Goal 和模式', async () => {
+    const source = draft({ goalModeEnabled: true })
+    await executeComposerSubmitTransaction({
+      draft: source,
+      createSession: async () => {
+        source.goalModeEnabled = false
+        source.document.text = '后来编辑的正文'
+        return 'new'
+      },
+      submitToSession: async (_id, input, metadata) => {
+        expect(input.taskMode).toBe('chat')
+        expect(metadata.goal?.objective).toBe('检查当前改动')
+      },
+    })
+    const planned = prepareComposerSubmission(draft({ collaborationMode: 'plan' }))
+    expect('input' in planned && planned.input.taskMode).toBe('plan')
+  })
+  test.each(['default', 'plan'] as const)(
+    '/plan 正文以显式 Plan 提交并保留失败草稿，原模式=%s',
+    async (collaborationMode) => {
+      const source = draft({
+        document: createComposerDocument('/plan 设计权限系统\n保留现有数据'),
+        collaborationMode,
+        goalModeEnabled: true,
+      })
+      const calls: unknown[] = []
+      const result = await executeComposerSubmitTransaction({
+        draft: source,
+        targetSessionId: 'thread',
+        submitToSession: async (_id, input, metadata) => {
+          calls.push({ input, metadata })
+          throw new Error('发送失败')
+        },
+      })
+      expect(calls).toEqual([
+        {
+          input: { text: '设计权限系统\n保留现有数据', attachments: [], taskMode: 'plan' },
+          metadata: { inputId: source.clientId },
+        },
+      ])
+      expect(result.status).toBe('failed')
+      expect(source.document.text).toBe('/plan 设计权限系统\n保留现有数据')
+    },
+  )
   test('serializes plugin-only references with stable identity and preserves stale drafts', () => {
     const store = new ComposerDraftStore(() => 'plugin-draft')
     store.update('home', (current) => ({
@@ -80,6 +148,7 @@ describe('composer submit transaction', () => {
         sessionId: isNew ? 'session:new' : 'session:existing',
         input: {
           text: source.document.text,
+          taskMode: 'chat',
           attachments: source.attachments,
           skills: source.skills,
         },
@@ -313,6 +382,7 @@ describe('composer submit transaction', () => {
 
     expect('input' in prepared && prepared.input).toEqual({
       text: '检查当前改动',
+      taskMode: 'chat',
       attachments: [],
       skills: [{ name: 'review', path: 'skills/review' }],
     })
@@ -372,7 +442,7 @@ describe('composer submit transaction', () => {
     )
 
     expect('input' in prepared && prepared.input.text).toBe(
-      '[任务：\\[登录修复\\]](<codepilotx://threads/thread-1>) [网页：参考文档](<https://example.com/docs>)',
+      '[任务：\\[登录修复\\]](<codepilotx://threads/thread-1>)[网页：参考文档](<https://example.com/docs>)',
     )
     expect('input' in prepared && prepared.input.attachments).toEqual([])
   })

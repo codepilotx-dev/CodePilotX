@@ -236,7 +236,7 @@ export type DesktopAgentReviewApi = {
       sha: string
       current: boolean
       remote: boolean
-    default?: boolean
+      default?: boolean
     }>
   >
   getAgentReviewCommits(
@@ -302,6 +302,9 @@ export type DesktopAgentReviewApi = {
 }
 
 export type DesktopAgentEventEnvelopeApi = {
+  implementPlanFresh(
+    params: RpcParams<'planApproval/implementFresh'>,
+  ): Promise<RpcResult<'planApproval/implementFresh'>>
   readPlanApproval(params: RpcParams<'planApproval/read'>): Promise<RpcResult<'planApproval/read'>>
   respondPlanApproval(
     params: RpcParams<'planApproval/respond'>,

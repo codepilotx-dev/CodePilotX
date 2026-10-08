@@ -76,7 +76,8 @@ export function createAgentTurnQueueClient({
         )
       )
         throw new Error('当前任务正在执行，请等待本轮结束后提交目标')
-      if (taskModeForSession(sessionId) === 'plan') throw new Error('请先退出计划模式再提交目标')
+      if ((input.taskMode ?? taskModeForSession(sessionId)) === 'plan')
+        throw new Error('请先退出计划模式再提交目标')
     }
     if (input.skills?.length) requireSkillInvocationCapability?.()
     const { attachmentIds, contextReferenceIds } = await importMessageContext(sessionId, input)
@@ -87,6 +88,8 @@ export function createAgentTurnQueueClient({
       const current = await loadThreadSnapshot(sessionId)
       const activeTurn = findActiveTurn(current)
       if (activeTurn) {
+        if (input.taskMode === 'plan' && activeTurn.mode !== 'plan')
+          throw new Error('当前轮次仍在实施，请等待结束或选择排队发送计划任务')
         await rpc.call('turn/steer', {
           threadId: sessionId,
           turnId: activeTurn.id,
@@ -109,6 +112,7 @@ export function createAgentTurnQueueClient({
         options?.model,
         options?.goal,
         input.skills,
+        input.taskMode,
       )
       await refreshSession(sessionId).catch(() => null)
       emitSessionStoreChange()
@@ -124,7 +128,7 @@ export function createAgentTurnQueueClient({
         model: await resolveModelRef(options?.model, sessionId),
         ...(input.skills?.length ? { skills: [...input.skills] } : {}),
         permissionConfig: permissionConfigForSession(sessionId),
-        taskMode: taskModeForSession(sessionId),
+        taskMode: input.taskMode ?? taskModeForSession(sessionId),
         operationId: crypto.randomUUID(),
         ...(typeof expectedVersion === 'number' ? { expectedVersion } : {}),
         ...(attachmentIds.length ? { attachmentIds } : {}),
@@ -147,6 +151,7 @@ export function createAgentTurnQueueClient({
       options?.model,
       options?.goal,
       input.skills,
+      input.taskMode,
     )
     await refreshSession(sessionId).catch(() => null)
     emitSessionStoreChange()
@@ -193,6 +198,7 @@ export function createAgentTurnQueueClient({
     model: string | DesktopModelSelection | undefined,
     goal?: TurnGoal,
     skills?: DesktopUserMessageInput['skills'],
+    taskMode?: 'chat' | 'plan',
   ): Promise<void> {
     await rpc.call('turn/start', {
       threadId: sessionId,
@@ -201,7 +207,7 @@ export function createAgentTurnQueueClient({
       model: await resolveModelRef(model, sessionId),
       ...(skills?.length ? { skills: [...skills] } : {}),
       permissionConfig: permissionConfigForSession(sessionId),
-      taskMode: taskModeForSession(sessionId),
+      taskMode: taskMode ?? taskModeForSession(sessionId),
       ...(goal ? { goal } : {}),
       ...(attachmentIds.length ? { attachmentIds } : {}),
       ...(contextReferenceIds.length ? { contextReferenceIds } : {}),

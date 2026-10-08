@@ -11,6 +11,7 @@ import type { Database } from 'bun:sqlite'
  */
 export type ThreadsStorageCapabilities = {
   creationSurface: boolean
+  projectlessOwner: boolean
 }
 
 export type ArtifactsStorageCapabilities = {
@@ -47,6 +48,7 @@ export function probeThreadsStorageCapabilities(sqlite: Database): ThreadsStorag
   const rows = sqlite.query('PRAGMA table_info(threads)').all() as Array<{ name: string }>
   const capabilities: ThreadsStorageCapabilities = {
     creationSurface: rows.some((column) => column.name === 'creation_surface'),
+    projectlessOwner: rows.some((column) => column.name === 'workspace_owner_thread_id'),
   }
   cache.set(sqlite, capabilities)
   return capabilities

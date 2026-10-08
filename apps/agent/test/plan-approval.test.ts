@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from 'bun:test'
-import { mkdtemp } from 'node:fs/promises'
+import { mkdtemp, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Effect } from 'effect'
@@ -15,6 +15,12 @@ import { PlanApprovalService } from '../src/session/plan/PlanApprovalService'
 import { ThreadProjection } from '../src/transport/ThreadProjection'
 import { filterAdvertisedCapabilities } from '../src/transport/rpc/handlers/system-capabilities'
 import { removeFixturePaths } from './fixture-cleanup'
+import { ThreadForkWorkspaceService } from '../src/session/fork/ThreadForkWorkspaceService'
+import { WorktreeRepository } from '../src/worktree/WorktreeRepository'
+import { TaskExecutionBindingService } from '../src/worktree/TaskExecutionBindingService'
+import { EnvironmentDeltaStore } from '../src/local-environment/EnvironmentDeltaStore'
+import { ManagedProjectlessWorkspaceService } from '../src/workspace/ManagedProjectlessWorkspaceService'
+import { ThreadWorkspaceResolver } from '../src/workspace/ThreadWorkspaceResolver'
 
 const roots: string[] = []
 const databases: AgentDatabase[] = []
@@ -31,7 +37,12 @@ const input = {
   strategy: 'start' as const,
 }
 
-function client(db: AgentDatabase, root: string, onValidate?: () => Promise<void>) {
+function client(
+  db: AgentDatabase,
+  root: string,
+  onValidate?: () => Promise<void>,
+  resolver?: ThreadWorkspaceResolver,
+) {
   const hub = { publish: () => Effect.void }
   const threads = new ThreadService(
     db,
@@ -50,7 +61,7 @@ function client(db: AgentDatabase, root: string, onValidate?: () => Promise<void
     { dataRoot: root, userHome: root },
     null as never,
     null as never,
-    { resolve: async () => ({}) } as never,
+    resolver ?? ({ resolve: async () => ({}) } as never),
     undefined,
     undefined,
     undefined,
@@ -71,14 +82,42 @@ function client(db: AgentDatabase, root: string, onValidate?: () => Promise<void
   return { service, threads, dispatched }
 }
 
-async function fixture(onValidate?: () => Promise<void>) {
+async function fixture(onValidate?: () => Promise<void>, managedSource = false) {
   const root = await mkdtemp(join(tmpdir(), 'cpx-plan-approval-'))
   roots.push(root)
   const path = join(root, 'history.sqlite')
   const db = new AgentDatabase(path)
   databases.push(db)
-  const { service, threads, dispatched } = client(db, root, onValidate)
-  const thread = db.createThread()
+  const documents = join(root, 'Documents')
+  const managed = new ManagedProjectlessWorkspaceService(documents)
+  let allocation
+  if (managedSource) {
+    await mkdir(documents)
+    allocation = await managed.allocate({
+      workspaceID: crypto.randomUUID(),
+      threadID: crypto.randomUUID(),
+    })
+    await managed.activate(allocation)
+  }
+  const resolver = managedSource
+    ? new ThreadWorkspaceResolver(
+        db,
+        managed,
+        new TaskExecutionBindingService(new WorktreeRepository(db.sqlite)),
+      )
+    : undefined
+  const { service, threads, dispatched } = client(db, root, onValidate, resolver)
+  const thread = allocation
+    ? db.createThread({
+        id: allocation.threadID,
+        workspace: {
+          kind: 'projectless',
+          workspaceRoot: allocation.sessionRoot,
+          cwd: allocation.cwd,
+          outputDirectory: allocation.outputDirectory,
+        },
+      })
+    : db.createThread()
   const turn = db.createTurn(thread.id, input, 'running')
   const planId = crypto.randomUUID()
   db.upsertItem(thread.id, {
@@ -104,8 +143,232 @@ async function fixture(onValidate?: () => Promise<void>) {
     expectedVersion: approval.version,
     operationId: crypto.randomUUID(),
   }
-  return { db, root, path, service, threads, dispatched, thread, turn, approval, params, planId }
+  return {
+    db,
+    root,
+    path,
+    service,
+    threads,
+    dispatched,
+    thread,
+    turn,
+    approval,
+    params,
+    planId,
+    resolver,
+    allocation,
+  }
 }
+
+async function freshFixture(
+  worktree = false,
+  onValidate?: () => Promise<void>,
+  managedSource = false,
+) {
+  const value = await fixture(onValidate, managedSource)
+  const repository = new WorktreeRepository(value.db.sqlite)
+  const bindings = new TaskExecutionBindingService(repository)
+  const environments = new EnvironmentDeltaStore(value.root)
+  const project = worktree ? value.db.createProject({ rootPath: value.root }) : null
+  if (project) {
+    value.db.setProjectMembership(value.thread.id, project.id)
+    repository.insertWorktree({
+      id: 'plan-worktree',
+      projectId: project.id,
+      repositoryRoot: value.root,
+      path: value.root,
+      status: 'ready',
+      branchName: 'codex/plan',
+      baseCommit: 'base',
+      headCommit: 'head',
+      permanent: false,
+      pinned: false,
+      boundOnce: false,
+      setupStatus: 'succeeded',
+      environmentRevision: 0,
+      continuedWithoutSetup: false,
+      restoreSnapshotPath: null,
+      createdAt: 1,
+      updatedAt: 1,
+      lastUsedAt: 1,
+      deletedAt: null,
+    })
+    bindings.bindWorktree({
+      threadId: value.thread.id,
+      projectId: project.id,
+      worktreeId: 'plan-worktree',
+    })
+  } else
+    bindings.bindLocal({
+      threadId: value.thread.id,
+      projectId: null,
+      cwd: value.allocation?.cwd ?? value.root,
+    })
+  const binding = bindings.read(value.thread.id)!
+  const delta = await environments.replace(binding.bindingId, {
+    set: { PLAN_ENV: 'retained' },
+    unset: [],
+  })
+  bindings.updateEnvironmentRevision(value.thread.id, delta.revision)
+  const resolver = {
+    resolve: async () => ({
+      ...(project
+        ? { kind: 'project', projectID: project.id, outputDirectory: null }
+        : { kind: 'projectless', projectID: null, outputDirectory: value.root }),
+      workspaceRoot: value.root,
+      cwd: value.root,
+      runtimeWorkspaceRoots: [],
+      instructionSources: [],
+      executionBinding: bindings.read(value.thread.id)!,
+    }),
+  }
+  const workspaces = new ThreadForkWorkspaceService(
+    value.resolver ?? (resolver as never),
+    bindings,
+    repository,
+    environments,
+  )
+  const service = new PlanApprovalService(
+    value.db,
+    { publish: () => Effect.void } as never,
+    value.threads,
+    workspaces,
+  )
+  return { ...value, service, bindings, environments, workspaces, project }
+}
+
+test('真实无项目目录在新聊天与原聊天删除后仍通过所有者校验', async () => {
+  const value = await freshFixture(false, undefined, true)
+  const result = await value.service.implementFresh(value.params)
+  const sourceWorkspace = await value.resolver!.resolve(value.thread.id)
+  const targetWorkspace = await value.resolver!.resolve(result.targetThreadId)
+  expect(targetWorkspace.cwd).toBe(sourceWorkspace.cwd)
+  expect(targetWorkspace.workspaceRoot).toBe(sourceWorkspace.workspaceRoot)
+  expect(value.db.projectlessWorkspaceOwner(result.targetThreadId)).toBe(value.thread.id)
+  value.db.sqlite.query('DELETE FROM threads WHERE id = ?').run(value.thread.id)
+  expect((await value.resolver!.resolve(result.targetThreadId)).cwd).toBe(sourceWorkspace.cwd)
+})
+
+test('schema55 前向新增可空目录所有者，高版本缺列时原样保留并禁用 fresh', async () => {
+  const value = await fixture()
+  value.db.sqlite.exec(
+    'ALTER TABLE threads DROP COLUMN workspace_owner_thread_id; PRAGMA user_version = 55',
+  )
+  value.db.close()
+  databases.splice(databases.indexOf(value.db), 1)
+  const upgraded = new AgentDatabase(value.path)
+  databases.push(upgraded)
+  expect(upgraded.sqlite.query('PRAGMA user_version').get()).toEqual({
+    user_version: SCHEMA_VERSION,
+  })
+  expect(upgraded.projectlessWorkspaceOwner(value.thread.id)).toBe(value.thread.id)
+  expect(upgraded.repositories.planApprovals.pending(value.thread.id)?.markdown).toBe(
+    value.approval.markdown,
+  )
+  upgraded.sqlite.exec(
+    'ALTER TABLE threads DROP COLUMN workspace_owner_thread_id; PRAGMA user_version = 99',
+  )
+  upgraded.close()
+  databases.splice(databases.indexOf(upgraded), 1)
+  const future = new AgentDatabase(value.path)
+  databases.push(future)
+  expect(future.sqlite.query('PRAGMA user_version').get()).toEqual({ user_version: 99 })
+  expect(filterAdvertisedCapabilities(future)).not.toContain('plan.approval.fresh.v1')
+})
+
+test.each([false, true])(
+  '新聊天只携带批准计划，保留执行绑定和环境但无旧历史，worktree=%s',
+  async (worktree) => {
+    const value = await freshFixture(worktree)
+    value.db.repositories.threadGoals.write({
+      threadId: value.thread.id,
+      objective: '原聊天目标',
+      status: 'active',
+      tokenBudget: 1000,
+      expectedVersion: null,
+    })
+    const [result, concurrent] = await Promise.all([
+      value.service.implementFresh(value.params),
+      value.service.implementFresh(value.params),
+    ])
+    expect(concurrent.disposition).toBe('duplicate')
+    expect(result.targetThreadId).not.toBe(value.thread.id)
+    expect(result.approval.status).toBe('implemented')
+    expect(value.dispatched).toEqual([result.nextTurnId])
+    const target = value.db.getThread(result.targetThreadId)!
+    expect(target.turns).toHaveLength(1)
+    expect(target.turns.flatMap((turn) => turn.items).some((item) => item.type === 'plan')).toBe(
+      false,
+    )
+    expect(target.settings.permissionConfig).toEqual(input.permissionConfig)
+    expect(value.db.getTurnInput(result.nextTurnId)).toMatchObject({ model, taskMode: 'chat' })
+    expect(value.db.getTurnInput(result.nextTurnId)?.content).toContain(value.approval.markdown)
+    expect(value.db.getTurnInput(result.nextTurnId)?.content).toContain('重述用户目标')
+    const binding = value.bindings.read(result.targetThreadId)!
+    expect(binding.cwd).toBe(value.root)
+    expect(binding.worktreeId).toBe(worktree ? 'plan-worktree' : null)
+    expect(value.db.projectMembership(result.targetThreadId)).toBe(value.project?.id ?? null)
+    expect((await value.environments.read(binding.bindingId)).set).toEqual({ PLAN_ENV: 'retained' })
+    expect(value.db.repositories.threadGoals.get(result.targetThreadId)).toBeNull()
+    const duplicate = await value.service.implementFresh(value.params)
+    expect(duplicate).toMatchObject({
+      targetThreadId: result.targetThreadId,
+      nextTurnId: result.nextTurnId,
+      disposition: 'duplicate',
+    })
+    expect(value.dispatched).toHaveLength(1)
+    await expect(
+      value.service.implementFresh({
+        ...value.params,
+        model: { ...model, variant: Model.Ref.fields.variant.from.make('low') },
+      }),
+    ).rejects.toMatchObject({ code: 'OPERATION_ID_CONFLICT' })
+    value.db.close()
+    databases.splice(databases.indexOf(value.db), 1)
+    const reopened = new AgentDatabase(value.path)
+    databases.push(reopened)
+    const restored = new PlanApprovalService(
+      reopened,
+      { publish: () => Effect.void } as never,
+      value.threads,
+      value.workspaces,
+    )
+    expect(await restored.implementFresh(value.params)).toMatchObject({
+      targetThreadId: result.targetThreadId,
+      disposition: 'duplicate',
+    })
+  },
+)
+
+test('新聊天事务失败或模型不可用保留原审批，不遗留目标聊天；过期版本拒绝', async () => {
+  const value = await freshFixture()
+  value.db.sqlite.exec(
+    "CREATE TRIGGER reject_fresh_input BEFORE INSERT ON inputs BEGIN SELECT RAISE(ABORT, 'fresh transaction failure'); END",
+  )
+  await expect(value.service.implementFresh(value.params)).rejects.toThrow(
+    'fresh transaction failure',
+  )
+  expect(value.db.repositories.planApprovals.get(value.approval.id)?.status).toBe('pending')
+  expect(value.db.sqlite.query('SELECT count(*) AS count FROM threads').get()).toEqual({ count: 1 })
+  expect(value.dispatched).toHaveLength(0)
+  value.db.sqlite.exec('DROP TRIGGER reject_fresh_input')
+  await expect(
+    value.service.implementFresh({ ...value.params, expectedVersion: 99 }),
+  ).rejects.toMatchObject({ code: 'CONFLICT' })
+  await value.service.implementFresh(value.params)
+  const unavailable = await freshFixture(false, async () => {
+    throw new Error('unavailable')
+  })
+  await expect(unavailable.service.implementFresh(unavailable.params)).rejects.toMatchObject({
+    code: 'MODEL_UNAVAILABLE',
+  })
+  expect(unavailable.db.repositories.planApprovals.get(unavailable.approval.id)?.status).toBe(
+    'pending',
+  )
+  expect(unavailable.db.sqlite.query('SELECT count(*) AS count FROM threads').get()).toEqual({
+    count: 1,
+  })
+})
 
 test('完整计划在实时终态、快照和分页投影一致；未批准不启动轮次', async () => {
   const { db, thread, approval, dispatched } = await fixture()

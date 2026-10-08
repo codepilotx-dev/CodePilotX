@@ -17,7 +17,7 @@ type UseComposerSlashCommandsOptions = {
   onOpenStatus: () => void
   onOpenMcp?: () => void
   onApprove?: () => void | Promise<void>
-  onPlanModeChange?: (active: boolean) => void
+  onPlanModeChange?: (active: boolean) => void | Promise<void>
   onGoalModeChange?: (active: boolean) => void
   onOpenReview: () => void
   onCompact?: () => Promise<void>
@@ -65,7 +65,7 @@ export function useComposerSlashCommands({
 }: UseComposerSlashCommandsOptions): {
   commands: ComposerSlashCommand[]
   executingCommandId: ComposerSlashCommandId | null
-  executeCommand: (command: ComposerSlashCommand) => Promise<void>
+  executeCommand: (command: ComposerSlashCommand) => Promise<boolean>
 } {
   const executingRef = useRef<ComposerSlashCommandId | null>(null)
   const [executingCommandId, setExecutingCommandId] = useState<ComposerSlashCommandId | null>(null)
@@ -98,9 +98,9 @@ export function useComposerSlashCommands({
         planModeActive ? '关闭计划模式' : '开启计划模式',
         !subagentMode,
         Boolean(onPlanModeChange),
-        () => {
+        async () => {
+          await onPlanModeChange?.(!planModeActive)
           if (!planModeActive) onGoalModeChange?.(false)
-          onPlanModeChange?.(!planModeActive)
         },
       ),
       command(
@@ -109,8 +109,8 @@ export function useComposerSlashCommands({
         goalModeEnabled ? '目标模式已开启' : '设置持续执行的目标',
         capabilities.goals && !subagentMode,
         Boolean(onGoalModeChange),
-        () => {
-          if (planModeActive) onPlanModeChange?.(false)
+        async () => {
+          if (planModeActive) await onPlanModeChange?.(false)
           if (!goalModeEnabled) onGoalModeChange?.(true)
         },
       ),
@@ -234,13 +234,15 @@ export function useComposerSlashCommands({
 
   const executeCommand = useCallback(
     async (selected: ComposerSlashCommand) => {
-      if (!selected.availability.enabled || executingRef.current) return
+      if (!selected.availability.enabled || executingRef.current) return false
       executingRef.current = selected.id
       setExecutingCommandId(selected.id)
       try {
         await selected.execute()
+        return true
       } catch (error) {
         onError?.(error instanceof Error ? error.message : String(error))
+        return false
       } finally {
         executingRef.current = null
         setExecutingCommandId(null)

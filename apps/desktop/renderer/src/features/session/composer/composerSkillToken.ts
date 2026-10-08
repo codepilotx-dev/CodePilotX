@@ -6,22 +6,30 @@ import type {
 import { BUILTIN_SKILL_PRESENTATIONS } from '../../plugins/builtinSkillPresentation.js'
 
 /**
- * Skills are represented as one inline atom at the start of the Composer
- * document. The message text intentionally remains token-free so the
- * existing submit wire format stays unchanged.
+ * Keep existing inline positions; externally selected skills start at offset zero.
  */
 export function createComposerDocumentWithSkill(
   text: string,
   skillInvocation?: ComposerSkillInvocation | readonly ComposerSkillInvocation[],
+  existingTokens: readonly ComposerDocumentToken[] = [],
 ): ComposerDocument {
+  const skills = skillInvocation
+    ? (Array.isArray(skillInvocation)
+        ? skillInvocation
+        : [skillInvocation as ComposerSkillInvocation]
+      ).map(createComposerSkillToken)
+    : []
   return {
     text,
-    tokens: skillInvocation
-      ? (Array.isArray(skillInvocation)
-          ? skillInvocation
-          : [skillInvocation as ComposerSkillInvocation]
-        ).map(createComposerSkillToken)
-      : [],
+    tokens: [
+      ...existingTokens.filter(
+        (token) => token.kind !== 'skill' || skills.some((skill) => skill.value === token.value),
+      ),
+      ...skills.filter(
+        (skill) =>
+          !existingTokens.some((token) => token.kind === 'skill' && token.value === skill.value),
+      ),
+    ],
   }
 }
 

@@ -1730,12 +1730,12 @@ export function DesktopLayout(): React.ReactNode {
   )
 
   const handlePlanModeChange = useCallback(
-    (active: boolean): void => {
+    async (active: boolean): Promise<void> => {
       if (!sessionId) {
         setHomePlanModeActive(active)
         return
       }
-      void setSessionPlanModeActive(sessionId, active)
+      if (!(await setSessionPlanModeActive(sessionId, active))) throw new Error('计划模式未更新')
     },
     [sessionId, setSessionPlanModeActive],
   )
@@ -2415,13 +2415,9 @@ export function DesktopLayout(): React.ReactNode {
             throw error
           }
         }}
-        onPlanModeChange={(active) => {
-          const previous = sideSettings.planModeActive
+        onPlanModeChange={async (active) => {
+          await desktopClient.setSessionPlanModeActive(tab.threadId, active)
           updateSideChatSettings(tab.id, { planModeActive: active })
-          void desktopClient.setSessionPlanModeActive(tab.threadId, active).catch((error) => {
-            updateSideChatSettings(tab.id, { planModeActive: previous })
-            setErrorMessage(error instanceof Error ? error.message : String(error))
-          })
         }}
         onLocalRouterModeChange={() => undefined}
         onThinkingChange={(value) => {
@@ -3204,6 +3200,7 @@ export function DesktopLayout(): React.ReactNode {
               gitBranchPrefix={gitBranchPrefix}
               gitStatus={gitStatus}
               mode={gitWorkflowMode}
+              threadId={sessionId}
               pullRequestPrompt={pullRequestPrompt}
               workspace={currentWorkspace}
               onClose={() => setGitWorkflowMode(null)}

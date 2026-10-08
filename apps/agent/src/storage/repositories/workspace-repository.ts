@@ -3,6 +3,7 @@ import type { ThreadSettings } from '@codepilotx/shared/thread'
 import { AgentError } from '../../domain'
 import type { ReviewComment } from '@codepilotx/agent-protocol'
 import { containedPath, now, parse, stringify, type SqlValue } from './repository-core'
+import { probeThreadsStorageCapabilities } from '../database/storage-capabilities'
 
 export type StoredThreadWorkspace =
   | {
@@ -39,6 +40,24 @@ export type CreateThreadInput = {
 import { ProjectRepositoryDatabase } from './project-repository'
 
 export abstract class WorkspaceRepositoryDatabase extends ProjectRepositoryDatabase {
+  projectlessWorkspaceOwner(threadID: string): string {
+    if (!probeThreadsStorageCapabilities(this.sqlite).projectlessOwner) return threadID
+    const row = this.sqlite
+      .query('SELECT workspace_owner_thread_id FROM threads WHERE id = ?')
+      .get(threadID) as { workspace_owner_thread_id: string | null } | null
+    return row?.workspace_owner_thread_id ?? threadID
+  }
+
+  setProjectlessWorkspaceOwner(threadID: string, ownerThreadID: string) {
+    if (!probeThreadsStorageCapabilities(this.sqlite).projectlessOwner)
+      throw new AgentError('PERMISSION_DENIED', '当前存储不支持共享无项目工作区', 403)
+    this.sqlite
+      .query(
+        "UPDATE threads SET workspace_owner_thread_id = ? WHERE id = ? AND workspace_kind = 'projectless'",
+      )
+      .run(ownerThreadID, threadID)
+  }
+
   getProviderAuthDeviceId(): string {
     const key = 'provider-auth.device-id'
     const existing = this.getSetting<string>(key)

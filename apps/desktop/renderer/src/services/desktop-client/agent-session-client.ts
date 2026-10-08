@@ -2344,18 +2344,36 @@ export function createAgentSessionDesktopClient(
         },
         () => mockClient.updateProject(input),
       ),
-    editProject: (input) => withAgentOrMock(async () => {
-      requireAgentCapability('project.edit.v1')
-      const result = await rpc.call('project/edit', { ...input, operationId: crypto.randomUUID() })
-      projectsByIdCache = null
-      return projectToDesktopWorkspace(await ensureDesktopProjectTrusted(result.project), input.projectId)
-    }, () => mockClient.editProject(input)),
-    restoreProject: (projectId, removalOperationId) => withAgentOrMock(async () => {
-      requireAgentCapability('project.restore.v1')
-      const result = await rpc.call('project/restore', { projectId, removalOperationId, operationId: crypto.randomUUID() })
-      projectsByIdCache = null
-      return projectToDesktopWorkspace(result.project, projectId)
-    }, () => mockClient.restoreProject(projectId, removalOperationId)),
+    editProject: (input) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('project.edit.v1')
+          const result = await rpc.call('project/edit', {
+            ...input,
+            operationId: crypto.randomUUID(),
+          })
+          projectsByIdCache = null
+          return projectToDesktopWorkspace(
+            await ensureDesktopProjectTrusted(result.project),
+            input.projectId,
+          )
+        },
+        () => mockClient.editProject(input),
+      ),
+    restoreProject: (projectId, removalOperationId) =>
+      withAgentOrMock(
+        async () => {
+          requireAgentCapability('project.restore.v1')
+          const result = await rpc.call('project/restore', {
+            projectId,
+            removalOperationId,
+            operationId: crypto.randomUUID(),
+          })
+          projectsByIdCache = null
+          return projectToDesktopWorkspace(result.project, projectId)
+        },
+        () => mockClient.restoreProject(projectId, removalOperationId),
+      ),
     removeProject: (projectId) =>
       withAgentOrMock(
         async () => {
@@ -3912,6 +3930,17 @@ export function createAgentSessionDesktopClient(
           operationId: crypto.randomUUID(),
         }),
       ),
+    implementPlanFresh: (params) =>
+      withRequiredAgent(async () => {
+        requireAgentCapability('plan.approval.fresh.v1')
+        const result = await rpc.call('planApproval/implementFresh', params)
+        await Promise.all([
+          loadAgentSessionSnapshot(params.threadId),
+          loadAgentSessionSnapshot(result.targetThreadId),
+        ])
+        emitSessionStoreChange()
+        return result
+      }),
     readPlanApproval: (params) =>
       withRequiredAgent(() => {
         requireAgentCapability('plan.approval.v1')

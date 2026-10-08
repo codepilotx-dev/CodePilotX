@@ -60,11 +60,29 @@ function composerCardProps(overrides: Partial<ComposerCardProps> = {}): Composer
 }
 
 describe('composer surface variant', () => {
+  test('Plan 仅开启后显示可退出标记，子 Agent 不展示', () => {
+    const render = (planModeActive: boolean, subagentMode = false) =>
+      renderToStaticMarkup(
+        <ComposerCard
+          {...composerCardProps({
+            planModeActive,
+            placement: subagentMode ? 'side-task' : 'new-session',
+            onPlanModeChange: () => {},
+          })}
+        />,
+      )
+    expect(render(false)).not.toContain('title="退出计划模式"')
+    expect(render(true)).toContain('aria-pressed="true"')
+    expect(render(true)).toContain('aria-label="退出计划模式"')
+    expect(render(true, true)).not.toContain('title="退出计划模式"')
+  })
   test('Goal 与 Plan 输入状态互斥，动作不删除持久化目标', async () => {
     const changes: string[] = []
     let commands: ReturnType<typeof useComposerSlashCommands>['commands'] = []
+    let executeCommand: ReturnType<typeof useComposerSlashCommands>['executeCommand']
+    let failPlan = false
     function Harness({ plan }: { plan: boolean }) {
-      commands = useComposerSlashCommands({
+      const controls = useComposerSlashCommands({
         capabilities: DEFAULT_COMPOSER_CAPABILITIES,
         planModeActive: plan,
         goalModeEnabled: !plan,
@@ -86,9 +104,12 @@ describe('composer surface variant', () => {
           changes.push(`goal:${active}`)
         },
         onPlanModeChange: (active) => {
+          if (failPlan) throw new Error('切换失败')
           changes.push(`plan:${active}`)
         },
-      }).commands
+      })
+      commands = controls.commands
+      executeCommand = controls.executeCommand
       return null
     }
     renderToStaticMarkup(<Harness plan />)
@@ -97,7 +118,11 @@ describe('composer surface variant', () => {
     changes.length = 0
     renderToStaticMarkup(<Harness plan={false} />)
     await commands.find((command) => command.id === 'plan')?.execute()
-    expect(changes).toEqual(['goal:false', 'plan:true'])
+    expect(changes).toEqual(['plan:true', 'goal:false'])
+    changes.length = 0
+    failPlan = true
+    expect(await executeCommand!(commands.find((command) => command.id === 'plan')!)).toBe(false)
+    expect(changes).toEqual([])
   })
   test('Coding、Working 与 Chat 输出各自的 data-surface 标记', () => {
     const coding = renderToStaticMarkup(

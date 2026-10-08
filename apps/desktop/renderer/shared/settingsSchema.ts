@@ -196,6 +196,10 @@ export function defaultDesktopStoredSettings(): DesktopStoredSettings {
     gitDraftPullRequest: true,
     gitAutoDeleteWorktree: true,
     gitAutoDeleteWorktreeLimit: 15,
+    worktreeRoot: '',
+    worktreeFetchUpstream: false,
+    prWatchAutoMerge: false,
+    prWatchInstructions: '',
     allowForcePush: false,
     commitMessagePrompt: '',
     pullRequestPrompt: '',
@@ -392,6 +396,10 @@ export function normalizeDesktopStoredSettings(value: unknown): DesktopStoredSet
         : defaults.showContextUsage,
     defaultOpenTargetId: stringOrDefault(parsed.defaultOpenTargetId, defaults.defaultOpenTargetId),
     gitBranchPrefix: stringOrDefault(parsed.gitBranchPrefix, defaults.gitBranchPrefix),
+    worktreeRoot: stringOrDefault(parsed.worktreeRoot, defaults.worktreeRoot),
+    worktreeFetchUpstream: parsed.worktreeFetchUpstream === true,
+    prWatchAutoMerge: parsed.prWatchAutoMerge === true,
+    prWatchInstructions: stringOrDefault(parsed.prWatchInstructions, defaults.prWatchInstructions),
     gitPrMergeMethod: isDesktopGitPrMergeMethod(parsed.gitPrMergeMethod)
       ? parsed.gitPrMergeMethod
       : defaults.gitPrMergeMethod,

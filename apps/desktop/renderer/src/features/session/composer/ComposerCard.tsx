@@ -116,6 +116,7 @@ import {
   type ComposerSlashCommandId,
 } from './composerSlashCommands.js'
 import { useComposerSlashCommands } from './useComposerSlashCommands.js'
+import { isComposerInputEmpty } from './composerTypes.js'
 import {
   ApprovalRulesDialog,
   ApprovalRetryDialog,
@@ -355,7 +356,7 @@ type Props = {
     target: { type: 'uncommittedChanges' } | { type: 'baseBranch'; branch: string },
   ) => void
   onPermissionChange: (value: DesktopPermissionMode) => void | Promise<void>
-  onPlanModeChange?: (active: boolean) => void
+  onPlanModeChange?: (active: boolean) => void | Promise<void>
   onLocalRouterModeChange?: (mode: LocalRouterMode) => void
   onSubmit: (delivery?: ComposerDeliveryIntent) => void
   onCompact?: () => Promise<void>
@@ -702,7 +703,7 @@ export function ComposerCard({
     Boolean(routedSessionId),
     'interaction.scopedGrants.v1',
   )
-  const { commands: builtinSlashCommands, executeCommand } = useComposerSlashCommands({
+  const { commands: builtinSlashCommands, executeCommand, executingCommandId } = useComposerSlashCommands({
     capabilities,
     planModeActive,
     goalModeEnabled,
@@ -1078,6 +1079,27 @@ export function ComposerCard({
       editorRef.current?.focus()
       return
     }
+    if (item.command?.source === 'skill') {
+      const skill = item.command.skill
+      editorRef.current?.replaceTextRangeWithToken(suggestionRequest.start, suggestionRequest.end, {
+        id: `skill:${skill.name}:${skill.path}`,
+        kind: 'skill', name: skill.name, label: item.command.title, value: skill.path,
+        from: suggestionRequest.start, to: suggestionRequest.start,
+      })
+      closeDropdown()
+      item.onSelect()
+      return
+    }
+    if (item.command?.source === 'builtin' && ['plan', 'goal'].includes(item.command.id)) {
+      const request = suggestionRequest
+      const originalInput = input
+      closeDropdown()
+      void executeCommand(item.command).then((succeeded) => {
+        if (succeeded && requestInputRef.current === originalInput && contextScopeRef.current === contextScope)
+          editorRef.current?.replaceTextRange(request.start, request.end, '')
+      })
+      return
+    }
     if (item.command || item.key === 'attachment:local') {
       editorRef.current?.replaceTextRange(suggestionRequest.start, suggestionRequest.end, '')
       closeDropdown()
@@ -1110,8 +1132,16 @@ export function ComposerCard({
       onCommandError?.(parsed.reason)
       return true
     }
-    onInputChange('')
-    void executeCommand(parsed.command)
+    if (['plan', 'goal'].includes(parsed.command.id)) {
+      const originalInput = input
+      void executeCommand(parsed.command).then((succeeded) => {
+        if (succeeded && requestInputRef.current === originalInput && contextScopeRef.current === contextScope)
+          onInputChange('')
+      })
+    } else {
+      onInputChange('')
+      void executeCommand(parsed.command)
+    }
     return true
   }
 
@@ -1203,7 +1233,7 @@ export function ComposerCard({
           COMPOSER_HIDE_USAGE_CHIP_CLASS,
           COMPOSER_HIDE_PLAN_CHIP_LABEL_CLASS,
         )}
-        inert={submitting || undefined}
+        inert={submitting || executingCommandId === 'plan' || executingCommandId === 'goal' || undefined}
       >
         {inlineSubmitFailure ? (
           <div
@@ -1328,7 +1358,7 @@ export function ComposerCard({
                   }
                 }
 
-                if (event.key === 'Backspace' && input.length === 0) {
+                if (event.key === 'Backspace' && isComposerInputEmpty(input, composerDocument?.tokens ?? [], attachments)) {
                   if (goalModeEnabled) {
                     event.preventDefault()
                     onGoalModeChange?.(false)
@@ -1336,7 +1366,8 @@ export function ComposerCard({
                   }
                   if (planModeActive) {
                     event.preventDefault()
-                    onPlanModeChange?.(false)
+                    void Promise.resolve(onPlanModeChange?.(false)).catch((error: unknown) =>
+                      onCommandError?.(error instanceof Error ? error.message : '计划模式未更新'))
                     return true
                   }
                 }
@@ -1507,13 +1538,14 @@ export function ComposerCard({
                 <span className={TOOLBAR_DIVIDER_CLASS} />
                 <button
                   aria-pressed="true"
+                  aria-label="退出目标输入"
                   className={cx(
-                    'chip-button composer-plan-mode-chip active tw:group tw:relative tw:bg-app-selected tw:text-app-accent-fg tw:type-secondary tw:hover:bg-app-selected',
+                    'chip-button composer-plan-mode-chip tw:group tw:relative tw:gap-1 tw:px-1 tw:text-app-text-meta tw:hover:text-app-text-meta tw:type-secondary',
                   )}
                   onClick={() => {
                     onGoalModeChange?.(false)
                   }}
-                  title="目标模式"
+                  title="退出目标输入"
                   type="button"
                 >
                   <span
@@ -1524,14 +1556,14 @@ export function ComposerCard({
                   >
                     <Target
                       className={cx(
-                        'composer-plan-mode-chip-icon-plan tw:absolute tw:inset-0 tw:m-auto tw:transition-opacity tw:duration-state tw:ease-out tw:group-hover:opacity-0',
+                        'composer-plan-mode-chip-icon-plan tw:absolute tw:inset-0 tw:m-auto tw:transition-opacity tw:duration-state tw:ease-out tw:group-hover:opacity-0 tw:group-focus-visible:opacity-0',
                       )}
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
                     <X
                       className={cx(
-                        'composer-plan-mode-chip-icon-exit tw:absolute tw:inset-0 tw:m-auto tw:size-icon-sm tw:rounded-full tw:bg-[color-mix(in_srgb,currentColor_18%,transparent)] tw:p-0 tw:opacity-0 tw:transition-opacity tw:duration-state tw:ease-out tw:group-hover:opacity-100',
+                        'composer-plan-mode-chip-icon-exit tw:absolute tw:inset-0 tw:m-auto tw:size-icon-sm tw:p-0 tw:opacity-0 tw:transition-opacity tw:duration-state tw:ease-out tw:group-hover:opacity-100 tw:group-focus-visible:opacity-100',
                       )}
                       size={APP_ICON_SIZES.sm}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
@@ -1541,18 +1573,20 @@ export function ComposerCard({
                 </button>
               </>
             ) : null}
-            {planModeActive ? (
+            {!subagentMode && planModeActive && onPlanModeChange ? (
               <>
                 <span className={TOOLBAR_DIVIDER_CLASS} />
                 <button
                   aria-pressed="true"
+                  aria-label="退出计划模式"
                   className={cx(
-                    'chip-button composer-plan-mode-chip active tw:group tw:relative tw:bg-app-selected tw:text-app-accent-fg tw:type-secondary tw:hover:bg-app-selected',
+                    'chip-button composer-plan-mode-chip tw:group tw:relative tw:gap-1 tw:px-1 tw:text-app-text-meta tw:hover:text-app-text-meta tw:type-secondary',
                   )}
                   onClick={() => {
-                    onPlanModeChange?.(false)
+                    void Promise.resolve(onPlanModeChange(false)).catch((error: unknown) =>
+                      onCommandError?.(error instanceof Error ? error.message : '计划模式未更新'))
                   }}
-                  title="计划模式"
+                  title="退出计划模式"
                   type="button"
                 >
                   <span
@@ -1563,18 +1597,21 @@ export function ComposerCard({
                   >
                     <ListChecks
                       className={cx(
-                        'composer-plan-mode-chip-icon-plan tw:absolute tw:inset-0 tw:m-auto tw:transition-opacity tw:duration-state tw:ease-out tw:group-hover:opacity-0',
+                        'composer-plan-mode-chip-icon-plan tw:absolute tw:inset-0 tw:m-auto tw:transition-opacity tw:duration-state tw:ease-out',
+                        'tw:group-hover:opacity-0 tw:group-focus-visible:opacity-0',
                       )}
                       size={APP_ICON_SIZE}
                       strokeWidth={APP_ICON_STROKE_WIDTH}
                     />
-                    <X
-                      className={cx(
-                        'composer-plan-mode-chip-icon-exit tw:absolute tw:inset-0 tw:m-auto tw:size-icon-sm tw:rounded-full tw:bg-[color-mix(in_srgb,currentColor_18%,transparent)] tw:p-0 tw:opacity-0 tw:transition-opacity tw:duration-state tw:ease-out tw:group-hover:opacity-100',
-                      )}
-                      size={APP_ICON_SIZES.sm}
-                      strokeWidth={APP_ICON_STROKE_WIDTH}
-                    />
+                    {planModeActive ? (
+                      <X
+                        className={cx(
+                          'composer-plan-mode-chip-icon-exit tw:absolute tw:inset-0 tw:m-auto tw:size-icon-sm tw:p-0 tw:opacity-0 tw:transition-opacity tw:duration-state tw:ease-out tw:group-hover:opacity-100 tw:group-focus-visible:opacity-100',
+                        )}
+                        size={APP_ICON_SIZES.sm}
+                        strokeWidth={APP_ICON_STROKE_WIDTH}
+                      />
+                    ) : null}
                   </span>
                   <span>计划</span>
                 </button>
@@ -1765,7 +1802,13 @@ export function ComposerCard({
               size="composer"
               iconSize="lg"
               disabled={!isRunning && !canSubmit}
-              onClick={isRunning && !canSubmit ? onInterrupt : () => onSubmit('default')}
+              onClick={
+                isRunning && !canSubmit
+                  ? onInterrupt
+                  : () => {
+                      if (!handleDirectSlashSubmission()) onSubmit('default')
+                    }
+              }
               title={isRunning && !canSubmit ? '停止 Esc' : (submitDisabledReason ?? '发送')}
               type="button"
             >
@@ -2078,7 +2121,7 @@ function resolveWorkspaceContextPath(workspacePath: string, relativePath: string
 
 function composerCommandMenuItem(
   command: ComposerCommand,
-  executeCommand: (command: ComposerSlashCommand) => Promise<void>,
+  executeCommand: (command: ComposerSlashCommand) => Promise<boolean>,
   onSkillSelect: ((skill: ComposerSkillCommand) => void) | undefined,
 ): ComposerMenuItem {
   return {

@@ -205,4 +205,14 @@ export class PlanApprovalRepository {
   linkTurn(id: string, turnId: string): void {
     this.db.sqlite.query('UPDATE plan_approvals SET next_turn_id = ? WHERE id = ?').run(turnId, id)
   }
+
+  implementationTarget(approval: PlanApproval) {
+    const row = approval.nextTurnId
+      ? (this.db.sqlite
+          .query('SELECT thread_id FROM turns WHERE id = ?')
+          .get(approval.nextTurnId) as { thread_id: string } | null)
+      : null
+    if (!row || !approval.nextTurnId) throw new AgentError('CONFLICT', '计划实施关联不可用', 409)
+    return { targetThreadId: row.thread_id, nextTurnId: approval.nextTurnId }
+  }
 }

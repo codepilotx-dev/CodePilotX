@@ -69,7 +69,10 @@ export const systemHandlers = {
         }
         const connectionId = crypto.randomUUID()
         const createdAt = runtime.now()
-        const serverAvailable = filterAdvertisedCapabilities(db)
+        const serverAvailable = filterAdvertisedCapabilities(
+          db,
+          runtime.planApprovals.supportsFresh(),
+        )
         const clientRequested = params.capabilities as readonly ProtocolCapability[]
         const negotiated = negotiateCapabilities(clientRequested, serverAvailable)
         runtime.connections.set(connectionId, {

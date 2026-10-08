@@ -28,6 +28,7 @@ const HISTORY_V19_SCHEMA = HISTORY_SCHEMA.filter(
   statement.startsWith('CREATE TABLE threads ')
     ? statement
         .replace(', workspace_roots TEXT, instruction_sources TEXT', '')
+        .replace(', workspace_owner_thread_id TEXT', '')
         .replace(', git_branch TEXT)', ')')
     : statement,
 )

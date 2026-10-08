@@ -713,7 +713,26 @@ const computerState: RpcResult<'computer/state'> = {
   busy: false,
   permissions: [{ appId: computerWindow.appId, name: computerWindow.name, decision: 'allow' }],
 }
+const settingsEnvironment = { exists: true, filePath: 'F:/fixture/.codepilotx/environments/environment.jsonc', gitRoot: 'F:/fixture', revision: 'a'.repeat(64), configHash: 'a'.repeat(64), config: { schema_version: 1, name: 'fixture', actions: [] }, executionTrusted: false }
+const settingsWorktree = { id: 'worktree:1', projectId: project.id, status: 'ready', branchName: 'feature/test', baseCommit: 'abc123', headCommit: 'abc123', permanent: false, pinned: false, setupStatus: 'succeeded', continuedWithoutSetup: false, createdAt: 1, updatedAt: 1, lastUsedAt: 1, deletedAt: null } as const
+const settingsWorktreeResult = { worktree: settingsWorktree, operation: { operationId: 'operation:1', worktreeId: settingsWorktree.id, projectId: project.id, kind: 'delete', step: 'complete', status: 'completed', revision: 1, errorCode: null, warnings: [], createdAt: 1, updatedAt: 1, completedAt: 1 } } as const
+const watch = { id: 'watch:1', projectId: project.id, url: 'https://github.com/owner/repository/pull/1', automation, threadId: 'thread:1', worktreeId: 'worktree:1', reason: null }
 const fixtures = {
+  'git/message/generate': methodFixture('git/message/generate', { projectId: project.id, kind: 'commit', paths: ['src/index.ts'] }, { title: 'feat: 示例', body: '' }),
+  'github/watch/start': methodFixture('github/watch/start', { projectId: project.id, url: watch.url, model: modelRef, permissionConfig }, watch),
+  'github/watch/list': methodFixture('github/watch/list', {}, { watches: [watch] }),
+  'github/watch/read': methodFixture('github/watch/read', { id: watch.id }, watch),
+  'github/watch/stop': methodFixture('github/watch/stop', { id: watch.id }, watch),
+  'github/watch/update': methodFixture('github/watch/update', { id: watch.id, expectedRevision: 1, status: 'paused' }, watch),
+  'local-environment/project/list': methodFixture('local-environment/project/list', { projectId: project.id }, { environments: [], selectedEnvironmentId: null }),
+  'local-environment/project/create': methodFixture('local-environment/project/create', { projectId: project.id, name: '环境' }, { environmentId: 'environment:1' }),
+  'local-environment/project/read': methodFixture('local-environment/project/read', { projectId: project.id, environmentId: 'environment:1' }, settingsEnvironment),
+  'local-environment/project/update': methodFixture('local-environment/project/update', { projectId: project.id, environmentId: 'environment:1', expectedRevision: 'a'.repeat(64), edits: [{ keyPath: ['name'], value: '新环境' }] }, { filePath: settingsEnvironment.filePath, revision: 'b'.repeat(64), configHash: 'b'.repeat(64), executionTrusted: false }),
+  'local-environment/project/select': methodFixture('local-environment/project/select', { projectId: project.id, environmentId: 'environment:1' }, undefined),
+  'local-environment/project/delete': methodFixture('local-environment/project/delete', { projectId: project.id, environmentId: 'environment:1', expectedRevision: 'a'.repeat(64) }, undefined),
+  'worktree/settings/list': methodFixture('worktree/settings/list', {}, { worktrees: [{ worktree: settingsWorktree, path: 'F:/worktrees/test', repositoryRoot: 'F:/fixture', conversations: [{ id: 'thread:1', title: '聊天', archived: false, pinned: false, active: false }] }] }),
+  'worktree/settings/delete': methodFixture('worktree/settings/delete', { worktreeId: settingsWorktree.id, operationId: 'operation:1' }, settingsWorktreeResult),
+  'worktree/settings/new-chat': methodFixture('worktree/settings/new-chat', { worktreeId: settingsWorktree.id, operationId: 'operation:1' }, { threadId: 'thread:1' }),
   'interaction/questionPause': methodFixture(
     'interaction/questionPause',
     { interactionId: 'question:1', expectedVersion: 2 },
@@ -921,6 +940,28 @@ const fixtures = {
       threadId: 'thread:1',
     },
     { approval: null },
+  ),
+  'planApproval/implementFresh': methodFixture(
+    'planApproval/implementFresh',
+    { threadId: 'thread:1', approvalId: 'plan:1', expectedVersion: 1, operationId: 'op:fresh' },
+    {
+      approval: {
+        id: 'plan:1',
+        threadId: 'thread:1',
+        turnId: 'turn:1',
+        planItemId: 'item:1',
+        version: 2,
+        status: 'implemented',
+        title: '计划',
+        markdown: '# 计划',
+        nextTurnId: 'turn:fresh',
+        createdAt: 1,
+        resolvedAt: 2,
+      },
+      targetThreadId: 'thread:fresh',
+      nextTurnId: 'turn:fresh',
+      disposition: 'applied',
+    },
   ),
   'planApproval/respond': methodFixture(
     'planApproval/respond',
@@ -1406,8 +1447,26 @@ const fixtures = {
     },
     { project },
   ),
-  'project/edit': methodFixture('project/edit', { projectId: project.id, name: project.name, paths: [], expectedVersion: project.updatedAt, operationId: 'operation:project-edit' }, { project }),
-  'project/restore': methodFixture('project/restore', { projectId: project.id, removalOperationId: 'operation:project-remove', operationId: 'operation:project-restore' }, { project }),
+  'project/edit': methodFixture(
+    'project/edit',
+    {
+      projectId: project.id,
+      name: project.name,
+      paths: [],
+      expectedVersion: project.updatedAt,
+      operationId: 'operation:project-edit',
+    },
+    { project },
+  ),
+  'project/restore': methodFixture(
+    'project/restore',
+    {
+      projectId: project.id,
+      removalOperationId: 'operation:project-remove',
+      operationId: 'operation:project-restore',
+    },
+    { project },
+  ),
   'project/remove': methodFixture(
     'project/remove',
     {
@@ -5634,7 +5693,7 @@ describe('RPC method schema contracts', () => {
 
   test('keeps valid params and results for every formal method decodable', () => {
     const methods = Object.keys(AllRpcMethods) as RpcMethod[]
-    expect(methods).toHaveLength(296)
+    expect(methods).toHaveLength(312)
     const activeFixtureKeys = Object.keys(fixtures).filter(
       (method) => !method.startsWith('taskboard/'),
     )
@@ -6002,7 +6061,7 @@ describe('RPC method schema contracts', () => {
   })
 
   test('公共 runtime 方法表不包含 desktop host terminal schema', () => {
-    expect(Object.keys(RpcMethods)).toHaveLength(275)
+    expect(Object.keys(RpcMethods)).toHaveLength(291)
     expect('terminal/host/context' in RpcMethods).toBe(false)
     expect(Object.keys(AllRpcMethods)).toContain('terminal/host/context')
   })

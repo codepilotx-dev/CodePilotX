@@ -10,8 +10,42 @@ import {
   skillInvocationsFromComposerDocument,
 } from '../src/features/session/composer/composerSkillToken.js'
 import { contextTokensFromDocument } from '../src/features/session/composer/useDesktopComposerController.js'
+import { isComposerInputEmpty } from '../src/features/session/composer/composerTypes.js'
 
 describe('composer skill inline token', () => {
+  test('Skill 光标位置在草稿派生和编辑器往返后保留，引用非空不退出模式', () => {
+    const skill = { name: 'review', path: 'skills/review' }
+    const existing = createComposerDocumentWithSkill('前后', skill).tokens.map((token) => ({
+      ...token,
+      from: 1,
+      to: 1,
+    }))
+    const document = createComposerDocumentWithSkill('前后', [skill], existing)
+    expect(
+      composerDocumentFromProseMirrorDocument(composerDocumentToProseMirrorDocument(document))
+        .tokens[0]?.from,
+    ).toBe(1)
+    expect(isComposerInputEmpty('', existing, [])).toBe(false)
+    expect(isComposerInputEmpty('', [], [])).toBe(true)
+    expect(
+      isComposerInputEmpty(
+        '',
+        [],
+        [
+          {
+            id: 'image',
+            name: 'image.png',
+            path: 'image.png',
+            mediaType: 'image/png',
+            sizeBytes: 1,
+            kind: 'image',
+            status: 'ready',
+          },
+        ],
+      ),
+    ).toBe(false)
+    expect(createComposerDocumentWithSkill('前后', [], existing).tokens).toEqual([])
+  })
   test('多个 Skill 标签往返保留身份与顺序，正文不携带命令', () => {
     const skills = [
       { name: 'review', path: 'skills/review' },
@@ -116,6 +150,6 @@ describe('composer skill inline token', () => {
         to: 0,
       },
     ]
-    expect(contextTokensFromDocument(tokens)).toEqual([tokens[1]])
+    expect(contextTokensFromDocument(tokens)).toEqual(tokens)
   })
 })

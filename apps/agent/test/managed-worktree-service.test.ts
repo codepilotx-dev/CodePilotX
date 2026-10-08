@@ -36,6 +36,7 @@ const git = async (cwd: string, args: readonly string[]) => {
 
 const fixture = async (
   options: {
+    settings?: () => { root?: string; fetchUpstream?: boolean }
     cleanup?: (input: {
       onOutput: (chunk: string) => void
     }) => Promise<{ warnings?: readonly string[] }>
@@ -104,6 +105,7 @@ const fixture = async (
     repository: worktrees,
     managedRoot,
     stateRoot,
+    ...(options.settings ? { settings: options.settings } : {}),
     resolveProjectRoot: (projectId) => (projectId === 'project-1' ? repositoryRoot : null),
     id: () => 'worktree-1',
     environment: {
@@ -127,6 +129,21 @@ const fixture = async (
 }
 
 describe('ManagedWorktreeService', () => {
+  test('根目录偏好变化后，已有工作树仍从创建时的根删除与恢复', async () => {
+    let customRoot = ''
+    const { service, worktrees, root, repositoryRoot, db } = await fixture({ settings: () => ({ root: customRoot }) })
+    customRoot = join(root, 'first-root')
+    const created = await service.create({ projectId: 'project-1', operationId: 'custom-create', startingState: { type: 'working-tree' }, snapshotMode: 'head' })
+    expect(worktrees.ownedRoot(created.worktree.id)).toBe(customRoot)
+    await service.continueWithoutSetup({ worktreeId: created.worktree.id, operationId: 'custom-continue' })
+    customRoot = join(root, 'second-root')
+    await service.delete({ worktreeId: created.worktree.id, operationId: 'custom-delete' })
+    const restored = await service.restore({ worktreeId: created.worktree.id, operationId: 'custom-restore' })
+    expect(service.settingsList()[0]!.path.startsWith(join(root, 'first-root'))).toBe(true)
+    expect(restored.worktree.id).toBe(created.worktree.id)
+    expect((await git(repositoryRoot, ['status','--porcelain'])).code).toBe(0)
+    db.close()
+  })
   test('operation output 仅保留 64KiB 内存 tail 并在完成十分钟后过期', () => {
     let now = 1_000
     const output = new WorktreeOperationOutputBuffer(() => now)

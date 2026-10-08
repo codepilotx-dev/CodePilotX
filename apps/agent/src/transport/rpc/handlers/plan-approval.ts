@@ -5,9 +5,13 @@ import type { RpcHandlerGroup } from './types'
 
 export const planApprovalHandlers = {
   name: 'plan-approval',
-  methods: ['planApproval/read', 'planApproval/respond'],
+  methods: ['planApproval/read', 'planApproval/respond', 'planApproval/implementFresh'],
   async handle(runtime: RpcRouter, method: RpcMethod, raw: unknown) {
     switch (method) {
+      case 'planApproval/implementFresh':
+        return runtime.planApprovals.implementFresh(
+          Schema.decodeUnknownSync(PlanApprovalRpcMethods[method].params)(raw),
+        )
       case 'planApproval/read': {
         const params = Schema.decodeUnknownSync(PlanApprovalRpcMethods[method].params)(raw)
         return { approval: runtime.planApprovals.read(params.threadId) }

@@ -15,7 +15,8 @@ import {
 } from '../config/JsoncDocument'
 import { AgentError } from '../domain'
 import { LocalEnvironmentConfigError, parseLocalEnvironmentConfig } from './LocalEnvironmentConfig'
-import { LocalEnvironmentDiscovery } from './LocalEnvironmentDiscovery'
+import { LocalEnvironmentDiscovery, localEnvironmentTrustIdentity } from './LocalEnvironmentDiscovery'
+import type { LocalEnvironmentCatalog } from './LocalEnvironmentCatalog'
 import type { LocalEnvironmentRunner } from './LocalEnvironmentRunner'
 import type { ProjectTrustStore } from './ProjectTrustStore'
 import {
@@ -37,6 +38,7 @@ export type LocalEnvironmentContext = {
 export type LocalEnvironmentContextResolver = (threadId: string) => Promise<LocalEnvironmentContext>
 
 export class LocalEnvironmentService {
+  catalog?: LocalEnvironmentCatalog
   constructor(
     private readonly discovery: LocalEnvironmentDiscovery,
     private readonly trust: ProjectTrustStore,
@@ -69,8 +71,8 @@ export class LocalEnvironmentService {
     return this.actionList(context.cwd)
   }
 
-  async read(cwd: string): Promise<LocalEnvironmentReadResult> {
-    const loaded = await this.load(cwd)
+  async read(cwd: string, configPath?: string): Promise<LocalEnvironmentReadResult> {
+    const loaded = await this.load(cwd, configPath)
     return {
       exists: loaded.exists,
       filePath: loaded.filePath,
@@ -90,8 +92,10 @@ export class LocalEnvironmentService {
     expectedRevision: string
     edits?: ReadonlyArray<{ keyPath: readonly JsoncPathSegment[]; value: ConfigValue }> | undefined
     trust?: { configHash: string; decision: 'allow' | 'revoke' } | undefined
+    configPath?: string
   }) {
-    const loaded = await this.load(input.cwd)
+    const loaded = await this.load(input.cwd, input.configPath)
+    if (loaded.frozen && input.edits) throw new AgentError('LOCAL_ENVIRONMENT_CONFLICT', '工作树使用创建时的环境快照，请在项目环境页编辑源配置', 409)
     if (loaded.revision !== input.expectedRevision) {
       throw new AgentError('LOCAL_ENVIRONMENT_CONFLICT', '本地环境配置已被其他操作修改', 409)
     }
@@ -138,7 +142,7 @@ export class LocalEnvironmentService {
     }
     if (input.trust?.decision === 'allow') {
       await this.trust.trustExecution(loaded.projectIdentity, loaded.revision)
-      const confirmed = await this.load(input.cwd)
+      const confirmed = await this.load(input.cwd, input.configPath)
       if (
         confirmed.projectIdentity !== loaded.projectIdentity ||
         confirmed.revision !== loaded.revision
@@ -307,9 +311,11 @@ export class LocalEnvironmentService {
     }
   }
 
-  private async load(cwd: string) {
-    const discovered = await this.discovery.discover(cwd)
+  private async load(cwd: string, configPath?: string) {
+    const original = await this.discovery.discover(cwd, configPath)
+    const discovered = { ...original, projectIdentity: localEnvironmentTrustIdentity(original) }
     if (!discovered.exists) {
+      if (discovered.frozen) throw new AgentError('LOCAL_ENVIRONMENT_INVALID', '工作树环境快照缺失', 409)
       const raw: ConfigObject = {
         schema_version: 1,
         name: basename(discovered.gitRoot),
@@ -323,9 +329,10 @@ export class LocalEnvironmentService {
         config: parseLocalEnvironmentConfig(raw),
       }
     }
-    await this.assertControlledTarget(discovered.gitRoot, discovered.filePath)
+    if (!discovered.frozen) await this.assertControlledTarget(discovered.gitRoot, discovered.filePath)
     try {
       const source = await readFile(discovered.filePath, 'utf8')
+      if (discovered.frozen && hash(source) !== discovered.frozenRevision) throw new AgentError('LOCAL_ENVIRONMENT_CONFLICT', '环境快照已被修改', 409)
       const raw = parseJsoncObject(source)
       return {
         ...discovered,

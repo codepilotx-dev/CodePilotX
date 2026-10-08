@@ -147,6 +147,22 @@ async function createRuntime(input: {
 }
 
 describe('structured plan module', () => {
+  test('长度与列表上限告知模型，报错包含字段和上限但不泄露值', () => {
+    const schema = structuredPlanParameters
+    expect(Reflect.get(schema.properties.summary, 'maxLength')).toBe(4000)
+    expect(Reflect.get(schema.properties.changes, 'maxItems')).toBe(20)
+    const group = schema.properties.changes.items
+    expect(Reflect.get(group.properties.items, 'maxItems')).toBe(50)
+    expect(Reflect.get(group, 'additionalProperties')).toBe(false)
+    try {
+      parseStructuredPlan(validPlan({ summary: 'sk-sensitive-value'.repeat(300) }))
+      throw new Error('should reject')
+    } catch (error) {
+      expect(String(error)).toContain('summary')
+      expect(String(error)).toContain('4000')
+      expect(String(error)).not.toContain('sk-sensitive-value')
+    }
+  })
   test('模型可见参数 schema 覆盖共享领域全部字段', () => {
     const exposed = Object.keys(
       (structuredPlanParameters as { properties?: Record<string, unknown> }).properties ?? {},

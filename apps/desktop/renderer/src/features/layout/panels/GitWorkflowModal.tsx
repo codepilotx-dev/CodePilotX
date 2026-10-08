@@ -7,6 +7,8 @@ import { Button } from '../../../components/ui/Button.js'
 import { cx } from '../../../utils/cx.js'
 import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
 import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
+import { environmentDomainClient } from '../../../services/desktop-client/environment-domain-client.js'
+import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
 
 export type GitWorkflowMode = 'branch' | 'commitPush' | 'commit' | 'push' | 'pullRequest'
 
@@ -15,6 +17,7 @@ const EMPTY_CHANGES: DesktopGitStatus['files'] = []
 type Props = {
   mode: GitWorkflowMode | null
   workspace: DesktopWorkspace | null
+  threadId?: string | null
   gitStatus: DesktopGitStatus | null
   gitBranchPrefix: string
   allowForcePush: boolean
@@ -29,59 +32,75 @@ type Props = {
 export function GitWorkflowModal({
   mode: currentMode,
   workspace,
+  threadId,
   gitStatus,
   gitBranchPrefix,
   allowForcePush,
-  commitMessagePrompt,
-  pullRequestPrompt,
   onClose,
   onError,
   onWorkspaceChanged,
   onRefreshWorkspace,
 }: Props): React.ReactNode {
   const retainedMode = useLastNonNull(currentMode)
+  const settings = useDesktopSettings()
   const open = currentMode !== null
   const mode = open ? currentMode : retainedMode
   const [branchName, setBranchName] = useState(gitBranchPrefix)
-  const [commitMessage, setCommitMessage] = useState(commitMessagePrompt)
+  const [commitMessage, setCommitMessage] = useState('')
   const [selectedPaths, setSelectedPaths] = useState<string[]>([])
   const [setUpstream, setSetUpstream] = useState(false)
   const [forceWithLease, setForceWithLease] = useState(false)
   const [prTitle, setPrTitle] = useState('')
-  const [prBody, setPrBody] = useState(pullRequestPrompt)
-  const [draftPr, setDraftPr] = useState(true)
+  const [prTitleEdited, setPrTitleEdited] = useState(false)
+  const [prBody, setPrBody] = useState('')
+  const [draftPr, setDraftPr] = useState(settings.gitDraftPullRequest)
   const [localError, setLocalError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const changedFiles = gitStatus?.files ?? EMPTY_CHANGES
   const { onCloseAutoFocus } = useDialogFocusRestore(open)
   const title =
-    mode === 'branch' ? '创建分支' : mode === 'pullRequest' ? '创建 Pull Request'
-      : mode === 'commit' ? '提交' : mode === 'push' ? '推送' : '提交或推送'
+    mode === 'branch'
+      ? '创建分支'
+      : mode === 'pullRequest'
+        ? '创建 Pull Request'
+        : mode === 'commit'
+          ? '提交'
+          : mode === 'push'
+            ? '推送'
+            : '提交或推送'
 
   useEffect(() => {
     if (!open) return
     setLocalError(null)
     setIsSubmitting(false)
     setBranchName(gitBranchPrefix)
-    setCommitMessage(commitMessagePrompt)
+    setCommitMessage('')
     setSelectedPaths(changedFiles.map((file) => file.path))
     setSetUpstream(!gitStatus?.upstream)
-    setForceWithLease(false)
+    setForceWithLease(allowForcePush)
     setPrTitle(gitStatus?.branchName ?? '')
-    setPrBody(pullRequestPrompt)
-    setDraftPr(true)
-  }, [
-    changedFiles,
-    commitMessagePrompt,
-    gitBranchPrefix,
-    gitStatus?.branchName,
-    gitStatus?.upstream,
-    open,
-    pullRequestPrompt,
-  ])
+    setPrTitleEdited(false)
+    setPrBody('')
+    setDraftPr(settings.gitDraftPullRequest)
+  }, [open, currentMode, workspace?.path])
 
   const selectedPathSet = useMemo(() => new Set(selectedPaths), [selectedPaths])
+  async function generateMessage(): Promise<void> {
+    if (!workspace?.projectId) return
+    await runOperation(async () => {
+      const generated = await environmentDomainClient().generateGitMessage({
+        projectId: workspace.projectId!,
+        ...(threadId ? { threadId } : {}),
+        kind: mode === 'pullRequest' ? 'pullRequest' : 'commit',
+        ...(mode === 'pullRequest' ? {} : { paths: selectedPaths }),
+      })
+      if (mode === 'pullRequest') {
+        setPrTitle(generated.title)
+        setPrBody(generated.body)
+      } else setCommitMessage([generated.title, generated.body].filter(Boolean).join('\n\n'))
+    })
+  }
 
   async function submitBranch(): Promise<void> {
     if (!workspace) return
@@ -195,6 +214,22 @@ export function GitWorkflowModal({
             {workspace?.path ?? '请选择一个本地项目后再操作 Git。'}
           </Dialog.Description>
           {localError ? <div className="git-workflow-error">{localError}</div> : null}
+          {(mode === 'commit' || mode === 'commitPush' || mode === 'pullRequest') && (
+            <Button
+              color="secondary"
+              title="清空已有内容后可以重新生成"
+              disabled={
+                isSubmitting ||
+                !workspace?.projectId ||
+                (mode === 'pullRequest'
+                  ? !!prBody.trim() || (prTitleEdited && !!prTitle.trim())
+                  : !!commitMessage.trim())
+              }
+              onClick={() => void generateMessage()}
+            >
+              生成{mode === 'pullRequest' ? ' PR 标题与说明' : '提交信息'}
+            </Button>
+          )}
           {mode === 'branch' ? (
             <div className={cx('git-workflow-form', 'tw:grid', 'tw:gap-3')}>
               <label>
@@ -205,74 +240,90 @@ export function GitWorkflowModal({
           ) : null}
           {mode === 'commitPush' || mode === 'commit' || mode === 'push' ? (
             <div className={cx('git-workflow-form', 'tw:grid', 'tw:gap-3')}>
-              {mode !== 'push' ? <>
-              <label>
-                <span>提交信息</span>
-                <textarea
-                  value={commitMessage}
-                  onChange={(event) => setCommitMessage(event.target.value)}
-                />
-              </label>
-              <div className="git-workflow-files-scroll-area">
-                <div className="git-workflow-files-scroll-content">
-                  <div>
-                    <strong>变更文件</strong>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPaths(changedFiles.map((file) => file.path))}
-                    >
-                      全选
-                    </button>
+              {mode !== 'push' ? (
+                <>
+                  <label>
+                    <span>提交信息</span>
+                    <textarea
+                      value={commitMessage}
+                      disabled={isSubmitting}
+                      onChange={(event) => setCommitMessage(event.target.value)}
+                    />
+                  </label>
+                  <div className="git-workflow-files-scroll-area">
+                    <div className="git-workflow-files-scroll-content">
+                      <div>
+                        <strong>变更文件</strong>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPaths(changedFiles.map((file) => file.path))}
+                        >
+                          全选
+                        </button>
+                      </div>
+                      {changedFiles.length === 0 ? (
+                        <p>当前没有可提交的文件。</p>
+                      ) : (
+                        changedFiles.map((file) => (
+                          <label key={`${file.status}:${file.path}`}>
+                            <input
+                              checked={selectedPathSet.has(file.path)}
+                              type="checkbox"
+                              onChange={() => togglePath(file.path)}
+                            />
+                            <span title={file.path}>{file.path}</span>
+                            <small>{file.status.trim() || 'M'}</small>
+                          </label>
+                        ))
+                      )}
+                    </div>
                   </div>
-                  {changedFiles.length === 0 ? (
-                    <p>当前没有可提交的文件。</p>
-                  ) : (
-                    changedFiles.map((file) => (
-                      <label key={`${file.status}:${file.path}`}>
-                        <input
-                          checked={selectedPathSet.has(file.path)}
-                          type="checkbox"
-                          onChange={() => togglePath(file.path)}
-                        />
-                        <span title={file.path}>{file.path}</span>
-                        <small>{file.status.trim() || 'M'}</small>
-                      </label>
-                    ))
-                  )}
-                </div>
-              </div>
-              </> : null}
-              {mode !== 'commit' ? <>
-              <label className="git-workflow-check">
-                <input
-                  checked={setUpstream}
-                  type="checkbox"
-                  onChange={(event) => setSetUpstream(event.target.checked)}
-                />
-                <span>首次推送时设置 upstream</span>
-              </label>
-              {allowForcePush ? (
-                <label className="git-workflow-check">
-                  <input
-                    checked={forceWithLease}
-                    type="checkbox"
-                    onChange={(event) => setForceWithLease(event.target.checked)}
-                  />
-                  <span>使用 --force-with-lease</span>
-                </label>
+                </>
               ) : null}
-              </> : null}
+              {mode !== 'commit' ? (
+                <>
+                  <label className="git-workflow-check">
+                    <input
+                      checked={setUpstream}
+                      type="checkbox"
+                      onChange={(event) => setSetUpstream(event.target.checked)}
+                    />
+                    <span>首次推送时设置 upstream</span>
+                  </label>
+                  {allowForcePush ? (
+                    <label className="git-workflow-check">
+                      <input
+                        checked={forceWithLease}
+                        type="checkbox"
+                        onChange={(event) => setForceWithLease(event.target.checked)}
+                      />
+                      <span>使用 --force-with-lease</span>
+                    </label>
+                  ) : null}
+                </>
+              ) : null}
             </div>
           ) : null}
           {mode === 'pullRequest' ? (
             <div className={cx('git-workflow-form', 'tw:grid', 'tw:gap-3')}>
               <label>
                 <span>标题</span>
-                <input value={prTitle} onChange={(event) => setPrTitle(event.target.value)} />
+                <input
+                  disabled={isSubmitting}
+                  value={prTitle}
+                  onChange={(event) => {
+                    setPrTitleEdited(true)
+                    setPrTitle(event.target.value)
+                  }}
+                />
               </label>
               <label>
                 <span>描述</span>
-                <textarea value={prBody} onChange={(event) => setPrBody(event.target.value)} />
+                <textarea
+                  disabled={isSubmitting}
+                  value={prBody}
+                  onChange={(event) => setPrBody(event.target.value)}
+                />
               </label>
               <label className="git-workflow-check">
                 <input
@@ -299,24 +350,24 @@ export function GitWorkflowModal({
             {mode === 'commitPush' || mode === 'commit' || mode === 'push' ? (
               <>
                 {mode !== 'push' ? (
-                <Button
-                  color="secondary"
-                  disabled={isSubmitting || changedFiles.length === 0}
-                  type="button"
-                  onClick={() => void submitCommit()}
-                >
-                  提交选中文件
-                </Button>
+                  <Button
+                    color="secondary"
+                    disabled={isSubmitting || changedFiles.length === 0}
+                    type="button"
+                    onClick={() => void submitCommit()}
+                  >
+                    提交选中文件
+                  </Button>
                 ) : null}
                 {mode !== 'commit' ? (
-                <Button
-                  color="primary"
-                  disabled={isSubmitting}
-                  type="button"
-                  onClick={() => void submitPush()}
-                >
-                  推送
-                </Button>
+                  <Button
+                    color="primary"
+                    disabled={isSubmitting}
+                    type="button"
+                    onClick={() => void submitPush()}
+                  >
+                    推送
+                  </Button>
                 ) : null}
               </>
             ) : (

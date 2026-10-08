@@ -2,6 +2,12 @@ import React from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AnchoredPopover } from '../../../components/ui/AnchoredPopover.js'
 import { Button } from '../../../components/ui/Button.js'
+import { Input } from '../../../components/ui/Input.js'
+const ProjectEnvironments = React.lazy(() =>
+  import('./LocalEnvironmentProjectSettings.js').then((module) => ({
+    default: module.LocalEnvironmentProjectSettings,
+  })),
+)
 import {
   environmentDomainClient,
   type EnvironmentReadResult,
@@ -17,7 +23,14 @@ import {
   type EnvironmentPlatformCommand,
 } from './localEnvironmentEditorModel.js'
 
-type Props = { onError: (message: string) => void; onNotice?: (message: string) => void }
+type Props = {
+  onError: (message: string) => void
+  onNotice?: (message: string) => void
+  projectId?: string
+  environmentId?: string
+  embedded?: boolean
+  onSaved?: () => void
+}
 type PlatformCommand = EnvironmentPlatformCommand
 
 export const WORKTREE_SETUP_VARIABLES = [
@@ -31,7 +44,14 @@ export const WORKTREE_SETUP_VARIABLES = [
   },
 ] as const
 
-export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.ReactNode {
+export function LocalEnvironmentSettings({
+  onError,
+  onNotice,
+  projectId,
+  environmentId,
+  embedded,
+  onSaved,
+}: Props): React.ReactNode {
   const [params] = useSearchParams()
   const threadId = params.get('threadId') ?? ''
   const client = React.useMemo(() => environmentDomainClient(), [])
@@ -41,19 +61,28 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
   const [cleanup, setCleanup] = React.useState<PlatformCommand>({ script: '' })
   const [actions, setActions] = React.useState<EnvironmentActionEditorValue[]>([])
   const [saving, setSaving] = React.useState(false)
+  const [failed, setFailed] = React.useState(false)
+  const Frame = embedded ? React.Fragment : SettingsContentArea
 
   const load = React.useCallback(async () => {
-    if (!threadId) return
-    const result = await client.readEnvironment(threadId)
+    if (!threadId && (!projectId || !environmentId)) return
+    const result =
+      projectId && environmentId
+        ? await client.readProjectEnvironment(projectId, environmentId)
+        : await client.readEnvironment(threadId)
     setSource(result)
     setName(stringValue(result.config.name))
     setSetup(commandValue(result.config.setup))
     setCleanup(commandValue(result.config.cleanup))
     setActions(environmentActionsValue(result.config.actions))
-  }, [client, threadId])
+    setFailed(false)
+  }, [client, threadId, projectId, environmentId])
 
   React.useEffect(() => {
-    void load().catch((cause) => onError(message(cause)))
+    void load().catch((cause) => {
+      setFailed(true)
+      onError(message(cause))
+    })
   }, [load, onError])
 
   const save = async () => {
@@ -67,10 +96,19 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
         cleanup,
         actions,
       })
-      await client.updateEnvironment({ threadId, expectedRevision: source.revision, edits })
+      if (projectId && environmentId)
+        await client.updateProjectEnvironment({
+          projectId,
+          environmentId,
+          expectedRevision: source.revision,
+          edits,
+        })
+      else await client.updateEnvironment({ threadId, expectedRevision: source.revision, edits })
       await load()
+      onSaved?.()
       onNotice?.('环境配置已保存；脚本执行信任已撤销，请重新确认。')
     } catch (cause) {
+      setFailed(true)
       onError(message(cause))
     } finally {
       setSaving(false)
@@ -81,11 +119,13 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
     if (!source) return
     setSaving(true)
     try {
-      await client.updateEnvironment({
-        threadId,
+      const patch = {
         expectedRevision: source.revision,
         trust: { configHash: source.configHash, decision },
-      })
+      }
+      if (projectId && environmentId)
+        await client.updateProjectEnvironment({ projectId, environmentId, ...patch })
+      else await client.updateEnvironment({ threadId, ...patch })
       await load()
       onNotice?.(decision === 'allow' ? '已允许执行当前配置版本。' : '已撤销环境脚本执行信任。')
     } catch (cause) {
@@ -95,7 +135,18 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
     }
   }
 
-  if (!threadId)
+  if (!threadId && (!projectId || !environmentId))
+    return (
+      <SettingsContentArea>
+        <div className="settings-content-inner tw:w-full tw:min-w-0 tw:mx-auto tw:p-5 tw:max-w-[calc(var(--page-content-max-width)+var(--cpx-sys-space-5)*2)]">
+          <h2 className="tw:type-title-xl">本地环境</h2>
+          <React.Suspense fallback={<p>正在加载项目…</p>}>
+            <ProjectEnvironments onError={onError} onNotice={onNotice} />
+          </React.Suspense>
+        </div>
+      </SettingsContentArea>
+    )
+  if (!threadId && !projectId)
     return (
       <SettingsContentArea>
         <SettingsSection title="Local environment" description="请从任务页打开环境设置。">
@@ -106,17 +157,39 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
   if (!source)
     return (
       <SettingsContentArea>
-        <p className="settings-empty-copy">正在读取环境配置…</p>
+        <p className="settings-empty-copy">{failed ? '环境配置读取失败' : '正在读取环境配置…'}</p>
+        {failed && (
+          <Button
+            color="secondary"
+            onClick={() => void load().catch((cause) => onError(message(cause)))}
+          >
+            重新读取
+          </Button>
+        )}
       </SettingsContentArea>
     )
 
   return (
-    <SettingsContentArea>
+    <Frame>
       <SettingsSection
         title="Local environment"
         description={`${source.filePath}。按 key-path 保存，文件中的注释和未知键由 Agent 保留。`}
         actions={
-          <Button color="primary" loading={saving} onClick={() => void save()}>
+          <Button
+            color="primary"
+            loading={saving}
+            disabled={
+              !name.trim() ||
+              actions.some(
+                (action) =>
+                  !action.name.trim() ||
+                  ![action.command, action.windows, action.macos, action.linux].some((command) =>
+                    command.trim(),
+                  ),
+              )
+            }
+            onClick={() => void save()}
+          >
             保存
           </Button>
         }
@@ -124,7 +197,7 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
         <SettingsRow
           title="名称"
           control={
-            <input
+            <Input
               className="confirmation-dialog-input"
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -225,7 +298,21 @@ export function LocalEnvironmentSettings({ onError, onNotice }: Props): React.Re
           }
         />
       </SettingsSection>
-    </SettingsContentArea>
+      {failed ? (
+        <div role="alert" className="tw:flex tw:items-center tw:gap-2 tw:py-3">
+          <span>保存失败，已保留草稿。</span>
+          <Button
+            color="secondary"
+            onClick={() => void load().catch((cause) => onError(message(cause)))}
+          >
+            重新读取并放弃修改
+          </Button>
+          <Button color="secondary" onClick={() => void save()}>
+            重试保存
+          </Button>
+        </div>
+      ) : null}
+    </Frame>
   )
 }
 

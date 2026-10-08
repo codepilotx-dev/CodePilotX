@@ -201,7 +201,9 @@ export class QuestionService {
       options: first.choices.map(({ label }) => label),
       questions,
       answerFormat: approval.questions?.length ? 'structured' : 'legacy',
-      ...(approval.autoResolutionMs ? { autoResolutionMs: approval.autoResolutionMs } : {}),
+      ...(approval.autoResolutionMs && this.db.getTurnInput(turnID)?.taskMode !== 'plan'
+        ? { autoResolutionMs: approval.autoResolutionMs }
+        : {}),
       checkpoint: approval.checkpoint,
       kind: approval.kind,
     }
@@ -221,7 +223,7 @@ export class QuestionService {
       },
     })
     for (const event of events) await Effect.runPromise(this.hub.publish(event))
-    this.scheduleAutoResolution(created.id, created.createdAt, approval.autoResolutionMs, questions)
+    this.scheduleAutoResolution(created.id, created.createdAt, payload.autoResolutionMs, questions)
     return created.id
   }
 
@@ -336,6 +338,10 @@ export class QuestionService {
   ) {
     if (timeout === undefined || timeout < 60_000 || timeout > 240_000 || questions.length === 0)
       return
+    const pending = this.db.repositories.interactions
+      .pendingQuestions()
+      .find((row) => row.id === id)
+    if (!pending || this.db.getTurnInput(pending.turnID)?.taskMode === 'plan') return
     this.autoResolution.track({
       id,
       deadline: createdAt + timeout,

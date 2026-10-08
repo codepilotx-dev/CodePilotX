@@ -92,6 +92,7 @@ export function agentThreadListItemToDesktop(
     workspacePath: workspace.path,
     gitBranch: thread.gitBranch,
     creationSurface: thread.creationSurface,
+    storageSource: thread.storageSource,
     hasScheduledRun: thread.hasScheduledRun,
     isScheduledSession: thread.isScheduledSession,
     isFork: thread.isFork,

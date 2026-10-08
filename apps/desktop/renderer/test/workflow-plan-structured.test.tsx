@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { StructuredPlan } from '@codepilotx/shared/thread'
+import {
+  PlanApprovalCard,
+  planResponseFromDraft,
+} from '../src/features/session/approvals/PlanApprovalCard'
 
 import {
   StructuredPlanView,
@@ -39,6 +43,41 @@ const renderCard = (structured?: StructuredPlan) =>
   )
 
 describe('WorkflowPlanCard structured plans', () => {
+  test('审批区分当前聊天、新聊天和反馈，未协商能力时禁用新聊天选项', () => {
+    expect(
+      planResponseFromDraft({ selected: ['在当前聊天实施'], custom: '', answered: true }),
+    ).toEqual({ action: 'implement' })
+    expect(
+      planResponseFromDraft({ selected: ['在新聊天中实施'], custom: '', answered: true }),
+    ).toEqual({ action: 'implementFresh' })
+    expect(planResponseFromDraft({ selected: [], custom: '先补充验证', answered: true })).toEqual({
+      action: 'feedback',
+      feedback: '先补充验证',
+    })
+    const approval = {
+      id: 'approval',
+      threadId: 'thread',
+      turnId: 'turn',
+      planItemId: 'plan',
+      version: 1,
+      status: 'pending' as const,
+      title: '计划',
+      markdown: '# 计划',
+      nextTurnId: null,
+      createdAt: 1,
+      resolvedAt: null,
+    }
+    const unsupported = renderToStaticMarkup(
+      <PlanApprovalCard approval={approval} onRespond={async () => {}} onContinue={() => {}} />,
+    )
+    expect(unsupported).toContain('当前 Agent 尚未提供新聊天实施能力')
+    expect(unsupported).toContain('继续规划')
+    const supported = renderToStaticMarkup(
+      <PlanApprovalCard approval={approval} onRespond={async () => {}} freshAvailable />,
+    )
+    expect(supported).toContain('保留原规划历史，以空上下文开始实施')
+    expect(supported).not.toContain('当前 Agent 尚未提供新聊天实施能力')
+  })
   test('按固定语义顺序渲染结构化章节并隐藏空章节', () => {
     const html = renderCard(structuredPlan())
 
@@ -104,6 +143,8 @@ describe('WorkflowPlanCard structured plans', () => {
     )
 
     expect(html).toContain('右侧计划正文')
+    expect(html).toContain('复制计划')
+    expect(html).toContain('导出 PLAN.md')
     expect(html).not.toContain('暂无计划')
   })
 

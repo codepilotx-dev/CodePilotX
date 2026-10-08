@@ -28,6 +28,10 @@ type WorktreeRow = {
   deleted_at: number | null
 }
 
+export const WORKTREE_SETTINGS_SCHEMA = [
+  'CREATE TABLE worktree_owned_roots (worktree_id TEXT PRIMARY KEY REFERENCES managed_worktrees(id) ON DELETE CASCADE, root_path TEXT NOT NULL)',
+] as const
+
 type BindingRow = {
   thread_id: string
   binding_id: string
@@ -111,6 +115,22 @@ const operationFromRow = (row: OperationRow): WorktreeOperation => ({
 /** SQL boundary for managed worktrees and per-thread execution bindings. */
 export class WorktreeRepository {
   constructor(readonly sqlite: Database) {}
+
+  setOwnedRoot(worktreeId: string, root: string) {
+    if (!this.settingsAvailable()) return
+    this.sqlite.query('INSERT INTO worktree_owned_roots (worktree_id, root_path) VALUES (?, ?)').run(worktreeId, root)
+  }
+
+  ownedRoot(worktreeId: string): string | null {
+    if (!this.settingsAvailable()) return null
+    const row = this.sqlite.query('SELECT root_path FROM worktree_owned_roots WHERE worktree_id = ?').get(worktreeId) as { root_path: string } | null
+    return row?.root_path ?? null
+  }
+  settingsAvailable() { return Boolean(this.sqlite.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'worktree_owned_roots'").get()) }
+
+  conversations(worktreeId: string) {
+    return this.sqlite.query('SELECT thread.id, thread.title, thread.archived_at FROM thread_execution_bindings binding JOIN threads thread ON thread.id = binding.thread_id WHERE binding.worktree_id = ? ORDER BY thread.updated_at DESC').all(worktreeId) as Array<{ id: string; title: string; archived_at: number | null }>
+  }
 
   insertWorktree(value: ManagedWorktree) {
     this.sqlite

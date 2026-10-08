@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FileEditorViewState } from '../../editor/FileEditor.js'
 import type React from 'react'
-import { Check, Copy, Folder, FolderOpen, ListChecks } from 'lucide-react'
+import { Check, Copy, Download, Folder, FolderOpen, ListChecks } from 'lucide-react'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
@@ -21,6 +21,7 @@ import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
 import { Button } from '../../../components/ui/Button.js'
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
 import { MarkdownMessage } from '../../markdown/index.js'
+import { usePlanDocumentActions } from '../../session/workflow/planDocumentActions.js'
 import { resolveLanguageFromPath } from '../../syntax/index.js'
 import { cx } from '../../../utils/cx.js'
 import {
@@ -136,6 +137,7 @@ export function RightDockSkillPreviewPanel({ tab }: { tab: SkillPreviewTab }): R
 }
 
 export function RightDockPlanPanel({ content }: PlanPanelProps): React.ReactNode {
+  const actions = usePlanDocumentActions(content ?? '')
   if (!content) {
     return (
       <ScrollArea
@@ -161,6 +163,14 @@ export function RightDockPlanPanel({ content }: PlanPanelProps): React.ReactNode
       contentClassName="right-dock-plan-scroll-content tw:min-w-0 tw:p-4"
     >
       <article className="right-dock-plan-document tw:mx-auto tw:w-full tw:max-w-[48rem] tw:text-app-text">
+        <div className="tw:flex tw:justify-end tw:gap-2 tw:pb-3">
+          <Button onClick={actions.copy}>{actions.copied ? <Check /> : <Copy />}复制计划</Button>
+          <Button onClick={actions.exportMarkdown}>
+            <Download />
+            导出 PLAN.md
+          </Button>
+        </div>
+        {actions.error ? <p role="alert">{actions.error}</p> : null}
         <MarkdownMessage text={content} />
       </article>
     </ScrollArea>
@@ -535,14 +545,20 @@ export function RightDockFilePreviewPanel({
                       label: '发送到对话框',
                       onSelect: sendSelectedTextToComposer,
                     },
-                    ...(onAskInSideChat ? [{
-                      kind: 'item' as const,
-                      label: '在侧边聊天中询问',
-                      onSelect: () => {
-                        onAskInSideChat(buildFileSelectionPrompt({ path: expectedPath, selectedText }))
-                        setSelectedText('')
-                      },
-                    }] : []),
+                    ...(onAskInSideChat
+                      ? [
+                          {
+                            kind: 'item' as const,
+                            label: '在侧边聊天中询问',
+                            onSelect: () => {
+                              onAskInSideChat(
+                                buildFileSelectionPrompt({ path: expectedPath, selectedText }),
+                              )
+                              setSelectedText('')
+                            },
+                          },
+                        ]
+                      : []),
                   ]
                 : []
             }

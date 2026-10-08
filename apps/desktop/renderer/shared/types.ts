@@ -211,6 +211,7 @@ export type DesktopGoalSubmission = Omit<
 
 export type DesktopUserMessageInput = {
   text: string
+  taskMode?: 'chat' | 'plan'
   skills?: readonly import('@codepilotx/agent-protocol').SkillSelection[]
   attachments?: DesktopComposerAttachment[]
   retainedAttachmentIds?: string[]
@@ -974,6 +975,10 @@ export type DesktopStoredSettings = {
   gitDraftPullRequest: boolean
   gitAutoDeleteWorktree: boolean
   gitAutoDeleteWorktreeLimit: number
+  worktreeRoot: string
+  worktreeFetchUpstream: boolean
+  prWatchAutoMerge: boolean
+  prWatchInstructions: string
   allowForcePush: boolean
   commitMessagePrompt: string
   pullRequestPrompt: string
@@ -1163,6 +1168,7 @@ export type DesktopToolLogEntry = AgentToolLogEntry
 export type DesktopContextUsage = AgentContextUsage
 
 export type DesktopSessionListItem = {
+  storageSource?: 'local' | undefined
   id: string
   hasScheduledRun?: boolean
   isScheduledSession?: boolean
@@ -1843,9 +1849,16 @@ export type DesktopApi = {
     name: string
     expectedVersion: number
   }): Promise<DesktopWorkspace>
-  editProject(input: { projectId: string; name: string; paths: string[]; expectedVersion: number }): Promise<DesktopWorkspace>
+  editProject(input: {
+    projectId: string
+    name: string
+    paths: string[]
+    expectedVersion: number
+  }): Promise<DesktopWorkspace>
   restoreProject(projectId: string, removalOperationId: string): Promise<DesktopWorkspace>
-  removeProject(projectId: string): Promise<{ archivedThreadCount: number; removalOperationId?: string; undoExpiresAt?: number }>
+  removeProject(
+    projectId: string,
+  ): Promise<{ archivedThreadCount: number; removalOperationId?: string; undoExpiresAt?: number }>
   addProjectFolder(projectId: string, path: string): Promise<DesktopWorkspace>
   removeProjectFolder(projectId: string, folderId: string): Promise<DesktopWorkspace>
   setPrimaryProjectFolder(projectId: string, folderId: string): Promise<DesktopWorkspace>

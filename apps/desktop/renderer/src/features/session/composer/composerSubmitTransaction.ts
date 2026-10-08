@@ -8,6 +8,7 @@ import type {
 } from './composerTypes.js'
 import { cloneDraft } from './composerDraftStore.js'
 import { skillInvocationsFromComposerDocument } from './composerSkillToken.js'
+import { planTaskFromInput } from './composerSlashCommands.js'
 import {
   annotationAttachments,
   validateAnnotationCapacity,
@@ -34,6 +35,19 @@ export function prepareComposerSubmission(
   draft: ComposerDraft,
 ): PreparedComposerSubmission | ComposerSubmitOutcome {
   const snapshot = cloneDraft(draft)
+  const planTask = planTaskFromInput(snapshot.document.text)
+  if (planTask !== null) {
+    const prefixLength = snapshot.document.text.indexOf(planTask)
+    snapshot.document = {
+      text: planTask,
+      tokens: snapshot.document.tokens.map((token) => ({
+        ...token,
+        from: Math.max(0, Math.min(planTask.length, token.from - prefixLength)),
+        to: Math.max(0, Math.min(planTask.length, token.to - prefixLength)),
+      })),
+    }
+    snapshot.goalModeEnabled = false
+  }
   if (Object.keys(snapshot.browserAnnotationFeedback ?? {}).length)
     return failed('prepare', '请先保存或取消正在编辑的批注反馈')
   try {
@@ -64,12 +78,14 @@ export function prepareComposerSubmission(
     clientId: snapshot.clientId,
     input: {
       text,
+      taskMode: planTask !== null || snapshot.collaborationMode === 'plan' ? 'plan' : 'chat',
       attachments,
       ...(skills.length ? { skills } : {}),
     },
     sessionName: skills.length
       ? `${skills.map((skill) => `$${skill.name}`).join(' ')} ${text}`.trim()
       : undefined,
+    ...(snapshot.goalModeEnabled ? { goal: { objective: snapshot.document.text.trim() } } : {}),
   }
 }
 
@@ -78,13 +94,19 @@ export function serializeComposerDocument(document: ComposerDraft['document']): 
     .filter(
       (token) => token.kind === 'thread' || token.kind === 'browser' || token.kind === 'plugin',
     )
-    .map((token) =>
+    .sort((left, right) => left.from - right.from)
+  let text = ''
+  let cursor = 0
+  for (const token of references) {
+    const offset = Math.max(cursor, Math.min(document.text.length, token.from))
+    text += document.text.slice(cursor, offset)
+    text +=
       token.kind === 'plugin'
         ? `[@${escapeMarkdownLabel(token.label)}](${token.value})`
-        : `[${escapeMarkdownLabel(token.label)}](<${token.value.replace(/>/gu, '%3E')}>)`,
-    )
-  if (references.length === 0) return document.text
-  return `${references.join(' ')}${document.text.trim() ? `\n\n${document.text}` : ''}`
+        : `[${escapeMarkdownLabel(token.label)}](<${token.value.replace(/>/gu, '%3E')}>)`
+    cursor = offset
+  }
+  return text + document.text.slice(cursor)
 }
 
 function escapeMarkdownLabel(value: string): string {
@@ -120,7 +142,7 @@ export async function executeComposerSubmitTransaction({
   try {
     const deliveryStatus = await submitToSession(sessionId, prepared.input, {
       inputId: prepared.clientId,
-      ...(draft.goalModeEnabled ? { goal: { objective: draft.document.text.trim() } } : {}),
+      ...(prepared.goal ? { goal: prepared.goal } : {}),
     })
     return {
       status: deliveryStatus === 'queued' ? 'queued' : 'sent',

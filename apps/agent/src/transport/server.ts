@@ -14,6 +14,7 @@ import type { ThreadHistoryService } from '../session/ThreadHistoryService'
 import type { ApprovalService } from '../permission/ApprovalService'
 import type { QuestionService } from '../session/QuestionService'
 import { RpcRouter } from './rpc/RpcRouter'
+import type { PullRequestWatchService } from '../github/PullRequestWatchService'
 import { proxyRendererRequest } from './RendererProxy'
 import { buildEventNextNotification } from './event-envelope'
 import type { AgentLogger } from '../observability/AgentLogger'
@@ -92,6 +93,7 @@ export interface TransportDependencies {
   hooks: HookService
   review: GitReviewService
   github: GithubService
+  prWatches?: PullRequestWatchService
   git: GitWorkspaceService
   tooling: ToolingManager
   pets: PetService
@@ -549,6 +551,7 @@ export const createApp = (dependencies: TransportDependencies) => {
     threadGoals: dependencies.threadGoals,
     threadBookmarks: dependencies.threadBookmarks,
     automation: dependencies.automation,
+    ...(dependencies.prWatches ? { prWatches: dependencies.prWatches } : {}),
     calendar: dependencies.calendar,
     scheduledTasks: dependencies.scheduledTasks,
     schedulePlans: dependencies.schedulePlans,

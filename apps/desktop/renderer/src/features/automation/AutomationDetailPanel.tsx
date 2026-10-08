@@ -2,6 +2,8 @@ import { useEffect, useId, useState } from 'react'
 import { ArrowLeft, AlertTriangle, Check, Play, RotateCcw, X } from 'lucide-react'
 import type React from 'react'
 import type { AutomationRun } from '@codepilotx/shared/automation'
+import type { RpcResult } from '@codepilotx/agent-protocol'
+import { environmentDomainClient } from '../../services/desktop-client/environment-domain-client.js'
 import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
 import { Select } from '../../components/ui/Select.js'
@@ -48,6 +50,8 @@ export function AutomationDetailPanel({
   onOpenThread,
 }: Props): React.ReactNode {
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [watch, setWatch] = useState<RpcResult<'github/watch/read'> | null>(null)
+  useEffect(() => { let active = true; setWatch(null); if (controller.selected) void environmentDomainClient().listPrWatches().then((result) => { if (active) setWatch(result.watches.find((item) => item.automation.id === controller.selected?.id) ?? null) }).catch(() => undefined); return () => { active = false } }, [controller.selected?.id, controller.selected?.updatedAt, controller.runs])
   const settingsId = useId()
   useEffect(() => setSettingsOpen(false), [controller.selected?.id, creating])
   const draft = controller.draft
@@ -126,9 +130,15 @@ export function AutomationDetailPanel({
               onChange={(event) => update({ name: event.currentTarget.value })}
             />
           </FormField>
+          {watch && <div className="tw:grid tw:gap-2 tw:rounded-control tw:border tw:border-app-border-subtle tw:bg-app-panel tw:p-3">
+            <span className="tw:type-row-title">PR 监控</span><span className="tw:type-caption tw:break-all tw:text-app-text-soft">{watch.url}</span>
+            {watch.reason && <p className="tw:m-0 tw:type-caption tw:text-app-text-soft">{watch.reason}</p>}
+            <Button color="secondary" onClick={() => onOpenThread(watch.threadId)}>打开关联修复聊天</Button>
+          </div>}
           <FormField label="任务说明">
             <Textarea
               rows={3}
+              disabled={watch !== null}
               value={draft.prompt}
               onChange={(event) => update({ prompt: event.currentTarget.value })}
             />
@@ -146,13 +156,13 @@ export function AutomationDetailPanel({
               <FormField label="间隔（分钟）">
                 <Input
                   type="number"
-                  min={15}
+                  min={watch ? 5 : 15}
                   value={draft.schedule.intervalMinutes}
                   onChange={(event) =>
                     update({
                       schedule: {
                         mode: 'hourly',
-                        intervalMinutes: Math.max(15, Number(event.currentTarget.value) || 15),
+                        intervalMinutes: Math.max(watch ? 5 : 15, Number(event.currentTarget.value) || (watch ? 5 : 15)),
                       },
                     })
                   }

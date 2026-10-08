@@ -303,6 +303,7 @@ export function mockSessionSnapshot(
       sessionName: options.sessionName ?? null,
       aiTitle: null,
       workspaceName: workspace.name,
+      storageSource: 'local',
       workspacePath: workspace.path,
       standalone: !options.workspacePath,
       permissionMode,

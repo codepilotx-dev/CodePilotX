@@ -1,4 +1,4 @@
-import type { ManagedWorktree, RpcParams, RpcResult } from '@codepilotx/agent-protocol'
+import type { ManagedWorktree, RpcMethod, RpcParams, RpcResult } from '@codepilotx/agent-protocol'
 import { createAgentRpcClient } from '../agentRpcClient.js'
 import { defaultDesktopClientEnvironment } from './environment.js'
 
@@ -8,6 +8,14 @@ export type EnvironmentDomainClient = ReturnType<typeof createEnvironmentDomainC
 
 export function createEnvironmentDomainClient(rpc: Rpc) {
   return {
+    startPrWatch: (params: RpcParams<'github/watch/start'>) =>
+      rpc.call('github/watch/start', params),
+    listPrWatches: () => rpc.call('github/watch/list', {}),
+    updatePrWatch: (params: RpcParams<'github/watch/update'>) =>
+      rpc.call('github/watch/update', params),
+    stopPrWatch: (id: string) => rpc.call('github/watch/stop', { id }),
+    generateGitMessage: (params: RpcParams<'git/message/generate'>) =>
+      rpc.call('git/message/generate', params),
     async supportsThreadFork(): Promise<boolean> {
       try {
         const initialized = await rpc.ensureInitialized()
@@ -17,11 +25,33 @@ export function createEnvironmentDomainClient(rpc: Rpc) {
       }
     },
     readEnvironment: (threadId: string) => rpc.call('local-environment/read', { threadId }),
+    listProjectEnvironments: (projectId: string) =>
+      rpc.call('local-environment/project/list', { projectId }),
+    readProjectEnvironment: (projectId: string, environmentId: string) =>
+      rpc.call('local-environment/project/read', { projectId, environmentId }),
+    createProjectEnvironment: (projectId: string, name: string) =>
+      rpc.call('local-environment/project/create', { projectId, name }),
+    updateProjectEnvironment: (params: RpcParams<'local-environment/project/update'>) =>
+      rpc.call('local-environment/project/update', params),
+    selectProjectEnvironment: (projectId: string, environmentId: string) =>
+      rpc.call('local-environment/project/select', { projectId, environmentId }),
+    deleteProjectEnvironment: (
+      projectId: string,
+      environmentId: string,
+      expectedRevision: string,
+    ) =>
+      rpc.call('local-environment/project/delete', { projectId, environmentId, expectedRevision }),
     updateEnvironment: (params: RpcParams<'local-environment/update'>) =>
       rpc.call('local-environment/update', params),
     listActions: (threadId: string) => rpc.call('local-environment/action/list', { threadId }),
     listWorktrees: (projectId?: string) =>
       rpc.call('worktree/list', projectId ? { projectId } : {}),
+    listWorktreeSettings: (projectId?: string) =>
+      rpc.call('worktree/settings/list', projectId ? { projectId } : {}),
+    deleteWorktreeFromSettings: (worktreeId: string, operationId: string) =>
+      rpc.call('worktree/settings/delete', { worktreeId, operationId }),
+    newChatInWorktree: (worktreeId: string) =>
+      rpc.call('worktree/settings/new-chat', { worktreeId, operationId: crypto.randomUUID() }),
     createWorktree: (params: RpcParams<'worktree/create'>) => rpc.call('worktree/create', params),
     retryWorktreeSetup: (worktreeId: string, operationId: string = crypto.randomUUID()) =>
       rpc.call('worktree/retry-setup', { worktreeId, operationId }),
@@ -86,6 +116,18 @@ let singleton: EnvironmentDomainClient | null = null
 export function environmentDomainClient(): EnvironmentDomainClient {
   if (singleton) return singleton
   const environment = defaultDesktopClientEnvironment()
+  if (!environment.window?.codePilotXDesktop) {
+    const call = (async (method: RpcMethod, params: unknown) =>
+      (await import('./environment-domain-mock.js')).browserEnvironmentCall(
+        method,
+        params as RpcParams<typeof method>,
+      )) as Rpc['call']
+    singleton = createEnvironmentDomainClient({
+      call,
+      ensureInitialized: async () => ({ capabilities: [] }) as never,
+    })
+    return singleton
+  }
   const clientInstanceId = crypto.randomUUID()
   const rpc = createAgentRpcClient({
     ...environment,
@@ -102,6 +144,10 @@ export function environmentDomainClient(): EnvironmentDomainClient {
           'rpc.typed.v1',
           'local-environment.manage.v1',
           'worktree.manage.v1',
+          'worktree.settings.v1',
+          'local-environment.multiple.v1',
+          'github.watch.v1',
+          'git.generate.v1',
           'thread.handoff.v1',
           'thread.fork.v1',
         ],

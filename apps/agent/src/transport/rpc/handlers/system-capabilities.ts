@@ -22,15 +22,20 @@ import {
  * - `item_artifacts` 表存在：保留 `artifacts.read.v1`；缺失时剔除，保持旧库
  *   只读兼容（绝不 ALTER 或降级 user_version）。
  */
-export function filterAdvertisedCapabilities(db: AgentDatabase): ReadonlyArray<ProtocolCapability> {
-  const { creationSurface } = probeThreadsStorageCapabilities(db.sqlite)
+export function filterAdvertisedCapabilities(
+  db: AgentDatabase,
+  freshPlanAvailable = true,
+): ReadonlyArray<ProtocolCapability> {
+  const { creationSurface, projectlessOwner } = probeThreadsStorageCapabilities(db.sqlite)
   const { itemArtifactsTable } = probeArtifactsStorageCapabilities(db.sqlite)
   const { automations, automationRuns } = probeAutomationStorageCapabilities(db.sqlite)
+  const tables = new Set((db.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{name:string}>).map((row) => row.name))
   const { scheduledTasks, schedulePlanProposals } = probeScheduleCalendarStorageCapabilities(
     db.sqlite,
   )
   return Capabilities.filter(
     (capability): capability is ProtocolCapability =>
+      (capability !== 'plan.approval.fresh.v1' || (freshPlanAvailable && projectlessOwner)) &&
       ((capability !== 'browser.manage.v1' && capability !== 'browser.host.v1') ||
         new BrowserRepository(db).available()) &&
       (capability !== 'browser.data.v1' || new BrowserDataRepository(db).available()) &&
@@ -41,7 +46,8 @@ export function filterAdvertisedCapabilities(db: AgentDatabase): ReadonlyArray<P
       ((capability !== 'project.edit.v1' && capability !== 'project.restore.v1') ||
         db.projectMembershipAvailable()) &&
       (capability !== 'thread.creation-surface.v1' || creationSurface) &&
-      (capability !== 'plan.approval.v1' || db.repositories.planApprovals.available()) &&
+      ((capability !== 'plan.approval.v1' && capability !== 'plan.approval.fresh.v1') ||
+        db.repositories.planApprovals.available()) &&
       (capability !== 'thread.goal.v1' ||
         (db.repositories.threadGoals.available() &&
           db.repositories.threadGoalLedger.available() &&
@@ -50,6 +56,9 @@ export function filterAdvertisedCapabilities(db: AgentDatabase): ReadonlyArray<P
       (capability !== 'thread.bookmarks.v1' || db.repositories.threadBookmarks.available()) &&
       (capability !== 'artifacts.read.v1' || itemArtifactsTable) &&
       (capability !== 'automation.manage.v1' || (automations && automationRuns)) &&
+      (capability !== 'worktree.settings.v1' || tables.has('worktree_owned_roots')) &&
+      (capability !== 'local-environment.multiple.v1' || (tables.has('local_environment_selections') && tables.has('worktree_environment_snapshots'))) &&
+      (capability !== 'github.watch.v1' || (automations && automationRuns && tables.has('pr_watches') && tables.has('automation_host_tool_calls'))) &&
       (capability !== 'calendar.manage.v1' ||
         (automations && automationRuns && scheduledTasks && schedulePlanProposals)),
   )

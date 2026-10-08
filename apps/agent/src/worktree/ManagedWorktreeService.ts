@@ -6,6 +6,7 @@ import type {
   WorktreeOperation as PublicWorktreeOperation,
 } from '@codepilotx/agent-protocol/worktree'
 import { AgentError } from '../domain'
+import { GitCommandRunner } from '../git/GitCommandRunner'
 import { WorkspaceIsolationService } from '../subagent/WorkspaceIsolationService'
 import { WorktreeIncludeService } from './WorktreeIncludeService'
 import { WorktreeOperationOutputBuffer } from './WorktreeOperationOutputBuffer'
@@ -93,6 +94,7 @@ export class ManagedWorktreeService {
     private readonly id: () => string,
     private readonly output: WorktreeOperationOutputBuffer,
     private readonly autoDeletePolicy: AutoDeletePolicy,
+    private readonly settings: () => { root?: string; fetchUpstream?: boolean },
   ) {}
 
   static async open(input: {
@@ -105,6 +107,7 @@ export class ManagedWorktreeService {
     id?: () => string
     output?: WorktreeOperationOutputBuffer
     autoDeletePolicy?: AutoDeletePolicy
+    settings?: () => { root?: string; fetchUpstream?: boolean }
   }) {
     await mkdir(input.managedRoot, { recursive: true })
     await mkdir(input.stateRoot, { recursive: true, mode: 0o700 })
@@ -126,6 +129,7 @@ export class ManagedWorktreeService {
       input.id ?? randomUUID,
       input.output ?? new WorktreeOperationOutputBuffer(input.now ?? Date.now),
       input.autoDeletePolicy ?? (() => ({ enabled: false, limit: 0 })),
+      input.settings ?? (() => ({})),
     )
   }
 
@@ -360,19 +364,22 @@ export class ManagedWorktreeService {
     return source
   }
 
-  private targetPath(repositoryRoot: string, id: string, suffix = '') {
+  private targetPath(repositoryRoot: string, id: string, suffix = '', root = this.managedRoot) {
     const repositoryHash = createHash('sha256')
       .update(pathKey(repositoryRoot), 'utf8')
       .digest('hex')
       .slice(0, 16)
-    const target = resolve(this.managedRoot, `${repositoryHash}-${id}${suffix}`)
-    if (!contained(this.managedRoot, target))
+    const target = resolve(root, `${repositoryHash}-${id}${suffix}`)
+    if (!contained(root, target))
       throw new AgentError('WORKTREE_PATH_DENIED', 'worktree 目标路径越界', 403)
     return target
   }
 
-  private async assertNewTarget(target: string) {
-    if (!contained(this.managedRoot, target))
+  private async assertNewTarget(target: string, root = this.managedRoot) {
+    const directory = await lstat(root)
+    if (!directory.isDirectory() || directory.isSymbolicLink() || (await realpath(root)) !== resolve(root))
+      throw new AgentError('WORKTREE_PATH_UNSAFE', 'worktree 托管根目录已变化', 409)
+    if (!contained(root, target))
       throw new AgentError('WORKTREE_PATH_DENIED', 'worktree 目标路径越界', 403)
     const existing = await lstat(target).catch((cause: NodeJS.ErrnoException) =>
       cause.code === 'ENOENT' ? null : Promise.reject(cause),
@@ -407,8 +414,26 @@ export class ManagedWorktreeService {
       const repositoryRoot = await this.projectRepository(input.projectId)
       const sourceRoot = await this.sourceRepository(repositoryRoot, input.sourceWorkspacePath)
       const worktreeId = this.id()
-      const target = this.targetPath(repositoryRoot, worktreeId)
-      await this.assertNewTarget(target)
+      const preference = this.settings()
+      const requestedRoot = preference.root?.trim() || this.managedRoot
+      if (requestedRoot !== this.managedRoot && !this.repository.settingsAvailable()) throw new AgentError('WORKTREE_NOT_READY', '当前存储不支持自定义工作树根目录', 409)
+      if (!isAbsolute(requestedRoot)) throw new AgentError('WORKTREE_PATH_UNSAFE', '工作树根目录必须为绝对路径', 400)
+      if (contained(repositoryRoot, resolve(requestedRoot)) || contained(resolve(requestedRoot), repositoryRoot))
+        throw new AgentError('WORKTREE_PATH_UNSAFE', '工作树根目录不能与项目目录相互包含', 409)
+      await mkdir(requestedRoot, { recursive: true })
+      const rootMetadata = await lstat(requestedRoot)
+      if (!rootMetadata.isDirectory() || rootMetadata.isSymbolicLink())
+        throw new AgentError('WORKTREE_PATH_UNSAFE', '工作树根目录必须为普通目录', 409)
+      const creationRoot = await realpath(requestedRoot)
+      if (contained(repositoryRoot, creationRoot) || contained(creationRoot, repositoryRoot))
+        throw new AgentError('WORKTREE_PATH_UNSAFE', '工作树根目录不能与项目目录相互包含', 409)
+      let fetchWarning: string | null = null
+      if (preference.fetchUpstream) {
+        try { await new GitCommandRunner({ timeoutMs: 30_000, maxOutputBytes: 256 * 1024 }).run({ cwd: repositoryRoot, args: ['-c', `core.hooksPath=${process.platform === 'win32' ? 'NUL' : '/dev/null'}`, 'fetch', '--all', '--prune'], env: { GIT_TERMINAL_PROMPT: '0' } }) }
+        catch { fetchWarning = '上游获取失败，继续使用本地引用' }
+      }
+      const target = this.targetPath(repositoryRoot, worktreeId, '', creationRoot)
+      await this.assertNewTarget(target, creationRoot)
       let branchName: string | null = null
       let baseCommit: string
       let layers: Awaited<
@@ -458,7 +483,9 @@ export class ManagedWorktreeService {
         worktreeId,
         step: 'create-worktree',
         status: 'running',
+        ...(fetchWarning ? { warnings: [fetchWarning] } : {}),
       })
+      this.repository.setOwnedRoot(worktreeId, creationRoot)
       await this.requireGit(
         repositoryRoot,
         ['worktree', 'add', '--detach', target, baseCommit],
@@ -467,7 +494,7 @@ export class ManagedWorktreeService {
       const canonical = await realpath(target)
       const metadata = await lstat(canonical)
       if (
-        !contained(this.managedRoot, canonical) ||
+        !contained(creationRoot, canonical) ||
         !metadata.isDirectory() ||
         metadata.isSymbolicLink()
       ) {
@@ -543,7 +570,7 @@ export class ManagedWorktreeService {
       const operation = this.updateOperation(input.operationId, {
         step: 'complete',
         status: 'completed',
-        warnings: [...warnings, ...(setup.warnings ?? [])],
+        warnings: [...(fetchWarning ? [fetchWarning] : []), ...warnings, ...(setup.warnings ?? [])],
         completedAt: this.now(),
       })
       this.output.complete(input.operationId)
@@ -569,6 +596,13 @@ export class ManagedWorktreeService {
 
   list(projectId?: string) {
     return { worktrees: this.repository.listWorktrees(projectId).map(publicWorktree) }
+  }
+
+  settingsList(projectId?: string) {
+    return this.repository.listWorktrees(projectId).map((worktree) => ({
+      worktree: publicWorktree(worktree), path: worktree.path, repositoryRoot: worktree.repositoryRoot,
+      conversations: this.repository.conversations(worktree.id),
+    }))
   }
 
   read(worktreeId: string) {
@@ -712,7 +746,7 @@ export class ManagedWorktreeService {
       .map((line) => pathKey(line.slice(9)))
     if (
       !registered.includes(pathKey(worktree.path)) ||
-      !contained(this.managedRoot, worktree.path)
+      !contained(this.repository.ownedRoot(worktree.id) ?? this.managedRoot, worktree.path)
     ) {
       throw new AgentError('WORKTREE_PATH_DENIED', '只允许删除已登记的托管 worktree', 403)
     }
@@ -720,13 +754,14 @@ export class ManagedWorktreeService {
 
   private async removeManagedPath(worktree: ManagedWorktree) {
     const requested = resolve(worktree.path)
-    if (!contained(this.managedRoot, requested)) {
+    const root = this.repository.ownedRoot(worktree.id) ?? this.managedRoot
+    if (!contained(root, requested)) {
       throw new AgentError('WORKTREE_PATH_DENIED', 'worktree 删除路径越界', 403)
     }
     const canonical = await realpath(requested).catch((cause: NodeJS.ErrnoException) =>
       cause.code === 'ENOENT' ? null : Promise.reject(cause),
     )
-    if (canonical && !contained(this.managedRoot, canonical)) {
+    if (canonical && !contained(root, canonical)) {
       throw new AgentError('WORKTREE_PATH_DENIED', 'worktree 删除路径越界', 403)
     }
     await this.assertRegistered({ ...worktree, path: canonical ?? requested })
@@ -780,9 +815,10 @@ export class ManagedWorktreeService {
     worktreeId: string
     operationId: string
     kind?: 'delete' | 'auto-cleanup'
+    archiveConversations?: () => Promise<void>
   }) {
     let worktree = this.requireWorktree(input.worktreeId)
-    if (this.repository.hasUnarchivedBinding(worktree.id)) {
+    if (!input.archiveConversations && this.repository.hasUnarchivedBinding(worktree.id)) {
       throw new AgentError('WORKTREE_NOT_READY', '仍有未归档任务使用此 worktree', 409)
     }
     const kind = input.kind ?? 'delete'
@@ -790,10 +826,16 @@ export class ManagedWorktreeService {
       ...input,
       projectId: worktree.projectId,
       kind,
-      request: input,
+      request: { worktreeId: input.worktreeId, operationId: input.operationId, kind: input.kind },
     })
     if (started.replay) return this.result(worktree.id, input.operationId)
     this.claimWorktreeOperation(started.operation, worktree.id)
+    try { await input.archiveConversations?.() }
+    catch (cause) {
+      this.updateOperation(input.operationId, { step: 'failed', status: 'failed', errorCode: safeCode(cause, 'WORKTREE_NOT_READY'), completedAt: this.now() })
+      this.output.complete(input.operationId)
+      throw cause
+    }
     worktree = this.requireWorktree(input.worktreeId)
     if (this.repository.hasUnarchivedBinding(worktree.id)) {
       this.updateOperation(input.operationId, {
@@ -897,8 +939,9 @@ export class ManagedWorktreeService {
         worktree.repositoryRoot,
         worktree.id,
         `-r${this.now().toString(36)}-${this.id()}`,
+        this.repository.ownedRoot(worktree.id) ?? this.managedRoot,
       )
-      await this.assertNewTarget(target)
+      await this.assertNewTarget(target, this.repository.ownedRoot(worktree.id) ?? this.managedRoot)
       this.updateOperation(input.operationId, { step: 'restore-worktree', status: 'running' })
       await this.requireGit(
         worktree.repositoryRoot,
