@@ -832,7 +832,7 @@ export class ThreadProjection {
       thread,
       turns,
       agents,
-      subagents: this.subagents.projectionForThread(threadId),
+      subagents: this.subagents.projectionForThread(threadId, true),
       inputs,
       messages,
       items,
@@ -1097,7 +1097,7 @@ export class ThreadProjection {
     const queueMetadata = this.db.queueStateMeta(threadId) ?? { version: 0, pauseReason: null }
     return {
       thread,
-      subagents: this.subagents.projectionForThread(threadId),
+      subagents: this.subagents.projectionForThread(threadId, true),
       turns: bundles,
       pendingPlanApproval: this.db.repositories.planApprovals.pending(threadId),
       queue: {
@@ -1119,12 +1119,22 @@ export class ThreadProjection {
     }
   }
 
-  listPage(params: { projectID?: string; archived?: boolean; limit?: number; cursor?: string } = {}) {
+  listPage(
+    params: { projectID?: string; archived?: boolean; limit?: number; cursor?: string } = {},
+  ) {
     const limit = Math.min(500, Math.max(1, params.limit ?? 100))
     const rows = this.list({ ...params, limit: limit + 1 })
     const threads = rows.slice(0, limit)
     const last = threads.at(-1)
-    return { threads, nextCursor: rows.length > limit && last ? Buffer.from(JSON.stringify({ updatedAt: last.updatedAt, id: last.id })).toString('base64url') : null }
+    return {
+      threads,
+      nextCursor:
+        rows.length > limit && last
+          ? Buffer.from(JSON.stringify({ updatedAt: last.updatedAt, id: last.id })).toString(
+              'base64url',
+            )
+          : null,
+    }
   }
 
   list(params: { projectID?: string; archived?: boolean; limit?: number; cursor?: string } = {}) {
@@ -1143,8 +1153,19 @@ export class ThreadProjection {
     const values: Array<string | number | null> = []
     if (params.cursor) {
       let cursor: { updatedAt: number; id: string }
-      try { cursor = JSON.parse(Buffer.from(params.cursor, 'base64url').toString('utf8')); if (!Number.isSafeInteger(cursor.updatedAt) || cursor.updatedAt < 0 || typeof cursor.id !== 'string' || !cursor.id || cursor.id.length > 500) throw new Error() }
-      catch { throw new AgentError('INVALID_REQUEST', '聊天列表 cursor 无效', 400) }
+      try {
+        cursor = JSON.parse(Buffer.from(params.cursor, 'base64url').toString('utf8'))
+        if (
+          !Number.isSafeInteger(cursor.updatedAt) ||
+          cursor.updatedAt < 0 ||
+          typeof cursor.id !== 'string' ||
+          !cursor.id ||
+          cursor.id.length > 500
+        )
+          throw new Error()
+      } catch {
+        throw new AgentError('INVALID_REQUEST', '聊天列表 cursor 无效', 400)
+      }
       where.push('(t.updated_at < ? OR (t.updated_at = ? AND t.id < ?))')
       values.push(cursor.updatedAt, cursor.updatedAt, cursor.id)
     }

@@ -16,6 +16,7 @@ import { THREAD_WORKTREE_OPERATION_SCHEMA } from '../repositories/thread-worktre
 import { WORKTREE_SETTINGS_SCHEMA } from '../../worktree/WorktreeRepository'
 import { LOCAL_ENVIRONMENT_SELECTION_SCHEMA } from '../../local-environment/LocalEnvironmentRepository'
 import { PR_WATCH_SCHEMA } from '../../github/PullRequestWatchService'
+import { SUBAGENT_COLLABORATION_SCHEMA } from '../../subagent/SubagentCollaborationRepository'
 import { AUTOMATION_HOST_AUDIT_SCHEMA } from '../../automation/AutomationHostAuditRepository'
 
 import { PROFILE_APPLICATION_ID, PROFILE_SCHEMA_VERSION, SCHEMA_VERSION } from './schema'
@@ -169,6 +170,7 @@ export const FINAL_SCHEMA = [
   ...LOCAL_ENVIRONMENT_SELECTION_SCHEMA,
   ...PR_WATCH_SCHEMA,
   ...AUTOMATION_HOST_AUDIT_SCHEMA,
+  ...SUBAGENT_COLLABORATION_SCHEMA,
   ...BROWSER_SCHEMA,
   ...BROWSER_DATA_SCHEMA,
   'CREATE INDEX agent_checkpoints_thread ON agent_checkpoints(thread_id, updated_at DESC)',
@@ -1565,7 +1567,20 @@ class SchemaInitializer {
               if (!columns.some((column) => column.name === 'workspace_owner_thread_id'))
                 this.sqlite.exec('ALTER TABLE threads ADD COLUMN workspace_owner_thread_id TEXT')
             },
-            56: () => this.sqlite.exec([...WORKTREE_SETTINGS_SCHEMA, ...LOCAL_ENVIRONMENT_SELECTION_SCHEMA, ...PR_WATCH_SCHEMA, ...AUTOMATION_HOST_AUDIT_SCHEMA].map((statement) => statement.replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS ')).join(';')),
+            57: () => this.sqlite.exec(SUBAGENT_COLLABORATION_SCHEMA.join(';')),
+            56: () =>
+              this.sqlite.exec(
+                [
+                  ...WORKTREE_SETTINGS_SCHEMA,
+                  ...LOCAL_ENVIRONMENT_SELECTION_SCHEMA,
+                  ...PR_WATCH_SCHEMA,
+                  ...AUTOMATION_HOST_AUDIT_SCHEMA,
+                ]
+                  .map((statement) =>
+                    statement.replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS '),
+                  )
+                  .join(';'),
+              ),
             52: () =>
               this.sqlite.exec(
                 FINAL_SCHEMA.filter((statement) =>

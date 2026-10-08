@@ -19,11 +19,7 @@ import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import type { ToolExecutor } from '../tool/ToolExecutor'
 import { PI_LIFECYCLE_TOOLS, type ToolExposureInput } from '../tool/ToolExposurePlan'
-import {
-  toolCatalogSummary,
-  type ToolCatalog,
-  type ToolCatalogEntry,
-} from '../tool/ToolRegistry'
+import { toolCatalogSummary, type ToolCatalog, type ToolCatalogEntry } from '../tool/ToolRegistry'
 import { buildCapabilityCatalogSection } from '../prompt/capability-catalog'
 import type { PromptSection } from '../prompt/types'
 import { resolveEffectivePermissionConfig } from '../permission/EffectivePermissionConfig'
@@ -1188,6 +1184,9 @@ export class AgentRuntimeService implements AgentRuntime {
           'spawn_agents',
           'wait_agents',
           'send_agent',
+          'followup_agent',
+          'report_agent',
+          'list_agents',
           'stop_agent',
           'update_plan',
           'update_goal',
@@ -1351,6 +1350,23 @@ export class AgentRuntimeService implements AgentRuntime {
       // 按来源实测的上下文字符量只对本次 run 有意义，用闭包保存，
       // 由 executeHarnessRun 在每次 provider 请求前刷新、由 eventSink 读取。
       let contextUsageBreakdown: ContextUsageBreakdownEntry[] | undefined
+      const executeSubagentTool = (
+        name: string,
+        input: Record<string, unknown>,
+        toolCallID: string,
+        execute: (input: Record<string, unknown>) => Promise<unknown>,
+      ) => {
+        if (!request.delegation)
+          throw new AgentError('TOOL_NOT_AVAILABLE', '当前执行没有子 Agent 协作入口', 409)
+        const definition = this.options.toolExecutor.definition(name)
+        const normalized = definition.prepareArguments?.(input) ?? input
+        return this.options.toolExecutor.execute(name, normalized as Record<string, unknown>, {
+          ...executionContext,
+          ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
+          toolCallID,
+          subagentLifecycle: async (_name, actual) => execute(actual),
+        })
+      }
       const runtimeOptions: HarnessRuntimeOptions = {
         activated: (threadID, active) => this.active.set(threadID, active),
         toolExecutor: this.options.toolExecutor,
@@ -1520,51 +1536,78 @@ export class AgentRuntimeService implements AgentRuntime {
               plan: input,
             })
           },
-          spawnAgents: async (input) => {
-            const agents = Array.isArray(input.agents) ? input.agents : []
-            if (
-              request.taskMode === 'plan' &&
-              agents.some(
-                (agent) =>
-                  !agent ||
-                  typeof agent !== 'object' ||
-                  (agent as Record<string, unknown>).profile !== 'explorer',
+          spawnAgents: async (input, toolCallID) =>
+            executeSubagentTool('spawn_agents', input, toolCallID, async (input) => {
+              const agents = Array.isArray(input.agents) ? input.agents : []
+              if (
+                request.taskMode === 'plan' &&
+                agents.some(
+                  (agent) =>
+                    !agent ||
+                    typeof agent !== 'object' ||
+                    (agent as Record<string, unknown>).profile !== 'explorer',
+                )
               )
-            )
-              throw new Error('Plan 模式只能创建 Explorer 子 Agent')
-            return request.delegation?.spawn(input as never)
-          },
-          waitAgents: async (input, toolCallID) => {
-            const runIDs = Array.isArray(input.runIDs) ? input.runIDs.map(String) : []
-            const mode = input.mode === 'any' ? 'any' : 'all'
-            if (!(await request.delegation?.isWaitSatisfied({ runIDs, mode }))) {
-              await pause({
-                kind: 'subagents',
-                runIDs,
-                waitMode: mode,
-                toolCallID,
-                checkpoint: {
-                  state: JSON.stringify({
-                    engine: 'pi',
-                    sessionID: request.sessionID,
-                  }),
-                  interruption: { toolCallID },
-                  toolCallID,
-                },
+                throw new Error('Plan 模式只能创建 Explorer 子 Agent')
+              return request.delegation?.spawn(input as never, {
+                permissionConfig: effectivePermissionConfig,
+                ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
               })
-              return { __piPause: true, status: 'waiting_for_subagents' }
-            }
-            return request.delegation?.wait({ runIDs, mode })
-          },
-          sendAgent: async (input) =>
-            request.delegation?.send({
-              taskID: String(input.taskID ?? input.taskId ?? ''),
-              message: String(input.message ?? ''),
             }),
-          stopAgent: async (input) =>
-            request.delegation?.stop({
-              taskID: String(input.taskID ?? input.taskId ?? ''),
+          waitAgents: async (input, toolCallID) =>
+            executeSubagentTool('wait_agents', input, toolCallID, async (input) => {
+              const runIDs = Array.isArray(input.runIDs) ? input.runIDs.map(String) : []
+              const mode = input.mode === 'any' ? 'any' : 'all'
+              if (!(await request.delegation?.isWaitSatisfied({ runIDs, mode }))) {
+                await pause({
+                  kind: 'subagents',
+                  runIDs,
+                  waitMode: mode,
+                  toolCallID,
+                  checkpoint: {
+                    state: JSON.stringify({
+                      engine: 'pi',
+                      sessionID: request.sessionID,
+                    }),
+                    interruption: { toolCallID },
+                    toolCallID,
+                  },
+                })
+                return { __piPause: true, status: 'waiting_for_subagents' }
+              }
+              return request.delegation?.wait({ runIDs, mode })
             }),
+          followupAgent: async (input, operationID) =>
+            executeSubagentTool('followup_agent', input, operationID, async (actual) =>
+              request.delegation?.followup?.({
+                taskID: String(actual.taskID),
+                message: String(actual.message),
+                operationID,
+              }),
+            ),
+          reportAgent: async (input, operationID) =>
+            executeSubagentTool('report_agent', input, operationID, async (actual) =>
+              request.delegation?.report?.({ message: String(actual.message), operationID }),
+            ),
+          listAgents: async (input, toolCallID) =>
+            executeSubagentTool('list_agents', input, toolCallID, async () =>
+              request.delegation?.list?.(),
+            ),
+          sendAgent: async (input, operationID) =>
+            executeSubagentTool('send_agent', input, operationID, async (input) =>
+              request.delegation?.send({
+                taskID: String(input.taskID ?? input.taskId ?? ''),
+                message: String(input.message ?? ''),
+                operationID,
+              }),
+            ),
+          stopAgent: async (input, operationID) =>
+            executeSubagentTool('stop_agent', input, operationID, async (input) =>
+              request.delegation?.stop({
+                operationID,
+                taskID: String(input.taskID ?? input.taskId ?? ''),
+              }),
+            ),
           finalizeResult: async (input: SubagentResult) => input,
         },
       }
@@ -1597,6 +1640,9 @@ export class AgentRuntimeService implements AgentRuntime {
             : {}),
           exposedTools,
           promptSections: effectivePromptSections,
+          ...(request.collaborationMessages
+            ? { collaborationMessages: request.collaborationMessages }
+            : {}),
           bundle: composedBundle,
           ...(request.attachments ? { attachments: request.attachments } : {}),
           preapprovedToolCalls,
@@ -1699,6 +1745,10 @@ export class AgentRuntimeService implements AgentRuntime {
             ? { defaultModeRequestUserInput: true }
             : {}),
         ...(request.delegationEnabled === false ? { delegationEnabled: false } : {}),
+        ...(runtime.depth !== undefined ? { depth: runtime.depth } : {}),
+        ...(request.collaborationEnabled !== undefined
+          ? { collaborationEnabled: request.collaborationEnabled }
+          : {}),
         ...(request.allowedTools ? { allowedTools: request.allowedTools } : {}),
         ...(request.activeDeferredTools
           ? { activeDeferredTools: request.activeDeferredTools }

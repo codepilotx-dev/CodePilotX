@@ -4,6 +4,7 @@ import type {
   ApprovalRequest,
   Input,
   Item,
+  SubagentProjection,
   Thread,
   Turn,
 } from '@codepilotx/shared/thread'
@@ -44,6 +45,105 @@ const thread: Thread = {
   createdAt: 1,
   updatedAt: 2,
 }
+
+test('子代理树在快照和实时事件中统一投影后代进度与父级报告', () => {
+  const projection = (
+    id: string,
+    parentThreadId: string,
+    childThreadId: string,
+  ): SubagentProjection => {
+    const run = {
+      id: `run-${id}`,
+      taskId: id,
+      generation: 1,
+      status: 'running' as const,
+      queueReason: null,
+      model,
+      permissionConfig,
+      result: null,
+      error: null,
+      createdAt: 1,
+      startedAt: 1,
+      finishedAt: null,
+      updatedAt: 1,
+    }
+    return {
+      task: {
+        id,
+        parentThreadId,
+        parentTurnId: 'root-turn',
+        parentAgentId: 'root-agent',
+        childThreadId,
+        displayName: id,
+        profile: 'worker',
+        task: 'task',
+        permissionCeiling: permissionConfig,
+        workspace: { mode: 'shared', state: 'ready', rootPath: null, baselineRef: null },
+        currentRun: run,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      currentRun: run,
+    }
+  }
+  const parent = projection('parent', thread.id, 'child-thread')
+  parent.task = {
+    ...parent.task,
+    depth: 1,
+    waitingForDescendants: true,
+    notices: [{ id: 'report', kind: 'report', message: '找到证据', createdAt: 1 }],
+  }
+  const child = projection('leaf', 'child-thread', 'leaf-thread')
+  const item: Extract<Item, { type: 'subagent' }> = {
+    id: 'subagent-item',
+    messageID: 'message',
+    turnId: 'root-turn',
+    agentId: 'root-agent',
+    type: 'subagent',
+    subagentTaskId: parent.task.id,
+    runId: parent.currentRun!.id,
+    childThreadId: parent.task.childThreadId,
+    displayName: 'parent',
+    profile: 'worker',
+    task: 'task',
+    status: 'running',
+    queueReason: null,
+    result: null,
+    createdAt: 1,
+  }
+  const state = createCanonicalThreadState({
+    ...page([
+      {
+        turn: turn('root-turn'),
+        inputs: [],
+        messages: [],
+        agents: [],
+        items: [item],
+        approvals: [],
+      },
+    ]),
+    subagents: [parent, child],
+  })
+  expect(state.itemsById.get(item.id)).toMatchObject({
+    depth: 1,
+    descendantCount: 1,
+    activeDescendantCount: 1,
+    waitingForDescendants: true,
+    latestReport: '找到证据',
+  })
+  const finished = { ...child.currentRun!, status: 'completed' as const }
+  const next = applyThreadEnvelope(
+    state,
+    durable(11, 'subagent/updated', {
+      projection: { task: { ...child.task, currentRun: finished }, currentRun: finished },
+    }),
+  )
+  expect(next.itemsById.get(item.id)).toMatchObject({
+    descendantCount: 1,
+    activeDescendantCount: 0,
+    latestReport: '找到证据',
+  })
+})
 
 test('MCP 表单实时请求和三种回复经过统一 projection，重复事件不恢复待处理卡', () => {
   for (const action of ['accept', 'decline', 'cancel'] as const) {

@@ -144,6 +144,28 @@ export async function executeHarnessRun(
       metadata: { threadID: request.threadID, turnID: request.turnID, agentID: request.agentID },
     },
   }))
+  harness.on('context', (event) => {
+    const notices = request.collaborationMessages?.() ?? []
+    if (!notices.length) return undefined
+    return {
+      messages: [
+        ...event.messages,
+        {
+          role: 'user' as const,
+          content: [
+            {
+              type: 'text' as const,
+              text:
+                '<subagent_notices untrusted="true">' +
+                JSON.stringify(notices) +
+                '</subagent_notices>',
+            },
+          ],
+          timestamp: notices.at(-1)!.created_at,
+        },
+      ],
+    }
+  })
   harness.on('before_provider_payload', (event) => {
     const policy = inferPromptCacheRuntimePolicy(event.model, bundle.cacheKey)
     const applied = applyPromptCacheRuntimePolicy(event.payload, policy, bundle.stableContextText)

@@ -252,10 +252,12 @@ export function hydrateLatestThreadPage(
   next.pendingPlanApproval = page.pendingPlanApproval ?? null
   mergePageEntities(next, page, 'replace')
   next.subagentsByTaskId = mapBy(page.subagents, (projection) => projection.task.id)
+  reconcileSubagentItems(next)
   next.hookTrustsById = mapBy(
     page.pendingHookTrusts ?? [],
     (interaction) => interaction.interactionId,
   )
+  reconcileSubagentItems(next)
   rebuildTurnGroups(next)
   next.history = {
     olderCursor: page.olderCursor,
@@ -281,6 +283,7 @@ export function prependOlderThreadPage(
   for (const projection of page.subagents) {
     next.subagentsByTaskId.set(projection.task.id, projection)
   }
+  reconcileSubagentItems(next)
   rebuildTurnGroups(next)
   next.history = {
     ...next.history,
@@ -631,7 +634,7 @@ function applyEnvelopePayload(
     case 'subagent/updated':
     case 'subagent/workspaceUpdated':
       state.subagentsByTaskId.set(envelope.payload.projection.task.id, envelope.payload.projection)
-      reconcileSubagentItems(state, envelope.payload.projection)
+      reconcileSubagentItems(state)
       return
     case 'item/started':
     case 'item/completed':
@@ -1073,12 +1076,34 @@ function applyQueueUpdate(
   if (payload.pauseReason !== undefined) state.queue.pauseReason = payload.pauseReason
 }
 
-function reconcileSubagentItems(state: CanonicalThreadState, projection: SubagentProjection): void {
+function reconcileSubagentItems(state: CanonicalThreadState): void {
+  const descendants = (threadId: string): SubagentProjection[] =>
+    [...state.subagentsByTaskId.values()]
+      .filter((entry) => entry.task.parentThreadId === threadId)
+      .flatMap((entry) => [entry, ...descendants(entry.task.childThreadId)])
   for (const item of state.itemsById.values()) {
-    if (item.type !== 'subagent' || item.subagentTaskId !== projection.task.id) continue
+    if (item.type !== 'subagent') continue
+    const projection = state.subagentsByTaskId.get(item.subagentTaskId)
+    if (!projection) continue
+    const children = descendants(projection.task.childThreadId)
     const run = projection.currentRun
     upsertItem(state, {
       ...item,
+      ...(projection.task.notices?.filter((notice) => notice.kind === 'report').at(-1)
+        ? {
+            latestReport: projection.task.notices
+              .filter((notice) => notice.kind === 'report')
+              .at(-1)!.message,
+          }
+        : {}),
+      depth: projection.task.depth ?? 1,
+      waitingForDescendants: projection.task.waitingForDescendants ?? false,
+      descendantCount: children.length,
+      activeDescendantCount: children.filter(
+        (entry) =>
+          entry.currentRun &&
+          !['completed', 'failed', 'stopped', 'interrupted'].includes(entry.currentRun.status),
+      ).length,
       runId: run?.id ?? item.runId,
       childThreadId: projection.task.childThreadId,
       displayName: projection.task.displayName,

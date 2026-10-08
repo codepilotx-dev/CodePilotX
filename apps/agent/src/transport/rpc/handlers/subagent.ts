@@ -11,6 +11,8 @@ export const subagentHandlers = {
     'subagent/read',
     'subagent/stop',
     'subagent/retry',
+    'subagent/followup',
+    'subagent/send',
     'subagent/worktree/diff',
     'subagent/worktree/apply',
     'subagent/worktree/discard',
@@ -32,6 +34,7 @@ export const subagentHandlers = {
           ...value,
           snapshot: runtime.requiredSnapshot(value.task.childThreadId),
           capabilities: {
+            canFollowup: subagents.canFollowup(value.task.id),
             canStop: Boolean(
               value.currentRun &&
               !['completed', 'failed', 'stopped', 'interrupted'].includes(value.currentRun.status),
@@ -68,6 +71,18 @@ export const subagentHandlers = {
       case 'subagent/stop':
         return subagents.stop(
           stringParam(params, 'taskId', 'subagentTaskId'),
+          stringParam(params, 'operationId'),
+        )
+      case 'subagent/send':
+        return subagents.send(
+          stringParam(params, 'taskId'),
+          stringParam(params, 'message'),
+          stringParam(params, 'operationId'),
+        )
+      case 'subagent/followup':
+        return subagents.followup(
+          stringParam(params, 'taskId'),
+          stringParam(params, 'message'),
           stringParam(params, 'operationId'),
         )
       case 'subagent/retry':

@@ -1,11 +1,16 @@
 import type { Model } from '@codepilotx/model-schema'
-import type { PermissionConfig, SubagentProfile } from '@codepilotx/shared/thread'
+import {
+  MAX_SUBAGENT_DEPTH,
+  type PermissionConfig,
+  type SubagentProfile,
+} from '@codepilotx/shared/thread'
 import { Effect } from 'effect'
 import type { AgentModelCatalog } from '../provider/AgentModelCatalog'
 import { AgentError } from '../domain'
 import {
   SafeBoundaryInterrupt,
   type AgentRuntime,
+  type AgentRuntimeResult,
   type DelegationController,
   type PendingApproval,
   type PlanCheckpoint,
@@ -18,6 +23,7 @@ import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import { globalEventSequence } from '../storage/events/EventPublisher'
 import { WorkspaceService } from '../workspace/WorkspaceService'
+import { SubagentCollaborationRepository } from './SubagentCollaborationRepository'
 import { SubagentRepository, type SpawnSubagentInput } from './SubagentRepository'
 import type { AttachmentService } from './AttachmentService'
 import type { LocalContextPathService } from '../local-context/LocalContextPathService'
@@ -60,6 +66,7 @@ type RootContext = {
   taskMode: 'chat' | 'plan'
   model: Model.Ref
   permissionConfig: PermissionConfig
+  allowedTools?: readonly string[]
   workspaceRoot: string
   projectless?: boolean
 }
@@ -108,6 +115,9 @@ export const canonicalSubagentChangedFiles = (
 export class SubagentService {
   readonly repository: SubagentRepository
   private readonly controllers = new Map<string, AbortController>()
+  readonly collaboration: SubagentCollaborationRepository
+  private readonly executing = new Map<string, Promise<void>>()
+  private readonly stoppingThreads = new Set<string>()
   private scheduling = false
   private readonly resumeCheckpoints: ResumeCheckpointResolver
 
@@ -130,7 +140,9 @@ export class SubagentService {
     private readonly localContextPaths?: LocalContextPathService,
   ) {
     this.resumeCheckpoints = resumeCheckpoints ?? new ResumeCheckpointResolver(db, approvals)
+    this.resumeCheckpoints.setResolvedSubagentWait((turnID) => this.resolvedWaitCheckpoint(turnID))
     this.repository = new SubagentRepository(db)
+    this.collaboration = new SubagentCollaborationRepository(db)
     approvals.setAgentStatusHandler((agentID, status) => {
       void this.onApprovalStatus(agentID, status)
     })
@@ -161,6 +173,13 @@ export class SubagentService {
           childThreadId: task.childThreadId,
         })
       }
+      const tasks = this.db.sqlite
+        .query('SELECT id, current_run_id FROM subagent_tasks')
+        .all() as Array<{ id: string; current_run_id: string }>
+      for (const task of tasks) {
+        await this.notifySettled(task.current_run_id)
+        this.repository.promoteFollowup(task.id)
+      }
       await this.resumeSatisfiedParents()
     } finally {
       void this.schedule()
@@ -186,16 +205,49 @@ export class SubagentService {
 
   delegationFor(root: RootContext): DelegationController {
     return {
-      spawn: ({ agents }) => this.spawn(root, agents),
-      wait: (input) => this.wait(input.runIDs, input.mode),
-      isWaitSatisfied: (input) => Promise.resolve(this.isWaitSatisfied(input.runIDs, input.mode)),
-      send: (input) => this.send(input.taskID, input.message, crypto.randomUUID()),
-      stop: (input) => this.stop(input.taskID, crypto.randomUUID()),
+      spawn: ({ agents }, policy) => this.spawn({ ...root, ...(policy ?? {}) }, agents),
+      wait: async (input) => {
+        this.collaboration.assertRuns(root.threadID, input.runIDs)
+        return this.wait(input.runIDs, input.mode)
+      },
+      isWaitSatisfied: async (input) => {
+        this.collaboration.assertRuns(root.threadID, input.runIDs)
+        return Promise.resolve(this.isWaitSatisfied(input.runIDs, input.mode))
+      },
+      send: async (input) => {
+        this.collaboration.assertChild(root.threadID, input.taskID)
+        return this.send(input.taskID, input.message, input.operationID ?? crypto.randomUUID())
+      },
+      stop: async (input) => {
+        this.collaboration.assertChild(root.threadID, input.taskID)
+        return this.stop(input.taskID, input.operationID ?? crypto.randomUUID())
+      },
+      followup: async (input) => {
+        this.collaboration.assertChild(root.threadID, input.taskID)
+        return this.followup(input.taskID, input.message, input.operationID)
+      },
+      report: (input) => this.report(root, input.message, input.operationID),
+      list: async () => ({
+        agents: this.list(root.threadID),
+        notices: this.collaboration.notices(root.threadID),
+      }),
     }
   }
 
   list(parentThreadID: string) {
     return this.repository.projectionForThread(parentThreadID)
+  }
+
+  canFollowup(taskID: string) {
+    const task = this.requireTask(taskID)
+    return (
+      this.collaboration.available &&
+      ![task.childThreadId, task.parentThreadId].some(
+        (threadID) =>
+          this.stoppingThreads.has(threadID) ||
+          this.collaboration.completions().some((entry) => entry.thread_id === threadID),
+      )
+    )
   }
 
   read(taskID: string) {
@@ -309,8 +361,15 @@ export class SubagentService {
   }
 
   private async emit(threadID: string, turnID: string | null, method: string, params: unknown) {
-    const event = this.db.insertEvent(threadID, turnID, method, params)
-    await Effect.runPromise(this.hub.publish(event))
+    const events = this.db.transaction(() => [
+      this.db.insertEvent(threadID, turnID, method, params),
+      ...(method === 'subagent/updated' || method === 'subagent/created'
+        ? this.collaboration
+            .ancestors(threadID)
+            .map((ancestor) => this.db.insertEvent(ancestor, null, method, params))
+        : []),
+    ])
+    await this.publish(events)
   }
 
   async spawn(
@@ -329,19 +388,21 @@ export class SubagentService {
       throw new AgentError('PLAN_SUBAGENT_RESTRICTED', 'Plan 模式只能创建 Explorer', 409)
     }
     const parent = this.db.getAgentExecution(root.agentID)
-    if (!parent || parent.depth !== 0)
-      throw new AgentError('SUBAGENT_DEPTH_EXCEEDED', '子 Agent 不能继续创建子 Agent', 409)
+    if (!parent || parent.depth >= MAX_SUBAGENT_DEPTH)
+      throw new AgentError('SUBAGENT_DEPTH_EXCEEDED', '子 Agent 已达到最大深度', 409)
+    this.assertAdmission(root.threadID)
+    if (!this.collaboration.available && parent.depth > 0) this.collaboration.assertAvailable()
     if (agents.some((agent) => !agent.task.trim()))
       throw new AgentError('SUBAGENT_TASK_REQUIRED', '子 Agent 任务不能为空', 400)
-    const totals = this.db.sqlite
-      .query(
-        "SELECT COUNT(*) AS total, SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) AS queued FROM subagent_tasks WHERE parent_agent_id = ?",
-      )
-      .get(root.agentID) as { total: number; queued: number | null }
-    if (totals.total + agents.length > 64 || (totals.queued ?? 0) + agents.length > 24) {
-      throw new AgentError('SUBAGENT_QUEUE_LIMIT', '该主 Agent 的子任务总量或排队量已达上限', 409)
-    }
+    this.collaboration.assertCapacity(root.turnID, agents.length, agents.length)
     await Promise.all(agents.map((requested) => this.resolveModel(requested.model ?? root.model)))
+    const parentTools = parent.subagentRunID
+      ? this.collaboration.allowedTools(this.repository.run(parent.subagentRunID)!.taskId)
+      : undefined
+    const allowedTools =
+      root.allowedTools && parentTools
+        ? root.allowedTools.filter((name) => parentTools.includes(name))
+        : (root.allowedTools ?? parentTools)
     const generated = new Map<string, number>()
     const existingCounts = new Map<string, number>()
     const inputs = agents.map((requested): SpawnSubagentInput => {
@@ -370,7 +431,11 @@ export class SubagentService {
         profile,
         task: requested.task.trim(),
         model,
-        permissionCeiling: root.permissionConfig,
+        ...(allowedTools ? { allowedTools } : {}),
+        permissionCeiling:
+          parent.profile === 'explorer'
+            ? { ...root.permissionConfig, sandboxMode: 'read-only' }
+            : root.permissionConfig,
         // New subagents always share the parent's live workspace. The
         // persisted worktree mode remains readable for legacy tasks only.
         workspaceMode: 'shared',
@@ -380,10 +445,22 @@ export class SubagentService {
     })
     // Repository creation is synchronous; wrapping the complete batch ensures
     // a late constraint failure cannot leave a half-created delegation batch.
-    const rows = this.db.transaction(() => inputs.map((input) => this.repository.create(input)))
+    this.assertAdmission(root.threadID)
+    if (
+      ['interrupted', 'cancelled', 'failed', 'completed'].includes(
+        this.db.getAgentExecution(root.agentID)?.status ?? '',
+      )
+    )
+      throw new AgentError('CONFLICT', '父代理本轮已结束', 409)
+    const rows = this.db.transaction(() => {
+      this.collaboration.assertCapacity(root.turnID, agents.length, agents.length)
+      return inputs.map((input) => this.repository.create(input))
+    })
     const created = []
     for (const [index, row] of rows.entries()) {
       await this.publish(row.events)
+      for (const ancestor of this.collaboration.ancestors(root.threadID))
+        await this.emit(ancestor, null, 'subagent/created', { task: row.task, run: row.run })
       const input = inputs[index]!
       created.push({
         taskId: row.task.id,
@@ -469,6 +546,11 @@ export class SubagentService {
       attachmentIDs?: string[]
     } = {},
   ) {
+    if (!message.trim()) throw new AgentError('INVALID_PARAMS', '消息不能为空', 400)
+    this.assertAdmission(this.requireTask(taskID).childThreadId)
+    const previous = this.repository.control(requestID)
+    if (previous && JSON.parse(String(previous.payload)).message !== message)
+      throw new AgentError('CONFLICT', 'operationId 已用于其他消息', 409)
     const replay = this.replayControl(requestID, taskID, 'send')
     if (replay.hit) return replay.value
     const task = this.repository.task(taskID)
@@ -503,7 +585,7 @@ export class SubagentService {
       void this.schedule()
       return response
     }
-    if (['queued', 'preparing', 'waiting-question', 'waiting-permission'].includes(run.status)) {
+    if (['queued', 'waiting-question', 'waiting-permission'].includes(run.status)) {
       const latest = this.repository.latestExecution(run.id)
       if (latest) {
         this.approvals.cancelTurn(latest.turn_id)
@@ -576,13 +658,60 @@ export class SubagentService {
       this.repository.completeControl(requestID, result)
       return result
     }
-    this.controllers.get(run.id)?.abort()
+    const subtree = [
+      ...this.collaboration.descendants(task.childThreadId).reverse(),
+      { id: task.id, child_thread_id: task.childThreadId },
+    ]
+    for (const node of subtree) this.stoppingThreads.add(node.child_thread_id)
+    try {
+      const runs = subtree.flatMap(
+        (node) =>
+          this.db.sqlite
+            .query(
+              "SELECT id FROM subagent_runs WHERE task_id = ? AND status NOT IN ('completed','failed','stopped','interrupted')",
+            )
+            .all(node.id) as Array<{ id: string }>,
+      )
+      for (const candidate of runs) this.controllers.get(candidate.id)?.abort()
+      await Promise.all(runs.map((candidate) => this.executing.get(candidate.id)))
+      for (const node of subtree) {
+        for (const candidate of runs) {
+          const pending = this.repository.run(candidate.id)
+          if (pending?.taskId !== node.id || terminal.has(pending.status)) continue
+          const latest = this.repository.latestExecution(candidate.id)
+          if (latest) {
+            this.approvals.cancelTurn(latest.turn_id)
+            this.questions.cancelTurn(latest.turn_id)
+            this.collaboration.clear(latest.turn_id)
+          }
+          for (const control of this.repository.pendingControls(candidate.id))
+            if (control.action === 'send')
+              this.repository.completeControl(control.id, null, '子 Agent 已停止，消息未执行')
+          const stopped = this.repository.finish(
+            candidate.id,
+            'stopped',
+            null,
+            '用户停止了子 Agent 树',
+          )
+          if (stopped)
+            await this.emit(
+              stopped.task.parentThreadId,
+              stopped.task.parentTurnId,
+              'subagent/updated',
+              stopped,
+            )
+          await this.notifySettled(candidate.id)
+        }
+      }
+    } finally {
+      for (const node of subtree) this.stoppingThreads.delete(node.child_thread_id)
+    }
     const execution = this.repository.latestExecution(run.id)
     if (execution) {
       this.approvals.cancelTurn(execution.turn_id)
       this.questions.cancelTurn(execution.turn_id)
     }
-    const finished = this.repository.finish(run.id, 'stopped', null, '用户停止了子 Agent')
+    const finished = { task: this.repository.task(taskID)!, run: this.repository.run(run.id)! }
     this.repository.completeControl(requestID, finished)
     if (finished)
       await this.emit(task.parentThreadId, task.parentTurnId, 'subagent/updated', finished)
@@ -592,12 +721,17 @@ export class SubagentService {
   }
 
   async stopChildrenForParent(parentAgentID: string) {
-    const rows = this.db.sqlite
-      .query(
-        "SELECT id FROM subagent_tasks WHERE parent_agent_id = ? AND status NOT IN ('completed', 'failed', 'stopped', 'interrupted')",
-      )
-      .all(parentAgentID) as Array<{ id: string }>
-    for (const row of rows) await this.stop(row.id, crypto.randomUUID())
+    const parent = this.db.getAgentExecution(parentAgentID)
+    if (!parent) return
+    this.stoppingThreads.add(parent.threadID)
+    try {
+      for (const child of this.collaboration.children(parent.threadID))
+        await this.stop(child.id, crypto.randomUUID())
+    } finally {
+      this.stoppingThreads.delete(parent.threadID)
+    }
+    for (const completion of this.collaboration.completions())
+      if (completion.thread_id === parent.threadID) this.collaboration.clear(completion.turn_id)
   }
 
   async schedule() {
@@ -605,9 +739,17 @@ export class SubagentService {
     this.scheduling = true
     try {
       for (const runID of this.repository.queuedRunIDs()) {
+        if (this.executing.has(runID)) continue
+        const candidate = this.repository.run(runID)
+        if (candidate && this.stoppingThreads.has(this.requireTask(candidate.taskId).childThreadId))
+          continue
         const claim = this.repository.claim(runID)
         if (!claim || 'queued' in claim) continue
-        void this.execute(claim.task.id, runID, claim.agent.id)
+        const execution = this.execute(claim.task.id, runID, claim.agent.id).finally(() => {
+          this.executing.delete(runID)
+          void this.schedule()
+        })
+        this.executing.set(runID, execution)
       }
     } finally {
       this.scheduling = false
@@ -634,6 +776,12 @@ export class SubagentService {
       startedAt: Date.now(),
     })
     try {
+      const saved = this.collaboration.saved(agent.turnID)
+      if (saved) {
+        if (await this.deferCompletion(task.childThreadId, agent.turnID, saved)) return
+        await this.completeChild(taskID, runID, agent.turnID, agent.id, saved, controller.signal)
+        return
+      }
       const rootPath = task.workspace.rootPath
       if (!rootPath) throw new AgentError('WORKSPACE_REQUIRED', '子 Agent 没有工作区', 409)
       const needsIsolation = task.workspace.mode === 'worktree'
@@ -672,6 +820,11 @@ export class SubagentService {
       workspace.grantReadOnlyPaths(localContextReferences.map(({ path, kind }) => ({ path, kind })))
       mcpLease = await this.mcp?.acquire(workspace.rootPath)
       const permissionConfig = run.permissionConfig
+      for (const ancestor of this.collaboration.ancestors(task.childThreadId)) {
+        const active = this.db.activeTurn(ancestor)
+        const input = active ? this.db.getTurnInput(active.id) : null
+        if (input) this.assertPermissionCeiling(input.permissionConfig, permissionConfig)
+      }
       const executionPolicy = executionPolicyFromV4(permissionConfig)
       const input = this.db.getTurnInput(agent.turnID)
       if (!input) throw new Error(`Subagent turn ${agent.turnID} 没有输入`)
@@ -783,7 +936,21 @@ export class SubagentService {
         agentID: agent.id,
         sessionID: agent.sessionID,
         profile: task.profile,
-        depth: 1,
+        depth: agent.depth,
+        delegation: this.delegationFor({
+          threadID: task.childThreadId,
+          turnID: agent.turnID,
+          agentID: agent.id,
+          taskMode: parentMode,
+          model: run.model,
+          permissionConfig,
+          workspaceRoot: workspace.rootPath,
+        }),
+        ...(this.collaboration.allowedTools(taskID)
+          ? { allowedTools: this.collaboration.allowedTools(taskID)! }
+          : {}),
+        collaborationEnabled: this.collaboration.available,
+        collaborationMessages: () => this.collaboration.notices(task.childThreadId),
         content: input.content,
         taskMode: parentMode,
         fallbackModel: run.model,
@@ -868,8 +1035,9 @@ export class SubagentService {
               approval.checkpoint.state,
               approval.checkpoint.interruption,
             )
-          } else
-            await this.questions.checkpoint(task.childThreadId, agent.turnID, agent.id, approval)
+          } else if (approval.kind === 'subagents')
+            await this.checkpointWait(task.childThreadId, agent.turnID, agent.id, approval)
+          else await this.questions.checkpoint(task.childThreadId, agent.turnID, agent.id, approval)
         },
         checkSafeBoundary: async () => {
           return this.repository.pendingControls(runID).some((control) => control.action === 'send')
@@ -877,7 +1045,8 @@ export class SubagentService {
       })
       if (result.status === 'paused') {
         if (acquiredResumeLeaseID) this.resumeCheckpoints.complete(acquiredResumeLeaseID)
-        this.repository.setWaiting(runID, pausedSubagentStatus(pausedKind))
+        if (pausedKind !== 'subagents')
+          this.repository.setWaiting(runID, pausedSubagentStatus(pausedKind))
         await this.emit(task.parentThreadId, task.parentTurnId, 'subagent/updated', {
           task: this.repository.task(taskID),
           run: this.repository.run(runID),
@@ -911,23 +1080,12 @@ export class SubagentService {
         void this.schedule()
         return
       }
-      const structured = result.status === 'completed' ? result.result : undefined
-      if (!structured)
-        throw new AgentError('SUBAGENT_RESULT_INVALID', '子 Agent 未返回合法的结构化结果', 422)
-      if (isolationPrepared) await this.workspaces?.finalize(taskID)
-      const canonicalResult = {
-        ...structured,
-        changedFiles: this.canonicalChangedFiles(runID, structured.changedFiles),
-      }
-      const finished = this.repository.finish(runID, 'completed', canonicalResult, null)
+      if (controller.signal.aborted) return
+      if (await this.deferCompletion(task.childThreadId, agent.turnID, result)) return
+      await mcpLease?.release()
+      mcpLease = undefined
+      await this.completeChild(taskID, runID, agent.turnID, agent.id, result, controller.signal)
       startupGateSafe = true
-      if (finished)
-        await this.emit(task.parentThreadId, task.parentTurnId, 'subagent/updated', finished)
-      await this.emit(task.childThreadId, agent.turnID, 'turn/completed', {
-        turnId: agent.turnID,
-        rootAgentId: agent.id,
-        finishedAt: Date.now(),
-      })
     } catch (cause) {
       if (cause instanceof AgentError && cause.code === 'HOOK_TRUST_REQUIRED') return
       const steer = this.repository
@@ -958,8 +1116,11 @@ export class SubagentService {
         return
       }
       if (!controller.signal.aborted) {
+        await this.stopChildrenForParent(agent.id)
         const error = cause instanceof Error ? cause.message : String(cause)
         if (isolationPrepared) await this.workspaces?.finalize(taskID).catch(() => undefined)
+        await mcpLease?.release()
+        mcpLease = undefined
         const finished = this.repository.finish(runID, 'failed', null, error)
         startupGateSafe = true
         if (finished)
@@ -987,9 +1148,39 @@ export class SubagentService {
       }
       await mcpLease?.release()
       this.controllers.delete(runID)
+      await this.notifySettled(runID)
+      if (!this.stoppingThreads.has(task.childThreadId)) this.repository.promoteFollowup(taskID)
       await this.resumeSatisfiedParents()
       void this.schedule()
     }
+  }
+
+  private async completeChild(
+    taskID: string,
+    runID: string,
+    turnID: string,
+    agentID: string,
+    result: AgentRuntimeResult,
+    signal: AbortSignal,
+  ) {
+    const structured = result.status === 'completed' ? result.result : undefined
+    if (!structured)
+      throw new AgentError('SUBAGENT_RESULT_INVALID', '子 Agent 未返回合法的结构化结果', 422)
+    const task = this.requireTask(taskID)
+    if (task.workspace.baselineRef) await this.workspaces?.finalize(taskID)
+    if (signal.aborted) return
+    const canonicalResult = {
+      ...structured,
+      changedFiles: this.canonicalChangedFiles(runID, structured.changedFiles),
+    }
+    const finished = this.repository.finish(runID, 'completed', canonicalResult, null)
+    if (finished)
+      await this.emit(task.parentThreadId, task.parentTurnId, 'subagent/updated', finished)
+    await this.emit(task.childThreadId, turnID, 'turn/completed', {
+      turnId: turnID,
+      rootAgentId: agentID,
+      finishedAt: Date.now(),
+    })
   }
 
   private canonicalChangedFiles(runID: string, reported: Array<{ path: string; summary: string }>) {
@@ -1015,7 +1206,10 @@ export class SubagentService {
       .query('SELECT subagent_run_id, id FROM agent_executions WHERE turn_id = ?')
       .get(turnID) as { subagent_run_id: string | null; id: string } | null
     if (!row?.subagent_run_id) return
-    if (this.controllers.has(row.subagent_run_id)) return
+    if (this.controllers.has(row.subagent_run_id)) {
+      void this.executing.get(row.subagent_run_id)?.then(() => this.resumeTurn(_threadID, turnID))
+      return
+    }
     this.db.updateTurnStatus(turnID, 'queued')
     this.db.updateAgentStatus(row.id, 'queued')
     this.db.run(
@@ -1026,12 +1220,39 @@ export class SubagentService {
     void this.schedule()
   }
 
+  async reconcileCompletions() {
+    await this.resumeSatisfiedParents()
+  }
+
   private async resumeSatisfiedParents() {
+    for (const completion of this.collaboration.completions()) {
+      if (
+        this.stoppingThreads.has(completion.thread_id) ||
+        this.collaboration.pending(completion.thread_id).length
+      )
+        continue
+      const agent = this.db.agentForTurn(completion.turn_id)
+      if (!agent || this.controllers.has(agent.subagentRunID ?? '')) continue
+      if (['completed', 'failed', 'interrupted', 'cancelled'].includes(agent.status)) {
+        this.collaboration.clear(completion.turn_id)
+        continue
+      }
+      this.db.updateAgentStatus(agent.id, 'queued')
+      this.db.updateTurnStatus(completion.turn_id, 'queued')
+      if (agent.subagentRunID) {
+        this.db.sqlite
+          .query("UPDATE subagent_runs SET status = 'queued' WHERE id = ?")
+          .run(agent.subagentRunID)
+        void this.schedule()
+      } else this.parentResumeHandler?.(completion.thread_id, completion.turn_id)
+    }
     for (const resumed of this.db.repositories.subagents.resumeSatisfiedSubagentWaits()) {
       await Promise.allSettled(
         resumed.events.map((event) => Effect.runPromise(this.hub.publish(event))),
       )
-      this.parentResumeHandler?.(resumed.threadID, resumed.turnID)
+      const agent = this.db.agentForTurn(resumed.turnID)
+      if (agent?.subagentRunID) await this.resumeTurn(resumed.threadID, resumed.turnID)
+      else this.parentResumeHandler?.(resumed.threadID, resumed.turnID)
     }
   }
 
@@ -1039,6 +1260,127 @@ export class SubagentService {
 
   setParentResumeHandler(handler: (threadID: string, turnID: string) => void) {
     this.parentResumeHandler = handler
+  }
+
+  private assertAdmission(threadID: string) {
+    if (
+      this.stoppingThreads.has(threadID) ||
+      this.collaboration.completions().some((entry) => entry.thread_id === threadID)
+    )
+      throw new AgentError('CONFLICT', '该 Agent 正在停止或等待后代结算', 409)
+  }
+
+  async deferCompletion(threadID: string, turnID: string, result: AgentRuntimeResult) {
+    if (!this.collaboration.available) return false
+    if (!this.collaboration.pending(threadID).length) return false
+    this.db.transaction(() => this.collaboration.save(threadID, turnID, result))
+    const agent = this.db.agentForTurn(turnID)
+    await this.emit(threadID, turnID, 'agent/upserted', { agent })
+    await this.emit(threadID, turnID, 'turn/statusChanged', {
+      turnId: turnID,
+      status: 'waiting-subagents',
+    })
+    const task = this.db.sqlite
+      .query('SELECT id FROM subagent_tasks WHERE child_thread_id = ?')
+      .get(threadID) as { id: string } | null
+    if (task) {
+      const current = this.requireTask(task.id)
+      await this.emit(current.parentThreadId, current.parentTurnId, 'subagent/updated', {
+        task: current,
+        run: current.currentRun,
+      })
+    }
+    return true
+  }
+
+  async followup(taskID: string, message: string, operationID: string) {
+    this.collaboration.assertAvailable()
+    const replay = this.collaboration.replay(operationID, taskID, 'followup', message)
+    if (replay) return replay
+    if (!message.trim()) throw new AgentError('INVALID_PARAMS', '消息不能为空', 400)
+    const task = this.requireTask(taskID)
+    this.assertAdmission(task.childThreadId)
+    this.assertAdmission(task.parentThreadId)
+    const permission = task.currentRun!.permissionConfig
+    const parent = this.db.activeTurn(task.parentThreadId)
+    if (parent)
+      this.assertPermissionCeiling(
+        this.db.getTurnInput(parent.id)?.permissionConfig ?? task.permissionCeiling,
+        permission,
+      )
+    const accepted = this.db.transaction(() => {
+      this.collaboration.assertCapacity(task.parentTurnId, 0, 1)
+      const queued = this.repository.continueTask({
+        taskID,
+        message,
+        sameRun: false,
+        enqueue: !terminal.has(task.currentRun!.status),
+      })
+      const input = this.db.getTurnInput(queued.agent.turnID)!
+      const events = this.repository.eventsForUpdate(taskID)
+      const value = { task: this.requireTask(taskID), run: this.requireTask(taskID).currentRun }
+      for (const ancestor of this.collaboration.ancestors(task.parentThreadId))
+        events.push(this.db.insertEvent(ancestor, null, 'subagent/updated', value))
+      const result = {
+        inputId: input.id,
+        turnId: queued.agent.turnID,
+        disposition: 'accepted' as const,
+        streamPosition: { streamId: task.childThreadId, sequence: globalEventSequence(this.db) },
+      }
+      this.collaboration.record(
+        operationID,
+        taskID,
+        'followup',
+        message,
+        result,
+        input.id,
+        queued.agent.turnID,
+      )
+      return { result, events }
+    })
+    await this.publish(accepted.events)
+    void this.schedule()
+    return accepted.result
+  }
+
+  private async report(root: RootContext, message: string, operationID: string) {
+    this.collaboration.assertAvailable()
+    if (!message.trim()) throw new AgentError('INVALID_PARAMS', '报告不能为空', 400)
+    this.assertAdmission(root.threadID)
+    const task = this.db.sqlite
+      .query('SELECT id FROM subagent_tasks WHERE child_thread_id = ?')
+      .get(root.threadID) as { id: string } | null
+    if (!task) throw new AgentError('PERMISSION_DENIED', '只有子 Agent 可以报告', 403)
+    const replay = this.collaboration.replay(
+      operationID,
+      task.id,
+      'report',
+      secretScrubber.scrubText(message),
+    )
+    if (replay) return replay
+    const safe = secretScrubber.scrubText(message)
+    const events = this.db.transaction(() => {
+      this.collaboration.record(operationID, task.id, 'report', safe, { messageId: operationID })
+      return this.repository.eventsForUpdate(task.id)
+    })
+    await this.publish(events)
+    return { messageId: operationID }
+  }
+
+  private async notifySettled(runID: string) {
+    if (!this.collaboration.available) return
+    const run = this.repository.run(runID)
+    if (!run || !terminal.has(run.status)) return
+    const id = `settled:${runID}`
+    const message = secretScrubber.scrubText(
+      JSON.stringify({ runId: runID, status: run.status, result: run.result, error: run.error }),
+    )
+    if (this.collaboration.replay(id, run.taskId, 'settled', message)) return
+    const events = this.db.transaction(() => {
+      this.collaboration.record(id, run.taskId, 'settled', message, { messageId: id })
+      return this.repository.eventsForUpdate(run.taskId)
+    })
+    await this.publish(events)
   }
 
   private async resolveModel(ref: Model.Ref) {

@@ -957,8 +957,7 @@ export function resolveToolContentLanguage(
 ): { language: string; headerLabel: string | null } {
   const shellTag = resolveShellTag(item)
   if (shellTag) {
-    const lang =
-      shellTag === 'pwsh' ? 'powershell' : shellTag === 'cmd' ? 'bat' : 'shellscript'
+    const lang = shellTag === 'pwsh' ? 'powershell' : shellTag === 'cmd' ? 'bat' : 'shellscript'
     return { language: lang, headerLabel: shellTag }
   }
   const trimmed = (content ?? '').trim()
@@ -1024,7 +1023,11 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
         grouped={embedded}
       >
         {item.resultBlocks?.length ? (
-          <ToolResultBlocksView item={item} renderedResultText={view.resultText} threadId={threadId} />
+          <ToolResultBlocksView
+            item={item}
+            renderedResultText={view.resultText}
+            threadId={threadId}
+          />
         ) : null}
       </ToolCommandCard>
     )
@@ -1039,16 +1042,18 @@ export const ToolExecutionCard = React.memo(function ToolExecutionCard({
       data-state={item.state}
     >
       <div className="canonical-command-shell__body tw:flex tw:min-w-0 tw:flex-col">
-        {detailKind !== 'result' ? <CodeBlock
-          surface="embedded"
-          showWrapControl
-          ariaLabel="执行内容"
-          headerLabel={executionLang.headerLabel}
-          copyLabel="复制执行内容"
-          code={view.executionContent}
-          language={executionLang.language}
-          streaming={view.active}
-        /> : null}
+        {detailKind !== 'result' ? (
+          <CodeBlock
+            surface="embedded"
+            showWrapControl
+            ariaLabel="执行内容"
+            headerLabel={executionLang.headerLabel}
+            copyLabel="复制执行内容"
+            code={view.executionContent}
+            language={executionLang.language}
+            streaming={view.active}
+          />
+        ) : null}
         {view.resultText && resultLang ? (
           <div className="canonical-command-shell__result tw:border-t tw:border-app-border-subtle">
             <CodeBlock
@@ -1549,6 +1554,13 @@ function SubagentItemView({
       <span>
         <strong>{item.displayName}</strong>
         <small>{item.task}</small>
+        {item.descendantCount ? (
+          <small>
+            后代 {item.activeDescendantCount ?? 0}/{item.descendantCount} 正在进行
+          </small>
+        ) : null}
+        {item.waitingForDescendants ? <small>等待后代结算</small> : null}
+        {item.latestReport ? <small>{item.latestReport}</small> : null}
         {changedFiles.length > 0 ? (
           <small className="canonical-subagent-card__files">
             修改 {changedFiles.length} 个文件：
@@ -1618,9 +1630,10 @@ export function buildToolItemDisplay(item: ToolItem, nowMs?: number): ToolItemDi
 
   return {
     active,
-    canExpand: toolDetailKind(item) === 'result'
-      ? resultText !== null || Boolean(item.resultBlocks?.length)
-      : terminal || resultText !== null,
+    canExpand:
+      toolDetailKind(item) === 'result'
+        ? resultText !== null || Boolean(item.resultBlocks?.length)
+        : terminal || resultText !== null,
     collapsedLabel: semanticSummary.collapsedLabel,
     executionContent,
     expandedLabel: semanticSummary.expandedLabel,
@@ -1787,7 +1800,8 @@ function parsedToolOutput(output: string | null): ParsedToolOutput {
 }
 
 function appendToolError(result: string | null, error: string | null): string | null {
-  if (result && error && result.trim() !== error.trim()) return `${result}${result.endsWith('\n') ? '' : '\n'}${error}`
+  if (result && error && result.trim() !== error.trim())
+    return `${result}${result.endsWith('\n') ? '' : '\n'}${error}`
   return result ?? error
 }
 

@@ -29,6 +29,7 @@ import {
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
 } from '../../../components/ui/iconTokens.js'
+import { Textarea } from '../../../components/ui/Textarea.js'
 import { Button } from '../../../components/ui/Button.js'
 
 import { desktopClient } from '../../../services/desktop-client/index.js'
@@ -48,6 +49,7 @@ import { normalizePatchActionError } from '../timeline/patchActionError.js'
 import { subagentStatusLabel } from './subagentStatusLabel.js'
 
 export interface SubagentThreadCapabilities {
+  canFollowup?: boolean
   canStop: boolean
   canRetry: boolean
   canRespondToApprovals: boolean
@@ -59,6 +61,8 @@ export interface SubagentThreadCapabilities {
 }
 
 export interface SubagentThreadCallbacks {
+  onFollowup?: (message: string) => Promise<void>
+  onSend?: (message: string) => Promise<void>
   onPatchApplied?: () => Promise<void>
   onStop?: (task: SubagentTask, run: SubagentRun) => void
   onRetry?: (task: SubagentTask, run: SubagentRun) => void
@@ -88,6 +92,23 @@ export function SubagentThreadPanel({
   callbacks,
   onBackToParent,
 }: SubagentThreadPanelProps): React.ReactNode {
+  const [message, setMessage] = React.useState('')
+  const [sending, setSending] = React.useState(false)
+  const [sendError, setSendError] = React.useState<string | null>(null)
+  const submitFollowup = async (steering = false) => {
+    if (!message.trim() || sending || !callbacks.onFollowup) return
+    setSending(true)
+    setSendError(null)
+    try {
+      await (steering ? callbacks.onSend! : callbacks.onFollowup)(message)
+      setMessage('')
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setSending(false)
+    }
+  }
+
   const scrollRef = React.useRef<HTMLDivElement | null>(null)
   const listRef = React.useRef<VirtualizerHandle | null>(null)
   const disclosureState = useTimelineDisclosureState(task.childThreadId)
@@ -184,11 +205,12 @@ export function SubagentThreadPanel({
       <header className="subagent-thread-panel__header tw:flex tw:min-h-[58px] tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-app-border-subtle tw:bg-app-raised tw:px-4 tw:py-3">
         <div className="subagent-thread-panel__identity tw:flex tw:min-w-0 tw:items-center tw:gap-3">
           {onBackToParent ? (
-            <Button isIconOnly
+            <Button
+              isIconOnly
               className="subagent-thread-panel__back tw:flex-none"
               color="ghostSecondary"
               size="toolbar"
-              title="返回主对话"
+              title="返回父对话"
               onClick={onBackToParent}
             >
               <ArrowLeft size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -209,7 +231,8 @@ export function SubagentThreadPanel({
         <div className="subagent-thread-panel__run-actions tw:flex tw:items-center tw:gap-1">
           <StatusBadge status={run.status} />
           {capabilities.canApplyWorktree && callbacks.onApplyWorktree ? (
-            <Button isIconOnly
+            <Button
+              isIconOnly
               aria-label="应用子智能体变更"
               color="ghostSecondary"
               size="toolbar"
@@ -220,7 +243,8 @@ export function SubagentThreadPanel({
             </Button>
           ) : null}
           {capabilities.canDiscardWorktree && callbacks.onDiscardWorktree ? (
-            <Button isIconOnly
+            <Button
+              isIconOnly
               aria-label="丢弃子智能体工作树"
               color="danger"
               size="toolbar"
@@ -231,7 +255,8 @@ export function SubagentThreadPanel({
             </Button>
           ) : null}
           {capabilities.canRestoreWorkspace && callbacks.onRestoreWorkspace ? (
-            <Button isIconOnly
+            <Button
+              isIconOnly
               aria-label="恢复子智能体共享变更"
               color="ghostSecondary"
               size="toolbar"
@@ -242,7 +267,8 @@ export function SubagentThreadPanel({
             </Button>
           ) : null}
           {canRetry ? (
-            <Button isIconOnly
+            <Button
+              isIconOnly
               aria-label="重试子智能体"
               color="ghostSecondary"
               size="toolbar"
@@ -253,11 +279,12 @@ export function SubagentThreadPanel({
             </Button>
           ) : null}
           {canStop ? (
-            <Button isIconOnly
+            <Button
+              isIconOnly
               aria-label="停止子智能体"
               color="danger"
               size="toolbar"
-              title="停止"
+              title="停止此子智能体及全部后代"
               onClick={() => callbacks.onStop?.(task, run)}
             >
               <Square size={APP_ICON_SIZE} strokeWidth={APP_ICON_STROKE_WIDTH} />
@@ -271,6 +298,10 @@ export function SubagentThreadPanel({
         className="subagent-thread-panel__scroll-region tw:min-h-0 tw:overflow-auto tw:[scrollbar-gutter:stable]"
       >
         <div className="subagent-thread-panel__transcript tw:mx-auto tw:grid tw:w-[min(760px,calc(100%-28px))] tw:min-w-0 tw:gap-4 tw:px-0 tw:pt-5 tw:pb-7">
+          <div className="tw:text-app-text-meta tw:type-caption" role="status">
+            第 {task.depth ?? 1} 层{task.waitingForDescendants ? ' · 等待后代结算' : ''}
+            {task.queuedFollowups ? ` · ${task.queuedFollowups} 条后续任务已接纳` : ''}
+          </div>
           {run.queueReason ? (
             <div
               className="subagent-thread-panel__notice tw:flex tw:items-center tw:gap-2 tw:rounded-lg tw:px-3 tw:py-2 tw:bg-app-editor tw:text-app-text-meta tw:type-body-sm"
@@ -342,6 +373,46 @@ export function SubagentThreadPanel({
             </div>
           ) : null}
           {run.result ? <RunResult result={run.result} /> : null}
+          {task.notices
+            ?.filter((notice) => notice.kind === 'report')
+            .map((notice) => (
+              <p key={notice.id} className="tw:text-app-text-meta tw:type-body-sm">
+                已向父代理报告：{notice.message}
+              </p>
+            ))}
+          {capabilities.canFollowup && callbacks.onFollowup ? (
+            <form
+              className="tw:grid tw:gap-2"
+              onSubmit={(event) => {
+                event.preventDefault()
+                void submitFollowup()
+              }}
+            >
+              <Textarea
+                aria-label="子智能体后续任务"
+                placeholder="排队提交后续任务，不打断当前工作"
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                disabled={sending}
+              />
+              <div className="tw:flex tw:gap-2">
+                <Button type="submit" disabled={sending || !message.trim()}>
+                  <Send size={APP_ICON_SIZE} />
+                  排队后续任务
+                </Button>
+                {callbacks.onSend ? (
+                  <Button
+                    type="button"
+                    disabled={sending || !message.trim()}
+                    onClick={() => void submitFollowup(true)}
+                  >
+                    补充当前要求
+                  </Button>
+                ) : null}
+              </div>
+              {sendError ? <p role="alert">{sendError}</p> : null}
+            </form>
+          ) : null}
         </div>
       </div>
     </section>

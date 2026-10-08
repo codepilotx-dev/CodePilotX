@@ -583,7 +583,10 @@ describe('执行恢复不变量', () => {
   test('重复 continuation 不会释放正在运行的同 turn coordinator handle', () => {
     const { db, thread } = setup()
     const questions = { setResumeHandler: () => undefined }
-    const subagents = { setParentResumeHandler: () => undefined }
+    const subagents = {
+      setParentResumeHandler: () => undefined,
+      collaboration: { saved: () => null },
+    }
     const resolver = { acquire: () => null, complete: () => true }
     const service = new ThreadService(
       db,

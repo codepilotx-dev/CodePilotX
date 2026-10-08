@@ -2,6 +2,8 @@ import { Model } from '@codepilotx/model-schema'
 import { Schema } from 'effect'
 import { PermissionConfigSchema } from './permission'
 
+export const MAX_SUBAGENT_DEPTH = 3
+
 export const SubagentProfileSchema = Schema.Literals(['main', 'default', 'explorer', 'worker'])
 export type SubagentProfile = typeof SubagentProfileSchema.Type
 
@@ -93,6 +95,20 @@ export const SubagentTaskSchema = Schema.Struct({
   parentTurnId: Schema.String,
   parentAgentId: Schema.String,
   childThreadId: Schema.String,
+  notices: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        kind: Schema.Literals(['report', 'settled']),
+        message: Schema.String,
+        createdAt: Schema.Number,
+      }),
+    ),
+  ),
+  parentTaskId: Schema.optional(Schema.NullOr(Schema.String)),
+  depth: Schema.optional(Schema.Number),
+  waitingForDescendants: Schema.optional(Schema.Boolean),
+  queuedFollowups: Schema.optional(Schema.Number),
   displayName: Schema.String,
   profile: Schema.Literals(['default', 'explorer', 'worker']),
   task: Schema.String,

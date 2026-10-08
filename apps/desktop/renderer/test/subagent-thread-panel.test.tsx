@@ -242,11 +242,11 @@ describe('subagent thread panel', () => {
     })
 
     // 返回箭头、状态与专用操作
-    expect(markup).toContain('title="返回主对话"')
+    expect(markup).toContain('title="返回父对话"')
     expect(markup).toContain('已完成')
     expect(markup).toContain('title="重试"')
     expect(markup).toContain('aria-label="应用子智能体变更"')
-    expect(markup).not.toContain('title="停止"')
+    expect(markup).not.toContain('title="停止此子智能体及全部后代"')
 
     // 正文复用 canonical 渲染器
     expect(markup).toContain('检查完成，没有发现问题。')
@@ -272,7 +272,7 @@ describe('subagent thread panel', () => {
     })
 
     expect(markup).toContain('运行中')
-    expect(markup).toContain('title="停止"')
+    expect(markup).toContain('title="停止此子智能体及全部后代"')
     expect(markup).not.toContain('title="重试"')
     expect(markup).not.toContain('subagent-thread-panel__composer-slot')
   })
@@ -357,7 +357,7 @@ describe('subagent thread panel', () => {
       onBackToParent: undefined,
     })
 
-    expect(markup).not.toContain('title="返回主对话"')
+    expect(markup).not.toContain('title="返回父对话"')
   })
 })
 

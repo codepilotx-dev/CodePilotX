@@ -46,6 +46,8 @@ export const Capabilities = [
   'context.compact.v1',
   'hooks.trust.v1',
   'subagents.v1',
+  'subagents.recursive.v1',
+  'subagents.followup.v1',
   'sandbox.management.v1',
   'tooling.management.v1',
   'agent.shutdown.v1',

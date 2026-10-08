@@ -1295,6 +1295,7 @@ export type DesktopSubagentRead = {
   currentRun: SubagentRun | null
   snapshot: ThreadSnapshot
   capabilities: {
+    canFollowup?: boolean
     canStop: boolean
     canRetry: boolean
     canRespondToApprovals: boolean
@@ -1664,6 +1665,8 @@ export type DesktopApi = {
   readSubagent?(taskId: string): Promise<DesktopSubagentRead>
   stopSubagent?(taskId: string): Promise<unknown>
   retrySubagent?(taskId: string): Promise<unknown>
+  followupSubagent?(taskId: string, message: string): Promise<unknown>
+  sendSubagent?(taskId: string, message: string): Promise<unknown>
   applySubagentWorktree?(taskId: string): Promise<unknown>
   discardSubagentWorktree?(taskId: string): Promise<unknown>
   restoreSubagentWorkspace?(taskId: string): Promise<unknown>

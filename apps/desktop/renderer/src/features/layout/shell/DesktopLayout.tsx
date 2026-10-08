@@ -2443,6 +2443,7 @@ export function DesktopLayout(): React.ReactNode {
       onError={setErrorMessage}
       onOpenPatchReview={handleOpenPatchReview}
       onOpenSubagent={(item) => handleOpenSubagent(item.subagentTaskId)}
+      onOpenParentSubagent={handleOpenSubagent}
       onPatchApplied={handleRefreshDiff}
       onRefresh={refreshSelectedSubagent}
     />

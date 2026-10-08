@@ -1,5 +1,5 @@
 import type { SubagentProfile, TaskMode } from '../domain'
-import type { SandboxMode } from '@codepilotx/shared/thread'
+import { MAX_SUBAGENT_DEPTH, type SandboxMode } from '@codepilotx/shared/thread'
 import { isGranularApprovalPolicy, type PermissionConfig } from '@codepilotx/shared/thread'
 import type { ToolCatalog } from './ToolRegistry'
 
@@ -16,6 +16,9 @@ export const PI_LIFECYCLE_TOOLS = [
   'spawn_agents',
   'wait_agents',
   'send_agent',
+  'followup_agent',
+  'report_agent',
+  'list_agents',
   'stop_agent',
   'finalize_result',
   'update_goal',
@@ -35,6 +38,8 @@ export interface ToolExposureInput {
   hasProjectSources?: boolean
   defaultModeRequestUserInput?: boolean
   delegationEnabled?: boolean
+  collaborationEnabled?: boolean
+  depth?: number
   allowedTools?: readonly string[]
   activeDeferredTools?: readonly string[]
   hasActiveGoal?: boolean
@@ -85,10 +90,18 @@ export function createToolExposurePlan(
       lifecycle.push('update_plan', 'finalize_result')
       if (input.hasActiveGoal) lifecycle.push('update_goal')
     }
-    if (input.delegationEnabled !== false)
-      lifecycle.push('spawn_agents', 'wait_agents', 'send_agent', 'stop_agent')
   }
 
+  if (
+    input.delegationEnabled !== false &&
+    (input.collaborationEnabled !== false || profile === 'main')
+  ) {
+    if ((input.depth ?? (profile === 'main' ? 0 : 1)) < MAX_SUBAGENT_DEPTH)
+      lifecycle.push('spawn_agents')
+    lifecycle.push('wait_agents', 'send_agent', 'stop_agent')
+    if (input.collaborationEnabled !== false) lifecycle.push('followup_agent', 'list_agents')
+    if (profile !== 'main' && input.collaborationEnabled !== false) lifecycle.push('report_agent')
+  }
   const allowlist = input.allowedTools ? new Set(input.allowedTools) : null
   const deferred = deferredCandidates.filter((name) => !allowlist || allowlist.has(name))
   const activeDeferred = new Set(input.activeDeferredTools ?? [])

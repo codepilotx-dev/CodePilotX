@@ -128,7 +128,7 @@ export abstract class SubagentRepositoryDatabase extends InteractionRepositoryDa
       .run(timestamp)
     this.sqlite
       .query(
-        "UPDATE subagent_runs SET status = 'interrupted', error = COALESCE(error, 'Agent 重启时运行被中断'), finished_at = ?, updated_at = ? WHERE status IN ('preparing', 'running', 'steering') OR (status = 'waiting_permission' AND id IN (SELECT a.subagent_run_id FROM agent_executions AS a JOIN turns AS t ON t.id = a.turn_id WHERE t.status = 'interrupted' AND a.subagent_run_id IS NOT NULL))",
+        "UPDATE subagent_runs SET status = 'interrupted', error = COALESCE(error, 'Agent 重启时运行被中断'), finished_at = ?, updated_at = ? WHERE (status IN ('preparing', 'running', 'steering') AND NOT EXISTS (SELECT 1 FROM agent_executions a JOIN turns t ON t.id = a.turn_id WHERE a.subagent_run_id = subagent_runs.id AND t.status = 'waiting_subagents')) OR (status = 'waiting_permission' AND id IN (SELECT a.subagent_run_id FROM agent_executions AS a JOIN turns AS t ON t.id = a.turn_id WHERE t.status = 'interrupted' AND a.subagent_run_id IS NOT NULL))",
       )
       .run(timestamp, timestamp)
     this.sqlite

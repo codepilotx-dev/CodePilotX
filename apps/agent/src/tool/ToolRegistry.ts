@@ -20,6 +20,7 @@ import {
 } from './ToolingRuntime'
 import { nativeGlobWorkspace, nativeGrepWorkspace } from './NativeWorkspaceSearch'
 import { applyEditsText } from './Edit/applyEditText'
+import { subagentToolDefinitions } from '../subagent/toolDefinitions'
 import { applyPatchDefinition } from './ApplyPatch/definition'
 import type { TurnPatchMutationFile } from '../patch/TurnPatchTypes'
 import { diffLines } from 'diff'
@@ -108,6 +109,7 @@ export interface ToolCatalogEntry<Input = unknown, Output = unknown> {
 }
 
 export interface ToolContext {
+  subagentLifecycle?: (name: string, input: Record<string, unknown>) => Promise<unknown>
   signal: AbortSignal
   taskMode: TaskMode
   profile?: SubagentProfile
@@ -1059,6 +1061,7 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     }),
   },
   requestPermissionsDefinition,
+  ...subagentToolDefinitions,
 ]
 
 export const toolMayMutate = (tool: ToolCatalogEntry) =>

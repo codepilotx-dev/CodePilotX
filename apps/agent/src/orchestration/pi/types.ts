@@ -44,6 +44,12 @@ export interface HarnessRuntimeRequest {
   model: Model<any>
   policyModel: ModelRef
   thinkingLevel?: ThinkingLevel
+  collaborationMessages?: () => Array<{
+    id: string
+    kind: string
+    message: string
+    created_at: number
+  }>
   exposedTools: readonly string[]
   promptSections: readonly PromptSection[]
   /** Authoritative pre-composed prompt bundle (frozen by the turn composition). */
@@ -262,6 +268,21 @@ export interface PiLifecycleCallbacks {
     signal?: AbortSignal,
   ): Promise<unknown>
   sendAgent?(
+    input: Record<string, unknown>,
+    toolCallID: string,
+    signal?: AbortSignal,
+  ): Promise<unknown>
+  followupAgent?(
+    input: Record<string, unknown>,
+    toolCallID: string,
+    signal?: AbortSignal,
+  ): Promise<unknown>
+  reportAgent?(
+    input: Record<string, unknown>,
+    toolCallID: string,
+    signal?: AbortSignal,
+  ): Promise<unknown>
+  listAgents?(
     input: Record<string, unknown>,
     toolCallID: string,
     signal?: AbortSignal,

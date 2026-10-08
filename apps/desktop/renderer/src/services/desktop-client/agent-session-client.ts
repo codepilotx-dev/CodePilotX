@@ -149,6 +149,8 @@ export const RENDERER_CAPABILITIES = [
   'context.compact.v1',
   'hooks.trust.v1',
   'subagents.v1',
+  'subagents.recursive.v1',
+  'subagents.followup.v1',
   'sandbox.management.v1',
   'prompt.preview.sensitive.v1',
   'model.catalog.paged.v1',
@@ -3454,6 +3456,10 @@ export function createAgentSessionDesktopClient(
       rpc.call('subagent/stop', { taskId, operationId: crypto.randomUUID() }),
     retrySubagent: (taskId) =>
       rpc.call('subagent/retry', { taskId, operationId: crypto.randomUUID() }),
+    sendSubagent: (taskId, message) =>
+      rpc.call('subagent/send', { taskId, message, operationId: crypto.randomUUID() }),
+    followupSubagent: (taskId, message) =>
+      rpc.call('subagent/followup', { taskId, message, operationId: crypto.randomUUID() }),
     applySubagentWorktree: (taskId) =>
       rpc.call('subagent/worktree/apply', { taskId, operationId: crypto.randomUUID() }),
     discardSubagentWorktree: (taskId) =>

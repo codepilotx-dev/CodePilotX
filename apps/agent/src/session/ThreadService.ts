@@ -171,6 +171,7 @@ export class ThreadService {
       else void this.executeTurn(threadID, turnID)
     })
     this.subagents.setParentResumeHandler((threadID, turnID) => {
+      if (this.coordinator.active(threadID)) return
       void this.executeTurn(threadID, turnID)
     })
     if (resumeOnConstruct) queueMicrotask(() => this.resumeQueuedTurns())
@@ -814,7 +815,10 @@ export class ThreadService {
             })
             const projectID = this.db.projectMembership(sourceThreadID)
             if (source.kind === 'projectless')
-              this.db.setProjectlessWorkspaceOwner(targetThreadID, source.ownerThreadID ?? sourceThreadID)
+              this.db.setProjectlessWorkspaceOwner(
+                targetThreadID,
+                source.ownerThreadID ?? sourceThreadID,
+              )
             if (projectID && source.kind === 'projectless')
               this.db.setProjectMembership(targetThreadID, projectID)
             prepared.bind(targetThreadID)
@@ -1194,6 +1198,7 @@ export class ThreadService {
         ? storedCheckpoint.payload
         : null
     const controller = handle.controller
+    const cachedResult = this.subagents.collaboration.saved(turnID)
     let mcpLease: McpTurnLease | undefined
     let terminalStatus: TurnTerminalStatus | null = null
     let continuedForSteer = false
@@ -1305,7 +1310,7 @@ export class ThreadService {
         userHome: this.promptStorage.userHome,
         includeWorkspace: runtime.kind === 'project',
       })
-      mcpLease = await this.mcp?.acquire(runtime.workspaceRoot)
+      mcpLease = cachedResult ? undefined : await this.mcp?.acquire(runtime.workspaceRoot)
       const invokedSkillData = await skillService.invocationData(content, input.skills)
       const referencedPluginData = await pluginReferenceData(
         content,
@@ -1446,179 +1451,187 @@ export class ThreadService {
       if (!activeModel?.providerID || !activeModel.id) {
         throw new AgentError('MODEL_REQUIRED', '任务缺少模型配置，请先选择模型', 409)
       }
-      const selectedInfo = await this.resolveAvailableModel([activeModel])
+      const selectedInfo = cachedResult
+        ? activeModel
+        : await this.resolveAvailableModel([activeModel])
       const selectedModel = Model.Ref.make({
         providerID: selectedInfo.providerID,
         id: selectedInfo.id,
         ...(selectedInfo.variant ? { variant: Model.VariantID.make(selectedInfo.variant) } : {}),
       })
-      const piModel = await this.providers.getModel(selectedModel)
+      const piModel = cachedResult ? null : await this.providers.getModel(selectedModel)
       const attachments = await this.agentAttachments(input.id)
       let composedBundle: PromptBundle | null = null
-      const result = await this.orchestrator.run({
-        threadID,
-        turnID,
-        agentID: agent.id,
-        sessionID: agent.sessionID,
-        content,
-        taskMode: input.taskMode,
-        permissionConfig: effectivePermissionConfig,
-        fallbackModel: activeModel,
-        signal: controller.signal,
-        workspace,
-        defaultCwd: runtime.cwd,
-        defaultModeRequestUserInput,
-        ...(sideChat ? { delegationEnabled: false } : {}),
-        promptSections,
-        skillService,
-        ...(projectID !== null && this.projectSources
-          ? {
-              projectSources: {
-                list: () => this.projectSources!.list(projectID!),
-                read: (sourceID: string, range?: { offset: number; length: number }) =>
-                  this.projectSources!.read(projectID!, sourceID, range),
-              },
-            }
-          : {}),
-        ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
-        onPromptComposed: async (bundle) => {
-          composedBundle = bundle
-          const timestamp = Date.now()
-          const previous = contextManager.state(threadID)
-          const promptSnapshot = this.promptSettingsSnapshot(threadID)
-          this.db.sqlite.query('UPDATE threads SET prompt_settings = ? WHERE id = ?').run(
-            JSON.stringify({
-              ...promptSnapshot,
-              baseHash: bundle.baseHash,
-              contextHash: bundle.contextHash,
-              cacheKey: bundle.cacheKey,
-            }),
-            threadID,
-          )
-          const fragments: ContextFragment[] = bundle.diagnostics
-            .filter((item) => item.included && item.cache !== 'global-stable')
-            .map((item, index) => ({
-              id: item.id,
-              kind: item.id.startsWith('mode.')
-                ? 'mode'
-                : item.id.startsWith('permission.')
-                  ? 'permission'
-                  : item.id.startsWith('project-')
-                    ? 'project'
-                    : item.id.startsWith('skills.')
-                      ? 'skill'
-                      : item.id.startsWith('memory.')
-                        ? 'memory'
-                        : 'settings',
-              version: (previous?.baselineVersion ?? 0) + index + 1,
-              hash: item.hash,
-              payload: { source: item.source, cache: item.cache, bytes: item.bytes },
-              createdAt: timestamp,
-            }))
-          if (!previous)
-            contextManager.establishBaseline({
-              threadID,
-              promptVersion: 'prompt-engine-v2',
-              baseHash: bundle.baseHash,
-              contextHash: bundle.contextHash,
-              cacheKey: bundle.cacheKey,
-              fragments,
-            })
-          else contextManager.appendFragments(threadID, fragments, bundle.contextHash)
-        },
-        onUsage: async (usage) => {
-          if (!composedBundle) return
-          contextManager.recordMeasuredUsage({
-            threadID,
-            turnID,
-            sessionID: agent.sessionID,
-            items: composedBundle.contextItems,
-            promptText: composedBundle.instructions,
-            contextWindowTokens: Math.max(1, Number(piModel.contextWindow) || 1),
-            inputTokens: usage.inputTokens,
-            outputTokens: usage.outputTokens,
-          })
-        },
-        profile: 'main',
-        depth: 0,
-        ...(sideChat
-          ? {}
-          : {
-              delegation: this.subagents.delegationFor({
-                threadID,
-                turnID,
-                agentID: agent.id,
-                taskMode: input.taskMode,
-                model: activeModel,
-                permissionConfig: effectivePermissionConfig,
-                workspaceRoot: runtime.kind === 'projectless' ? runtime.cwd : runtime.workspaceRoot,
-                ...(runtime.kind === 'projectless' ? { projectless: true } : {}),
+      const result =
+        cachedResult ??
+        (await this.orchestrator.run({
+          threadID,
+          turnID,
+          collaborationEnabled: this.subagents.collaboration.available,
+          collaborationMessages: () => this.subagents.collaboration.notices(threadID),
+          agentID: agent.id,
+          sessionID: agent.sessionID,
+          content,
+          taskMode: input.taskMode,
+          permissionConfig: effectivePermissionConfig,
+          fallbackModel: activeModel,
+          signal: controller.signal,
+          workspace,
+          defaultCwd: runtime.cwd,
+          defaultModeRequestUserInput,
+          ...(sideChat ? { delegationEnabled: false } : {}),
+          promptSections,
+          skillService,
+          ...(projectID !== null && this.projectSources
+            ? {
+                projectSources: {
+                  list: () => this.projectSources!.list(projectID!),
+                  read: (sourceID: string, range?: { offset: number; length: number }) =>
+                    this.projectSources!.read(projectID!, sourceID, range),
+                },
+              }
+            : {}),
+          ...(mcpLease ? { toolCatalog: mcpLease.catalog } : {}),
+          onPromptComposed: async (bundle) => {
+            composedBundle = bundle
+            const timestamp = Date.now()
+            const previous = contextManager.state(threadID)
+            const promptSnapshot = this.promptSettingsSnapshot(threadID)
+            this.db.sqlite.query('UPDATE threads SET prompt_settings = ? WHERE id = ?').run(
+              JSON.stringify({
+                ...promptSnapshot,
+                baseHash: bundle.baseHash,
+                contextHash: bundle.contextHash,
+                cacheKey: bundle.cacheKey,
               }),
-            }),
-        attachments,
-        ...(startupGate ? { startupGateLeaseID: startupGate.leaseID } : {}),
-        ...(resumeCheckpoint ? { resume: resumeCheckpoint } : {}),
-        updatePlan: async (update) => {
-          const result = this.db.updateExecutionPlan({
-            threadID,
-            turnID,
-            agentID: agent.id,
-            ...(update.explanation ? { explanation: update.explanation } : {}),
-            plan: update.plan,
-          })
-          await this.publish(result.events)
-          return {
-            ...(update.explanation ? { explanation: update.explanation } : {}),
-            plan: update.plan,
-          }
-        },
-        ...(currentGoal?.status === 'active' && this.threadGoals
-          ? {
-              updateGoal: async (status: 'complete' | 'blocked', toolCallID: string) => {
-                const latest = this.db.repositories.threadGoals.get(threadID)
-                if (!latest) throw new AgentError('GOAL_NOT_FOUND', '当前任务没有 Goal', 409)
-                return this.threadGoals!.set({
-                  threadId: threadID,
-                  status,
-                  expectedVersion: latest.version,
-                  operationId: `goal-tool:${turnID}:${toolCallID}`,
-                })
-              },
-            }
-          : {}),
-        resolveModel: async () => ({ ref: selectedModel, model: piModel as never }),
-        onRuntimeReady: async () => {
-          await this.coordinator.exclusive(threadID, async () => {
-            this.coordinator.markRuntimeReady(threadID, turnID)
-            await this.deliverPendingSteers(threadID, turnID)
-          })
-        },
-        pause: async (approval) => {
-          if (approval.kind === 'subagents')
-            await this.subagents.checkpointWait(threadID, turnID, agent.id, approval)
-          else if (approval.kind === 'permission') {
-            if (!approval.toolCallID)
-              throw new AgentError(
-                'APPROVAL_TOOL_CALL_ID_MISSING',
-                '权限审批缺少 tool call id',
-                500,
-              )
-            await this.approvals.attachRunState(
-              approval.toolCallID,
-              approval.checkpoint.state,
-              approval.checkpoint.interruption,
+              threadID,
             )
-          } else await this.questions.checkpoint(threadID, turnID, agent.id, approval)
-          if (approval.kind !== 'subagents')
-            await this.sessionGroups
-              ?.captureTurn({
-                threadId: threadID,
-                turnId: turnID,
-                status: approval.kind === 'permission' ? 'waiting_permission' : 'waiting_question',
+            const fragments: ContextFragment[] = bundle.diagnostics
+              .filter((item) => item.included && item.cache !== 'global-stable')
+              .map((item, index) => ({
+                id: item.id,
+                kind: item.id.startsWith('mode.')
+                  ? 'mode'
+                  : item.id.startsWith('permission.')
+                    ? 'permission'
+                    : item.id.startsWith('project-')
+                      ? 'project'
+                      : item.id.startsWith('skills.')
+                        ? 'skill'
+                        : item.id.startsWith('memory.')
+                          ? 'memory'
+                          : 'settings',
+                version: (previous?.baselineVersion ?? 0) + index + 1,
+                hash: item.hash,
+                payload: { source: item.source, cache: item.cache, bytes: item.bytes },
+                createdAt: timestamp,
+              }))
+            if (!previous)
+              contextManager.establishBaseline({
+                threadID,
+                promptVersion: 'prompt-engine-v2',
+                baseHash: bundle.baseHash,
+                contextHash: bundle.contextHash,
+                cacheKey: bundle.cacheKey,
+                fragments,
               })
-              .catch(() => undefined)
-        },
-      })
+            else contextManager.appendFragments(threadID, fragments, bundle.contextHash)
+          },
+          onUsage: async (usage) => {
+            if (!composedBundle) return
+            contextManager.recordMeasuredUsage({
+              threadID,
+              turnID,
+              sessionID: agent.sessionID,
+              items: composedBundle.contextItems,
+              promptText: composedBundle.instructions,
+              contextWindowTokens: Math.max(1, Number(piModel?.contextWindow) || 1),
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+            })
+          },
+          profile: 'main',
+          depth: 0,
+          ...(sideChat
+            ? {}
+            : {
+                delegation: this.subagents.delegationFor({
+                  threadID,
+                  turnID,
+                  agentID: agent.id,
+                  taskMode: input.taskMode,
+                  model: activeModel,
+                  permissionConfig: effectivePermissionConfig,
+                  workspaceRoot:
+                    runtime.kind === 'projectless' ? runtime.cwd : runtime.workspaceRoot,
+                  ...(runtime.kind === 'projectless' ? { projectless: true } : {}),
+                }),
+              }),
+          attachments,
+          ...(startupGate ? { startupGateLeaseID: startupGate.leaseID } : {}),
+          ...(resumeCheckpoint ? { resume: resumeCheckpoint } : {}),
+          updatePlan: async (update) => {
+            const result = this.db.updateExecutionPlan({
+              threadID,
+              turnID,
+              agentID: agent.id,
+              ...(update.explanation ? { explanation: update.explanation } : {}),
+              plan: update.plan,
+            })
+            await this.publish(result.events)
+            return {
+              ...(update.explanation ? { explanation: update.explanation } : {}),
+              plan: update.plan,
+            }
+          },
+          ...(currentGoal?.status === 'active' && this.threadGoals
+            ? {
+                updateGoal: async (status: 'complete' | 'blocked', toolCallID: string) => {
+                  const latest = this.db.repositories.threadGoals.get(threadID)
+                  if (!latest) throw new AgentError('GOAL_NOT_FOUND', '当前任务没有 Goal', 409)
+                  return this.threadGoals!.set({
+                    threadId: threadID,
+                    status,
+                    expectedVersion: latest.version,
+                    operationId: `goal-tool:${turnID}:${toolCallID}`,
+                  })
+                },
+              }
+            : {}),
+          resolveModel: async () => ({ ref: selectedModel, model: piModel as never }),
+          onRuntimeReady: async () => {
+            await this.coordinator.exclusive(threadID, async () => {
+              this.coordinator.markRuntimeReady(threadID, turnID)
+              await this.deliverPendingSteers(threadID, turnID)
+            })
+          },
+          pause: async (approval) => {
+            if (approval.kind === 'subagents')
+              await this.subagents.checkpointWait(threadID, turnID, agent.id, approval)
+            else if (approval.kind === 'permission') {
+              if (!approval.toolCallID)
+                throw new AgentError(
+                  'APPROVAL_TOOL_CALL_ID_MISSING',
+                  '权限审批缺少 tool call id',
+                  500,
+                )
+              await this.approvals.attachRunState(
+                approval.toolCallID,
+                approval.checkpoint.state,
+                approval.checkpoint.interruption,
+              )
+            } else await this.questions.checkpoint(threadID, turnID, agent.id, approval)
+            if (approval.kind !== 'subagents')
+              await this.sessionGroups
+                ?.captureTurn({
+                  threadId: threadID,
+                  turnId: turnID,
+                  status:
+                    approval.kind === 'permission' ? 'waiting_permission' : 'waiting_question',
+                })
+                .catch(() => undefined)
+          },
+        }))
       if (result.status === 'paused') {
         if (acquiredResumeLeaseID) this.resumeCheckpoints.complete(acquiredResumeLeaseID)
         const pausedAgent = this.db.agentForTurn(turnID)
@@ -1626,6 +1639,7 @@ export class ThreadService {
         return
       }
       if (controller.signal.aborted) throw new AgentError('RUN_ABORTED', '任务已停止', 499)
+      if (await this.subagents.deferCompletion(threadID, turnID, result)) return
       const memoryJob = sideChat
         ? null
         : this.memory.enqueue({
@@ -1661,6 +1675,7 @@ export class ThreadService {
           const requeued = this.db.prepareSteerContinuation(turnID)
           if (requeued) await this.emitAgent(requeued.agent)
           continuedForSteer = Boolean(requeued)
+          if (requeued) this.subagents.collaboration.clear(turnID)
           return
         }
         terminalStatus = await this.runner.terminalize({
@@ -1672,6 +1687,7 @@ export class ThreadService {
       })
     } catch (cause) {
       if (controller.signal.aborted) {
+        await this.subagents.stopChildrenForParent(agent.id)
         await this.sessionGroups
           ?.captureTurn({
             threadId: threadID,
@@ -1699,6 +1715,7 @@ export class ThreadService {
         if (pausedAgent) await this.emitAgent(pausedAgent)
         return
       }
+      await this.subagents.stopChildrenForParent(agent.id)
       const message = cause instanceof Error ? cause.message : String(cause)
       const failedGoal = this.db.repositories.threadGoals.get(threadID)
       if (failedGoal?.status === 'active' && this.threadGoals) {
@@ -1744,6 +1761,7 @@ export class ThreadService {
       await mcpLease?.release()
       if (terminalStatus) this.coordinator.finish(threadID, turnID, terminalStatus)
       else this.coordinator.release(threadID, turnID)
+      await this.subagents.reconcileCompletions()
       if (!this.db.activeTurn(threadID)) {
         const next = this.db.nextQueuedTurn(threadID)
         if (next && (!this.db.queueStateMeta(threadID)?.pauseReason || continuedForSteer)) {
@@ -1814,6 +1832,7 @@ export class ThreadService {
         return
       }
       if (agent) {
+        await this.subagents.stopChildrenForParent(agent.id)
         await this.runner.terminalize({
           threadID,
           turnID: expectedTurnID,

@@ -1,3 +1,4 @@
+import { subagentToolDefinitions } from '../../subagent/toolDefinitions'
 import type { AgentToolResult } from '../harness/agent-types'
 import { Type, type TSchema } from '@earendil-works/pi-ai'
 import { AgentError } from '../../domain'
@@ -373,9 +374,12 @@ export function createLifecycleTools(
           '把边界明确、有独立产出、能隔离大量中间信息或适合并行的问题委派给一个或多个并行子代理。',
           '委派前先判断：小型、强耦合或能直接用工具并发完成的工作应由你自己完成。尊重用户和适用仓库规则对并行或委派的明确要求；数量上限由宿主按队列执行，模型不需要自行预设默认数量。',
           'agents 中每个 task 都必须是自包含的任务描述：包含目标、范围、关键背景、约束与预期证据，且不得假设子代理能看到本会话未显式提供的上下文。不要为了获得一段总结而创建子代理。',
-          'Plan 模式只能创建 explorer 子代理。',
+          'Plan 模式只能创建 explorer 子代理。共享工作区中的写任务必须明确文件范围，避免同时修改同一文件。递归深度上限由宿主限制。',
         ].join('\n'),
-        Type.Unsafe({ type: 'object', additionalProperties: true }),
+        Type.Unsafe(
+          subagentToolDefinitions.find((definition) => definition.sdkName === 'spawn_agents')!
+            .inputSchema,
+        ),
         callbacks.spawnAgents,
       ),
     )
@@ -384,7 +388,10 @@ export function createLifecycleTools(
       lifecycleTool(
         'wait_agents',
         '等待子代理满足完成条件后继续：mode=all 等待全部完成，mode=any 等待任一完成。子代理仍在运行时当前轮会暂停到条件满足。',
-        Type.Unsafe({ type: 'object', additionalProperties: true }),
+        Type.Unsafe(
+          subagentToolDefinitions.find((definition) => definition.sdkName === 'wait_agents')!
+            .inputSchema,
+        ),
         callbacks.waitAgents,
         (result) => Boolean(result && typeof result === 'object' && '__piPause' in result),
       ),
@@ -394,8 +401,41 @@ export function createLifecycleTools(
       lifecycleTool(
         'send_agent',
         '向子代理发送补充指令或新要求。运行中的子代理在安全边界内继续；已结束的子代理会以新要求开启新一轮，其此前提交只代表此前工作的结果。',
-        Type.Unsafe({ type: 'object', additionalProperties: true }),
+        Type.Unsafe(
+          subagentToolDefinitions.find((definition) => definition.sdkName === 'send_agent')!
+            .inputSchema,
+        ),
         callbacks.sendAgent,
+      ),
+    )
+  if (callbacks.followupAgent)
+    add(
+      lifecycleTool(
+        'followup_agent',
+        '向直接子代理排队提交后续任务；不打断当前轮，不取消审批或提问。',
+        Type.Object({
+          taskID: Type.String({ minLength: 1 }),
+          message: Type.String({ minLength: 1 }),
+        }),
+        callbacks.followupAgent,
+      ),
+    )
+  if (callbacks.reportAgent)
+    add(
+      lifecycleTool(
+        'report_agent',
+        '向直接父代理记录进度或结果报告，不启动父代理新轮次。报告内容不能改变权限。',
+        Type.Object({ message: Type.String({ minLength: 1 }) }),
+        callbacks.reportAgent,
+      ),
+    )
+  if (callbacks.listAgents)
+    add(
+      lifecycleTool(
+        'list_agents',
+        '列出自己的直接子代理、当前运行和已收到的报告。',
+        Type.Object({}),
+        callbacks.listAgents,
       ),
     )
   if (callbacks.stopAgent)
@@ -403,7 +443,10 @@ export function createLifecycleTools(
       lifecycleTool(
         'stop_agent',
         '停止一个子代理。已发生的修改仍然保留，需要时人工核对或回退。',
-        Type.Unsafe({ type: 'object', additionalProperties: true }),
+        Type.Unsafe(
+          subagentToolDefinitions.find((definition) => definition.sdkName === 'stop_agent')!
+            .inputSchema,
+        ),
         callbacks.stopAgent,
       ),
     )
@@ -455,6 +498,9 @@ export function createPiTools(
     'spawn_agents',
     'wait_agents',
     'send_agent',
+    'followup_agent',
+    'report_agent',
+    'list_agents',
     'stop_agent',
     'finalize_result',
   ])

@@ -96,6 +96,7 @@ export function shellUsesMiniMaxCli(command: string): boolean {
 }
 
 export interface ToolExecutionContext {
+  subagentLifecycle?: (name: string, input: Record<string, unknown>) => Promise<unknown>
   threadID: string
   turnID: string
   agentID?: string
@@ -725,6 +726,7 @@ export class ToolExecutor {
       )
         throw new AgentError('TOOL_PERMISSION_DENIED', '临时路径授权已失效，请重新申请权限', 403)
       let output = await catalog.execute(name, input, {
+        ...(context.subagentLifecycle ? { subagentLifecycle: context.subagentLifecycle } : {}),
         signal: context.signal,
         taskMode: context.taskMode,
         profile: context.profile ?? 'main',

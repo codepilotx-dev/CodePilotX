@@ -23,6 +23,7 @@ import {
 } from '../wire/primitives'
 
 const SubagentCapabilitiesSchema = Schema.Struct({
+  canFollowup: Schema.optional(Schema.Boolean),
   canStop: Schema.Boolean,
   canRetry: Schema.Boolean,
   canRespondToApprovals: Schema.Boolean,
@@ -457,6 +458,47 @@ export const ExtendedRpcMethods = {
       'INTERNAL_ERROR',
     ] as const,
     capability: SUBAGENT_CAPABILITY,
+    mutation: true,
+  }),
+
+  'subagent/send': defineMethod({
+    params: Schema.Struct({
+      taskId: OpaqueIDSchema,
+      message: NonEmptyStringSchema,
+      ...OperationParamsSchema.fields,
+    }),
+    result: Schema.Struct({
+      disposition: Schema.Literals(['steering', 'follow-up']),
+      run: SubagentRunSchema,
+    }),
+    errors: [
+      'SUBAGENT_NOT_FOUND',
+      'PERMISSION_DENIED',
+      'CONFLICT',
+      'CAPABILITY_REQUIRED',
+      'RATE_LIMITED',
+      'INTERNAL_ERROR',
+    ] as const,
+    capability: 'subagents.followup.v1',
+    mutation: true,
+  }),
+
+  'subagent/followup': defineMethod({
+    params: Schema.Struct({
+      taskId: OpaqueIDSchema,
+      message: NonEmptyStringSchema,
+      ...OperationParamsSchema.fields,
+    }),
+    result: AdmissionSchema,
+    errors: [
+      'SUBAGENT_NOT_FOUND',
+      'PERMISSION_DENIED',
+      'CONFLICT',
+      'CAPABILITY_REQUIRED',
+      'RATE_LIMITED',
+      'INTERNAL_ERROR',
+    ] as const,
+    capability: 'subagents.followup.v1',
     mutation: true,
   }),
 

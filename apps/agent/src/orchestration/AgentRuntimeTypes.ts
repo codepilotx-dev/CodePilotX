@@ -57,19 +57,25 @@ export interface PendingApproval {
 }
 
 export interface DelegationController {
-  spawn(input: {
-    agents: Array<{
-      name?: string
-      profile: 'default' | 'explorer' | 'worker'
-      task: string
-      workspaceMode?: 'shared' | 'worktree'
-      model?: ModelRef
-    }>
-  }): Promise<unknown>
+  spawn(
+    input: {
+      agents: Array<{
+        name?: string
+        profile: 'default' | 'explorer' | 'worker'
+        task: string
+        workspaceMode?: 'shared' | 'worktree'
+        model?: ModelRef
+      }>
+    },
+    policy?: { permissionConfig: PermissionConfig; allowedTools?: readonly string[] },
+  ): Promise<unknown>
   wait(input: { runIDs: string[]; mode: 'all' | 'any' }): Promise<unknown>
   isWaitSatisfied(input: { runIDs: string[]; mode: 'all' | 'any' }): Promise<boolean>
-  send(input: { taskID: string; message: string }): Promise<unknown>
-  stop(input: { taskID: string }): Promise<unknown>
+  send(input: { taskID: string; message: string; operationID?: string }): Promise<unknown>
+  followup?(input: { taskID: string; message: string; operationID: string }): Promise<unknown>
+  report?(input: { message: string; operationID: string }): Promise<unknown>
+  list?(): Promise<unknown>
+  stop(input: { taskID: string; operationID?: string }): Promise<unknown>
 }
 
 export interface ProjectSourceRuntimeAccess {
@@ -100,6 +106,12 @@ export interface AgentRuntimeRequest {
   sessionID: string
   profile?: SubagentProfile
   depth?: number
+  collaborationMessages?: () => Array<{
+    id: string
+    kind: string
+    message: string
+    created_at: number
+  }>
   delegation?: DelegationController
   content: string
   taskMode: TaskMode
@@ -113,6 +125,7 @@ export interface AgentRuntimeRequest {
   startupGateLeaseID?: string
   defaultModeRequestUserInput?: boolean
   delegationEnabled?: boolean
+  collaborationEnabled?: boolean
   promptSections?: PromptSection[]
   skillService?: SkillService
   projectSources?: ProjectSourceRuntimeAccess

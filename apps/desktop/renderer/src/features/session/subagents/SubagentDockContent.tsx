@@ -14,6 +14,7 @@ type Props = {
   read: DesktopSubagentRead | null
   taskId: string | null
   onBack: () => void
+  onOpenParentSubagent?: (taskId: string) => void
   onError: (message: string) => void
   onOpenPatchReview: (path?: string) => void
   onOpenSubagent: NonNullable<SubagentThreadCallbacks['onOpenSubagent']>
@@ -27,6 +28,7 @@ export function SubagentDockContent({
   read,
   taskId,
   onBack,
+  onOpenParentSubagent,
   onError,
   onOpenPatchReview,
   onOpenSubagent,
@@ -73,6 +75,16 @@ export function SubagentDockContent({
   }
 
   const callbacks: SubagentThreadCallbacks = {
+    onSend: async (message) => {
+      if (!desktopClient.sendSubagent) throw new Error('当前 Agent 不支持补充要求。')
+      await desktopClient.sendSubagent(read.task.id, message)
+      await onRefresh()
+    },
+    onFollowup: async (message) => {
+      if (!desktopClient.followupSubagent) throw new Error('当前 Agent 不支持后续任务。')
+      await desktopClient.followupSubagent(read.task.id, message)
+      await onRefresh()
+    },
     onPatchApplied: async () => {
       await onRefresh()
       onPatchApplied()
@@ -138,7 +150,11 @@ export function SubagentDockContent({
       snapshot={read.snapshot}
       capabilities={read.capabilities}
       callbacks={callbacks}
-      onBackToParent={onBack}
+      onBackToParent={
+        read.task.parentTaskId && onOpenParentSubagent
+          ? () => onOpenParentSubagent(read.task.parentTaskId!)
+          : onBack
+      }
     />
   )
 }

@@ -29,12 +29,22 @@ export function filterAdvertisedCapabilities(
   const { creationSurface, projectlessOwner } = probeThreadsStorageCapabilities(db.sqlite)
   const { itemArtifactsTable } = probeArtifactsStorageCapabilities(db.sqlite)
   const { automations, automationRuns } = probeAutomationStorageCapabilities(db.sqlite)
-  const tables = new Set((db.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{name:string}>).map((row) => row.name))
+  const tables = new Set(
+    (
+      db.sqlite.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{
+        name: string
+      }>
+    ).map((row) => row.name),
+  )
   const { scheduledTasks, schedulePlanProposals } = probeScheduleCalendarStorageCapabilities(
     db.sqlite,
   )
   return Capabilities.filter(
     (capability): capability is ProtocolCapability =>
+      ((capability !== 'subagents.recursive.v1' && capability !== 'subagents.followup.v1') ||
+        (tables.has('subagent_messages') &&
+          tables.has('subagent_completions') &&
+          tables.has('subagent_task_policies'))) &&
       (capability !== 'plan.approval.fresh.v1' || (freshPlanAvailable && projectlessOwner)) &&
       ((capability !== 'browser.manage.v1' && capability !== 'browser.host.v1') ||
         new BrowserRepository(db).available()) &&
@@ -57,8 +67,14 @@ export function filterAdvertisedCapabilities(
       (capability !== 'artifacts.read.v1' || itemArtifactsTable) &&
       (capability !== 'automation.manage.v1' || (automations && automationRuns)) &&
       (capability !== 'worktree.settings.v1' || tables.has('worktree_owned_roots')) &&
-      (capability !== 'local-environment.multiple.v1' || (tables.has('local_environment_selections') && tables.has('worktree_environment_snapshots'))) &&
-      (capability !== 'github.watch.v1' || (automations && automationRuns && tables.has('pr_watches') && tables.has('automation_host_tool_calls'))) &&
+      (capability !== 'local-environment.multiple.v1' ||
+        (tables.has('local_environment_selections') &&
+          tables.has('worktree_environment_snapshots'))) &&
+      (capability !== 'github.watch.v1' ||
+        (automations &&
+          automationRuns &&
+          tables.has('pr_watches') &&
+          tables.has('automation_host_tool_calls'))) &&
       (capability !== 'calendar.manage.v1' ||
         (automations && automationRuns && scheduledTasks && schedulePlanProposals)),
   )
