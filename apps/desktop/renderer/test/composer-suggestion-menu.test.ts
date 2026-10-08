@@ -1,9 +1,13 @@
 import { describe, expect, test } from 'bun:test'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { ComposerCommandMenu } from '../src/features/session/composer/ComposerCommandMenu.js'
 import {
   buildComposerSuggestionItems,
   filterComposerMenuItems,
   nextEnabledMenuIndex,
   resolveComposerMenuActiveKey,
+  composerMenuScrollTop,
 } from '../src/features/session/composer/composerSuggestionMenu.js'
 import { resolveComposerSuggestionRequest } from '../src/features/session/composer/composerSuggestionState.js'
 import {
@@ -13,6 +17,7 @@ import {
   type ComposerSlashCommand,
 } from '../src/features/session/composer/composerSlashCommands.js'
 import type { ComposerMenuItem } from '../src/features/session/composer/ComposerCommandMenu.js'
+import { computeDropdownMaxHeight } from '../src/features/session/composer/ChatInputDropdown.js'
 
 const item = (key: string, extra: Partial<ComposerMenuItem> = {}): ComposerMenuItem => ({
   key,
@@ -24,6 +29,42 @@ const item = (key: string, extra: Partial<ComposerMenuItem> = {}): ComposerMenuI
 })
 
 describe('composer suggestion routing and selection', () => {
+  test('超过 50 行的候选使用明确的内联视口高度，覆盖 Virtua 的 100% 默认高度', () => {
+    const render = (count: number) => renderToStaticMarkup(createElement(ComposerCommandMenu, {
+      id: 'menu', items: Array.from({ length: count }, (_, index) => item(`item-${index}`)),
+      keyword: '', activeKey: 'item-0', onActiveKeyChange: () => {}, onItemSelect: () => {},
+    }))
+    expect(render(51)).toContain('height:calc(var(--composer-suggestion-max-height, 320px) - var(--cpx-sys-space-4))')
+    expect(render(51)).not.toContain('height:100%')
+    expect(render(50)).toContain('item-49')
+    expect(render(50)).not.toContain('chat-input__suggestion-vlist')
+  })
+  test('裸 / 与 $ 触发候选面板，列表滚动只调整自身并保留锚点可用高度', () => {
+    expect(resolveComposerSuggestionRequest('/', 1, false)?.kind).toBe('slash')
+    expect(resolveComposerSuggestionRequest('$', 1, false)?.kind).toBe('skill')
+    expect(composerMenuScrollTop(40, 120, -20, 12)).toBe(20)
+    expect(composerMenuScrollTop(40, 120, 100, 132)).toBe(52)
+    expect(composerMenuScrollTop(40, 120, 20, 52)).toBe(40)
+    expect(composerMenuScrollTop(0, 120, -20, 12)).toBe(0)
+    expect(
+      computeDropdownMaxHeight({
+        side: 'top',
+        anchorTop: 200,
+        windowHeight: 800,
+        maxCap: 320,
+        safetyMargin: 16,
+      }),
+    ).toBe(184)
+    expect(
+      computeDropdownMaxHeight({
+        side: 'bottom',
+        anchorTop: 300,
+        windowHeight: 800,
+        maxCap: 320,
+        safetyMargin: 16,
+      }),
+    ).toBe(320)
+  })
   test('四种文本标记只替换光标前有效范围，IME 与邮件不触发', () => {
     for (const [text, kind] of [
       ['(@文件', 'mention'],

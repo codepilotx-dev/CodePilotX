@@ -88,8 +88,10 @@ export function ChatInputDropdown({
     const measure = (): void => {
       const el = ref.current
       if (!el) return
-      const rect = el.getBoundingClientRect()
-      const anchorTop = side === 'top' ? rect.bottom : rect.top
+      const anchor = el.parentElement
+      if (!anchor) return
+      const rect = anchor.getBoundingClientRect()
+      const anchorTop = side === 'top' ? rect.top : rect.bottom
       setMaxHeight(
         computeDropdownMaxHeight({
           side,

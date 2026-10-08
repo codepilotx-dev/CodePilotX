@@ -3,6 +3,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { VList, type VListHandle } from 'virtua'
 import { cx } from '../../../utils/cx.js'
 import type { ComposerCommand } from './composerSlashCommands.js'
+import { composerMenuScrollTop } from './composerSuggestionMenu.js'
 export { filterComposerMenuItems } from './composerSuggestionMenu.js'
 
 export type ComposerMenuItem = {
@@ -60,8 +61,7 @@ const ITEM_META_CLASS =
   'chat-input__dropdown-meta tw:whitespace-nowrap tw:text-app-text-meta tw:type-caption'
 const EMPTY_CLASS =
   'chat-input__dropdown-empty tw:p-2 tw:text-center tw:text-app-text-meta tw:type-secondary'
-const VLIST_CLASS =
-  'chat-input__suggestion-vlist tw:h-[calc(var(--composer-suggestion-max-height)-var(--cpx-sys-space-4))]'
+const VLIST_CLASS = 'chat-input__suggestion-vlist'
 
 type Props = {
   id: string
@@ -122,10 +122,19 @@ export function ComposerCommandMenu({
     const index = rows.findIndex((row) => row.key === activeKey)
     if (index < 0) return
     if (virtual) listRef.current?.scrollToIndex(index, { align: 'nearest' })
-    else
-      document
-        .getElementById(composerMenuItemId(id, activeKey!))
-        ?.scrollIntoView({ block: 'nearest' })
+    else {
+      const root = rootRef.current
+      const item = document.getElementById(composerMenuItemId(id, activeKey!))
+      if (!root || !item) return
+      const viewport = root.getBoundingClientRect()
+      const row = item.getBoundingClientRect()
+      root.scrollTop = composerMenuScrollTop(
+        root.scrollTop,
+        root.clientHeight,
+        row.top - viewport.top,
+        row.bottom - viewport.top,
+      )
+    }
   }, [activeKey, items, virtual, id])
 
   function renderRow(row: MenuRow): React.ReactNode {
@@ -192,7 +201,13 @@ export function ComposerCommandMenu({
         </div>
       ) : null}
       {virtual ? (
-        <VList className={VLIST_CLASS} data={rows} ref={listRef} onScroll={updateMask}>
+        <VList
+          className={VLIST_CLASS}
+          style={{ height: 'calc(var(--composer-suggestion-max-height, 320px) - var(--cpx-sys-space-4))' }}
+          data={rows}
+          ref={listRef}
+          onScroll={updateMask}
+        >
           {(row) => <div key={row.key}>{renderRow(row)}</div>}
         </VList>
       ) : (

@@ -1,5 +1,16 @@
 import type { ComposerMenuItem } from './ComposerCommandMenu.js'
 
+export function composerMenuScrollTop(
+  scrollTop: number,
+  viewportHeight: number,
+  itemTop: number,
+  itemBottom: number,
+): number {
+  if (itemTop < 0) return Math.max(0, scrollTop + itemTop)
+  if (itemBottom > viewportHeight) return scrollTop + itemBottom - viewportHeight
+  return scrollTop
+}
+
 function subsequence(query: string, value: string): boolean {
   let index = 0
   for (const char of value) if (char === query[index]) index++
