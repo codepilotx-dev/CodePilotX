@@ -146,6 +146,7 @@ export function ConversationPage(): React.ReactNode {
     projectDetailsTrigger,
     workspaceName,
     workspacePath,
+    activeProjectId,
     branchName,
     branches,
     gitStatus,
@@ -491,6 +492,7 @@ export function ConversationPage(): React.ReactNode {
     gitStatus,
     reviewSource,
     reviewSummary,
+    activeProjectId,
   )
   const branchReviewSummary = branchReviewState.snapshot
   const sourceLinks = canonicalAuxiliary.sourceLinks

@@ -19,12 +19,32 @@ type ReviewRefreshCycle<TResult> = {
 
 export const REVIEW_REFRESH_MAX_ATTEMPTS = 3
 export const REVIEW_REPOSITORY_BUSY_MESSAGE = '工作区持续变化，请稍后重试'
+/** 文件变化停止后等待多久才自动刷新，收到新变化会重新计时。 */
+export const REVIEW_AUTO_REFRESH_DELAY_MS = 60_000
 
 export class ReviewRepositoryBusyError extends Error {
   constructor() {
     super(REVIEW_REPOSITORY_BUSY_MESSAGE)
     this.name = 'ReviewRepositoryBusyError'
   }
+}
+
+export type ReviewRefreshReason = 'auto' | 'immediate'
+
+/** 同时识别 Agent 的 RPC busy 错误和协调器自己抛出的 busy 错误。 */
+export function isReviewRepositoryBusyError(error: unknown): boolean {
+  if (error instanceof ReviewRepositoryBusyError) return true
+  return (
+    error instanceof Error &&
+    (error as Error & { errorCode?: unknown }).errorCode === 'REVIEW_REPOSITORY_BUSY'
+  )
+}
+
+/**
+ * 自动刷新遇到 busy 时静默退避并保留现有内容；手动刷新和其他错误继续反馈。
+ */
+export function shouldDeferReviewRefresh(reason: ReviewRefreshReason, error: unknown): boolean {
+  return reason === 'auto' && isReviewRepositoryBusyError(error)
 }
 
 export function isReviewRequestCurrent(
@@ -151,5 +171,45 @@ export class ReviewRefreshCoordinator<TResult extends ReviewRefreshResult> {
 
     if (this.#current === cycle) this.#current = null
     return result
+  }
+}
+
+/**
+ * Trailing debounce for filesystem-driven Review refreshes. Each change only
+ * restarts the countdown, so the callback runs once the workspace has been
+ * quiet for `delayMs` instead of scanning during a write burst.
+ */
+export class ReviewAutoRefreshScheduler {
+  #timer: ReturnType<typeof setTimeout> | null = null
+  #callback: (() => void) | null = null
+  #disposed = false
+
+  constructor(private readonly delayMs = REVIEW_AUTO_REFRESH_DELAY_MS) {}
+
+  schedule(callback: () => void): void {
+    if (this.#disposed) return
+    this.#callback = callback
+    if (this.#timer !== null) clearTimeout(this.#timer)
+    this.#timer = setTimeout(() => {
+      this.#timer = null
+      const run = this.#callback
+      this.#callback = null
+      run?.()
+    }, this.delayMs)
+  }
+
+  cancel(): void {
+    if (this.#timer !== null) clearTimeout(this.#timer)
+    this.#timer = null
+    this.#callback = null
+  }
+
+  activate(): void {
+    this.#disposed = false
+  }
+
+  dispose(): void {
+    this.#disposed = true
+    this.cancel()
   }
 }

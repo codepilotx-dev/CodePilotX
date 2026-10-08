@@ -3328,6 +3328,7 @@ export function DesktopLayout(): React.ReactNode {
               ) : null,
             workspaceName: currentWorkspace?.name ?? null,
             workspacePath: currentWorkspace?.path ?? null,
+            activeProjectId: currentWorkspace?.projectId ?? null,
             branchName,
             branches: currentWorkspace?.branches ?? EMPTY_BRANCHES,
             diff: workspace.diff,

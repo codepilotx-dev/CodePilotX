@@ -33,6 +33,7 @@ export type QuickChatContextValue = {
   projectDetailsTrigger?: ReactNode
   workspaceName: string | null
   workspacePath: string | null
+  activeProjectId: string | null
   branchName: string | null
   branches: string[]
   diff: string

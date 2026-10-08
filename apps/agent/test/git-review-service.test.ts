@@ -745,6 +745,44 @@ describe('GitReviewService', () => {
     db.close()
   }, 30_000)
 
+  test('每批有效变化都会通知，客户端的自动刷新计时可以持续重置', async () => {
+    const notifications: number[] = []
+    let resolveNotification: (() => void) | undefined
+    const nextNotification = () =>
+      new Promise<void>((resolve) => {
+        resolveNotification = resolve
+      })
+    let notification = nextNotification()
+    const { root, db, project, review } = await fixture({
+      onChanged: () => {
+        notifications.push(Date.now())
+        resolveNotification?.()
+      },
+    })
+    await review.summaryResult(project.id, { kind: 'unstaged' })
+
+    await writeFile(join(root, 'src', 'index.ts'), 'export const value = 2\n', 'utf8')
+    await Promise.race([
+      notification,
+      Bun.sleep(3_000).then(() => {
+        throw new Error('等待第一批 Git watcher 通知超时')
+      }),
+    ])
+
+    notification = nextNotification()
+    await writeFile(join(root, 'src', 'index.ts'), 'export const value = 3\n', 'utf8')
+    await Promise.race([
+      notification,
+      Bun.sleep(3_000).then(() => {
+        throw new Error('等待第二批 Git watcher 通知超时')
+      }),
+    ])
+
+    expect(notifications).toHaveLength(2)
+    review.dispose()
+    db.close()
+  }, 30_000)
+
   test('仓库持续变化时有界重试并返回 busy', async () => {
     let rootPath = ''
     let statusCalls = 0

@@ -110,7 +110,10 @@ import {
   createReviewSummaryIdentity,
   isReviewRequestCurrent,
   reviewGitChangeMatchesProject,
+  ReviewAutoRefreshScheduler,
   ReviewRefreshCoordinator,
+  shouldDeferReviewRefresh,
+  type ReviewRefreshReason,
   type ReviewRequestStamp,
 } from '../state/reviewRefreshCoordinator.js'
 import {
@@ -192,6 +195,11 @@ const ReviewDiffExpansionToggle = React.memo(function ReviewDiffExpansionToggle(
   )
 })
 
+/**
+ * `auto` refreshes come from Git change notifications after the workspace has
+ * been quiet; `immediate` refreshes come from opening, switching, manual
+ * refresh or a completed mutation, and cancel any pending auto refresh.
+ */
 export type WorkspaceReviewSidebarProps = {
   activeSessionId: string | null
   projectId: string | null
@@ -458,9 +466,11 @@ function WorkspaceReviewSidebarImpl({
   React.useEffect(() => {
     const coordinator = refreshCoordinatorRef.current
     coordinator.activate()
+    autoRefreshRef.current.activate()
     return () => {
       refreshLifecycleGenerationRef.current += 1
       coordinator.dispose()
+      autoRefreshRef.current.dispose()
     }
   }, [])
   const activeSummaryIdentityRef = React.useRef(summaryIdentity)
@@ -518,14 +528,49 @@ function WorkspaceReviewSidebarImpl({
   const flushReviewScrollRef = React.useRef(flushReviewScroll)
   flushReviewScrollRef.current = flushReviewScroll
 
+  const autoRefreshRef = React.useRef(new ReviewAutoRefreshScheduler())
+  const autoRefreshTargetRef = React.useRef<() => void>(() => {})
+  const scheduleAutoRefresh = React.useCallback((): void => {
+    autoRefreshRef.current.schedule(() => autoRefreshTargetRef.current())
+  }, [])
+
   const refreshReviewDiff = React.useCallback(
-    (force = false) => {
+    (force = false, reason: ReviewRefreshReason = 'immediate') => {
       const identity = summaryIdentity
       const lifecycleGeneration = refreshLifecycleGenerationRef.current
+      // An explicit refresh supersedes any timer that was waiting on the
+      // workspace to settle; the new scan already covers the pending change.
+      if (reason !== 'auto') autoRefreshRef.current.cancel()
       const isCurrentRequest = (): boolean =>
         activeSummaryIdentityRef.current === identity &&
         refreshLifecycleGenerationRef.current === lifecycleGeneration
       const cycleStartedAt = performance.now()
+      const finishWithError = (
+        refreshError: unknown,
+        event: string,
+        context: ReviewDiagnosticContext,
+      ): void => {
+        if (!isCurrentRequest()) return
+        const busy = shouldDeferReviewRefresh(reason, refreshError)
+        reportReviewDiagnostic(busy ? 'warning' : 'error', event, context, refreshError)
+        if (summaryRef.current !== null) summaryCacheStateRef.current = 'stale'
+        setFileLoadStates((current) => {
+          const next = new Map(current)
+          for (const [path, state] of next) {
+            if (state.status === 'loading') next.delete(path)
+          }
+          return next
+        })
+        if (busy) {
+          // Keep the current list and diff, stop pretending to load, and retry
+          // after the next quiet window instead of surfacing a shared error.
+          setLoadState(summaryRef.current !== null ? 'stale' : 'empty')
+          scheduleAutoRefresh()
+          return
+        }
+        setLoadState(reviewLoadStateForError(refreshError))
+        setError(errorMessageOf(refreshError))
+      }
       const request = refreshCoordinatorRef.current.request(
         identity,
         force,
@@ -657,61 +702,46 @@ function WorkspaceReviewSidebarImpl({
             })
             return result
           } catch (refreshError) {
-            if (!isCurrentRequest()) return null
-            reportReviewDiagnostic(
-              'error',
-              'review.summary.load.failed',
-              {
-                sourceKind: source.kind,
-                refresh,
-                hasCachedSummary: summaryRef.current !== null,
-                durationMs: Math.round(performance.now() - startedAt),
-              },
-              refreshError,
-            )
-            if (summaryRef.current !== null) summaryCacheStateRef.current = 'stale'
-            setFileLoadStates((current) => {
-              const next = new Map(current)
-              for (const [path, state] of next) {
-                if (state.status === 'loading') next.delete(path)
-              }
-              return next
+            finishWithError(refreshError, 'review.summary.load.failed', {
+              sourceKind: source.kind,
+              refresh,
+              hasCachedSummary: summaryRef.current !== null,
+              durationMs: Math.round(performance.now() - startedAt),
             })
-            setLoadState(reviewLoadStateForError(refreshError))
-            setError(errorMessageOf(refreshError))
             return null
           }
         },
       )
       return request.catch((refreshError: unknown) => {
-        if (isCurrentRequest()) {
-          reportReviewDiagnostic(
-            'error',
-            'review.summary.refresh-cycle.failed',
-            {
-              sourceKind: source.kind,
-              force,
-              hasCachedSummary: summaryRef.current !== null,
-              durationMs: Math.round(performance.now() - cycleStartedAt),
-            },
-            refreshError,
-          )
-          if (summaryRef.current !== null) summaryCacheStateRef.current = 'stale'
-          setFileLoadStates((current) => {
-            const next = new Map(current)
-            for (const [path, state] of next) {
-              if (state.status === 'loading') next.delete(path)
-            }
-            return next
-          })
-          setLoadState(reviewLoadStateForError(refreshError))
-          setError(errorMessageOf(refreshError))
-        }
+        finishWithError(refreshError, 'review.summary.refresh-cycle.failed', {
+          sourceKind: source.kind,
+          force,
+          hasCachedSummary: summaryRef.current !== null,
+          durationMs: Math.round(performance.now() - cycleStartedAt),
+        })
         return null
       })
     },
-    [beginDiagnosticTimer, gitStatus, projectId, scope, source, summaryIdentity, workspacePath],
+    [
+      beginDiagnosticTimer,
+      gitStatus,
+      projectId,
+      scheduleAutoRefresh,
+      scope,
+      source,
+      summaryIdentity,
+      workspacePath,
+    ],
   )
+
+  autoRefreshTargetRef.current = (): void => {
+    const root = reviewRootRef.current
+    if (root === null || root.offsetParent === null) {
+      staleGitChangeRef.current = true
+      return
+    }
+    void refreshReviewDiff(true, 'auto')
+  }
 
   const recoverExpiredReview = React.useCallback(
     async (
@@ -737,6 +767,7 @@ function WorkspaceReviewSidebarImpl({
 
   React.useEffect(() => {
     refreshCoordinatorRef.current.invalidate()
+    autoRefreshRef.current.cancel()
     fileRequestCoordinatorRef.current = new ReviewFileRequestCoordinator(2)
     summaryRef.current = null
     summaryCacheStateRef.current = null
@@ -1278,15 +1309,17 @@ function WorkspaceReviewSidebarImpl({
     const handleGitChange = (event: Event): void => {
       const detail = event instanceof CustomEvent ? event.detail : null
       if (!reviewGitChangeMatchesProject(detail, projectId)) return
-      if (reviewRootRef.current?.offsetParent !== null) {
-        void refreshReviewDiff(true)
+      if (reviewRootRef.current !== null && reviewRootRef.current.offsetParent === null) {
+        staleGitChangeRef.current = true
         return
       }
-      staleGitChangeRef.current = true
+      // Restart the quiet-window countdown; the scan itself waits for the
+      // workspace to stop changing instead of joining every write.
+      scheduleAutoRefresh()
     }
     window.addEventListener(WORKSPACE_GIT_CHANGED_EVENT, handleGitChange)
     return () => window.removeEventListener(WORKSPACE_GIT_CHANGED_EVENT, handleGitChange)
-  }, [projectId, refreshReviewDiff])
+  }, [projectId, scheduleAutoRefresh])
 
   React.useEffect(() => {
     const root = reviewRootRef.current

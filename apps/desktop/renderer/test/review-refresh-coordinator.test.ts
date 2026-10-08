@@ -1,11 +1,15 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, jest, test } from 'bun:test'
 import {
   createReviewCommentIdentity,
   createReviewSummaryIdentity,
   isReviewRequestCurrent,
   reviewGitChangeMatchesProject,
+  REVIEW_AUTO_REFRESH_DELAY_MS,
   REVIEW_REPOSITORY_BUSY_MESSAGE,
+  ReviewAutoRefreshScheduler,
   ReviewRefreshCoordinator,
+  ReviewRepositoryBusyError,
+  shouldDeferReviewRefresh,
 } from '../src/features/review/state/reviewRefreshCoordinator.js'
 
 describe('ReviewRefreshCoordinator', () => {
@@ -195,5 +199,118 @@ describe('ReviewRefreshCoordinator', () => {
     expect(reviewGitChangeMatchesProject({ projectId: 'project-2' }, 'project-1')).toBe(false)
     expect(reviewGitChangeMatchesProject({}, 'project-1')).toBe(false)
     expect(reviewGitChangeMatchesProject({ projectId: 'project-1' }, null)).toBe(false)
+  })
+})
+
+describe('ReviewAutoRefreshScheduler', () => {
+  const withFakeTimers = (run: () => void): void => {
+    jest.useFakeTimers()
+    try {
+      run()
+    } finally {
+      jest.useRealTimers()
+    }
+  }
+
+  test('默认等待 60 秒静默期', () => {
+    expect(REVIEW_AUTO_REFRESH_DELAY_MS).toBe(60_000)
+  })
+
+  test('到期前不刷新，到期后只刷新一次', () => {
+    withFakeTimers(() => {
+      const scheduler = new ReviewAutoRefreshScheduler()
+      let refreshes = 0
+      scheduler.schedule(() => {
+        refreshes += 1
+      })
+
+      jest.advanceTimersByTime(REVIEW_AUTO_REFRESH_DELAY_MS - 1)
+      expect(refreshes).toBe(0)
+
+      jest.advanceTimersByTime(1)
+      expect(refreshes).toBe(1)
+
+      jest.advanceTimersByTime(REVIEW_AUTO_REFRESH_DELAY_MS)
+      expect(refreshes).toBe(1)
+    })
+  })
+
+  test('连续变化重置倒计时，只在最后一次变化后刷新', () => {
+    withFakeTimers(() => {
+      const scheduler = new ReviewAutoRefreshScheduler()
+      let refreshes = 0
+      scheduler.schedule(() => {
+        refreshes += 1
+      })
+
+      for (let change = 0; change < 3; change += 1) {
+        jest.advanceTimersByTime(30_000)
+        scheduler.schedule(() => {
+          refreshes += 1
+        })
+      }
+      expect(refreshes).toBe(0)
+
+      jest.advanceTimersByTime(REVIEW_AUTO_REFRESH_DELAY_MS - 1)
+      expect(refreshes).toBe(0)
+      jest.advanceTimersByTime(1)
+      expect(refreshes).toBe(1)
+    })
+  })
+
+  test('cancel 取消待执行的自动刷新', () => {
+    withFakeTimers(() => {
+      const scheduler = new ReviewAutoRefreshScheduler()
+      let refreshes = 0
+      scheduler.schedule(() => {
+        refreshes += 1
+      })
+
+      scheduler.cancel()
+      jest.advanceTimersByTime(REVIEW_AUTO_REFRESH_DELAY_MS)
+      expect(refreshes).toBe(0)
+    })
+  })
+
+  test('dispose 后不执行，activate 后恢复', () => {
+    withFakeTimers(() => {
+      const scheduler = new ReviewAutoRefreshScheduler()
+      let refreshes = 0
+      const refresh = () => {
+        refreshes += 1
+      }
+
+      scheduler.schedule(refresh)
+      scheduler.dispose()
+      jest.advanceTimersByTime(REVIEW_AUTO_REFRESH_DELAY_MS)
+      expect(refreshes).toBe(0)
+
+      scheduler.schedule(refresh)
+      jest.advanceTimersByTime(REVIEW_AUTO_REFRESH_DELAY_MS)
+      expect(refreshes).toBe(0)
+
+      scheduler.activate()
+      scheduler.schedule(refresh)
+      jest.advanceTimersByTime(REVIEW_AUTO_REFRESH_DELAY_MS)
+      expect(refreshes).toBe(1)
+    })
+  })
+})
+
+describe('shouldDeferReviewRefresh', () => {
+  const rpcBusyError = Object.assign(new Error(REVIEW_REPOSITORY_BUSY_MESSAGE), {
+    errorCode: 'REVIEW_REPOSITORY_BUSY',
+  })
+
+  test('自动刷新遇到 RPC busy 或协调器 busy 时静默退避', () => {
+    expect(shouldDeferReviewRefresh('auto', rpcBusyError)).toBe(true)
+    expect(shouldDeferReviewRefresh('auto', new ReviewRepositoryBusyError())).toBe(true)
+  })
+
+  test('手动刷新和其他错误保持现有反馈', () => {
+    expect(shouldDeferReviewRefresh('immediate', rpcBusyError)).toBe(false)
+    expect(shouldDeferReviewRefresh('immediate', new ReviewRepositoryBusyError())).toBe(false)
+    expect(shouldDeferReviewRefresh('auto', new Error('network down'))).toBe(false)
+    expect(shouldDeferReviewRefresh('auto', null)).toBe(false)
   })
 })

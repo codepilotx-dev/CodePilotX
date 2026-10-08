@@ -81,7 +81,6 @@ export class GitReviewService {
   private readonly snapshotRequestStartedAt = new Map<string, number>()
   private readonly projectEpochs = new Map<string, number>()
   private readonly repositoryRoots = new Map<string, string>()
-  private readonly dirtyProjects = new Set<string>()
   private readonly maxSnapshots: number
   private disposed = false
   private readonly gitRunner: GitCommandRunner
@@ -265,8 +264,9 @@ export class GitReviewService {
           metadataChanged || unknownPath || (await this.shouldInvalidateWatchPaths(rootPath, paths))
         if (!invalidate || closed) return
         this.markProjectStale(projectId)
-        if (this.dirtyProjects.has(projectId)) return
-        this.dirtyProjects.add(projectId)
+        // Every accepted batch notifies. Clients debounce the notification
+        // themselves, so suppressing repeats here would only let their timer
+        // expire mid-write and scan a repository that is still changing.
         await Promise.resolve(this.onChanged?.(projectId)).catch(() => undefined)
       } catch {
         // Watcher reconciliation is advisory; explicit refresh remains usable.
@@ -1072,10 +1072,8 @@ export class GitReviewService {
       })
       return active
     }
-    // Starting reconciliation acknowledges the previous dirty notification.
-    // A filesystem change racing this refresh may therefore emit exactly one
-    // trailing notification and the epoch check keeps the result stale.
-    this.dirtyProjects.delete(projectId)
+    // A filesystem change racing this refresh keeps its own watcher
+    // notification, and the epoch check keeps the rebuilt result stale.
     this.snapshotRequestStartedAt.set(key, performance.now())
     const request = this.buildSnapshot(projectId, source).then((entry) => {
       this.setSnapshot(key, entry)

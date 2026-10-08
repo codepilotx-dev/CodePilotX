@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import type { DesktopGitStatus, DesktopReviewSource } from '../../../../shared/types.js'
 import { WORKSPACE_GIT_CHANGED_EVENT } from '../../../services/desktop-client/index.js'
 import {
+  ReviewAutoRefreshScheduler,
+  reviewGitChangeMatchesProject,
+} from '../../review/state/reviewRefreshCoordinator.js'
+import {
   pickDefaultReviewBaseBranch,
   reviewAgentClient,
   type ReviewSummarySnapshot,
@@ -12,6 +16,7 @@ export function useBranchReviewSummary(
   gitStatus: DesktopGitStatus | null,
   source?: DesktopReviewSource,
   sharedSummary?: ReviewSummarySnapshot | null,
+  activeProjectId?: string | null,
 ) {
   const selectedBase = source?.kind === 'branch' ? source.baseBranch : null
   const [request, setRequest] = useState<{
@@ -26,14 +31,21 @@ export function useBranchReviewSummary(
   } | null>(null)
   const [revision, setRevision] = useState(0)
   useEffect(() => {
+    const scheduler = new ReviewAutoRefreshScheduler()
     const refresh = () => setRevision((value) => value + 1)
-    window.addEventListener(WORKSPACE_GIT_CHANGED_EVENT, refresh)
+    const handleGitChange = (event: Event): void => {
+      const detail = event instanceof CustomEvent ? event.detail : null
+      if (!reviewGitChangeMatchesProject(detail, activeProjectId ?? null)) return
+      scheduler.schedule(refresh)
+    }
+    window.addEventListener(WORKSPACE_GIT_CHANGED_EVENT, handleGitChange)
     window.addEventListener('focus', refresh)
     return () => {
-      window.removeEventListener(WORKSPACE_GIT_CHANGED_EVENT, refresh)
+      scheduler.dispose()
+      window.removeEventListener(WORKSPACE_GIT_CHANGED_EVENT, handleGitChange)
       window.removeEventListener('focus', refresh)
     }
-  }, [])
+  }, [activeProjectId])
   useEffect(() => {
     let active = true
     setRequest({ workspacePath, selectedBase, baseBranch: null, loading: Boolean(workspacePath && gitStatus) })

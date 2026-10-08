@@ -40,11 +40,7 @@ import type {
   DesktopReviewView,
   DesktopSessionStatus,
 } from '../../../../shared/types.js'
-import {
-  desktopClient,
-  desktopClipboard,
-  WORKSPACE_GIT_CHANGED_EVENT,
-} from '../../../services/desktop-client/index.js'
+import { desktopClient, desktopClipboard } from '../../../services/desktop-client/index.js'
 import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 
