@@ -52,6 +52,16 @@
 - 参考成熟工具实现时，必须先映射 CodePilotX 现有领域边界、权限模型和桌面架构，禁止机械复制目录、命名或重复逻辑。
 - MCP、Web Search/Web Fetch 与 LSP 的建设顺序属于产品规划，不约束已明确范围的单项工具需求；新增能力仍须遵守既有领域、权限和认证边界。
 
+## 能力发现与插件流程
+
+- 延迟工具的注册、暴露与判权仍走 `ToolRegistry -> ToolExposurePlan -> ToolExecutor`；能力目录只读取该链路已确定的范围，禁止为“能力发现”新增平行注册表、旁路扫描或第二套名称。
+- 能力摘要由 `src/prompt/capability-catalog.ts` 单点生成，在 `AgentRuntimeService` 冻结 turn composition 之前注入 prompt sections；主 Agent 与子 Agent 共用该路径，`promptPreview` 复用同一生成函数，禁止各端各写一份清单。
+- 目录必须有界：总长 8,000 字符、单条描述 160 字符；超限必须明确告知还有未展示能力并给出分页发现方式，禁止静默截断。
+- `ToolSearch` 命中即通过既有 `addedToolNames` 链路激活，激活仍由冻结的 deferred envelope 与 `validateDeferredActivation` 校验；恢复旧 turn 只绑定冻结目录，禁止因实时注册表变化扩大能力范围。
+- 插件 Skill 根目录经 `SkillService` 的 `pluginSkillRoots` 回调获取时必须传入当前工作区；无项目聊天只加载全局来源，禁用插件不得进入运行时目录。目录标明插件来源，保持现有 Skill 身份、同名优先级与选择参数。
+- 流程指令只提供“发现并遵循”的提示词约束，不构成状态机级保证；需要强制顺序的能力必须由宿主实现。
+- 修改注册、目录、激活或冻结恢复后，必须运行相关 Agent 测试与根目录 `bun run typecheck`。
+
 ## 验证
 
 - 类型检查：`bun run --cwd apps/agent typecheck`。
