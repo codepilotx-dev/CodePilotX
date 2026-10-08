@@ -1,12 +1,16 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { PluginGetDetailsResultSchema, PluginListResultSchema } from '@codepilotx/agent-protocol'
 import { Schema } from 'effect'
 import { AgentDatabase } from '../src/storage/database/AgentDatabase'
 import { PluginManagementService } from '../src/plugin/PluginManagementService'
 import { SkillService } from '../src/prompt/SkillService'
+import { ToolExecutor } from '../src/tool/ToolExecutor'
+import { ToolRegistry } from '../src/tool/ToolRegistry'
+import { WorkspaceService } from '../src/workspace/WorkspaceService'
+import { DEFAULT_PERMISSION_CONFIG } from '@codepilotx/shared/thread'
 import { extractPluginReferences, pluginReferenceData } from '../src/plugin/plugin-references'
 import type { RpcRouter } from '../src/transport/rpc/RpcRouter'
 import { pluginHandlers } from '../src/transport/rpc/handlers/plugins'
@@ -254,6 +258,97 @@ describe('PluginManagementService', () => {
         format: 'codex',
       }),
     ])
+  })
+
+  test('项目插件随工作区进入运行时目录，无项目聊天与禁用后都不进入', async () => {
+    const root = await temporaryRoot()
+    const workspace = join(root, 'project')
+    const marketplace = join(workspace, '.agents', 'plugins')
+    await mkdir(marketplace, { recursive: true })
+    await writePlugin({ root: marketplace, id: 'project-task-planning', extension: true })
+    await writeFile(
+      join(marketplace, 'marketplace.json'),
+      JSON.stringify({
+        plugins: [
+          {
+            name: 'project-task-planning',
+            source: { source: 'local', path: './.agents/plugins/project-task-planning' },
+            policy: { installation: 'INSTALLED_BY_DEFAULT' },
+          },
+        ],
+      }),
+      'utf8',
+    )
+    const userHome = join(root, 'home')
+    await mkdir(userHome, { recursive: true })
+    const service = new PluginManagementService(new PluginSettingsRepository(settingsDatabase()), {
+      builtinPluginsRoot: join(root, 'plugins'),
+      userHome,
+    })
+    const pluginSkillRoots = (workspaceRoot?: string) => service.enabledSkillRoots(workspaceRoot)
+
+    expect((await pluginSkillRoots(workspace)).map((item) => item.pluginId)).toEqual([
+      'project-task-planning',
+    ])
+    expect(await pluginSkillRoots()).toEqual([])
+
+    const projectSkills = new SkillService({ pluginSkillRoots })
+    const projectChat = await projectSkills.scan({
+      workspaceRoot: workspace,
+      dataRoot: workspace,
+      userHome,
+      includeWorkspace: true,
+    })
+    expect(projectChat.skills).toContainEqual(
+      expect.objectContaining({
+        name: 'project-task-planning',
+        path: 'plugin://project-task-planning/skills/project-task-planning/SKILL.md',
+      }),
+    )
+    expect((await projectSkills.read('project-task-planning')).body).toContain('生成任务规划')
+    const projectlessChat = await new SkillService({ pluginSkillRoots }).scan({
+      workspaceRoot: workspace,
+      dataRoot: workspace,
+      userHome,
+      includeWorkspace: false,
+    })
+    expect(projectlessChat.skills).toEqual([])
+
+    await service.list({ workspace })
+    await service.setEnabled({
+      pluginId: 'project-task-planning',
+      enabled: false,
+      operationId: 'disable',
+    })
+    expect(await pluginSkillRoots(workspace)).toEqual([])
+    await expect(projectSkills.read('project-task-planning')).rejects.toThrow(
+      '插件技能已禁用或移除',
+    )
+    const executor = new ToolExecutor(new ToolRegistry(), {
+      dataDir: root,
+      authorizeShell: async () => {
+        throw new Error('unexpected shell')
+      },
+    })
+    await expect(
+      executor.execute(
+        'Read',
+        { file_path: projectChat.skills[0]!.documentPath },
+        {
+          threadID: 'thread',
+          turnID: 'turn',
+          agentID: 'agent',
+          taskMode: 'chat',
+          signal: new AbortController().signal,
+          permissionConfig: DEFAULT_PERMISSION_CONFIG,
+          workspace: await WorkspaceService.open(workspace),
+          onSkillDocumentRead: async (path) => {
+            const skill = await projectSkills.documentSkill(resolve(workspace, path))
+            return skill ? { name: skill.name } : undefined
+          },
+        },
+      ),
+    ).rejects.toThrow('插件技能已禁用或移除')
   })
 
   test('persists idempotent enablement state and rejects operation conflicts', async () => {

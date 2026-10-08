@@ -221,8 +221,8 @@ export class PluginManagementService {
     return { details: plugin.details }
   }
 
-  async enabledSkillRoots(): Promise<PluginSkillRoot[]> {
-    const plugins = await this.discover()
+  async enabledSkillRoots(workspace?: string): Promise<PluginSkillRoot[]> {
+    const plugins = await this.discover(workspace)
     return plugins.flatMap((plugin) =>
       plugin.summary.installed &&
       plugin.summary.enabled &&
@@ -386,7 +386,10 @@ export class PluginManagementService {
       }
 
       const policy = input.policy ?? normalizePolicy(extension?.installation, 'AVAILABLE')
-      const installed = input.source === 'bundled' && policy === 'INSTALLED_BY_DEFAULT'
+      // 项目 marketplace 显式声明 INSTALLED_BY_DEFAULT 时随该项目生效；个人来源仍不自动安装。
+      const installed =
+        policy === 'INSTALLED_BY_DEFAULT' &&
+        (input.source === 'bundled' || input.source === 'workspace')
       const disabled = new Set(this.settings.state().disabledPluginIds)
       const skills = await this.resolveSkills(input.pluginRoot, stringValue(manifest.skills))
       const status = policy === 'NOT_AVAILABLE' ? 'unavailable' : 'ready'

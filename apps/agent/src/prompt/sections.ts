@@ -2,6 +2,7 @@ import type { SubagentProfile, TaskMode } from '../domain'
 import type { ProjectInstructionSource } from './InstructionDiscoveryService'
 import type { SkillMetadata } from './SkillService'
 import type { PromptSection } from './types'
+import { truncateCapabilityText } from './capability-catalog'
 
 export interface ToolPromptGuidance {
   name: string
@@ -63,12 +64,13 @@ const MODE: Record<TaskMode, string> = {
   plan: [
     '当前为 Plan 模式，目标是通过对话形成可直接交给工程 Agent 实施、无需再作产品或技术决策的方案。',
     '第一阶段先读取仓库、配置、测试和相关文档来消除可发现的未知；第二阶段确认目标、成功标准、范围、约束和关键取舍；第三阶段确认接口、数据流、失败行为、测试与迁移。',
-    '只能执行读取、搜索、构建或不会修改受版本控制文件的验证。运行时已把权限上限固定为 read-only；禁止请求权限、产生外部副作用或借助 Shell/子 Agent 实施方案。',
-    '高影响歧义必须向用户提问。调查与讨论阶段使用普通文本，决策未完成时不要提交方案。',
+    '只能使用实际暴露且经宿主判权的只读调查工具。Plan 禁用通用 Shell，不能运行构建或测试脚本；禁止请求权限、产生外部副作用或借助子 Agent 实施方案。',
+    '仅对会实质改变结果且无法从仓库或上下文确认的未知提问；常规细节采用合理假设并写入方案。优先调用 request_user_input，默认一次一题，独立问题最多三题；选项二至三个，推荐项说明取舍，无法合理提供选项时使用空选项列表让用户自由回答。',
+    'Plan 澄清必须等待用户回答，不设置 autoResolutionMs，不把推荐项或等待超时当成用户决定。调查与解释使用普通文本，决策未完成时不要提交方案。',
     '方案决策完成后必须单独调用 submit_plan 提交结构化方案：它是该条回复中唯一的工具调用，提交成功即结束本轮并进入用户审批。',
     'submit_plan 的 changes 必须按区域分组且至少一组；interfaceChanges、tests、assumptions 没有内容时提交空数组。方案至少说明目标、关键实现、接口变化、测试和明确假设。',
     '只有当 submit_plan 不可用或无法调用时，才退回把正式方案放在一个独占的 <proposed_plan> 与 </proposed_plan> 标签块内；标签必须各自独占一行，方案使用 Markdown。不要调用 update_plan；它只表示 Chat 模式中的执行进度。',
-    '没有形成决策完整的方案时，正常结束回复而不要提交空方案或空标签。用户的自然语言不会自动切换模式。',
+    '没有形成决策完整的方案时，正常结束回复而不要提交空方案或空标签。用户的自然语言不会自动切换模式；用户要求开始实施时保持 Plan，并引导使用计划批准操作。复杂任务才列关键代码位置，不添加无关测试或过度设计。',
   ].join('\n'),
 }
 
@@ -102,6 +104,15 @@ const contextual = (
     source,
     content,
   })
+
+/** Plugin Skill origins stay visible so the model knows which plugin contributes them. */
+const skillOrigin = (skill: SkillMetadata) => {
+  const pluginID = /^plugin:\/\/([^/]+)\//.exec(skill.path)?.[1]
+  return pluginID ? `plugin:${pluginID}` : skill.origin
+}
+
+const skillCatalogLine = (skill: SkillMetadata) =>
+  `$${skill.name}: ${truncateCapabilityText(skill.description) || '(无描述)'} [${skillOrigin(skill)}/${skill.format}] location=${JSON.stringify(skill.documentPath)}`
 
 export const createPromptSections = (input: PromptSectionSetInput): PromptSection[] => {
   const result: PromptSection[] = [
@@ -243,10 +254,7 @@ export const createPromptSections = (input: PromptSectionSetInput): PromptSectio
           'Explicitly selected Skills apply to the current task. Continue using them for follow-ups on that task; reassess when the task changes. allowed-tools is guidance only and never changes authorization.',
           ...input.skills
             .filter((skill) => skill.metadata['disable-model-invocation'] !== true)
-            .map(
-              (skill) =>
-                `$${skill.name}: ${skill.description || '(无描述)'} [${skill.origin}/${skill.format}] location=${JSON.stringify(skill.documentPath)}`,
-            ),
+            .map(skillCatalogLine),
         ].join('\n'),
         'session-stable',
       ),

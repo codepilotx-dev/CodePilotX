@@ -50,7 +50,12 @@ export interface SkillScanOptions {
 export type SkillServiceOptions = {
   enabled?: (skill: SkillMetadata) => boolean
   builtinSkillsRoot?: string
-  pluginSkillRoots?: () => Promise<readonly PluginSkillRoot[]>
+  /**
+   * Enabled plugin Skill roots. The current workspace is passed so project
+   * plugins only contribute for project chats; projectless chats load the
+   * global sources only.
+   */
+  pluginSkillRoots?: (workspaceRoot?: string) => Promise<readonly PluginSkillRoot[]>
 }
 
 export type PluginSkillRoot = {
@@ -131,6 +136,8 @@ export class SkillService {
   } | null = null
   /** Successfully read skills, tracked so a composition can freeze referenced-only evidence. */
   private referenced = new Map<string, { name: string; hash: string }>()
+  /** Workspace of the last scan; plugin root revalidation must use the same scope. */
+  private scannedWorkspace: string | undefined
 
   constructor(private readonly options: SkillServiceOptions = {}) {}
 
@@ -156,7 +163,18 @@ export class SkillService {
   }
 
   private async pluginSkillRoots(options: SkillScanOptions): Promise<readonly PluginSkillRoot[]> {
-    return options.pluginSkillRoots ?? (await this.options.pluginSkillRoots?.()) ?? []
+    return (
+      options.pluginSkillRoots ??
+      (await this.options.pluginSkillRoots?.(
+        options.includeWorkspace === false ? undefined : options.workspaceRoot,
+      )) ??
+      []
+    )
+  }
+
+  /** Plugin roots revalidate against the workspace scope this service was scanned with. */
+  private async enabledInstancePluginRoots(): Promise<readonly PluginSkillRoot[]> {
+    return (await this.options.pluginSkillRoots?.(this.scannedWorkspace)) ?? []
   }
 
   async skill_search(query: string, limit?: number): Promise<SkillSearchDiagnostics> {
@@ -353,6 +371,7 @@ export class SkillService {
     const userHome = await realpath(resolve(options.userHome))
     const builtinSkillsRoot = this.builtinSkillsRoot(options)
     const pluginSkillRoots = await this.pluginSkillRoots(options)
+    this.scannedWorkspace = options.includeWorkspace === false ? undefined : options.workspaceRoot
     const rootsHash = this.computeRootsHash(
       workspace,
       dataRoot,
@@ -675,7 +694,9 @@ export class SkillService {
 
   async documentSkill(path: string): Promise<SkillMetadata | undefined> {
     const canonical = await realpath(path).catch(() => null)
-    return this.list().find((skill) => skill.documentPath === canonical)
+    const skill = this.list().find((skill) => skill.documentPath === canonical)
+    if (skill) await this.resolveResource(skill.name, 'SKILL.md')
+    return skill
   }
 
   recordRead(name: string, hash: string) {
@@ -714,7 +735,7 @@ export class SkillService {
     const metadata = this.catalog.get(name)
     if (!metadata) throw new Error(`未知 Skill: ${name}`)
     if (metadata.path.startsWith('plugin://') && this.options.pluginSkillRoots) {
-      const roots = await this.options.pluginSkillRoots()
+      const roots = await this.enabledInstancePluginRoots()
       if (
         !roots.some(
           (root) =>

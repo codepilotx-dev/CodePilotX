@@ -10,6 +10,11 @@ import {
   inferPromptCacheRuntimePolicy,
 } from '../src/prompt/PromptCache'
 import { createPromptSections } from '../src/prompt/sections'
+import {
+  buildCapabilityCatalogSection,
+  CAPABILITY_CATALOG_MAX_CHARS,
+  CAPABILITY_DESCRIPTION_MAX_CHARS,
+} from '../src/prompt/capability-catalog'
 import { SkillService } from '../src/prompt/SkillService'
 import { applyPromptCacheRuntimePolicy } from '../src/orchestration/pi/PiPromptCacheAdapter'
 
@@ -49,6 +54,41 @@ describe('项目指令发现', () => {
     expect(result.truncated).toBe(true)
     await writeFile(join(root, 'AGENTS.md'), Uint8Array.from([0xc3, 0x28]))
     await expect(new InstructionDiscoveryService().discover(root)).rejects.toThrow()
+  })
+})
+
+describe('能力目录', () => {
+  const summary = (name: string, description: string, source?: string) => ({
+    name,
+    description,
+    ...(source ? { source } : {}),
+  })
+
+  test('标明 MCP 来源、限制单条描述长度并给出分页发现提示', () => {
+    const section = buildCapabilityCatalogSection([
+      summary('mcp_report', '生成 MCP 报告', 'mcp:demo-server'),
+      summary('long_entry', 'x'.repeat(400)),
+    ])
+    expect(section.id).toBe('capabilities.catalog')
+    expect(section.content).toContain('- mcp_report: 生成 MCP 报告 [mcp:demo-server]')
+    const rendered = section.content.split('\n').find((line) => line.startsWith('- long_entry'))!
+    expect(rendered.length).toBeLessThan(CAPABILITY_DESCRIPTION_MAX_CHARS + 20)
+    expect(rendered).toContain('…')
+    expect(section.content).toContain('offset')
+  })
+
+  test('超出总预算时明确说明还有未展示能力', () => {
+    const section = buildCapabilityCatalogSection(
+      Array.from({ length: 200 }, (_, index) => summary(`tool_${index}`, '描述'.repeat(60))),
+    )
+    expect(section.content.length).toBeLessThanOrEqual(CAPABILITY_CATALOG_MAX_CHARS)
+    expect(section.content).toContain('还有')
+    expect(section.content).toContain('ToolSearch')
+    expect(section.content).not.toContain('- tool_199')
+  })
+
+  test('没有可发现能力时给出空目录而不是省略说明', () => {
+    expect(buildCapabilityCatalogSection([]).content).toContain('当前没有可发现的延迟工具')
   })
 })
 

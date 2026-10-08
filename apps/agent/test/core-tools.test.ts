@@ -6,10 +6,25 @@ import { z } from 'zod'
 import { removeFixturePaths } from './fixture-cleanup'
 import { AgentError } from '../src/domain'
 import { ToolExecutor, type ToolExecutorOptions } from '../src/tool/ToolExecutor'
-import { lineChangeSummary, ToolRegistry } from '../src/tool/ToolRegistry'
+import { lineChangeSummary, ToolRegistry, type ToolOrigin } from '../src/tool/ToolRegistry'
 import { WorkspaceService } from '../src/workspace/WorkspaceService'
 import type { ToolingResolver, ToolProcessRunner } from '../src/tool/ToolingRuntime'
 import { adaptToolDefinition } from '../src/orchestration/pi/PiToolAdapter'
+import { AgentRuntimeService } from '../src/orchestration/AgentRuntimeService'
+import { Effect } from 'effect'
+import { AgentDatabase } from '../src/storage/database/AgentDatabase'
+import { RuntimeCompositionRepository } from '../src/storage/repositories/runtime-composition-repository'
+import { ThreadService } from '../src/session/ThreadService'
+import { PromptComposer } from '../src/prompt/PromptComposer'
+import {
+  createModels,
+  fauxAssistantMessage,
+  fauxProvider,
+  fauxToolCall,
+  getCurrentTools,
+  getInitialSystemMessage,
+  type TranscriptContext,
+} from '@earendil-works/pi-ai'
 
 const temporary: string[] = []
 afterEach(async () => removeFixturePaths(temporary.splice(0)))
@@ -71,6 +86,45 @@ const fixture = async (
     workspace,
   }
   return { root, workspace, executor, context, toolingCalls }
+}
+
+const registerDeferredTool = (
+  registry: ToolRegistry,
+  sdkName: string,
+  description: string,
+  origin?: ToolOrigin,
+) =>
+  registry.register({
+    sdkName,
+    description,
+    schema: z.object({}).strict(),
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    capabilities: {
+      filesystem: 'none',
+      network: 'none',
+      process: false,
+      externalState: false,
+      userInteraction: false,
+    },
+    allowedModes: ['chat', 'plan'],
+    allowedProfiles: ['main', 'default', 'explorer', 'worker'],
+    approvalStrategy: 'never-review',
+    visibility: 'deferred',
+    executionMode: 'parallel',
+    ...(origin ? { origin } : {}),
+    execute: async () => ({ ok: true }),
+  })
+
+const deferredToolExecutor = async () => {
+  const root = await mkdtemp(join(tmpdir(), 'codepilotx-core-tools-'))
+  temporary.push(root)
+  const workspace = await WorkspaceService.open(root)
+  const registry = new ToolRegistry()
+  const executor = new ToolExecutor(registry, {
+    dataDir: join(root, '.agent-data'),
+    authorizeShell: async () => ({ decision: 'allow', risk: 'low', reason: 'test' }),
+  })
+  return { root, workspace, registry, executor }
 }
 
 describe('核心工具面', () => {
@@ -224,7 +278,7 @@ describe('核心工具面', () => {
       'description',
       'additionalPermissions',
     ])
-    expect(properties('ToolSearch')).toEqual(['query', 'max_results'])
+    expect(properties('ToolSearch')).toEqual(['query', 'max_results', 'offset'])
     expect(property('Read', 'file_path')?.description).toContain('只接受文件')
     expect(property('Write', 'file_path')?.description).toContain('必须先成功 Read')
     expect(property('Edit', 'path')?.description).toContain('必须先成功 Read')
@@ -337,6 +391,20 @@ describe('核心工具面', () => {
       searchable.execute('ToolSearch', { query: 'select:new_deferred_example' }, frozenContext),
     ).rejects.toMatchObject({ code: 'DEFERRED_TOOL_NOT_FOUND' })
 
+    // 普通搜索命中即激活，浏览与分页只覆盖冻结后的延迟信封。
+    const searched = await searchable.execute<any>('ToolSearch', { query: '示例' }, frozenContext)
+    expect(searched.addedToolNames).toEqual(['deferred_example'])
+    expect(searched.total).toBe(1)
+    const browsed = await searchable.execute<any>('ToolSearch', { query: '*' }, frozenContext)
+    expect(browsed.addedToolNames).toEqual(['deferred_example'])
+    expect(
+      await searchable.execute<any>('ToolSearch', { query: '*', offset: 1 }, frozenContext),
+    ).toMatchObject({ tools: [], total: 1, offset: 1, addedToolNames: [] })
+    // 同一个注册表：冻结信封只暴露冻结项，未冻结的实时范围不参与本轮激活。
+    await expect(
+      searchable.execute<any>('ToolSearch', { query: 'select:new_deferred_example' }, context),
+    ).resolves.toMatchObject({ addedToolNames: ['new_deferred_example'] })
+
     const progress: unknown[] = []
     await Bun.write(join(context.workspace.rootPath, 'progress.txt'), 'ok')
     await executor.execute(
@@ -347,6 +415,188 @@ describe('核心工具面', () => {
     expect(progress).toEqual([{ message: '正在读取 progress.txt' }])
   })
 
+  test('能力目录把延迟工具名称、描述与 MCP 来源写入冻结提示词', async () => {
+    const { registry, executor } = await deferredToolExecutor()
+    registerDeferredTool(registry, 'browser.open', '打开并操作浏览器页面')
+    registerDeferredTool(registry, 'mcp_report', '生成 MCP 报告', {
+      kind: 'mcp',
+      serverName: 'demo-server',
+      rawToolName: 'report',
+      generation: 1,
+    })
+    const runtime = new AgentRuntimeService({
+      db: {} as never,
+      hub: {} as never,
+      models: {} as never,
+      toolExecutor: executor,
+      contextCompaction: {} as never,
+    })
+    const input = {
+      taskMode: 'chat' as const,
+      sandboxMode: 'workspace-write' as const,
+      approvalPolicy: 'on-request' as const,
+      profile: 'main' as const,
+    }
+    const section = runtime.capabilityCatalog(input)
+    expect(section.id).toBe('capabilities.catalog')
+    expect(section.content).toContain('- browser.open: 打开并操作浏览器页面')
+    expect(section.content).toContain('- mcp_report: 生成 MCP 报告 [mcp:demo-server]')
+    const bundle = new PromptComposer().compose({
+      threadID: 'thread',
+      mode: 'chat',
+      profile: 'main',
+      exposedTools: ['Read'],
+      sections: [section],
+    })
+    expect(bundle.instructions).toContain('mcp_report')
+    expect(bundle.instructions).toContain('offset')
+    // 受限范围不能被搜索或目录扩大：allowlist 收紧后目录只保留允许发现的工具。
+    expect(
+      runtime.capabilityCatalog({ ...input, allowedTools: ['browser.open'] }).content,
+    ).not.toContain('mcp_report')
+  })
+
+  test('真实运行时冻结能力目录、激活搜索结果，预览使用工作区 MCP 且恢复不扩大范围', async () => {
+    const { root, workspace, executor } = await deferredToolExecutor()
+    const registry = new ToolRegistry()
+    registerDeferredTool(registry, 'mcp_report', '生成 MCP 报告', {
+      kind: 'mcp',
+      serverName: 'demo-server',
+      rawToolName: 'report',
+      generation: 1,
+    })
+    const db = new AgentDatabase({
+      historyPath: join(root, 'history.sqlite'),
+      profilePath: join(root, 'profile.sqlite'),
+    })
+    const faux = fauxProvider({ models: [{ id: 'test', input: ['text'], contextWindow: 64_000 }] })
+    const models = createModels()
+    models.setProvider(faux.provider)
+    const permissionConfig = {
+      sandboxMode: 'workspace-write' as const,
+      approvalPolicy: 'on-request' as const,
+      approvalsReviewer: 'user' as const,
+    }
+    const model = { providerID: faux.getModel().provider, id: 'test' } as never
+    const thread = db.createThread()
+    const turn = db.createTurn(thread.id, {
+      content: 'find',
+      model,
+      permissionConfig,
+      strategy: 'queue',
+      taskMode: 'chat',
+    })
+    db.claimTurnExecution(turn.turnID)
+    const runtime = new AgentRuntimeService({
+      db,
+      models,
+      toolExecutor: executor,
+      hub: { publish: () => Effect.succeed(undefined) } as never,
+      contextCompaction: { shouldAutoCompact: async () => false } as never,
+    })
+    const request = {
+      threadID: thread.id,
+      turnID: turn.turnID,
+      agentID: turn.agentID,
+      sessionID: crypto.randomUUID(),
+      content: 'find',
+      taskMode: 'chat' as const,
+      fallbackModel: model,
+      permissionConfig,
+      signal: new AbortController().signal,
+      workspace,
+      toolCatalog: registry,
+      promptSections: [],
+      resolveModel: async () => ({ ref: model, model: faux.getModel() }),
+      pause: async () => {
+        throw new Error('unexpected pause')
+      },
+    }
+    const prompts: string[] = []
+    const capture = (context: TranscriptContext) => {
+      const system = getInitialSystemMessage(context.messages)
+      prompts.push(
+        typeof system?.content === 'string' ? system.content : JSON.stringify(system?.content),
+      )
+      return fauxAssistantMessage('done')
+    }
+    faux.setResponses([
+      (context: TranscriptContext) => {
+        capture(context)
+        return fauxAssistantMessage(fauxToolCall('ToolSearch', { query: 'report' }), {
+          stopReason: 'toolUse',
+        })
+      },
+      (context: TranscriptContext) => {
+        expect(getCurrentTools(context.messages).map((tool) => tool.name)).toContain('mcp_report')
+        return capture(context)
+      },
+    ])
+    try {
+      let releases = 0
+      const threads = new ThreadService(
+        db,
+        {} as never,
+        {} as never,
+        {} as never,
+        { setResumeHandler: () => undefined } as never,
+        runtime,
+        { setParentResumeHandler: () => undefined } as never,
+        {} as never,
+        { dataRoot: root, userHome: root },
+        { recall: () => [] } as never,
+        {} as never,
+        {
+          resolve: async () => ({
+            kind: 'projectless',
+            workspaceRoot: root,
+            cwd: root,
+            outputDirectory: root,
+          }),
+        } as never,
+        undefined,
+        undefined,
+        {
+          acquire: async (cwd: string) => {
+            expect(cwd).toBe(root)
+            return {
+              catalog: registry,
+              serverInstructions: [],
+              release: async () => {
+                releases++
+              },
+            }
+          },
+        } as never,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        false,
+      )
+      const preview = await threads.promptPreview(thread.id)
+      const previewCatalog = preview.sections.find(
+        (section) => section.id === 'capabilities.catalog',
+      )!
+      expect(previewCatalog.content).toContain('mcp_report')
+      expect(releases).toBe(1)
+      await runtime.run(request)
+      expect(prompts[0]).toContain('mcp_report')
+      expect(prompts[0]).toContain('[mcp:demo-server]')
+      const repository = new RuntimeCompositionRepository(db)
+      const frozen = repository.get(turn.turnID)!.snapshot
+      expect(frozen.prompt.instructions).toContain(previewCatalog.content)
+      expect(frozen.tools.deferred).toContain('mcp_report')
+      registerDeferredTool(registry, 'new_live_tool', '新工具')
+      faux.setResponses([capture])
+      await runtime.run({ ...request, resume: { state: '', interruption: null, answer: null } })
+      expect(prompts.at(-1)).not.toContain('new_live_tool')
+      expect(repository.get(turn.turnID)!.snapshot.identity.hash).toBe(frozen.identity.hash)
+    } finally {
+      await runtime.dispose()
+      db.close()
+    }
+  })
   test('Pi 工具适配器归一化批量 Edit 参数并透传 apply_patch grammar', async () => {
     const { executor } = await fixture()
     const options = { executor, request: {} as never }

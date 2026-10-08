@@ -74,7 +74,9 @@ export class SkillManagementService {
     private readonly settings: SkillSettingsRepository,
     private readonly roots: SkillStorageRoots,
     private readonly configService?: ConfigService,
-    private readonly pluginSkillRoots?: () => Promise<readonly PluginSkillRoot[]>,
+    private readonly pluginSkillRoots?: (
+      workspaceRoot?: string,
+    ) => Promise<readonly PluginSkillRoot[]>,
   ) {}
 
   runtimeService() {

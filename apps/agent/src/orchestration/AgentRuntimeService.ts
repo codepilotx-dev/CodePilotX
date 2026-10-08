@@ -19,7 +19,13 @@ import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import type { ToolExecutor } from '../tool/ToolExecutor'
 import { PI_LIFECYCLE_TOOLS, type ToolExposureInput } from '../tool/ToolExposurePlan'
-import type { ToolCatalogEntry } from '../tool/ToolRegistry'
+import {
+  toolCatalogSummary,
+  type ToolCatalog,
+  type ToolCatalogEntry,
+} from '../tool/ToolRegistry'
+import { buildCapabilityCatalogSection } from '../prompt/capability-catalog'
+import type { PromptSection } from '../prompt/types'
 import { resolveEffectivePermissionConfig } from '../permission/EffectivePermissionConfig'
 import { AgentError, type Item, type SubagentResult } from '../domain'
 import { createLiveEvent } from '../storage/events/EventPublisher'
@@ -71,6 +77,23 @@ type PendingTurn = {
 }
 
 const outputDelta = (value: unknown) => (typeof value === 'string' ? value : '')
+
+/**
+ * Only tools the given turn may already discover appear in the summary; the
+ * frozen deferred envelope is therefore never widened by a live registry.
+ */
+const capabilityCatalogSection = (
+  catalog: ToolCatalog,
+  deferredNames: readonly string[],
+): PromptSection => {
+  const byName = new Map(catalog.all().map((tool) => [tool.sdkName, tool]))
+  return buildCapabilityCatalogSection(
+    deferredNames.flatMap((name) => {
+      const definition = byName.get(name)
+      return definition ? [toolCatalogSummary(definition)] : []
+    }),
+  )
+}
 
 const safeTimelinePatchPath = (path: string) => {
   const normalized = path.replaceAll('\\', '/').replace(/^\.\/+/, '')
@@ -1013,7 +1036,16 @@ export class AgentRuntimeService implements AgentRuntime {
       ...request,
       permissionConfig: effectivePermissionConfig,
     })
-    const activityToolCatalog = (request.toolCatalog ?? this.options.toolExecutor.catalog()).all()
+    const toolCatalog = request.toolCatalog ?? this.options.toolExecutor.catalog()
+    const activityToolCatalog = toolCatalog.all()
+    // The capability summary is part of the prompt that gets frozen below, so a
+    // resumed turn keeps the catalogue it started with. It is generated once for
+    // the main Agent and subagents instead of being declared per tool.
+    effectivePromptSections.splice(
+      effectivePromptSections.length - 1,
+      0,
+      capabilityCatalogSection(toolCatalog, exposurePlan.deferred),
+    )
     const composeBundle = () =>
       new PromptComposer().compose({
         threadID: request.threadID,
@@ -1057,7 +1089,7 @@ export class AgentRuntimeService implements AgentRuntime {
             : {}),
           model,
           modelRef: resolved.ref,
-          toolCatalog: request.toolCatalog ?? this.options.toolExecutor.catalog(),
+          toolCatalog,
           workspace: request.workspace,
           workspaceScope,
           sessionEntryID: null,
@@ -1108,7 +1140,7 @@ export class AgentRuntimeService implements AgentRuntime {
             model: request.fallbackModel,
             taskSummary: request.content,
           },
-          toolCatalog: request.toolCatalog ?? this.options.toolExecutor.catalog(),
+          toolCatalog,
           ...(request.defaultCwd ? { defaultCwd: request.defaultCwd } : {}),
           recordReferenced,
         }),
@@ -1621,6 +1653,18 @@ export class AgentRuntimeService implements AgentRuntime {
         this.options.memoryManager?.notifyTurnCompleted()
       }
     }
+  }
+
+  /**
+   * Capability summary for the scope the given exposure input allows. Prompt
+   * preview calls this so it shows the same generation the frozen turn uses.
+   */
+  capabilityCatalog(input: ToolExposureInput, toolCatalog?: ToolCatalog): PromptSection {
+    const catalog = toolCatalog ?? this.options.toolExecutor.catalog()
+    return capabilityCatalogSection(
+      catalog,
+      this.options.toolExecutor.exposurePlan(input, catalog).deferred,
+    )
   }
 
   toolExposure(request: AgentRuntimeRequest | (ToolExposureInput & { permissionConfig?: never })) {

@@ -1,6 +1,7 @@
 export * from './types'
 export * from './PromptComposer'
 export * from './sections'
+export * from './capability-catalog'
 export * from './InstructionDiscoveryService'
 export * from './SkillService'
 export * from './SkillManagementService'

@@ -517,6 +517,21 @@ export const requestPermissionsDefinition: ToolDefinition<
   execute: async (input) => ({ granted: true, ...input }),
 }
 
+/** Model-facing summary used by the capability catalog and ToolSearch results. */
+export const toolCatalogSummary = (
+  tool: Pick<ToolCatalogEntry, 'sdkName' | 'description' | 'origin'>,
+): { name: string; description: string; source?: string } => ({
+  name: tool.sdkName,
+  description: typeof tool.description === 'string' ? tool.description : '',
+  ...(tool.origin?.kind === 'mcp' ? { source: `mcp:${tool.origin.serverName}` } : {}),
+})
+
+/** Search matches the canonical name, the short description and the MCP server name. */
+const toolSearchHaystack = (tool: Pick<ToolCatalogEntry, 'sdkName' | 'description' | 'origin'>) => {
+  const summary = toolCatalogSummary(tool)
+  return `${summary.name}\n${summary.description}\n${summary.source ?? ''}`.toLowerCase()
+}
+
 const builtinTools = (): ToolDefinition<any, any>[] => [
   {
     sdkName: 'Read',
@@ -973,14 +988,30 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
   {
     sdkName: 'ToolSearch',
     name: 'tool.search',
-    description: '搜索当前注册表中的延迟工具；用 select:<exact-name> 精确选择并请求激活。',
+    description:
+      '搜索当前可发现范围内的延迟工具并请求激活：query 匹配工具名称、描述与 MCP server 名称，query="*" 浏览整个目录，用 offset 分页、max_results 上限 20；命中的工具在下一次请求即可调用。select:<exact-name> 精确激活并返回完整参数 schema。',
     schema: z
-      .object({ query: z.string().min(1), max_results: z.number().int().min(1).max(20).default(5) })
+      .object({
+        query: z.string().min(1),
+        max_results: z.number().int().min(1).max(20).default(5),
+        offset: z.number().int().min(0).default(0),
+      })
       .strict(),
     inputSchema: jsonObject(
       {
-        query: { type: 'string', minLength: 1 },
+        query: {
+          type: 'string',
+          minLength: 1,
+          description:
+            '搜索关键词，匹配工具名称、描述与 MCP server 名称；传 "*" 浏览整个目录，或传 select:<exact-name> 精确激活。',
+        },
         max_results: { type: 'integer', minimum: 1, maximum: 20, default: 5 },
+        offset: {
+          type: 'integer',
+          minimum: 0,
+          default: 0,
+          description: '分页起点，用于浏览或宽泛搜索时查看被上限省略的后续结果。',
+        },
       },
       ['query'],
     ),
@@ -993,28 +1024,32 @@ const builtinTools = (): ToolDefinition<any, any>[] => [
     execute: async (input, context) => {
       const raw = input.query.trim()
       const selection = raw.match(/^select:(.+)$/i)?.[1]?.trim()
+      const browseAll = raw === '*'
       const query = raw.toLowerCase()
-      const tools = (context.deferredTools ?? [])
-        .filter((tool) =>
-          selection
-            ? tool.sdkName === selection
-            : tool.sdkName.toLowerCase().includes(query) ||
-              (typeof tool.description === 'string' &&
-                tool.description.toLowerCase().includes(query)),
-        )
-        .slice(0, input.max_results)
-      if (selection && tools.length === 0)
+      const matches = (context.deferredTools ?? []).filter((tool) =>
+        selection
+          ? tool.sdkName === selection
+          : browseAll || toolSearchHaystack(tool).includes(query),
+      )
+      if (selection && matches.length === 0)
         throw new AgentError(
           'DEFERRED_TOOL_NOT_FOUND',
           `延迟工具 ${selection} 不存在或不在当前权限范围内`,
           404,
         )
+      const page = matches.slice(input.offset, input.offset + input.max_results)
       return {
-        tools: tools.map((tool) => ({
-          name: tool.sdkName,
-          description: typeof tool.description === 'string' ? tool.description : '动态工具',
-        })),
-        addedToolNames: selection ? tools.map((tool) => tool.sdkName) : [],
+        tools: page.map((tool) => {
+          const summary = toolCatalogSummary(tool)
+          return {
+            name: summary.name,
+            description: summary.description,
+            ...(summary.source ? { source: summary.source } : {}),
+          }
+        }),
+        total: matches.length,
+        offset: input.offset,
+        addedToolNames: page.map((tool) => tool.sdkName),
       }
     },
     formatResult: (output) => ({

@@ -150,6 +150,8 @@ export interface AgentRuntime {
   abort(threadID: string): Promise<void>
   compact(threadID: string, instructions?: string, promptText?: string): Promise<ContextCompaction>
   toolExposure(input: ToolExposureInput): ToolExposurePlan
+  /** Capability summary for the discoverable scope; preview reuses the turn generation. */
+  capabilityCatalog(input: ToolExposureInput, toolCatalog?: ToolCatalog): PromptSection
   clearTurnPermissionGrants(threadID: string, turnID: string): void
   dispose(): Promise<void>
 }
