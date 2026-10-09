@@ -1,4 +1,4 @@
-# CodePilotX 多端配置架构
+# Pidex 多端配置架构
 
 桌面端、Agent 和后续 CLI/TUI 共享同一套 JSON/JSONC 配置协议。各端不得维护平行配置文件、私有字段别名或独立合并逻辑；配置读取、校验、局部写入和项目可信判断统一由 Agent `ConfigService` 完成。
 

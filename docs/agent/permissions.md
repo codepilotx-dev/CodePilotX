@@ -1,6 +1,6 @@
 # 统一权限控制
 
-权限范围、审批策略与审批者独立配置。共享预设位于 `packages/shared/src/thread/permission.ts`：请求批准为 workspace-write/on-request/user，帮我批准只切换 Reviewer，完全访问为 danger-full-access/never/user。已存储的 untrusted/on-failure 继续使用现有兼容读取。
+权限范围、审批策略与审批者独立配置。共享预设位于 `packages/shared/src/thread/Permission.ts`：请求批准为 workspace-write/on-request/user，帮我批准只切换 Reviewer，完全访问为 danger-full-access/never/user。已存储的 untrusted/on-failure 继续使用现有兼容读取。
 
 ## 执行链
 
@@ -14,6 +14,6 @@ Hook 改写输入后重新走注册 schema、路径检查和统一判权。新�
 
 ## 来源与适配
 
-参考 ZCode 提交 `872ad96` 的 `apps/zcode-cli/packages/core/src/tool/executor/permission-capability.ts`、`permission-input-recheck.ts` 和 `permission-rules.ts`，适配其宿主能力事实、来源不可由模型覆盖、输入变更重新判权的实现方式。对应改动位于 CodePilotX 的 ToolRegistry、ToolExecutor 和 PermissionDecisionEngine，继续复用已有命令解析器与审批存储；没有搬入整套 ZCode 权限系统，也没有采用 yolo 提前跳过 deny 的顺序。
+参考 ZCode 提交 `872ad96` 的 `apps/zcode-cli/packages/core/src/tool/executor/permission-capability.ts`、`permission-input-recheck.ts` 和 `permission-rules.ts`，适配其宿主能力事实、来源不可由模型覆盖、输入变更重新判权的实现方式。对应改动位于 Pidex 的 ToolRegistry、ToolExecutor 和 PermissionDecisionEngine，继续复用已有命令解析器与审批存储；没有搬入整套 ZCode 权限系统，也没有采用 yolo 提前跳过 deny 的顺序。
 
-ZCode 使用 Apache-2.0，保留[许可证](../licenses/ZCode-Apache-2.0.txt)。CodePilotX 的新增实现及改动不代表 ZCode 上游原版。
+ZCode 使用 Apache-2.0，保留[许可证](../licenses/ZCode-Apache-2.0.txt)。Pidex 的新增实现及改动不代表 ZCode 上游原版。

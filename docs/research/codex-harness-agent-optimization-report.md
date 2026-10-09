@@ -137,13 +137,13 @@ flowchart TD
 
 | 旧报告项目                | 当前状态            | 证据                                                   | 新处理                 |
 | ------------------------- | ------------------- | ------------------------------------------------------ | ---------------------- |
-| Capability 交集 P0        | 已完成              | `system.ts:113-120`                                    | 移入不变量             |
-| RuntimeCompositionPlan P0 | 已完成并持久化到 v2 | `types.ts:109-148`、`service.ts:57-104`                | 只做完整性/验收        |
-| 同 Turn 组合冻结          | 已完成              | `agent-harness.ts:379-455`                             | 补 descriptor 漂移测试 |
+| Capability 交集 P0        | 已完成              | System.ts:113-120`                                    | 移入不变量             |
+| RuntimeCompositionPlan P0 | 已完成并持久化到 v2 | Types.ts:109-148`、Service.ts:57-104`                | 只做完整性/验收        |
+| 同 Turn 组合冻结          | 已完成              | AgentHarness.ts:379-455`                             | 补 descriptor 漂移测试 |
 | Skill referenced identity | 已有基础            | Snapshot V2                                            | 真按需中复用           |
-| Compaction retained tail  | 已实现              | `pi-session/session.ts:59-78`、`compaction.ts:626-703` | 故障注入，不重建 DTO   |
+| Compaction retained tail  | 已实现              | `pi-session/Session.ts:59-78`、Compaction.ts:626-703` | 故障注入，不重建 DTO   |
 | Hook 系统                 | 已存在、部分接线    | `HookService.ts:8-35,184-239`                          | 补声明/触发一致性      |
-| SSE capability gate       | 已完成              | `server.ts:125-193`                                    | 保留回归               |
+| SSE capability gate       | 已完成              | Server.ts:125-193`                                    | 保留回归               |
 
 ---
 
@@ -253,7 +253,7 @@ Codex 每 root tree 共享容量；spawn 先 reserve，失败释放 slot；wait 
 | -------- | ------------------------------------------------------------------------------------------ |
 | 类型     | Confirmed correctness gap                                                                  |
 | 影响     | 暂停/升级后旧 Turn 可能绑定同名新语义工具；损坏 hash 防护不完整                            |
-| 证据     | `types.ts:77-82` 只存工具名；`composer.ts:407-443` 只检查同名存在；baseline 字段和值不一致 |
+| 证据     | Types.ts:77-82` 只存工具名；Composer.ts:407-443` 只检查同名存在；baseline 字段和值不一致 |
 | 最小实现 | 修 baseline、重算整体 hash、增加 descriptor fingerprint/behaviorVersion                    |
 | 回滚     | 新 snapshot V3；旧 V1/V2 保持读取，不原地改写                                              |
 
@@ -352,7 +352,7 @@ interface StepCompositionSnapshot {
 | -------- | ------------------------------------------------------------------ |
 | 类型     | Architecture/security decision                                     |
 | 影响     | 当前用户权限下可访问宿主资源；错误文案会形成虚假安全预期           |
-| 证据     | `system.ts:138-146` unsupported；`HostProcess.ts:159` 直接 spawn   |
+| 证据     | System.ts:138-146` unsupported；`HostProcess.ts:159` 直接 spawn   |
 | 前置决策 | 哪些模式承诺隔离、backend 不可用是否拒绝、是否允许 host-unisolated |
 | 当前动作 | ADR + Windows 原型 + 攻击面矩阵，不直接承诺 M 规模                 |
 
@@ -614,21 +614,21 @@ git diff --check
 
 | 机制/缺口           | 关键位置                                                                                |
 | ------------------- | --------------------------------------------------------------------------------------- |
-| Capability          | `transport/rpc/handlers/system.ts:113-120`                                              |
-| Runtime Composition | `runtime-composition/types.ts:109-148`、`service.ts:57-104`                             |
+| Capability          | `transport/rpc/handlers/System.ts:113-120`                                              |
+| Runtime Composition | `runtime-composition/Types.ts:109-148`、Service.ts:57-104`                             |
 | 生产接入            | `orchestration/AgentRuntimeService.ts:849-950`                                          |
-| Agent Loop          | `orchestration/harness/agent-loop.ts:156-275,412-605`                                   |
+| Agent Loop          | `orchestration/harness/AgentLoop.ts:156-275,412-605`                                   |
 | Tool/Permission     | `tool/ToolExecutor.ts:120-217,295-489`、`permission/PermissionDecisionEngine.ts:52-100` |
 | Skills eager        | `session/ThreadService.ts:371,832`、`subagent/SubagentService.ts:501`                   |
 | MCP eager           | `mcp/McpConnectionManager.ts:188-280,327-392`                                           |
 | Hooks               | `hooks/HookService.ts:8-35,184-239`                                                     |
 | Resume              | `interaction/ResumeCheckpointResolver.ts:31-158`                                        |
-| Compaction          | `context/harness/compaction.ts:626-703`                                                 |
-| Pi context          | `storage/pi-session/session.ts:59-78,184-189`                                           |
-| SSE replay          | `transport/server.ts:521-647`                                                           |
+| Compaction          | `context/harness/Compaction.ts:626-703`                                                 |
+| Pi context          | `storage/pi-session/Session.ts:59-78,184-189`                                           |
+| SSE replay          | `transport/Server.ts:521-647`                                                           |
 | Canonical view      | `packages/session-view/src/canonical/index.ts:44-68,580-690`                            |
 | Memory              | `memory/MemoryService.ts:83-97`                                                         |
-| Host exec           | `transport/rpc/handlers/system.ts:138-146`、`tool/Shell/HostProcess.ts:159`             |
+| Host exec           | `transport/rpc/handlers/System.ts:138-146`、`tool/Shell/HostProcess.ts:159`             |
 
 ### 11.2 OpenAI Codex SHA `343074d4`
 

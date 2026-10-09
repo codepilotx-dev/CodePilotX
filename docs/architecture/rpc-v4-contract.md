@@ -4,12 +4,12 @@ Status: Accepted
 
 Depends on: [Thread RPC v4 architecture](./rpc-v4.md)
 
-Baseline: [CodePilotX v2 stability baseline](./v2-baseline.md)
+Baseline: [Pidex v2 stability baseline](./v2-baseline.md)
 
 ## Purpose
 
 This inventory is the implementation contract for
-`@codepilotx/agent-protocol`. It covers every v2 RPC method and event and states
+`@pidex/agent-protocol`. It covers every v2 RPC method and event and states
 its v3 disposition. Exact Effect Schema syntax is deferred to the protocol
 package, but method names, ownership, result shapes, durability, and migration
 rules are fixed here for review.
@@ -77,7 +77,7 @@ domain event and does not enter the RPC method map.
 Desktop window and application preferences are not Project methods.
 `desktop/settings/get` and `desktop/settings/save` remain v2 compatibility calls
 until their consumers move to the typed Electron desktop contract; they are not
-exported by `@codepilotx/agent-protocol` v3.
+exported by `@pidex/agent-protocol` v3.
 
 ## Thread, prompt, and Turn methods
 

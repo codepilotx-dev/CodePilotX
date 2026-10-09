@@ -88,7 +88,7 @@ Git 标签格式：`v<根 package.json 的 version>`。
 7. 在 `main` 上的目标提交创建签名 `v<版本>` 标签，并**单独**推送该标签：
 
    ```bash
-   git tag -s v<版本> -m "CodePilotX v<版本>"
+   git tag -s v<版本> -m "Pidex v<版本>"
    git push origin v<版本>
    ```
 

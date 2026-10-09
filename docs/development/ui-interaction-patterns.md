@@ -1,6 +1,6 @@
 # Renderer UI 交互术语与实现规范
 
-本文是 CodePilotX Desktop Renderer 的交互语义真源。术语描述用户看到的行为，
+本文是 Pidex Desktop Renderer 的交互语义真源。术语描述用户看到的行为，
 不要求每个术语都对应一个通用 React 组件。公共视觉和可访问性放在
 `components/ui/`，涉及领域数据、持久化或复杂状态的交互保留在对应 feature。
 

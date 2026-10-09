@@ -1,6 +1,6 @@
-# CodePilotX 数据目录边界
+# Pidex 数据目录边界
 
-CodePilotX 将持久化内容分为用户数据、工作区配置、Electron 状态和安装资源。不同类别不能互相回退或混写。
+Pidex 将持久化内容分为用户数据、工作区配置、Electron 状态和安装资源。不同类别不能互相回退或混写。
 
 ## 用户数据根
 
@@ -40,7 +40,7 @@ Provider API Key 与 OAuth 值可以保存在 `auth.json`，或以密文保存�
       assets\
 ```
 
-项目 `config.json` 和 Hook 只有在项目来源受信任后才会参与合并或执行；信任记录保存在本机数据库，不随仓库同步。CodePilotX 兼容读取工作区的 `.agents\skills`、`.codex\skills` 和 `.claude\skills`，但不管理这些目录。
+项目 `config.json` 和 Hook 只有在项目来源受信任后才会参与合并或执行；信任记录保存在本机数据库，不随仓库同步。Pidex 兼容读取工作区的 `.agents\skills`、`.codex\skills` 和 `.claude\skills`，但不管理这些目录。
 
 数据库、日志、附件、宠物、工具链、记忆、UI 状态和子 Agent worktree 不得写入工作区 `.codepilotx`。项目记忆保存在用户数据库中，并以规范化工作区路径的哈希隔离。
 
@@ -52,13 +52,13 @@ Electron `userData` 保存窗口位置、外观、宠物浮窗位置、Chromium 
 
 ## 安装资源与系统目录
 
-安装目录只包含随版本发布的只读资源：Agent 可执行文件、Renderer、模型快照、图标、许可证和 notices。运行时不得创建 `<安装目录>\.codepilotx`，CodePilotX 不提供默认或隐式便携模式。
+安装目录只包含随版本发布的只读资源：Agent 可执行文件、Renderer、模型快照、图标、许可证和 notices。运行时不得创建 `<安装目录>\.codepilotx`，Pidex 不提供默认或隐式便携模式。
 
 无项目任务的用户文档位于 `%USERPROFILE%\Documents\CodePilotX`。凭据主密钥和操作系统临时文件分别由 Windows 凭据库和系统临时目录管理，不迁入任何 `.codepilotx`。
 
 ## 显式覆盖
 
-直接启动 Agent 或测试时可使用 CodePilotX 专用环境变量覆盖数据根或子目录。桌面端检测到 `CODEPILOTX_DATA_DIR` 时只读展示实际位置，并禁用目录选择，避免桌面引导文件与外部启动参数产生两套来源。
+直接启动 Agent 或测试时可使用 Pidex 专用环境变量覆盖数据根或子目录。桌面端检测到 `CODEPILOTX_DATA_DIR` 时只读展示实际位置，并禁用目录选择，避免桌面引导文件与外部启动参数产生两套来源。
 
 ## 外部 Agent 只读访问会话语义历史
 
@@ -71,4 +71,4 @@ WHERE thread_id = ?
 ORDER BY created_at, sort_order, entry_id;
 ```
 
-该视图只暴露会话语义历史，CodePilotX 不对外部 Agent 提供 CLI、API 或外部工具访问能力。外部 Agent 禁止写入数据库、执行迁移，或删除、移动、重命名 `history.sqlite` 及其 WAL/SHM 文件；应用运行时应保持 SQLite 只读语义，避免破坏事务、outbox 与中断恢复。
+该视图只暴露会话语义历史，Pidex 不对外部 Agent 提供 CLI、API 或外部工具访问能力。外部 Agent 禁止写入数据库、执行迁移，或删除、移动、重命名 `history.sqlite` 及其 WAL/SHM 文件；应用运行时应保持 SQLite 只读语义，避免破坏事务、outbox 与中断恢复。

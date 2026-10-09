@@ -20,5 +20,5 @@ Renderer 的 ComposerDraftStore 是批注及未完成反馈的唯一真源。交
 
 - 相关 Electron、Renderer、共享契约、协议和 Agent 附件测试通过；另用独立 Chrome 网页夹具验证 DOM 命中、跨域外层 iframe、Shadow DOM、Range、区域、多选、HTML 脱敏与真实 CDP binding/context 隔离，结束关闭测试浏览器。
 - 根目录 `bun run typecheck`、Agent/Renderer/Desktop 三层构建、Renderer `css:check` 和 `git diff --check` 通过。Renderer 构建有现有 CSS 预算和大 chunk 警告，未修改预算基线。
-- 扩大检查运行 1516 项测试：1504 通过，12 项非批注失败，位于 Renderer 的 `automation-calendar.test.ts`、`canonical-patch-card.test.tsx`、`canonical-thread-switch.test.tsx`、`conversation-fork.test.tsx`、`desktop-client-skills.test.ts`、`execution-plan-card.test.tsx`、`sidebar-navigation.test.ts` 以及 `summarize-process-items.test.ts`（5 项）。本次不扩展修复这些断言。
+- 扩大检查运行 1516 项测试：1504 通过，12 项非批注失败，位于 Renderer 的 `AutomationCalendar.test.ts`、`CanonicalPatchCard.test.tsx`、`CanonicalThreadSwitch.test.tsx`、`ConversationFork.test.tsx`、`DesktopClientSkills.test.ts`、`ExecutionPlanCard.test.tsx`、`SidebarNavigation.test.ts` 以及 `SummarizeProcessItems.test.ts`（5 项）。本次不扩展修复这些断言。
 - 全仓 `format:check` 报告 36 个并行电脑控制文件未格式化；批注涉及文件已格式化，保留其他工作区改动。本次不提交。

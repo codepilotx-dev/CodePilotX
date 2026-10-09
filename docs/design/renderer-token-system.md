@@ -16,13 +16,13 @@ Renderer 只使用三层变量：
 
 ## Oreo 设计语言适配
 
-Oreo Agentic UI Library 作为 CodePilotX 的视觉参考，不形成平行 Token 或组件体系。其 Foundation 直接映射到现有 `--cpx-sys-*`：Color 使用 surface、foreground、border、tone 与 interaction 语义，Typography 使用现有角色刻度，Shadow 仅用于瞬时浮层和持续覆盖工作区的交互面，Radius、Space 与 Motion 继续使用本规范的公共刻度。
+Oreo Agentic UI Library 作为 Pidex 的视觉参考，不形成平行 Token 或组件体系。其 Foundation 直接映射到现有 `--cpx-sys-*`：Color 使用 surface、foreground、border、tone 与 interaction 语义，Typography 使用现有角色刻度，Shadow 仅用于瞬时浮层和持续覆盖工作区的交互面，Radius、Space 与 Motion 继续使用本规范的公共刻度。
 
-CodePilotX 保留现有信息架构、Coding / Working / Chat 模式、鲸鱼品牌和桌面交互契约。首页、空状态与引导页使用宽松节奏；Workbench、侧栏、终端、Review 和设置使用紧凑节奏。Oreo 中的 Button、Shortcuts、Chip、Tag、Avatar、Loading、Prompt、Sidebar、Navbar 与 Pop-up 优先复用现有基础组件；只有真实调用方无法表达时才扩展公共组件。
+Pidex 保留现有信息架构、Coding / Working / Chat 模式、鲸鱼品牌和桌面交互契约。首页、空状态与引导页使用宽松节奏；Workbench、侧栏、终端、Review 和设置使用紧凑节奏。Oreo 中的 Button、Shortcuts、Chip、Tag、Avatar、Loading、Prompt、Sidebar、Navbar 与 Pop-up 优先复用现有基础组件；只有真实调用方无法表达时才扩展公共组件。
 
 ### UI-Design 视觉体系落地
 
-CodePilotX 全面采用 UI-Design 视觉体系（基于 `F:\CodeProject\UI-Design`）：
+Pidex 全面采用 UI-Design 视觉体系（基于 `F:\CodeProject\UI-Design`）：
 
 1. **基础 Token 统一**：
    - 统一使用 `--cpx-sys-*` 与 `--cpx-comp-*` 契约，杜绝平行 Token 体系。
@@ -159,7 +159,7 @@ CodePilotX 全面采用 UI-Design 视觉体系（基于 `F:\CodeProject\UI-Desig
 
 ## 自动契约与例外
 
-`scripts/check-style-contracts.ts` 的 `featureTokenContract` 扫描 `src/styles/features`、`src/styles/lazy` 下的残留 CSS、TS/TSX inline style 和 Tailwind arbitrary value，并验证例外重复与 stale 状态。同一脚本还校验 `tw:` 前缀、`type-*` 与 `tw:type-weight-*` 的组合、全源动效契约、单一样式入口图（`src/styles/tailwind.css`）与 `@layer` 顺序。Renderer 已不再编译 Sass：所有样式都是原生 CSS。
+`scripts/CheckStyleContracts.ts` 的 `featureTokenContract` 扫描 `src/styles/features`、`src/styles/lazy` 下的残留 CSS、TS/TSX inline style 和 Tailwind arbitrary value，并验证例外重复与 stale 状态。同一脚本还校验 `tw:` 前缀、`type-*` 与 `tw:type-weight-*` 的组合、全源动效契约、单一样式入口图（`src/styles/tailwind.css`）与 `@layer` 顺序。Renderer 已不再编译 Sass：所有样式都是原生 CSS。
 
 例外必须同时包含文件、属性、精确值和具体原因。可接受场景包括 Diff 行号的 `ch` 对齐、运行时拖拽边界、图表坐标、动态色板对比描边和第三方内部尺寸。不能因为迁移困难、希望保留任意历史像素或检查失败而新增例外。
 

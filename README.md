@@ -1,4 +1,4 @@
-# CodePilotX
+# Pidex Desktop
 
 面向 Windows 的开源桌面 AI 编程工作台，让 AI 在真实项目中完成理解、修改、命令执行、代码审阅与 Git 协作。
 
@@ -8,7 +8,7 @@ _Open-source, Windows-first desktop workspace for AI-assisted coding._
 [![License](https://img.shields.io/github/license/codepilotx-dev/CodePilotX)](LICENSE)
 
 > [!IMPORTANT]
-> CodePilotX 当前处于 Beta 阶段，仅发布源码；运行环境为 Windows x64，使用者需自行构建。
+> Pidex 当前处于 Beta 阶段，仅发布源码；运行环境为 Windows x64，使用者需自行构建。
 
 ## 界面预览
 
@@ -16,17 +16,17 @@ _Open-source, Windows-first desktop workspace for AI-assisted coding._
 
 首页集中展示项目、任务、模型、推理等级和权限选择，并支持浅色与深色主题。
 
-![CodePilotX 浅色主题首页](docs/assets/readme/home-light.png)
+![Pidex 浅色主题首页](docs/assets/readme/home-light.png)
 
-![CodePilotX 深色主题首页](docs/assets/readme/home-dark.png)
+![Pidex 深色主题首页](docs/assets/readme/home-dark.png)
 
 ### 从任务执行到代码审阅
 
 在一个工作台中查看任务执行过程、文件变更摘要、代码 Diff 和文件树，并在落地修改前完成审阅。
 
-![CodePilotX AI 编程任务执行过程](docs/assets/readme/task-workflow.png)
+![Pidex AI 编程任务执行过程](docs/assets/readme/task-workflow.png)
 
-![CodePilotX 代码审阅与 Diff 工作台](docs/assets/readme/code-review.png)
+![Pidex 代码审阅与 Diff 工作台](docs/assets/readme/code-review.png)
 
 ## 核心能力
 
@@ -81,7 +81,7 @@ bun run build:desktop
 
 ## 架构概览
 
-CodePilotX 是一个 Windows-first TypeScript monorepo，统一使用 Bun 1.3.14。
+Pidex 是一个 Windows-first TypeScript monorepo，统一使用 Bun 1.3.14。
 
 ```text
 apps/
