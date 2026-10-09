@@ -21,8 +21,7 @@ export default defineConfig({
   retries: 0,
   reporter: 'line',
   workers: 2,
-  snapshotPathTemplate:
-    '{testDir}/__screenshots__/{testFilePath}/{arg}{ext}',
+  snapshotPathTemplate: '{testDir}/__screenshots__/{testFilePath}/{arg}{ext}',
   use: {
     ...devices['Desktop Chrome'],
     baseURL: visualURL,
@@ -35,8 +34,7 @@ export default defineConfig({
   webServer: {
     command: `bun run dev:visual -- --port ${visualPort} --strictPort`,
     cwd: rendererRoot,
-    reuseExistingServer:
-      process.env.CODEPILOTX_VISUAL_REUSE_SERVER === '1',
+    reuseExistingServer: process.env.CODEPILOTX_VISUAL_REUSE_SERVER === '1',
     timeout: 120_000,
     url: visualURL,
   },
