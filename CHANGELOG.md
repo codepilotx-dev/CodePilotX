@@ -9,6 +9,8 @@
 
 ### Added
 
+- [repo] 补充 Electron 默认 `userData` 路径稳定性契约测试，以及新旧深链（`pidex://` 与 `codepilotx://`）兼容回归测试。
+
 - [agent/desktop] 子 Agent 支持三层递归父子协作、排队后续任务与报告，完成时等待后代结算，停止时回收整个子树；沿用共享工作区、权限上限和持久化恢复。
 
 - [agent/desktop] 环境配置按名称保存为 JSONC，重命名同步默认选择与工作树引用并拒绝同名覆盖；概览可展开环境列表并直接切换启动配置。
@@ -37,6 +39,11 @@
 - [desktop] 限制底部面板仅允许终端标签，支持点击加号启动多个终端，并约束底部与右侧栏仅在首页和会话中显示。
 
 ### Changed
+
+- [repo] 产品统一更名为 Pidex Desktop：根包与 workspace 包改为 `@pidex/*`，自有 TS/TSX/CTS/MTS 模块文件统一为 PascalCase，preload 桥接对象改为 `window.DesktopBridge`，自有类型、主题模块与环境标识移除 CodePilotX/Codex 品牌前缀；安装产物改为 `Pidex Desktop.exe`、`Pidex-Desktop-${version}-${arch}.exe` 与 `pidex-agent.exe`，窗口标题、启动页、菜单、设置、通知与网站文案同步更新。
+- [desktop/agent] 深链新增 `pidex://threads/<id>`，解析与 Windows 协议注册同时支持已有 `codepilotx://` 链接，复用原解析与安全校验。
+- [desktop] Electron 默认 `userData` 固定到改名前的 `%APPDATA%\@codepilotx\desktop-electron`，避免产品名变化导致设置、会话索引与浏览器分区状态失联；显式指定目录的优先级不变。
+- [repo] 保留 SQLite application ID 与 schema、存储格式标识、已有设置键、IPC channel、环境变量、`.codepilotx` 数据/配置目录、安装身份 `com.codepilotx.desktop` 与 GitHub 发布地址；真实 Codex Provider、模型标识、外部命令与第三方署名保持准确。
 
 - [desktop/agent] 代码审查的自动刷新改为工作区变化停止 60 秒后执行：Git 变化只重置尾部防抖计时器，首次打开、切换来源、手动刷新以及暂存/撤销后的刷新仍立即执行；自动刷新遇到 `REVIEW_REPOSITORY_BUSY` 时保留当前列表与 diff、结束 loading 并在 60 秒后重试且不弹出共享错误，手动刷新继续反馈错误；Agent 侧不再抑制同一项目的后续变化通知。
 
