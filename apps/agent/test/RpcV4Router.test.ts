@@ -532,7 +532,7 @@ describe('RPC v4 Router', () => {
           calls.push({ currentVersion, refresh })
           return {
             source: 'github-releases',
-            repository: 'codepilotx-dev/CodePilotX',
+            repository: 'codepilotx-dev/Pidex',
             currentVersion,
             currentReleaseFound: false,
             fetchedAt: '2026-07-27T00:00:00.000Z',
@@ -551,7 +551,7 @@ describe('RPC v4 Router', () => {
 
     expect(response.error).toBeUndefined()
     expect(response.result).toMatchObject({
-      repository: 'codepilotx-dev/CodePilotX',
+      repository: 'codepilotx-dev/Pidex',
       currentVersion: '0.2.0-beta.1',
     })
     expect(calls).toEqual([

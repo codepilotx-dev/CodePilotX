@@ -152,7 +152,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_REPOSITORY" = "codepilotx-dev/CodePilotX"
+          test "$GITHUB_REPOSITORY" = "codepilotx-dev/Pidex"
           bun run version:check -- --tag "$GITHUB_REF_NAME"
       - name: Generate release notes
         shell: bash

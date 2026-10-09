@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os'
 import { basename, join, normalize, resolve } from 'node:path'
 
 export const RELEASE_RUN_CONTEXT_SCHEMA_VERSION = 1 as const
-export const RELEASE_RUN_REPOSITORY = 'codepilotx-dev/CodePilotX' as const
+export const RELEASE_RUN_REPOSITORY = 'codepilotx-dev/Pidex' as const
 export const RELEASE_RUN_PREFIX = 'codepilotx-release' as const
 
 const RETRYABLE_REMOVE_CODES = new Set(['EBUSY', 'EPERM', 'ENOTEMPTY'])
@@ -103,7 +103,7 @@ function isDirectChildOf(path: string, parent: string): boolean {
 
 function assertRepository(repository: string): void {
   if (repository !== RELEASE_RUN_REPOSITORY) {
-    throw new Error('release run context 只允许 codepilotx-dev/CodePilotX')
+    throw new Error('release run context 只允许 codepilotx-dev/Pidex')
   }
 }
 

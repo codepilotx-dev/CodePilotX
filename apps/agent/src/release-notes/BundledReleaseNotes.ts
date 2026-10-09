@@ -1,7 +1,7 @@
 import type { ReleaseNotesListResult } from '@pidex/agent-protocol'
 import bundledChangelog from '../../../../CHANGELOG.md' with { type: 'text' }
 
-const REPOSITORY = 'codepilotx-dev/CodePilotX' as const
+const REPOSITORY = 'codepilotx-dev/Pidex' as const
 const ARCHIVED_VERSION_HEADING_RE = /^(.+?)\s+—\s+(\d{4}-\d{2}-\d{2})$/
 
 type ChangelogSection = {

@@ -13,7 +13,7 @@ describe('whats new release notes', () => {
   test('provides fixed GitHub release fixtures in browser mock mode', async () => {
     const result = await createDesktopClient({}).listReleaseNotes()
 
-    expect(result.repository).toBe('codepilotx-dev/CodePilotX')
+    expect(result.repository).toBe('codepilotx-dev/Pidex')
     expect(result.currentReleaseFound).toBe(true)
     expect(result.releases[0]?.tagName).toBe(`v${result.currentVersion}`)
   })
@@ -73,7 +73,7 @@ describe('whats new release notes', () => {
 function releaseNotesResult(): RpcResult<'release-notes/list'> {
   return {
     source: 'github-releases',
-    repository: 'codepilotx-dev/CodePilotX',
+    repository: 'codepilotx-dev/Pidex',
     currentVersion: '0.2.0-beta.1',
     currentReleaseFound: true,
     fetchedAt: '2026-07-27T00:00:00.000Z',
@@ -83,7 +83,7 @@ function releaseNotesResult(): RpcResult<'release-notes/list'> {
         tagName: 'v0.2.0-beta.1',
         name: 'Pidex 0.2.0-beta.1',
         body: '测试更新记录',
-        htmlUrl: 'https://github.com/codepilotx-dev/CodePilotX/releases/tag/v0.2.0-beta.1',
+        htmlUrl: 'https://github.com/codepilotx-dev/Pidex/releases/tag/v0.2.0-beta.1',
         publishedAt: '2026-07-27T00:00:00.000Z',
         prerelease: true,
       },

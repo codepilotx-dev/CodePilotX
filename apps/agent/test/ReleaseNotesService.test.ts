@@ -28,7 +28,7 @@ const release = (tagName: string, overrides: Record<string, unknown> = {}) => ({
   tag_name: tagName,
   name: `Release ${tagName}`,
   body: `Notes for ${tagName}`,
-  html_url: `https://github.com/codepilotx-dev/CodePilotX/releases/tag/${tagName}`,
+  html_url: `https://github.com/codepilotx-dev/Pidex/releases/tag/${tagName}`,
   published_at: publishedAt,
   draft: false,
   prerelease: tagName.includes('-'),
@@ -66,7 +66,7 @@ describe('ReleaseNotesService', () => {
     expect(result?.releases[0]?.body).not.toContain('尚未发布')
     expect(result?.releases[0]?.body).not.toContain('更早版本记录')
     expect(result?.releases[0]?.htmlUrl).toBe(
-      'https://github.com/codepilotx-dev/CodePilotX/releases/tag/v0.2.0-beta.1',
+      'https://github.com/codepilotx-dev/Pidex/releases/tag/v0.2.0-beta.1',
     )
     expect(bundledReleaseNotes(bundledChangelog, '9.9.9', Date.parse(publishedAt))).toBeNull()
   })
@@ -95,7 +95,7 @@ describe('ReleaseNotesService', () => {
 
     expect(requests).toHaveLength(2)
     expect(requests[0]!.url.toString()).toBe(
-      'https://api.github.com/repos/codepilotx-dev/CodePilotX/releases?per_page=100&page=1',
+      'https://api.github.com/repos/codepilotx-dev/Pidex/releases?per_page=100&page=1',
     )
     const headers = new Headers(requests[0]!.init?.headers)
     expect(headers.get('accept')).toBe('application/vnd.github+json')
@@ -105,7 +105,7 @@ describe('ReleaseNotesService', () => {
     expect(requests[0]!.init?.redirect).toBe('manual')
     expect(result).toMatchObject({
       source: 'github-releases',
-      repository: 'codepilotx-dev/CodePilotX',
+      repository: 'codepilotx-dev/Pidex',
       currentVersion: '0.2.0-beta.1',
       currentReleaseFound: true,
       fetchedAt: publishedAt,

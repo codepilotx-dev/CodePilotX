@@ -3844,7 +3844,7 @@ const fixtures = {
     },
     {
       source: 'github-releases',
-      repository: 'codepilotx-dev/CodePilotX',
+      repository: 'codepilotx-dev/Pidex',
       currentVersion: '0.2.0-beta.1',
       currentReleaseFound: true,
       fetchedAt: '2026-07-27T00:00:00.000Z',
@@ -3854,7 +3854,7 @@ const fixtures = {
           tagName: 'v0.2.0-beta.1',
           name: 'Pidex 0.2.0 Beta 1',
           body: '## Added\n\n- 新特性',
-          htmlUrl: 'https://github.com/codepilotx-dev/CodePilotX/releases/tag/v0.2.0-beta.1',
+          htmlUrl: 'https://github.com/codepilotx-dev/Pidex/releases/tag/v0.2.0-beta.1',
           publishedAt: '2026-07-27T00:00:00.000Z',
           prerelease: true,
         },

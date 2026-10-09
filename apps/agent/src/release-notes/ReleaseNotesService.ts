@@ -2,7 +2,7 @@ import type { ReleaseNote, ReleaseNotesListResult } from '@pidex/agent-protocol'
 import { AgentError } from '../Domain'
 import { bundledReleaseNotes, DEFAULT_BUNDLED_CHANGELOG } from './BundledReleaseNotes'
 
-const REPOSITORY = 'codepilotx-dev/CodePilotX' as const
+const REPOSITORY = 'codepilotx-dev/Pidex' as const
 const RELEASES_API_URL = `https://api.github.com/repos/${REPOSITORY}/releases`
 const RELEASES_PAGE_SIZE = 100
 const MAX_RELEASES = 500

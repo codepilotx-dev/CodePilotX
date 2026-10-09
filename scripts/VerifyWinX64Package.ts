@@ -111,7 +111,7 @@ async function assertUpdaterConfiguration(path: string, expectedChannel: string)
   for (const [key, expected] of [
     ['provider', 'github'],
     ['owner', 'codepilotx-dev'],
-    ['repo', 'CodePilotX'],
+    ['repo', 'Pidex'],
     ['channel', expectedChannel],
   ] as const) {
     const match = configuration.match(new RegExp(`^${key}:\\s*["']?([^"'\\r\\n]+)["']?\\s*$`, 'm'))
