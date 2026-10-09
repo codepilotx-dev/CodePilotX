@@ -16,7 +16,7 @@ export const Footer: React.FC = () => {
           {/* Brand Info */}
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FCFAF5] p-2 border border-[#DCD6CB]">
-              <img src="/whale-icon.svg" alt="" className="h-full w-full object-contain" />
+              <img src="/pidex-mark-green.svg" alt="" className="h-full w-full object-contain" />
             </div>
             <div>
               <div className="text-base font-bold text-[#17211D]">Pidex</div>

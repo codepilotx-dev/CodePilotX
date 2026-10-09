@@ -29,7 +29,7 @@ export const Navbar: React.FC = () => {
         >
           <div className="flex h-6 w-6 items-center justify-center rounded-[7px] bg-white p-1 transition-transform duration-300 group-hover:scale-105">
             <img
-              src="/whale-icon.svg"
+              src="/pidex-mark-green.svg"
               alt=""
               className="h-full w-full object-contain text-[#17211D]"
             />

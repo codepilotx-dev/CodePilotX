@@ -60,6 +60,6 @@
   <!-- Brand watermark right side -->
   <g transform="translate(860, 240)" opacity="0.85">
     <rect width="180" height="180" rx="40" fill="#F4F0E7" stroke="#DCD6CB" stroke-width="1.5" />
-    <text x="90" y="105" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="800" fill="#17211D" text-anchor="middle">CodePilotX</text>
+    <text x="90" y="105" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="800" fill="#17211D" text-anchor="middle">Pidex</text>
   </g>
 </svg>

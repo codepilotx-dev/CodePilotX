@@ -15,11 +15,11 @@ const rootPackage = JSON.parse(
 
 const RENDERER_SRC_ROOT = resolve(__dirname, 'src')
 
-// The startup splash in index.html reuses the Electron whale icon directly
+// The startup splash in index.html reuses the Electron brand mark directly
 // from apps/desktop/build; emit it into the renderer output without keeping a
 // second copy of the icon in this workspace.
-const WHALE_ICON_PATH = resolve(__dirname, '..', 'build', 'whale-icon.svg')
-const WHALE_ICON_URL = '/whale-icon.svg'
+const BRAND_MARK_PATH = resolve(__dirname, '..', 'build', 'pidex-mark-green.svg')
+const BRAND_MARK_URL = '/pidex-mark-green.svg'
 
 const LOOPBACK_AGENT_ORIGIN_PATTERN = /^http:\/\/127\.0\.0\.1:([0-9]{1,5})$/
 const AUTH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{16,4096}$/
@@ -116,16 +116,16 @@ function startupSplashAssets(): Plugin {
     name: 'pidex-startup-splash-assets',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        if (req.url !== WHALE_ICON_URL) return next()
+        if (req.url !== BRAND_MARK_URL) return next()
         res.setHeader('Content-Type', 'image/svg+xml')
-        res.end(readFileSync(WHALE_ICON_PATH))
+        res.end(readFileSync(BRAND_MARK_PATH))
       })
     },
     generateBundle() {
       this.emitFile({
         type: 'asset',
-        fileName: 'whale-icon.svg',
-        source: readFileSync(WHALE_ICON_PATH),
+        fileName: 'pidex-mark-green.svg',
+        source: readFileSync(BRAND_MARK_PATH),
       })
     },
   }

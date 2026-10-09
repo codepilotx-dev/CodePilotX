@@ -8,8 +8,8 @@ export type FullScreenWhaleLoadingProps = {
 }
 
 /**
- * 唯一的 Renderer 鲸鱼加载组件：与 index.html 静态启动遮罩共用
- * `.full-screen-whale-loader` DOM/CSS 契约（56px 鲸鱼、2200ms 扫光、单行
+ * 唯一的 Renderer 品牌加载组件：与 index.html 静态启动遮罩共用
+ * `.full-screen-whale-loader` DOM/CSS 契约（56px 主标、2200ms 扫光、单行
  * 状态窗）。
  * - `variant="fullscreen"`：整窗 fixed 覆盖（用于启动开屏与 Setup 页面）
  * - `variant="contained"`：会话主区域容器化居中加载（不遮挡侧边栏与面板）
@@ -53,7 +53,7 @@ export function FullScreenWhaleLoading({
     >
       <div className="full-screen-whale-loader__content">
         <div className="full-screen-whale-loader__logo" aria-hidden="true">
-          <img className="full-screen-whale-loader__base" src="/whale-icon.svg" alt="" />
+          <img className="full-screen-whale-loader__base" src="/pidex-mark-green.svg" alt="" />
           <div className="full-screen-whale-loader__overlay" />
         </div>
         <div className="full-screen-whale-loader__status-viewport">

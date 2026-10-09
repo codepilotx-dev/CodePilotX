@@ -10,7 +10,7 @@ import {
 } from '../src/windows/StartupPage.js'
 
 const SVG_DATA_URL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-  readFileSync(resolve(import.meta.dirname, '../../build/whale-icon.svg'), 'utf-8'),
+  readFileSync(resolve(import.meta.dirname, '../../build/pidex-mark-green.svg'), 'utf-8'),
 )}`
 const LIGHT_OPTIONS = {
   logoDataUrl: SVG_DATA_URL,
@@ -23,7 +23,7 @@ const LIGHT_OPTIONS = {
 }
 
 describe('startup page', () => {
-  test('renders the whale SVG logo with the Codex-style motion contract', () => {
+  test('renders the Pidex SVG logo with the Codex-style motion contract', () => {
     const html = renderStartupPage(LIGHT_OPTIONS)
 
     expect(html).toContain(`src="${SVG_DATA_URL}"`)
@@ -48,7 +48,7 @@ describe('startup page', () => {
     expect(html).toContain('quitDuringStartup()')
   })
 
-  test('shows a single-line status window below the whale at all times', () => {
+  test('shows a single-line status window below the brand mark at all times', () => {
     const html = renderStartupPage(LIGHT_OPTIONS)
 
     expect(html).toContain('class="startup-status-window"')
@@ -167,12 +167,13 @@ describe('startup page', () => {
     })
   })
 
-  test('whale-icon.svg contains whale outline, currentColor, and face mask', () => {
-    const svg = readFileSync(resolve(import.meta.dirname, '../../build/whale-icon.svg'), 'utf-8')
+  test('pidex-mark-green.svg contains the transparent Pidex brand mark', () => {
+    const svg = readFileSync(resolve(import.meta.dirname, '../../build/pidex-mark-green.svg'), 'utf-8')
 
-    expect(svg).toContain('currentColor')
-    expect(svg).toContain('mask')
-    expect(svg).toContain('face-cutouts')
+    expect(svg).toContain('Pidex 启卷')
+    expect(svg).toContain('viewBox="0 0 1024 1024"')
+    expect(svg).toContain('fill="#164B40"')
+    expect(svg).not.toContain('<rect')
     expect(svg).not.toMatch(/openai/i)
     expect(svg).not.toMatch(/blossom/i)
   })

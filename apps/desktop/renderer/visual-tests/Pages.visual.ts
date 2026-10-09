@@ -138,7 +138,7 @@ async function expectCodingHomeContract(page: Page, isDesktop: boolean): Promise
     const style = getComputedStyle(element)
     return style.maskImage || style.webkitMaskImage
   })
-  expect(maskImage).toMatch(/\/whale-icon\.svg/)
+  expect(maskImage).toMatch(/\/pidex-mark-green\.svg/)
 
   const cards = page.locator('.coding-chat-view .new-session-suggestion-card')
   await expect(cards).toHaveCount(4)

@@ -197,7 +197,7 @@ function CodingQuickChatView({
             <button
               ref={whaleMarkRef}
               aria-hidden="true"
-              className="quick-chat-mark tw:block tw:size-14 tw:origin-center tw:cursor-pointer tw:select-none tw:border-0 tw:bg-app-text tw:p-0 tw:opacity-30 tw:[mask:url('/whale-icon.svg')_center_no-repeat] tw:[transition:opacity_var(--cpx-sys-motion-micro)_var(--cpx-sys-ease-standard),transform_var(--cpx-sys-motion-state)_var(--cpx-sys-ease-standard)] tw:hover:opacity-40 tw:focus-visible:outline-offset-4"
+              className="quick-chat-mark tw:block tw:size-14 tw:origin-center tw:cursor-pointer tw:select-none tw:border-0 tw:bg-app-text tw:p-0 tw:opacity-30 tw:[mask:url('/pidex-mark-green.svg')_center/contain_no-repeat] tw:[transition:opacity_var(--cpx-sys-motion-micro)_var(--cpx-sys-ease-standard),transform_var(--cpx-sys-motion-state)_var(--cpx-sys-ease-standard)] tw:hover:opacity-40 tw:focus-visible:outline-offset-4"
               tabIndex={-1}
               type="button"
               onClick={handleWhaleMarkClick}

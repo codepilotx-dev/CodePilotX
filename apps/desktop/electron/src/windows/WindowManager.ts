@@ -539,7 +539,7 @@ export class WindowManager {
 
   #resolveStartupLogoDataUrl(): string {
     try {
-      const svgPath = this.#resolveWhaleIconSvgPath()
+      const svgPath = this.#resolveBrandMarkSvgPath()
       const svg = readFileSync(svgPath, 'utf-8')
       const encoded = encodeURIComponent(svg)
       return `data:image/svg+xml;charset=utf-8,${encoded}`
@@ -562,10 +562,10 @@ export class WindowManager {
     }
   }
 
-  #resolveWhaleIconSvgPath(): string {
+  #resolveBrandMarkSvgPath(): string {
     return app.isPackaged
-      ? join(process.resourcesPath, 'whale-icon.svg')
-      : resolve(this.#moduleDirectory, '../../build/whale-icon.svg')
+      ? join(process.resourcesPath, 'pidex-mark-green.svg')
+      : resolve(this.#moduleDirectory, '../../build/pidex-mark-green.svg')
   }
 
   #setStartupBackground(mainWindow: BrowserWindow): void {

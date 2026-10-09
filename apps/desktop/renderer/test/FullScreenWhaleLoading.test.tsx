@@ -13,7 +13,7 @@ describe('FullScreenWhaleLoading', () => {
     expect(html).toContain('class="full-screen-whale-loader"')
     expect(html).toContain('data-full-screen-loading="true"')
     expect(html).toContain('data-loading-label="正在读取模型配置…"')
-    expect(html).toContain('src="/whale-icon.svg"')
+    expect(html).toContain('src="/pidex-mark-green.svg"')
     expect(html).toContain('full-screen-whale-loader__base')
     expect(html).toContain('full-screen-whale-loader__overlay')
     expect(html).toContain('full-screen-whale-loader__status-viewport')
