@@ -78,9 +78,11 @@ import { DESKTOP_PROVIDER_ICON_IPC_CHANNELS } from '@pidex/shared/desktop-provid
 
 const moduleDirectory = dirname(fileURLToPath(import.meta.url))
 const configuredUserDataDirectory = process.env.CODEPILOTX_USER_DATA_DIR?.trim()
-if (configuredUserDataDirectory) {
-  app.setPath('userData', resolve(configuredUserDataDirectory))
-}
+// Electron 默认把 userData 建在 appData/<应用名> 下。产品名改为 Pidex Desktop 后
+// 该目录会漂移，导致设置、会话索引与浏览器分区状态失联，因此这里显式固定到改名前的
+// 目录；显式指定目录的优先级不变。
+const LEGACY_USER_DATA_DIRECTORY = join(app.getPath('appData'), '@codepilotx', 'desktop-electron')
+app.setPath('userData', configuredUserDataDirectory ? resolve(configuredUserDataDirectory) : LEGACY_USER_DATA_DIRECTORY)
 
 // Windows toast 归属依赖 AppUserModelID；packaged 使用与 electron-builder
 // appId 一致的稳定 ID，开发态只能用进程路径做功能调试。
