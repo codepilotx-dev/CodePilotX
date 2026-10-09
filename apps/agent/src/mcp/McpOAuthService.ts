@@ -1,4 +1,4 @@
-import type { McpRuntimeServerAuth, McpScope } from '@codepilotx/agent-protocol'
+import type { McpRuntimeServerAuth, McpScope } from '@pidex/agent-protocol'
 import { McpConfigService } from './McpConfigService'
 import { McpConnectionManager } from './McpConnectionManager'
 import { McpOAuthCoordinator, type McpOAuthHttpServer } from './McpOAuthCoordinator'

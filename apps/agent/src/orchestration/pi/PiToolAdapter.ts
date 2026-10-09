@@ -1,24 +1,24 @@
-import { subagentToolDefinitions } from '../../subagent/toolDefinitions'
-import type { AgentToolResult } from '../harness/agent-types'
+import { subagentToolDefinitions } from '../../subagent/ToolDefinitions'
+import type { AgentToolResult } from '../harness/AgentTypes'
 import { Type, type TSchema } from '@earendil-works/pi-ai'
-import { AgentError } from '../../domain'
+import { AgentError } from '../../Domain'
 import { secretScrubber } from '../../security/SecretScrubber'
 import { requestPermissionsDefinition, type ToolDefinition } from '../../tool/ToolRegistry'
 import { executionPlanInputSchema } from '../plan/ExecutionPlanInput'
-import { parseStructuredPlan, structuredPlanParameters } from '../plan/structured-plan'
+import { parseStructuredPlan, structuredPlanParameters } from '../plan/StructuredPlan'
 import type {
   HarnessRuntimeRequest,
   PiLifecycleCallbacks,
   PiTool,
   PiToolAdapterOptions,
-} from './types'
+} from './Types'
 import { requestUserInputSchema } from '../../session/QuestionInput'
 import {
   formatStructuredResult,
   parseStructuredResult,
   resultCardEnvelopeFromStructuredResult,
   structuredResultParameters,
-} from './structured-result'
+} from './StructuredResult'
 
 const textResult = (value: unknown, terminate = false): AgentToolResult<unknown> => {
   const safe = secretScrubber.scrub(value)

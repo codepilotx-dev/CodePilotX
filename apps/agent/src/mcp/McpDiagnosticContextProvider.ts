@@ -1,6 +1,6 @@
-import type { ThreadSnapshot } from '@codepilotx/shared/thread'
-import type { Model } from '@codepilotx/model-schema'
-import type { TaskMode } from '../domain'
+import type { ThreadSnapshot } from '@pidex/shared/thread'
+import type { Model } from '@pidex/model-schema'
+import type { TaskMode } from '../Domain'
 import { secretScrubber } from '../security/SecretScrubber'
 
 const MAX_ENTRIES = 20

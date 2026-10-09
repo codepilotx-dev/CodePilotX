@@ -1,12 +1,12 @@
-import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../../components/ui/IconTokens.js'
 import React, { useState } from 'react'
 import { motion } from 'motion/react'
 import { ChevronDown } from 'lucide-react'
-import { cx } from '../../../utils/cx.js'
+import { cx } from '../../../utils/Cx.js'
 import { ReasoningMenu } from './ReasoningMenu.js'
 import type { ThinkingOption } from './ThinkingLevelPopover.js'
-import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
-import { layoutTween, motionTransition } from '../../motion/motionTransitions.js'
+import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
+import { layoutTween, motionTransition } from '../../motion/MotionTransitions.js'
 
 /*
  * Capsule trigger for the integrated model picker. The chevron follows the

@@ -7,40 +7,40 @@ import type {
   DesktopMcpServerListItem,
   McpReloadResult,
   SaveDesktopMcpServerOptions,
-} from '../../../../shared/types.js'
+} from '../../../../shared/Types.js'
 import { Button } from '../../../components/ui/Button.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/IconTokens.js'
 import {
   mergePluginCatalog,
   pluginStatusLabel,
   type PluginCatalogItem,
-} from '../../plugins/pluginCatalog.js'
+} from '../../plugins/PluginCatalog.js'
 import { PluginDetailsDialog } from '../../plugins/PluginDetailsDialog.js'
 import { PluginIcon } from '../../plugins/PluginIcon.js'
-import { usePluginCatalog } from '../../plugins/usePluginCatalog.js'
+import { usePluginCatalog } from '../../plugins/UsePluginCatalog.js'
 import {
   BuiltinSkillIcon,
   getBuiltinSkillPresentation,
   isBuiltinSkill,
   skillScopeLabel,
-} from '../../plugins/builtinSkillPresentation.js'
+} from '../../plugins/BuiltinSkillPresentation.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { AGENT_LIVE_EVENT_FILTERS } from '../../../services/desktop-client/eventSubscriptionFilters.js'
+import { AGENT_LIVE_EVENT_FILTERS } from '../../../services/desktop-client/EventSubscriptionFilters.js'
 import { SettingsContentArea } from '../SettingsContentArea.js'
 import { ExtensionManagementRow } from './ExtensionManagementRow.js'
 import { McpEditorDialog } from './McpEditorDialog.js'
 import {
   clearPluginDetailsDeepLink,
   resolvePluginDetailsDeepLink,
-} from './pluginDetailsDeepLink.js'
+} from './PluginDetailsDeepLink.js'
 import { SkillDetailsDialog } from './SkillDetailsDialog.js'
-import { listRuntimeSkills, setRuntimeSkillEnabled } from './skillClientAdapter.js'
-import { errorMessageOr as errorMessageOf } from '@codepilotx/shared/errors'
+import { listRuntimeSkills, setRuntimeSkillEnabled } from './SkillClientAdapter.js'
+import { errorMessageOr as errorMessageOf } from '@pidex/shared/errors'
 
 export type PluginsSettingsPageProps = {
   workspacePath: string | null

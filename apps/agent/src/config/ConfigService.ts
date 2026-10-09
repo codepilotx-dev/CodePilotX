@@ -1295,7 +1295,7 @@ export class ConfigService {
   }
 
   async notifyFileSaved(workspaceRoot: string, filePath: string) {
-    if (filePath === '@codepilotx/config.json') {
+    if (filePath === '@pidex/config.json') {
       await this.refreshFile(this.userConfigPath, 'user', [])
       return
     }

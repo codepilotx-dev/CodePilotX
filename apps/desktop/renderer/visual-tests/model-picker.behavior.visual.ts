@@ -4,7 +4,7 @@ import {
   closeTransientErrorToast,
   prepareVisualTheme,
   waitForVisualPage,
-} from './visual-test-helpers.js'
+} from './VisualTestHelpers.js'
 
 const PICKER_FIXTURE = '?visualCase=permission&visualModelPicker=1'
 const CATALOG_FIXTURE = '?visualCase=permission&visualProviderCatalog=logos'

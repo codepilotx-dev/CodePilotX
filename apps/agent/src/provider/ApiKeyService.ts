@@ -1,6 +1,6 @@
-import { Credential, Provider } from '@codepilotx/model-schema'
+import { Credential, Provider } from '@pidex/model-schema'
 import { Effect, Schema } from 'effect'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type {
   ApiKeyHealth,
   ApiKeySummary as StoredApiKeySummary,

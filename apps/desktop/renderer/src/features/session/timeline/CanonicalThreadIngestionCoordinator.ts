@@ -1,4 +1,4 @@
-import type { EventEnvelope } from '@codepilotx/agent-protocol'
+import type { EventEnvelope } from '@pidex/agent-protocol'
 import {
   applyThreadEnvelopes,
   canApplyItemDelta,
@@ -7,14 +7,14 @@ import {
   reconcileLatestThreadPage,
   type CanonicalThreadState,
   type ThreadHistoryPageLike,
-} from '@codepilotx/session-view'
+} from '@pidex/session-view'
 
-import { countCanonicalCommit, setPendingDeltaCharacters } from '../state/streamingPerfCounters.js'
+import { countCanonicalCommit, setPendingDeltaCharacters } from '../state/StreamingPerfCounters.js'
 import {
   liveItemTailStore,
   type LiveItemTailStore,
   type LiveTailKind,
-} from '../state/liveItemTailStore.js'
+} from '../state/LiveItemTailStore.js'
 
 export type CanonicalThreadIngestionCoordinatorOptions = {
   threadId: string

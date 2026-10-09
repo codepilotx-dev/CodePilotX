@@ -1,4 +1,4 @@
-import type { AdditionalPermissions, PermissionGrantScope } from '@codepilotx/shared/thread'
+import type { AdditionalPermissions, PermissionGrantScope } from '@pidex/shared/thread'
 import { pathContains } from './PathPermissions'
 import type { RequestedPermissions } from './PermissionDecisionEngine'
 

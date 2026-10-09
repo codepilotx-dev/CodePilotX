@@ -8,20 +8,20 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { sessionDisplayTitle, type SessionListItem } from '../../uiTypes.js'
+import { sessionDisplayTitle, type SessionListItem } from '../../UiTypes.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
 import { Select } from '../../components/ui/Select.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
-import { canonicalThreadCache } from '../session/state/canonicalThreadCache.js'
-import { errorMessageOf } from '@codepilotx/shared/errors'
+import { canonicalThreadCache } from '../session/state/CanonicalThreadCache.js'
+import { errorMessageOf } from '@pidex/shared/errors'
 import {
   archivedGroups,
   deleteArchivedSessions,
   type ArchivedSort,
-} from './archivedConversationsModel.js'
+} from './ArchivedConversationsModel.js'
 
 export function ArchivedConversationsSettings(): ReactNode {
   const [sessions, setSessions] = useState<SessionListItem[]>([])

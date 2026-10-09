@@ -13,13 +13,13 @@ import type {
   DesktopGithubLoginStatus,
   DesktopGithubRepository,
   DesktopWorkspace,
-} from '../../../../shared/types.js'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+} from '../../../../shared/Types.js'
+import { APP_ICON_SIZE } from '../../../components/ui/IconTokens.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { Button } from '../../../components/ui/Button.js'
-import { cx } from '../../../utils/cx.js'
-import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
-import { errorMessageOf } from '@codepilotx/shared/errors'
+import { cx } from '../../../utils/Cx.js'
+import { useDialogFocusRestore } from '../../../components/ui/UseDialogFocusRestore.js'
+import { errorMessageOf } from '@pidex/shared/errors'
 
 type Props = {
   open: boolean

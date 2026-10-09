@@ -2,19 +2,19 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { FileCode2, FolderOpen, Play, X } from 'lucide-react'
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
-import type { DesktopInstalledSkill } from '../../../../shared/types.js'
+import type { DesktopInstalledSkill } from '../../../../shared/Types.js'
 import { Button } from '../../../components/ui/Button.js'
 
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
-import { readRuntimeSkill } from './skillClientAdapter.js'
-import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/IconTokens.js'
+import { readRuntimeSkill } from './SkillClientAdapter.js'
+import { useLastNonNull } from '../../../hooks/UsePresenceRetention.js'
 import {
   BuiltinSkillIcon,
   getBuiltinSkillPresentation,
   isBuiltinSkill,
   skillScopeLabel,
-} from '../../plugins/builtinSkillPresentation.js'
-import { errorMessageOr as errorMessageOf } from '@codepilotx/shared/errors'
+} from '../../plugins/BuiltinSkillPresentation.js'
+import { errorMessageOr as errorMessageOf } from '@pidex/shared/errors'
 
 type Props = {
   workspacePath: string | null

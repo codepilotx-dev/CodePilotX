@@ -1,7 +1,7 @@
-import type { AutomationRun } from '@codepilotx/shared/automation'
-import type { ScheduledTask } from '@codepilotx/shared/scheduled-task'
-import type { AutomationRepository } from '../storage/repositories/automation-repository'
-import type { ScheduledTaskRepository } from '../storage/repositories/scheduled-task-repository'
+import type { AutomationRun } from '@pidex/shared/automation'
+import type { ScheduledTask } from '@pidex/shared/scheduled-task'
+import type { AutomationRepository } from '../storage/repositories/AutomationRepository'
+import type { ScheduledTaskRepository } from '../storage/repositories/ScheduledTaskRepository'
 
 const MAX_TIMER_DELAY = 2_147_000_000
 

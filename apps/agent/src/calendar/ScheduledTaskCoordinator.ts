@@ -1,6 +1,6 @@
-import type { ScheduledTask, ScheduledTaskStatus } from '@codepilotx/shared/scheduled-task'
-import { AgentError } from '../domain'
-import type { ScheduledTaskRepository } from '../storage/repositories/scheduled-task-repository'
+import type { ScheduledTask, ScheduledTaskStatus } from '@pidex/shared/scheduled-task'
+import { AgentError } from '../Domain'
+import type { ScheduledTaskRepository } from '../storage/repositories/ScheduledTaskRepository'
 import type {
   AutomationExecutionBinding,
   AutomationRunExecutor,

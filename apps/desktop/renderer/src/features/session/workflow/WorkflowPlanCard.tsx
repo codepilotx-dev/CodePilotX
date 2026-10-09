@@ -1,13 +1,13 @@
 import React from 'react'
 import { Check, ChevronDown, ChevronUp, Copy, Download, Maximize2, PanelRight } from 'lucide-react'
-import type { StructuredPlan } from '@codepilotx/shared/thread'
-import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import type { StructuredPlan } from '@pidex/shared/thread'
+import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { MarkdownMessage } from '../../markdown/index.js'
 import {
   createKeyedDisclosureStore,
   useDisclosureExpanded,
-} from '../../../components/ui/keyedDisclosureStore.js'
-import { usePlanDocumentActions } from './planDocumentActions.js'
+} from '../../../components/ui/KeyedDisclosureStore.js'
+import { usePlanDocumentActions } from './PlanDocumentActions.js'
 
 export const planDisclosureStore = createKeyedDisclosureStore({ initialExpandedKeys: [] })
 

@@ -1,4 +1,4 @@
-import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
+import type { RpcParams, RpcResult } from '@pidex/agent-protocol'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
@@ -181,7 +181,7 @@ export function UsageBillingSettings(): React.ReactNode {
           <div>
             <h2 className="settings-page-title tw:m-0 tw:type-title-xl tw:text-app-text tw:tracking-[-0.01em]">用量与成本</h2>
             <p className="usage-page-description tw:mt-1 tw:mr-0 tw:mb-0 tw:ml-0 tw:text-app-text-soft tw:type-body-sm">
-              查看 CodePilotX 本机模型消耗，以及已连接账户的远端用量和成本趋势。
+              查看 Pidex 本机模型消耗，以及已连接账户的远端用量和成本趋势。
             </p>
           </div>
           <SegmentedControl<UsageTab>

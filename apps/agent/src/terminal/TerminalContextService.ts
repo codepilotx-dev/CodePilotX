@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import type { TerminalHostContextResult } from '@codepilotx/agent-protocol/terminal'
+import type { TerminalHostContextResult } from '@pidex/agent-protocol/terminal'
 import type {
   ResolvedThreadWorkspace,
   ThreadWorkspaceResolver,

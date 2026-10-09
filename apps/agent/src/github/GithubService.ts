@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { lstat, mkdtemp, realpath, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, relative, resolve } from 'node:path'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { EncryptedCredentialRepository } from '../auth/EncryptedCredentialRepository'
 import { GitCommandRunner, type GitCommandResult } from '../git/GitCommandRunner'
 import {
@@ -291,7 +291,7 @@ export class GithubService {
   async profileOverview(): Promise<{ overview: GithubProfileOverview }> {
     const result = await this.graphql(
       `
-      query CodePilotXProfileOverview {
+      query PidexProfileOverview {
         viewer {
           login
           databaseId
@@ -512,7 +512,7 @@ export class GithubService {
     }
 
     const credential = await this.requiredCredential()
-    const helperRoot = await mkdtemp(join(tmpdir(), 'codepilotx-github-askpass-'))
+    const helperRoot = await mkdtemp(join(tmpdir(), 'pidex-github-askpass-'))
     let cloneStarted = false
     try {
       const helperPath = await writeAskPassHelper(helperRoot)
@@ -583,7 +583,7 @@ export class GithubService {
 
   async watchGit(input: { workspaceRoot: string; owner: string; repository: string; args: string[] }) {
     const credential = await this.requiredCredential()
-    const helperRoot = await mkdtemp(join(tmpdir(), 'codepilotx-github-askpass-'))
+    const helperRoot = await mkdtemp(join(tmpdir(), 'pidex-github-askpass-'))
     try {
       const helperPath = await writeAskPassHelper(helperRoot)
       const result = await this.git(input.workspaceRoot, ['-c', 'credential.helper=', '-c', `core.hooksPath=${process.platform === 'win32' ? 'NUL' : '/dev/null'}`, ...input.args.map((arg) => arg === '__WATCH_REMOTE__' ? `https://x-access-token@github.com/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repository)}.git` : arg)], { GIT_ASKPASS: helperPath, GIT_TERMINAL_PROMPT: '0', CODEPILOTX_GITHUB_TOKEN: credential.accessToken })
@@ -760,7 +760,7 @@ export class GithubService {
     }
     if ((await missing(pullRequest.base.sha)) || (await missing(pullRequest.head.sha))) {
       const credential = await this.requiredCredential()
-      const helperRoot = await mkdtemp(join(tmpdir(), 'codepilotx-github-askpass-'))
+      const helperRoot = await mkdtemp(join(tmpdir(), 'pidex-github-askpass-'))
       try {
         const helperPath = await writeAskPassHelper(helperRoot)
         const env = {
@@ -845,7 +845,7 @@ export class GithubService {
     const branch = input.branch?.trim() || (await this.currentBranch(workspaceRoot))
     const branchCheck = await this.git(workspaceRoot, ['check-ref-format', '--branch', branch])
     if (branchCheck.code !== 0) throw new AgentError('INVALID_REQUEST', 'branch 参数无效', 400)
-    const helperRoot = await mkdtemp(join(tmpdir(), 'codepilotx-github-askpass-'))
+    const helperRoot = await mkdtemp(join(tmpdir(), 'pidex-github-askpass-'))
     try {
       const helperPath = await writeAskPassHelper(helperRoot)
       const result = await this.git(
@@ -933,7 +933,7 @@ export class GithubService {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
           'X-GitHub-Api-Version': '2022-11-28',
-          'User-Agent': 'CodePilotX',
+          'User-Agent': 'Pidex',
         },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       },
@@ -952,7 +952,7 @@ export class GithubService {
             Accept: 'application/json',
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
-            'User-Agent': 'CodePilotX',
+            'User-Agent': 'Pidex',
           },
           body: JSON.stringify({ query, variables }),
         },

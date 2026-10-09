@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
 import * as Dialog from '@radix-ui/react-dialog'
 import { KeyRound, X } from 'lucide-react'
 import type React from 'react'
@@ -7,14 +7,14 @@ import type {
   DesktopApiKeySummary,
   DesktopModelProviderSummary,
   ModelProviderID,
-} from '../../../shared/types.js'
+} from '../../../shared/Types.js'
 import { Button } from '../../components/ui/Button.js'
 
 import { Input } from '../../components/ui/Input.js'
 import { SettingsDropdown } from '../settings/SettingsDropdown.js'
-import { useDialogFocusRestore } from '../../components/ui/useDialogFocusRestore.js'
-import { useLastNonNull } from '../../hooks/usePresenceRetention.js'
-import { cx } from '../../utils/cx.js'
+import { useDialogFocusRestore } from '../../components/ui/UseDialogFocusRestore.js'
+import { useLastNonNull } from '../../hooks/UsePresenceRetention.js'
+import { cx } from '../../utils/Cx.js'
 
 export type ApiKeyEditorValue = {
   providerId: ModelProviderID

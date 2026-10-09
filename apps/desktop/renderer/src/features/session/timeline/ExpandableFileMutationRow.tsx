@@ -1,12 +1,12 @@
-import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import React from 'react'
 import { ChevronRight, Pencil } from 'lucide-react'
-import type { Item } from '@codepilotx/shared/thread'
-import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
-import type { DesktopDiffMarkerStyle } from '../../../../shared/types.js'
+import type { Item } from '@pidex/shared/thread'
+import type { RpcParams, RpcResult } from '@pidex/agent-protocol'
+import type { DesktopDiffMarkerStyle } from '../../../../shared/Types.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
-import { useDisclosureExpanded } from '../../../components/ui/keyedDisclosureStore.js'
-import { cx } from '../../../utils/cx.js'
+import { useDisclosureExpanded } from '../../../components/ui/KeyedDisclosureStore.js'
+import { cx } from '../../../utils/Cx.js'
 
 import type {
   CanonicalItemDisclosure,

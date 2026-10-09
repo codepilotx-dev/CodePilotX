@@ -3,7 +3,7 @@ import * as Slider from '@radix-ui/react-slider'
 import {
   getDesktopAccentPresetColor,
   type DesktopAccentPreset,
-} from '@codepilotx/shared/desktop-theme'
+} from '@pidex/shared/desktop-theme'
 
 import { AnchoredPopover } from '../../components/ui/AnchoredPopover.js'
 import { Input } from '../../components/ui/Input.js'
@@ -19,25 +19,25 @@ import type {
   DesktopThemeMode,
   DesktopThemeSettings,
   DesktopThemeVariant,
-} from '../../../shared/types.js'
-import { defaultDesktopStoredSettings } from '../../../shared/settingsSchema.js'
-import { resetAdvancedDesktopThemeSettings } from '../../../shared/theme.js'
+} from '../../../shared/Types.js'
+import { defaultDesktopStoredSettings } from '../../../shared/SettingsSchema.js'
+import { resetAdvancedDesktopThemeSettings } from '../../../shared/Theme.js'
 import { ReviewDiffReadOnlySplit } from '../review/diff/ReviewDiffSurface.js'
-import { getThemesForVariant } from '../syntax/theme.js'
-import { useDesktopTheme } from '../theme/themeContext.js'
+import { getThemesForVariant } from '../syntax/Theme.js'
+import { useDesktopTheme } from '../theme/ThemeContext.js'
 import {
   loadChromeThemeSeed,
   mergeChromeThemeSeed,
   applyChromeThemeAccentPreset,
-} from '../theme/codeThemeSeed.js'
-import { deriveThemeVariables } from '../theme/themeVariables.js'
+} from '../theme/CodeThemeSeed.js'
+import { deriveThemeVariables } from '../theme/ThemeVariables.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { ThemeFontPicker } from './ThemeFontPicker.js'
 import { ThemePickerDropdown } from './ThemePickerDropdown.js'
-import { useDesktopSettings } from './useDesktopSettings.js'
+import { useDesktopSettings } from './UseDesktopSettings.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
 
 type Props = {

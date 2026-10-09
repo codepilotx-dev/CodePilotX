@@ -1,4 +1,4 @@
-import { formatReviewCount } from '../../review/diff/reviewFormat.js'
+import { formatReviewCount } from '../../review/diff/ReviewFormat.js'
 import * as React from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Popover as Popover } from '../../../components/ui/floating/Popover.js'
@@ -25,8 +25,8 @@ import {
   SquarePlus,
   X,
 } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
-import { cx } from '../../../utils/cx.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
+import { cx } from '../../../utils/Cx.js'
 import { Tooltip } from '../../../components/ui/Tooltip.js'
 import { BranchSelectPopover } from '../composer/BranchSelectPopover.js'
 import type {
@@ -34,19 +34,19 @@ import type {
   ThreadSummaryBrowserTab,
   ThreadSummarySourceEntry,
   ThreadSummaryViewModel,
-} from './threadSummaryViewModel.js'
+} from './ThreadSummaryViewModel.js'
 import {
   previewThreadSummaryAgents,
   previewThreadSummarySources,
   threadSummaryArtifactPreviewKind,
-} from './threadSummaryViewModel.js'
-import type { Attachment, LocalContextReference } from '@codepilotx/shared/thread'
+} from './ThreadSummaryViewModel.js'
+import type { Attachment, LocalContextReference } from '@pidex/shared/thread'
 import { Button } from '../../../components/ui/Button.js'
-import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
+import { useDialogFocusRestore } from '../../../components/ui/UseDialogFocusRestore.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import { Spinner } from '../../../components/ui/Spinner.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
-import type { CommandMenuActionRegistration } from '../../search/commandMenuActionStore.js'
+import type { CommandMenuActionRegistration } from '../../search/CommandMenuActionStore.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 
 /**

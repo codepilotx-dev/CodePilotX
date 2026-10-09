@@ -1,5 +1,5 @@
 import type { AuthEvent, AuthInteraction, AuthPrompt, Models } from '@earendil-works/pi-ai'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import { secretScrubber } from '../security/SecretScrubber'
 
 const DEFAULT_TTL_MS = 15 * 60_000

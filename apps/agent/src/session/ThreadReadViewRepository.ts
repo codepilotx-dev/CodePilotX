@@ -1,4 +1,4 @@
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import { globalEventSequence } from '../storage/events/EventPublisher'
 import { ThreadProjection } from '../transport/ThreadProjection'

@@ -1,6 +1,6 @@
 import type React from 'react'
 import { Dropdown } from './Dropdown.js'
-import type { PopoverSizingProps } from './popoverSizing.js'
+import type { PopoverSizingProps } from './PopoverSizing.js'
 
 type Props = {
   children: React.ReactNode

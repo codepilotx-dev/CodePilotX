@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import { ContentBlobStore, contentSha256 } from '../storage/ContentBlobStore'
 
 export const ATTACHMENT_LIMITS = {

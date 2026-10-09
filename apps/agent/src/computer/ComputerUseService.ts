@@ -7,13 +7,13 @@ import {
   type ComputerCommand,
   type ComputerResult,
   type ComputerAction,
-} from '@codepilotx/agent-protocol'
-import { AgentError } from '../domain'
+} from '@pidex/agent-protocol'
+import { AgentError } from '../Domain'
 import type { ConfigService } from '../config/ConfigService'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import { ComputerPolicyService } from './ComputerPolicyService'
-import type { PermissionConfig } from '@codepilotx/shared/thread'
+import type { PermissionConfig } from '@pidex/shared/thread'
 import type { PluginManagementService } from '../plugin/PluginManagementService'
 
 type Identity = { threadID: string; turnID: string; agentID?: string; toolCallID?: string }

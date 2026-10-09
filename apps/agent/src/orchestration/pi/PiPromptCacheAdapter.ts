@@ -1,5 +1,5 @@
 import type { PromptCacheRuntimePolicy } from '../../prompt/PromptCache'
-import { isRecord } from '@codepilotx/shared/guards'
+import { isRecord } from '@pidex/shared/guards'
 
 type JsonRecord = Record<string, unknown>
 

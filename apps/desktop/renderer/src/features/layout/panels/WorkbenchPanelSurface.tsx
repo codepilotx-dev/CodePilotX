@@ -1,7 +1,7 @@
 import { forwardRef } from 'react'
 import type React from 'react'
-import { cx } from '../../../utils/cx.js'
-import type { WorkbenchPanelTarget } from '../dock/rightDockState.js'
+import { cx } from '../../../utils/Cx.js'
+import type { WorkbenchPanelTarget } from '../dock/RightDockState.js'
 
 export function WorkbenchPanelSurface({
   target,

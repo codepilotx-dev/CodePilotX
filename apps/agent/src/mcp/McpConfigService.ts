@@ -1,4 +1,4 @@
-import type { McpScope, McpServerDeclaration, McpServerListItem } from '@codepilotx/agent-protocol'
+import type { McpScope, McpServerDeclaration, McpServerListItem } from '@pidex/agent-protocol'
 import { createHash } from 'node:crypto'
 import { realpath } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
@@ -7,8 +7,8 @@ import {
   McpSettingsConflictError,
   McpSettingsRepository,
   type McpSettingsState,
-} from '../storage/repositories/mcp-settings-repository'
-import { isRecord } from '@codepilotx/shared/guards'
+} from '../storage/repositories/McpSettingsRepository'
+import { isRecord } from '@pidex/shared/guards'
 
 const SERVER_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/

@@ -4,9 +4,9 @@ import type {
   McpRuntimeServerStatus,
   McpSanitizedError,
   McpServerDeclaration,
-} from '@codepilotx/agent-protocol'
+} from '@pidex/agent-protocol'
 import { createHash } from 'node:crypto'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import { TurnToolCatalog, type ToolCatalog, type ToolDefinition } from '../tool/ToolRegistry'
 import {
   McpClientFactory,

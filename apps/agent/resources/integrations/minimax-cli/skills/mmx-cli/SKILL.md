@@ -7,7 +7,7 @@ description: Use the installed official MiniMax CLI for text, image, video, spee
 
 Use the official `mmx` executable supplied by the MiniMax CLI integration. Do not install, update, or uninstall it from a conversation; direct the user to the plugin page when it is unavailable.
 
-Before a request that spends quota, run `mmx auth status --output json --quiet`. Never print, repeat, or place an API key in a command. CodePilotX synchronizes the active MiniMax Coding Plan key into the official mmx configuration when available.
+Before a request that spends quota, run `mmx auth status --output json --quiet`. Never print, repeat, or place an API key in a command. Pidex synchronizes the active MiniMax Coding Plan key into the official mmx configuration when available.
 
 For agent calls, use `--non-interactive`, `--quiet`, and `--output json` whenever the command supports them.
 

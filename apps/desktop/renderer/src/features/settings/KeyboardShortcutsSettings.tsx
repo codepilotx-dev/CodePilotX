@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { Pencil, Trash2 } from 'lucide-react'
 import { SearchInput } from '../../components/ui/SearchInput.js'
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
 
 type ShortcutRow = {
   title: string

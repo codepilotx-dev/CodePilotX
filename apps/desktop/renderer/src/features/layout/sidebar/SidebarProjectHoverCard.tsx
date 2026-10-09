@@ -1,8 +1,8 @@
 import type React from 'react'
 import { lazy, Suspense, useState } from 'react'
-import type { DesktopWorkspace, ProjectAppearance } from '../../../../shared/types.js'
+import type { DesktopWorkspace, ProjectAppearance } from '../../../../shared/Types.js'
 import { SidebarHoverCard } from './SidebarHoverCard.js'
-export { countOpenProjectSessions } from './sidebarViewModel.js'
+export { countOpenProjectSessions } from './SidebarViewModel.js'
 
 const SidebarProjectHoverCardOverlay = lazy(async () => {
   const module = await import('./SidebarProjectHoverCardOverlay.js')

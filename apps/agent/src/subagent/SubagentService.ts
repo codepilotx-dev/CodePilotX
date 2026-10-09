@@ -1,12 +1,12 @@
-import type { Model } from '@codepilotx/model-schema'
+import type { Model } from '@pidex/model-schema'
 import {
   MAX_SUBAGENT_DEPTH,
   type PermissionConfig,
   type SubagentProfile,
-} from '@codepilotx/shared/thread'
+} from '@pidex/shared/thread'
 import { Effect } from 'effect'
 import type { AgentModelCatalog } from '../provider/AgentModelCatalog'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import {
   SafeBoundaryInterrupt,
   type AgentRuntime,

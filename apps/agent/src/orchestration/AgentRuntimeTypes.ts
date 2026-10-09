@@ -4,9 +4,9 @@ import type {
   SubagentProfile,
   SubagentResult,
   TaskMode,
-} from '../domain'
+} from '../Domain'
 import type { WorkspaceService } from '../workspace/WorkspaceService'
-import type { PromptBundle, PromptSection } from '../prompt/types'
+import type { PromptBundle, PromptSection } from '../prompt/Types'
 import type { SkillService } from '../prompt/SkillService'
 import type { ToolCatalog } from '../tool/ToolRegistry'
 import type { ExecutionPlanInput } from './plan/ExecutionPlanInput'

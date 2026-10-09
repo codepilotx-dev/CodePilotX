@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type React from 'react'
-import { getEffectiveReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
+import { getEffectiveReducedMotion } from '../../hooks/UsePrefersReducedMotion.js'
 
 type CodingHeadingTransitionProps = {
   children: React.ReactNode

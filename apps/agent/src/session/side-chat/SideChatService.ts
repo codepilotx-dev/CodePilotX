@@ -1,11 +1,11 @@
-import { AgentError } from '../../domain'
+import { AgentError } from '../../Domain'
 import type { ThreadService } from '../ThreadService'
 import type { ConversationHistoryForkRepository } from '../fork/ConversationHistoryForkRepository'
 import type { ThreadForkWorkspaceService } from '../fork/ThreadForkWorkspaceService'
 import type {
   SideChatRepository,
   StoredSideChat,
-} from '../../storage/repositories/side-chat-repository'
+} from '../../storage/repositories/SideChatRepository'
 import type { TaskExecutionBindingService } from '../../worktree/TaskExecutionBindingService'
 
 export class SideChatService {

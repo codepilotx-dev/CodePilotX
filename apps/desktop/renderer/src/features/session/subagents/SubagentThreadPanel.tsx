@@ -17,36 +17,36 @@ import type {
   SubagentRun,
   SubagentTask,
   ThreadSnapshot,
-} from '@codepilotx/shared/thread'
+} from '@pidex/shared/thread'
 import {
   createCanonicalThreadState,
   pageFromThreadSnapshot,
   selectRenderTurnEntries,
-} from '@codepilotx/session-view'
+} from '@pidex/session-view'
 import type { VirtualizerHandle } from 'virtua'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../../components/ui/iconTokens.js'
+} from '../../../components/ui/IconTokens.js'
 import { Textarea } from '../../../components/ui/Textarea.js'
 import { Button } from '../../../components/ui/Button.js'
 
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { approvalToRequest } from '../../../services/agentThreadAdapter.js'
+import { approvalToRequest } from '../../../services/AgentThreadAdapter.js'
 import {
   InlineApprovalCard,
   type InlineApprovalCardProps,
 } from '../approvals/InlineApprovalCard.js'
 import { PlanApprovalCard } from '../approvals/PlanApprovalCard.js'
-import { selectCanonicalConversationAuxiliaryState } from '../conversation/canonicalConversationSelectors.js'
+import { selectCanonicalConversationAuxiliaryState } from '../conversation/CanonicalConversationSelectors.js'
 import {
   CanonicalConversationTurn,
   useTimelineDisclosureState,
 } from '../timeline/CanonicalThreadView.js'
 import { SessionTimelineView } from '../timeline/SessionTimelineView.js'
-import { normalizePatchActionError } from '../timeline/patchActionError.js'
-import { subagentStatusLabel } from './subagentStatusLabel.js'
+import { normalizePatchActionError } from '../timeline/PatchActionError.js'
+import { subagentStatusLabel } from './SubagentStatusLabel.js'
 
 export interface SubagentThreadCapabilities {
   canFollowup?: boolean

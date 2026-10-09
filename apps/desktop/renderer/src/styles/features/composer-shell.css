@@ -11,7 +11,7 @@
    * The composer silhouette is a variant function, not a per-element utility:
    * `--composer-radius` resolves from the composer layout + radius variant
    * declared on `.composer-stack`, and the nested surfaces inherit the resolved
-   * value. `test/codex-style-contracts.test.ts` pins these declarations (and the
+   * value. `test/CodexStyleContracts.test.ts` pins these declarations (and the
    * home-surface selectors below) as the composer radius contract, so the
    * silhouette stays a stylesheet rule instead of a `tw:rounded-*` class list.
    *

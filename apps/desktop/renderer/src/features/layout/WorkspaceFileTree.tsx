@@ -1,20 +1,20 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import { ChevronRight, LoaderCircle, RotateCcw } from 'lucide-react'
-import type { DesktopFileEntry, DesktopWorkspace } from '../../../shared/types.js'
-import { createWorkspaceFileTabId } from './tabs/workspaceFileTabId.js'
+import type { DesktopFileEntry, DesktopWorkspace } from '../../../shared/Types.js'
+import { createWorkspaceFileTabId } from './tabs/WorkspaceFileTabId.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../components/ui/iconTokens.js'
+} from '../../components/ui/IconTokens.js'
 import { AppContextMenu } from '../../components/ui/AppContextMenu.js'
 import { Button } from '../../components/ui/Button.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import { VList, type VListHandle } from 'virtua'
 import { desktopClient } from '../../services/desktop-client/index.js'
-import { cx } from '../../utils/cx.js'
-import { normalizePathForComparison } from '../../utils/pathUtils.js'
+import { cx } from '../../utils/Cx.js'
+import { normalizePathForComparison } from '../../utils/PathUtils.js'
 import { FileTypeIcon } from './FileTypeIcon.js'
 
 export type WorkspaceFileOpenOptions = {

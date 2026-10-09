@@ -1,21 +1,21 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type React from 'react'
-import type { RpcResult } from '@codepilotx/agent-protocol'
+import type { RpcResult } from '@pidex/agent-protocol'
 import { ExternalLink, RefreshCw, Sparkles, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
 import { MarkdownMessage } from '../markdown/MarkdownMessage.js'
-import type { MarkdownDirectiveRegistry } from '../markdown/types.js'
+import type { MarkdownDirectiveRegistry } from '../markdown/Types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import {
   loadReleaseNotes,
   releaseNotesErrorMessage,
   releaseNotesViewError,
   type ReleaseNotesViewError,
-} from './releaseNotesModel.js'
+} from './ReleaseNotesModel.js'
 
 const DISABLED_DIRECTIVES: MarkdownDirectiveRegistry = new Map()
 
@@ -101,7 +101,7 @@ export function WhatsNewDialog({
                 新特性
               </Dialog.Title>
               <Dialog.Description className="whats-new-dialog-description tw:m-0 tw:text-app-text-meta tw:text-[length:var(--cpx-sys-font-size-sm)] tw:[line-height:var(--cpx-sys-line-height-tight)]">
-                查看 CodePilotX 当前版本及历史版本的 GitHub 更新记录。
+                查看 Pidex 当前版本及历史版本的 GitHub 更新记录。
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
@@ -305,7 +305,7 @@ function ReleaseDetails({
         className="whats-new-source tw:mt-6 tw:mb-0 tw:text-left tw:text-[length:var(--cpx-sys-font-size-sm)] tw:text-app-text-meta"
       >
         {source === 'bundled-changelog'
-          ? '随 CodePilotX 安装包提供'
+          ? '随 Pidex 安装包提供'
           : `数据来自 GitHub Releases · 最近获取于 ${formatDateTime(fetchedAt)}`}
       </p>
     </article>

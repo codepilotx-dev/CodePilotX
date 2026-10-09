@@ -1,9 +1,9 @@
 import type React from 'react'
 import { Dropdown } from './floating/Dropdown.js'
 import { ChevronRight } from 'lucide-react'
-import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from './iconTokens.js'
-import type { PopoverSizingProps } from './popoverSizing.js'
-import { cx } from '../../utils/cx.js'
+import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from './IconTokens.js'
+import type { PopoverSizingProps } from './PopoverSizing.js'
+import { cx } from '../../utils/Cx.js'
 export type SearchablePopoverOption = {
   disabled?: boolean
   filter?: boolean

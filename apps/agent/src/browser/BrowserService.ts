@@ -8,12 +8,12 @@ import {
   type BrowserCommand,
   type BrowserOperation,
   type BrowserResult,
-} from '@codepilotx/agent-protocol'
-import { AgentError } from '../domain'
+} from '@pidex/agent-protocol'
+import { AgentError } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import type { ConfigService } from '../config/ConfigService'
-import { BrowserRepository } from '../storage/repositories/browser-repository'
+import { BrowserRepository } from '../storage/repositories/BrowserRepository'
 import { BrowserDataService } from './BrowserDataService'
 
 type Host = { instanceId: string; connectionId: string; seenAt: number; wake?: () => void }
@@ -100,7 +100,7 @@ export class BrowserService {
     instanceId: string,
     generation: string,
     historyEpoch: number,
-    visit: import('@codepilotx/agent-protocol').BrowserVisit,
+    visit: import('@pidex/agent-protocol').BrowserVisit,
     updateOnly?: boolean,
   ) {
     this.host(windowId, instanceId)

@@ -5,19 +5,19 @@ import type {
   DesktopPermissionMode,
   DesktopModelSelection,
   DesktopSessionStatus,
-} from '../../../../shared/types.js'
+} from '../../../../shared/Types.js'
 import { Button } from '../../../components/ui/Button.js'
-import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import type { WorkbenchTabDescriptor } from '../../layout/dock/rightDockState.js'
+import type { WorkbenchTabDescriptor } from '../../layout/dock/RightDockState.js'
 import { InlineApprovalCard } from '../approvals/InlineApprovalCard.js'
 import { PlanApprovalCard } from '../approvals/PlanApprovalCard.js'
-import { usePlanApprovalResponse } from '../approvals/usePlanApprovalResponse.js'
+import { usePlanApprovalResponse } from '../approvals/UsePlanApprovalResponse.js'
 import type { OpenPlanInDockRequest } from '../workflow/WorkflowPlanCard.js'
 import { CanonicalThreadView } from '../timeline/CanonicalThreadView.js'
 import type { ThreadTimelineNavigationHandle } from '../timeline/SessionTimelineView.js'
-import { useCanonicalThreadConversation } from '../timeline/useCanonicalThreadConversation.js'
-import { selectCanonicalConversationAuxiliaryState } from './canonicalConversationSelectors.js'
+import { useCanonicalThreadConversation } from '../timeline/UseCanonicalThreadConversation.js'
+import { selectCanonicalConversationAuxiliaryState } from './CanonicalConversationSelectors.js'
 import {
   ConversationItemContext,
   type ConversationItemContextValue,

@@ -1,34 +1,34 @@
 import React from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { GitFork, Play, RefreshCw, X } from 'lucide-react'
-import type { LocalEnvironmentActionMetadata, ManagedWorktree } from '@codepilotx/agent-protocol'
+import type { LocalEnvironmentActionMetadata, ManagedWorktree } from '@pidex/agent-protocol'
 
 import {
   subscribeProjectCatalogChanges,
   notifyProjectCatalogChanged,
-} from '../../projects/projectCatalogEvents.js'
+} from '../../projects/ProjectCatalogEvents.js'
 import { GlobalErrorModal } from '../../../components/GlobalErrorModal.js'
 import { Spinner } from '../../../components/ui/Spinner.js'
 import { Button } from '../../../components/ui/Button.js'
 
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
-import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/IconTokens.js'
+import { useDialogFocusRestore } from '../../../components/ui/UseDialogFocusRestore.js'
 import {
   commandMenuActionStore,
   registerCommandMenuActions,
   type CommandMenuActionRegistration,
-} from '../../search/commandMenuActionStore.js'
-import { environmentDomainClient } from '../../../services/desktop-client/environment-domain-client.js'
+} from '../../search/CommandMenuActionStore.js'
+import { environmentDomainClient } from '../../../services/desktop-client/EnvironmentDomainClient.js'
 import { loadDesktopTerminalClient } from '../../../services/desktop-client/index.js'
-import { transferConversationUiStateForHandoff } from '../../layout/tabs/conversationUiState.js'
-import { listTerminalActions, runTerminalAction } from './actions/terminalActionController.js'
+import { transferConversationUiStateForHandoff } from '../../layout/tabs/ConversationUiState.js'
+import { listTerminalActions, runTerminalAction } from './actions/TerminalActionController.js'
 import {
   HANDOFF_PROGRESS_STEPS,
   completedHandoffStepCount,
   resumePendingHandoff,
   runHandoff,
   type HandoffOperation,
-} from './handoff/handoffController.js'
+} from './handoff/HandoffController.js'
 
 type Props = {
   threadId: string

@@ -5,11 +5,11 @@ import {
   type TaskMode,
   type ToolAuthorizationScope,
   type ToolInvocation,
-} from '../domain'
+} from '../Domain'
 import { WorkspaceService, type WorkspaceFileRevision } from '../workspace/WorkspaceService'
-import type { PermissionConfig, SandboxMode } from '@codepilotx/shared/thread'
-import type { Model } from '@codepilotx/model-schema'
-import type { ToolExecutionMode as PiToolExecutionMode } from '../orchestration/harness/agent-types'
+import type { PermissionConfig, SandboxMode } from '@pidex/shared/thread'
+import type { Model } from '@pidex/model-schema'
+import type { ToolExecutionMode as PiToolExecutionMode } from '../orchestration/harness/AgentTypes'
 import type { Tool as PiAiTool } from '@earendil-works/pi-ai'
 import { isAbsolute, relative, resolve } from 'node:path'
 import {
@@ -19,9 +19,9 @@ import {
   type ToolProcessRunner,
 } from './ToolingRuntime'
 import { nativeGlobWorkspace, nativeGrepWorkspace } from './NativeWorkspaceSearch'
-import { applyEditsText } from './Edit/applyEditText'
-import { subagentToolDefinitions } from '../subagent/toolDefinitions'
-import { applyPatchDefinition } from './ApplyPatch/definition'
+import { applyEditsText } from './Edit/ApplyEditText'
+import { subagentToolDefinitions } from '../subagent/ToolDefinitions'
+import { applyPatchDefinition } from './ApplyPatch/Definition'
 import type { TurnPatchMutationFile } from '../patch/TurnPatchTypes'
 import { diffLines } from 'diff'
 import type { FileAccessProfile } from '../permission/ExecutionPolicy'
@@ -51,7 +51,7 @@ export type ToolStructuredResult = {
   addedToolNames?: string[]
 }
 export type PromptFactory = string | ((context: ToolContext) => string)
-export type { ToolAffectedPath, ToolAuthorizationScope, ToolReviewSummary } from '../domain'
+export type { ToolAffectedPath, ToolAuthorizationScope, ToolReviewSummary } from '../Domain'
 export type ToolFileSnapshots = {
   get(path: string): Promise<WorkspaceFileRevision | undefined>
   set(path: string, revision: WorkspaceFileRevision): Promise<void>

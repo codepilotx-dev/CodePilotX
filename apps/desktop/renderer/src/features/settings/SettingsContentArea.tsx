@@ -1,6 +1,6 @@
 import type React from 'react'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 
 type Props = {
   children: React.ReactNode

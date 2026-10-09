@@ -1,5 +1,5 @@
-import type { PermissionConfig } from '@codepilotx/shared/thread'
-import type { TaskMode } from '../domain'
+import type { PermissionConfig } from '@pidex/shared/thread'
+import type { TaskMode } from '../Domain'
 
 /** Plan mode is a hard runtime ceiling, independent of the thread's saved baseline. */
 export const resolveEffectivePermissionConfig = (

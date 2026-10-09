@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import type { PetCatalogItem, PetCatalogResult, PetDescriptor } from '@codepilotx/agent-protocol'
+import type { PetCatalogItem, PetCatalogResult, PetDescriptor } from '@pidex/agent-protocol'
 import { Download, PawPrint, RefreshCw, SearchX } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
@@ -9,7 +9,7 @@ import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { RemoteImage } from '../../components/ui/RemoteImage.js'
 import { SkeletonBlock, SkeletonRegion } from '../../components/ui/Skeleton.js'
 import { Spinner } from '../../components/ui/Spinner.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import { SettingsDropdown } from '../settings/SettingsDropdown.js'
@@ -24,7 +24,7 @@ import {
   type PetCatalogCardItem,
   type PetCatalogTab,
   type PetCatalogVersionFilter,
-} from './petCatalogModel.js'
+} from './PetCatalogModel.js'
 
 type Props = {
   installedPets: readonly PetDescriptor[]

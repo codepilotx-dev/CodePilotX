@@ -4,8 +4,8 @@ import {
   SearchablePopoverAction,
   SearchablePopoverContent,
 } from '../../../components/ui/SearchablePopoverContent.js'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
-import type { PopoverSizingProps } from '../../../components/ui/popoverSizing.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
+import type { PopoverSizingProps } from '../../../components/ui/PopoverSizing.js'
 
 type BranchSelectPopoverProps = {
   align?: 'start' | 'center' | 'end'

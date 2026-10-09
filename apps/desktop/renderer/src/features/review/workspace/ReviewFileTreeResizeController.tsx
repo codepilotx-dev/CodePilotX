@@ -1,6 +1,6 @@
 import React from 'react'
 import type { MotionValue } from 'motion/react'
-import { normalizeLiveResizeSize } from '../../layout/useLiveResizeValue.js'
+import { normalizeLiveResizeSize } from '../../layout/UseLiveResizeValue.js'
 import {
   REVIEW_FILE_TREE_PANEL_DEFAULT_WIDTH,
   REVIEW_FILE_TREE_PANEL_KEYBOARD_STEP,

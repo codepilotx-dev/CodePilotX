@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type React from 'react'
-import type { WorkingPlugin } from './composer/composerTypes.js'
+import type { WorkingPlugin } from './composer/ComposerTypes.js'
 import { DesktopComposer } from './composer/DesktopComposer.js'
 import { useQuickChatContext } from './QuickChatContext.js'
 import { WorkingSuggestionsPanel } from './WorkingSuggestionsPanel.js'
-import { useContextualTaskSuggestions } from './useContextualTaskSuggestions.js'
+import { useContextualTaskSuggestions } from './UseContextualTaskSuggestions.js'
 import {
   buildWorkingContextualTaskSuggestions,
   createWorkingSuggestionState,
@@ -20,9 +20,9 @@ import {
   type WorkingSuggestionCategory,
   type WorkingSuggestionState,
   type WorkingSuggestionTask,
-} from './workingSuggestions.js'
+} from './WorkingSuggestions.js'
 
-const WORKING_COMPOSER_PLACEHOLDER = '使用 CodePilotX Working'
+const WORKING_COMPOSER_PLACEHOLDER = '使用 Pidex Working'
 
 export function WorkingNewSessionView(): React.ReactNode {
   const {

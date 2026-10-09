@@ -1,6 +1,6 @@
 import type { AgentRuntimeResult } from '../orchestration/AgentRuntimeTypes'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import { secretScrubber } from '../security/SecretScrubber'
 
 export const SUBAGENT_COLLABORATION_SCHEMA = [

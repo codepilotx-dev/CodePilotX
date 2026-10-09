@@ -1,6 +1,6 @@
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import React from 'react'
-import { decodeThreadPatchDiff } from '@codepilotx/agent-protocol'
+import { decodeThreadPatchDiff } from '@pidex/agent-protocol'
 import { FileMutationDiffBody } from '../timeline/FileMutationDiffBody.js'
 import { ArrowDown, ArrowUp, ChevronDown, X } from 'lucide-react'
 import { Dropdown as DropdownMenu } from '../../../components/ui/floating/Dropdown.js'
@@ -9,22 +9,22 @@ import type {
   DesktopPermissionGrantScope,
   DesktopPermissionMode,
   DesktopPermissionRequest,
-} from '../../../../shared/types.js'
+} from '../../../../shared/Types.js'
 import { Button } from '../../../components/ui/Button.js'
 import { Dropdown } from '../../../components/ui/Dropdown.js'
 import { PopoverRadioItem } from '../../../components/ui/PopoverItem.js'
 import { AskUserQuestionApproval } from './AskUserQuestionApproval.js'
-import { useQuestionSkipCapability } from './useQuestionSkipCapability.js'
+import { useQuestionSkipCapability } from './UseQuestionSkipCapability.js'
 import { ASK_USER_QUESTION_NAV_BUTTON_CLASS, RequestCard } from './RequestCard.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
-import { useApprovalCapability } from './useQuestionSkipCapability.js'
+import { useApprovalCapability } from './UseQuestionSkipCapability.js'
 import {
   McpElicitationForm,
   McpElicitationUnsupported,
 } from '../mcpElicitation/McpElicitationForm.js'
-import { getSchemaMode, parseMcpElicitationSchema } from '../mcpElicitation/mcpElicitationUtils.js'
-import { useHeightTransition } from '../../../hooks/useHeightTransition.js'
-import { cx } from '../../../utils/cx.js'
+import { getSchemaMode, parseMcpElicitationSchema } from '../mcpElicitation/McpElicitationUtils.js'
+import { useHeightTransition } from '../../../hooks/UseHeightTransition.js'
+import { cx } from '../../../utils/Cx.js'
 
 export type InlineApprovalCommand = {
   full: string

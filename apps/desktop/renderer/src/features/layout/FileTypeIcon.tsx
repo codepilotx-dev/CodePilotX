@@ -1,16 +1,16 @@
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
 import type React from 'react'
 import { lazy, Suspense } from 'react'
 import { File, Folder, type LucideProps } from 'lucide-react'
 
 const MaterialFileIcon = lazy(() =>
-  import('./material-icons/components.js').then((module) => ({
+  import('./material-icons/Components.js').then((module) => ({
     default: module.FileIcon,
   })),
 )
 
 const MaterialFolderIcon = lazy(() =>
-  import('./material-icons/components.js').then((module) => ({
+  import('./material-icons/Components.js').then((module) => ({
     default: module.FolderIcon,
   })),
 )

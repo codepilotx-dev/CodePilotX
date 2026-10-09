@@ -1,31 +1,31 @@
-import { createAgentSessionDesktopClient } from './agent-session-client.js'
-import { createLazyBrowserMockClient } from './lazy-browser-mock-client.js'
-import { defaultDesktopClientEnvironment } from './environment.js'
-import { createGithubAccountCache } from './github-account-cache.js'
+import { createAgentSessionDesktopClient } from './AgentSessionClient.js'
+import { createLazyBrowserMockClient } from './LazyBrowserMockClient.js'
+import { defaultDesktopClientEnvironment } from './Environment.js'
+import { createGithubAccountCache } from './GithubAccountCache.js'
 import type {
   DesktopAttachmentApi,
   DesktopLocalContextApi,
   DesktopClientEnvironment,
-} from './types.js'
+} from './Types.js'
 
 export {
   CONFIG_UPDATED_EVENT,
   WORKSPACE_FILE_CHANGED_EVENT,
   WORKSPACE_GIT_CHANGED_EVENT,
-} from './agent-session-client.js'
-export { startGithubLoginFlow } from './github-login.js'
-export { desktopClipboard } from './clipboard-client.js'
-export type { DesktopClipboard } from './clipboard-client.js'
-export type { DesktopTerminalClient } from './terminal-client.js'
-export type { DesktopBrowserClient } from './desktop-browser-client.js'
+} from './AgentSessionClient.js'
+export { startGithubLoginFlow } from './GithubLogin.js'
+export { desktopClipboard } from './ClipboardClient.js'
+export type { DesktopClipboard } from './ClipboardClient.js'
+export type { DesktopTerminalClient } from './TerminalClient.js'
+export type { DesktopBrowserClient } from './DesktopBrowserClient.js'
 
-let terminalClientPromise: Promise<import('./terminal-client.js').DesktopTerminalClient> | null =
+let terminalClientPromise: Promise<import('./TerminalClient.js').DesktopTerminalClient> | null =
   null
 
 export function loadDesktopTerminalClient(): Promise<
-  import('./terminal-client.js').DesktopTerminalClient
+  import('./TerminalClient.js').DesktopTerminalClient
 > {
-  terminalClientPromise ??= import('./terminal-client.js')
+  terminalClientPromise ??= import('./TerminalClient.js')
     .then((module) => module.terminalClient)
     .catch((error) => {
       terminalClientPromise = null
@@ -33,10 +33,10 @@ export function loadDesktopTerminalClient(): Promise<
     })
   return terminalClientPromise
 }
-export type { GithubLoginClient } from './github-login.js'
+export type { GithubLoginClient } from './GithubLogin.js'
 
 export type {
-  CodePilotXDesktopClient,
+  DesktopClient,
   DesktopAgentEventEnvelopeApi,
   DesktopAgentReviewApi,
   DesktopAgentThreadTitleApi,
@@ -60,7 +60,7 @@ export type {
   DesktopReviewAgentFileSummary,
   DesktopReviewAgentSummary,
   DesktopReviewAgentSummaryResult,
-} from './types.js'
+} from './Types.js'
 
 export function createDesktopClient(
   environment: DesktopClientEnvironment = defaultDesktopClientEnvironment(),
@@ -69,7 +69,7 @@ export function createDesktopClient(
   const client = createAgentSessionDesktopClient(
     environment,
     fallbackClient,
-    environment.window?.codePilotXDesktop === undefined,
+    environment.window?.DesktopBridge === undefined,
   )
   return { ...client, ...createGithubAccountCache(client) }
 }

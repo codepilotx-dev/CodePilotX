@@ -1,5 +1,5 @@
 import React from 'react'
-import { HERO_CONTENT, GITHUB_REPO_URL } from '../constants/content'
+import { HERO_CONTENT, GITHUB_REPO_URL } from '../constants/Content'
 import { ProductPlaceholder } from './ProductPlaceholder'
 import { TopographyBackground } from './TopographyBackground'
 
@@ -36,9 +36,9 @@ export const Hero: React.FC = () => {
       <TopographyBackground />
       <div className="animate-fade-up-4 hero-product absolute z-10">
         <ProductPlaceholder
-          label="CodePilotX desktop workbench"
+          label="Pidex desktop workbench"
           aspectRatio="16:10"
-          windowTitle="CodePilotX"
+          windowTitle="Pidex"
           className="hero-product-window"
         />
       </div>

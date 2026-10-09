@@ -1,15 +1,15 @@
 import { Effect } from 'effect'
 import { contentText, type Api, type Model as PiModel, type Models } from '@earendil-works/pi-ai'
-import { AgentHarness } from './harness/agent-harness'
-import { SessionError, type Session, type AgentHarnessEvent } from './harness/types'
+import { AgentHarness } from './harness/AgentHarness'
+import { SessionError, type Session, type AgentHarnessEvent } from './harness/Types'
 import type { AgentRuntime, AgentRuntimeRequest, PendingApproval } from './AgentRuntimeTypes'
-import { executeHarnessRun } from './pi/executeHarnessRun'
+import { executeHarnessRun } from './pi/ExecuteHarnessRun'
 import type {
   ActiveHarness,
   HarnessRuntimeOptions,
   PiRuntimeEventContext,
   PiRuntimeEventSink,
-} from './pi/types'
+} from './pi/Types'
 import { piToolResultText } from './pi/PiEventAdapter'
 import {
   SqlitePiSessionRepo,
@@ -20,10 +20,10 @@ import type { EventHub } from '../storage/events/EventHub'
 import type { ToolExecutor } from '../tool/ToolExecutor'
 import { PI_LIFECYCLE_TOOLS, type ToolExposureInput } from '../tool/ToolExposurePlan'
 import { toolCatalogSummary, type ToolCatalog, type ToolCatalogEntry } from '../tool/ToolRegistry'
-import { buildCapabilityCatalogSection } from '../prompt/capability-catalog'
-import type { PromptSection } from '../prompt/types'
+import { buildCapabilityCatalogSection } from '../prompt/CapabilityCatalog'
+import type { PromptSection } from '../prompt/Types'
 import { resolveEffectivePermissionConfig } from '../permission/EffectivePermissionConfig'
-import { AgentError, type Item, type SubagentResult } from '../domain'
+import { AgentError, type Item, type SubagentResult } from '../Domain'
 import { createLiveEvent } from '../storage/events/EventPublisher'
 import { secretScrubber } from '../security/SecretScrubber'
 import { proposedPlanTitle } from './plan/ProposedPlanStreamParser'
@@ -31,9 +31,9 @@ import {
   formatStructuredPlanMarkdown,
   type ContextUsageBreakdownEntry,
   type StructuredPlan,
-} from '@codepilotx/shared/thread'
-import { parseApplyPatch } from '../tool/ApplyPatch/parseApplyPatch'
-import { TurnPiBoundaryRepository } from '../storage/repositories/turn-pi-boundary-repository'
+} from '@pidex/shared/thread'
+import { parseApplyPatch } from '../tool/ApplyPatch/ParseApplyPatch'
+import { TurnPiBoundaryRepository } from '../storage/repositories/TurnPiBoundaryRepository'
 import {
   ContextCompactionService,
   type ContextCompaction,
@@ -43,16 +43,16 @@ import {
   type ArtifactBlobInput,
   type StoredArtifactBlob,
 } from '../storage/ArtifactService'
-import type { NewArtifactRecord } from '../storage/repositories/artifact-repository'
-import type { ToolResultBlock } from '@codepilotx/shared/thread'
+import type { NewArtifactRecord } from '../storage/repositories/ArtifactRepository'
+import type { ToolResultBlock } from '@pidex/shared/thread'
 import { PromptComposer } from '../prompt/PromptComposer'
-import { RuntimeCompositionService } from '../runtime-composition/service'
+import { RuntimeCompositionService } from '../runtime-composition/Service'
 import {
   composeRuntimeComposition,
   createMcpGenerationBinding,
   rebindRuntimeComposition,
-} from '../runtime-composition/composer'
-import type { RuntimeWorkspaceScope, BoundRuntimeComposition } from '../runtime-composition/types'
+} from '../runtime-composition/Composer'
+import type { RuntimeWorkspaceScope, BoundRuntimeComposition } from '../runtime-composition/Types'
 import { SkillService } from '../prompt/SkillService'
 import type { WorkspaceService } from '../workspace/WorkspaceService'
 import { classifyToolActivity, storedToolActivity } from '../tool/ToolActivityClassifier'
@@ -1080,7 +1080,7 @@ export class AgentRuntimeService implements AgentRuntime {
             ? {
                 thinkingLevel: String(
                   resolved.ref.variant,
-                ) as import('./harness/agent-types').ThinkingLevel,
+                ) as import('./harness/AgentTypes').ThinkingLevel,
               }
             : {}),
           model,
@@ -1635,7 +1635,7 @@ export class AgentRuntimeService implements AgentRuntime {
             ? {
                 thinkingLevel: String(
                   resolved.ref.variant,
-                ) as import('./harness/agent-types').ThinkingLevel,
+                ) as import('./harness/AgentTypes').ThinkingLevel,
               }
             : {}),
           exposedTools,

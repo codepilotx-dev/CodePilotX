@@ -2,7 +2,7 @@ import type React from 'react'
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Blocks, Search } from 'lucide-react'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../../components/ui/IconTokens.js'
 import { Input } from '../../../components/ui/Input.js'
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
@@ -13,10 +13,10 @@ import {
   mergePluginCatalog,
   pluginStatusLabel,
   type PluginStatusFilter,
-} from '../../plugins/pluginCatalog.js'
-import { catalogBrowseParams, type CatalogTab } from '../../plugins/catalogDetailsDeepLink.js'
-import { useMiniMaxCli } from '../../plugins/useMiniMaxCli.js'
-import { usePluginCatalog } from '../../plugins/usePluginCatalog.js'
+} from '../../plugins/PluginCatalog.js'
+import { catalogBrowseParams, type CatalogTab } from '../../plugins/CatalogDetailsDeepLink.js'
+import { useMiniMaxCli } from '../../plugins/UseMiniMaxCli.js'
+import { usePluginCatalog } from '../../plugins/UsePluginCatalog.js'
 import { SidebarEmptyRow, SidebarRow } from './SidebarRow.js'
 
 const CATALOG_TABS: ReadonlyArray<{ value: CatalogTab; label: string }> = [

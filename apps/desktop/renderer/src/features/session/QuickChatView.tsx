@@ -2,20 +2,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
 import { AnimatePresence, motion, useIsPresent } from 'motion/react'
 import { useSearchParams } from 'react-router-dom'
-import type { DesktopWorkspace, SidebarProductMode } from '../../../shared/types.js'
+import type { DesktopWorkspace, SidebarProductMode } from '../../../shared/Types.js'
 import {
   getEffectiveReducedMotion,
   usePrefersReducedMotion,
-} from '../../hooks/usePrefersReducedMotion.js'
-import { useDesktopSettings } from '../settings/useDesktopSettings.js'
+} from '../../hooks/UsePrefersReducedMotion.js'
+import { useDesktopSettings } from '../settings/UseDesktopSettings.js'
 import {
   normalizeNewSessionSurfaceSearch,
   parseNewSessionSurface,
   type NewSessionSurface,
-} from './newSessionSurface.js'
+} from './NewSessionSurface.js'
 import { DesktopComposer } from './composer/DesktopComposer.js'
 import { useQuickChatContext } from './QuickChatContext.js'
-import { enterTween, exitTween, motionTransition } from '../motion/motionTransitions.js'
+import { enterTween, exitTween, motionTransition } from '../motion/MotionTransitions.js'
 import { CodingHeadingTransition } from './CodingHeadingTransition.js'
 import { ProjectSwitcherPopover } from './composer/ProjectSwitcherPopover.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
@@ -181,9 +181,9 @@ function CodingQuickChatView({
 
   const composerPlaceholder =
     surface === 'chat'
-      ? t('给 CodePilotX 发消息')
+      ? t('给 Pidex 发消息')
       : surface === 'working'
-        ? t('使用 CodePilotX Working，描述你的任务')
+        ? t('使用 Pidex Working，描述你的任务')
         : undefined
 
   return (

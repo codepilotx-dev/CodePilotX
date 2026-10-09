@@ -6,12 +6,12 @@
 
 ## 职责与依赖
 
-- `src/index.ts` 是可执行入口，`src/bootstrap.ts` 是 composition root；两者都不得承载业务逻辑。
+- `src/index.ts` 是可执行入口，`src/Bootstrap.ts` 是 composition root；两者都不得承载业务逻辑。
 - Agent 保持 Bun + Effect 模块化单体，禁止把业务逻辑移动到 Electron 或 Renderer。
 - HTTP、RPC、SSE、projection 和 Renderer proxy 放在 `src/transport/`。
 - 会话状态与历史放在 `src/session/`，执行编排放在 `src/orchestration/`。
 - Review、GitHub、orchestration 和 subagent 的新职责必须放入对应领域目录，禁止继续扩大单文件聚合服务。
-- Harness 是 App Agent 内部、由 CodePilotX 自主维护的执行内核，不建立 Pi 上游同步或版本对齐流程；Provider、模型请求与 OAuth 仍统一使用 `pi-ai`。
+- Harness 是 App Agent 内部、由 Pidex 自主维护的执行内核，不建立 Pi 上游同步或版本对齐流程；Provider、模型请求与 OAuth 仍统一使用 `pi-ai`。
 - Agent 实现跨客户端业务能力。只有浏览器、窗口、剪贴板、系统通知等真实 OS 集成才能通过明确的 adapter/capability 区分。
 - Agent 向客户端输出稳定的状态、进度、审批、问题、Review 和工具结果，禁止输出依赖 React、DOM 或 TUI 的展示结构。
 - Desktop 与未来 CLI 必须复用同一权限、沙箱、工具执行、checkpoint、中断恢复、Git 和存储语义。
@@ -33,7 +33,7 @@
 
 ## RPC v4
 
-- `@codepilotx/agent-protocol` 是 RPC method、event、wire error 和 capability 的唯一来源。
+- `@pidex/agent-protocol` 是 RPC method、event、wire error 和 capability 的唯一来源。
 - `transport/rpc/RpcRouter.ts` 只负责连接状态、鉴权、capability、registry 分派和统一错误编码。
 - 方法实现按领域放入 `transport/rpc/handlers/`。handler 只负责参数解码和调用 service，禁止直接执行 SQL。
 - `thread/create` 只接受 `workspace`。
@@ -49,13 +49,13 @@
 - 提问、Skills、Plan 和子 Agent 等产品生命周期工具继续由对应领域 service 持有，并通过 orchestration adapter callback 暴露。禁止在 `src/tool/` 中复制状态机或 checkpoint 实现。
 - 新增工具必须接入 `ToolRegistry -> ToolExposurePlan -> ToolExecutor -> PermissionDecisionEngine` 链路，并保持审批、沙箱、幂等、延迟暴露和中断恢复语义。
 - Harness 内置或适配的工具也必须回到产品执行链路，禁止以独立工具工厂绕过注册、权限和审批。
-- 参考成熟工具实现时，必须先映射 CodePilotX 现有领域边界、权限模型和桌面架构，禁止机械复制目录、命名或重复逻辑。
+- 参考成熟工具实现时，必须先映射 Pidex 现有领域边界、权限模型和桌面架构，禁止机械复制目录、命名或重复逻辑。
 - MCP、Web Search/Web Fetch 与 LSP 的建设顺序属于产品规划，不约束已明确范围的单项工具需求；新增能力仍须遵守既有领域、权限和认证边界。
 
 ## 能力发现与插件流程
 
 - 延迟工具的注册、暴露与判权仍走 `ToolRegistry -> ToolExposurePlan -> ToolExecutor`；能力目录只读取该链路已确定的范围，禁止为“能力发现”新增平行注册表、旁路扫描或第二套名称。
-- 能力摘要由 `src/prompt/capability-catalog.ts` 单点生成，在 `AgentRuntimeService` 冻结 turn composition 之前注入 prompt sections；主 Agent 与子 Agent 共用该路径，`promptPreview` 复用同一生成函数，禁止各端各写一份清单。
+- 能力摘要由 `src/prompt/CapabilityCatalog.ts` 单点生成，在 `AgentRuntimeService` 冻结 turn composition 之前注入 prompt sections；主 Agent 与子 Agent 共用该路径，`promptPreview` 复用同一生成函数，禁止各端各写一份清单。
 - 目录必须有界：总长 8,000 字符、单条描述 160 字符；超限必须明确告知还有未展示能力并给出分页发现方式，禁止静默截断。
 - `ToolSearch` 命中即通过既有 `addedToolNames` 链路激活，激活仍由冻结的 deferred envelope 与 `validateDeferredActivation` 校验；恢复旧 turn 只绑定冻结目录，禁止因实时注册表变化扩大能力范围。
 - 插件 Skill 根目录经 `SkillService` 的 `pluginSkillRoots` 回调获取时必须传入当前工作区；无项目聊天只加载全局来源，禁用插件不得进入运行时目录。目录标明插件来源，保持现有 Skill 身份、同名优先级与选择参数。

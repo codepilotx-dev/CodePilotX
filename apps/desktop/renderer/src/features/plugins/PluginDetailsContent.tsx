@@ -3,16 +3,16 @@ import { ExternalLink } from 'lucide-react'
 import { useRef } from 'react'
 import { Button } from '../../components/ui/Button.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
-import type { PluginCatalogItem } from './pluginCatalog.js'
-import { PLUGIN_CATEGORY_LABELS, pluginPrimaryAction, pluginStatusLabel } from './pluginCatalog.js'
-import { cx } from '../../utils/cx.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
+import type { PluginCatalogItem } from './PluginCatalog.js'
+import { PLUGIN_CATEGORY_LABELS, pluginPrimaryAction, pluginStatusLabel } from './PluginCatalog.js'
+import { cx } from '../../utils/Cx.js'
 import {
   DETAILS_METADATA_CLASS,
   DETAILS_METADATA_LABEL_CLASS,
   DETAILS_METADATA_ROW_CLASS,
   DETAILS_METADATA_VALUE_CLASS,
-} from './catalogClassNames.js'
+} from './CatalogClassNames.js'
 
 type ActionProps = {
   item: PluginCatalogItem

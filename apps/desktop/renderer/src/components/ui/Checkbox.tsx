@@ -1,8 +1,8 @@
-import { APP_ICON_SIZES } from './iconTokens.js'
+import { APP_ICON_SIZES } from './IconTokens.js'
 import React from 'react'
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox'
 import { Check, Minus } from 'lucide-react'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 
 export type CheckboxProps = {
   checked: boolean | 'indeterminate'

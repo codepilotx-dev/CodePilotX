@@ -1,5 +1,5 @@
 import { isAbsolute, relative, resolve } from 'node:path'
-import { AgentError } from '../../domain'
+import { AgentError } from '../../Domain'
 import type { EnvironmentDeltaStore } from '../../local-environment/EnvironmentDeltaStore'
 import type { ThreadWorkspaceResolver } from '../../workspace/ThreadWorkspaceResolver'
 import type { TaskExecutionBindingService } from '../../worktree/TaskExecutionBindingService'

@@ -13,8 +13,8 @@ import type {
   ReviewSource,
   ReviewSummaryResult,
   ReviewSummarySnapshot,
-} from '@codepilotx/agent-protocol'
-import { AgentError } from '../domain'
+} from '@pidex/agent-protocol'
+import { AgentError } from '../Domain'
 import { GitCommandRunner, type GitCommandResult } from '../git/GitCommandRunner'
 import type { AgentLogger } from '../observability/AgentLogger'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
@@ -27,14 +27,14 @@ import {
   sha256,
   textFilePatch,
   validateRelativePath,
-} from './diff/parsers'
+} from './diff/Parsers'
 import {
   UNRENDERABLE_CHANGED_BYTES,
   UNRENDERABLE_CHANGED_LINES,
   UNRENDERABLE_LINE_BYTES,
-} from './diff/limits'
-import { fileState } from './state/file-state'
-import { reviewSourceKey } from './source/source-key'
+} from './diff/Limits'
+import { fileState } from './state/FileState'
+import { reviewSourceKey } from './source/SourceKey'
 
 const MAX_GIT_OUTPUT_BYTES = 32 * 1024 * 1024
 const GIT_TIMEOUT_MS = 20_000
@@ -443,7 +443,7 @@ export class GitReviewService {
     phase: 'before' | 'after'
   }) {
     const { rootPath } = await this.repository(input.projectId)
-    const temporary = await mkdtemp(join(tmpdir(), 'codepilotx-review-index-'))
+    const temporary = await mkdtemp(join(tmpdir(), 'pidex-review-index-'))
     const indexPath = join(temporary, 'index')
     const env = { GIT_INDEX_FILE: indexPath }
     try {

@@ -1,5 +1,5 @@
 import React from 'react'
-import { GITHUB_REPO_URL } from '../constants/content'
+import { GITHUB_REPO_URL } from '../constants/Content'
 import { Github, ArrowUpRight, Sparkles } from 'lucide-react'
 
 export const FooterCta: React.FC = () => {

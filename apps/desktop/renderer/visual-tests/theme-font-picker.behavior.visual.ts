@@ -5,7 +5,7 @@ import {
   expectNoHorizontalOverflow,
   prepareVisualTheme,
   waitForVisualPage,
-} from './visual-test-helpers.js'
+} from './VisualTestHelpers.js'
 
 const THEME_STORAGE_KEY = 'codepilotx.desktop.appearance.v6'
 
@@ -39,7 +39,7 @@ function installFontBridge(
 ): Promise<void> {
   return page.addInitScript(
     ({ fonts, delayMs, result }) => {
-      ;(window as unknown as { codePilotXDesktop?: unknown }).codePilotXDesktop = {
+      ;(window as unknown as { DesktopBridge?: unknown }).DesktopBridge = {
         listSystemFonts: async () => {
           if (delayMs > 0) {
             await new Promise((resolve) => setTimeout(resolve, delayMs))

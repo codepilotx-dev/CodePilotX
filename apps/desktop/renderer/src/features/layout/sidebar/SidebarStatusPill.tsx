@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
-import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
-import { cx } from '../../../utils/cx.js'
+import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
+import { cx } from '../../../utils/Cx.js'
 
 type Props = {
   kind: 'input' | 'approval'

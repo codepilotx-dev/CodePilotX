@@ -1,6 +1,6 @@
 import { forwardRef } from 'react'
 import type React from 'react'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 import type { InputSize } from './Input.js'
 
 export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {

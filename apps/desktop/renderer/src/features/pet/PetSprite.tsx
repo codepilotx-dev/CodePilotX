@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
-import { PET_ANIMATIONS, type PetAnimationName } from './petAnimationModel.js'
-import type { PetLookFrame } from './petDirectionModel.js'
+import { usePrefersReducedMotion } from '../../hooks/UsePrefersReducedMotion.js'
+import { PET_ANIMATIONS, type PetAnimationName } from './PetAnimationModel.js'
+import type { PetLookFrame } from './PetDirectionModel.js'
 
 type Props = {
   animation: PetAnimationName

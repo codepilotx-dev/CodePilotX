@@ -1,6 +1,6 @@
 import React from 'react'
 import { useLocale } from '../i18n/LocaleProvider.js'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 
 export type SettingsRowControlAria = {
   labelledby: string

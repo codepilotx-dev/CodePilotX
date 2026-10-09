@@ -1,6 +1,6 @@
 import { forwardRef } from 'react'
 import * as Switch from '@radix-ui/react-switch'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 
 type Props = {
   checked: boolean

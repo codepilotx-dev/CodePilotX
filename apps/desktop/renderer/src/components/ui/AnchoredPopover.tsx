@@ -1,8 +1,8 @@
 import type React from 'react'
 import { Popover } from './floating/Popover.js'
-import { cx } from '../../utils/cx.js'
-import { useFloatingFocusModality } from '../../utils/floatingFocus.js'
-import { buildPopoverSizingStyle, type PopoverSizingProps } from './popoverSizing.js'
+import { cx } from '../../utils/Cx.js'
+import { useFloatingFocusModality } from '../../utils/FloatingFocus.js'
+import { buildPopoverSizingStyle, type PopoverSizingProps } from './PopoverSizing.js'
 
 export type AnchoredPopoverProps = PopoverSizingProps & {
   arrow?: boolean

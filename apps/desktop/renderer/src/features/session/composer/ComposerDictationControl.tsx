@@ -2,11 +2,11 @@ import type React from 'react'
 import { Activity, Mic, Square } from 'lucide-react'
 import { useEffect } from 'react'
 import { Button } from '../../../components/ui/Button.js'
-import { cx } from '../../../utils/cx.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
+import { cx } from '../../../utils/Cx.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/IconTokens.js'
 import type { ComposerEditorHandle } from './ComposerEditor.js'
-import type { ComposerDraftKey } from './composerTypes.js'
-import { useComposerDictation } from './useComposerDictation.js'
+import type { ComposerDraftKey } from './ComposerTypes.js'
+import { useComposerDictation } from './UseComposerDictation.js'
 
 /* The dictation dot pulses through the recording state only; the mic glyph keeps
    the shared loading spin below `prefers-reduced-motion`. */

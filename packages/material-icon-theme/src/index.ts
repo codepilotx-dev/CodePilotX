@@ -3,5 +3,5 @@ export {
   resolveFolderIconName,
   type ResolveFileIconOptions,
   type ResolveFolderIconOptions,
-} from './resolve'
+} from './Resolve'
 export { iconNames, type IconName } from './icons'

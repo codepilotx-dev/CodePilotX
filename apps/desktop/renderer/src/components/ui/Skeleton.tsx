@@ -1,5 +1,5 @@
 import type React from 'react'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 
 export type SkeletonRegionProps = {
   label: string

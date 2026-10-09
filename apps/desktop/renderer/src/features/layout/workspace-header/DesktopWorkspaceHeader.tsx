@@ -1,12 +1,12 @@
 import type React from 'react'
 import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { cx } from '../../../utils/cx.js'
+import { cx } from '../../../utils/Cx.js'
 import { useWorkspaceHeaderContext } from './WorkspaceHeaderProvider.js'
 import {
   selectWorkspaceHeaderItems,
   type WorkspaceHeaderItemSnapshot,
   type WorkspaceHeaderSlot,
-} from './workspaceHeaderStore.js'
+} from './WorkspaceHeaderStore.js'
 
 export type DesktopWorkspaceHeaderProps = {
   className?: string

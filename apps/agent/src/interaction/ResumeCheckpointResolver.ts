@@ -6,7 +6,7 @@ import type {
   RecoveryLeaseSummary,
   ResolvedResumeCheckpoint,
   ResumeCheckpointConsumer,
-} from './types'
+} from './Types'
 
 const record = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' && !Array.isArray(value)

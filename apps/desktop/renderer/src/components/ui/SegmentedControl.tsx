@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import type React from 'react'
 import * as ToggleGroup from '@radix-ui/react-toggle-group'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 
 type Option<T extends string> = {
   value: T

@@ -1,7 +1,7 @@
 import { Server } from 'lucide-react'
 import type React from 'react'
 import { RemoteImage } from '../../components/ui/RemoteImage.js'
-import { useProviderIconSource } from '../../services/desktop-client/provider-icon-client.js'
+import { useProviderIconSource } from '../../services/desktop-client/ProviderIconClient.js'
 
 export type ProviderIconProps = {
   logoURL?: string

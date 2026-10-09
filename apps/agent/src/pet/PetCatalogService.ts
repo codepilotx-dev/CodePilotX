@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { PetCatalogItem, PetCatalogResult, PetLicenseKind } from '@codepilotx/agent-protocol'
-import { AgentError } from '../domain'
+import type { PetCatalogItem, PetCatalogResult, PetLicenseKind } from '@pidex/agent-protocol'
+import { AgentError } from '../Domain'
 import { asPetStorageError, isPetStorageError } from './PetStorageError'
 
 const CATALOG_URL = 'https://raw.githubusercontent.com/legeling/awesome-codex-pet/main/pets.json'

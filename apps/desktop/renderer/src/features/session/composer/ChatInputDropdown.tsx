@@ -4,15 +4,15 @@ import { AnimatePresence, motion, useIsPresent } from 'motion/react'
 import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
-} from '../../../components/ui/popoverSizing.js'
-import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
-import { cx } from '../../../utils/cx.js'
+} from '../../../components/ui/PopoverSizing.js'
+import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
+import { cx } from '../../../utils/Cx.js'
 import {
   enterTween,
   exitTween,
   floatingSurfaceMotion,
   motionTransition,
-} from '../../motion/motionTransitions.js'
+} from '../../motion/MotionTransitions.js'
 
 /*
  * The dropdown anchors above (or below) the composer input. Motion owns the

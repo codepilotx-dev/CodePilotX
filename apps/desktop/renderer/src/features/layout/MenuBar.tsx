@@ -1,7 +1,7 @@
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import * as Menubar from '@radix-ui/react-menubar'
-import type { DesktopEditAction } from '@codepilotx/shared/desktop-edit-ipc'
+import type { DesktopEditAction } from '@pidex/shared/desktop-edit-ipc'
 import {
   ChevronLeft,
   ChevronRight,
@@ -16,14 +16,14 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../components/ui/iconTokens.js'
+} from '../../components/ui/IconTokens.js'
 import { Button } from '../../components/ui/Button.js'
 import {
   buildPopoverSizingStyle,
   type PopoverSizingProps,
-} from '../../components/ui/popoverSizing.js'
-import { cx } from '../../utils/cx.js'
-import { useFloatingFocusModality } from '../../utils/floatingFocus.js'
+} from '../../components/ui/PopoverSizing.js'
+import { cx } from '../../utils/Cx.js'
+import { useFloatingFocusModality } from '../../utils/FloatingFocus.js'
 import { useEditCommands } from '../../components/ui/EditCommandProvider.js'
 
 export type FileMenuAction =
@@ -58,7 +58,7 @@ export type ViewMenuAction =
 export type WindowMenuAction = 'minimize' | 'zoom' | 'close'
 
 export type HelpMenuAction =
-  | 'codepilotxDocumentation'
+  | 'pidexDocumentation'
   | 'whatsNew'
   | 'automations'
   | 'localEnvironments'
@@ -69,7 +69,7 @@ export type HelpMenuAction =
   | 'sendFeedback'
   | 'startPerformanceTrace'
   | 'keyboardShortcuts'
-  | 'aboutCodex'
+  | 'aboutPidex'
 
 type Props = {
   isFileActionEnabled: (action: FileMenuAction) => boolean
@@ -662,10 +662,10 @@ export function MenuBar({
               size="md"
             >
               <MenuItem
-                disabled={!isHelpActionEnabled('codepilotxDocumentation')}
-                onSelect={() => onHelpMenuAction('codepilotxDocumentation')}
+                disabled={!isHelpActionEnabled('pidexDocumentation')}
+                onSelect={() => onHelpMenuAction('pidexDocumentation')}
               >
-                CodePilotX 文档
+                Pidex 文档
               </MenuItem>
               <MenuItem
                 disabled={!isHelpActionEnabled('whatsNew')}
@@ -731,10 +731,10 @@ export function MenuBar({
                 键盘快捷键
               </MenuItem>
               <MenuItem
-                disabled={!isHelpActionEnabled('aboutCodex')}
-                onSelect={() => onHelpMenuAction('aboutCodex')}
+                disabled={!isHelpActionEnabled('aboutPidex')}
+                onSelect={() => onHelpMenuAction('aboutPidex')}
               >
-                关于 CodePilotX
+                关于 Pidex
               </MenuItem>
             </AppMenu>
           </Menubar.Root>

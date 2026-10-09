@@ -5,15 +5,15 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../components/ui/iconTokens.js'
+} from '../../components/ui/IconTokens.js'
 
 import { Button } from '../../components/ui/Button.js'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 import type {
   DesktopQueuedFollowUp,
   DesktopQueuePauseReason,
   DesktopUserMessageInput,
-} from '../../../shared/types.js'
+} from '../../../shared/Types.js'
 
 export type SessionFollowUpDockProps = {
   items: DesktopQueuedFollowUp[]

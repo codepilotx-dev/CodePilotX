@@ -22,7 +22,7 @@ import {
   Users,
 } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import type { RpcResult } from '@codepilotx/agent-protocol'
+import type { RpcResult } from '@pidex/agent-protocol'
 import { Button } from '../../components/ui/Button.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
 
@@ -30,19 +30,19 @@ import { SearchInput } from '../../components/ui/SearchInput.js'
 import { Select, type SelectOption } from '../../components/ui/Select.js'
 import { Spinner } from '../../components/ui/Spinner.js'
 import { DisclosureContent } from '../../components/ui/DisclosureContent.js'
-import { useHeightTransition } from '../../hooks/useHeightTransition.js'
+import { useHeightTransition } from '../../hooks/UseHeightTransition.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../components/ui/iconTokens.js'
+} from '../../components/ui/IconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import type {
   DesktopSessionGroup,
   DesktopSessionGroupDetail,
   DesktopSessionGroupStep,
-} from '../../services/desktop-client/types.js'
-import { cx } from '../../utils/cx.js'
+} from '../../services/desktop-client/Types.js'
+import { cx } from '../../utils/Cx.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 import { FileMutationDiffBody } from '../session/timeline/FileMutationDiffBody.js'

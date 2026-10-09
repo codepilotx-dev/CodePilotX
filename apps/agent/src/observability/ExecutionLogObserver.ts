@@ -1,6 +1,6 @@
 import { isAbsolute, normalize } from 'node:path'
-import type { AgentHarnessEvent } from '../orchestration/harness/types'
-import type { EventEnvelope } from '../domain'
+import type { AgentHarnessEvent } from '../orchestration/harness/Types'
+import type { EventEnvelope } from '../Domain'
 import type { EventHubSignal } from '../storage/events/EventHub'
 import type { AgentLogger, LogContext, LogLevel } from './AgentLogger'
 import { providerFailureCategory, providerFailureMessage } from '../provider/ModelHealthService'

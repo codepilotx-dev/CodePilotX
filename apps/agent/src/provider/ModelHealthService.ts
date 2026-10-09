@@ -1,7 +1,7 @@
-import { Model, Provider } from '@codepilotx/model-schema'
+import { Model, Provider } from '@pidex/model-schema'
 import type { Api, Model as PiModel } from '@earendil-works/pi-ai'
 import { Schema } from 'effect'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { PiModelService } from './pi'
 
 const modelRef = Schema.decodeUnknownSync(Model.Ref)

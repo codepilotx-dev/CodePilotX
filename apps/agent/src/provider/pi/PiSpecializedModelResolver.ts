@@ -1,5 +1,5 @@
 import type { Api, Model as PiModel } from '@earendil-works/pi-ai'
-import { Model, Provider } from '@codepilotx/model-schema'
+import { Model, Provider } from '@pidex/model-schema'
 import type { ConfigObject, ConfigService } from '../../config/ConfigService'
 import type { AgentDatabase } from '../../storage/database/AgentDatabase'
 import type { PiModelService } from './PiModelService'

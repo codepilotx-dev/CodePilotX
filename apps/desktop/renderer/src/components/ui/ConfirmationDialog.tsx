@@ -3,10 +3,10 @@ import { useRef } from 'react'
 import { X } from 'lucide-react'
 import * as AlertDialog from '@radix-ui/react-alert-dialog'
 import * as Dialog from '@radix-ui/react-dialog'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './IconTokens.js'
 import { Button } from './Button.js'
 
-import { useDialogFocusRestore } from './useDialogFocusRestore.js'
+import { useDialogFocusRestore } from './UseDialogFocusRestore.js'
 
 type ConfirmationInput = {
   value: string

@@ -1,5 +1,5 @@
 import React from 'react'
-import { PRODUCT_OVERVIEW } from '../constants/content'
+import { PRODUCT_OVERVIEW } from '../constants/Content'
 import { HardDrive, Cpu, GitPullRequest } from 'lucide-react'
 
 const PILLAR_ICONS = [HardDrive, Cpu, GitPullRequest]

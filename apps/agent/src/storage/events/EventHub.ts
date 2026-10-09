@@ -1,6 +1,6 @@
 import { PubSub, Effect } from 'effect'
-import { EventManifest, type EventType } from '@codepilotx/agent-protocol'
-import type { EventEnvelope } from '../../domain'
+import { EventManifest, type EventType } from '@pidex/agent-protocol'
+import type { EventEnvelope } from '../../Domain'
 
 export type EventHubSignal =
   | { kind: 'live'; event: EventEnvelope & { afterSequence: number } }

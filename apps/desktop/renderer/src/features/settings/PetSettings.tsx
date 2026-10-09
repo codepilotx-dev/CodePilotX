@@ -1,18 +1,18 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { PetInstallPreview } from '@codepilotx/agent-protocol'
+import type { PetInstallPreview } from '@pidex/agent-protocol'
 import { PawPrint, RefreshCw, Trash2 } from 'lucide-react'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { Button } from '../../components/ui/Button.js'
 
 import { Input } from '../../components/ui/Input.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/IconTokens.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
-import { usePetSettingsController } from '../pet/usePetSettingsController.js'
+import { usePetSettingsController } from '../pet/UsePetSettingsController.js'
 
 type Props = {
   onError: (message: string) => void

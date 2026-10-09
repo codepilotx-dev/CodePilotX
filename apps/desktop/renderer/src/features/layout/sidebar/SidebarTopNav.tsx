@@ -1,7 +1,7 @@
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import type { ProtocolCapability } from '@codepilotx/agent-protocol'
+import type { ProtocolCapability } from '@pidex/agent-protocol'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Bell,
@@ -13,17 +13,17 @@ import {
   SquarePen,
   X,
 } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
-import type { SidebarProductMode } from '../../../../shared/types.js'
-import type { AppView } from '../../../uiTypes.js'
-import { newSessionPath } from '../../session/newSessionSurface.js'
-import type { NewSessionSurface } from '../../session/newSessionSurface.js'
+import type { SidebarProductMode } from '../../../../shared/Types.js'
+import type { AppView } from '../../../UiTypes.js'
+import { newSessionPath } from '../../session/NewSessionSurface.js'
+import type { NewSessionSurface } from '../../session/NewSessionSurface.js'
 
 import { Tooltip } from '../../../components/ui/Tooltip.js'
 import { Popover as Popover } from '../../../components/ui/floating/Popover.js'
-import { cx } from '../../../utils/cx.js'
-import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
+import { cx } from '../../../utils/Cx.js'
+import { useDesktopSettings } from '../../settings/UseDesktopSettings.js'
 import { useLocale } from '../../i18n/LocaleProvider.js'
 import { SidebarRow } from './SidebarRow.js'
 

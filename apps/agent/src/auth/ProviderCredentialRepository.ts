@@ -1,5 +1,5 @@
 import type { Effect } from 'effect'
-import type { AgentError } from '../domain'
+import type { AgentError } from '../Domain'
 import type {
   CredentialErrorCategory,
   CredentialHealthStatus,

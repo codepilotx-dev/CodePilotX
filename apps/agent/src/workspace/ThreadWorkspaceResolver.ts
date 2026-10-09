@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto'
 import { isAbsolute, relative, resolve } from 'node:path'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { TaskExecutionBindingService } from '../worktree/TaskExecutionBindingService'
-import type { TaskExecutionBinding } from '../worktree/types'
+import type { TaskExecutionBinding } from '../worktree/Types'
 import { ManagedProjectlessWorkspaceService } from './ManagedProjectlessWorkspaceService'
 import type {
   AllocateManagedProjectlessWorkspaceInput,

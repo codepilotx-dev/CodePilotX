@@ -1,5 +1,5 @@
 import type { EnvironmentDeltaStore } from '../../local-environment/EnvironmentDeltaStore'
-import type { SideChatRepository } from '../../storage/repositories/side-chat-repository'
+import type { SideChatRepository } from '../../storage/repositories/SideChatRepository'
 
 /** Captures external side-chat resources before their owning source thread cascades away. */
 export class SideChatEnvironmentCleanup {

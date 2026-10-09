@@ -6,11 +6,11 @@ import {
   type SessionStats,
   type SessionStorage,
   type SessionTreeEntry,
-} from '../../orchestration/harness/types'
-import { Session } from './session'
-import { createSessionId, createTimestamp, getEntriesToFork } from './repo-utils'
+} from '../../orchestration/harness/Types'
+import { Session } from './Session'
+import { createSessionId, createTimestamp, getEntriesToFork } from './RepoUtils'
 import type { AgentDatabase } from '../database/AgentDatabase'
-import { parsePiSessionEntry } from './pi-session-entry'
+import { parsePiSessionEntry } from './PiSessionEntry'
 
 export interface SqlitePiSessionMetadata extends SessionMetadata {
   threadID: string

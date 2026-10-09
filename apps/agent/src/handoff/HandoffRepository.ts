@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
-import type { HandoffErrorCode } from '@codepilotx/agent-protocol'
-import { AgentError } from '../domain'
+import type { HandoffErrorCode } from '@pidex/agent-protocol'
+import { AgentError } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 
 export const HANDOFF_STEPS = [

@@ -1,4 +1,4 @@
-# CodePilotX Electron 壳
+# Pidex Electron 壳
 
 主进程只负责窗口安全配置与 Bun Agent sidecar 生命周期，不承载 Agent 业务逻辑。
 

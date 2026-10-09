@@ -1,10 +1,10 @@
 import { Effect } from 'effect'
 import type { PluginManagementService } from '../plugin/PluginManagementService'
-import { pluginReferenceData } from '../plugin/plugin-references'
-import { Model } from '@codepilotx/model-schema'
-import type { Thread, ThreadSettings } from '@codepilotx/shared/thread'
+import { pluginReferenceData } from '../plugin/PluginReferences'
+import { Model } from '@pidex/model-schema'
+import type { Thread, ThreadSettings } from '@pidex/shared/thread'
 import type { AgentModelCatalog } from '../provider/AgentModelCatalog'
-import { AgentError, type AgentExecution, type EventEnvelope, type SubmitMessage } from '../domain'
+import { AgentError, type AgentExecution, type EventEnvelope, type SubmitMessage } from '../Domain'
 import type { AgentDatabase, QueueMutationMeta } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import type { ApprovalService } from '../permission/ApprovalService'
@@ -73,7 +73,7 @@ const configurationScopeSection = (): PromptSection => ({
   source: { type: 'runtime', name: 'configuration-scope' },
   content: [
     '持久配置以 config.json 为唯一真源；该文件同时接受严格 JSON 与 JSONC。',
-    '用户说“以后、默认、所有项目”时，先 Read，再用 Edit 更新 @codepilotx/config.json。',
+    '用户说“以后、默认、所有项目”时，先 Read，再用 Edit 更新 @pidex/config.json。',
     '用户说“这个项目”时，先 Read，再用 Edit 更新 .codepilotx/config.json。',
     '用户说“当前任务、这次”时只使用当前任务设置，不写 config.json。',
     '持久作用域不明确时必须先询问用户；配置写入仍需遵守审批策略。',
@@ -1054,7 +1054,7 @@ export class ThreadService {
     }
   }
 
-  private async publishQueueMutation(result: { event: import('../domain').EventEnvelope | null }) {
+  private async publishQueueMutation(result: { event: import('../Domain').EventEnvelope | null }) {
     if (result.event) await Effect.runPromise(this.hub.publish(result.event))
     return result
   }

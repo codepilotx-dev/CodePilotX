@@ -1,7 +1,7 @@
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
 import type React from 'react'
 import { ArrowLeft, Bug, Hammer, ListChecks, SearchCode } from 'lucide-react'
-import type { NewSessionSuggestionState } from './newSessionSuggestionState.js'
+import type { NewSessionSuggestionState } from './NewSessionSuggestionState.js'
 import {
   findNewSessionSuggestionCategory,
   NEW_SESSION_SUGGESTIONS,
@@ -9,7 +9,7 @@ import {
   type NewSessionSuggestionCategoryId,
   type NewSessionSuggestionTask,
   type NewSessionTaskSuggestion,
-} from './newSessionSuggestions.js'
+} from './NewSessionSuggestions.js'
 
 type NewSessionSuggestionPanelProps = {
   state: NewSessionSuggestionState

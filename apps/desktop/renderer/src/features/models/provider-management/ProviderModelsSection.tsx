@@ -20,7 +20,7 @@ import type {
   DesktopModelProviderSummary,
   DesktopModelRef,
   ModelProviderID,
-} from '../../../../shared/types.js'
+} from '../../../../shared/Types.js'
 import { Button } from '../../../components/ui/Button.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { ToggleSwitch } from '../../../components/ui/ToggleSwitch.js'
@@ -29,10 +29,10 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../../components/ui/iconTokens.js'
+} from '../../../components/ui/IconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { fullErrorMessage } from '../../../utils/errors.js'
-import { formatCompactNumber } from '../../../utils/usageFormatters.js'
+import { fullErrorMessage } from '../../../utils/Errors.js'
+import { formatCompactNumber } from '../../../utils/UsageFormatters.js'
 
 export type ModelTestStatus =
   | { state: 'idle' }

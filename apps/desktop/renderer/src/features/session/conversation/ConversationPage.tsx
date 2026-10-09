@@ -1,9 +1,9 @@
-import { chooseSessionGroupForThread } from '../../session-groups/sessionGroupActions.js'
+import { chooseSessionGroupForThread } from '../../session-groups/SessionGroupActions.js'
 import React from 'react'
 import { AnimatePresence, motion, useIsPresent } from 'motion/react'
 import { useNavigate } from 'react-router-dom'
 import { Dropdown as DropdownMenu } from '../../../components/ui/floating/Dropdown.js'
-import { commandMenuActionStore } from '../../search/commandMenuActionStore.js'
+import { commandMenuActionStore } from '../../search/CommandMenuActionStore.js'
 import {
   AppWindow,
   Archive,
@@ -24,27 +24,27 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../../components/ui/iconTokens.js'
+} from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
-import type { DesktopPermissionRequest, DesktopSessionStatus } from '../../../../shared/types.js'
+import type { DesktopPermissionRequest, DesktopSessionStatus } from '../../../../shared/Types.js'
 import { useQuickChatContext } from '../QuickChatContext.js'
-import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
+import { useDesktopSettings } from '../../settings/UseDesktopSettings.js'
 import { WorkspaceHeaderItem } from '../../layout/workspace-header/index.js'
-import { useHeightTransition } from '../../../hooks/useHeightTransition.js'
-import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
-import { enterTween, exitTween, motionTransition } from '../../motion/motionTransitions.js'
+import { useHeightTransition } from '../../../hooks/UseHeightTransition.js'
+import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
+import { enterTween, exitTween, motionTransition } from '../../motion/MotionTransitions.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { InlineApprovalCard } from '../approvals/InlineApprovalCard.js'
 import {
   ComposerChangeSummary,
   findLatestExecutionPlan,
 } from '../composer/ComposerChangeSummary.js'
-import { deriveConversationChangeSummary } from '../composer/conversationChangeSummary.js'
+import { deriveConversationChangeSummary } from '../composer/ConversationChangeSummary.js'
 import {
   clearConversationSelectionHighlight,
   createConversationSelectionSnapshot,
   installConversationSelectionHighlight,
-} from './conversationSelectionHighlight.js'
+} from './ConversationSelectionHighlight.js'
 import {
   PopoverCheckboxItem,
   PopoverItem,
@@ -53,57 +53,57 @@ import {
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
 import { FullScreenWhaleLoading } from '../../../components/ui/FullScreenWhaleLoading.js'
-import { buildPopoverSizingStyle } from '../../../components/ui/popoverSizing.js'
+import { buildPopoverSizingStyle } from '../../../components/ui/PopoverSizing.js'
 import { Tooltip } from '../../../components/ui/Tooltip.js'
 import { InputDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { SkeletonBlock } from '../../../components/ui/Skeleton.js'
 import {
   loadConversationUiState,
   patchConversationUiState,
-} from '../../layout/tabs/conversationUiState.js'
+} from '../../layout/tabs/ConversationUiState.js'
 import { CanonicalThreadView } from '../timeline/CanonicalThreadView.js'
-import { normalizePatchActionError } from '../timeline/patchActionError.js'
-import { subagentStatusLabel } from '../subagents/subagentStatusLabel.js'
+import { normalizePatchActionError } from '../timeline/PatchActionError.js'
+import { subagentStatusLabel } from '../subagents/SubagentStatusLabel.js'
 import { ConversationItemContext } from '../timeline/ConversationItemContext.js'
 import type { ThreadTimelineNavigationHandle } from '../timeline/SessionTimelineView.js'
 import { ThreadComposerDock } from './ThreadComposerDock.js'
 import { ThreadScrollLayout } from './ThreadScrollLayout.js'
 import { ConversationTurnNavRail, type TurnNavigationReason } from './ConversationTurnNavRail.js'
-import { useConversationTurnRowVisibility } from './useConversationTurnRowVisibility.js'
-import { useThreadBookmarks } from './useThreadBookmarks.js'
+import { useConversationTurnRowVisibility } from './UseConversationTurnRowVisibility.js'
+import { useThreadBookmarks } from './UseThreadBookmarks.js'
 import {
   ThreadSummaryErrorBoundary,
   ThreadSummaryPanel,
   ThreadSummaryPopover,
   type ThreadSummarySectionId,
 } from '../summary/ThreadSummaryPanel.js'
-import { useThreadSummaryController } from '../summary/threadSummaryState.js'
+import { useThreadSummaryController } from '../summary/ThreadSummaryState.js'
 import {
   resolveThreadSummaryAgentsAutoCollapse,
   THREAD_SUMMARY_AGENTS_AUTO_COLLAPSE_DELAY_MS,
-} from '../summary/threadSummaryState.js'
-import { useBranchReviewSummary } from '../summary/useBranchReviewSummary.js'
-import { deriveThreadSummaryViewModel } from '../summary/threadSummaryViewModel.js'
-import type { Item } from '@codepilotx/shared/thread'
+} from '../summary/ThreadSummaryState.js'
+import { useBranchReviewSummary } from '../summary/UseBranchReviewSummary.js'
+import { deriveThreadSummaryViewModel } from '../summary/ThreadSummaryViewModel.js'
+import type { Item } from '@pidex/shared/thread'
 import {
   deriveConversationTurnNavItems,
   type ConversationTurnNavItem,
-} from './turnNavigationModel.js'
-import { useCanonicalThreadConversation } from '../timeline/useCanonicalThreadConversation.js'
+} from './TurnNavigationModel.js'
+import { useCanonicalThreadConversation } from '../timeline/UseCanonicalThreadConversation.js'
 import { PlanApprovalCard } from '../approvals/PlanApprovalCard.js'
-import { usePlanApprovalResponse } from '../approvals/usePlanApprovalResponse.js'
+import { usePlanApprovalResponse } from '../approvals/UsePlanApprovalResponse.js'
 import {
   selectCanonicalConversationAuxiliaryState,
   selectCanonicalSessionLifecycle,
-} from './canonicalConversationSelectors.js'
+} from './CanonicalConversationSelectors.js'
 import {
   canInlineEditConversationTitle,
   canRegenerateConversationTitle,
   normalizeConversationTitle,
   shouldCloseConversationRenameDialog,
-} from './conversationTitleActions.js'
-import { useConversationForkController } from '../workflow/fork/useConversationForkController.js'
-import { findLatestConversationForkPoint } from '../workflow/fork/latestConversationForkPoint.js'
+} from './ConversationTitleActions.js'
+import { useConversationForkController } from '../workflow/fork/UseConversationForkController.js'
+import { findLatestConversationForkPoint } from '../workflow/fork/LatestConversationForkPoint.js'
 import {
   copySessionReference,
   copyThreadDeepLink,
@@ -111,9 +111,9 @@ import {
   copyWorkspaceCwd,
   resolveSessionReferenceShortcut,
   type SessionReferenceContext,
-} from './sessionReferenceActions.js'
-export { deriveConversationTurnNavItems } from './turnNavigationModel.js'
-export type { ConversationTurnNavItem } from './turnNavigationModel.js'
+} from './SessionReferenceActions.js'
+export { deriveConversationTurnNavItems } from './TurnNavigationModel.js'
+export type { ConversationTurnNavItem } from './TurnNavigationModel.js'
 import { DesktopComposer } from '../composer/DesktopComposer.js'
 
 const ConversationEnvironmentControls = React.lazy(() =>

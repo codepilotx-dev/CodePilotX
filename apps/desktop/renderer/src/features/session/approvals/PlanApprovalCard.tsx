@@ -1,7 +1,7 @@
 import React from 'react'
-import type { PlanApproval } from '@codepilotx/shared/thread'
+import type { PlanApproval } from '@pidex/shared/thread'
 import { QuestionAnswerForm } from './AskUserQuestionApproval.js'
-import type { AskUserQuestion, QuestionState } from './askUserQuestionModel.js'
+import type { AskUserQuestion, QuestionState } from './AskUserQuestionModel.js'
 import { Button } from '../../../components/ui/Button.js'
 
 export type PlanApprovalResponse =

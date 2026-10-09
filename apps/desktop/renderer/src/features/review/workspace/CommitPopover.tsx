@@ -1,9 +1,9 @@
 import React from 'react'
-import { formatReviewCount } from '../diff/reviewFormat.js'
+import { formatReviewCount } from '../diff/ReviewFormat.js'
 import { ArrowDown, ArrowUp, ArrowUpToLine, ChevronDown, X } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
-import type { PopoverSizingProps } from '../../../components/ui/popoverSizing.js'
+import type { PopoverSizingProps } from '../../../components/ui/PopoverSizing.js'
 import { Popover } from '../../../components/ui/floating/Popover.js'
 
 type Props = {

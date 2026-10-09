@@ -2,10 +2,10 @@ import type React from 'react'
 import { useState } from 'react'
 import { Dropdown } from '../../../components/ui/floating/Dropdown.js'
 import { Briefcase, Code2, MessageSquare } from 'lucide-react'
-import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
-import type { SidebarProductMode } from '../../../../shared/types.js'
+import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
+import type { SidebarProductMode } from '../../../../shared/Types.js'
 import { useLocale } from '../../i18n/LocaleProvider.js'
-import { cx } from '../../../utils/cx.js'
+import { cx } from '../../../utils/Cx.js'
 
 export type ComposerModeSwitcherProps = {
   mode?: SidebarProductMode

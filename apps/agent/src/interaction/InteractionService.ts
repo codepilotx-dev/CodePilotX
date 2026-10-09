@@ -1,5 +1,5 @@
 import { Effect } from 'effect'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { ComputerUseService } from '../computer/ComputerUseService'
 import type { ApprovalService } from '../permission/ApprovalService'
 import type { QuestionService } from '../session/QuestionService'
@@ -8,7 +8,7 @@ import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import type { SubagentService } from '../subagent/SubagentService'
 import { secretScrubber } from '../security/SecretScrubber'
-import { hookTrustRequestedPayload } from './hook-trust-payloads'
+import { hookTrustRequestedPayload } from './HookTrustPayloads'
 
 const record = (value: unknown, name = 'value'): Record<string, unknown> => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -344,7 +344,7 @@ export class InteractionService {
             ? {
                 content: response.content as Record<
                   string,
-                  import('@codepilotx/agent-protocol').JsonValue
+                  import('@pidex/agent-protocol').JsonValue
                 >,
               }
             : {}),

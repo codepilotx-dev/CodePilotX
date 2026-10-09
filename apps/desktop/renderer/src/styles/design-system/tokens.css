@@ -1,6 +1,6 @@
 @layer tokens {
 /*
-  CodePilotX Design System - Global System Tokens & Semantic Scales
+  Pidex Design System - Global System Tokens & Semantic Scales
   Layer: @layer tokens
   Layer boundary: --cpx-sys-* = public semantic (any consumer).
                   --cpx-comp-* = private to the matching base component.

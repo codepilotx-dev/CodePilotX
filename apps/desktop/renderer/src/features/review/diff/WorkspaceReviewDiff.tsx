@@ -39,9 +39,9 @@ import type {
   DesktopReviewSource,
   DesktopReviewView,
   DesktopSessionStatus,
-} from '../../../../shared/types.js'
+} from '../../../../shared/Types.js'
 import { desktopClient, desktopClipboard } from '../../../services/desktop-client/index.js'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
@@ -52,20 +52,20 @@ import { Tooltip } from '../../../components/ui/Tooltip.js'
 import {
   useDisclosureExpanded,
   type KeyedDisclosureStore,
-} from '../../../components/ui/keyedDisclosureStore.js'
-import { buildCommentCountsByPath } from '../comments/reviewCommentUtils.js'
+} from '../../../components/ui/KeyedDisclosureStore.js'
+import { buildCommentCountsByPath } from '../comments/ReviewCommentUtils.js'
 import { CommitPopover } from '../workspace/CommitPopover.js'
 import { PullRequestPopover } from '../workspace/PullRequestPopover.js'
-import { formatReviewCount } from '../diff/reviewFormat.js'
+import { formatReviewCount } from './ReviewFormat.js'
 import {
   isReviewDiffExpanded,
   toggleReviewDiffExpansion,
   type ReviewTabUiState,
-} from '../../layout/tabs/conversationUiState.js'
+} from '../../layout/tabs/ConversationUiState.js'
 import {
   buildReviewIntralineByLineId,
   type ReviewIntralineByLineId,
-} from './reviewIntralineDiff.js'
+} from './ReviewIntralineDiff.js'
 import {
   ReviewDiffInline,
   ReviewDiffLineContent,
@@ -98,9 +98,9 @@ import {
   type ReviewFileDiff,
   type ReviewLoadState,
   type ReviewSummarySnapshot,
-} from '../source/reviewAgentClient.js'
-import { errorMessageOf } from '@codepilotx/shared/errors'
-import { cx } from '../../../utils/cx.js'
+} from '../source/ReviewAgentClient.js'
+import { errorMessageOf } from '@pidex/shared/errors'
+import { cx } from '../../../utils/Cx.js'
 
 export { errorMessageOf }
 

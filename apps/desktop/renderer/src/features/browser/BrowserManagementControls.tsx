@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import * as Dialog from '@radix-ui/react-dialog'
 import { MoreHorizontal, X, ChevronUp, ChevronDown, RotateCw, Minus, Plus } from 'lucide-react'
-import type { DesktopBrowserState } from '../../../shared/types.js'
-import type { DesktopBrowserClient } from '../../services/desktop-client/desktop-browser-client.js'
+import type { DesktopBrowserState } from '../../../shared/Types.js'
+import type { DesktopBrowserClient } from '../../services/desktop-client/DesktopBrowserClient.js'
 import type {
   DesktopBrowserDataCategory,
   DesktopBrowserDataResult,
@@ -11,14 +11,14 @@ import type {
   DesktopBrowserDownload,
   DesktopBrowserUtility,
   DesktopBrowserVisit,
-} from '@codepilotx/shared/desktop-browser-ipc'
+} from '@pidex/shared/desktop-browser-ipc'
 import { Button } from '../../components/ui/Button.js'
 
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
 import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { Checkbox } from '../../components/ui/Checkbox.js'
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
-import { useDialogFocusRestore } from '../../components/ui/useDialogFocusRestore.js'
+import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
+import { useDialogFocusRestore } from '../../components/ui/UseDialogFocusRestore.js'
 
 type Props = {
   client: DesktopBrowserClient

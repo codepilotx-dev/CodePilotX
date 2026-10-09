@@ -1,12 +1,12 @@
 import type React from 'react'
 import { memo, useSyncExternalStore } from 'react'
-import type { WorkbenchTabId, WorkbenchTabsState } from '../dock/rightDockState.js'
+import type { WorkbenchTabId, WorkbenchTabsState } from '../dock/RightDockState.js'
 import {
   getWorkbenchTabDefinition,
   getWorkbenchTabDisplayTitle,
   type WorkbenchTabRenderContext,
-} from '../tabs/workbenchTabRegistry.js'
-import { auxiliaryWindowService } from './auxiliaryWindowService.js'
+} from '../tabs/WorkbenchTabRegistry.js'
+import { auxiliaryWindowService } from './AuxiliaryWindowService.js'
 import { AuxiliaryWindowPortal } from './AuxiliaryWindowPortal.js'
 import { WorkbenchTabErrorBoundary } from '../panels/WorkbenchPanelStates.js'
 

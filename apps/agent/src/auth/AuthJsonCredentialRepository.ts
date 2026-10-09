@@ -3,7 +3,7 @@ import { existsSync, lstatSync } from 'node:fs'
 import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { Effect } from 'effect'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { StoredCredentialHealth } from '../storage/database/AgentDatabase'
 import {
   type ApiKeyHealth,
@@ -14,7 +14,7 @@ import {
   type ProviderCredentialRepository,
   type ProviderCredentialSummary,
 } from './ProviderCredentialRepository'
-import { isRecord } from '@codepilotx/shared/guards'
+import { isRecord } from '@pidex/shared/guards'
 
 const FORMAT = 'codepilotx-provider-auth'
 const SCHEMA_VERSION = 1
@@ -523,7 +523,7 @@ export class AuthJsonCredentialRepository implements ProviderCredentialRepositor
     if (!stats.isFile() || stats.isSymbolicLink()) {
       throw new AgentError(
         'CREDENTIAL_STORE_UNAVAILABLE',
-        'auth.json 不是 CodePilotX 可管理的普通文件',
+        'auth.json 不是 Pidex 可管理的普通文件',
         500,
       )
     }
@@ -590,7 +590,7 @@ export class AuthJsonCredentialRepository implements ProviderCredentialRepositor
     ) {
       throw new AgentError(
         'CREDENTIAL_STORE_UNAVAILABLE',
-        'auth.json 不属于受支持的 CodePilotX 数据格式，已拒绝覆盖',
+        'auth.json 不属于受支持的 Pidex 数据格式，已拒绝覆盖',
         500,
       )
     }

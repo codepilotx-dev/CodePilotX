@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { desktopClient } from '../../services/desktop-client/index.js'
-import { withModelCatalogLoading } from '../../hooks/useModelCatalogLoading.js'
+import { withModelCatalogLoading } from '../../hooks/UseModelCatalogLoading.js'
 import type {
   DesktopModelMetadata,
   DesktopModelProviderSummary,
   ModelProviderID,
-} from '../../../shared/types.js'
-import { getModelDisplayLabel } from '../../modelPresets.js'
+} from '../../../shared/Types.js'
+import { getModelDisplayLabel } from '../../ModelPresets.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
-import { formatCompactNumber } from '../../utils/usageFormatters.js'
+import { formatCompactNumber } from '../../utils/UsageFormatters.js'
 
 function splitProviderModel(value: string): { providerID: string; id: string } | null {
   const slash = value.indexOf('/')

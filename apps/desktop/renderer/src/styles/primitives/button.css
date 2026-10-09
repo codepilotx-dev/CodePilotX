@@ -7,7 +7,7 @@
  * selector specificity and Tailwind emits its utilities into `utilities`:
  * - `primitives` restores exactly what `components/button.scss` declared: the
  *   global Lucide stroke weight (asserted through `getComputedStyle` by
- *   `test/icon-size.browser.ts`), the Electron drag region, the `.icon-button`
+ *   `test/IconSize.browser.ts`), the Electron drag region, the `.icon-button`
  *   layout hook that features render on plain `<div>`/`<svg>`/`<span>` elements,
  *   the `forced-colors` keywords the utility set cannot name, and the ghost
  *   surface. Keeping the ghost rules here lets the `shell`/`features` layers win

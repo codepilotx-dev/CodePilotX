@@ -2,7 +2,7 @@ import type React from 'react'
 import { DesktopComposer } from './composer/DesktopComposer.js'
 import { useQuickChatContext } from './QuickChatContext.js'
 
-const CHAT_COMPOSER_PLACEHOLDER = '给 CodePilotX 发消息'
+const CHAT_COMPOSER_PLACEHOLDER = '给 Pidex 发消息'
 
 export function ChatNewSessionView(): React.ReactNode {
   const { composerProps } = useQuickChatContext()

@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { lstat, mkdir, mkdtemp, realpath, rm, stat } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve } from 'node:path'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 
 const MAX_PATCH_BYTES = 25 * 1024 * 1024
 const MAX_DIAGNOSTIC_BYTES = 4_000
@@ -335,9 +335,9 @@ export class WorkspaceIsolationService {
     const indexPath = join(temporary, 'index')
     const env = {
       GIT_INDEX_FILE: indexPath,
-      GIT_AUTHOR_NAME: 'CodePilotX',
+      GIT_AUTHOR_NAME: 'Pidex',
       GIT_AUTHOR_EMAIL: 'codepilotx@local.invalid',
-      GIT_COMMITTER_NAME: 'CodePilotX',
+      GIT_COMMITTER_NAME: 'Pidex',
       GIT_COMMITTER_EMAIL: 'codepilotx@local.invalid',
       GIT_AUTHOR_DATE: `@${Math.floor(this.now() / 1000)} +0000`,
       GIT_COMMITTER_DATE: `@${Math.floor(this.now() / 1000)} +0000`,
@@ -385,7 +385,7 @@ export class WorkspaceIsolationService {
     }
     const snapshot = await this.snapshotCurrent(
       repository.rootPath,
-      `CodePilotX ${mode} baseline ${id}`,
+      `Pidex ${mode} baseline ${id}`,
     )
     const ref = `refs/codepilotx/baselines/${id}`
     await this.requireGit(
@@ -446,7 +446,7 @@ export class WorkspaceIsolationService {
     const repository = this.gitRepository()
     const snapshot = await this.snapshotCurrent(
       repository.rootPath,
-      'CodePilotX working-tree snapshot',
+      'Pidex working-tree snapshot',
     )
     const patch = await this.requireGitOutput(
       repository.rootPath,
@@ -600,7 +600,7 @@ export class WorkspaceIsolationService {
     }
     const current = await this.snapshotCurrent(
       registered.workspacePath,
-      `CodePilotX diff ${registered.id}`,
+      `Pidex diff ${registered.id}`,
     )
     const patch = await this.requireGitOutput(
       registered.workspacePath,
@@ -631,7 +631,7 @@ export class WorkspaceIsolationService {
       throw new AgentError('SUBAGENT_PATCH_TOO_LARGE', `补丁超过 ${MAX_PATCH_BYTES} 字节上限`, 413)
     }
     const patchSha256 = sha256(patch)
-    const expected = await this.snapshotCurrent(repository.rootPath, 'CodePilotX three-way target')
+    const expected = await this.snapshotCurrent(repository.rootPath, 'Pidex three-way target')
     const temporary = await mkdtemp(join(this.worktreesRoot, '.preflight-'))
     await rm(temporary, { recursive: true, force: true })
     try {
@@ -656,13 +656,13 @@ export class WorkspaceIsolationService {
       )
       const resultCommit = await this.requireGit(
         temporary,
-        ['commit-tree', resultTree, '-p', expected.commit, '-m', 'CodePilotX three-way result'],
+        ['commit-tree', resultTree, '-p', expected.commit, '-m', 'Pidex three-way result'],
         'SUBAGENT_PREFLIGHT_FAILED',
         undefined,
         {
-          GIT_AUTHOR_NAME: 'CodePilotX',
+          GIT_AUTHOR_NAME: 'Pidex',
           GIT_AUTHOR_EMAIL: 'codepilotx@local.invalid',
-          GIT_COMMITTER_NAME: 'CodePilotX',
+          GIT_COMMITTER_NAME: 'Pidex',
           GIT_COMMITTER_EMAIL: 'codepilotx@local.invalid',
         },
       )
@@ -694,7 +694,7 @@ export class WorkspaceIsolationService {
       throw new AgentError('SUBAGENT_PREFLIGHT_UNKNOWN', '三方预检结果不存在或已使用', 404)
     this.prepared.delete(token)
 
-    const actual = await this.snapshotCurrent(repository.rootPath, 'CodePilotX apply target check')
+    const actual = await this.snapshotCurrent(repository.rootPath, 'Pidex apply target check')
     if (actual.tree !== prepared.expectedTree) {
       return { status: 'stale', expectedTree: prepared.expectedTree, actualTree: actual.tree }
     }
@@ -735,7 +735,7 @@ export class WorkspaceIsolationService {
 
     const afterFailure = await this.snapshotCurrent(
       repository.rootPath,
-      'CodePilotX failed apply check',
+      'Pidex failed apply check',
     )
     const diagnostics = trimDiagnostic(applied.stderr)
     return afterFailure.tree === prepared.expectedTree

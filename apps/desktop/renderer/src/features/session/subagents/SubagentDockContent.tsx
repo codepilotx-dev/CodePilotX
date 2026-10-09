@@ -1,5 +1,5 @@
 import type React from 'react'
-import type { DesktopSubagentRead } from '../../../../shared/types.js'
+import type { DesktopSubagentRead } from '../../../../shared/Types.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import {
   WorkbenchPanelError,

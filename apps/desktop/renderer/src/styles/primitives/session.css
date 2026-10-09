@@ -12,7 +12,7 @@
  *   those descendants are rendered by `SearchablePopoverContent` and
  *   `PopoverMenu`, which no session component owns. `.branch-popover-list-scroll`
  *   keeps its `listClassName="branch-popover-list-scroll"` string verbatim
- *   because `test/codex-style-contracts.test.ts` asserts that exact attribute.
+ *   because `test/CodexStyleContracts.test.ts` asserts that exact attribute.
  * - The turn-navigation marker needs sibling (`+`) and `:has()` relational
  *   selectors plus a `linear()` easing, none of which exist as variants.
  * - The preview card rewrites generated markdown DOM (`markdown.css`, same
@@ -21,7 +21,7 @@
  *   overrides that must stay in one layer, and `@keyframes` for the workflow
  *   card and the running-plan spinner that `tw:animate-*` cannot name without
  *   a new `--animate-*` theme entry in `src/styles/tailwind.css`.
- * - `test/execution-plan-card.test.tsx` pins the changed-file row class.
+ * - `test/ExecutionPlanCard.test.tsx` pins the changed-file row class.
  *
  * The main Agent must import this file at the end of `src/styles/tailwind.css`
  * (after `./markdown.css`), so the `.md-body` and popover overrides below keep
@@ -393,7 +393,7 @@
   }
 
   /*
-   * `test/execution-plan-card.test.tsx` pins the changed-file row to its own
+   * `test/ExecutionPlanCard.test.tsx` pins the changed-file row to its own
    * class attribute (`className="composer-change-summary__file-row"`), so the
    * row's appearance cannot be expressed as utilities on that element.
    */

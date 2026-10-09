@@ -1,5 +1,5 @@
 {
-  "name": "@codepilotx/agent",
+  "name": "@pidex/agent",
   "version": "0.2.0-beta.5",
   "private": true,
   "type": "module",
@@ -9,13 +9,13 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "build:js": "bun build src/index.ts --target=bun --outdir=dist",
-    "build": "bun ../../scripts/build-agent-win-x64.ts",
+    "build": "bun ../../scripts/BuildAgentWinX64.ts",
     "compile": "bun run build"
   },
   "dependencies": {
-    "@codepilotx/agent-protocol": "workspace:*",
-    "@codepilotx/model-schema": "workspace:*",
-    "@codepilotx/shared": "workspace:*",
+    "@pidex/agent-protocol": "workspace:*",
+    "@pidex/model-schema": "workspace:*",
+    "@pidex/shared": "workspace:*",
     "@earendil-works/pi-ai": "0.99.2",
     "@earendil-works/pi-mcp": "0.99.2",
     "ajv": "8.20.0",

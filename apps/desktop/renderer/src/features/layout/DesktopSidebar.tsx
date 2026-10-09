@@ -1,25 +1,25 @@
-import { sortSessionsByRecency } from '../session/state/sessionSorting.js'
-import { mergeCatalogProjects } from './sidebar/useSidebarProjectCatalog.js'
+import { sortSessionsByRecency } from '../session/state/SessionSorting.js'
+import { mergeCatalogProjects } from './sidebar/UseSidebarProjectCatalog.js'
 import type React from 'react'
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DesktopRemovedWorkspace,
   DesktopSessionCatalogStatus,
   DesktopWorkspace,
-} from '../../../shared/types.js'
-import type { AppView, SessionListItem } from '../../uiTypes.js'
+} from '../../../shared/Types.js'
+import type { AppView, SessionListItem } from '../../UiTypes.js'
 import { SidebarBody } from './sidebar/SidebarBody.js'
-import { useSidebarActivity } from './sidebar/useSidebarActivity.js'
-import { archiveSidebarActivity, sessionNeedsStop } from './sidebar/sidebarActivityActions.js'
+import { useSidebarActivity } from './sidebar/UseSidebarActivity.js'
+import { archiveSidebarActivity, sessionNeedsStop } from './sidebar/SidebarActivityActions.js'
 import { SidebarDockedPanes } from './sidebar/SidebarDockedPanes.js'
 import { SidebarEmptyRow } from './sidebar/SidebarRow.js'
-import type { DesktopFileEntry } from '../../../shared/types.js'
+import type { DesktopFileEntry } from '../../../shared/Types.js'
 import type {
   WorkbenchPanelSnapshot,
   WorkbenchPanelTarget,
   WorkbenchTabId,
   WorkbenchTabsState,
-} from './dock/rightDockState.js'
+} from './dock/RightDockState.js'
 import { SidebarHeader } from './sidebar/SidebarTopNav.js'
 import {
   buildSidebarViewModel,
@@ -32,21 +32,21 @@ import {
   sidebarProjectKey,
   sidebarPinnedProjectKey,
   sidebarPinnedSessionKey,
-} from './sidebar/sidebarViewModel.js'
-import { useDesktopSettings } from '../settings/useDesktopSettings.js'
+} from './sidebar/SidebarViewModel.js'
+import { useDesktopSettings } from '../settings/UseDesktopSettings.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
-import { useEverOpened } from '../../hooks/usePresenceRetention.js'
+import { useEverOpened } from '../../hooks/UsePresenceRetention.js'
 import {
   getSidebarScrollModeKey,
   type SidebarScrollModeKey,
-} from './sidebar/useSidebarScrollController.js'
-import { useSidebarProjectCatalog } from './sidebar/useSidebarProjectCatalog.js'
+} from './sidebar/UseSidebarScrollController.js'
+import { useSidebarProjectCatalog } from './sidebar/UseSidebarProjectCatalog.js'
 import {
   createSidebarDisclosureStore,
   sidebarSectionDisclosureKey,
-} from './sidebar/sidebarDisclosureStore.js'
+} from './sidebar/SidebarDisclosureStore.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
-import { DEFAULT_SIDEBAR_CUSTOMIZATION } from '../../../shared/settingsSchema.js'
+import { DEFAULT_SIDEBAR_CUSTOMIZATION } from '../../../shared/SettingsSchema.js'
 import {
   addSidebarSection,
   deleteSidebarSection,
@@ -60,14 +60,14 @@ import {
   setSidebarSectionCollapsed,
   setSidebarSectionItems,
   setSidebarSectionSort,
-} from './sidebar/sidebarCustomization.js'
-import type { SidebarCustomization } from '../../../shared/types.js'
+} from './sidebar/SidebarCustomization.js'
+import type { SidebarCustomization } from '../../../shared/Types.js'
 
-import { notifyProjectRestored, subscribeProjectRemovals } from '../projects/projectCatalogEvents.js'
+import { notifyProjectRestored, subscribeProjectRemovals } from '../projects/ProjectCatalogEvents.js'
 import { Toast, ToastDivider } from '../../components/ui/Toast.js'
 import { Button } from '../../components/ui/Button.js'
 import { InputDialog } from '../../components/ui/ConfirmationDialog.js'
-import type { SidebarPane } from './sidebar/sidebarNavigation.js'
+import type { SidebarPane } from './sidebar/SidebarNavigation.js'
 
 type Props = {
   active?: boolean

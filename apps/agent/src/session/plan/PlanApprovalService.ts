@@ -1,13 +1,13 @@
 import { createHash } from 'node:crypto'
 import { Effect } from 'effect'
-import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
-import type { PlanApproval } from '@codepilotx/shared/thread'
-import { AgentError } from '../../domain'
+import type { RpcParams, RpcResult } from '@pidex/agent-protocol'
+import type { PlanApproval } from '@pidex/shared/thread'
+import { AgentError } from '../../Domain'
 import type { AgentDatabase } from '../../storage/database/AgentDatabase'
 import type { EventHub } from '../../storage/events/EventHub'
 import type { ThreadService } from '../ThreadService'
 import type { ThreadForkWorkspaceService } from '../fork/ThreadForkWorkspaceService'
-import { probeThreadsStorageCapabilities } from '../../storage/database/storage-capabilities'
+import { probeThreadsStorageCapabilities } from '../../storage/database/StorageCapabilities'
 
 const implementationPrompt = (markdown: string) =>
   `请实施以下已批准的计划。先简短重述用户目标和试图解决的问题，然后重新读取相关代码，完成实施与必要验证；计划中的旧事实需要重新确认：\n\n${markdown}`

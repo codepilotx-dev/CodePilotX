@@ -1,4 +1,4 @@
-import type { PopoverSize } from '../popoverSizing.js'
+import type { PopoverSize } from '../PopoverSizing.js'
 import { useLocale as useI18n } from '../../../features/i18n/LocaleProvider.js'
 import React, {
   createContext,
@@ -18,7 +18,7 @@ import {
   type FloatingPlacement,
   type FloatingAnchor,
   type FloatingCollisionPadding,
-} from './useFloatingPosition.js'
+} from './UseFloatingPosition.js'
 import {
   mergeRefs,
   Portal,
@@ -30,7 +30,7 @@ import {
   useTopLayer,
   type PortalProps,
   type DismissEvents,
-} from './primitives.js'
+} from './Primitives.js'
 
 export type PopoverSide = 'top' | 'bottom' | 'left' | 'right'
 export type PopoverAlign = 'start' | 'center' | 'end'

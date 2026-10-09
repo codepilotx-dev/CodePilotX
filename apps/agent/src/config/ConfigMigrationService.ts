@@ -5,7 +5,7 @@ import {
   type ConfigService,
   type ConfigValue,
 } from './ConfigService'
-import type { ConfigMigrationRepository } from '../storage/repositories/config-migration-repository'
+import type { ConfigMigrationRepository } from '../storage/repositories/ConfigMigrationRepository'
 import { readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'

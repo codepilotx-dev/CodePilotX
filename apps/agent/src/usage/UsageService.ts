@@ -4,26 +4,26 @@ import type {
   LocalUsageResult,
   ProviderUsageSource,
   UsageSourceDescriptor,
-} from '@codepilotx/agent-protocol'
-import { ProviderUsageSourceSchema, UsageSourceDescriptorSchema } from '@codepilotx/agent-protocol'
-import { Credential, Provider } from '@codepilotx/model-schema'
+} from '@pidex/agent-protocol'
+import { ProviderUsageSourceSchema, UsageSourceDescriptorSchema } from '@pidex/agent-protocol'
+import { Credential, Provider } from '@pidex/model-schema'
 import { Effect, Schema } from 'effect'
 import { createHash } from 'node:crypto'
 import type { EncryptedCredentialRepository } from '../auth/EncryptedCredentialRepository'
 import type { ProviderCredentialRepository } from '../auth/ProviderCredentialRepository'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { AgentModelCatalog } from '../provider/AgentModelCatalog'
 import type { PiModelService } from '../provider/pi'
 import type { Models } from '@earendil-works/pi-ai'
-import { UsageRepository, type LocalUsageRange } from '../storage/repositories/usage-repository'
-import { providerUsageAdapters } from './adapters'
-import { createSafeUsageRequester, UsageRequestError, type UsageFetcher } from './safe-fetch'
+import { UsageRepository, type LocalUsageRange } from '../storage/repositories/UsageRepository'
+import { providerUsageAdapters } from './Adapters'
+import { createSafeUsageRequester, UsageRequestError, type UsageFetcher } from './SafeFetch'
 import type {
   ProviderUsageAdapter,
   ResolvedUsageCredential,
   UsageQueryContext,
   UsageRange,
-} from './types'
+} from './Types'
 
 const BILLING_INTEGRATIONS: Readonly<Record<BillingCredentialSourceId, string>> = {
   'openai-admin': 'usage.openai.admin',

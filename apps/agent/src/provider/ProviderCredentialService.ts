@@ -1,10 +1,10 @@
-import { Credential, Provider } from '@codepilotx/model-schema'
+import { Credential, Provider } from '@pidex/model-schema'
 import { Effect } from 'effect'
 import type {
   ProviderCredentialSummary as StoredCredentialSummary,
   ProviderCredentialRepository,
 } from '../auth/ProviderCredentialRepository'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { PiModelService } from './pi'
 
 export type ProviderAuthMethodSummary = {

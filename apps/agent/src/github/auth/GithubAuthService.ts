@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import { Effect } from 'effect'
-import { AgentError } from '../../domain'
+import { AgentError } from '../../Domain'
 import type { EncryptedCredentialRepository } from '../../auth/EncryptedCredentialRepository'
 
 const GITHUB_INTEGRATION_ID = 'github'
@@ -651,7 +651,7 @@ export class GithubAuthService {
           Accept: 'application/vnd.github+json',
           Authorization: `Bearer ${accessToken}`,
           'X-GitHub-Api-Version': '2022-11-28',
-          'User-Agent': 'CodePilotX',
+          'User-Agent': 'Pidex',
         },
       }),
     )

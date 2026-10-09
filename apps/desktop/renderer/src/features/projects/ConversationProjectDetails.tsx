@@ -1,25 +1,25 @@
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
 import {
   mergeCatalogProjects,
   useSidebarProjectCatalog,
-} from '../layout/sidebar/useSidebarProjectCatalog.js'
+} from '../layout/sidebar/UseSidebarProjectCatalog.js'
 import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { DesktopWorkspace } from '../../../shared/types.js'
-import type { SessionListItem } from '../../uiTypes.js'
+import type { DesktopWorkspace } from '../../../shared/Types.js'
+import type { SessionListItem } from '../../UiTypes.js'
 import { AnchoredPopover } from '../../components/ui/AnchoredPopover.js'
 import { Button } from '../../components/ui/Button.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
-import { useDesktopSettings } from '../settings/useDesktopSettings.js'
+import { useDesktopSettings } from '../settings/UseDesktopSettings.js'
 import {
   buildProjectSessionBuckets,
   normalizeSidebarPath,
   sidebarProjectKey,
-} from '../layout/sidebar/sidebarViewModel.js'
-import { DEFAULT_PROJECT_APPEARANCE, ProjectAppearanceGlyph } from './projectAppearance.js'
+} from '../layout/sidebar/SidebarViewModel.js'
+import { DEFAULT_PROJECT_APPEARANCE, ProjectAppearanceGlyph } from './ProjectAppearance.js'
 import { ProjectDetailsCard } from './ProjectDetailsCard.js'
 import { ProjectManagementDialogs } from './ProjectManagementDialogs.js'
-import { resolveConversationProject } from './projectDetailsModel.js'
+import { resolveConversationProject } from './ProjectDetailsModel.js'
 
 type Props = {
   session: SessionListItem | null

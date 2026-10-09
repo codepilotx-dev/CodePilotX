@@ -2,13 +2,13 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../components/ui/iconTokens.js'
+} from '../../components/ui/IconTokens.js'
 import { desktopClient, desktopClipboard } from '../../services/desktop-client/index.js'
 import {
   desktopProviderExecutionError,
   isExecutableDesktopProvider,
-} from '../../services/desktop-client/provider-adapters.js'
-import { withModelCatalogLoading } from '../../hooks/useModelCatalogLoading.js'
+} from '../../services/desktop-client/ProviderAdapters.js'
+import { withModelCatalogLoading } from '../../hooks/UseModelCatalogLoading.js'
 import React, { useEffect, useMemo, useState } from 'react'
 import type {
   DesktopApiKeySummary,
@@ -17,9 +17,9 @@ import type {
   DesktopModelProviderSummary,
   DesktopModelRef,
   ModelProviderID,
-} from '../../../shared/types.js'
-import { useDesktopSettings } from '../settings/useDesktopSettings.js'
-import { fullErrorMessage } from '../../utils/errors.js'
+} from '../../../shared/Types.js'
+import { useDesktopSettings } from '../settings/UseDesktopSettings.js'
+import { fullErrorMessage } from '../../utils/Errors.js'
 import { Cable, ChevronRight, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
@@ -27,14 +27,14 @@ import { SkeletonBlock, SkeletonRegion } from '../../components/ui/Skeleton.js'
 import { useSearchParams } from 'react-router-dom'
 import { ProviderCatalog, type ProviderCatalogItem } from './ProviderCatalog.js'
 import { ProviderDetail } from './ProviderDetail.js'
-import { useModelCenterController } from './useModelCenterController.js'
+import { useModelCenterController } from './UseModelCenterController.js'
 import {
   getApiKeyDeleteConfirmation,
   parseModelCenterSearchParams,
   projectProviderDirectory,
   updateModelCenterSearchParams,
   type ProviderCatalogFilter,
-} from './modelCenterState.js'
+} from './ModelCenterState.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import { ProviderConnectionDialog } from './provider-management/ProviderConnectionDialog.js'
 import { ProviderEditorDialog } from './provider-management/ProviderEditorDialog.js'
@@ -45,7 +45,7 @@ import {
   deepSeekManagedProvider,
   deepSeekProtocolOf,
   deepSeekProtocolOption,
-} from './provider-management/deepseekProtocol.js'
+} from './provider-management/DeepseekProtocol.js'
 import { ApiKeyEditorDialog, type ApiKeyEditorValue } from './ApiKeyEditorDialog.js'
 import {
   providerManagementStore,

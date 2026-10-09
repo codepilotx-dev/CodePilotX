@@ -1,7 +1,7 @@
 import { constants } from 'node:fs'
 import { copyFile, lstat, mkdir, realpath } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 
 type GitOutput = (cwd: string, args: readonly string[]) => Promise<string>
 

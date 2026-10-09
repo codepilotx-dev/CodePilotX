@@ -17,7 +17,7 @@
    * rows, search), the reasoning menu, the chat input dropdown and suggestion
    * menu — migrated to Tailwind utilities in the composer components. Dropping
    * this file needs the two negative assertions in
-   * `test/codex-style-contracts.test.ts` ("keeps the permission Select on shared
+   * `test/CodexStyleContracts.test.ts` ("keeps the permission Select on shared
    * rich-menu geometry") to be re-pointed first.
    */
   .chip-dot {

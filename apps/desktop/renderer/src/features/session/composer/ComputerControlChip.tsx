@@ -1,10 +1,10 @@
 import type React from 'react'
 import { useState } from 'react'
 import { MonitorSmartphone } from 'lucide-react'
-import { useComputerState } from './useComputerState.js'
+import { useComputerState } from './UseComputerState.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { Button } from '../../../components/ui/Button.js'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../../components/ui/IconTokens.js'
 
 /**
  * Chat-scoped computer control indicator. It renders nothing unless this chat

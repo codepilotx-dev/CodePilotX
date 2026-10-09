@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 
 export default defineConfig({
   testDir: './smoke-tests',
-  testMatch: 'review-concurrency.smoke.ts',
+  testMatch: 'ReviewConcurrency.smoke.ts',
   outputDir: resolve(
     process.env.CODEPILOTX_PLAYWRIGHT_OUTPUT_DIR ?? './test-results/review-concurrency',
   ),

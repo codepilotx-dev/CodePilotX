@@ -1,17 +1,17 @@
 import { randomUUID } from 'node:crypto'
-import type { SessionTreeEntry } from '../../orchestration/harness/types'
-import { AgentError } from '../../domain'
+import type { SessionTreeEntry } from '../../orchestration/harness/Types'
+import { AgentError } from '../../Domain'
 import {
   SqlitePiSessionRepo,
   type SqlitePiSessionMetadata,
 } from '../../storage/pi-session/SqlitePiSession'
 import type { AgentDatabase } from '../../storage/database/AgentDatabase'
-import { parsePiSessionEntry } from '../../storage/pi-session/pi-session-entry'
-import { TurnPiBoundaryRepository } from '../../storage/repositories/turn-pi-boundary-repository'
+import { parsePiSessionEntry } from '../../storage/pi-session/PiSessionEntry'
+import { TurnPiBoundaryRepository } from '../../storage/repositories/TurnPiBoundaryRepository'
 import type {
   SideChatRepository,
   StoredSideChat,
-} from '../../storage/repositories/side-chat-repository'
+} from '../../storage/repositories/SideChatRepository'
 
 type Scalar = string | number | bigint | Uint8Array | null
 type Row = Record<string, Scalar>

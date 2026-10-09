@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
-import { swapStatusText } from '../../startup/statusTextSwap.js'
+import { swapStatusText } from '../../startup/StatusTextSwap.js'
 
 export type FullScreenWhaleLoadingProps = {
   label: string

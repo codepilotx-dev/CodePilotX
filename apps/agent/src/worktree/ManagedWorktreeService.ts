@@ -4,8 +4,8 @@ import { isAbsolute, join, relative, resolve } from 'node:path'
 import type {
   ManagedWorktree as PublicManagedWorktree,
   WorktreeOperation as PublicWorktreeOperation,
-} from '@codepilotx/agent-protocol/worktree'
-import { AgentError } from '../domain'
+} from '@pidex/agent-protocol/worktree'
+import { AgentError } from '../Domain'
 import { GitCommandRunner } from '../git/GitCommandRunner'
 import { WorkspaceIsolationService } from '../subagent/WorkspaceIsolationService'
 import { WorktreeIncludeService } from './WorktreeIncludeService'
@@ -22,7 +22,7 @@ import {
   type WorktreeOperation,
   type WorktreeOperationKind,
   type WorktreeSetupResult,
-} from './types'
+} from './Types'
 
 type ProjectRootResolver = (projectId: string) => string | null | Promise<string | null>
 type AutoDeletePolicy = () => { enabled: boolean; limit: number }

@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import React from 'react'
 import {
   ArrowRight,
@@ -9,7 +9,7 @@ import {
   PenLine,
   X,
 } from 'lucide-react'
-import type { DesktopPermissionRequest } from '../../../../shared/types.js'
+import type { DesktopPermissionRequest } from '../../../../shared/Types.js'
 import { Button } from '../../../components/ui/Button.js'
 import {
   ASK_USER_QUESTION_NAV_BUTTON_CLASS,
@@ -18,8 +18,8 @@ import {
   RequestMarker,
 } from './RequestCard.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { cx } from '../../../utils/cx.js'
-import { useApprovalCapability } from './useQuestionSkipCapability.js'
+import { cx } from '../../../utils/Cx.js'
+import { useApprovalCapability } from './UseQuestionSkipCapability.js'
 import {
   CUSTOM_OPTION_ID,
   answerStateForConfirmation,
@@ -39,7 +39,7 @@ import {
   shouldDeferAskUserQuestionShortcutToTextEntry,
   type AskUserQuestion,
   type QuestionState,
-} from './askUserQuestionModel.js'
+} from './AskUserQuestionModel.js'
 
 export {
   CUSTOM_OPTION_ID,
@@ -66,7 +66,7 @@ export {
   type EnterQuestionAction,
   type FooterControls,
   type QuestionState,
-} from './askUserQuestionModel.js'
+} from './AskUserQuestionModel.js'
 
 export type AskUserQuestionApprovalProps = {
   request: DesktopPermissionRequest
@@ -256,7 +256,7 @@ function QuestionAnswerFormInstance({
       tabIndex={-1}
     >
         <p className="ask-user-question-error tw:mx-3 tw:my-0 tw:px-3 tw:py-2 tw:border tw:border-app-danger-border tw:rounded-lg tw:bg-app-danger-subtle tw:text-app-danger-fg tw:type-body-sm">
-          无法解析 AskUserQuestion 的选项，请拒绝后让 CodePilotX 重新提问。
+          无法解析 AskUserQuestion 的选项，请拒绝后让 Pidex 重新提问。
         </p>
         <div
           className={cx(

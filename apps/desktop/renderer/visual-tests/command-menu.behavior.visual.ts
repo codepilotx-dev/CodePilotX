@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { prepareVisualTheme, waitForVisualPage } from './visual-test-helpers.js'
+import { prepareVisualTheme, waitForVisualPage } from './VisualTestHelpers.js'
 
 test('command menu opens from the sidebar, filters tasks, and selects a numbered result', async ({
   page,

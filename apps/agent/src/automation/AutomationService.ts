@@ -1,16 +1,16 @@
-import type { Automation, AutomationRun, AutomationSchedule } from '@codepilotx/shared/automation'
-import type { ModelRef } from '@codepilotx/shared/model'
-import type { PermissionConfig } from '@codepilotx/shared/thread'
-import { AgentError } from '../domain'
+import type { Automation, AutomationRun, AutomationSchedule } from '@pidex/shared/automation'
+import type { ModelRef } from '@pidex/shared/model'
+import type { PermissionConfig } from '@pidex/shared/thread'
+import { AgentError } from '../Domain'
 import type {
   AutomationRepository,
   AutomationUpdateRecord,
-} from '../storage/repositories/automation-repository'
+} from '../storage/repositories/AutomationRepository'
 import {
   canonicalizeAutomationSchedule,
   nextAutomationOccurrence,
   previewAutomationSchedule,
-} from './schedule'
+} from './Schedule'
 
 export type AutomationDefinition = Pick<
   Automation,

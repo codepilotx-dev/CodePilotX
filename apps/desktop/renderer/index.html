@@ -10,16 +10,16 @@
     />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="stylesheet" href="/fonts/fonts.css" />
-    <title>CodePilotX</title>
+    <title>Pidex Desktop</title>
     <script src="/startup-theme.js"></script>
     <style>
       /* 全窗鲸鱼加载契约：静态启动遮罩（id="startup-splash"）与 React
          FullScreenWhaleLoading 共用同一套 DOM/CSS，视觉与
-         electron/src/windows/startup-page.ts 保持一致。静态阶段在入口 JS 与
+         electron/src/windows/StartupPage.ts 保持一致。静态阶段在入口 JS 与
          主 CSS 完成前使用系统主题 fallback；React 接管后由
          --layer-canvas-fill / --color-token-text-secondary 与
          html[data-theme] 驱动，支持用户显式主题。由
-         src/startup/startupSplashHandoff.ts 的控制器移除。 */
+         src/startup/StartupSplashHandoff.ts 的控制器移除。 */
       .full-screen-whale-loader {
         position: fixed;
         inset: 0;
@@ -193,7 +193,7 @@
       class="full-screen-whale-loader"
       role="status"
       aria-busy="true"
-      aria-label="CodePilotX 正在启动"
+      aria-label="Pidex 正在启动"
     >
       <div class="full-screen-whale-loader__content">
         <div class="full-screen-whale-loader__logo" aria-hidden="true">

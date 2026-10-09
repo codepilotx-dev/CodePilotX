@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useComputerSettings } from './useComputerSettings.js'
+import { useComputerSettings } from './UseComputerSettings.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { Button } from '../../components/ui/Button.js'

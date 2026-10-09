@@ -8,8 +8,8 @@ import {
   type ReactNode,
 } from 'react'
 import { Reorder, useDragControls, type HTMLMotionProps } from 'motion/react'
-import { layoutTween, motionTransition } from '../../motion/motionTransitions.js'
-import { cx } from '../../../utils/cx.js'
+import { layoutTween, motionTransition } from '../../motion/MotionTransitions.js'
+import { cx } from '../../../utils/Cx.js'
 
 const REORDER_EXCLUDED_TARGETS = [
   'input',

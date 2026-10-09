@@ -152,7 +152,7 @@ export async function migrateLegacyAgentData(input: DataDirectoryMigrationInput)
       }
       await writeMarker(targetRoot, marker)
     } catch {
-      throw new Error('CodePilotX 用户数据迁移失败，请检查目录权限和磁盘空间')
+      throw new Error('Pidex 用户数据迁移失败，请检查目录权限和磁盘空间')
     }
   }
 }

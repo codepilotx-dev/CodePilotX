@@ -1,10 +1,10 @@
-import type { CalendarOccurrence, CalendarSourceKind } from '@codepilotx/shared/calendar'
-import type { AutomationRun } from '@codepilotx/shared/automation'
-import type { ScheduledTask } from '@codepilotx/shared/scheduled-task'
-import { automationOccurrencesBetween } from '../automation/schedule'
-import { AgentError } from '../domain'
-import type { AutomationRepository } from '../storage/repositories/automation-repository'
-import type { ScheduledTaskRepository } from '../storage/repositories/scheduled-task-repository'
+import type { CalendarOccurrence, CalendarSourceKind } from '@pidex/shared/calendar'
+import type { AutomationRun } from '@pidex/shared/automation'
+import type { ScheduledTask } from '@pidex/shared/scheduled-task'
+import { automationOccurrencesBetween } from '../automation/Schedule'
+import { AgentError } from '../Domain'
+import type { AutomationRepository } from '../storage/repositories/AutomationRepository'
+import type { ScheduledTaskRepository } from '../storage/repositories/ScheduledTaskRepository'
 
 const MAX_OCCURRENCES = 2_000
 

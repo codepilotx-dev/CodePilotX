@@ -3,15 +3,15 @@ import { useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { SettingsPage } from './SettingsPage.js'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
-import { useDesktopTheme } from '../theme/themeContext.js'
-import { createSettingsSaveShortcutHandler, useDesktopSettings } from './useDesktopSettings.js'
-import { SETTINGS_ITEMS } from './settingsRegistry.js'
+import { useDesktopTheme } from '../theme/ThemeContext.js'
+import { createSettingsSaveShortcutHandler, useDesktopSettings } from './UseDesktopSettings.js'
+import { SETTINGS_ITEMS } from './SettingsRegistry.js'
 import {
   resolveSettingsSectionVisibility,
   useSettingsCapabilityState,
-} from './useSettingsSectionVisibility.js'
+} from './UseSettingsSectionVisibility.js'
 import { NotFoundPage } from '../routing/NotFoundPage.js'
-import { useDesktopLayoutOutletContext } from '../layout/shell/desktopLayoutOutletContext.js'
+import { useDesktopLayoutOutletContext } from '../layout/shell/DesktopLayoutOutletContext.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
 
 type Props = {

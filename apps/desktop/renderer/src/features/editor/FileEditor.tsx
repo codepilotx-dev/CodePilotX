@@ -4,15 +4,15 @@ import { redo, redoDepth, selectAll, undo, undoDepth } from '@codemirror/command
 import { useEffect, useRef } from 'react'
 import type React from 'react'
 import { useEditCommands } from '../../components/ui/EditCommandProvider.js'
-import { cx } from '../../utils/cx.js'
-import { useDesktopTheme } from '../theme/themeContext.js'
+import { cx } from '../../utils/Cx.js'
+import { useDesktopTheme } from '../theme/ThemeContext.js'
 import {
   createCodeMirrorExtensions,
   createCodeMirrorSourceExtensions,
   loadCodeMirrorLanguage,
-} from './codeMirrorSetup.js'
-import { loadCodeMirrorTheme } from './codeMirrorTheme.js'
-import { createMarkdownRichExtensions } from './markdownRichExtensions.js'
+} from './CodeMirrorSetup.js'
+import { loadCodeMirrorTheme } from './CodeMirrorTheme.js'
+import { createMarkdownRichExtensions } from './MarkdownRichExtensions.js'
 
 const CODE_FONT_FALLBACK =
   'ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace'

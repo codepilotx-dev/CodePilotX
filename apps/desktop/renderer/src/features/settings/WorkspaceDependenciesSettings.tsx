@@ -1,15 +1,15 @@
 import React from 'react'
 import { Download, RefreshCw, RotateCcw } from 'lucide-react'
-import type { ToolingID, ToolingPreference, ToolingStatus } from '@codepilotx/agent-protocol'
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import type { ToolingID, ToolingPreference, ToolingStatus } from '@pidex/agent-protocol'
+import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
 import { Button } from '../../components/ui/Button.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
-import { useDesktopSettings } from './useDesktopSettings.js'
-import { errorMessageOr as errorMessage } from '@codepilotx/shared/errors'
+import { useDesktopSettings } from './UseDesktopSettings.js'
+import { errorMessageOr as errorMessage } from '@pidex/shared/errors'
 
 type Props = {
   onError: (message: string) => void
@@ -151,7 +151,7 @@ export function WorkspaceDependenciesSettings({ onError, onNotice }: Props): Rea
     if (
       preference === 'system' &&
       status.managed.installed &&
-      !window.confirm(`切换到本机会删除 CodePilotX 内置的 ${TOOL_LABELS[status.id]}。确认继续吗？`)
+      !window.confirm(`切换到本机会删除 Pidex 内置的 ${TOOL_LABELS[status.id]}。确认继续吗？`)
     ) {
       return
     }
@@ -341,7 +341,7 @@ function progressDescription(status: ToolingStatus): string {
   const progress = status.progress
   if (!progress) {
     if (status.phase === 'cleanup-pending') {
-      return '文件正在使用，CodePilotX 会在下次启动时继续清理。'
+      return '文件正在使用，Pidex 会在下次启动时继续清理。'
     }
     return status.phase === 'idle' ? '尚未解析可用版本。' : '依赖项状态已更新。'
   }
@@ -356,7 +356,7 @@ function resolvedPath(status: ToolingStatus): string {
     return status.system.path ?? '本机路径不可用'
   }
   if (status.activeSource === 'managed') {
-    return `CodePilotX 托管目录 · ${status.id}/${status.managed.version ?? status.pinnedVersion}`
+    return `Pidex 托管目录 · ${status.id}/${status.managed.version ?? status.pinnedVersion}`
   }
   return '没有可执行文件路径'
 }

@@ -22,10 +22,10 @@ export const ProductPlaceholder: React.FC<ProductPlaceholderProps> = ({
   label,
   aspectRatio = '16:10',
   imageSrc,
-  alt = 'CodePilotX product preview',
+  alt = 'Pidex product preview',
   badge,
   className = '',
-  windowTitle = 'CodePilotX — Local Workspace',
+  windowTitle = 'Pidex — Local Workspace',
 }) => {
   const aspectClass = ASPECT_RATIO_CLASSES[aspectRatio]
 

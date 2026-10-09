@@ -4,13 +4,13 @@ import { Split, LoaderCircle, X } from 'lucide-react'
 
 import { Button } from '../../../../components/ui/Button.js'
 
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../../components/ui/iconTokens.js'
-import { useDialogFocusRestore } from '../../../../components/ui/useDialogFocusRestore.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../../components/ui/IconTokens.js'
+import { useDialogFocusRestore } from '../../../../components/ui/UseDialogFocusRestore.js'
 import type {
   ConversationForkOperation,
   ConversationForkProgress,
-} from './conversationForkController.js'
-import type { ConversationForkDestination } from './forkClient.js'
+} from './ConversationForkController.js'
+import type { ConversationForkDestination } from './ForkClient.js'
 
 type Props = {
   busy: boolean

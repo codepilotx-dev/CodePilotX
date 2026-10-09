@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
-import { APP_ICON_SIZES } from './iconTokens.js'
-import { cx } from '../../utils/cx.js'
-import { useFloatingFocusModality } from '../../utils/floatingFocus.js'
+import { APP_ICON_SIZES } from './IconTokens.js'
+import { cx } from '../../utils/Cx.js'
+import { useFloatingFocusModality } from '../../utils/FloatingFocus.js'
 import { Dropdown } from './floating/Dropdown.js'
-import type { PopoverSize } from './popoverSizing.js'
+import type { PopoverSize } from './PopoverSizing.js'
 import { useLocale } from '../../features/i18n/LocaleProvider.js'
 export type SelectOption<T extends string = string> = {
   value: T

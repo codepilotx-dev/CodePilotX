@@ -1,5 +1,5 @@
 {
-  "name": "@codepilotx/material-icon-theme",
+  "name": "@pidex/material-icon-theme",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,8 +7,8 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "sync": "bun run scripts/sync-upstream.ts",
-    "sync:check": "bun run scripts/sync-upstream.ts --check",
+    "sync": "bun run scripts/SyncUpstream.ts",
+    "sync:check": "bun run scripts/SyncUpstream.ts --check",
     "test": "bun test test",
     "typecheck": "tsc --noEmit"
   },

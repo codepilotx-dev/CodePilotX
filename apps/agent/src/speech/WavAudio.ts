@@ -1,4 +1,4 @@
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import { SPEECH_MAX_AUDIO_BYTES, SPEECH_MAX_DURATION_MS } from './SpeechCatalog'
 
 const ascii = (bytes: Uint8Array, offset: number, length: number) =>

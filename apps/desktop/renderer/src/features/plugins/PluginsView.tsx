@@ -1,5 +1,5 @@
 import type React from 'react'
-import type { PluginDetails } from '@codepilotx/agent-protocol'
+import type { PluginDetails } from '@pidex/agent-protocol'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertOctagon,
@@ -28,13 +28,13 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../components/ui/iconTokens.js'
+} from '../../components/ui/IconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
-import type { DesktopSkillCatalogItem, DesktopSkillOwnerFilter } from '../../../shared/types.js'
+import type { DesktopSkillCatalogItem, DesktopSkillOwnerFilter } from '../../../shared/Types.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
-import { useDesktopLayoutOutletContext } from '../layout/shell/desktopLayoutOutletContext.js'
-import { composerDraftStore } from '../session/composer/composerDraftStore.js'
+import { useDesktopLayoutOutletContext } from '../layout/shell/DesktopLayoutOutletContext.js'
+import { composerDraftStore } from '../session/composer/ComposerDraftStore.js'
 import { CatalogDetailsView } from './CatalogDetailsView.js'
 import { PluginCatalogCard } from './PluginCatalogCard.js'
 import { PluginIcon } from './PluginIcon.js'
@@ -45,7 +45,7 @@ import {
   parseCatalogLocation,
   type CatalogDetailsTarget,
   type CatalogTab,
-} from './catalogDetailsDeepLink.js'
+} from './CatalogDetailsDeepLink.js'
 import {
   PLUGIN_CATALOG_DESCRIPTORS,
   filterPluginCatalog,
@@ -56,17 +56,17 @@ import {
   type PluginCatalogItem,
   type PluginCategoryFilter,
   type PluginStatusFilter,
-} from './pluginCatalog.js'
-import { groupSkillsForDisplay } from './skillCatalog.js'
-import { usePluginCatalog } from './usePluginCatalog.js'
-import { useMiniMaxCli } from './useMiniMaxCli.js'
-import { cx } from '../../utils/cx.js'
+} from './PluginCatalog.js'
+import { groupSkillsForDisplay } from './SkillCatalog.js'
+import { usePluginCatalog } from './UsePluginCatalog.js'
+import { useMiniMaxCli } from './UseMiniMaxCli.js'
+import { cx } from '../../utils/Cx.js'
 import {
   DETAILS_BREADCRUMB_CLASS,
   DETAILS_BREADCRUMB_CURRENT_CLASS,
   FORCED_COLORS_FOCUS_CLASS,
   FORCED_COLORS_SURFACE_CLASS,
-} from './catalogClassNames.js'
+} from './CatalogClassNames.js'
 
 const SKILLS_SH_API_DOCS_URL = 'https://www.skills.sh/docs/api#authentication'
 
@@ -518,7 +518,7 @@ export function PluginsView(): React.ReactNode {
           className="plugins-primary-page tw:@container/plugins-page"
           description={
             tab === 'plugins'
-              ? '在常用工具中扩展 CodePilotX 的能力。'
+              ? '在常用工具中扩展 Pidex 的能力。'
               : '查找并添加可复用的工作流指令。'
           }
           scrollContainerRef={scrollRegionRef}
@@ -834,7 +834,7 @@ function SkillDirectory(props: SkillDirectoryProps): React.ReactNode {
           </p>
           <ol className="plugins-empty-steps tw:m-0 tw:grid tw:list-decimal tw:gap-1 tw:pl-5 tw:text-left tw:type-body-sm">
             <li>在 Vercel 项目中启用 OIDC Federation。</li>
-            <li>用该项目提供的 VERCEL_OIDC_TOKEN 启动 CodePilotX。</li>
+            <li>用该项目提供的 VERCEL_OIDC_TOKEN 启动 Pidex。</li>
             <li>重启应用后重新加载 skills.sh 技能目录。</li>
           </ol>
           <div className="plugins-empty-actions tw:flex tw:min-w-0 tw:flex-wrap tw:items-center tw:justify-center tw:gap-2">

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { HandoffDirection, HandoffJournal } from './HandoffRepository'
 
 type GitResult = { code: number; stdout: string; stderr: string }
@@ -149,9 +149,9 @@ export class GitHandoffCoordinator {
       sourceBranch: plan.sourceBranch,
       destinationHead: plan.destinationHead,
       ...(plan.destinationBranch ? { destinationBranch: plan.destinationBranch } : {}),
-      sourceStashMarker: `codepilotx-handoff-source-${this.nextID()}`,
+      sourceStashMarker: `pidex-handoff-source-${this.nextID()}`,
       ...(plan.direction === 'local-to-worktree'
-        ? { destinationStashMarker: `codepilotx-handoff-destination-${this.nextID()}` }
+        ? { destinationStashMarker: `pidex-handoff-destination-${this.nextID()}` }
         : {}),
     }
   }
@@ -168,14 +168,14 @@ export class GitHandoffCoordinator {
     const warnings: string[] = []
     const sourceStashRef = await this.capture(
       plan.sourceCwd,
-      journal.sourceStashMarker ?? `codepilotx-handoff-source-${this.nextID()}`,
+      journal.sourceStashMarker ?? `pidex-handoff-source-${this.nextID()}`,
     )
     if (sourceStashRef) journal.sourceStashRef = sourceStashRef
     onStep?.('capture-source', journal)
     if (plan.direction === 'local-to-worktree') {
       const destinationStashRef = await this.capture(
         plan.destinationCwd,
-        journal.destinationStashMarker ?? `codepilotx-handoff-destination-${this.nextID()}`,
+        journal.destinationStashMarker ?? `pidex-handoff-destination-${this.nextID()}`,
       )
       if (destinationStashRef) journal.destinationStashRef = destinationStashRef
       onStep?.('capture-source', journal)
@@ -293,7 +293,7 @@ export class GitHandoffCoordinator {
         'push',
         '--include-untracked',
         '--message',
-        `codepilotx-handoff-rollback-${this.nextID()}`,
+        `pidex-handoff-rollback-${this.nextID()}`,
       ])
     await checkout(plan.destinationCwd, journal.destinationBranch ?? journal.destinationHead)
     await checkout(plan.sourceCwd, journal.sourceBranch)

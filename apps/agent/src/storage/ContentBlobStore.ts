@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { link, lstat, mkdir, readFile, realpath, unlink, writeFile } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve } from 'node:path'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 
 const SHA256 = /^[a-f\d]{64}$/
 

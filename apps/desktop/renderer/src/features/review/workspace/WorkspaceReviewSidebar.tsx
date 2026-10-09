@@ -38,7 +38,7 @@ import type {
   DesktopReviewSide,
   DesktopReviewView,
   DesktopSessionStatus,
-} from '../../../../shared/types.js'
+} from '../../../../shared/Types.js'
 import {
   desktopClient,
   WORKSPACE_GIT_CHANGED_EVENT,
@@ -47,7 +47,7 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../../components/ui/iconTokens.js'
+} from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 
 import {
@@ -63,27 +63,27 @@ import { Tooltip } from '../../../components/ui/Tooltip.js'
 import {
   createKeyedDisclosureStore,
   type KeyedDisclosureStore,
-} from '../../../components/ui/keyedDisclosureStore.js'
-import { useLiveResizeValue } from '../../layout/useLiveResizeValue.js'
-import { buildReviewFileTree } from './buildReviewFileTree.js'
-import { buildCommentCountsByPath } from '../comments/reviewCommentUtils.js'
+} from '../../../components/ui/KeyedDisclosureStore.js'
+import { useLiveResizeValue } from '../../layout/UseLiveResizeValue.js'
+import { buildReviewFileTree } from './BuildReviewFileTree.js'
+import { buildCommentCountsByPath } from '../comments/ReviewCommentUtils.js'
 import { CommitPopover } from './CommitPopover.js'
 import { PullRequestPopover } from './PullRequestPopover.js'
 import { ReviewFileTreeResizeController } from './ReviewFileTreeResizeController.js'
 import { ReviewFileTreeController } from './ReviewFileTreeController.js'
 import { ReviewFileTreePanelPresence } from './ReviewFileTreePanelPresence.js'
-import { formatReviewCount } from '../diff/reviewFormat.js'
+import { formatReviewCount } from '../diff/ReviewFormat.js'
 import {
   isReviewDiffExpanded,
   type ReviewDiffExpansion,
   type ReviewTabUiState,
-} from '../../layout/tabs/conversationUiState.js'
+} from '../../layout/tabs/ConversationUiState.js'
 import { syntaxTokenStyle } from '../../syntax/CodeBlock.js'
-import { resolveLanguageFromPath } from '../../syntax/language.js'
-import { resolveThemeId } from '../../syntax/theme.js'
-import type { SyntaxToken } from '../../syntax/types.js'
-import { useHighlightedCode } from '../../syntax/useHighlightedCode.js'
-import { useDesktopTheme } from '../../theme/themeContext.js'
+import { resolveLanguageFromPath } from '../../syntax/Language.js'
+import { resolveThemeId } from '../../syntax/Theme.js'
+import type { SyntaxToken } from '../../syntax/Types.js'
+import { useHighlightedCode } from '../../syntax/UseHighlightedCode.js'
+import { useDesktopTheme } from '../../theme/ThemeContext.js'
 import {
   ReviewFileRequestCoordinator,
   reviewAgentClient,
@@ -96,7 +96,7 @@ import {
   type ReviewFileDiff,
   type ReviewLoadState,
   type ReviewSummarySnapshot,
-} from '../source/reviewAgentClient.js'
+} from '../source/ReviewAgentClient.js'
 import { ReviewOptionsMenu } from './ReviewOptionsMenu.js'
 import { ReviewSourceMenu } from '../source/ReviewSourceMenu.js'
 import {
@@ -104,7 +104,7 @@ import {
   startReviewDiagnosticTimer,
   type ReviewDiagnosticContext,
   type ReviewDiagnosticTimer,
-} from '../source/reviewDiagnostics.js'
+} from '../source/ReviewDiagnostics.js'
 import {
   createReviewCommentIdentity,
   createReviewSummaryIdentity,
@@ -115,7 +115,7 @@ import {
   shouldDeferReviewRefresh,
   type ReviewRefreshReason,
   type ReviewRequestStamp,
-} from '../state/reviewRefreshCoordinator.js'
+} from '../state/ReviewRefreshCoordinator.js'
 import {
   ListChevronsDownUp,
   ListChevronsUpDown,
@@ -134,9 +134,9 @@ import {
   type CommentDraft,
   type ReviewFileLoadState,
 } from '../diff/WorkspaceReviewDiff.js'
-import { filterStatusForFile, type ReviewFilter } from './reviewFileStatus.js'
-import { hideImportOnlyHunks } from '../diff/reviewDiffAdapter.js'
-import { cx } from '../../../utils/cx.js'
+import { filterStatusForFile, type ReviewFilter } from './ReviewFileStatus.js'
+import { hideImportOnlyHunks } from '../diff/ReviewDiffAdapter.js'
+import { cx } from '../../../utils/Cx.js'
 
 const REVIEW_FILE_TREE_RUNTIME_MIN_WIDTH = REVIEW_FILE_TREE_PANEL_MIN_WIDTH + 8 + 260
 
@@ -1831,7 +1831,7 @@ function WorkspaceReviewSidebarImpl({
         expectedHeadRevision,
         event === 'APPROVE'
           ? undefined
-          : `CodePilotX 提交了 ${reviewComments.length} 条行内审阅评论。`,
+          : `Pidex 提交了 ${reviewComments.length} 条行内审阅评论。`,
       )
       if (isMutationCurrent(operationToken, operationSummaryIdentity, operationCommentIdentity)) {
         setError(null)

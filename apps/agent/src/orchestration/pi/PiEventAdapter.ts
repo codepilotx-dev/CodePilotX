@@ -1,13 +1,13 @@
-import type { AgentHarnessEvent } from '../harness/types'
-import type { ToolResultBlock } from '@codepilotx/shared/thread'
-import { decodeResultCardEnvelope } from '@codepilotx/shared/thread-result-card'
+import type { AgentHarnessEvent } from '../harness/Types'
+import type { ToolResultBlock } from '@pidex/shared/thread'
+import { decodeResultCardEnvelope } from '@pidex/shared/thread-result-card'
 import { ProposedPlanStreamParser, type ProposedPlanChunk } from '../plan/ProposedPlanStreamParser'
 import type {
   PiRuntimeEventContext,
   PiRuntimeEventSink,
   PiToolArtifactInput,
   RuntimeCompactionTrigger,
-} from './types'
+} from './Types'
 
 type ToolResultLike = {
   content?: unknown

@@ -1,4 +1,4 @@
-import type { WorktreeEnvironmentLifecycle } from '../worktree/types'
+import type { WorktreeEnvironmentLifecycle } from '../worktree/Types'
 import type { LocalEnvironmentService } from './LocalEnvironmentService'
 
 /** Bridges managed-worktree lifecycle operations to the trusted local environment runner. */

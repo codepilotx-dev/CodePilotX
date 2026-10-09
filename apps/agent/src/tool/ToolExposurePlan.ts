@@ -1,6 +1,6 @@
-import type { SubagentProfile, TaskMode } from '../domain'
-import { MAX_SUBAGENT_DEPTH, type SandboxMode } from '@codepilotx/shared/thread'
-import { isGranularApprovalPolicy, type PermissionConfig } from '@codepilotx/shared/thread'
+import type { SubagentProfile, TaskMode } from '../Domain'
+import { MAX_SUBAGENT_DEPTH, type SandboxMode } from '@pidex/shared/thread'
+import { isGranularApprovalPolicy, type PermissionConfig } from '@pidex/shared/thread'
 import type { ToolCatalog } from './ToolRegistry'
 
 export const PI_LIFECYCLE_TOOLS = [

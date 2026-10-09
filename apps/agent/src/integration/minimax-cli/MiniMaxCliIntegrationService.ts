@@ -12,13 +12,13 @@ import {
   writeFile,
 } from 'node:fs/promises'
 import { dirname, isAbsolute, join, parse, resolve } from 'node:path'
-import type { MiniMaxCliCredentialSource, MiniMaxCliStatus } from '@codepilotx/agent-protocol'
+import type { MiniMaxCliCredentialSource, MiniMaxCliStatus } from '@pidex/agent-protocol'
 import { Effect } from 'effect'
 import type { ProviderCredentialRepository } from '../../auth/ProviderCredentialRepository'
 import {
   MiniMaxCliSettingsConflictError,
   type MiniMaxCliSettingsRepository,
-} from '../../storage/repositories/minimax-cli-settings-repository'
+} from '../../storage/repositories/MinimaxCliSettingsRepository'
 
 const CN_PROVIDER = 'minimax-cn-coding-plan' as const
 const GLOBAL_PROVIDER = 'minimax-coding-plan' as const

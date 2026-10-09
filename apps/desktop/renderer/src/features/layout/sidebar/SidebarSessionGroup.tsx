@@ -1,4 +1,5 @@
-import { chooseSessionGroupForThread } from '../../session-groups/sessionGroupActions.js'
+import { chooseSessionGroupForThread } from '../../session-groups/SessionGroupActions.js'
+import { buildThreadDeepLink } from '@pidex/shared/thread-reference'
 import type React from 'react'
 import { lazy, memo, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -18,34 +19,34 @@ import {
   Split,
 } from 'lucide-react'
 import { Reorder } from 'motion/react'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
-import { ProjectAppearanceGlyph } from '../../projects/projectAppearance.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
+import { ProjectAppearanceGlyph } from '../../projects/ProjectAppearance.js'
 import {
   sessionResolvedTitle,
   sessionEditableTitle,
   type SessionListItem,
-} from '../../../uiTypes.js'
+} from '../../../UiTypes.js'
 import { Button } from '../../../components/ui/Button.js'
 
 import { Spinner } from '../../../components/ui/Spinner.js'
 import { SkeletonBlock } from '../../../components/ui/Skeleton.js'
-import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
-import { useHeightTransition } from '../../../hooks/useHeightTransition.js'
-import { sortSessionsForSidebar } from '../../session/state/sessionSorting.js'
+import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
+import { useHeightTransition } from '../../../hooks/UseHeightTransition.js'
+import { sortSessionsForSidebar } from '../../session/state/SessionSorting.js'
 import { SidebarRow } from './SidebarRow.js'
 import { SidebarStatusPill } from './SidebarStatusPill.js'
 import { SidebarReorderItem } from './SidebarReorderItem.js'
-import { useEverOpened } from '../../../hooks/usePresenceRetention.js'
-import { cx } from '../../../utils/cx.js'
+import { useEverOpened } from '../../../hooks/UsePresenceRetention.js'
+import { cx } from '../../../utils/Cx.js'
 import {
   AppContextMenu as SidebarContextMenu,
   type AppContextMenuAction as ContextMenuAction,
 } from '../../../components/ui/AppContextMenu.js'
-import type { DesktopSidebarSort } from '../../../../shared/types.js'
-import { deriveSidebarSessionVisualState } from './sidebarViewModel.js'
+import type { DesktopSidebarSort } from '../../../../shared/Types.js'
+import { deriveSidebarSessionVisualState } from './SidebarViewModel.js'
 import { desktopClient, desktopClipboard } from '../../../services/desktop-client/index.js'
 import { InputDialog } from '../../../components/ui/ConfirmationDialog.js'
-import { useSidebarActivityPreview } from './useSidebarActivityPreview.js'
+import { useSidebarActivityPreview } from './UseSidebarActivityPreview.js'
 
 const SidebarSessionHoverCard = lazy(async () => {
   const module = await import('./SidebarSessionHoverCard.js')
@@ -266,7 +267,7 @@ function SidebarSessionGroupComponent({
         label: '复制会话链接',
         icon: <Link size={APP_ICON_SIZE} />,
         onSelect: () => {
-          void desktopClipboard.writeText(`codepilotx://threads/${session.id}`)
+          void desktopClipboard.writeText(buildThreadDeepLink(session.id))
         },
       },
       session.workspacePath

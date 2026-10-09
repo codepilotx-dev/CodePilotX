@@ -1,20 +1,20 @@
 import type React from 'react'
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { Bot, History } from 'lucide-react'
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
 import { animate, motion, useMotionValue, useMotionValueEvent } from 'motion/react'
-import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
-import { layoutTween, motionTransition } from '../motion/motionTransitions.js'
-import { useSidebarResizeCollapseConfirm } from './useSidebarResizeCollapseConfirm.js'
-import { useLiveResizeValue } from './useLiveResizeValue.js'
+import { usePrefersReducedMotion } from '../../hooks/UsePrefersReducedMotion.js'
+import { layoutTween, motionTransition } from '../motion/MotionTransitions.js'
+import { useSidebarResizeCollapseConfirm } from './UseSidebarResizeCollapseConfirm.js'
+import { useLiveResizeValue } from './UseLiveResizeValue.js'
 import {
   SIDEBAR_PREVIEW_ENTER_DURATION,
   SIDEBAR_PREVIEW_EXIT_DURATION,
   SIDEBAR_PREVIEW_SETTLE_DURATION,
   type SidebarShellController,
-} from './sidebarShellState.js'
-import { SIDEBAR_RAIL_WIDTH } from './sidebar/sidebarNavigation.js'
-import { cx } from '../../utils/cx.js'
+} from './SidebarShellState.js'
+import { SIDEBAR_RAIL_WIDTH } from './sidebar/SidebarNavigation.js'
+import { cx } from '../../utils/Cx.js'
 
 export type SidebarContentKind = 'tasks' | 'settings'
 

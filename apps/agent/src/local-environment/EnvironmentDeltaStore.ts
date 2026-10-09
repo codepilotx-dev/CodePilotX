@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { EnvironmentDelta } from './types'
+import type { EnvironmentDelta } from './Types'
 
 const ENVIRONMENT_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/
 const isInternalControlKey = (key: string) => key.toLocaleUpperCase().startsWith('CODEPILOTX_')

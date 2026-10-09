@@ -5,16 +5,16 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../components/ui/iconTokens.js'
-import type { DesktopSkillAuditStatus, DesktopSkillCatalogItem } from '../../../shared/types.js'
-import { cx } from '../../utils/cx.js'
+} from '../../components/ui/IconTokens.js'
+import type { DesktopSkillAuditStatus, DesktopSkillCatalogItem } from '../../../shared/Types.js'
+import { cx } from '../../utils/Cx.js'
 import {
   FORCED_COLORS_FOCUS_CLASS,
   FORCED_COLORS_SURFACE_CLASS,
   PLAIN_BUTTON_CLASS,
   STACKED_COPY_CLASS,
   TRUNCATED_LINE_CLASS,
-} from './catalogClassNames.js'
+} from './CatalogClassNames.js'
 
 /* 审计徽章按状态取整段配色，避免动态拼接类名。 */
 const AUDIT_BADGE_TONE_CLASS: Record<DesktopSkillAuditStatus, string> = {
@@ -97,7 +97,7 @@ export function SkillCatalogCard({
               loading={installing}
               onClick={() => onInstall(skill)}
               size="toolbar"
-              title="添加到 CodePilotX"
+              title="添加到 Pidex"
             >
               <Plus aria-hidden="true" size={APP_ICON_SIZE} />
               添加

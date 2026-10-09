@@ -4,7 +4,7 @@ import {
   DESKTOP_VIEWPORT,
   prepareVisualTheme,
   waitForVisualPage,
-} from './visual-test-helpers.js'
+} from './VisualTestHelpers.js'
 
 async function expectSearchFitsPopover(surface: Locator, searchInput: Locator): Promise<void> {
   const searchContainer = searchInput.locator('..')

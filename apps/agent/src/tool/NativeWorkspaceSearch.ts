@@ -1,6 +1,6 @@
 import { stat } from 'node:fs/promises'
 import { basename, resolve } from 'node:path'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { WorkspaceService } from '../workspace/WorkspaceService'
 
 const MAX_ENTRIES = 10_000

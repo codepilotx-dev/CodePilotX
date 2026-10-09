@@ -5,7 +5,7 @@ import type {
   TaskSuggestionGenerateParams,
   TaskSuggestionGenerateResult,
   TaskSuggestionSurface,
-} from '@codepilotx/agent-protocol'
+} from '@pidex/agent-protocol'
 import { z } from 'zod'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { MemoryEntry, MemoryService } from '../memory/MemoryService'
@@ -431,16 +431,16 @@ export class TaskSuggestionService {
     ]
     if (surface === 'working') {
       return [
-        '你为 CodePilotX Working 首页生成下一步工作建议。',
+        '你为 Pidex Working 首页生成下一步工作建议。',
         ...common,
         '恰好返回 3 条可以立即开始的具体工作，并避免原样重复已经完成的任务。',
         '建议应覆盖创建交付物、调研规划或日常自动化等真实工作，不得把所有结果都描述成编码任务。',
         'categoryId 只能是 create、research 或 automate。',
-        'label 使用简短中文，prompt 是可直接提交给 CodePilotX Agent 的完整工作指令。',
+        'label 使用简短中文，prompt 是可直接提交给 Pidex Agent 的完整工作指令。',
       ].join('\n')
     }
     return [
-      '你为 CodePilotX 新会话首页生成下一步编码任务建议。',
+      '你为 Pidex 新会话首页生成下一步编码任务建议。',
       ...common,
       '返回 3 到 4 条可以立即开始的具体任务，避免原样重复已经完成的任务。',
       'categoryId 只能是 codex-explore、codex-create、codex-review 或 codex-fix。',

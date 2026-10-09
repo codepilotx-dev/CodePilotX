@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
+import { usePrefersReducedMotion } from '../../hooks/UsePrefersReducedMotion.js'
 
 export type DisclosureContentProps = {
   id: string

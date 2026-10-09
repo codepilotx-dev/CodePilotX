@@ -6,17 +6,17 @@ import type {
   DesktopProjectFolder,
   DesktopWorkspace,
   ProjectAppearance,
-} from '../../../shared/types.js'
+} from '../../../shared/Types.js'
 import { Button } from '../../components/ui/Button.js'
 
-import { useDialogFocusRestore } from '../../components/ui/useDialogFocusRestore.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
-import { cx } from '../../utils/cx.js'
+import { useDialogFocusRestore } from '../../components/ui/UseDialogFocusRestore.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
+import { cx } from '../../utils/Cx.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { ProjectAppearancePicker } from './ProjectAppearancePicker.js'
-import { projectFolderPaths, type ProjectFolderSaveDraft } from './projectEditModel.js'
-import { notifyProjectCatalogChanged } from './projectCatalogEvents.js'
-import { errorMessageOf as errorMessage } from '@codepilotx/shared/errors'
+import { projectFolderPaths, type ProjectFolderSaveDraft } from './ProjectEditModel.js'
+import { notifyProjectCatalogChanged } from './ProjectCatalogEvents.js'
+import { errorMessageOf as errorMessage } from '@pidex/shared/errors'
 
 type DraftFolder = DesktopProjectFolder & ProjectFolderSaveDraft
 

@@ -1,6 +1,6 @@
 import { expect, test, type Locator } from '@playwright/test'
 
-import { COMPACT_VIEWPORT, prepareVisualTheme, waitForVisualPage } from './visual-test-helpers.js'
+import { COMPACT_VIEWPORT, prepareVisualTheme, waitForVisualPage } from './VisualTestHelpers.js'
 
 test('Radix dropdown stays anchored and uses a readable opaque surface', async ({ page }) => {
   await page.setViewportSize(COMPACT_VIEWPORT)

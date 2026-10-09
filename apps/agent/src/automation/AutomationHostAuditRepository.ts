@@ -1,5 +1,5 @@
 import type { Database } from 'bun:sqlite'
-import { AgentError, type ToolInvocation } from '../domain'
+import { AgentError, type ToolInvocation } from '../Domain'
 import type { TurnPatchMutationBatch } from '../patch/TurnPatchTypes'
 import { secretScrubber } from '../security/SecretScrubber'
 

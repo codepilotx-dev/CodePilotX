@@ -3,7 +3,7 @@ import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
-import { useDesktopSettings } from './useDesktopSettings.js'
+import { useDesktopSettings } from './UseDesktopSettings.js'
 import { PrWatchSettings } from './PrWatchSettings.js'
 
 export function CodeReviewSettings() {

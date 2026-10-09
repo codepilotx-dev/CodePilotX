@@ -13,34 +13,34 @@ import {
   Info,
   Lightbulb,
 } from 'lucide-react'
-import type { DesktopExternalOpenTarget } from '../../../shared/types.js'
+import type { DesktopExternalOpenTarget } from '../../../shared/Types.js'
 import { AppContextMenu, type AppContextMenuAction } from '../../components/ui/AppContextMenu.js'
 import { Button } from '../../components/ui/Button.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
-import { OpenTargetIcon } from '../../components/ui/openTargetIcon.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
+import { OpenTargetIcon } from '../../components/ui/OpenTargetIcon.js'
 import { desktopClient, desktopClipboard } from '../../services/desktop-client/index.js'
 import {
   loadExternalOpenTargets,
   openPathWithExternalTarget,
   openPathWithPreferredExternalTarget,
   prefetchExternalOpenTargets,
-} from '../../services/externalOpenTargetsStore.js'
-import { cx } from '../../utils/cx.js'
+} from '../../services/ExternalOpenTargetsStore.js'
+import { cx } from '../../utils/Cx.js'
 import { FileTypeIcon } from '../layout/FileTypeIcon.js'
 import { CodeBlock } from '../syntax/index.js'
-import { DEFAULT_MARKDOWN_DIRECTIVES, normalizeDirectiveName } from './directives.js'
+import { DEFAULT_MARKDOWN_DIRECTIVES, normalizeDirectiveName } from './Directives.js'
 import { MathRenderer } from './MathRenderer.js'
 import { MermaidRenderer } from './MermaidRenderer.js'
 import { LazyRender } from './LazyRender.js'
-import { buildMarkdownBlocks } from './parser.js'
-import { renderSafeHtml } from './safeHtml.js'
+import { buildMarkdownBlocks } from './Parser.js'
+import { renderSafeHtml } from './SafeHtml.js'
 import {
   classifyMarkdownTarget,
   isLikelyFileReference,
   isSafeHttpsMediaSource,
   mediaKindForUrl,
   parseMarkdownFileReference,
-} from './safeTargets.js'
+} from './SafeTargets.js'
 import type {
   MarkdownDirectiveRegistry,
   MarkdownExternalResourcePolicy,
@@ -52,7 +52,7 @@ import type {
   MarkdownStreamingTextToken,
   MarkdownToken,
   MarkdownRenderBlock,
-} from './types.js'
+} from './Types.js'
 
 export const MARKDOWN_THREAD_NAVIGATION_EVENT = 'codepilotx:markdown-thread-navigation'
 

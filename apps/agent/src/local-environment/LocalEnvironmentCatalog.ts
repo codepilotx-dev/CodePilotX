@@ -11,7 +11,7 @@ import {
   rename,
 } from 'node:fs/promises'
 import { basename, dirname, join, relative, resolve } from 'node:path'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { ConfigValue } from '../config/ConfigService'
 import type { LocalEnvironmentService } from './LocalEnvironmentService'
 import {

@@ -1,11 +1,11 @@
-import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import React from 'react'
 import { ChevronDown } from 'lucide-react'
-import { cx } from '../../../utils/cx.js'
+import { cx } from '../../../utils/Cx.js'
 
 import { MarkdownMessage, type MarkdownMessageProps } from '../../markdown/index.js'
 import { ConversationMarkdownErrorBoundary } from './ConversationTurnErrorBoundary.js'
-import { useHeightTransition } from '../../../hooks/useHeightTransition.js'
+import { useHeightTransition } from '../../../hooks/UseHeightTransition.js'
 
 const DEFAULT_COLLAPSED_LINE_COUNT = 20
 const FALLBACK_FONT_SIZE_PX = 13

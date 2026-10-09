@@ -1,12 +1,12 @@
-import type { DurableObjectStub, Env, FetchLike } from './cloudflare.ts'
-import { OAuthAttempt } from './oauth-attempt.ts'
+import type { DurableObjectStub, Env, FetchLike } from './Cloudflare.ts'
+import { OAuthAttempt } from './OauthAttempt.ts'
 import {
   isValidPkceChallenge,
   isValidPkceVerifier,
   normalizeLoopbackRedirect,
   randomBase64Url,
   sha256Base64Url,
-} from './security.ts'
+} from './Security.ts'
 
 export { OAuthAttempt }
 
@@ -268,7 +268,7 @@ async function handleExchange(
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'CodePilotX-Auth-Broker',
+        'User-Agent': 'Pidex-Auth-Broker',
       },
       body: new URLSearchParams({
         client_id: env.GITHUB_OAUTH_CLIENT_ID,
@@ -328,7 +328,7 @@ async function handleRevoke(request: Request, env: Env, githubFetch: FetchLike):
         Accept: 'application/vnd.github+json',
         Authorization: `Basic ${credentials}`,
         'Content-Type': 'application/json',
-        'User-Agent': 'CodePilotX-Auth-Broker',
+        'User-Agent': 'Pidex-Auth-Broker',
         'X-GitHub-Api-Version': '2022-11-28',
       },
       body: JSON.stringify({ access_token: body.accessToken }),

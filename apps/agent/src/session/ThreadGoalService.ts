@@ -1,8 +1,8 @@
 import { Effect } from 'effect'
-import type { ThreadGoal, ThreadGoalStatus } from '@codepilotx/shared/thread'
-import { AgentError, type EventEnvelope } from '../domain'
+import type { ThreadGoal, ThreadGoalStatus } from '@pidex/shared/thread'
+import { AgentError, type EventEnvelope } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
-import type { GoalMeasurement } from '../storage/repositories/thread-goal-ledger-repository'
+import type { GoalMeasurement } from '../storage/repositories/ThreadGoalLedgerRepository'
 import type { EventHub } from '../storage/events/EventHub'
 
 const OBJECTIVE_MAX_LENGTH = 4_000

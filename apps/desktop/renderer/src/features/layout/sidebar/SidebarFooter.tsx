@@ -23,12 +23,12 @@ import {
   Settings,
   Sparkles,
 } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
-import { buildPopoverSizingStyle } from '../../../components/ui/popoverSizing.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
+import { buildPopoverSizingStyle } from '../../../components/ui/PopoverSizing.js'
 import { Button } from '../../../components/ui/Button.js'
 import { RemoteImage } from '../../../components/ui/RemoteImage.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import type { DesktopUpdateStatus, ModelProviderID } from '../../../../shared/types.js'
+import type { DesktopUpdateStatus, ModelProviderID } from '../../../../shared/Types.js'
 import { PopoverItem, PopoverSeparator } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { SidebarRow } from './SidebarRow.js'
@@ -37,7 +37,7 @@ import {
   buildDesktopUpdateIndicatorModel,
   runDesktopUpdateIndicatorAction,
   startDesktopUpdateMonitoring,
-} from './desktopUpdateMenu.js'
+} from './DesktopUpdateMenu.js'
 import {
   allBalances,
   criticalQuotaWindows,
@@ -46,9 +46,9 @@ import {
   protocolProviderId,
   sourceForProvider,
   type ProviderUsageSource,
-} from '../../../utils/usageFormatters.js'
-import { cx } from '../../../utils/cx.js'
-import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
+} from '../../../utils/UsageFormatters.js'
+import { cx } from '../../../utils/Cx.js'
+import { useDesktopSettings } from '../../settings/UseDesktopSettings.js'
 
 type PopoverUsageRow = {
   id: string
@@ -173,7 +173,7 @@ export const SidebarFooter = forwardRef<HTMLElement, SidebarFooterProps>(functio
     const nextEnabled = !petEnabled
     setPetToggleBusy(true)
     try {
-      const bridge = window.codePilotXDesktop
+      const bridge = window.DesktopBridge
       if (nextEnabled) {
         if (typeof bridge?.openPetOverlay !== 'function') {
           throw new Error('宠物浮窗暂不可用')

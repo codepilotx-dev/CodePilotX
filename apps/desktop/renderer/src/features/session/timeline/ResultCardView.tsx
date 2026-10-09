@@ -16,14 +16,14 @@ import type {
   ResultCardReference,
   ResultCardSection,
   ResultCardTone,
-} from '@codepilotx/shared/thread-result-card'
+} from '@pidex/shared/thread-result-card'
 
-import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import type { MarkdownFileOpenOptions, MarkdownFileReference } from '../../markdown/index.js'
 import { ConversationItemContext } from './ConversationItemContext.js'
 import { CopyButton } from './CopyButton.js'
-import { safeCitationUrl } from './citationUrl.js'
+import { safeCitationUrl } from './CitationUrl.js'
 
 /** Items beyond this count stay behind the existing disclosure control. */
 const VISIBLE_ITEM_LIMIT = 3
@@ -87,7 +87,7 @@ export function resultCardFilePath(
 }
 
 /**
- * Shared result card for a normalized CodePilotX envelope: main-agent and
+ * Shared result card for a normalized Pidex envelope: main-agent and
  * subagent deliveries and opt-in tool results all render through this view.
  * Semantic `article` / `section` / `dl` / `ul` structure, no actions beyond
  * copying, safe external links and workspace-confirmed file previews.

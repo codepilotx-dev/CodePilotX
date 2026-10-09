@@ -9,7 +9,7 @@ import type {
   EnvironmentDelta,
   LocalEnvironmentOperation,
   LocalEnvironmentOperationKind,
-} from './types'
+} from './Types'
 
 const OUTPUT_LIMIT_BYTES = 64 * 1024
 const OUTPUT_TTL_MS = 10 * 60 * 1_000
@@ -169,7 +169,7 @@ export class LocalEnvironmentRunner {
     signal?: AbortSignal,
     onOutput?: (chunk: string) => void,
   ): Promise<SpawnResult> {
-    const temporaryRoot = await mkdtemp(join(tmpdir(), 'codepilotx-local-environment-'))
+    const temporaryRoot = await mkdtemp(join(tmpdir(), 'pidex-local-environment-'))
     const environmentPath = join(temporaryRoot, 'environment.capture')
     const windows = process.platform === 'win32'
     const wrapperPath = join(temporaryRoot, windows ? 'setup.ps1' : 'setup.sh')
@@ -178,28 +178,28 @@ export class LocalEnvironmentRunner {
     const wrapper = windows
       ? [
           "$ErrorActionPreference = 'Stop'",
-          '$codepilotxExitCode = 0',
+          '$pidexExitCode = 0',
           'try {',
           '  & {',
           command,
           '  }',
-          '  if ($null -ne $LASTEXITCODE) { $codepilotxExitCode = $LASTEXITCODE }',
+          '  if ($null -ne $LASTEXITCODE) { $pidexExitCode = $LASTEXITCODE }',
           '} catch {',
-          '  $codepilotxExitCode = 1',
+          '  $pidexExitCode = 1',
           '  Write-Error $_',
           '} finally {',
           `  [Environment]::GetEnvironmentVariables('Process') | ConvertTo-Json -Compress | Set-Content -LiteralPath ${quotePowerShell(environmentPath)} -Encoding utf8`,
           '}',
-          'exit $codepilotxExitCode',
+          'exit $pidexExitCode',
           '',
         ].join('\r\n')
       : [
           '#!/bin/sh',
-          'codepilotx_exit_code=0',
+          'pidex_exit_code=0',
           command,
-          'codepilotx_exit_code=$?',
+          'pidex_exit_code=$?',
           `env -0 > ${quoteShell(environmentPath)}`,
-          'exit $codepilotx_exit_code',
+          'exit $pidex_exit_code',
           '',
         ].join('\n')
     try {

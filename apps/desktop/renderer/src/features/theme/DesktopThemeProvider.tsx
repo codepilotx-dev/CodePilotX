@@ -5,24 +5,24 @@ import type {
   DesktopThemeMode,
   DesktopThemeSettings,
   DesktopThemeVariant,
-} from '../../../shared/types.js'
+} from '../../../shared/Types.js'
 import {
   getCodeThemeSelectionForVariant,
   getDesktopThemeForSelection,
   getDesktopThemeIdForVariant,
   normalizeDesktopThemeSettings,
-} from '../../../shared/theme.js'
-import { deriveThemeVariables } from './themeVariables.js'
-import { applyThemeFontFaceStyles } from './themeFontFaces.js'
+} from '../../../shared/Theme.js'
+import { deriveThemeVariables } from './ThemeVariables.js'
+import { applyThemeFontFaceStyles } from './ThemeFontFaces.js'
 import {
   resolveStartupThemeSettings,
   withStartupThemeSeed,
-} from '../../startup/startupThemeSeed.js'
+} from '../../startup/StartupThemeSeed.js'
 import {
   DesktopThemeContext,
   type DesktopThemeContextValue,
   type DesktopThemeDraft,
-} from './themeContext.js'
+} from './ThemeContext.js'
 
 const SETTINGS_THEME_VARIABLES = [
   '--cpx-sys-font-family-sans',
@@ -74,7 +74,7 @@ export function DesktopThemeProvider({ children }: { children: React.ReactNode }
   }, [])
 
   useEffect(() => {
-    const bridge = window.codePilotXDesktop
+    const bridge = window.DesktopBridge
     let cancelled = false
     if (bridge?.getSystemTheme && bridge.onSystemThemeChange) {
       void bridge.getSystemTheme().then((theme) => {
@@ -118,7 +118,7 @@ export function DesktopThemeProvider({ children }: { children: React.ReactNode }
   )
 
   useEffect(() => {
-    if (!window.codePilotXDesktop) return
+    if (!window.DesktopBridge) return
     const committedVariant = settings.mode === 'system' ? systemVariant : settings.mode
     const committedTheme = settings.chromeThemes[committedVariant]
     const nextUrl = withStartupThemeSeed(window.location.href, {
@@ -331,7 +331,7 @@ function applyDesktopTheme(
   const root = document.documentElement
   root.dataset.theme = variant
   root.dataset.themeId = getDesktopThemeIdForVariant(settings, variant)
-  root.dataset.windowType = window.codePilotXDesktop ? 'electron' : 'browser-mock'
+  root.dataset.windowType = window.DesktopBridge ? 'electron' : 'browser-mock'
   root.dataset.os = 'windows'
   root.classList.toggle('light-theme', variant === 'light')
   root.classList.toggle('dark-theme', variant === 'dark')

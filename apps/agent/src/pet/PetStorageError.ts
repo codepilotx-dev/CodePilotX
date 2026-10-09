@@ -1,4 +1,4 @@
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 
 const READ_ONLY_CODES = new Set(['EACCES', 'EPERM', 'EROFS'])
 const CAPACITY_CODES = new Set(['EDQUOT', 'ENOSPC'])

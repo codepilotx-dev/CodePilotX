@@ -1,4 +1,4 @@
-import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
+import type { RpcParams, RpcResult } from '@pidex/agent-protocol'
 import React, { useCallback, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '../../../components/ui/Button.js'
@@ -16,7 +16,7 @@ import {
   usageStatusLabel,
   type ProviderQuotaWindow,
   type ProviderUsageSource,
-} from '../../../utils/usageFormatters.js'
+} from '../../../utils/UsageFormatters.js'
 
 type ProviderRange = RpcParams<'usage/provider/query'>['range']
 type ProviderUsageResult = RpcResult<'usage/provider/query'>
@@ -319,7 +319,7 @@ function ProviderUsageCard({
 
       {descriptor.queryPolicy === 'metered' ? (
         <div className="usage-cost-notice" role="note">
-          Reporting API 为计费查询，价格以官方为准；CodePilotX 使用一小时缓存且不会后台轮询。
+          Reporting API 为计费查询，价格以官方为准；Pidex 使用一小时缓存且不会后台轮询。
         </div>
       ) : null}
       {descriptor.stability === 'experimental' ? (

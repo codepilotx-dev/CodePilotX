@@ -1,23 +1,23 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { DesktopThemeSettingsV7 } from './settings/appearance-settings-store.js'
+import type { DesktopThemeSettingsV7 } from './settings/AppearanceSettingsStore.js'
 import type {
   DesktopSystemFontFace,
   DesktopSystemFontsResult,
-} from '@codepilotx/shared/desktop-theme'
+} from '@pidex/shared/desktop-theme'
 import type {
   DesktopPetOverlayBridge,
   DesktopPetPresentation,
-} from '@codepilotx/shared/desktop-pet-overlay'
+} from '@pidex/shared/desktop-pet-overlay'
 import type {
   DesktopSettingsIpcBridge,
   DesktopSettingsPayload,
-} from '@codepilotx/shared/desktop-settings-ipc'
-import type { DesktopDataLocationIpcBridge } from '@codepilotx/shared/desktop-data-location-ipc'
-import type { DesktopEditAction, DesktopEditIpcBridge } from '@codepilotx/shared/desktop-edit-ipc'
+} from '@pidex/shared/desktop-settings-ipc'
+import type { DesktopDataLocationIpcBridge } from '@pidex/shared/desktop-data-location-ipc'
+import type { DesktopEditAction, DesktopEditIpcBridge } from '@pidex/shared/desktop-edit-ipc'
 import type {
   DesktopUpdateIpcBridge,
   DesktopUpdateStatus,
-} from '@codepilotx/shared/desktop-update-ipc'
+} from '@pidex/shared/desktop-update-ipc'
 import type {
   AckDesktopTerminalOutputInput,
   AttachDesktopTerminalInput,
@@ -31,13 +31,13 @@ import type {
   ResizeDesktopTerminalInput,
   RunDesktopTerminalActionInput,
   WriteDesktopTerminalInput,
-} from '@codepilotx/shared/desktop-terminal-ipc'
+} from '@pidex/shared/desktop-terminal-ipc'
 import type {
   DesktopNotificationActivation,
   DesktopNotificationIpcBridge,
   DesktopNotificationRequest,
   DesktopNotificationResult,
-} from '@codepilotx/shared/desktop-notification-ipc'
+} from '@pidex/shared/desktop-notification-ipc'
 import type {
   DesktopAttachmentIpcBridge,
   DesktopAttachmentSaveInput,
@@ -47,7 +47,7 @@ import type {
   DesktopComposerPathListResult,
   DesktopComposerPathPreview,
   DesktopComposerPathReadInput,
-} from '@codepilotx/shared/desktop-attachment-ipc'
+} from '@pidex/shared/desktop-attachment-ipc'
 import type {
   CreateOrRestoreDesktopBrowserInput,
   DesktopBrowserIpcBridge,
@@ -56,15 +56,15 @@ import type {
   NavigateDesktopBrowserInput,
   SetDesktopBrowserBoundsInput,
   SetDesktopBrowserVisibleInput,
-} from '@codepilotx/shared/desktop-browser-ipc'
+} from '@pidex/shared/desktop-browser-ipc'
 import type {
   DesktopClipboardIpcBridge,
   DesktopClipboardRichTextInput,
   DesktopClipboardTextInput,
   DesktopSensitiveClipboardResult,
-} from '@codepilotx/shared/desktop-clipboard-ipc'
-import type { DesktopMicrophoneIpcBridge } from '@codepilotx/shared/desktop-microphone-ipc'
-import type { DesktopProviderIconIpcBridge } from '@codepilotx/shared/desktop-provider-icon-ipc'
+} from '@pidex/shared/desktop-clipboard-ipc'
+import type { DesktopMicrophoneIpcBridge } from '@pidex/shared/desktop-microphone-ipc'
+import type { DesktopProviderIconIpcBridge } from '@pidex/shared/desktop-provider-icon-ipc'
 // 注意：preload.cjs 不参与打包，只能使用 type-only import；一旦引入运行时代码，
 // 编译产物会 require workspace 的 TS 源并导致 preload 加载失败（整个桥消失）。
 import type {
@@ -73,21 +73,21 @@ import type {
   DesktopPageZoomState,
   DesktopResizeActivity,
   DesktopWindowIpcBridge,
-} from '@codepilotx/shared/desktop-window-ipc'
-import type { DesktopWorkspaceIpcBridge } from '@codepilotx/shared/desktop-workspace-ipc'
+} from '@pidex/shared/desktop-window-ipc'
+import type { DesktopWorkspaceIpcBridge } from '@pidex/shared/desktop-workspace-ipc'
 import type {
   DesktopExternalOpenTarget,
   DesktopShellIpcBridge,
-} from '@codepilotx/shared/desktop-shell-ipc'
-import type { DesktopStartupIpcBridge } from '@codepilotx/shared/desktop-startup-ipc'
+} from '@pidex/shared/desktop-shell-ipc'
+import type { DesktopStartupIpcBridge } from '@pidex/shared/desktop-startup-ipc'
 import type {
   DesktopAppearanceIpcBridge,
   DesktopStartupThemeSeed,
-} from '@codepilotx/shared/desktop-appearance-ipc'
+} from '@pidex/shared/desktop-appearance-ipc'
 import type {
   DesktopDeepLinkIpcBridge,
   DesktopThreadDeepLinkPayload,
-} from '@codepilotx/shared/desktop-deep-link-ipc'
+} from '@pidex/shared/desktop-deep-link-ipc'
 
 // Sandboxed preload scripts cannot resolve workspace packages at runtime.
 // Keep this literal type-checked against the shared contract so the emitted
@@ -105,31 +105,31 @@ const PET_OVERLAY_CHANNELS = {
   setPointerPassthrough: 'pet-overlay:pointer-passthrough',
   requestKeyboardFocus: 'pet-overlay:keyboard-focus',
   openSession: 'pet-overlay:open-session',
-} as const satisfies typeof import('@codepilotx/shared/desktop-pet-overlay').PET_OVERLAY_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-pet-overlay').PET_OVERLAY_CHANNELS
 
 const DESKTOP_SETTINGS_IPC_CHANNELS = {
   get: 'desktop-settings:get',
   save: 'desktop-settings:save',
   changed: 'desktop-settings:changed',
-} as const satisfies typeof import('@codepilotx/shared/desktop-settings-ipc').DESKTOP_SETTINGS_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-settings-ipc').DESKTOP_SETTINGS_IPC_CHANNELS
 
 const DESKTOP_DATA_LOCATION_IPC_CHANNELS = {
   get: 'desktop-data-location:get',
   choose: 'desktop-data-location:choose',
   retry: 'desktop-data-location:retry',
   restore: 'desktop-data-location:restore',
-} as const satisfies typeof import('@codepilotx/shared/desktop-data-location-ipc').DESKTOP_DATA_LOCATION_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-data-location-ipc').DESKTOP_DATA_LOCATION_IPC_CHANNELS
 
 const DESKTOP_EDIT_IPC_CHANNELS = {
   perform: 'desktop-edit:perform',
-} as const satisfies typeof import('@codepilotx/shared/desktop-edit-ipc').DESKTOP_EDIT_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-edit-ipc').DESKTOP_EDIT_IPC_CHANNELS
 
 const DESKTOP_UPDATE_IPC_CHANNELS = {
   check: 'desktop-update:check',
   download: 'desktop-update:download',
   quitAndInstall: 'desktop-update:quit-and-install',
   status: 'desktop-update:status',
-} as const satisfies typeof import('@codepilotx/shared/desktop-update-ipc').DESKTOP_UPDATE_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-update-ipc').DESKTOP_UPDATE_IPC_CHANNELS
 
 const DESKTOP_TERMINAL_IPC_CHANNELS = {
   listProfiles: 'desktop-terminal:list-profiles',
@@ -142,12 +142,12 @@ const DESKTOP_TERMINAL_IPC_CHANNELS = {
   runAction: 'desktop-terminal:run-action',
   event: 'desktop-terminal:event',
   ack: 'desktop-terminal:ack',
-} as const satisfies typeof import('@codepilotx/shared/desktop-terminal-ipc').DESKTOP_TERMINAL_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-terminal-ipc').DESKTOP_TERMINAL_IPC_CHANNELS
 
 const DESKTOP_NOTIFICATION_IPC_CHANNELS = {
   show: 'desktop-notification:show',
   activated: 'desktop-notification:activated',
-} as const satisfies typeof import('@codepilotx/shared/desktop-notification-ipc').DESKTOP_NOTIFICATION_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-notification-ipc').DESKTOP_NOTIFICATION_IPC_CHANNELS
 
 const DESKTOP_ATTACHMENT_IPC_CHANNELS = {
   saveToDownloads: 'desktop-attachment:save-to-downloads',
@@ -155,7 +155,7 @@ const DESKTOP_ATTACHMENT_IPC_CHANNELS = {
   grantComposerPaths: 'desktop-attachment:grant-composer-paths',
   readComposerPathGrant: 'desktop-attachment:read-composer-path-grant',
   listComposerPathGrant: 'desktop-attachment:list-composer-path-grant',
-} as const satisfies typeof import('@codepilotx/shared/desktop-attachment-ipc').DESKTOP_ATTACHMENT_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-attachment-ipc').DESKTOP_ATTACHMENT_IPC_CHANNELS
 
 const DESKTOP_BROWSER_IPC_CHANNELS = {
   annotation: 'desktop-browser:annotation',
@@ -182,16 +182,16 @@ const DESKTOP_BROWSER_IPC_CHANNELS = {
   close: 'desktop-browser:close',
   clearAllowedSites: 'desktop-browser:clear-allowed-sites',
   stateChanged: 'desktop-browser:state-changed',
-} as const satisfies typeof import('@codepilotx/shared/desktop-browser-ipc').DESKTOP_BROWSER_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-browser-ipc').DESKTOP_BROWSER_IPC_CHANNELS
 
 const DESKTOP_MICROPHONE_IPC_CHANNELS = {
   openPrivacySettings: 'desktop-microphone:open-privacy-settings',
-} as const satisfies typeof import('@codepilotx/shared/desktop-microphone-ipc').DESKTOP_MICROPHONE_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-microphone-ipc').DESKTOP_MICROPHONE_IPC_CHANNELS
 
 const DESKTOP_PROVIDER_ICON_IPC_CHANNELS = {
   resolve: 'desktop-provider-icon:resolve',
   changed: 'desktop-provider-icon:changed',
-} as const satisfies typeof import('@codepilotx/shared/desktop-provider-icon-ipc').DESKTOP_PROVIDER_ICON_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-provider-icon-ipc').DESKTOP_PROVIDER_ICON_IPC_CHANNELS
 
 const DESKTOP_WINDOW_IPC_CHANNELS = {
   openWindow: 'window:open',
@@ -204,30 +204,30 @@ const DESKTOP_WINDOW_IPC_CHANNELS = {
   pageZoomChanged: 'window:page-zoom:changed',
   resizeStateChanged: 'window:resize-state-changed',
   resizeActivity: 'window:resize-activity',
-} as const satisfies typeof import('@codepilotx/shared/desktop-window-ipc').DESKTOP_WINDOW_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-window-ipc').DESKTOP_WINDOW_IPC_CHANNELS
 
 const DESKTOP_WORKSPACE_IPC_CHANNELS = {
   pickDirectories: 'workspace:pick-directories',
   pickDirectory: 'workspace:pick-directory',
-} as const satisfies typeof import('@codepilotx/shared/desktop-workspace-ipc').DESKTOP_WORKSPACE_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-workspace-ipc').DESKTOP_WORKSPACE_IPC_CHANNELS
 
 const DESKTOP_SHELL_IPC_CHANNELS = {
   openExternal: 'shell:open-external',
   listExternalOpenTargets: 'shell:list-external-open-targets',
   openPathWithTarget: 'shell:open-path-with-target',
   revealPathInFolder: 'shell:reveal-path-in-folder',
-} as const satisfies typeof import('@codepilotx/shared/desktop-shell-ipc').DESKTOP_SHELL_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-shell-ipc').DESKTOP_SHELL_IPC_CHANNELS
 
 const DESKTOP_CLIPBOARD_IPC_CHANNELS = {
   writeText: 'clipboard:write-text',
   writeRichText: 'clipboard:write-rich-text',
   copyProviderApiKey: 'clipboard:copy-provider-api-key',
-} as const satisfies typeof import('@codepilotx/shared/desktop-clipboard-ipc').DESKTOP_CLIPBOARD_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-clipboard-ipc').DESKTOP_CLIPBOARD_IPC_CHANNELS
 
 const DESKTOP_STARTUP_IPC_CHANNELS = {
   openLogs: 'startup:open-logs',
   quit: 'startup:quit',
-} as const satisfies typeof import('@codepilotx/shared/desktop-startup-ipc').DESKTOP_STARTUP_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-startup-ipc').DESKTOP_STARTUP_IPC_CHANNELS
 
 const DESKTOP_APPEARANCE_IPC_CHANNELS = {
   getSettings: 'appearance:settings:get',
@@ -238,7 +238,7 @@ const DESKTOP_APPEARANCE_IPC_CHANNELS = {
   canRestorePreviousAppearance: 'appearance:previous-appearance:can-restore',
   restorePreviousAppearance: 'appearance:previous-appearance:restore',
   applyNewDesignTheme: 'appearance:new-design-theme:apply',
-} as const satisfies typeof import('@codepilotx/shared/desktop-appearance-ipc').DESKTOP_APPEARANCE_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-appearance-ipc').DESKTOP_APPEARANCE_IPC_CHANNELS
 
 applyStartupThemeSeed(
   ipcRenderer.sendSync(DESKTOP_APPEARANCE_IPC_CHANNELS.getStartupThemeSeed) as unknown,
@@ -247,7 +247,7 @@ applyStartupThemeSeed(
 const DESKTOP_DEEP_LINK_IPC_CHANNELS = {
   consumePending: 'desktop-deep-link:consume-pending',
   activated: 'desktop-deep-link:activated',
-} as const satisfies typeof import('@codepilotx/shared/desktop-deep-link-ipc').DESKTOP_DEEP_LINK_IPC_CHANNELS
+} as const satisfies typeof import('@pidex/shared/desktop-deep-link-ipc').DESKTOP_DEEP_LINK_IPC_CHANNELS
 
 function isDesktopNotificationActivation(value: unknown): value is DesktopNotificationActivation {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -290,17 +290,17 @@ const pendingComposerDropPaths = new Set<string>()
 
 const desktop = {
   performDesktopBrowserAnnotation: (
-    input: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserAnnotationInput,
-  ): Promise<import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserAnnotationResult> =>
+    input: import('@pidex/shared/desktop-browser-ipc').DesktopBrowserAnnotationInput,
+  ): Promise<import('@pidex/shared/desktop-browser-ipc').DesktopBrowserAnnotationResult> =>
     ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.annotation, input),
   onDesktopBrowserAnnotationEvent: (
     listener: (
-      event: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserAnnotationEvent,
+      event: import('@pidex/shared/desktop-browser-ipc').DesktopBrowserAnnotationEvent,
     ) => void,
   ): (() => void) => {
     const handler = (
       _event: Electron.IpcRendererEvent,
-      value: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserAnnotationEvent,
+      value: import('@pidex/shared/desktop-browser-ipc').DesktopBrowserAnnotationEvent,
     ) => listener(value)
     ipcRenderer.on(DESKTOP_BROWSER_IPC_CHANNELS.annotationEvent, handler)
     return () => ipcRenderer.removeListener(DESKTOP_BROWSER_IPC_CHANNELS.annotationEvent, handler)
@@ -308,21 +308,21 @@ const desktop = {
   listDesktopBrowserTabs: (): Promise<DesktopBrowserSnapshot[]> =>
     ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.list),
   performDesktopBrowserUtility: (
-    input: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserUtilityInput,
-  ): Promise<import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserUtilityResult> =>
+    input: import('@pidex/shared/desktop-browser-ipc').DesktopBrowserUtilityInput,
+  ): Promise<import('@pidex/shared/desktop-browser-ipc').DesktopBrowserUtilityResult> =>
     ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.utility, input),
   manageDesktopBrowserData: (
-    input: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserDataRequest,
-  ): Promise<import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserDataResult> =>
+    input: import('@pidex/shared/desktop-browser-ipc').DesktopBrowserDataRequest,
+  ): Promise<import('@pidex/shared/desktop-browser-ipc').DesktopBrowserDataResult> =>
     ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.data, input),
   onDesktopBrowserUtilityEvent: (
     listener: (
-      event: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserUtilityEvent,
+      event: import('@pidex/shared/desktop-browser-ipc').DesktopBrowserUtilityEvent,
     ) => void,
   ): (() => void) => {
     const handler = (
       _event: Electron.IpcRendererEvent,
-      value: import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserUtilityEvent,
+      value: import('@pidex/shared/desktop-browser-ipc').DesktopBrowserUtilityEvent,
     ) => listener(value)
     ipcRenderer.on(DESKTOP_BROWSER_IPC_CHANNELS.utilityEvent, handler)
     return () => ipcRenderer.removeListener(DESKTOP_BROWSER_IPC_CHANNELS.utilityEvent, handler)
@@ -350,7 +350,7 @@ const desktop = {
   setDesktopBrowserPermission: (input: {
     origin: string
     decision: 'allow' | 'deny' | 'remove'
-  }): Promise<import('@codepilotx/shared/desktop-browser-ipc').DesktopBrowserSitePermission[]> =>
+  }): Promise<import('@pidex/shared/desktop-browser-ipc').DesktopBrowserSitePermission[]> =>
     ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.permission, input),
   getDesktopBrowserState: (input: DesktopBrowserTabInput): Promise<DesktopBrowserSnapshot> =>
     ipcRenderer.invoke(DESKTOP_BROWSER_IPC_CHANNELS.getState, input),
@@ -394,17 +394,17 @@ const desktop = {
   openMicrophonePrivacySettings: (): Promise<void> =>
     ipcRenderer.invoke(DESKTOP_MICROPHONE_IPC_CHANNELS.openPrivacySettings),
   resolveProviderIcon: (
-    input: import('@codepilotx/shared/desktop-provider-icon-ipc').DesktopProviderIconResolveInput,
-  ): Promise<import('@codepilotx/shared/desktop-provider-icon-ipc').DesktopProviderIconResolution> =>
+    input: import('@pidex/shared/desktop-provider-icon-ipc').DesktopProviderIconResolveInput,
+  ): Promise<import('@pidex/shared/desktop-provider-icon-ipc').DesktopProviderIconResolution> =>
     ipcRenderer.invoke(DESKTOP_PROVIDER_ICON_IPC_CHANNELS.resolve, input),
   onProviderIconChange: (
     listener: (
-      change: import('@codepilotx/shared/desktop-provider-icon-ipc').DesktopProviderIconChange,
+      change: import('@pidex/shared/desktop-provider-icon-ipc').DesktopProviderIconChange,
     ) => void,
   ): (() => void) => {
     const handler = (
       _event: Electron.IpcRendererEvent,
-      change: import('@codepilotx/shared/desktop-provider-icon-ipc').DesktopProviderIconChange,
+      change: import('@pidex/shared/desktop-provider-icon-ipc').DesktopProviderIconChange,
     ): void => listener(change)
     ipcRenderer.on(DESKTOP_PROVIDER_ICON_IPC_CHANNELS.changed, handler)
     return () => ipcRenderer.removeListener(DESKTOP_PROVIDER_ICON_IPC_CHANNELS.changed, handler)
@@ -689,7 +689,7 @@ const desktop = {
   DesktopDeepLinkIpcBridge &
   Record<string, unknown>
 
-contextBridge.exposeInMainWorld('codePilotXDesktop', desktop)
+contextBridge.exposeInMainWorld('DesktopBridge', desktop)
 
 function applyStartupThemeSeed(value: unknown): void {
   if (!isStartupThemeSeed(value)) return
@@ -855,7 +855,7 @@ function isDesktopTerminalChunk(value: unknown): boolean {
   )
 }
 
-/** 与 @codepilotx/shared/desktop-window-ipc 的校验保持一致（preload 不能运行时引用它）。 */
+/** 与 @pidex/shared/desktop-window-ipc 的校验保持一致（preload 不能运行时引用它）。 */
 function isDesktopResizeActivity(value: unknown): value is DesktopResizeActivity {
   if (!isRecord(value)) return false
   if (Object.keys(value).length !== 3) return false

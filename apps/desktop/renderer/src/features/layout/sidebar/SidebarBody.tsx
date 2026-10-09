@@ -2,14 +2,14 @@ import type React from 'react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ChevronDown, Ellipsis, Plus, RefreshCw, SquarePen, X } from 'lucide-react'
 import { AnimatePresence, motion, Reorder, useIsPresent } from 'motion/react'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import type {
   DesktopSidebarOrganization,
   DesktopSidebarSort,
   DesktopWorkspace,
   SidebarSectionId,
-} from '../../../../shared/types.js'
-import type { SessionListItem } from '../../../uiTypes.js'
+} from '../../../../shared/Types.js'
+import type { SessionListItem } from '../../../UiTypes.js'
 import { Button } from '../../../components/ui/Button.js'
 
 import {
@@ -26,9 +26,9 @@ import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import {
   type KeyedDisclosureStore,
   useDisclosureExpanded,
-} from '../../../components/ui/keyedDisclosureStore.js'
-import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
-import { fastTween, motionTransition, standardTween } from '../../motion/motionTransitions.js'
+} from '../../../components/ui/KeyedDisclosureStore.js'
+import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
+import { fastTween, motionTransition, standardTween } from '../../motion/MotionTransitions.js'
 import { SidebarEmptyRow } from './SidebarRow.js'
 import { SidebarHoverCardProvider } from './SidebarHoverCard.js'
 import { DropdownActions } from '../../../components/ui/DropdownActions.js'
@@ -41,7 +41,7 @@ import {
   resolveSidebarDragSelection,
   useSidebarDrag,
   type SidebarDropDestination,
-} from './sidebarDragContext.js'
+} from './SidebarDragContext.js'
 import {
   buildSidebarPinnedItems,
   clampTimelineVisibleLimit,
@@ -58,15 +58,15 @@ import {
   type SidebarProjectSessionBucket,
   type SidebarTimelineModel,
   sliceSidebarTimelineModel,
-} from './sidebarViewModel.js'
-import { cx } from '../../../utils/cx.js'
-import { moveFocusOnArrowKey } from '../../../utils/arrowListFocus.js'
-import type { SidebarProjectCatalogState } from './useSidebarProjectCatalog.js'
+} from './SidebarViewModel.js'
+import { cx } from '../../../utils/Cx.js'
+import { moveFocusOnArrowKey } from '../../../utils/ArrowListFocus.js'
+import type { SidebarProjectCatalogState } from './UseSidebarProjectCatalog.js'
 import {
   type SidebarScrollModeKey,
   useSidebarScrollController,
-} from './useSidebarScrollController.js'
-import { sidebarSectionDisclosureKey } from './sidebarDisclosureStore.js'
+} from './UseSidebarScrollController.js'
+import { sidebarSectionDisclosureKey } from './SidebarDisclosureStore.js'
 
 const PINNED_INITIAL_LIMIT = 10
 const PINNED_LIMIT_STEP = 10

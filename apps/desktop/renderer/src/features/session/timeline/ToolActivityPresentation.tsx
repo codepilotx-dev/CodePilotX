@@ -10,7 +10,7 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
-import type { Item, ToolActivityTarget } from '@codepilotx/shared/thread'
+import type { Item, ToolActivityTarget } from '@pidex/shared/thread'
 
 import { useConversationItemContext } from './ConversationItemContext.js'
 

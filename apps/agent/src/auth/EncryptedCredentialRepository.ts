@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { Effect } from 'effect'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type {
   AgentDatabase,
   StoredCredentialHealth,

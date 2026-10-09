@@ -15,7 +15,7 @@ import type {
   DesktopProjectSource,
   DesktopProjectSourceReadResult,
   DesktopWorkspace,
-} from '../../../shared/types.js'
+} from '../../../shared/Types.js'
 import { Button } from '../../components/ui/Button.js'
 
 import { SearchInput } from '../../components/ui/SearchInput.js'
@@ -23,10 +23,10 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../components/ui/iconTokens.js'
+} from '../../components/ui/IconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
-import { arrayBufferToBase64 } from '../../utils/binaryEncoding.js'
-import { cx } from '../../utils/cx.js'
+import { arrayBufferToBase64 } from '../../utils/BinaryEncoding.js'
+import { cx } from '../../utils/Cx.js'
 import { WorkspaceFileTree } from '../layout/WorkspaceFileTree.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
@@ -35,19 +35,19 @@ import {
   PROJECT_APPEARANCE_COLOR_CLASS,
   PROJECT_APPEARANCE_MARKER_CLASS,
   ProjectAppearanceGlyph,
-} from '../projects/projectAppearance.js'
-import { notifyProjectCatalogChanged } from '../projects/projectCatalogEvents.js'
+} from '../projects/ProjectAppearance.js'
+import { notifyProjectCatalogChanged } from '../projects/ProjectCatalogEvents.js'
 import { LocalEnvironmentProjectSettings } from './local-environment/LocalEnvironmentProjectSettings.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsSection } from './SettingsSection.js'
-import { useDesktopSettings } from './useDesktopSettings.js'
+import { useDesktopSettings } from './UseDesktopSettings.js'
 import {
   filterEnvironmentProjects,
   isProjectSettingsConflict,
   sortEnvironmentProjects,
-} from './environmentSettingsModel.js'
-import { errorMessageOf as errorMessage } from '@codepilotx/shared/errors'
+} from './EnvironmentSettingsModel.js'
+import { errorMessageOf as errorMessage } from '@pidex/shared/errors'
 
 type Props = {
   onError: (message: string) => void

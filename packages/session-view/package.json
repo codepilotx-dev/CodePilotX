@@ -1,5 +1,5 @@
 {
-  "name": "@codepilotx/session-view",
+  "name": "@pidex/session-view",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,8 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@codepilotx/agent-protocol": "workspace:*",
-    "@codepilotx/shared": "workspace:*"
+    "@pidex/agent-protocol": "workspace:*",
+    "@pidex/shared": "workspace:*"
   },
   "devDependencies": {
     "typescript": "5.9.3"

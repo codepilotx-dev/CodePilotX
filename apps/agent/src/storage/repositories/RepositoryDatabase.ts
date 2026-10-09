@@ -7,6 +7,6 @@ export type {
   StoredApprovalCheckpoint,
   StoredCredentialHealth,
   StoredEncryptedCredential,
-} from './repository-core'
+} from './RepositoryCore'
 
-export { ReviewRepositoryDatabase as RepositoryDatabase } from './review-repository'
+export { ReviewRepositoryDatabase as RepositoryDatabase } from './ReviewRepository'

@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../../components/ui/IconTokens.js'
 import { Copy, Download, Maximize2, Minus, Plus } from 'lucide-react'
 import {
   lazy,
@@ -18,8 +18,8 @@ import { Button } from '../../../components/ui/Button.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { desktopClient, desktopClipboard } from '../../../services/desktop-client/index.js'
 import { resolveLanguageFromPath } from '../../syntax/index.js'
-import type { UserAttachmentPreviewTab } from '../../layout/dock/rightDockState.js'
-import { type LoadedUserAttachment, useUserAttachmentPreview } from './useUserAttachmentPreview.js'
+import type { UserAttachmentPreviewTab } from '../../layout/dock/RightDockState.js'
+import { type LoadedUserAttachment, useUserAttachmentPreview } from './UseUserAttachmentPreview.js'
 
 const FileEditor = lazy(() =>
   import('../../editor/FileEditor.js').then((module) => ({ default: module.FileEditor })),

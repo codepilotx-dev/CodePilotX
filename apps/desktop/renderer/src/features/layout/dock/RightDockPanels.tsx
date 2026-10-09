@@ -6,7 +6,7 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../../components/ui/iconTokens.js'
+} from '../../../components/ui/IconTokens.js'
 import {
   AnimatePresence,
   motion,
@@ -16,14 +16,14 @@ import {
   useTransform,
   type MotionValue,
 } from 'motion/react'
-import type { DesktopFileEntry, DesktopWorkspace } from '../../../../shared/types.js'
+import type { DesktopFileEntry, DesktopWorkspace } from '../../../../shared/Types.js'
 import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
 import { Button } from '../../../components/ui/Button.js'
 import { ScrollArea } from '../../../components/ui/ScrollArea.js'
 import { MarkdownMessage } from '../../markdown/index.js'
-import { usePlanDocumentActions } from '../../session/workflow/planDocumentActions.js'
+import { usePlanDocumentActions } from '../../session/workflow/PlanDocumentActions.js'
 import { resolveLanguageFromPath } from '../../syntax/index.js'
-import { cx } from '../../../utils/cx.js'
+import { cx } from '../../../utils/Cx.js'
 import {
   prefetchFileDocument,
   fileDocumentLoadErrorMessage,
@@ -32,24 +32,24 @@ import {
   startFileDocumentExternalChecks,
   updateFileDocument,
   useFileDocument,
-} from '../../workspace/fileDocumentStore.js'
+} from '../../workspace/FileDocumentStore.js'
 import { WorkbenchPanelError, WorkbenchPanelLoading } from '../panels/WorkbenchPanelStates.js'
 import { FileBreadcrumbToolbar } from '../panels/FileBreadcrumbToolbar.js'
-import type { MarkdownFileViewMode, SkillPreviewTab } from './rightDockState.js'
+import type { MarkdownFileViewMode, SkillPreviewTab } from './RightDockState.js'
 import {
   getSendableFilePath,
   WorkspaceFileTree,
   type WorkspaceFileOpenOptions,
 } from '../WorkspaceFileTree.js'
-import { createWorkspaceFileTabId } from '../tabs/workspaceFileTabId.js'
-import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
+import { createWorkspaceFileTabId } from '../tabs/WorkspaceFileTabId.js'
+import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
 import {
   exitTween,
   instantTween,
   layoutTween,
   motionTransition,
-} from '../../motion/motionTransitions.js'
-import { readRuntimeSkill } from '../../settings/plugins/skillClientAdapter.js'
+} from '../../motion/MotionTransitions.js'
+import { readRuntimeSkill } from '../../settings/plugins/SkillClientAdapter.js'
 import { desktopClipboard } from '../../../services/desktop-client/index.js'
 
 const ConflictMergeEditor = lazy(() =>

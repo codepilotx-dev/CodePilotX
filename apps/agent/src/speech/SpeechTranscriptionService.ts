@@ -1,9 +1,9 @@
-import type { SpeechStatus } from '@codepilotx/agent-protocol'
+import type { SpeechStatus } from '@pidex/agent-protocol'
 import { randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import {
   SPEECH_MAX_AUDIO_BYTES,
   SPEECH_MAX_DURATION_MS,

@@ -2,18 +2,18 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { RefreshCw, Save, Trash2 } from 'lucide-react'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
 import type {
   DesktopMemoryRecallEvent,
   DesktopProjectMemory,
   DesktopProjectMemoryContent,
-} from '../../../shared/types.js'
+} from '../../../shared/Types.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
-import { useDesktopSettings } from './useDesktopSettings.js'
+import { useDesktopSettings } from './UseDesktopSettings.js'
 import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
 

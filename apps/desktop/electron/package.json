@@ -1,12 +1,12 @@
 {
-  "name": "@codepilotx/desktop-electron",
+  "name": "@pidex/desktop-electron",
   "version": "0.2.0-beta.5",
   "private": true,
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.preload.json --noEmit",
-    "build": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.preload.json --noEmit && bun build src/preload.cts --target=node --format=cjs --outfile=dist/preload.cjs --external electron && bun build src/main.ts --target=node --format=esm --outdir=dist --external electron --external node-pty --sourcemap=external && bun scripts/build-browser-runtime.ts",
+    "build": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.preload.json --noEmit && bun build src/preload.cts --target=node --format=cjs --outfile=dist/preload.cjs --external electron && bun build src/main.ts --target=node --format=esm --outdir=dist --external electron --external node-pty --sourcemap=external && bun scripts/BuildBrowserRuntime.ts",
     "dev": "bun run build && electron .",
     "test:smoke": "playwright test --config playwright.smoke.config.ts",
     "test:performance": "playwright test --config playwright.performance.config.ts",
@@ -15,8 +15,8 @@
     "package:win": "electron-builder --win --x64 --publish never"
   },
   "devDependencies": {
-    "@codepilotx/shared": "workspace:*",
-    "@codepilotx/agent-protocol": "workspace:*",
+    "@pidex/shared": "workspace:*",
+    "@pidex/agent-protocol": "workspace:*",
     "playwright-core": "1.59.1",
     "effect": "4.0.0-beta.83",
     "@playwright/test": "1.59.1",
@@ -27,7 +27,7 @@
   },
   "build": {
     "appId": "com.codepilotx.desktop",
-    "productName": "CodePilotX",
+    "productName": "Pidex Desktop",
     "publish": {
       "provider": "github",
       "owner": "codepilotx-dev",
@@ -56,8 +56,8 @@
         "to": "whale-icon.svg"
       },
       {
-        "from": "../../agent/dist/x64/codepilotx-agent.exe",
-        "to": "agent/codepilotx-agent.exe"
+        "from": "../../agent/dist/x64/pidex-agent.exe",
+        "to": "agent/pidex-agent.exe"
       },
       {
         "from": "../../agent/resources/skills",
@@ -94,8 +94,9 @@
     ],
     "protocols": [
       {
-        "name": "CodePilotX Deep Link",
+        "name": "Pidex Deep Link",
         "schemes": [
+          "pidex",
           "codepilotx"
         ]
       }
@@ -103,7 +104,7 @@
     "win": {
       "icon": "icon.ico",
       "target": "nsis",
-      "artifactName": "CodePilotX-${version}-${arch}.${ext}"
+      "artifactName": "Pidex-Desktop-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,

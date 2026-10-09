@@ -17,10 +17,10 @@ import type {
   LocalRouterMode,
   ModelProviderID,
   SidebarProductMode,
-} from '../../../../shared/types.js'
-import { THINKING_MODE_OPTIONS } from '../../settings/settingsStorage.js'
-import type { ModelPreset } from '../../../modelPresets.js'
-import type { Message } from '../../../uiTypes.js'
+} from '../../../../shared/Types.js'
+import { THINKING_MODE_OPTIONS } from '../../settings/SettingsStorage.js'
+import type { ModelPreset } from '../../../ModelPresets.js'
+import type { Message } from '../../../UiTypes.js'
 import { ComposerCard } from './ComposerCard.js'
 import type {
   ComposerCapabilities,
@@ -37,12 +37,12 @@ import type {
   ComposerSurface,
   ComposerUtilityBarVariant,
   WorkingPlugin,
-} from './composerTypes.js'
-import { useDesktopComposerController } from './useDesktopComposerController.js'
-import { resolveAvailableCodingModel } from './codingModelSelection.js'
+} from './ComposerTypes.js'
+import { useDesktopComposerController } from './UseDesktopComposerController.js'
+import { resolveAvailableCodingModel } from './CodingModelSelection.js'
 
-export { loadCachedRuntimeSkills } from './useDesktopComposerController.js'
-export { getDesktopComposerBranchName } from './composerWorkspacePresentation.js'
+export { loadCachedRuntimeSkills } from './UseDesktopComposerController.js'
+export { getDesktopComposerBranchName } from './ComposerWorkspacePresentation.js'
 export type {
   ComposerCapabilities,
   ComposerCollaborationMode,
@@ -53,7 +53,7 @@ export type {
   ComposerStackMode,
   ComposerSubmitShortcut,
   ComposerUtilityBarVariant,
-} from './composerTypes.js'
+} from './ComposerTypes.js'
 
 type ProviderModelOption = {
   providerID: ModelProviderID

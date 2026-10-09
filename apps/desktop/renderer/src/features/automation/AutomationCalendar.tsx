@@ -1,7 +1,7 @@
-import { APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZES } from '../../components/ui/IconTokens.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type React from 'react'
-import type { CalendarOccurrence } from '@codepilotx/shared/calendar'
+import type { CalendarOccurrence } from '@pidex/shared/calendar'
 import { Popover as Popover } from '../../components/ui/floating/Popover.js'
 import { Calendar, ChevronDown, ChevronLeft, ChevronRight, MessageSquare, Play } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
@@ -12,13 +12,13 @@ import {
 } from '../../components/ui/DatePicker.js'
 
 import { Spinner } from '../../components/ui/Spinner.js'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 import {
   calendarDates,
   calendarStatusLabel as statusLabel,
   calendarOccurrencesByDate,
   type CalendarDateCell,
-} from './calendarDates.js'
+} from './CalendarDates.js'
 
 const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'] as const
 

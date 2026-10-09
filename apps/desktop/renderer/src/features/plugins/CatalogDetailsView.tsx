@@ -1,12 +1,12 @@
-import type { PluginDetails } from '@codepilotx/agent-protocol'
+import type { PluginDetails } from '@pidex/agent-protocol'
 import type React from 'react'
 import { ExternalLink, Plus, Sparkles } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
-import type { DesktopSkillCatalogItem } from '../../../shared/types.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
+import type { DesktopSkillCatalogItem } from '../../../shared/Types.js'
 import { PluginProductDetailsView } from './PluginProductDetailsView.js'
-import type { PluginCatalogItem } from './pluginCatalog.js'
-import { cx } from '../../utils/cx.js'
+import type { PluginCatalogItem } from './PluginCatalog.js'
+import { cx } from '../../utils/Cx.js'
 import {
   DETAILS_ACTION_GROUP_CLASS,
   DETAILS_ERROR_CLASS,
@@ -20,7 +20,7 @@ import {
   DETAILS_SECTION_HEADING_CLASS,
   DETAILS_SECTION_TITLE_CLASS,
   FORCED_COLORS_SURFACE_CLASS,
-} from './catalogClassNames.js'
+} from './CatalogClassNames.js'
 
 type PluginProps = {
   kind: 'plugin'

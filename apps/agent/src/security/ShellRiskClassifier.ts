@@ -1,4 +1,4 @@
-import type { AdditionalPermissions, ShellInput } from '@codepilotx/shared/thread'
+import type { AdditionalPermissions, ShellInput } from '@pidex/shared/thread'
 import { isAbsolute, relative, resolve } from 'node:path'
 import { shellCommandSegments, type ShellCommandSegment } from '../tool/Shell/CommandSyntax'
 
@@ -97,7 +97,7 @@ const RISK_RULES: readonly RiskRule[] = [
     category: 'security_control',
     policy: 'always-deny',
     pattern: SANDBOX_POLICY_TAMPER,
-    reason: '检测到删除或篡改 CodePilotX 审核策略、沙箱账户和过滤规则',
+    reason: '检测到删除或篡改 Pidex 审核策略、沙箱账户和过滤规则',
   },
   {
     name: 'admin-account-creation',

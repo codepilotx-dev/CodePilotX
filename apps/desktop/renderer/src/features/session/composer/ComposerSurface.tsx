@@ -1,6 +1,6 @@
 import type React from 'react'
 import { forwardRef } from 'react'
-import { cx } from '../../../utils/cx.js'
+import { cx } from '../../../utils/Cx.js'
 
 type ComposerFrameProps = {
   children: React.ReactNode

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ChevronRight, Folder, Plus } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
-import type { RpcResult } from '@codepilotx/agent-protocol'
-import type { DesktopWorkspace } from '../../../../shared/types.js'
+import type { RpcResult } from '@pidex/agent-protocol'
+import type { DesktopWorkspace } from '../../../../shared/Types.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { environmentDomainClient } from '../../../services/desktop-client/environment-domain-client.js'
+import { environmentDomainClient } from '../../../services/desktop-client/EnvironmentDomainClient.js'
 import { Button } from '../../../components/ui/Button.js'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../../components/ui/IconTokens.js'
 import { LocalEnvironmentSettings } from './LocalEnvironmentSettings.js'
 
 type Props = {

@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
-import type { RpcResult } from '@codepilotx/agent-protocol'
+import type { RpcResult } from '@pidex/agent-protocol'
 import { createTwoFilesPatch } from 'diff'
 import { Effect } from 'effect'
-import { AgentError, type Item } from '../domain'
+import { AgentError, type Item } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import type {
@@ -15,12 +15,12 @@ import type {
   TurnPatchApplyState,
   TurnPatchMutationFile,
 } from './TurnPatchTypes'
-import { parseHunks } from '../review/diff/parsers'
+import { parseHunks } from '../review/diff/Parsers'
 import {
   UNRENDERABLE_CHANGED_BYTES,
   UNRENDERABLE_CHANGED_LINES,
   UNRENDERABLE_LINE_BYTES,
-} from '../review/diff/limits'
+} from '../review/diff/Limits'
 
 type ApplyAction = 'undo' | 'reapply'
 

@@ -18,7 +18,7 @@ import type {
   DesktopCustomProviderDefinition,
   DesktopModelProviderSummary,
   DesktopProviderModelDefinition,
-} from '../../../../shared/types.js'
+} from '../../../../shared/Types.js'
 import { Button } from '../../../components/ui/Button.js'
 
 import { Input } from '../../../components/ui/Input.js'
@@ -29,13 +29,13 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../../components/ui/iconTokens.js'
-import { useDialogFocusRestore } from '../../../components/ui/useDialogFocusRestore.js'
-import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
+} from '../../../components/ui/IconTokens.js'
+import { useDialogFocusRestore } from '../../../components/ui/UseDialogFocusRestore.js'
+import { useLastNonNull } from '../../../hooks/UsePresenceRetention.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { SettingsDropdown } from '../../settings/SettingsDropdown.js'
-import { PROVIDER_PRESETS, type ProviderPreset } from './providerEditorPresets.js'
-import { cx } from '../../../utils/cx.js'
+import { PROVIDER_PRESETS, type ProviderPreset } from './ProviderEditorPresets.js'
+import { cx } from '../../../utils/Cx.js'
 import {
   DEEPSEEK_PROTOCOL_OPTIONS,
   DEFAULT_DEEPSEEK_PROTOCOL,
@@ -44,7 +44,7 @@ import {
   deepSeekProtocolOf,
   deepSeekProtocolOption,
   type DeepSeekProtocol,
-} from './deepseekProtocol.js'
+} from './DeepseekProtocol.js'
 
 const API_OPTIONS = [
   { value: 'openai-completions', label: 'OpenAI Completions' },
@@ -791,7 +791,7 @@ export function ProviderEditorDialog({
                   </span>
                   <textarea
                     className="provider-editor-textarea tw:w-full tw:min-h-20 tw:resize-y tw:rounded-md tw:border tw:border-app-border-subtle tw:bg-app-raised tw:px-3 tw:py-2 tw:text-app-text tw:type-code tw:transition-[border-color] tw:duration-state tw:ease-standard tw:focus:border-app-accent tw:focus:outline-2 tw:focus:outline-solid tw:focus:outline-offset-[-1px] tw:focus:outline-app-focus tw:placeholder:text-app-text-meta"
-                    placeholder="X-Custom-Header: value&#10;Custom-Client: CodePilotX"
+                    placeholder="X-Custom-Header: value&#10;Custom-Client: Pidex"
                     rows={4}
                     value={headers}
                     onChange={(event) => setHeaders(event.target.value)}

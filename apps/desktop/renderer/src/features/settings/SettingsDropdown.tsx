@@ -1,8 +1,8 @@
 import type React from 'react'
 import { Select, type SelectOption } from '../../components/ui/Select.js'
-import type { PopoverSizingProps } from '../../components/ui/popoverSizing.js'
+import type { PopoverSizingProps } from '../../components/ui/PopoverSizing.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 
 type Option = SelectOption<string> & {
   label: string

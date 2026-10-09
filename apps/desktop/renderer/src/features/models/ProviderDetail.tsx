@@ -1,7 +1,7 @@
 import { Server } from 'lucide-react'
 import type React from 'react'
 import { useId } from 'react'
-import type { ModelProviderID } from '../../../shared/types.js'
+import type { ModelProviderID } from '../../../shared/Types.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { ProviderIcon } from './ProviderIcon.js'
 

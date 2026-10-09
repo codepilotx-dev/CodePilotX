@@ -31,7 +31,7 @@ const unavailableResponse = () =>
     headers: {
       'Cache-Control': 'no-store',
       'Content-Type': 'text/plain; charset=utf-8',
-      'X-CodePilotX-Renderer-Proxy': 'upstream-unavailable',
+      'X-Pidex-Renderer-Proxy': 'upstream-unavailable',
     },
   })
 
@@ -49,7 +49,7 @@ export const proxyRendererRequest = async (request: Request, rendererDevURL: str
       headers: {
         'Cache-Control': 'no-store',
         'Content-Type': 'text/plain; charset=utf-8',
-        'X-CodePilotX-Renderer-Proxy': 'websocket-direct-only',
+        'X-Pidex-Renderer-Proxy': 'websocket-direct-only',
         Connection: 'close',
       },
     })

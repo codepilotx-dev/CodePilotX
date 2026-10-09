@@ -16,8 +16,8 @@ import {
 import { Button } from '../../../components/ui/Button.js'
 import { PopoverCheckboxItem, PopoverItem } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
-import type { ReviewTabUiState } from '../../layout/tabs/conversationUiState.js'
+import { APP_ICON_SIZE } from '../../../components/ui/IconTokens.js'
+import type { ReviewTabUiState } from '../../layout/tabs/ConversationUiState.js'
 
 type ReviewBooleanPreference =
   'wrapLines' | 'richPreview' | 'showWordDiff' | 'hideWhitespace' | 'loadFullFiles' | 'hideImports'

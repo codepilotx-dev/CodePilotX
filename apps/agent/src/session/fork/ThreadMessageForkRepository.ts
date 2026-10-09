@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { AgentError } from '../../domain'
+import { AgentError } from '../../Domain'
 import type { AgentDatabase } from '../../storage/database/AgentDatabase'
 
 export const MESSAGE_FORK_STEPS = [

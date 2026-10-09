@@ -3,11 +3,11 @@ import type {
   AutomationExecution,
   AutomationRun,
   AutomationRunStatus,
-} from '@codepilotx/shared/automation'
-import type { ModelRef } from '@codepilotx/shared/model'
-import type { PermissionConfig } from '@codepilotx/shared/thread'
-import { AgentError } from '../domain'
-import type { AutomationRepository } from '../storage/repositories/automation-repository'
+} from '@pidex/shared/automation'
+import type { ModelRef } from '@pidex/shared/model'
+import type { PermissionConfig } from '@pidex/shared/thread'
+import { AgentError } from '../Domain'
+import type { AutomationRepository } from '../storage/repositories/AutomationRepository'
 
 type TerminalStatus = Extract<AutomationRunStatus, 'completed' | 'failed' | 'interrupted'>
 type RecoverableTurnStatus = 'queued' | 'running' | 'waiting' | TerminalStatus

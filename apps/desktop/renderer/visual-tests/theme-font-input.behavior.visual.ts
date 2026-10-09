@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { prepareVisualTheme, waitForVisualPage } from './visual-test-helpers.js'
+import { prepareVisualTheme, waitForVisualPage } from './VisualTestHelpers.js'
 
 const THEME_STORAGE_KEY = 'codepilotx.desktop.appearance.v6'
 

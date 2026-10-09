@@ -9,13 +9,13 @@ import {
   type MotionValue,
 } from 'motion/react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
+import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
 import {
   exitTween,
   instantTween,
   layoutTween,
   motionTransition,
-} from '../../motion/motionTransitions.js'
+} from '../../motion/MotionTransitions.js'
 import { REVIEW_FILE_TREE_PANEL_MIN_WIDTH } from '../diff/WorkspaceReviewDiff.js'
 
 type Props = {

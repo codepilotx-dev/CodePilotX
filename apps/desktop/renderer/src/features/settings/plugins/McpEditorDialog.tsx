@@ -8,7 +8,7 @@ import type {
   DesktopMcpServerListItem,
   DesktopMcpToolApprovalMode,
   SaveDesktopMcpServerOptions,
-} from '../../../../shared/types.js'
+} from '../../../../shared/Types.js'
 import { Button } from '../../../components/ui/Button.js'
 
 import { Input } from '../../../components/ui/Input.js'
@@ -19,10 +19,10 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../../components/ui/iconTokens.js'
+} from '../../../components/ui/IconTokens.js'
 import { SettingsDropdown } from '../SettingsDropdown.js'
-import { useLastNonNull } from '../../../hooks/usePresenceRetention.js'
-import { errorMessageOf as rawErrorMessage } from '@codepilotx/shared/errors'
+import { useLastNonNull } from '../../../hooks/UsePresenceRetention.js'
+import { errorMessageOf as rawErrorMessage } from '@pidex/shared/errors'
 
 type TransportType = DesktopMcpServerConfig['type']
 

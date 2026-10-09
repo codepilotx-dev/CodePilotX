@@ -1,5 +1,5 @@
 import { Effect } from 'effect'
-import { bootstrap } from './bootstrap'
+import { bootstrap } from './Bootstrap'
 import { resolveAgentLogDirectory } from './config/Config'
 import { AgentLogger } from './observability/AgentLogger'
 

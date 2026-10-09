@@ -4,7 +4,7 @@ import {
   type LocalEnvironmentAction,
   type LocalEnvironmentConfig,
   type PlatformCommand,
-} from './types'
+} from './Types'
 
 export class LocalEnvironmentConfigError extends Error {
   readonly code = 'LOCAL_ENVIRONMENT_INVALID'

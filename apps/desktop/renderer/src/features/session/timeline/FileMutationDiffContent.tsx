@@ -1,5 +1,5 @@
 import React from 'react'
-import type { DesktopDiffMarkerStyle, DesktopReviewDiffFile } from '../../../../shared/types.js'
+import type { DesktopDiffMarkerStyle, DesktopReviewDiffFile } from '../../../../shared/Types.js'
 
 import { ReviewDiffReadOnlyInline } from '../../review/diff/ReviewDiffSurface.js'
 import {
@@ -7,8 +7,8 @@ import {
   ReviewVirtualDiffRows,
   shouldVirtualizeReviewFile,
 } from '../../review/diff/WorkspaceReviewDiff.js'
-import { buildReviewIntralineByLineId } from '../../review/diff/reviewIntralineDiff.js'
-import { unifiedPatchToDesktopHunks } from '../../review/diff/reviewDiffAdapter.js'
+import { buildReviewIntralineByLineId } from '../../review/diff/ReviewIntralineDiff.js'
+import { unifiedPatchToDesktopHunks } from '../../review/diff/ReviewDiffAdapter.js'
 import type { ThreadPatchDiff } from './FileMutationDiffBody.js'
 
 const EMPTY_COMMENTS = new Map()

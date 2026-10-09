@@ -4,7 +4,7 @@ import { basename, dirname, relative, resolve, sep } from 'node:path'
 import type {
   LocalEnvironmentActionMetadata,
   LocalEnvironmentReadResult,
-} from '@codepilotx/agent-protocol/local-environment'
+} from '@pidex/agent-protocol/local-environment'
 import type { ConfigObject, ConfigValue } from '../config/ConfigService'
 import {
   parseJsoncObject,
@@ -13,7 +13,7 @@ import {
   type JsoncEdit,
   type JsoncPathSegment,
 } from '../config/JsoncDocument'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import { LocalEnvironmentConfigError, parseLocalEnvironmentConfig } from './LocalEnvironmentConfig'
 import { LocalEnvironmentDiscovery, localEnvironmentTrustIdentity } from './LocalEnvironmentDiscovery'
 import type { LocalEnvironmentCatalog } from './LocalEnvironmentCatalog'
@@ -23,7 +23,7 @@ import {
   currentEnvironmentPlatform,
   resolvePlatformCommand,
   type LocalEnvironmentOperationKind,
-} from './types'
+} from './Types'
 
 const EMPTY_REVISION = createHash('sha256').update('').digest('hex')
 const hash = (text: string) => createHash('sha256').update(text, 'utf8').digest('hex')

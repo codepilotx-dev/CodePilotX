@@ -1,6 +1,6 @@
 import { SearchInput } from '../SearchInput.js'
 import { ContextMenu, MenuRoot, selectMenuItem, useMenu, useMenuSurface } from './Menu.js'
-import type { PopoverSize } from '../popoverSizing.js'
+import type { PopoverSize } from '../PopoverSizing.js'
 import { useLocale as useI18n } from '../../../features/i18n/LocaleProvider.js'
 import React, {
   createContext,
@@ -15,7 +15,7 @@ import React, {
   type ReactNode,
 } from 'react'
 import { Check } from 'lucide-react'
-import { useFloatingPosition, type FloatingPlacement } from './useFloatingPosition.js'
+import { useFloatingPosition, type FloatingPlacement } from './UseFloatingPosition.js'
 import {
   mergeRefs,
   Slot,
@@ -25,7 +25,7 @@ import {
   usePortal,
   useTopLayer,
   type DismissEvents,
-} from './primitives.js'
+} from './Primitives.js'
 
 interface DropdownContextValue {
   mode: 'menu' | 'select'

@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto'
 import { realpath, stat } from 'node:fs/promises'
-import type { ProjectExecutionEnvironment } from '@codepilotx/shared/thread'
-import type { EventEnvelope, ModelRef } from '../domain'
-import { AgentError } from '../domain'
+import type { ProjectExecutionEnvironment } from '@pidex/shared/thread'
+import type { EventEnvelope, ModelRef } from '../Domain'
+import { AgentError } from '../Domain'
 import type { RepositoryDatabase } from '../storage/repositories/RepositoryDatabase'
-import { projectPathKey } from '../storage/repositories/project-repository'
+import { projectPathKey } from '../storage/repositories/ProjectRepository'
 import type { ProjectSourceService } from './ProjectSourceService'
 
 type ProjectRemovalResult = {

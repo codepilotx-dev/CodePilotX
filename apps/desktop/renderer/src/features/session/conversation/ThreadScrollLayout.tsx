@@ -1,10 +1,10 @@
 import React from 'react'
 
-import { cx } from '../../../utils/cx.js'
+import { cx } from '../../../utils/Cx.js'
 import {
   distanceFromThreadBottom,
   scrollOffsetForThreadBottomDistance,
-} from './useThreadScrollController.js'
+} from './UseThreadScrollController.js'
 
 export type ThreadScrollLayoutProps = {
   children: React.ReactNode

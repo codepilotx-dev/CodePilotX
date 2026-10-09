@@ -1,13 +1,13 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { lstat, readFile, realpath, stat } from 'node:fs/promises'
 import { basename, extname, isAbsolute, relative, resolve } from 'node:path'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import { ContentBlobStore } from '../storage/ContentBlobStore'
 import {
   ProjectSourceRepository,
   type StoredProjectSource,
-} from '../storage/repositories/project-source-repository'
+} from '../storage/repositories/ProjectSourceRepository'
 import {
   ATTACHMENT_LIMITS,
   prepareAttachmentUpload,

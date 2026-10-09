@@ -1,9 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
-import { AgentError } from '../domain'
-import type { StoredThreadWorkspace } from '../storage/repositories/repository-core'
+import { AgentError } from '../Domain'
+import type { StoredThreadWorkspace } from '../storage/repositories/RepositoryCore'
 import type { WorktreeRepository } from './WorktreeRepository'
-import type { TaskExecutionBinding } from './types'
+import type { TaskExecutionBinding } from './Types'
 
 const bindingDigest = (...parts: string[]) =>
   createHash('sha256').update(parts.join('\0'), 'utf8').digest('hex')

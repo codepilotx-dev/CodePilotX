@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import type React from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { PetDescriptor } from '@codepilotx/agent-protocol'
+import type { PetDescriptor } from '@pidex/agent-protocol'
 import { PawPrint } from 'lucide-react'
 import { GlobalErrorModal } from '../../components/GlobalErrorModal.js'
 import { Button } from '../../components/ui/Button.js'
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 import { WorkspaceHeaderItem } from '../layout/workspace-header/index.js'
 import { PetCatalogSection } from './PetCatalogSection.js'
-import { usePetSettingsController } from './usePetSettingsController.js'
+import { usePetSettingsController } from './UsePetSettingsController.js'
 
 export function PetCatalogPage(): React.ReactNode {
   const navigate = useNavigate()

@@ -2,8 +2,8 @@ import { Dropdown as Menu } from './floating/Dropdown.js'
 import { ChevronRight } from 'lucide-react'
 import type { AppContextMenuAction } from './AppContextMenu.js'
 import { PopoverItem, PopoverSeparator } from './PopoverItem.js'
-import { APP_ICON_SIZE } from './iconTokens.js'
-import { buildPopoverSizingStyle } from './popoverSizing.js'
+import { APP_ICON_SIZE } from './IconTokens.js'
+import { buildPopoverSizingStyle } from './PopoverSizing.js'
 
 /** The same action tree powers a dropdown and its context menu. */
 export function DropdownActions({ actions }: { actions: readonly AppContextMenuAction[] }) {

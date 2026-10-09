@@ -12,8 +12,8 @@
 import React from 'react'
 import { Virtualizer, type VirtualizerHandle } from 'virtua'
 
-import { useThreadScrollController } from '../conversation/useThreadScrollController.js'
-import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
+import { useThreadScrollController } from '../conversation/UseThreadScrollController.js'
+import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
 
 const TIMELINE_BOTTOM_SENTINEL = Symbol('timeline-bottom-sentinel')
 

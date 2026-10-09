@@ -6,7 +6,7 @@
 
 ## UI 与模块边界
 
-- 必须遵循 `routes.tsx`、`App.tsx` 和 workbench registry 的现有页面编排与 lazy import 边界。
+- 必须遵循 `Routes.tsx`、`App.tsx` 和 workbench registry 的现有页面编排与 lazy import 边界。
 - Session 代码按 `conversation/`、`composer/`、`timeline/`、`approvals/`、`workflow/`、`summary/`、`subagents/`、`state/` 维护。
 - Review 代码按 `workspace/`、`diff/`、`comments/`、`source/`、`state/` 维护。
 - Layout 代码按 `shell/`、`dock/`、`tabs/`、`panels/` 维护。

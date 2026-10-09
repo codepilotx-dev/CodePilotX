@@ -1,10 +1,10 @@
 import type React from 'react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { VList, type VListHandle } from 'virtua'
-import { cx } from '../../../utils/cx.js'
-import type { ComposerCommand } from './composerSlashCommands.js'
-import { composerMenuScrollTop } from './composerSuggestionMenu.js'
-export { filterComposerMenuItems } from './composerSuggestionMenu.js'
+import { cx } from '../../../utils/Cx.js'
+import type { ComposerCommand } from './ComposerSlashCommands.js'
+import { composerMenuScrollTop } from './ComposerSuggestionMenu.js'
+export { filterComposerMenuItems } from './ComposerSuggestionMenu.js'
 
 export type ComposerMenuItem = {
   key: string

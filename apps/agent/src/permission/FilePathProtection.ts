@@ -1,6 +1,6 @@
 import { realpath } from 'node:fs/promises'
 import { basename, dirname, resolve } from 'node:path'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 
 /** Resolve existing ancestors as well, so new files cannot hide behind a directory link. */
 export async function resolveProtectionPath(path: string): Promise<string> {
@@ -22,7 +22,7 @@ export function filePathProtection(canonicalPath: string, displayPath: string) {
   const protectedGit =
     /(?:^|\/)\.git\/config$/.test(path) || /(?:^|\/)\.git\/hooks(?:\/|$)/.test(path)
   const configScope =
-    displayPath === '@codepilotx/config.json'
+    displayPath === '@pidex/config.json'
       ? ('user' as const)
       : /(?:^|\/)\.codepilotx\/config\.json$/.test(path)
         ? ('project' as const)

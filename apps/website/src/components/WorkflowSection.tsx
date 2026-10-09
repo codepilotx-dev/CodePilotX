@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { WORKFLOW_STEPS } from '../constants/content'
+import { WORKFLOW_STEPS } from '../constants/Content'
 import { ProductPlaceholder } from './ProductPlaceholder'
 import { ArrowRight } from 'lucide-react'
 
@@ -87,7 +87,7 @@ export const WorkflowSection: React.FC = () => {
                 aspectRatio="16:9"
                 badge={`STAGE ${currentStep.step} PREVIEW`}
                 caption={`Workbench state during ${currentStep.name} phase`}
-                windowTitle={`CodePilotX Workflow — Stage ${currentStep.step}`}
+                windowTitle={`Pidex Workflow — Stage ${currentStep.step}`}
               />
             </div>
           </div>

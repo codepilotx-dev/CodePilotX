@@ -7,74 +7,74 @@ import electronUpdater from 'electron-updater'
 import {
   DESKTOP_SETTINGS_IPC_CHANNELS,
   type DesktopSettingsPayload,
-} from '@codepilotx/shared/desktop-settings-ipc'
-import { DESKTOP_UPDATE_IPC_CHANNELS } from '@codepilotx/shared/desktop-update-ipc'
-import { registerAppearanceIpc } from './ipc/register-appearance-ipc.js'
-import { registerDataLocationIpc } from './ipc/register-data-location-ipc.js'
-import { registerDesktopIpc } from './ipc/register-desktop-ipc.js'
-import { registerTerminalIpc } from './ipc/register-terminal-ipc.js'
-import { registerBrowserIpc } from './ipc/register-browser-ipc.js'
-import { ExternalOpenTargetService } from './ipc/external-open-targets.js'
-import { AttachmentDownloadService } from './ipc/attachment-download-service.js'
-import { ComposerPathGrantService } from './ipc/composer-path-grant-service.js'
+} from '@pidex/shared/desktop-settings-ipc'
+import { DESKTOP_UPDATE_IPC_CHANNELS } from '@pidex/shared/desktop-update-ipc'
+import { registerAppearanceIpc } from './ipc/RegisterAppearanceIpc.js'
+import { registerDataLocationIpc } from './ipc/RegisterDataLocationIpc.js'
+import { registerDesktopIpc } from './ipc/RegisterDesktopIpc.js'
+import { registerTerminalIpc } from './ipc/RegisterTerminalIpc.js'
+import { registerBrowserIpc } from './ipc/RegisterBrowserIpc.js'
+import { ExternalOpenTargetService } from './ipc/ExternalOpenTargets.js'
+import { AttachmentDownloadService } from './ipc/AttachmentDownloadService.js'
+import { ComposerPathGrantService } from './ipc/ComposerPathGrantService.js'
 import {
   createDesktopClipboardService,
   createDesktopClipboardTimer,
-} from './clipboard/desktop-clipboard-service.js'
+} from './clipboard/DesktopClipboardService.js'
 import {
   createDesktopLogger,
   resolveDesktopLogDirectory,
   type DesktopLogger,
-} from './logging/desktop-logger.js'
-import { configureAuthCookie, verifyAuthCookie } from './security/auth-session.js'
-import { resolveRendererApplicationOrigin } from './security/renderer-application-origin.js'
-import { readStartupAppearanceConfig } from './settings/startup-appearance-config.js'
-import { AppearanceSettingsStore } from './settings/appearance-settings-store.js'
-import { DataLocationStore, type DataLocationLaunch } from './settings/data-location-store.js'
-import { formatError } from './sidecar/readiness.js'
-import { SidecarSupervisor } from './sidecar/supervisor.js'
-import { DesktopAgentConnectionCoordinator } from './sidecar/connection-coordinator.js'
-import { orchestrateDesktopQuit } from './sidecar/desktop-quit-orchestrator.js'
-import { WindowAppearanceController } from './windows/appearance.js'
-import { WindowManager } from './windows/window-manager.js'
-import { registerPetOverlayIpc } from './ipc/register-pet-overlay-ipc.js'
+} from './logging/DesktopLogger.js'
+import { configureAuthCookie, verifyAuthCookie } from './security/AuthSession.js'
+import { resolveRendererApplicationOrigin } from './security/RendererApplicationOrigin.js'
+import { readStartupAppearanceConfig } from './settings/StartupAppearanceConfig.js'
+import { AppearanceSettingsStore } from './settings/AppearanceSettingsStore.js'
+import { DataLocationStore, type DataLocationLaunch } from './settings/DataLocationStore.js'
+import { formatError } from './sidecar/Readiness.js'
+import { SidecarSupervisor } from './sidecar/Supervisor.js'
+import { DesktopAgentConnectionCoordinator } from './sidecar/ConnectionCoordinator.js'
+import { orchestrateDesktopQuit } from './sidecar/DesktopQuitOrchestrator.js'
+import { WindowAppearanceController } from './windows/Appearance.js'
+import { WindowManager } from './windows/WindowManager.js'
+import { registerPetOverlayIpc } from './ipc/RegisterPetOverlayIpc.js'
 import {
   createElectronNotificationFactory,
   publishNotificationActivation,
   registerNotificationIpc,
   resolveNotificationIconPath,
-} from './ipc/register-notification-ipc.js'
-import { DesktopNotificationService } from './notifications/desktop-notification-service.js'
-import { PetOverlayWindowController } from './windows/pet-overlay-window.js'
-import { PetOverlayWindowStateStore } from './windows/pet-overlay-window-state.js'
-import { DesktopAutoUpdater, type ElectronAutoUpdaterLike } from './update/desktop-auto-updater.js'
-import { resolveStartupPageTheme } from './windows/startup-page.js'
-import { type DesktopDisplayWorkArea, WindowStateStore } from './windows/window-state.js'
-import { TerminalManager } from './terminal/terminal-manager.js'
-import { TerminalHostRpcClient } from './terminal/terminal-host-rpc-client.js'
-import { stopTerminalsBeforeSupervisor } from './terminal/terminal-shutdown.js'
-import { runPackagedTerminalSmoke } from './terminal/packaged-terminal-smoke.js'
-import { DESKTOP_TERMINAL_IPC_CHANNELS } from '@codepilotx/shared/desktop-terminal-ipc'
-import { DESKTOP_BROWSER_IPC_CHANNELS } from '@codepilotx/shared/desktop-browser-ipc'
+} from './ipc/RegisterNotificationIpc.js'
+import { DesktopNotificationService } from './notifications/DesktopNotificationService.js'
+import { PetOverlayWindowController } from './windows/PetOverlayWindow.js'
+import { PetOverlayWindowStateStore } from './windows/PetOverlayWindowState.js'
+import { DesktopAutoUpdater, type ElectronAutoUpdaterLike } from './update/DesktopAutoUpdater.js'
+import { resolveStartupPageTheme } from './windows/StartupPage.js'
+import { type DesktopDisplayWorkArea, WindowStateStore } from './windows/WindowState.js'
+import { TerminalManager } from './terminal/TerminalManager.js'
+import { TerminalHostRpcClient } from './terminal/TerminalHostRpcClient.js'
+import { stopTerminalsBeforeSupervisor } from './terminal/TerminalShutdown.js'
+import { runPackagedTerminalSmoke } from './terminal/PackagedTerminalSmoke.js'
+import { DESKTOP_TERMINAL_IPC_CHANNELS } from '@pidex/shared/desktop-terminal-ipc'
+import { DESKTOP_BROWSER_IPC_CHANNELS } from '@pidex/shared/desktop-browser-ipc'
 import {
   DESKTOP_DEEP_LINK_IPC_CHANNELS,
   normalizeDesktopThreadDeepLinkPayload,
-} from '@codepilotx/shared/desktop-deep-link-ipc'
-import { DesktopBrowserController } from './browser/browser-controller.js'
-import { DesktopComputerController } from './computer/desktop-computer-controller.js'
-import { resolveCpxCuaExecutable } from './computer/cpx-cua-runtime.js'
+} from '@pidex/shared/desktop-deep-link-ipc'
+import { DesktopBrowserController } from './browser/BrowserController.js'
+import { DesktopComputerController } from './computer/DesktopComputerController.js'
+import { resolveCpxCuaExecutable } from './computer/CpxCuaRuntime.js'
 import {
   registerMicrophoneIpc,
   WINDOWS_MICROPHONE_PRIVACY_SETTINGS_URL,
-} from './ipc/register-microphone-ipc.js'
-import { registerMicrophoneMediaPermissions } from './security/microphone-media-permission.js'
+} from './ipc/RegisterMicrophoneIpc.js'
+import { registerMicrophoneMediaPermissions } from './security/MicrophoneMediaPermission.js'
 import {
   createThreadDeepLinkController,
   type ThreadDeepLinkController,
-} from './deep-link/thread-deep-link-controller.js'
-import { ProviderIconCacheService } from './ipc/provider-icon-cache-service.js'
-import { registerProviderIconIpc } from './ipc/register-provider-icon-ipc.js'
-import { DESKTOP_PROVIDER_ICON_IPC_CHANNELS } from '@codepilotx/shared/desktop-provider-icon-ipc'
+} from './deep-link/ThreadDeepLinkController.js'
+import { ProviderIconCacheService } from './ipc/ProviderIconCacheService.js'
+import { registerProviderIconIpc } from './ipc/RegisterProviderIconIpc.js'
+import { DESKTOP_PROVIDER_ICON_IPC_CHANNELS } from '@pidex/shared/desktop-provider-icon-ipc'
 
 const moduleDirectory = dirname(fileURLToPath(import.meta.url))
 const configuredUserDataDirectory = process.env.CODEPILOTX_USER_DATA_DIR?.trim()
@@ -88,14 +88,16 @@ if (process.platform === 'win32') {
   app.setAppUserModelId(app.isPackaged ? 'com.codepilotx.desktop' : process.execPath)
 }
 
-// Windows codepilotx:// 默认协议客户端注册保持最小：packaged 安装由
-// electron-builder protocols 注册，这里只补充运行时默认客户端注册，
-// 不改变开发/打包启动路径。
+// Windows 默认协议客户端注册保持最小：packaged 安装由 electron-builder protocols
+// 注册，这里只补充运行时默认客户端注册，不改变开发/打包启动路径。新链接使用
+// pidex://，同时继续注册 codepilotx://，使改名前的链接与快捷方式仍然可达。
 if (process.platform === 'win32') {
-  if (process.defaultApp && process.argv.length >= 2) {
-    app.setAsDefaultProtocolClient('codepilotx', process.execPath, [resolve(process.argv[1])])
-  } else {
-    app.setAsDefaultProtocolClient('codepilotx')
+  for (const scheme of ['pidex', 'codepilotx']) {
+    if (process.defaultApp && process.argv.length >= 2) {
+      app.setAsDefaultProtocolClient(scheme, process.execPath, [resolve(process.argv[1])])
+    } else {
+      app.setAsDefaultProtocolClient(scheme)
+    }
   }
 }
 
@@ -117,7 +119,7 @@ const rendererDeepLinkReady = new Set<number>()
 const rendererDeepLinkTracked = new Set<number>()
 
 const packagedTerminalSmokeResult = process.env.CODEPILOTX_PACKAGED_TERMINAL_SMOKE_RESULT?.trim()
-const packagedTerminalSmokeRequested = process.argv.includes('--codepilotx-packaged-terminal-smoke')
+const packagedTerminalSmokeRequested = process.argv.includes('--pidex-packaged-terminal-smoke')
 if (
   app.isPackaged &&
   process.platform === 'win32' &&
@@ -436,7 +438,7 @@ async function startDesktop(): Promise<void> {
         })
         activeWindows.showStartupStatus(
           '安装不完整，请重新安装',
-          'CodePilotX Agent 文件缺失',
+          'Pidex Agent 文件缺失',
           'terminal-error',
         )
         return
@@ -458,7 +460,7 @@ async function startDesktop(): Promise<void> {
         })
         activeWindows.showStartupStatus(
           '残留 Agent 未退出',
-          '请结束残留 Agent 进程后重新启动 CodePilotX。',
+          '请结束残留 Agent 进程后重新启动 Pidex。',
           'terminal-error',
         )
         return

@@ -1,4 +1,4 @@
-import type { DesktopEditAction } from '@codepilotx/shared/desktop-edit-ipc'
+import type { DesktopEditAction } from '@pidex/shared/desktop-edit-ipc'
 import {
   createContext,
   useCallback,
@@ -99,7 +99,7 @@ export function EditCommandProvider({ children }: { children: ReactNode }): Reac
         return
       }
 
-      const bridge = window.codePilotXDesktop?.performEditAction
+      const bridge = window.DesktopBridge?.performEditAction
       if (bridge) {
         await bridge(action).catch(() => undefined)
       } else {

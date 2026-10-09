@@ -1,6 +1,6 @@
 import React from 'react'
 import * as RadioGroupPrimitive from '@radix-ui/react-radio-group'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 
 export type RadioGroupProps = {
   value: string

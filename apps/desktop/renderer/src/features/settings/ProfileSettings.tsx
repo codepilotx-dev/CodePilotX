@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/IconTokens.js'
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { Popover as Popover } from '../../components/ui/floating/Popover.js'
 import { Edit3, GitFork, Globe, Mail, MapPin, RefreshCw, Star, User } from 'lucide-react'
@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import type {
   DesktopGithubContributionWeek,
   DesktopGithubProfileRepository,
-} from '../../../shared/types.js'
+} from '../../../shared/Types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { Button } from '../../components/ui/Button.js'
 

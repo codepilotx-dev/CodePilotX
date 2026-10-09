@@ -3,23 +3,23 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "codepilotx",
+      "name": "pidex",
       "devDependencies": {
-        "@codepilotx/shared": "workspace:*",
+        "@pidex/shared": "workspace:*",
         "oxlint": "1.86.0",
         "prettier": "3.9.9",
         "typescript": "5.9.3",
       },
     },
     "apps/agent": {
-      "name": "@codepilotx/agent",
+      "name": "@pidex/agent",
       "version": "0.2.0-beta.5",
       "dependencies": {
-        "@codepilotx/agent-protocol": "workspace:*",
-        "@codepilotx/model-schema": "workspace:*",
-        "@codepilotx/shared": "workspace:*",
         "@earendil-works/pi-ai": "0.99.2",
         "@earendil-works/pi-mcp": "0.99.2",
+        "@pidex/agent-protocol": "workspace:*",
+        "@pidex/model-schema": "workspace:*",
+        "@pidex/shared": "workspace:*",
         "ajv": "8.20.0",
         "ajv-formats": "3.0.1",
         "diff": "8.0.4",
@@ -40,14 +40,14 @@
       },
     },
     "apps/auth-broker": {
-      "name": "@codepilotx/auth-broker",
+      "name": "@pidex/auth-broker",
       "version": "0.1.0",
       "devDependencies": {
         "wrangler": "4.114.0",
       },
     },
     "apps/desktop/electron": {
-      "name": "@codepilotx/desktop-electron",
+      "name": "@pidex/desktop-electron",
       "version": "0.2.0-beta.5",
       "dependencies": {
         "electron-updater": "6.8.9",
@@ -56,8 +56,8 @@
         "smol-toml": "1.7.1",
       },
       "devDependencies": {
-        "@codepilotx/agent-protocol": "workspace:*",
-        "@codepilotx/shared": "workspace:*",
+        "@pidex/agent-protocol": "workspace:*",
+        "@pidex/shared": "workspace:*",
         "@playwright/test": "1.59.1",
         "@types/node": "^24.0.0",
         "effect": "4.0.0-beta.83",
@@ -68,7 +68,7 @@
       },
     },
     "apps/desktop/renderer": {
-      "name": "@codepilotx/renderer",
+      "name": "@pidex/renderer",
       "version": "0.2.0-beta.5",
       "dependencies": {
         "@codemirror/autocomplete": "^6.20.3",
@@ -80,11 +80,11 @@
         "@codemirror/search": "^6.7.1",
         "@codemirror/state": "^6.7.1",
         "@codemirror/view": "^6.43.6",
-        "@codepilotx/agent-protocol": "workspace:*",
-        "@codepilotx/material-icon-theme": "workspace:*",
-        "@codepilotx/session-view": "workspace:*",
-        "@codepilotx/shared": "workspace:*",
         "@lezer/highlight": "^1.2.3",
+        "@pidex/agent-protocol": "workspace:*",
+        "@pidex/material-icon-theme": "workspace:*",
+        "@pidex/session-view": "workspace:*",
+        "@pidex/shared": "workspace:*",
         "@radix-ui/react-alert-dialog": "^1.1.17",
         "@radix-ui/react-checkbox": "^1.3.3",
         "@radix-ui/react-dialog": "^1.1.16",
@@ -134,7 +134,7 @@
       },
     },
     "apps/website": {
-      "name": "@codepilotx/website",
+      "name": "@pidex/website",
       "version": "0.2.0-beta.5",
       "dependencies": {
         "@fontsource-variable/manrope": "^5.3.0",
@@ -154,11 +154,11 @@
       },
     },
     "packages/agent-protocol": {
-      "name": "@codepilotx/agent-protocol",
+      "name": "@pidex/agent-protocol",
       "version": "0.1.0",
       "dependencies": {
-        "@codepilotx/model-schema": "workspace:*",
-        "@codepilotx/shared": "workspace:*",
+        "@pidex/model-schema": "workspace:*",
+        "@pidex/shared": "workspace:*",
         "effect": "4.0.0-beta.83",
       },
       "devDependencies": {
@@ -167,7 +167,7 @@
       },
     },
     "packages/material-icon-theme": {
-      "name": "@codepilotx/material-icon-theme",
+      "name": "@pidex/material-icon-theme",
       "version": "0.1.0",
       "devDependencies": {
         "material-icon-theme": "5.37.0",
@@ -175,7 +175,7 @@
       },
     },
     "packages/model-schema": {
-      "name": "@codepilotx/model-schema",
+      "name": "@pidex/model-schema",
       "version": "0.1.0",
       "dependencies": {
         "effect": "4.0.0-beta.83",
@@ -186,21 +186,21 @@
       },
     },
     "packages/session-view": {
-      "name": "@codepilotx/session-view",
+      "name": "@pidex/session-view",
       "version": "0.1.0",
       "dependencies": {
-        "@codepilotx/agent-protocol": "workspace:*",
-        "@codepilotx/shared": "workspace:*",
+        "@pidex/agent-protocol": "workspace:*",
+        "@pidex/shared": "workspace:*",
       },
       "devDependencies": {
         "typescript": "5.9.3",
       },
     },
     "packages/shared": {
-      "name": "@codepilotx/shared",
+      "name": "@pidex/shared",
       "version": "0.1.0",
       "dependencies": {
-        "@codepilotx/model-schema": "workspace:*",
+        "@pidex/model-schema": "workspace:*",
         "effect": "4.0.0-beta.83",
       },
       "devDependencies": {
@@ -399,26 +399,6 @@
     "@codemirror/state": ["@codemirror/state@6.7.1", "", { "dependencies": { "@marijn/find-cluster-break": "^1.0.0" } }, "sha512-9QzNDgE4EYDnAHfrTlR2lwiPciiOymLtwKK+8yHQzCc7GXhAP9xdEbEJFy2IWB1j9UGUl9BsgMmTo/ImA02T7A=="],
 
     "@codemirror/view": ["@codemirror/view@6.43.6", "", { "dependencies": { "@codemirror/state": "^6.7.0", "crelt": "^1.0.6", "style-mod": "^4.1.0", "w3c-keyname": "^2.2.4" } }, "sha512-EVunGSYN1wz1p75WY1s3Xg7t3i8Yol0kGZGizNdX9BUFgMFILYVe8/u6EVpo7Ff5PwbZuILb4QAq7IZoKzIEQA=="],
-
-    "@codepilotx/agent": ["@codepilotx/agent@workspace:apps/agent"],
-
-    "@codepilotx/agent-protocol": ["@codepilotx/agent-protocol@workspace:packages/agent-protocol"],
-
-    "@codepilotx/auth-broker": ["@codepilotx/auth-broker@workspace:apps/auth-broker"],
-
-    "@codepilotx/desktop-electron": ["@codepilotx/desktop-electron@workspace:apps/desktop/electron"],
-
-    "@codepilotx/material-icon-theme": ["@codepilotx/material-icon-theme@workspace:packages/material-icon-theme"],
-
-    "@codepilotx/model-schema": ["@codepilotx/model-schema@workspace:packages/model-schema"],
-
-    "@codepilotx/renderer": ["@codepilotx/renderer@workspace:apps/desktop/renderer"],
-
-    "@codepilotx/session-view": ["@codepilotx/session-view@workspace:packages/session-view"],
-
-    "@codepilotx/shared": ["@codepilotx/shared@workspace:packages/shared"],
-
-    "@codepilotx/website": ["@codepilotx/website@workspace:apps/website"],
 
     "@cspotcode/source-map-support": ["@cspotcode/source-map-support@0.8.1", "", { "dependencies": { "@jridgewell/trace-mapping": "0.3.9" } }, "sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw=="],
 
@@ -741,6 +721,26 @@
     "@peculiar/utils": ["@peculiar/utils@2.0.3", "", { "dependencies": { "tslib": "^2.8.1" } }, "sha512-+oL3HPFRIZ1St2K50lWCXiioIgSoxzz7R1J3uF6neO2yl1sgmpgY6XXJH4BdpoDkMWznQTeYF6oWNDZLCdQ4eQ=="],
 
     "@peculiar/webcrypto": ["@peculiar/webcrypto@1.7.1", "", { "dependencies": { "@peculiar/asn1-schema": "^2.7.0", "@peculiar/json-schema": "^1.1.12", "@peculiar/utils": "^2.0.2", "tslib": "^2.8.1", "webcrypto-core": "^1.9.2" } }, "sha512-ODOov0sGMJMf3jPonOkgGqPknTsu+DdQ7kD++gz8aI+aFMOMHFbWAA2taqXXVTdP+OTOQR/znGvSpmkeI0WTYQ=="],
+
+    "@pidex/agent": ["@pidex/agent@workspace:apps/agent"],
+
+    "@pidex/agent-protocol": ["@pidex/agent-protocol@workspace:packages/agent-protocol"],
+
+    "@pidex/auth-broker": ["@pidex/auth-broker@workspace:apps/auth-broker"],
+
+    "@pidex/desktop-electron": ["@pidex/desktop-electron@workspace:apps/desktop/electron"],
+
+    "@pidex/material-icon-theme": ["@pidex/material-icon-theme@workspace:packages/material-icon-theme"],
+
+    "@pidex/model-schema": ["@pidex/model-schema@workspace:packages/model-schema"],
+
+    "@pidex/renderer": ["@pidex/renderer@workspace:apps/desktop/renderer"],
+
+    "@pidex/session-view": ["@pidex/session-view@workspace:packages/session-view"],
+
+    "@pidex/shared": ["@pidex/shared@workspace:packages/shared"],
+
+    "@pidex/website": ["@pidex/website@workspace:apps/website"],
 
     "@playwright/test": ["@playwright/test@1.59.1", "", { "dependencies": { "playwright": "1.59.1" }, "bin": { "playwright": "cli.js" } }, "sha512-PG6q63nQg5c9rIi4/Z5lR5IVF7yU5MqmKaPOe0HSc0O2cX1fPi96sUQu5j7eo4gKCkB2AnNGoWt7y4/Xx3Kcqg=="],
 
@@ -2250,8 +2250,6 @@
 
     "@babel/helper-compilation-targets/semver": ["semver@6.3.1", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA=="],
 
-    "@codepilotx/agent/extract-zip": ["extract-zip@file:vendor/extract-zip", { "dependencies": { "debug": "^4.1.1", "get-stream": "^5.1.0", "yauzl": "^2.10.0" }, "optionalDependencies": { "@types/yauzl": "^2.9.1" }, "bin": { "extract-zip": "cli.js" } }],
-
     "@earendil-works/pi-ai/typebox": ["typebox@1.3.27", "", {}, "sha512-zu+jc1pcy4UiNThxikUr36f0Rybk9PEeCg/NE6adeWr/SKsdNO4EzZHYRDlv2YCVAfj3Odq3dESSo/jNyoBXzA=="],
 
     "@electron/asar/commander": ["commander@5.1.0", "", {}, "sha512-P0CysNDQ7rtVw4QIQtm+MRxV66vKFSvlsQvGYXZWR3qFU0jlMKHZZZgw8e+8DSah4UDKMqnknRDQz+xuQXQ/Zg=="],
@@ -2277,6 +2275,8 @@
     "@jridgewell/remapping/@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
     "@malept/flatpak-bundler/fs-extra": ["fs-extra@9.1.0", "", { "dependencies": { "at-least-node": "^1.0.0", "graceful-fs": "^4.2.0", "jsonfile": "^6.0.1", "universalify": "^2.0.0" } }, "sha512-hcg3ZmepS30/7BSFqRvoo3DOMQu7IjqxO5nCDt+zM9XWjb33Wg7ziNT+Qvqbuc3+gWpzO02JubVyk2G4Zvo1OQ=="],
+
+    "@pidex/agent/extract-zip": ["extract-zip@file:vendor/extract-zip", { "dependencies": { "debug": "^4.1.1", "get-stream": "^5.1.0", "yauzl": "^2.10.0" }, "optionalDependencies": { "@types/yauzl": "^2.9.1" }, "bin": { "extract-zip": "cli.js" } }],
 
     "@poppinss/dumper/supports-color": ["supports-color@10.2.2", "", {}, "sha512-SS+jx45GF1QjgEXQx4NJZV9ImqmO2NPz5FNsIHrsDjh2YsHnawpan7SNQ1o8NuhrbHZy9AZhIoCUiCeaW/C80g=="],
 

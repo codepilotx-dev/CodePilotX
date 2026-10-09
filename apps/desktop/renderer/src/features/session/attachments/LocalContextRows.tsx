@@ -1,4 +1,4 @@
-import type { LocalContextReference } from '@codepilotx/shared/thread'
+import type { LocalContextReference } from '@pidex/shared/thread'
 import { AttachmentFilePill, AttachmentHorizontalRow } from './AttachmentRowPrimitives.js'
 
 export function LocalContextRows({

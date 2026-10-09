@@ -1,10 +1,10 @@
-import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
+import type { RpcParams, RpcResult } from '@pidex/agent-protocol'
 import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '../../../components/ui/Button.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
 import { SkeletonBlock, SkeletonRegion } from '../../../components/ui/Skeleton.js'
-import { formatCompactCount, formatCount, formatUsdAmount } from '../../../utils/usageFormatters.js'
+import { formatCompactCount, formatCount, formatUsdAmount } from '../../../utils/UsageFormatters.js'
 
 type LocalRange = RpcParams<'usage/local/get'>['range']
 type LocalUsage = RpcResult<'usage/local/get'>

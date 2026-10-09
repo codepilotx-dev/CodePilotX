@@ -2,7 +2,7 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { isAbsolute, relative, resolve } from 'node:path'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
-import { AgentError, type EventEnvelope } from '../domain'
+import { AgentError, type EventEnvelope } from '../Domain'
 import type { ConfigObject, ConfigService } from '../config/ConfigService'
 
 export type HookEvent =

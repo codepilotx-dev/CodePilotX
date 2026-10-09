@@ -6,13 +6,13 @@ import type {
   SchedulePlanExecutionDefaults,
   SchedulePlanItemDraft,
   SchedulePlanProposal,
-} from '@codepilotx/shared/schedule-plan'
-import type { AutomationSchedule } from '@codepilotx/shared/automation'
-import type { Item } from '@codepilotx/shared/thread'
+} from '@pidex/shared/schedule-plan'
+import type { AutomationSchedule } from '@pidex/shared/automation'
+import type { Item } from '@pidex/shared/thread'
 import { Button } from '../../../components/ui/Button.js'
 import { Input } from '../../../components/ui/Input.js'
 import { Select } from '../../../components/ui/Select.js'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 
 type ToolItem = Extract<Item, { type: 'tool' }>

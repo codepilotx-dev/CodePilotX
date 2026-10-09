@@ -1,9 +1,9 @@
-import type { LocalContextReference } from '@codepilotx/shared/thread'
+import type { LocalContextReference } from '@pidex/shared/thread'
 import { basename, extname, isAbsolute, join, relative, resolve } from 'node:path'
 import { readdir, readFile, realpath, stat } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
-import { AgentError } from '../domain'
-import { LocalContextPathRepository } from '../storage/repositories/local-context-path-repository'
+import { AgentError } from '../Domain'
+import { LocalContextPathRepository } from '../storage/repositories/LocalContextPathRepository'
 
 const MAX_PREVIEW_BYTES = 20 * 1024 * 1024
 const DEFAULT_RANGE_BYTES = 256 * 1024

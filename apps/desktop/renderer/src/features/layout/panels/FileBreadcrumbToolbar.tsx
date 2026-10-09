@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import type React from 'react'
 import { ChevronDown, ChevronRight, FolderOpen } from 'lucide-react'
-import type { DesktopExternalOpenTarget, DesktopWorkspace } from '../../../../shared/types.js'
+import type { DesktopExternalOpenTarget, DesktopWorkspace } from '../../../../shared/Types.js'
 import { Button } from '../../../components/ui/Button.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../../components/ui/iconTokens.js'
+} from '../../../components/ui/IconTokens.js'
 import {
   PopoverItem,
   PopoverRadioGroup,
@@ -16,13 +16,13 @@ import {
 } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { SegmentedControl } from '../../../components/ui/SegmentedControl.js'
-import { OpenTargetIcon } from '../../../components/ui/openTargetIcon.js'
+import { OpenTargetIcon } from '../../../components/ui/OpenTargetIcon.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import {
   loadExternalOpenTargets,
   openPathWithExternalTarget,
-} from '../../../services/externalOpenTargetsStore.js'
-import type { MarkdownFileViewMode } from '../dock/rightDockState.js'
+} from '../../../services/ExternalOpenTargetsStore.js'
+import type { MarkdownFileViewMode } from '../dock/RightDockState.js'
 
 export type FileBreadcrumbToolbarProps = {
   path: string

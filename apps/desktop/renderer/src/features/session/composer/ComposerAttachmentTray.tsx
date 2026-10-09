@@ -2,11 +2,11 @@ import {
   APP_ICON_SIZES,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZE,
-} from '../../../components/ui/iconTokens.js'
+} from '../../../components/ui/IconTokens.js'
 import React from 'react'
-import type { DesktopComposerAttachment } from '../../../../shared/types.js'
-import { cx } from '../../../utils/cx.js'
-import { resolveDraftAttachmentPreviewContent } from '../attachments/attachmentPreviewSupport.js'
+import type { DesktopComposerAttachment } from '../../../../shared/Types.js'
+import { cx } from '../../../utils/Cx.js'
+import { resolveDraftAttachmentPreviewContent } from '../attachments/AttachmentPreviewSupport.js'
 import {
   AlertCircle,
   Box,

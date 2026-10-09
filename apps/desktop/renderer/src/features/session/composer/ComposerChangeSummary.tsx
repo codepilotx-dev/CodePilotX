@@ -1,14 +1,14 @@
 import React from 'react'
 import { ArrowDown, Check, CircleX, LoaderCircle } from 'lucide-react'
 import { AnimatePresence, motion, useIsPresent } from 'motion/react'
-import type { ExecutionPlanItem } from '@codepilotx/shared/thread'
+import type { ExecutionPlanItem } from '@pidex/shared/thread'
 
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../../components/ui/iconTokens.js'
-import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
+} from '../../../components/ui/IconTokens.js'
+import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
 import {
   enterTween,
   exitTween,
@@ -17,9 +17,9 @@ import {
   instantTween,
   motionTransition,
   standardTween,
-} from '../../motion/motionTransitions.js'
+} from '../../motion/MotionTransitions.js'
 import { ExecutionPlanCard } from '../workflow/ExecutionPlanCard.js'
-import type { ConversationChangedFile } from './conversationChangeSummary.js'
+import type { ConversationChangedFile } from './ConversationChangeSummary.js'
 
 type ComposerChangeSummaryProps = {
   executionPlan: ExecutionPlanItem | null

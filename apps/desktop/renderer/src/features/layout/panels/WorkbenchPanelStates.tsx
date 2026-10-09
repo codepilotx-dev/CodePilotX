@@ -7,9 +7,9 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../../components/ui/iconTokens.js'
-import { cx } from '../../../utils/cx.js'
-import type { WorkbenchTabId } from '../dock/rightDockState.js'
+} from '../../../components/ui/IconTokens.js'
+import { cx } from '../../../utils/Cx.js'
+import type { WorkbenchTabId } from '../dock/RightDockState.js'
 
 export type WorkbenchPanelViewState =
   | { status: 'loading'; label: string }

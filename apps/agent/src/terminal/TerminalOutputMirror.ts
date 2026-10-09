@@ -2,8 +2,8 @@ import type {
   TerminalOutputAppendParams,
   TerminalOutputClearParams,
   TerminalOutputResetParams,
-} from '@codepilotx/agent-protocol/terminal'
-import { AgentError } from '../domain'
+} from '@pidex/agent-protocol/terminal'
+import { AgentError } from '../Domain'
 import { secretScrubber } from '../security/SecretScrubber'
 import { TerminalControlStripper } from '../security/TerminalControlStripper'
 

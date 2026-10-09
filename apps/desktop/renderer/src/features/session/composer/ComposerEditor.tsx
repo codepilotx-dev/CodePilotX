@@ -7,8 +7,8 @@ import type { Transaction } from 'prosemirror-state'
 import { EditorView } from 'prosemirror-view'
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { useEditCommands } from '../../../components/ui/EditCommandProvider.js'
-import type { ComposerDocument, ComposerDocumentToken } from './composerTypes.js'
-import { composerDocumentsEqual } from './composerSkillToken.js'
+import type { ComposerDocument, ComposerDocumentToken } from './ComposerTypes.js'
+import { composerDocumentsEqual } from './ComposerSkillToken.js'
 
 export const composerSchema = new Schema({
   nodes: {

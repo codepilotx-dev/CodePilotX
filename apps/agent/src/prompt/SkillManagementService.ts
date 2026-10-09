@@ -2,11 +2,11 @@ import { createHash } from 'node:crypto'
 import { realpath } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
 import type { ConfigObject, ConfigService, ConfigValue } from '../config/ConfigService'
-import type { InstalledSkill } from '@codepilotx/agent-protocol'
+import type { InstalledSkill } from '@pidex/agent-protocol'
 import {
   SkillSettingsConflictError,
   SkillSettingsRepository,
-} from '../storage/repositories/skill-settings-repository'
+} from '../storage/repositories/SkillSettingsRepository'
 import {
   SkillService,
   type PluginSkillRoot,

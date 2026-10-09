@@ -1,22 +1,22 @@
 import { desktopClient, loadDesktopTerminalClient } from '../../services/desktop-client/index.js'
 import React, { useCallback, useEffect, useState } from 'react'
-import { OpenTargetIcon } from '../../components/ui/openTargetIcon.js'
-import { OPEN_TARGET_STORED_SENTINELS } from '../../services/desktop-client/openTargetSelection.js'
+import { OpenTargetIcon } from '../../components/ui/OpenTargetIcon.js'
+import { OPEN_TARGET_STORED_SENTINELS } from '../../services/desktop-client/OpenTargetSelection.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
-import { useDesktopSettings } from './useDesktopSettings.js'
+import { useDesktopSettings } from './UseDesktopSettings.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
-import { permissionConfigForMode, permissionModeForConfig } from './settingsStorage.js'
+import { permissionConfigForMode, permissionModeForConfig } from './SettingsStorage.js'
 import type {
   DesktopOpenTarget,
   DesktopReviewDelivery,
   DesktopReviewView,
-} from '../../../shared/types.js'
+} from '../../../shared/Types.js'
 import { Button } from '../../components/ui/Button.js'
-import type { DesktopTerminalProfile } from '@codepilotx/shared/desktop-terminal-ipc'
+import type { DesktopTerminalProfile } from '@pidex/shared/desktop-terminal-ipc'
 import { useLocale } from '../i18n/LocaleProvider.js'
 
 const FALLBACK_OPEN_TARGETS: DesktopOpenTarget[] = [
@@ -310,7 +310,7 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
         <SettingsSection title="权限">
           <SettingsRow
             title="默认权限"
-            description="默认情况下，CodePilotX 可以自动读取工作区内容；写入文件、运行命令、联网和 MCP 请求需要你授权。"
+            description="默认情况下，Pidex 可以自动读取工作区内容；写入文件、运行命令、联网和 MCP 请求需要你授权。"
             autoSave
             control={(aria) => (
               <ToggleSwitch
@@ -327,7 +327,7 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
             autoSave
             description={
               <>
-                CodePilotX 可以读取和编辑其工作区中的文件。CodePilotX
+                Pidex 可以读取和编辑其工作区中的文件。Pidex
                 会自动审核额外访问权限请求。自动审核可能会出错。
               </>
             }
@@ -345,7 +345,7 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
             autoSave
             description={
               <>
-                当 CodePilotX
+                当 Pidex
                 以完全访问权限运行时，无需你批准，即可自动放行所有权限工具，编辑你的电脑上的任何文件并运行联网命令。这会显著增加数据丢失、泄露或意外行为的风险。
               </>
             }
@@ -549,7 +549,7 @@ export function GeneralSettings({ onNotice }: GeneralSettingsProps = {}) {
         <SettingsSection title="通知">
           <SettingsRow
             title="轮次完成通知"
-            description="设置 CodePilotX 完成任务时是否显示系统通知"
+            description="设置 Pidex 完成任务时是否显示系统通知"
             control={
               <SettingsDropdown
                 size="md"

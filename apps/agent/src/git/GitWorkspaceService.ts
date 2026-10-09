@@ -1,6 +1,6 @@
 import { realpath } from 'node:fs/promises'
 import { isAbsolute, relative, resolve } from 'node:path'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { RepositoryDatabase } from '../storage/repositories/RepositoryDatabase'
 import { GitCommandRunner } from './GitCommandRunner'
 

@@ -1,9 +1,9 @@
 import { forwardRef, useCallback, useRef } from 'react'
 import type React from 'react'
 import { Search, X } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from './iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from './IconTokens.js'
 import { Button } from './Button.js'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 
 export type SearchInputVariant = 'standard' | 'compact' | 'embedded'
 

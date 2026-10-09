@@ -1,20 +1,20 @@
 import type React from 'react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { ComposerDraftKey } from '../session/composer/composerTypes.js'
-import { useBrowserAnnotations } from './useBrowserAnnotations.js'
+import type { ComposerDraftKey } from '../session/composer/ComposerTypes.js'
+import { useBrowserAnnotations } from './UseBrowserAnnotations.js'
 import { ArrowLeft, ArrowRight, Globe2, MessageSquarePlus, Plus, RefreshCw, Square } from 'lucide-react'
-import type { DesktopBrowserState } from '../../../shared/types.js'
-import type { DesktopBrowserClient } from '../../services/desktop-client/desktop-browser-client.js'
-import { formatBrowserDisplayURL } from './browserDisplayURL.js'
+import type { DesktopBrowserState } from '../../../shared/Types.js'
+import type { DesktopBrowserClient } from '../../services/desktop-client/DesktopBrowserClient.js'
+import { formatBrowserDisplayURL } from './BrowserDisplayURL.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../components/ui/iconTokens.js'
+} from '../../components/ui/IconTokens.js'
 import { Button } from '../../components/ui/Button.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 import { BrowserManagementControls } from './BrowserManagementControls.js'
 
 type Props = {

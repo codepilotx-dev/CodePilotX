@@ -1,6 +1,6 @@
 # Renderer Static Fonts (MiSans & JetBrains Mono)
 
-本目录为 CodePilotX 桌面 Renderer 的本地自有静态字体资源，不依赖外部 CDN 或用户系统环境。
+本目录为 Pidex 桌面 Renderer 的本地自有静态字体资源，不依赖外部 CDN 或用户系统环境。
 
 ## 1. MiSans (Display & UI Text)
 

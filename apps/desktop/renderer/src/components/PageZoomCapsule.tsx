@@ -3,12 +3,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type {
   DesktopPageZoomAction,
   DesktopPageZoomState,
-} from '@codepilotx/shared/desktop-window-ipc'
+} from '@pidex/shared/desktop-window-ipc'
 import { Minus, Plus } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion.js'
-import { enterTween, exitTween, motionTransition } from '../features/motion/motionTransitions.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/iconTokens.js'
+import { usePrefersReducedMotion } from '../hooks/UsePrefersReducedMotion.js'
+import { enterTween, exitTween, motionTransition } from '../features/motion/MotionTransitions.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from './ui/IconTokens.js'
 import { Button } from './ui/Button.js'
 
 import { Toast, ToastDivider } from './ui/Toast.js'
@@ -16,7 +16,7 @@ import { Toast, ToastDivider } from './ui/Toast.js'
 const HIDE_DELAY_MS = 2_000
 
 export function PageZoomCapsule(): React.ReactNode {
-  const bridge = window.codePilotXDesktop
+  const bridge = window.DesktopBridge
   const reducedMotion = usePrefersReducedMotion()
   const [state, setState] = useState<DesktopPageZoomState | null>(null)
   const [visible, setVisible] = useState(false)

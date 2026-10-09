@@ -2,9 +2,9 @@ import type {
   EventAckParamsSchema,
   EventSubscribeParamsSchema,
   ProtocolCapability,
-} from '@codepilotx/agent-protocol'
+} from '@pidex/agent-protocol'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import { globalEventSequence } from '../storage/events/EventPublisher'
 
 type SubscribeParams = typeof EventSubscribeParamsSchema.Type

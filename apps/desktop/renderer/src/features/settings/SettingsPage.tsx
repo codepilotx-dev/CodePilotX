@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from 'react'
-import type { DesktopInstalledSkill } from '../../../shared/types.js'
-import { SETTINGS_ITEMS, type SettingsTabId } from './settingsRegistry.js'
+import type { DesktopInstalledSkill } from '../../../shared/Types.js'
+import { SETTINGS_ITEMS, type SettingsTabId } from './SettingsRegistry.js'
 import { SettingsPanelFallback } from './SettingsPanelFallback.js'
 
 type Props = {

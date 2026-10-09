@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { ThreadWorkspaceResolver } from '../workspace/ThreadWorkspaceResolver'
 import type { TaskExecutionBindingService } from '../worktree/TaskExecutionBindingService'

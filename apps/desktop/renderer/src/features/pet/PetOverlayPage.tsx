@@ -1,12 +1,12 @@
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/IconTokens.js'
 import React, { useEffect, useRef, useState } from 'react'
 import { ExternalLink, Send, X } from 'lucide-react'
 import { PetSprite } from './PetSprite.js'
 import { PetQuickReply } from './PetQuickReply.js'
-import { usePetOverlayController } from './usePetOverlayController.js'
-import { resolvePetDragAnimation } from './petDirectionModel.js'
-import type { PetAnimationName } from './petAnimationModel.js'
-import { usePetLookFrame } from './usePetLookFrame.js'
+import { usePetOverlayController } from './UsePetOverlayController.js'
+import { resolvePetDragAnimation } from './PetDirectionModel.js'
+import type { PetAnimationName } from './PetAnimationModel.js'
+import { usePetLookFrame } from './UsePetLookFrame.js'
 import '../../styles/lazy/pet-overlay.css'
 
 export function PetOverlayPage(): React.ReactNode {
@@ -40,13 +40,13 @@ export function PetOverlayPage(): React.ReactNode {
   }, [])
 
   const setInteractive = (interactive: boolean): void => {
-    window.codePilotXDesktop?.setPetPointerPassthrough(!interactive)
+    window.DesktopBridge?.setPetPointerPassthrough(!interactive)
   }
 
   const setKeyboardFocus = (focused: boolean): void => {
     setKeyboardActive(focused)
     setInteractive(focused)
-    void window.codePilotXDesktop?.requestPetKeyboardFocus(focused)
+    void window.DesktopBridge?.requestPetKeyboardFocus(focused)
   }
 
   const notification = controller.notification
@@ -54,8 +54,8 @@ export function PetOverlayPage(): React.ReactNode {
     setReply('')
     setReplyError(null)
     setKeyboardActive(false)
-    window.codePilotXDesktop?.setPetPointerPassthrough(true)
-    void window.codePilotXDesktop?.requestPetKeyboardFocus(false)
+    window.DesktopBridge?.setPetPointerPassthrough(true)
+    void window.DesktopBridge?.requestPetKeyboardFocus(false)
   }, [notification?.id])
 
   if (!controller.pet) {
@@ -198,7 +198,7 @@ export function PetOverlayPage(): React.ReactNode {
           event.currentTarget.setPointerCapture(event.pointerId)
           dragScreenXRef.current = event.screenX
           setDragAnimation(controller.animation)
-          window.codePilotXDesktop?.beginPetDrag()
+          window.DesktopBridge?.beginPetDrag()
         }}
         onPointerEnter={() => setInteractive(true)}
         onPointerLeave={() => setInteractive(false)}
@@ -210,19 +210,19 @@ export function PetOverlayPage(): React.ReactNode {
               resolvePetDragAnimation(current ?? controller.animation, deltaX),
             )
             if (Math.abs(deltaX) >= 4) dragScreenXRef.current = event.screenX
-            window.codePilotXDesktop?.updatePetDrag()
+            window.DesktopBridge?.updatePetDrag()
           }
         }}
         onPointerUp={(event) => {
           event.currentTarget.releasePointerCapture(event.pointerId)
           dragScreenXRef.current = null
           setDragAnimation(null)
-          window.codePilotXDesktop?.endPetDrag()
+          window.DesktopBridge?.endPetDrag()
         }}
         onPointerCancel={() => {
           dragScreenXRef.current = null
           setDragAnimation(null)
-          window.codePilotXDesktop?.endPetDrag()
+          window.DesktopBridge?.endPetDrag()
         }}
       >
         <PetSprite

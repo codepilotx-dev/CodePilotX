@@ -1,14 +1,14 @@
 import { basename } from 'node:path'
 import { Effect } from 'effect'
 import { diffLines } from 'diff'
-import { AgentError, type EventEnvelope, type TurnStatus } from '../domain'
+import { AgentError, type EventEnvelope, type TurnStatus } from '../Domain'
 import type {
   SessionGroupChangedFile,
   SessionGroupContextChange,
   SessionGroup,
   SessionGroupStepStatus,
   SessionGroupValidation,
-} from '@codepilotx/shared/session-group'
+} from '@pidex/shared/session-group'
 import { secretScrubber } from '../security/SecretScrubber'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
@@ -78,7 +78,7 @@ export class SessionGroupService {
 
   private refreshDerivedContext(
     groupId: string,
-    step: import('@codepilotx/shared/session-group').SessionGroupStep,
+    step: import('@pidex/shared/session-group').SessionGroupStep,
   ) {
     const recent = this.repository().listSteps(groupId, 10).reverse()
     const digest = recent
@@ -346,7 +346,7 @@ export class SessionGroupService {
 
   context(
     groupId: string,
-    sections?: readonly import('@codepilotx/shared/session-group').SessionGroupContextSection[],
+    sections?: readonly import('@pidex/shared/session-group').SessionGroupContextSection[],
   ) {
     this.requireGroup(groupId)
     const context = this.repository().context(groupId)!
@@ -359,7 +359,7 @@ export class SessionGroupService {
     groupId: string
     digest?: string
     entries?: readonly {
-      section: import('@codepilotx/shared/session-group').SessionGroupContextSection
+      section: import('@pidex/shared/session-group').SessionGroupContextSection
       title: string
       content: string
     }[]

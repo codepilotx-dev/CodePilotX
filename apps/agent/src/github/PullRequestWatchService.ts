@@ -1,21 +1,21 @@
 import type { Database } from 'bun:sqlite'
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
-import type { ModelRef } from '@codepilotx/shared/model'
-import type { AutomationRun } from '@codepilotx/shared/automation'
-import type { PermissionConfig } from '@codepilotx/shared/thread'
+import type { ModelRef } from '@pidex/shared/model'
+import type { AutomationRun } from '@pidex/shared/automation'
+import type { PermissionConfig } from '@pidex/shared/thread'
 import type { AutomationService } from '../automation/AutomationService'
 import type {
   AutomationRunExecutor,
   ScheduledWorkDefinition,
 } from '../automation/AutomationRunCoordinator'
-import type { AutomationRepository } from '../storage/repositories/automation-repository'
+import type { AutomationRepository } from '../storage/repositories/AutomationRepository'
 import type { ManagedWorktreeService } from '../worktree/ManagedWorktreeService'
 import type { ThreadExecutionPreparationService } from '../worktree/ThreadExecutionPreparationService'
 import type { ThreadService } from '../session/ThreadService'
 import type { GithubService } from './GithubService'
 import type { ToolDefinition } from '../tool/ToolRegistry'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import { GitCommandRunner } from '../git/GitCommandRunner'
 
 export const PR_WATCH_SCHEMA = [

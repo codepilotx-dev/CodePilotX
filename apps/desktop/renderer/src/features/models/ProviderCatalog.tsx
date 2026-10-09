@@ -1,6 +1,6 @@
 import { Link2, Server, KeyRound, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react'
 import type React from 'react'
-import type { ModelProviderID } from '../../../shared/types.js'
+import type { ModelProviderID } from '../../../shared/Types.js'
 import { Button } from '../../components/ui/Button.js'
 import { SearchInput } from '../../components/ui/SearchInput.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
@@ -8,9 +8,9 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../components/ui/iconTokens.js'
+} from '../../components/ui/IconTokens.js'
 import { ProviderIcon } from './ProviderIcon.js'
-import type { ProviderCatalogFilter } from './modelCenterState.js'
+import type { ProviderCatalogFilter } from './ModelCenterState.js'
 
 export type ProviderCatalogStatusTone = 'positive' | 'warning' | 'danger' | 'neutral'
 

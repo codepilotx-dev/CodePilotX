@@ -3,19 +3,19 @@ import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Command } from 'cmdk'
 import { FileSearch, FolderOpen, Search, SquarePen } from 'lucide-react'
-import type { DesktopSessionCatalogStatus } from '../../../shared/types.js'
-import { useDialogFocusRestore } from '../../components/ui/useDialogFocusRestore.js'
+import type { DesktopSessionCatalogStatus } from '../../../shared/Types.js'
+import { useDialogFocusRestore } from '../../components/ui/UseDialogFocusRestore.js'
 import { Spinner } from '../../components/ui/Spinner.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
-import type { SessionListItem } from '../../uiTypes.js'
-import type { CommandMenuTask } from './commandMenuModel.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
+import type { SessionListItem } from '../../UiTypes.js'
+import type { CommandMenuTask } from './CommandMenuModel.js'
 import {
   commandMenuActionStore,
   filterCommandMenuActions,
   type CommandMenuActionGroup,
   type CommandMenuActionSnapshot,
-} from './commandMenuActionStore.js'
-import { useCommandMenuController } from './useCommandMenuController.js'
+} from './CommandMenuActionStore.js'
+import { useCommandMenuController } from './UseCommandMenuController.js'
 
 export type CommandMenuDialogProps = {
   open: boolean

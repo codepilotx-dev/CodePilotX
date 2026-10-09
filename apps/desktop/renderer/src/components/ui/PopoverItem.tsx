@@ -1,9 +1,9 @@
 import type React from 'react'
 import { Dropdown as DropdownMenu } from './floating/Dropdown.js'
 import { Check, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react'
-import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from './iconTokens.js'
+import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from './IconTokens.js'
 import { Tooltip } from './Tooltip.js'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 
 type BaseProps = {
   children: React.ReactNode

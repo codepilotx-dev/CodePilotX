@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
 import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { join, relative, resolve, sep } from 'node:path'
-import type { PetCatalogResult } from '@codepilotx/agent-protocol'
-import { AgentError } from '../domain'
+import type { PetCatalogResult } from '@pidex/agent-protocol'
+import { AgentError } from '../Domain'
 import { PetCatalogService } from './PetCatalogService'
 import { asPetStorageError, isNodeErrorCode } from './PetStorageError'
 

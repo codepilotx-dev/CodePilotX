@@ -1,8 +1,8 @@
 import { forwardRef } from 'react'
 import type React from 'react'
 import { motion, type MotionValue } from 'motion/react'
-import { cx } from '../../../utils/cx.js'
-import type { WorkbenchPanelTarget } from './rightDockState.js'
+import { cx } from '../../../utils/Cx.js'
+import type { WorkbenchPanelTarget } from './RightDockState.js'
 
 export interface WorkbenchDockFrameProps {
   target: WorkbenchPanelTarget

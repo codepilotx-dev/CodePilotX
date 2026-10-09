@@ -1,4 +1,4 @@
-import type { McpSanitizedError, McpServerDeclaration } from '@codepilotx/agent-protocol'
+import type { McpSanitizedError, McpServerDeclaration } from '@pidex/agent-protocol'
 import {
   McpClient,
   McpHttpError,
@@ -299,7 +299,7 @@ export class McpClientFactory {
     const startupTimeout = server.startupTimeoutMs ?? 10_000
     const connect = async (transport: McpTransport, kind: McpConnectedClient['transport']) => {
       const client = new McpClient({
-        name: 'codepilotx-agent',
+        name: 'pidex-agent',
         version: '0.2.0',
         capabilities: this.elicit ? { elicitation: { form: {} } } : {},
         requestTimeoutMs: startupTimeout,

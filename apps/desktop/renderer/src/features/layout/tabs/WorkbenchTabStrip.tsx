@@ -7,25 +7,25 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../../components/ui/iconTokens.js'
+} from '../../../components/ui/IconTokens.js'
 import { PopoverRadioGroup, PopoverRadioItem } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
-import { cx } from '../../../utils/cx.js'
-import { canViewFloat, getAvailableMoveTargets } from '../dock/compositeViews.js'
+import { cx } from '../../../utils/Cx.js'
+import { canViewFloat, getAvailableMoveTargets } from '../dock/CompositeViews.js'
 import type {
   WorkbenchPanelSnapshot,
   WorkbenchPanelTarget,
   WorkbenchTabDescriptor,
   WorkbenchTabId,
   WorkbenchTabsState,
-} from '../dock/rightDockState.js'
+} from '../dock/RightDockState.js'
 import {
   createLauncherTab,
   getWorkbenchLauncherDefinitions,
   getWorkbenchLauncherPresentation,
   getWorkbenchTabDefinition,
   getWorkbenchTabDisplayTitle,
-} from './workbenchTabRegistry.js'
+} from './WorkbenchTabRegistry.js'
 
 export type WorkbenchTabStripProps = {
   target: WorkbenchPanelTarget

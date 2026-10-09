@@ -1,8 +1,8 @@
 import { Effect } from 'effect'
-import type { EventEnvelope } from '../domain'
-import { AgentError } from '../domain'
+import type { EventEnvelope } from '../Domain'
+import { AgentError } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
-import type { ThreadBookmarkList } from '../storage/repositories/thread-bookmark-repository'
+import type { ThreadBookmarkList } from '../storage/repositories/ThreadBookmarkRepository'
 import type { EventHub } from '../storage/events/EventHub'
 
 type InputRow = { thread_id: string; origin: string | null }

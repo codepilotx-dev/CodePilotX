@@ -12,16 +12,16 @@ import {
   SquarePen,
   X,
 } from 'lucide-react'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
-import type { DesktopSidebarSort, DesktopWorkspace } from '../../../../shared/types.js'
+import { APP_ICON_SIZE } from '../../../components/ui/IconTokens.js'
+import type { DesktopSidebarSort, DesktopWorkspace } from '../../../../shared/Types.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import type { SessionListItem } from '../../../uiTypes.js'
+import type { SessionListItem } from '../../../UiTypes.js'
 import { Button } from '../../../components/ui/Button.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import {
   type KeyedDisclosureStore,
   useDisclosureExpanded,
-} from '../../../components/ui/keyedDisclosureStore.js'
+} from '../../../components/ui/KeyedDisclosureStore.js'
 import { DropdownActions } from '../../../components/ui/DropdownActions.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
@@ -31,22 +31,22 @@ import {
   AppContextMenu as SidebarContextMenu,
   type AppContextMenuAction as ContextMenuAction,
 } from '../../../components/ui/AppContextMenu.js'
-import { cx } from '../../../utils/cx.js'
-import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
+import { cx } from '../../../utils/Cx.js'
+import { useDesktopSettings } from '../../settings/UseDesktopSettings.js'
 import {
   DEFAULT_PROJECT_APPEARANCE,
   PROJECT_APPEARANCE_COLOR_CLASS,
   PROJECT_APPEARANCE_MARKER_CLASS,
   ProjectAppearanceGlyph,
-} from '../../projects/projectAppearance.js'
+} from '../../projects/ProjectAppearance.js'
 import {
   type SidebarProjectSessionBucket,
   sidebarProjectKey,
   normalizeSidebarPath,
-} from './sidebarViewModel.js'
+} from './SidebarViewModel.js'
 import { SidebarProjectHoverCard } from './SidebarProjectHoverCard.js'
 import { ProjectManagementDialogs } from '../../projects/ProjectManagementDialogs.js'
-import { sidebarProjectDisclosureKey } from './sidebarDisclosureStore.js'
+import { sidebarProjectDisclosureKey } from './SidebarDisclosureStore.js'
 
 const SESSION_KEY_SEPARATOR = '|'
 

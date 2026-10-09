@@ -1,11 +1,11 @@
 import React from 'react'
-import type { RpcResult } from '@codepilotx/agent-protocol'
+import type { RpcResult } from '@pidex/agent-protocol'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
 import { Button } from '../../../components/ui/Button.js'
 import { RequestCard } from './RequestCard.js'
-import { useApprovalCapability } from './useQuestionSkipCapability.js'
-import { cx } from '../../../utils/cx.js'
+import { useApprovalCapability } from './UseQuestionSkipCapability.js'
+import { cx } from '../../../utils/Cx.js'
 
 type ReviewState = RpcResult<'approval/reviewState'>
 const dismissedNudges = new Set<string>()

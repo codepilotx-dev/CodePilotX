@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from '@playwright/test'
-import { expectNoHorizontalOverflow } from './visual-test-helpers.js'
+import { expectNoHorizontalOverflow } from './VisualTestHelpers.js'
 
 // 当前 visual fixture 在 reduce 模式下初始化超时；此用例验证普通动效下的宽度与保存。
 test.use({ reducedMotion: 'no-preference' })

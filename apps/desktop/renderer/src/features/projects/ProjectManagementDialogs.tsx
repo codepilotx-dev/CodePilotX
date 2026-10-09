@@ -1,11 +1,11 @@
 import type React from 'react'
 import { lazy, Suspense, useState } from 'react'
-import type { DesktopWorkspace } from '../../../shared/types.js'
+import type { DesktopWorkspace } from '../../../shared/Types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
-import { useEverOpened } from '../../hooks/usePresenceRetention.js'
-import { useDesktopSettings } from '../settings/useDesktopSettings.js'
-import { DEFAULT_PROJECT_APPEARANCE } from './projectAppearance.js'
-import { notifyProjectCatalogChanged, notifyProjectRemoved } from './projectCatalogEvents.js'
+import { useEverOpened } from '../../hooks/UsePresenceRetention.js'
+import { useDesktopSettings } from '../settings/UseDesktopSettings.js'
+import { DEFAULT_PROJECT_APPEARANCE } from './ProjectAppearance.js'
+import { notifyProjectCatalogChanged, notifyProjectRemoved } from './ProjectCatalogEvents.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
 
 const ProjectEditDialog = lazy(async () => {

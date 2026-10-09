@@ -1,8 +1,8 @@
 import React from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import type { ManagedWorktree, RpcResult } from '@codepilotx/agent-protocol'
+import type { ManagedWorktree, RpcResult } from '@pidex/agent-protocol'
 import { Button } from '../../components/ui/Button.js'
-import { environmentDomainClient } from '../../services/desktop-client/environment-domain-client.js'
+import { environmentDomainClient } from '../../services/desktop-client/EnvironmentDomainClient.js'
 import { SettingsContentArea } from '../settings/SettingsContentArea.js'
 import { SettingsSection } from '../settings/SettingsSection.js'
 
@@ -11,7 +11,7 @@ import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { Select } from '../../components/ui/Select.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
-import type { DesktopWorkspace } from '../../../shared/types.js'
+import type { DesktopWorkspace } from '../../../shared/Types.js'
 const EnvironmentProjects = React.lazy(() =>
   import('../settings/local-environment/LocalEnvironmentProjectSettings.js').then((module) => ({
     default: module.LocalEnvironmentProjectSettings,

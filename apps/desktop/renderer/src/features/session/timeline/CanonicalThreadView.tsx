@@ -1,18 +1,18 @@
 import { ModelSwitchDivider } from './ModelSwitchDivider.js'
-import { cx } from '../../../utils/cx.js'
-import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { cx } from '../../../utils/Cx.js'
+import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import React from 'react'
 import { ChevronRight, CircleAlert, LoaderCircle, RotateCcw, type LucideIcon } from 'lucide-react'
-import type { RenderBlocker, RenderTurnEntry } from '@codepilotx/session-view'
-import type { Item } from '@codepilotx/shared/thread'
-import type { DesktopDiffMarkerStyle } from '../../../../shared/types.js'
+import type { RenderBlocker, RenderTurnEntry } from '@pidex/session-view'
+import type { Item } from '@pidex/shared/thread'
+import type { DesktopDiffMarkerStyle } from '../../../../shared/Types.js'
 import type { VirtualizerHandle } from 'virtua'
 import { FullScreenWhaleLoading } from '../../../components/ui/FullScreenWhaleLoading.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import {
   type KeyedDisclosureStore,
   useDisclosureExpanded,
-} from '../../../components/ui/keyedDisclosureStore.js'
+} from '../../../components/ui/KeyedDisclosureStore.js'
 
 import {
   CanonicalItemRenderer,
@@ -42,15 +42,15 @@ import {
   type ProcessSummary,
   type ProcessSemanticKind,
   type TurnWorkSummary,
-} from './summarizeProcessItems.js'
+} from './SummarizeProcessItems.js'
 import {
   getTimelineDisclosureStore,
   releaseTimelineDisclosureStore,
   retainTimelineDisclosureStore,
-} from './timelineDisclosureState.js'
+} from './TimelineDisclosureState.js'
 import type { OpenPlanInDockRequest } from '../workflow/WorkflowPlanCard.js'
-import type { RegisterConversationTurnRow } from '../conversation/useConversationTurnRowVisibility.js'
-import { useScrollEdgeState } from '../../../hooks/useScrollEdgeState.js'
+import type { RegisterConversationTurnRow } from '../conversation/UseConversationTurnRowVisibility.js'
+import { useScrollEdgeState } from '../../../hooks/UseScrollEdgeState.js'
 import { questionTimelineItems } from './QuestionItemView.js'
 
 export type ProcessActivityProjection =

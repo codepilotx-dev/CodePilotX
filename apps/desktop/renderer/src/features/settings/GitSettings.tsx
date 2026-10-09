@@ -3,7 +3,7 @@ import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SegmentedControl } from '../../components/ui/SegmentedControl.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
-import { isSettingsSaveShortcut, useDesktopSettings } from './useDesktopSettings.js'
+import { isSettingsSaveShortcut, useDesktopSettings } from './UseDesktopSettings.js'
 import {
   desktopClient,
   desktopClipboard,
@@ -14,7 +14,7 @@ import type {
   DesktopGithubAuthMode,
   DesktopGithubAuthStatus,
   DesktopGithubLoginStatus,
-} from '../../../shared/types.js'
+} from '../../../shared/Types.js'
 import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
 
@@ -152,7 +152,7 @@ export function GitSettings(): React.ReactNode {
         <SettingsSection>
           <SettingsRow
             title="分支前缀"
-            description="在 CodePilotX 中创建新分支时使用的前缀"
+            description="在 Pidex 中创建新分支时使用的前缀"
             control={
               <Input
                 className="settings-input-narrow"
@@ -165,7 +165,7 @@ export function GitSettings(): React.ReactNode {
           />
           <SettingsRow
             title="拉取请求合并方法"
-            description="选择 CodePilotX 合并拉取请求的方法"
+            description="选择 Pidex 合并拉取请求的方法"
             autoSave
             control={
               <SegmentedControl
@@ -195,7 +195,7 @@ export function GitSettings(): React.ReactNode {
           />
           <SettingsRow
             title="始终强制推送"
-            description="从 CodePilotX 推送时使用 --force-with-lease 参数"
+            description="从 Pidex 推送时使用 --force-with-lease 参数"
             autoSave
             control={
               <ToggleSwitch
@@ -210,7 +210,7 @@ export function GitSettings(): React.ReactNode {
           />
           <SettingsRow
             title="创建草稿拉取请求"
-            description="从 CodePilotX 创建 PR 时默认使用草稿拉取请求"
+            description="从 Pidex 创建 PR 时默认使用草稿拉取请求"
             autoSave
             control={
               <ToggleSwitch

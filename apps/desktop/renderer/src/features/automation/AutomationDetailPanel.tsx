@@ -1,9 +1,9 @@
 import { useEffect, useId, useState } from 'react'
 import { ArrowLeft, AlertTriangle, Check, Play, RotateCcw, X } from 'lucide-react'
 import type React from 'react'
-import type { AutomationRun } from '@codepilotx/shared/automation'
-import type { RpcResult } from '@codepilotx/agent-protocol'
-import { environmentDomainClient } from '../../services/desktop-client/environment-domain-client.js'
+import type { AutomationRun } from '@pidex/shared/automation'
+import type { RpcResult } from '@pidex/agent-protocol'
+import { environmentDomainClient } from '../../services/desktop-client/EnvironmentDomainClient.js'
 import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
 import { Select } from '../../components/ui/Select.js'
@@ -12,15 +12,15 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../components/ui/iconTokens.js'
-import type { AutomationController } from './useAutomationController.js'
+} from '../../components/ui/IconTokens.js'
+import type { AutomationController } from './UseAutomationController.js'
 import {
   automationScheduleSummary,
   formatAutomationTime,
   runStatusLabel,
   runTriggerLabel,
   type AutomationDraft,
-} from './automationModel.js'
+} from './AutomationModel.js'
 
 type Props = {
   creating: boolean

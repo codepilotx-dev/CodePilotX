@@ -1,16 +1,16 @@
 import type React from 'react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { Check, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react'
-import type { DesktopAuthTarget } from '../../../../shared/types.js'
+import type { DesktopAuthTarget } from '../../../../shared/Types.js'
 import { Button } from '../../../components/ui/Button.js'
 import { DisclosureController } from '../../../components/ui/DisclosureController.js'
 import { Input } from '../../../components/ui/Input.js'
 import { Spinner } from '../../../components/ui/Spinner.js'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { useLocale } from '../../i18n/LocaleProvider.js'
 import { SettingsDropdown } from '../../settings/SettingsDropdown.js'
-import { useAuthSession } from '../../provider-management/useAuthSession.js'
+import { useAuthSession } from '../../provider-management/UseAuthSession.js'
 
 export type OAuthConnectionProps = {
   connected: boolean

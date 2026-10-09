@@ -1,19 +1,19 @@
 import React, { useEffect, useState } from 'react'
 import { AlertTriangle, ExternalLink } from 'lucide-react'
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
 import { CONFIG_UPDATED_EVENT, desktopClient } from '../../services/desktop-client/index.js'
-import { useDesktopSettings } from './useDesktopSettings.js'
+import { useDesktopSettings } from './UseDesktopSettings.js'
 import {
   PERMISSION_MODE_OPTIONS,
   permissionConfigForMode,
   permissionModeForConfig,
-} from './settingsStorage.js'
+} from './SettingsStorage.js'
 import type {
   DesktopConfigReadResult,
   DesktopConfigProfileListResult,
   DesktopDataLocationState,
   DesktopShellSecurityLevel,
-} from '../../../shared/types.js'
+} from '../../../shared/Types.js'
 import { SettingsRow } from './SettingsRow.js'
 import { SettingsSection } from './SettingsSection.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
@@ -204,7 +204,7 @@ export function ConfigSettings(): React.ReactNode {
             {configRead?.profileState.restartRequired ? (
               <SettingsRow
                 title="Profile 等待重启"
-                description="关闭所有 CodePilotX 桌面端和 CLI/TUI 后重新打开，新的 Profile 才会应用；当前任务不会被切换。"
+                description="关闭所有 Pidex 桌面端和 CLI/TUI 后重新打开，新的 Profile 才会应用；当前任务不会被切换。"
                 control={<span className="settings-row-status">待重启</span>}
               />
             ) : null}
@@ -313,7 +313,7 @@ export function ConfigSettings(): React.ReactNode {
             />
             <SettingsRow
               title="审批时机"
-              description="选择 CodePilotX 何时请求批准。"
+              description="选择 Pidex 何时请求批准。"
               control={
                 <SettingsDropdown
                   size="md"
@@ -536,7 +536,7 @@ export function ConfigSettings(): React.ReactNode {
 
         <SettingsSection
           title="数据位置"
-          description="CodePilotX 的全局配置、会话、宠物和托管工具存储位置。"
+          description="Pidex 的全局配置、会话、宠物和托管工具存储位置。"
         >
           <SettingsRow
             title="当前数据目录"

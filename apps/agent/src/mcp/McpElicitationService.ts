@@ -1,11 +1,11 @@
 import Ajv from 'ajv'
 import addFormats from 'ajv-formats'
 import { Effect } from 'effect'
-import type { RpcResult } from '@codepilotx/agent-protocol'
-import { AgentError } from '../domain'
+import type { RpcResult } from '@pidex/agent-protocol'
+import { AgentError } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
-import type { InteractionOperationInput } from '../storage/repositories/interaction-repository'
+import type { InteractionOperationInput } from '../storage/repositories/InteractionRepository'
 import { secretScrubber } from '../security/SecretScrubber'
 
 export type McpInvocationIdentity = {

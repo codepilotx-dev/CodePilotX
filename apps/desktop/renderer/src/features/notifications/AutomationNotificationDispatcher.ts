@@ -1,8 +1,8 @@
-import type { Automation, AutomationRun } from '@codepilotx/shared/automation'
-import type { EventEnvelope } from '@codepilotx/agent-protocol'
-import type { DesktopAutomationApi } from '../../services/desktop-client/types.js'
-import type { TaskNotificationSender } from './taskNotificationDispatcher.js'
-import { TaskNotificationDispatcher } from './taskNotificationDispatcher.js'
+import type { Automation, AutomationRun } from '@pidex/shared/automation'
+import type { EventEnvelope } from '@pidex/agent-protocol'
+import type { DesktopAutomationApi } from '../../services/desktop-client/Types.js'
+import type { TaskNotificationSender } from './TaskNotificationDispatcher.js'
+import { TaskNotificationDispatcher } from './TaskNotificationDispatcher.js'
 
 const terminal = (run: AutomationRun) =>
   run.status === 'completed' || run.status === 'failed' || run.status === 'interrupted'

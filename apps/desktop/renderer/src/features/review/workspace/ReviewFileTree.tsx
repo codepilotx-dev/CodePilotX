@@ -10,16 +10,16 @@ import {
   SquarePlus,
   type LucideIcon,
 } from 'lucide-react'
-import type { DesktopReviewDiffFile } from '../../../../shared/types.js'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
-import { cx } from '../../../utils/cx.js'
+import type { DesktopReviewDiffFile } from '../../../../shared/Types.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
+import { cx } from '../../../utils/Cx.js'
 import { FileTypeIcon, FolderTypeIcon } from '../../layout/FileTypeIcon.js'
-import type { ReviewFileTreeRow as ReviewFileTreeRowModel } from './buildReviewFileTree.js'
+import type { ReviewFileTreeRow as ReviewFileTreeRowModel } from './BuildReviewFileTree.js'
 import {
   normalizeReviewFileStatus,
   reviewFileStatusLabel,
   type ReviewFileStatusKind,
-} from './reviewFileStatus.js'
+} from './ReviewFileStatus.js'
 
 type Props = {
   commentCountsByPath?: Readonly<Record<string, number>>

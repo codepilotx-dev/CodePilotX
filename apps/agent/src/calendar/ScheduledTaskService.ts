@@ -1,14 +1,14 @@
-import type { ScheduledTask, ScheduledTaskDefinition } from '@codepilotx/shared/scheduled-task'
+import type { ScheduledTask, ScheduledTaskDefinition } from '@pidex/shared/scheduled-task'
 import {
   normalizeScheduledPermission,
   validateAutomationDefinition,
 } from '../automation/AutomationService'
-import { AgentError } from '../domain'
-import type { AutomationRepository } from '../storage/repositories/automation-repository'
+import { AgentError } from '../Domain'
+import type { AutomationRepository } from '../storage/repositories/AutomationRepository'
 import type {
   ScheduledTaskRepository,
   ScheduledTaskUpdate,
-} from '../storage/repositories/scheduled-task-repository'
+} from '../storage/repositories/ScheduledTaskRepository'
 
 export type ScheduledTaskServiceOptions = {
   now?: () => number

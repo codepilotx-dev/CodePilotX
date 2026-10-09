@@ -1,8 +1,8 @@
 import { forwardRef } from 'react'
 import type React from 'react'
 import { ChevronDown } from 'lucide-react'
-import { cx } from '../../utils/cx.js'
-import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from './iconTokens.js'
+import { cx } from '../../utils/Cx.js'
+import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from './IconTokens.js'
 
 type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   icon: React.ReactNode

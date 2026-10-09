@@ -8,7 +8,7 @@ import {
   type TaskMode,
   type ToolAuthorizationScope,
   type ToolInvocation,
-} from '../domain'
+} from '../Domain'
 import type { WorkspaceService } from '../workspace/WorkspaceService'
 import { buildFileDiff } from '../patch/TurnPatchService'
 import {
@@ -26,8 +26,8 @@ import {
   type PermissionConfig,
   type PermissionGrantScope,
   type ShellInput,
-} from '@codepilotx/shared/thread'
-import { Model, Provider } from '@codepilotx/model-schema'
+} from '@pidex/shared/thread'
+import { Model, Provider } from '@pidex/model-schema'
 import { runHostCommand, type ProcessResult } from './Shell/HostProcess'
 import { shellCommandSegments } from './Shell/CommandSyntax'
 import { realpath } from 'node:fs/promises'
@@ -54,9 +54,9 @@ import {
   type ToolProcessRunner,
 } from './ToolingRuntime'
 import type { ManagedToolID, ToolingResolution } from './ToolingManager'
-import { applyEditsText, type EditOperation } from './Edit/applyEditText'
+import { applyEditsText, type EditOperation } from './Edit/ApplyEditText'
 import type { AgentLogger } from '../observability/AgentLogger'
-import { parseApplyPatch } from './ApplyPatch/parseApplyPatch'
+import { parseApplyPatch } from './ApplyPatch/ParseApplyPatch'
 import type { TurnPatchMutationBatch } from '../patch/TurnPatchTypes'
 
 type FileToolFailurePhase = 'normalize' | 'authorization' | 'execute' | 'post-hook'
@@ -427,7 +427,7 @@ export class ToolExecutor {
     )
     const skipProjectHooks = context.skipHooks || context.taskMode === 'plan'
     if (this.options?.userConfigPath) {
-      workspace.grantEditorAlias('@codepilotx/config.json', this.options.userConfigPath)
+      workspace.grantEditorAlias('@pidex/config.json', this.options.userConfigPath)
     }
     const definition = catalog.get(name)
     const rawPaths =
@@ -507,7 +507,7 @@ export class ToolExecutor {
     const pathValue = typeof input.file_path === 'string' ? input.file_path : input.path
     const fileTool = name === 'Read' || name === 'Write' || name === 'Edit'
     const targetPath =
-      pathValue === '@codepilotx/config.json' ? this.options?.userConfigPath : pathValue
+      pathValue === '@pidex/config.json' ? this.options?.userConfigPath : pathValue
     const canonicalTarget =
       fileTool && typeof targetPath === 'string' && !targetPath.startsWith('@')
         ? await resolveProtectionPath(resolve(workspace.rootPath, targetPath))

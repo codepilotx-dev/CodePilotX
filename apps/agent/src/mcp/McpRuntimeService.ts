@@ -2,7 +2,7 @@ import type {
   McpReloadResultSchema,
   McpScope,
   McpServerDeclaration,
-} from '@codepilotx/agent-protocol'
+} from '@pidex/agent-protocol'
 import { McpConfigError, McpConfigService, isMcpSettingsConflict } from './McpConfigService'
 import { McpConnectionManager } from './McpConnectionManager'
 import { McpOAuthError, McpOAuthService } from './McpOAuthService'

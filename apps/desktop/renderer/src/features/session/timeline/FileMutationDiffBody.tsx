@@ -1,8 +1,8 @@
-import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../../components/ui/IconTokens.js'
 import React from 'react'
 import { LoaderCircle } from 'lucide-react'
-import type { RpcResult } from '@codepilotx/agent-protocol'
-import type { DesktopDiffMarkerStyle } from '../../../../shared/types.js'
+import type { RpcResult } from '@pidex/agent-protocol'
+import type { DesktopDiffMarkerStyle } from '../../../../shared/Types.js'
 
 import { Button } from '../../../components/ui/Button.js'
 

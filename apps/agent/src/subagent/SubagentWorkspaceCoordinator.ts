@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { isAbsolute, join, relative, resolve } from 'node:path'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import {
   WorkspaceIsolationService,
@@ -254,7 +254,7 @@ export class SubagentWorkspaceCoordinator implements SubagentWorkspaceProvider {
       if (within(canonical, configured) || within(configured, canonical)) {
         throw new AgentError(
           'WORKSPACE_DATA_ROOT_CONFLICT',
-          '工作区不能与 CodePilotX 用户数据目录互相包含',
+          '工作区不能与 Pidex 用户数据目录互相包含',
           409,
         )
       }

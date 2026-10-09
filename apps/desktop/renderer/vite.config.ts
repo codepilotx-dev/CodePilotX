@@ -113,7 +113,7 @@ export function resolveRendererServerOverrides(
 
 function startupSplashAssets(): Plugin {
   return {
-    name: 'codepilotx-startup-splash-assets',
+    name: 'pidex-startup-splash-assets',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         if (req.url !== WHALE_ICON_URL) return next()
@@ -248,7 +248,7 @@ function formatKib(bytes: number): string {
 
 function routeBundleReport(): Plugin {
   return {
-    name: 'codepilotx-route-bundle-report',
+    name: 'pidex-route-bundle-report',
     generateBundle(_options, bundle) {
       const chunks = new Map<string, BundleChunk>()
       for (const item of Object.values(bundle)) {
@@ -358,11 +358,11 @@ function routeBundleReport(): Plugin {
 export default defineConfig(({ command, mode }) => ({
   plugins: [tailwindcss(), react(), routeBundleReport(), startupSplashAssets()],
   define: {
-    __CODEPILOTX_VERSION__: JSON.stringify(rootPackage.version),
+    __PIDEX_VERSION__: JSON.stringify(rootPackage.version),
   },
   resolve: {
     alias: {
-      '@codepilotx/core': resolve(__dirname, 'src/shims/core'),
+      '@pidex/core': resolve(__dirname, 'src/shims/core'),
     },
     dedupe: ['react', 'react-dom'],
   },

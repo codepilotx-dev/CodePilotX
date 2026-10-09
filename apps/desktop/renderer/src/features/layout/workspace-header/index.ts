@@ -9,11 +9,11 @@ export {
   selectWorkspaceHeaderItems,
   sortWorkspaceHeaderItems,
   workspaceHeaderStore,
-} from './workspaceHeaderStore.js'
+} from './WorkspaceHeaderStore.js'
 export type {
   WorkspaceHeaderAlign,
   WorkspaceHeaderItemRegistration,
   WorkspaceHeaderItemSnapshot,
   WorkspaceHeaderSlot,
   WorkspaceHeaderStore,
-} from './workspaceHeaderStore.js'
+} from './WorkspaceHeaderStore.js'

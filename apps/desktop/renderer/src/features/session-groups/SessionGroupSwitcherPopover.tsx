@@ -1,13 +1,13 @@
 import type React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Check, MessagesSquare, Plus, Unlink } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/IconTokens.js'
 import {
   SearchablePopoverAction,
   SearchablePopoverContent,
 } from '../../components/ui/SearchablePopoverContent.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
-import type { DesktopSessionGroup } from '../../services/desktop-client/types.js'
+import type { DesktopSessionGroup } from '../../services/desktop-client/Types.js'
 
 type Props = {
   value: string | null

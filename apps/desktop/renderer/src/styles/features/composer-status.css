@@ -8,7 +8,7 @@
    *
    * The status overlay itself migrated to Tailwind utilities in
    * `src/features/session/composer/ComposerStatusOverlay.tsx`. Only the quota bar
-   * fill stays here: the animation contract in `scripts/check-style-contracts.ts`
+   * fill stays here: the animation contract in `scripts/CheckStyleContracts.ts`
    * reads `.composer-status-bar-fill` out of this exact file and requires it to
    * transition `transform` only, so the compositor-safe fill keeps its class-based
    * rule instead of a `tw:transition-transform` utility.

@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useEffect, useRef } from 'react'
-import { toastStore } from './toast/toastState.js'
+import { toastStore } from './toast/ToastState.js'
 
 type Props = {
   message: string | null

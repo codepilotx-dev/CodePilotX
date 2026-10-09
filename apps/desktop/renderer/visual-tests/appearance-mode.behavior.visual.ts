@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { prepareVisualTheme, waitForVisualPage } from './visual-test-helpers.js'
+import { prepareVisualTheme, waitForVisualPage } from './VisualTestHelpers.js'
 
 test('appearance mode changes from cards and keyboard and persists', async ({ page }) => {
   await prepareVisualTheme(page, 'dark')

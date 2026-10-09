@@ -1,8 +1,8 @@
-import type { RpcResult } from '@codepilotx/agent-protocol'
-import type { CompactionEntry } from '../orchestration/harness/types'
-import type { EventEnvelope } from '../domain'
+import type { RpcResult } from '@pidex/agent-protocol'
+import type { CompactionEntry } from '../orchestration/harness/Types'
+import type { EventEnvelope } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
-import type { StoredContextCompaction } from '../storage/repositories/context-repository'
+import type { StoredContextCompaction } from '../storage/repositories/ContextRepository'
 import type { AgentInputItem } from './ContextManager'
 import { ContextManager } from './ContextManager'
 

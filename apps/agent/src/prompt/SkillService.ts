@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto'
 import { lstat, readFile, readdir, realpath } from 'node:fs/promises'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { parse as parseYaml } from 'yaml'
-import type { SkillSelection } from '@codepilotx/agent-protocol'
-import { AgentError } from '../domain'
+import type { SkillSelection } from '@pidex/agent-protocol'
+import { AgentError } from '../Domain'
 
 const COMPATIBILITY_DIRS = ['.codepilotx', '.agents', '.codex', '.claude'] as const
 const USER_COMPATIBILITY_DIRS = ['.agents', '.codex', '.claude'] as const

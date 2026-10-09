@@ -1,7 +1,7 @@
 import React from 'react'
 import { VList, type VListHandle } from 'virtua'
 import { ReviewFileTreeRow } from './ReviewFileTree.js'
-import { flattenReviewFileTree, type ReviewFileTreeNode } from './buildReviewFileTree.js'
+import { flattenReviewFileTree, type ReviewFileTreeNode } from './BuildReviewFileTree.js'
 
 const REVIEW_FILE_TREE_ROW_HEIGHT = 29
 

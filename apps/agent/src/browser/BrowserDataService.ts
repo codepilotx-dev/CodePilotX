@@ -1,9 +1,9 @@
 import { Effect } from 'effect'
-import type { BrowserVisit, BrowserDownload } from '@codepilotx/agent-protocol'
-import { AgentError } from '../domain'
+import type { BrowserVisit, BrowserDownload } from '@pidex/agent-protocol'
+import { AgentError } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
-import { BrowserDataRepository } from '../storage/repositories/browser-data-repository'
+import { BrowserDataRepository } from '../storage/repositories/BrowserDataRepository'
 
 export class BrowserDataService {
   revision = 0

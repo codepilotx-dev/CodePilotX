@@ -14,7 +14,7 @@ import {
   writeFile,
 } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import { pathContains } from '../permission/PathPermissions'
 import type { RequestedPermissions } from '../permission/PermissionDecisionEngine'
 import type { FileAccessProfile } from '../permission/ExecutionPolicy'
@@ -358,7 +358,7 @@ export class WorkspaceService {
     return resolved
   }
 
-  grantEditorAlias(alias: '@codepilotx/config.json', targetPath: string) {
+  grantEditorAlias(alias: '@pidex/config.json', targetPath: string) {
     if (!isAbsolute(targetPath))
       throw new AgentError('WORKSPACE_PATH_DENIED', '编辑器别名目标无效', 403)
     this.shared.editorAliases.set(alias, resolve(targetPath))

@@ -1,4 +1,4 @@
-import type { Model } from '@codepilotx/model-schema'
+import type { Model } from '@pidex/model-schema'
 import type {
   PermissionConfig,
   SubagentProfile,
@@ -7,9 +7,9 @@ import type {
   SubagentRun,
   SubagentStatus,
   SubagentTask,
-} from '@codepilotx/shared/thread'
-import { encodeApprovalPolicy } from '@codepilotx/shared/thread'
-import { AgentError, type AgentExecution, type EventEnvelope } from '../domain'
+} from '@pidex/shared/thread'
+import { encodeApprovalPolicy } from '@pidex/shared/thread'
+import { AgentError, type AgentExecution, type EventEnvelope } from '../Domain'
 import { subagentCollaborationAvailable } from './SubagentCollaborationRepository'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 

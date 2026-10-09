@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
-import { useEverOpened } from '../../hooks/usePresenceRetention.js'
-import { useAutomationController, type AutomationController } from './useAutomationController.js'
+import { useEverOpened } from '../../hooks/UsePresenceRetention.js'
+import { useAutomationController, type AutomationController } from './UseAutomationController.js'
 
 export const AutomationControllerContext = createContext<AutomationController | null>(null)
 

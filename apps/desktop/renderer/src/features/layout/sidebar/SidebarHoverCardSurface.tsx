@@ -1,7 +1,7 @@
 import type React from 'react'
 import { Popover as Popover } from '../../../components/ui/floating/Popover.js'
 import { useLayoutEffect, useMemo, useRef } from 'react'
-import { cx } from '../../../utils/cx.js'
+import { cx } from '../../../utils/Cx.js'
 import type { SidebarHoverCardOverlayRenderProps } from './SidebarHoverCard.js'
 
 type VirtualAnchor = {

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import type { BrowserAnnotation } from '@codepilotx/shared/browser-annotation'
-import type { ComposerDraftKey } from '../session/composer/composerTypes.js'
-import { composerDraftStore } from '../session/composer/composerDraftStore.js'
-import { deleteBrowserAnnotation } from './browserAnnotationDraft.js'
+import type { BrowserAnnotation } from '@pidex/shared/browser-annotation'
+import type { ComposerDraftKey } from '../session/composer/ComposerTypes.js'
+import { composerDraftStore } from '../session/composer/ComposerDraftStore.js'
+import { deleteBrowserAnnotation } from './BrowserAnnotationDraft.js'
 import { Button } from '../../components/ui/Button.js'
 
 export function BrowserAnnotationCard({

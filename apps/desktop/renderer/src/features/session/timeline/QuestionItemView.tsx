@@ -1,13 +1,13 @@
 import React from 'react'
 import { Check, ChevronDown, ListChecks, MessageCircleQuestion } from 'lucide-react'
-import type { Item, QuestionItem } from '@codepilotx/shared/thread'
-import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
+import type { Item, QuestionItem } from '@pidex/shared/thread'
+import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../../components/ui/IconTokens.js'
 import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import {
   PROCESS_CARD_SUMMARY_CLASS,
   type ResolvedCanonicalItemDisclosure,
 } from './CanonicalItemRenderer.js'
-import { cx } from '../../../utils/cx.js'
+import { cx } from '../../../utils/Cx.js'
 
 /** A persisted question owns its tool's presentation, but never hides tool failures. */
 export function questionTimelineItems(

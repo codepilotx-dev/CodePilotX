@@ -254,7 +254,7 @@
   /*
    * The collapsed activity heading is a pinned query anchor (its class
    * attribute must stay exactly `canonical-turn-activity`), and its content
-   * element carries the animation contract of scripts/check-style-contracts.ts:
+   * element carries the animation contract of scripts/CheckStyleContracts.ts:
    * it must stay on the compositor path without a persistent will-change.
    */
   .canonical-turn-activity {
@@ -1693,7 +1693,7 @@
 
   /*
    * The result fieldset is a pinned query anchor (exact class attribute in
-   * test/request-card.test.tsx), so its geometry stays here.
+   * test/RequestCard.test.tsx), so its geometry stays here.
    */
   .request-card-content {
     border: 0;

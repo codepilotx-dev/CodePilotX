@@ -18,7 +18,7 @@ import type {
   DesktopApiKeySummary,
   DesktopModelProviderState,
   DesktopModelProviderSummary,
-} from '../../../../shared/types.js'
+} from '../../../../shared/Types.js'
 import { Button } from '../../../components/ui/Button.js'
 import { Dropdown } from '../../../components/ui/Dropdown.js'
 
@@ -28,10 +28,10 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../../components/ui/iconTokens.js'
+} from '../../../components/ui/IconTokens.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { isExecutableDesktopProvider } from '../../../services/desktop-client/provider-adapters.js'
-import { fullErrorMessage } from '../../../utils/errors.js'
+import { isExecutableDesktopProvider } from '../../../services/desktop-client/ProviderAdapters.js'
+import { fullErrorMessage } from '../../../utils/Errors.js'
 import {
   providerManagementStore,
   type ConfiguredProviderGroup,

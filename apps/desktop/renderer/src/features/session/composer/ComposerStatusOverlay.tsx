@@ -1,10 +1,10 @@
-import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import type React from 'react'
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { ChatInputDropdown } from './ChatInputDropdown.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { cx } from '../../../utils/cx.js'
+import { cx } from '../../../utils/Cx.js'
 import {
   criticalQuotaWindows,
   formatCount,
@@ -14,8 +14,8 @@ import {
   sourceForProvider,
   type ProviderQuotaWindow,
   type ProviderUsageSource,
-} from '../../../utils/usageFormatters.js'
-import type { DesktopContextUsage, ModelProviderID } from '../../../../shared/types.js'
+} from '../../../utils/UsageFormatters.js'
+import type { DesktopContextUsage, ModelProviderID } from '../../../../shared/Types.js'
 import { ContextUsagePanel } from './ContextUsagePanel.js'
 
 type Props = {
@@ -30,7 +30,7 @@ type Props = {
 /*
  * `composer-status-bar-fill` keeps its scaleX/transform-origin/transition in
  * `src/styles/features/_composer-status.scss`: the animation contract in
- * `scripts/check-style-contracts.ts` pins that rule to a transform-only,
+ * `scripts/CheckStyleContracts.ts` pins that rule to a transform-only,
  * compositor-safe transition.
  */
 const SECTION_CLASS = cx(

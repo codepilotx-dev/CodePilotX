@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { parse } from 'smol-toml'
 import { z } from 'zod'
-import type { ComputerIdentity, ComputerPolicyDecision } from '@codepilotx/agent-protocol'
+import type { ComputerIdentity, ComputerPolicyDecision } from '@pidex/agent-protocol'
 import type { ConfigService } from '../config/ConfigService'
 
 const access = z.enum(['allow', 'deny'])
@@ -56,6 +56,8 @@ export class ComputerPolicyService {
   ) {
     this.machinePath =
       machinePath ??
+      // 机器策略由管理员按产品改名前的路径部署，改名后继续读取同一位置，
+      // 否则已部署的 requirements.toml 会静默失效。
       join(process.env.ProgramData || 'C:\\ProgramData', 'CodePilotX', 'requirements.toml')
   }
   async initialize() {

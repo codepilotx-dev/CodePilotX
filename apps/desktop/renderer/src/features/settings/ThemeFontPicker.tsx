@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Input } from '../../components/ui/Input.js'
-import type { DesktopSystemFontFace, DesktopThemeFontFace } from '../../../shared/types.js'
+import type { DesktopSystemFontFace, DesktopThemeFontFace } from '../../../shared/Types.js'
 import {
   getCachedSystemFontsPromise,
   isMonospaceFamily,
   listSystemFonts,
-} from '../theme/themeSystemFonts.js'
+} from '../theme/ThemeSystemFonts.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import {
   DEFAULT_FACE_VALUE,
@@ -21,7 +21,7 @@ import {
   selectedStyleValue,
   type FontPickerKind,
   type FontPickerOption,
-} from './themeFontPickerModel.js'
+} from './ThemeFontPickerModel.js'
 
 type ThemeFontPickerProps = {
   ariaLabel: string
@@ -111,7 +111,7 @@ export function ThemeFontPicker({
   const [bridgeAvailable] = useState(
     () =>
       typeof window !== 'undefined' &&
-      typeof window.codePilotXDesktop?.listSystemFonts === 'function',
+      typeof window.DesktopBridge?.listSystemFonts === 'function',
   )
   const [fontsState, setFontsState] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
   const [faces, setFaces] = useState<readonly DesktopSystemFontFace[]>([])

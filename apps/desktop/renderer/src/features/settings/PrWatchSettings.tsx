@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ModelRefSchema } from '@codepilotx/shared'
-import type { RpcResult } from '@codepilotx/agent-protocol'
-import type { DesktopWorkspace } from '../../../shared/types.js'
+import { ModelRefSchema } from '@pidex/shared'
+import type { RpcResult } from '@pidex/agent-protocol'
+import type { DesktopWorkspace } from '../../../shared/Types.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
-import { environmentDomainClient } from '../../services/desktop-client/environment-domain-client.js'
+import { environmentDomainClient } from '../../services/desktop-client/EnvironmentDomainClient.js'
 import { Button } from '../../components/ui/Button.js'
 import { Input } from '../../components/ui/Input.js'
 import { Select } from '../../components/ui/Select.js'
@@ -15,7 +15,7 @@ import {
   isSettingsSaveShortcut,
   useDesktopSettings,
   useDesktopRuntimeSettings,
-} from './useDesktopSettings.js'
+} from './UseDesktopSettings.js'
 
 export function PrWatchSettings(): React.ReactNode {
   const settings = useDesktopSettings()

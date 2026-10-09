@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react'
 
-import type { DesktopSessionStatus, DesktopUserMessageInput } from '../../../../shared/types.js'
-import type { Attachment, LocalContextReference } from '@codepilotx/shared/thread'
+import type { DesktopSessionStatus, DesktopUserMessageInput } from '../../../../shared/Types.js'
+import type { Attachment, LocalContextReference } from '@pidex/shared/thread'
 import type { MarkdownFileOpenOptions, MarkdownFileReference } from '../../markdown/index.js'
 
 export type ConversationItemContextValue = {

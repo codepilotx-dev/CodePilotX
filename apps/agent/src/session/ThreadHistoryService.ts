@@ -3,12 +3,12 @@ import {
   decodeApprovalPolicy,
   type ThreadListItem,
   type ThreadSettingsPatch,
-} from '@codepilotx/shared/thread'
-import { AgentError } from '../domain'
+} from '@pidex/shared/thread'
+import { AgentError } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
 import { normalizeThreadTitle } from './ThreadTitleService'
-import { THREAD_ORIGIN_PROJECTION_SQL } from '../storage/repositories/thread-repository'
+import { THREAD_ORIGIN_PROJECTION_SQL } from '../storage/repositories/ThreadRepository'
 
 export type ThreadMetadataPatch = {
   title?: string | null

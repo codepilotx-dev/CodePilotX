@@ -1,6 +1,6 @@
 import { Children, cloneElement, forwardRef } from 'react'
 import type { HTMLAttributes, ReactElement, ReactNode, Ref } from 'react'
-import { cx } from '../../../utils/cx.js'
+import { cx } from '../../../utils/Cx.js'
 
 type SidebarRowLeadingMode = 'icon' | 'spacer' | 'none'
 type SidebarRowIndent = 'none' | 'session'

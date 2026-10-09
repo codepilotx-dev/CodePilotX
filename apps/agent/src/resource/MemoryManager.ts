@@ -2,7 +2,7 @@ import type {
   MemoryStats,
   SystemShrinkMemoryResult,
   SystemShrinkReason,
-} from '@codepilotx/agent-protocol'
+} from '@pidex/agent-protocol'
 import type { AgentLogger } from '../observability/AgentLogger'
 
 export type MemoryShrinkHook = () => Promise<void> | void

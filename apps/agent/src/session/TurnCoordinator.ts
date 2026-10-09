@@ -1,4 +1,4 @@
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 
 export type TurnTerminalStatus = 'completed' | 'failed' | 'interrupted'
 

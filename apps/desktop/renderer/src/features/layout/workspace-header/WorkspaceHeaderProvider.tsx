@@ -1,6 +1,6 @@
 import type React from 'react'
 import { createContext, useContext, useMemo } from 'react'
-import { workspaceHeaderStore, type WorkspaceHeaderStore } from './workspaceHeaderStore.js'
+import { workspaceHeaderStore, type WorkspaceHeaderStore } from './WorkspaceHeaderStore.js'
 
 type WorkspaceHeaderContextValue = {
   routeScope: string

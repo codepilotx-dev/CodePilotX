@@ -1,13 +1,13 @@
 import { Effect } from 'effect'
 import { createHash } from 'node:crypto'
-import { AgentError, type PermissionDecision, type ToolInvocation } from '../domain'
+import { AgentError, type PermissionDecision, type ToolInvocation } from '../Domain'
 import type {
   AgentDatabase,
   ApprovalCheckpointPayload,
   StoredApprovalCheckpoint,
 } from '../storage/database/AgentDatabase'
 import type { EventHub } from '../storage/events/EventHub'
-import type { InteractionOperationInput } from '../storage/repositories/interaction-repository'
+import type { InteractionOperationInput } from '../storage/repositories/InteractionRepository'
 import type { ToolRegistry } from '../tool/ToolRegistry'
 import {
   PermissionDecisionEngine,

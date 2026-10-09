@@ -1,4 +1,4 @@
-import type { RpcParams, UsageSourceDescriptor } from '@codepilotx/agent-protocol'
+import type { RpcParams, UsageSourceDescriptor } from '@pidex/agent-protocol'
 import type React from 'react'
 import { useState } from 'react'
 import { Button } from '../../../components/ui/Button.js'

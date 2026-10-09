@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../../components/ui/IconTokens.js'
 import { CornerDownLeft, X } from 'lucide-react'
 import React from 'react'
 import { Button } from '../../../components/ui/Button.js'
@@ -14,8 +14,8 @@ import type {
   McpElicitationSchema,
   McpElicitationSingleSelectEnumSchema,
   McpElicitationStringSchema,
-} from './mcpElicitationTypes.js'
-import { getFieldDefault, validateField } from './mcpElicitationUtils.js'
+} from './McpElicitationTypes.js'
+import { getFieldDefault, validateField } from './McpElicitationUtils.js'
 import { RequestCard } from '../approvals/RequestCard.js'
 
 // ── Props ────────────────────────────────────────────────────

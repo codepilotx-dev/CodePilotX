@@ -1,7 +1,7 @@
 import type React from 'react'
 import { useLayoutEffect, useMemo } from 'react'
 import { useWorkspaceHeaderContext } from './WorkspaceHeaderProvider.js'
-import type { WorkspaceHeaderAlign, WorkspaceHeaderSlot } from './workspaceHeaderStore.js'
+import type { WorkspaceHeaderAlign, WorkspaceHeaderSlot } from './WorkspaceHeaderStore.js'
 
 export type WorkspaceHeaderItemProps = {
   align?: WorkspaceHeaderAlign

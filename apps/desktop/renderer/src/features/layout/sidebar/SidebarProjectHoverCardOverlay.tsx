@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useRef } from 'react'
-import type { DesktopWorkspace, ProjectAppearance } from '../../../../shared/types.js'
+import type { DesktopWorkspace, ProjectAppearance } from '../../../../shared/Types.js'
 import {
   focusSidebarHoverCardAnchor,
   type SidebarHoverCardOverlayRenderProps,

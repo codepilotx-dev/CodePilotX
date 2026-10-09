@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 import { SkeletonBlock } from './Skeleton.js'
 
 type RemoteImageState = 'loading' | 'ready' | 'error'

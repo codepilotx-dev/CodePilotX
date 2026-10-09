@@ -5,7 +5,7 @@ import {
   sessionEditableTitle,
   sessionResolvedTitle,
   type SessionListItem,
-} from '../../../uiTypes.js'
+} from '../../../UiTypes.js'
 import { SidebarHoverCard } from './SidebarHoverCard.js'
 import { SidebarSessionHoverCardOverlay } from './SidebarSessionHoverCardOverlay.js'
 

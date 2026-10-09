@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react'
-import { resolveAppLocale, type AppLocale, type LanguagePreference } from './locale.js'
-import { enUS } from './messages.en.js'
+import { resolveAppLocale, type AppLocale, type LanguagePreference } from './Locale.js'
+import { enUS } from './Messages.en.js'
 
 type LocaleContextValue = {
   locale: AppLocale

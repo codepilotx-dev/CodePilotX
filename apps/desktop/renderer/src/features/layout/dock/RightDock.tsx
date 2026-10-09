@@ -10,8 +10,8 @@ import type {
   DesktopReviewView,
   DesktopSessionStatus,
   DesktopWorkspace,
-} from '../../../../shared/types.js'
-import type { ReviewTabUiState } from '../tabs/conversationUiState.js'
+} from '../../../../shared/Types.js'
+import type { ReviewTabUiState } from '../tabs/ConversationUiState.js'
 import { TabStripButtonProvider } from '../../../components/ui/TabStripButtonContext.js'
 import type {
   MarkdownFileViewMode,
@@ -20,7 +20,7 @@ import type {
   WorkbenchTabDescriptor,
   WorkbenchTabId,
   WorkbenchTabsState,
-} from './rightDockState.js'
+} from './RightDockState.js'
 import {
   createLauncherTab,
   getWorkbenchLauncherDefinitions,
@@ -28,7 +28,7 @@ import {
   getWorkbenchTabDefinition,
   type WorkbenchTabAvailability,
   type WorkbenchTabRenderContext,
-} from '../tabs/workbenchTabRegistry.js'
+} from '../tabs/WorkbenchTabRegistry.js'
 import { WorkbenchTabStrip, workbenchTabDomId } from '../tabs/WorkbenchTabStrip.js'
 import { WorkbenchDockFrame } from './WorkbenchDockFrame.js'
 import {
@@ -40,7 +40,7 @@ import {
   WorkbenchPanelSurface,
 } from '../panels/WorkbenchPanelSurface.js'
 import type { FileDocumentLoadErrorPhase } from './RightDockPanels.js'
-import { type ResizePhase, useSidebarResizeCollapseConfirm } from '../useSidebarResizeCollapseConfirm.js'
+import { type ResizePhase, useSidebarResizeCollapseConfirm } from '../UseSidebarResizeCollapseConfirm.js'
 import { useWorkbenchPanelLiveResize } from '../panels/WorkbenchPanelPresence.js'
 
 type Props = {
@@ -70,7 +70,7 @@ type Props = {
   width: number
   height?: number
   workspace: DesktopWorkspace | null
-  browserDraftKey: import('../../session/composer/composerTypes.js').ComposerDraftKey
+  browserDraftKey: import('../../session/composer/ComposerTypes.js').ComposerDraftKey
   onBrowserStateChange: (state: DesktopBrowserState) => void
   onClose: () => void
   onCloseTab: (tabId: WorkbenchTabId) => void

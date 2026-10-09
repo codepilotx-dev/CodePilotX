@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import {
   getToolingManager,
   type ManagedToolID,

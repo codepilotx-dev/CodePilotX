@@ -6,12 +6,12 @@ import type {
   PluginInstallationPolicy,
   PluginSource,
   PluginSummary,
-} from '@codepilotx/agent-protocol'
+} from '@pidex/agent-protocol'
 import { parseSkillDocument } from '../prompt/SkillService'
 import {
   PluginSettingsConflictError,
   PluginSettingsRepository,
-} from '../storage/repositories/plugin-settings-repository'
+} from '../storage/repositories/PluginSettingsRepository'
 
 const MAX_JSON_BYTES = 1024 * 1024
 const pluginIdPattern = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*$/
@@ -369,7 +369,7 @@ export class PluginManagementService {
       ).catch(() => null)
       if (extensionPath) {
         if (!contained(input.pluginRoot, extensionPath)) {
-          throw new Error('CodePilotX 扩展清单路径无效')
+          throw new Error('Pidex 扩展清单路径无效')
         }
         extension = record(await readJson(extensionPath))
         if (
@@ -381,7 +381,7 @@ export class PluginManagementService {
             String(extension.installation),
           )
         ) {
-          throw new Error('CodePilotX 扩展清单无效')
+          throw new Error('Pidex 扩展清单无效')
         }
       }
 

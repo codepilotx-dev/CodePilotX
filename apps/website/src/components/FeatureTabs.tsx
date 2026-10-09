@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { FEATURE_TABS } from '../constants/content'
+import { FEATURE_TABS } from '../constants/Content'
 import { ProductPlaceholder } from './ProductPlaceholder'
 import { Check } from 'lucide-react'
 
@@ -30,7 +30,7 @@ export const FeatureTabs: React.FC = () => {
             Everything your task needs, organized.
           </h2>
           <p className="mt-4 text-base sm:text-lg text-[#55625D]">
-            Switch between core workflows to inspect how CodePilotX handles projects, agents,
+            Switch between core workflows to inspect how Pidex handles projects, agents,
             models, diff reviews, and background automations.
           </p>
         </div>
@@ -108,7 +108,7 @@ export const FeatureTabs: React.FC = () => {
                 aspectRatio={activeTab.aspectRatio}
                 badge={`${activeTab.label.toUpperCase()} PREVIEW`}
                 caption="Interactive workbench screenshot placeholder. Preserves layout integrity during future image updates."
-                windowTitle={`CodePilotX — ${activeTab.label}`}
+                windowTitle={`Pidex — ${activeTab.label}`}
               />
             </div>
           </div>

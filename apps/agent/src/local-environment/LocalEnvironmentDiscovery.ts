@@ -1,7 +1,7 @@
 import { access, readdir } from 'node:fs/promises'
 import { basename, dirname, join, relative, resolve } from 'node:path'
 import { createHash } from 'node:crypto'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { GitCommandRunner } from '../git/GitCommandRunner'
 
 export const LOCAL_ENVIRONMENT_RELATIVE_PATH = join(

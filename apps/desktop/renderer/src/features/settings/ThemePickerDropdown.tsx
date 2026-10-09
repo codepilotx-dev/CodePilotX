@@ -3,12 +3,12 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Dropdown as DropdownMenu } from '../../components/ui/floating/Dropdown.js'
 import { Dropdown } from '../../components/ui/Dropdown.js'
 import { PopoverItem } from '../../components/ui/PopoverItem.js'
-import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
-import { buildPopoverSizingStyle } from '../../components/ui/popoverSizing.js'
-import { cx } from '../../utils/cx.js'
-import { ensureThemePreviewContrast } from '../theme/themeVariables.js'
+import { APP_ICON_SIZES, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
+import { buildPopoverSizingStyle } from '../../components/ui/PopoverSizing.js'
+import { cx } from '../../utils/Cx.js'
+import { ensureThemePreviewContrast } from '../theme/ThemeVariables.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
-import type { DesktopChromeTheme, DesktopThemeVariant } from '../../../shared/types.js'
+import type { DesktopChromeTheme, DesktopThemeVariant } from '../../../shared/Types.js'
 
 export type ThemePickerOption = {
   slug: string
@@ -83,7 +83,7 @@ export function ThemePickerDropdown({
   const activeSeed = themeSeeds[value]
   const defaultSeed = themeSeeds[defaultSlug]
 
-  const triggerLabel = isDefault ? t('CodePilotX') : (activeTheme?.label ?? value)
+  const triggerLabel = isDefault ? t('Pidex') : (activeTheme?.label ?? value)
 
   const triggerButton = (
     <button
@@ -120,14 +120,14 @@ export function ThemePickerDropdown({
       size="sm"
       trigger={triggerButton}
     >
-      {/* 1. 顶层项：CodePilotX */}
+      {/* 1. 顶层项：Pidex */}
       <PopoverItem
         icon={<ThemeBadge seed={defaultSeed} />}
         onClick={() => onChange(defaultSlug)}
         selected={isDefault}
         withCheck
       >
-        {t('CodePilotX')}
+        {t('Pidex')}
       </PopoverItem>
 
       {/* 2. 二级子菜单：Codex 主题 */}

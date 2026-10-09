@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { NAV_LINKS, GITHUB_REPO_URL } from '../constants/content'
+import { NAV_LINKS, GITHUB_REPO_URL } from '../constants/Content'
 import { Github, Menu, X, ArrowUpRight } from 'lucide-react'
 
 export const Navbar: React.FC = () => {
@@ -25,7 +25,7 @@ export const Navbar: React.FC = () => {
         <a
           href="#"
           className="group flex items-center gap-2 text-decoration-none focus-visible:rounded-lg focus-visible:outline-offset-2"
-          aria-label="CodePilotX Home"
+          aria-label="Pidex Home"
         >
           <div className="flex h-6 w-6 items-center justify-center rounded-[7px] bg-white p-1 transition-transform duration-300 group-hover:scale-105">
             <img
@@ -35,7 +35,7 @@ export const Navbar: React.FC = () => {
             />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-lg font-semibold tracking-[-0.03em] text-white">CodePilotX</span>
+            <span className="text-lg font-semibold tracking-[-0.03em] text-white">Pidex</span>
             <span className="rounded-full bg-white/10 px-2 py-0.5 font-mono text-[9px] font-medium tracking-wide text-white/60">
               BETA
             </span>

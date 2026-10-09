@@ -3,7 +3,7 @@ import type {
   CredentialInfo,
   CredentialStore,
 } from '@earendil-works/pi-ai'
-import { Credential } from '@codepilotx/model-schema'
+import { Credential } from '@pidex/model-schema'
 import { Effect } from 'effect'
 import type { ProviderCredentialRepository } from '../../auth/ProviderCredentialRepository'
 
@@ -19,11 +19,11 @@ type CredentialRepository = Pick<
 >
 
 export interface EncryptedCredentialStoreOptions {
-  /** Maps a Pi provider id to CodePilotX's integration id. */
+  /** Maps a Pi provider id to Pidex's integration id. */
   readonly integrationID?: (providerID: string) => string
   /** Maps a persisted integration id back to a Pi provider id for metadata listing. */
   readonly providerID?: (integrationID: string) => string | undefined
-  /** Used when Pi creates a new OAuth credential without CodePilotX method metadata. */
+  /** Used when Pi creates a new OAuth credential without Pidex method metadata. */
   readonly oauthMethodID?: (providerID: string) => string
 }
 
@@ -84,7 +84,7 @@ const toStoredCredential = (
 }
 
 /**
- * Pi credential storage backed by CodePilotX's selected Provider repository.
+ * Pi credential storage backed by Pidex's selected Provider repository.
  *
  * The adapter never reads or writes Pi's auth.json. Writes are serialized per
  * provider so OAuth refreshes cannot overwrite each other inside the Agent

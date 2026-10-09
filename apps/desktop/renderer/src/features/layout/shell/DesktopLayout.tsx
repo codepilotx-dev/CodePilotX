@@ -1,8 +1,8 @@
-import { captureSidebarAssignments, restoreFailedArchiveAssignments } from '../sidebar/sidebarCustomization.js'
-import { DEFAULT_SIDEBAR_CUSTOMIZATION } from '../../../../shared/settingsSchema.js'
-import { subscribeProjectRestores } from '../../projects/projectCatalogEvents.js'
-import { mergeBrowserWorkbench } from '../../browser/browserWorkbenchState.js'
-import { mergeComposerAttachments } from '../../session/composer/composerAttachmentSelection.js'
+import { captureSidebarAssignments, restoreFailedArchiveAssignments } from '../sidebar/SidebarCustomization.js'
+import { DEFAULT_SIDEBAR_CUSTOMIZATION } from '../../../../shared/SettingsSchema.js'
+import { subscribeProjectRestores } from '../../projects/ProjectCatalogEvents.js'
+import { mergeBrowserWorkbench } from '../../browser/BrowserWorkbenchState.js'
+import { mergeComposerAttachments } from '../../session/composer/ComposerAttachmentSelection.js'
 import { ConversationProjectDetails } from '../../projects/ConversationProjectDetails.js'
 import {
   desktopClient,
@@ -12,17 +12,17 @@ import {
 import {
   openPathWithPreferredExternalTarget,
   shouldFallbackToExternalOpen,
-} from '../../../services/externalOpenTargetsStore.js'
+} from '../../../services/ExternalOpenTargetsStore.js'
 import type React from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
-import { normalizePathForComparison } from '../../../utils/pathUtils.js'
+import { normalizePathForComparison } from '../../../utils/PathUtils.js'
 import type { DesktopComposerProps } from '../../session/composer/DesktopComposer.js'
-import { getDesktopComposerBranchName } from '../../session/composer/composerWorkspacePresentation.js'
-import { composerDraftStore } from '../../session/composer/composerDraftStore.js'
-import { isBuiltinSkill } from '../../plugins/builtinSkillPresentation.js'
-import { listRuntimeSkills } from '../../settings/plugins/skillClientAdapter.js'
-import type { ComposerDraftKey } from '../../session/composer/composerTypes.js'
-import { deriveWorkflowSessionState } from '../../../../shared/workflowReducer.js'
+import { getDesktopComposerBranchName } from '../../session/composer/ComposerWorkspacePresentation.js'
+import { composerDraftStore } from '../../session/composer/ComposerDraftStore.js'
+import { isBuiltinSkill } from '../../plugins/BuiltinSkillPresentation.js'
+import { listRuntimeSkills } from '../../settings/plugins/SkillClientAdapter.js'
+import type { ComposerDraftKey } from '../../session/composer/ComposerTypes.js'
+import { deriveWorkflowSessionState } from '../../../../shared/WorkflowReducer.js'
 import type { WorkbenchFileLoadErrorEvent } from '../dock/RightDock.js'
 import { WorkspaceShellControls } from '../dock/WorkspaceShellControls.js'
 import { DesktopWorkspaceHeader, WorkspaceHeaderProvider } from '../workspace-header/index.js'
@@ -34,7 +34,7 @@ import {
   type WorkbenchTabDescriptor,
   type WorkbenchTabId,
   type UserAttachmentPreviewTab,
-} from '../dock/rightDockState.js'
+} from '../dock/RightDockState.js'
 import {
   createDefaultConversationUiState,
   createDefaultReviewTabUiState,
@@ -45,34 +45,34 @@ import {
   validateConversationUiState,
   type ConversationUiState,
   type ReviewTabUiState,
-} from '../tabs/conversationUiState.js'
+} from '../tabs/ConversationUiState.js'
 import { DesktopSidebar } from '../DesktopSidebar.js'
 import type { GitWorkflowMode } from '../panels/GitWorkflowModal.js'
 import { SidebarFrame } from '../SidebarFrame.js'
 import { SidebarNavigationRail } from '../sidebar/SidebarNavigationRail.js'
 import { SidebarScheduledPane } from '../sidebar/SidebarScheduledPane.js'
 import { SidebarPluginsPane } from '../sidebar/SidebarPluginsPane.js'
-import { SIDEBAR_RAIL_WIDTH, sidebarPaneForRoute } from '../sidebar/sidebarNavigation.js'
+import { SIDEBAR_RAIL_WIDTH, sidebarPaneForRoute } from '../sidebar/SidebarNavigation.js'
 import { useSidebarCapabilities } from '../sidebar/SidebarTopNav.js'
 import { AutomationControllerProvider } from '../../automation/AutomationControllerProvider.js'
 import { MenuBar } from '../MenuBar.js'
-import { useAppMenuActions } from './useAppMenuActions.js'
+import { useAppMenuActions } from './UseAppMenuActions.js'
 import { QuickChatContext } from '../../session/QuickChatContext.js'
 import {
   sessionDisplayTitle,
   sessionEditableTitle,
   sessionViewFallbackTitle,
   type SessionListItem,
-} from '../../../uiTypes.js'
-import { resolveModelPresetId } from '../../../modelPresets.js'
-import { useDesktopRuntimeSettings } from '../../settings/useDesktopSettings.js'
-import { useSystemNotifications } from '../../notifications/useSystemNotifications.js'
-import { NO_WORKSPACE_DIFF } from '../../workspace/useWorkspaceState.js'
-import { shouldRestoreLastWorkspace } from '../../workspace/lastWorkspaceRestore.js'
-import { useSessionState } from '../../session/state/useSessionState.js'
-import { useSessionTitleRegeneration } from '../../session/state/useSessionTitleRegeneration.js'
-import { useDesktopCommands } from '../../session/useDesktopCommands.js'
-import { useEverOpened, useLastNonNull } from '../../../hooks/usePresenceRetention.js'
+} from '../../../UiTypes.js'
+import { resolveModelPresetId } from '../../../ModelPresets.js'
+import { useDesktopRuntimeSettings } from '../../settings/UseDesktopSettings.js'
+import { useSystemNotifications } from '../../notifications/UseSystemNotifications.js'
+import { NO_WORKSPACE_DIFF } from '../../workspace/UseWorkspaceState.js'
+import { shouldRestoreLastWorkspace } from '../../workspace/LastWorkspaceRestore.js'
+import { useSessionState } from '../../session/state/UseSessionState.js'
+import { useSessionTitleRegeneration } from '../../session/state/UseSessionTitleRegeneration.js'
+import { useDesktopCommands } from '../../session/UseDesktopCommands.js'
+import { useEverOpened, useLastNonNull } from '../../../hooks/UsePresenceRetention.js'
 import type {
   DesktopComposerAttachment,
   DesktopBrowserState,
@@ -82,8 +82,8 @@ import type {
   DesktopUserMessageInput,
   DesktopWorkspace,
   LocalRouterMode,
-} from '../../../../shared/types.js'
-import type { Attachment, LocalContextReference } from '@codepilotx/shared/thread'
+} from '../../../../shared/Types.js'
+import type { Attachment, LocalContextReference } from '@pidex/shared/thread'
 import {
   lazy,
   Suspense,
@@ -98,25 +98,25 @@ import {
   QUICK_CHAT_PATH,
   sessionPath,
   useWorkbenchRouteController,
-} from './useWorkbenchRouteController.js'
-import type { DesktopLayoutOutletContextValue } from './desktopLayoutOutletContext.js'
-import { useWorkbenchShellController } from './useWorkbenchShellController.js'
+} from './UseWorkbenchRouteController.js'
+import type { DesktopLayoutOutletContextValue } from './DesktopLayoutOutletContext.js'
+import { useWorkbenchShellController } from './UseWorkbenchShellController.js'
 import {
   isTerminalKeyboardTarget,
   useIntegratedTerminalController,
-} from './useIntegratedTerminalController.js'
-import { useWorkbenchWorkspaceController } from './useWorkbenchWorkspaceController.js'
+} from './UseIntegratedTerminalController.js'
+import { useWorkbenchWorkspaceController } from './UseWorkbenchWorkspaceController.js'
 import {
   isDeepSeekThinkingModel,
   useModelProviderController,
-} from '../useModelProviderController.js'
-import { buildVariantOptions } from '../../models/reasoningVariantLabels.js'
-import { useSubagentDockController } from '../dock/useSubagentDockController.js'
-import { useSideChatController } from '../dock/useSideChatController.js'
+} from '../UseModelProviderController.js'
+import { buildVariantOptions } from '../../models/ReasoningVariantLabels.js'
+import { useSubagentDockController } from '../dock/UseSubagentDockController.js'
+import { useSideChatController } from '../dock/UseSideChatController.js'
 import { WorkbenchShellView } from './WorkbenchShellView.js'
 import { WorkbenchPanelPresence } from '../panels/WorkbenchPanelPresence.js'
-import type { ResizePhase } from '../useSidebarResizeCollapseConfirm.js'
-import { resolveSidebarEscapeAction } from '../sidebarShellState.js'
+import type { ResizePhase } from '../UseSidebarResizeCollapseConfirm.js'
+import { resolveSidebarEscapeAction } from '../SidebarShellState.js'
 import type { MarkdownFileOpenOptions, MarkdownFileReference } from '../../markdown/index.js'
 import { MARKDOWN_THREAD_NAVIGATION_EVENT } from '../../markdown/MarkdownMessage.js'
 import {
@@ -125,23 +125,23 @@ import {
   prefetchFileDocument,
   saveAllFileDocuments,
   saveFileDocument,
-} from '../../workspace/fileDocumentStore.js'
+} from '../../workspace/FileDocumentStore.js'
 import { SettingsSidebarContent } from '../../settings/SettingsSidebarContent.js'
 import { SubagentDockContent } from '../../session/subagents/SubagentDockContent.js'
 import { WorkbenchPanel } from '../dock/RightDock.js'
 import { AuxiliaryWindowsHost } from '../auxiliary/AuxiliaryWindowsHost.js'
-import type { WorkbenchTabRenderContext } from '../tabs/workbenchTabRegistry.js'
-import { createWorkspaceFileTabId } from '../tabs/workspaceFileTabId.js'
+import type { WorkbenchTabRenderContext } from '../tabs/WorkbenchTabRegistry.js'
+import { createWorkspaceFileTabId } from '../tabs/WorkspaceFileTabId.js'
 import { CommandMenuDialog } from '../../search/CommandMenuDialog.js'
 import { DesktopComposer } from '../../session/composer/DesktopComposer.js'
-import { buildCommandMenuTasks } from '../../search/commandMenuModel.js'
+import { buildCommandMenuTasks } from '../../search/CommandMenuModel.js'
 import { GlobalErrorModal } from '../../../components/GlobalErrorModal.js'
-import { toastStore } from '../../../components/toast/toastState.js'
+import { toastStore } from '../../../components/toast/ToastState.js'
 import { Archive } from 'lucide-react'
-import { toUserErrorMessage } from '../../../utils/errors.js'
+import { toUserErrorMessage } from '../../../utils/Errors.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
-import type { ThreadArtifactPreviewInput } from '../../session/attachments/attachmentPreviewDescriptor.js'
-import { desktopBrowserClient } from '../../../services/desktop-client/desktop-browser-client.js'
+import type { ThreadArtifactPreviewInput } from '../../session/attachments/AttachmentPreviewDescriptor.js'
+import { desktopBrowserClient } from '../../../services/desktop-client/DesktopBrowserClient.js'
 
 const GitWorkflowModal = lazy(() =>
   import('../panels/GitWorkflowModal.js').then((module) => ({ default: module.GitWorkflowModal })),
@@ -252,7 +252,7 @@ function routeAccessibilityLabel(pathname: string): string {
   if (pathname === '/automations') return '已安排'
   if (pathname === '/pets') return '宠物'
   if (pathname.startsWith('/settings/')) return '设置'
-  return 'CodePilotX'
+  return 'Pidex Desktop'
 }
 
 function normalizePathForCompare(path: string): string {
@@ -327,7 +327,7 @@ export function DesktopLayout(): React.ReactNode {
   const [browserTabs, setBrowserTabs] = useState<DesktopBrowserState[]>([])
   const browserAvailable =
     typeof window !== 'undefined' &&
-    typeof window.codePilotXDesktop?.createOrRestoreDesktopBrowser === 'function'
+    typeof window.DesktopBridge?.createOrRestoreDesktopBrowser === 'function'
   const browserAvailability = browserAvailable ? 'available' : 'unavailable'
   const gitWorkflowModalMounted = useEverOpened(gitWorkflowMode !== null)
   const githubRepositoryModalMounted = useEverOpened(githubRepositoryModalOpen)
@@ -395,7 +395,7 @@ export function DesktopLayout(): React.ReactNode {
   const mainRouteRef = useRef<HTMLDivElement>(null)
   const commandMenuInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
-    document.title = `${routeLabel} · CodePilotX`
+    document.title = `${routeLabel} · Pidex Desktop`
   }, [routeLabel])
   const visibleRightDockState = useMemo(
     () => ({
@@ -568,7 +568,7 @@ export function DesktopLayout(): React.ReactNode {
     toggleSidebarPanel()
   }, [activeSidebarPane, navigate, sidebarShell.pin, toggleSidebarPanel])
   useEffect(() => {
-    const bridge = window.codePilotXDesktop
+    const bridge = window.DesktopBridge
     if (!bridge) return
     if (
       settingsLoaded &&
@@ -583,7 +583,7 @@ export function DesktopLayout(): React.ReactNode {
     })
   }, [navigate, settings.values.pet.enabled, settingsLoaded])
   useEffect(() => {
-    const bridge = window.codePilotXDesktop
+    const bridge = window.DesktopBridge
     if (typeof bridge?.onDesktopNotificationActivated !== 'function') return
     return bridge.onDesktopNotificationActivated((activation) => {
       // 点击已解决的权限通知只打开任务，不直接执行授权；页面会重新读取
@@ -592,7 +592,7 @@ export function DesktopLayout(): React.ReactNode {
     })
   }, [navigate])
   useEffect(() => {
-    const bridge = window.codePilotXDesktop
+    const bridge = window.DesktopBridge
     if (typeof bridge?.onThreadDeepLinkActivated !== 'function') return
     if (typeof bridge?.consumePendingThreadDeepLink !== 'function') return
     let mounted = true
@@ -937,7 +937,7 @@ export function DesktopLayout(): React.ReactNode {
   const handleOpenArtifact = useCallback(
     (artifact: ThreadArtifactPreviewInput): void => {
       if (!sessionId) return
-      void import('../../session/attachments/attachmentPreviewDescriptor.js').then(
+      void import('../../session/attachments/AttachmentPreviewDescriptor.js').then(
         ({ createThreadArtifactPreviewTab }) => {
           openRightDockTab(createThreadArtifactPreviewTab(sessionId, artifact))
         },
@@ -966,7 +966,7 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleOpenThreadAttachment = useCallback(
     (attachment: Attachment): void => {
-      void import('../../session/attachments/attachmentPreviewDescriptor.js').then(
+      void import('../../session/attachments/AttachmentPreviewDescriptor.js').then(
         ({ createThreadAttachmentPreviewTab }) => {
           const tab = createThreadAttachmentPreviewTab(attachment)
           if (tab) openRightDockTab(tab)
@@ -978,7 +978,7 @@ export function DesktopLayout(): React.ReactNode {
 
   const handleOpenDraftAttachment = useCallback(
     (attachment: DesktopComposerAttachment): void => {
-      void import('../../session/attachments/attachmentPreviewDescriptor.js').then(
+      void import('../../session/attachments/AttachmentPreviewDescriptor.js').then(
         ({ createDraftAttachmentPreviewTab }) => {
           const tab = createDraftAttachmentPreviewTab(attachment)
           if (tab) openRightDockTab(tab)
@@ -991,7 +991,7 @@ export function DesktopLayout(): React.ReactNode {
   const handleOpenThreadLocalContext = useCallback(
     (reference: LocalContextReference): void => {
       if (!sessionId) return
-      void import('../../session/attachments/attachmentPreviewDescriptor.js').then(
+      void import('../../session/attachments/AttachmentPreviewDescriptor.js').then(
         ({ createThreadLocalContextPreviewTab }) => {
           openRightDockTab(createThreadLocalContextPreviewTab(sessionId, reference))
         },
@@ -1353,9 +1353,9 @@ export function DesktopLayout(): React.ReactNode {
   const attachmentPreviewTabRef = useRef<UserAttachmentPreviewTab | null>(null)
   const [publishedReviewSummary, setPublishedReviewSummary] = useState<{
     workspacePath: string | null
-    snapshot: import('../../review/source/reviewAgentClient.js').ReviewSummarySnapshot | null
+    snapshot: import('../../review/source/ReviewAgentClient.js').ReviewSummarySnapshot | null
   } | null>(null)
-  const handleReviewSummaryChange = useCallback((snapshot: import('../../review/source/reviewAgentClient.js').ReviewSummarySnapshot | null) => {
+  const handleReviewSummaryChange = useCallback((snapshot: import('../../review/source/ReviewAgentClient.js').ReviewSummarySnapshot | null) => {
     setPublishedReviewSummary({ workspacePath: currentWorkspace?.path ?? null, snapshot })
   }, [currentWorkspace?.path])
   const [reviewTabState, setReviewTabState] = useState<ReviewTabUiState>(
@@ -1665,7 +1665,7 @@ export function DesktopLayout(): React.ReactNode {
 
   const menuActions = useAppMenuActions({
     client: desktopClient,
-    bridge: window.codePilotXDesktop,
+    bridge: window.DesktopBridge,
     browserAvailable,
     browserOpen: Boolean(browserState?.open),
     canNavigateBack,
@@ -2258,7 +2258,7 @@ export function DesktopLayout(): React.ReactNode {
         }
       : null
   const renderSideChatComposer = (
-    tab: Extract<import('../dock/rightDockState.js').WorkbenchTabDescriptor, { kind: 'side-chat' }>,
+    tab: Extract<import('../dock/RightDockState.js').WorkbenchTabDescriptor, { kind: 'side-chat' }>,
     sideChatContext: import('../../session/conversation/SideChatThreadPanel.js').SideChatComposerRenderContext,
   ): React.ReactNode => {
     if (!isQuickChatPage && !isConversationRoute) return null

@@ -1,7 +1,7 @@
 import type React from 'react'
 import { memo } from 'react'
 import { ArrowDownToLine } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 
 export interface AuxiliaryTitlebarProps {

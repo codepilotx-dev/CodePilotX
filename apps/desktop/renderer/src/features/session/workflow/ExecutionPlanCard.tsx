@@ -1,8 +1,8 @@
-import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import React from 'react'
 import { Circle, CircleCheck, LoaderCircle } from 'lucide-react'
-import type { Item } from '@codepilotx/shared/thread'
-import { useScrollEdgeState } from '../../../hooks/useScrollEdgeState.js'
+import type { Item } from '@pidex/shared/thread'
+import { useScrollEdgeState } from '../../../hooks/UseScrollEdgeState.js'
 
 type ExecutionPlanItem = Extract<Item, { type: 'execution-plan' }>
 type ExecutionPlanStep = ExecutionPlanItem['steps'][number]

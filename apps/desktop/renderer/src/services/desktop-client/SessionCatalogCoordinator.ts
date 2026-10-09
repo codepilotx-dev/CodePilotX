@@ -1,5 +1,5 @@
-import type { EventEnvelope } from '@codepilotx/agent-protocol'
-import type { Turn } from '@codepilotx/shared/thread'
+import type { EventEnvelope } from '@pidex/agent-protocol'
+import type { Turn } from '@pidex/shared/thread'
 
 /**
  * 书签集合变更通过窗口事件广播给导轨 hook：书签不属于会话目录投影，

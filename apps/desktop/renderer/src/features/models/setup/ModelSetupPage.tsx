@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import { Check, ChevronLeft, Server } from 'lucide-react'
 import type React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -8,18 +8,18 @@ import type {
   DesktopModelProviderSummary,
   DesktopModelRef,
   ModelProviderID,
-} from '../../../../shared/types.js'
-import { AgentRpcError } from '../../../services/agentRpcClient.js'
+} from '../../../../shared/Types.js'
+import { AgentRpcError } from '../../../services/AgentRpcClient.js'
 import { Button } from '../../../components/ui/Button.js'
 import { RemoteImage } from '../../../components/ui/RemoteImage.js'
 import { SearchInput } from '../../../components/ui/SearchInput.js'
 import { desktopClient } from '../../../services/desktop-client/index.js'
-import { isExecutableDesktopProvider } from '../../../services/desktop-client/provider-adapters.js'
-import { persistRecentNewThreadModel } from '../recentNewThreadModel.js'
+import { isExecutableDesktopProvider } from '../../../services/desktop-client/ProviderAdapters.js'
+import { persistRecentNewThreadModel } from '../RecentNewThreadModel.js'
 import { WindowControls } from '../../layout/MenuBar.js'
-import { providerManagementStore } from '../../provider-management/providerManagementStore.js'
-import { useProviderManagementSnapshot } from '../../provider-management/useProviderManagementSnapshot.js'
-import { useDesktopSettings } from '../../settings/useDesktopSettings.js'
+import { providerManagementStore } from '../../provider-management/ProviderManagementStore.js'
+import { useProviderManagementSnapshot } from '../../provider-management/UseProviderManagementSnapshot.js'
+import { useDesktopSettings } from '../../settings/UseDesktopSettings.js'
 import { ApiKeyEditorForm, type ApiKeyEditorValue } from '../ApiKeyEditorDialog.js'
 import { OAuthConnection } from '../provider-management/OAuthConnection.js'
 import { ProviderEditorDialog } from '../provider-management/ProviderEditorDialog.js'
@@ -350,7 +350,7 @@ export function ModelSetupPage(): React.ReactNode {
       data-startup-surface-ready="true"
     >
       <header className="model-setup-titlebar tw:flex tw:h-9 tw:[-webkit-app-region:drag] tw:min-w-0 tw:items-center tw:justify-between tw:border-b-[0.5px] tw:border-b-app-border-subtle">
-        <span className="model-setup-brand tw:ps-4 tw:text-app-text-soft tw:type-control tw:tracking-[0.01em]">CodePilotX</span>
+        <span className="model-setup-brand tw:ps-4 tw:text-app-text-soft tw:type-control tw:tracking-[0.01em]">Pidex</span>
         <WindowControls
           isMaximized={isMaximized}
           onClose={() => void desktopClient.closeWindow()}

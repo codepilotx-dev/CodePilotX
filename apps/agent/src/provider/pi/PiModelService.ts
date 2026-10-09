@@ -7,7 +7,7 @@ import type {
   Provider as PiProvider,
 } from '@earendil-works/pi-ai'
 import { builtinModels } from '@earendil-works/pi-ai/providers/all'
-import { Model, Provider } from '@codepilotx/model-schema'
+import { Model, Provider } from '@pidex/model-schema'
 import type { ProviderCredentialRepository } from '../../auth/ProviderCredentialRepository'
 import {
   EncryptedCredentialStore,
@@ -138,7 +138,7 @@ const piModelToInfo = (model: PiModel<Api>, enabled: boolean, variant?: string):
 
 export type ProviderDefinition = PiProviderDefinitionInput
 
-/** Pi-backed model catalog with the existing CodePilotX catalog shape. */
+/** Pi-backed model catalog with the existing Pidex catalog shape. */
 export class PiModelService {
   readonly pi: Models
   readonly credentials: EncryptedCredentialStore
@@ -173,7 +173,7 @@ export class PiModelService {
         ...(options.modelsStore ? { modelsStore: options.modelsStore } : {}),
         authContext: {
           env: async (name) => options.env?.[name] ?? process.env[name],
-          // CodePilotX intentionally does not let Pi discover auth files.
+          // Pidex intentionally does not let Pi discover auth files.
           fileExists: async () => false,
         },
       })

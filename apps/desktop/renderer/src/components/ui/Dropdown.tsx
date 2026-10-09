@@ -1,7 +1,7 @@
 import type React from 'react'
 import { Dropdown as DropdownMenu } from './floating/Dropdown.js'
-import { useFloatingFocusModality } from '../../utils/floatingFocus.js'
-import { buildPopoverSizingStyle, type PopoverSizingProps } from './popoverSizing.js'
+import { useFloatingFocusModality } from '../../utils/FloatingFocus.js'
+import { buildPopoverSizingStyle, type PopoverSizingProps } from './PopoverSizing.js'
 
 type Props = {
   children: React.ReactNode

@@ -9,7 +9,7 @@ import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js
 import { Textarea } from '../../../components/ui/Textarea.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../../components/ui/IconTokens.js'
 import { Input } from '../../../components/ui/Input.js'
 const ProjectEnvironments = React.lazy(() =>
   import('./LocalEnvironmentProjectSettings.js').then((module) => ({
@@ -19,8 +19,8 @@ const ProjectEnvironments = React.lazy(() =>
 import {
   environmentDomainClient,
   type EnvironmentReadResult,
-} from '../../../services/desktop-client/environment-domain-client.js'
-import { notifyProjectCatalogChanged } from '../../projects/projectCatalogEvents.js'
+} from '../../../services/desktop-client/EnvironmentDomainClient.js'
+import { notifyProjectCatalogChanged } from '../../projects/ProjectCatalogEvents.js'
 import { SettingsContentArea } from '../SettingsContentArea.js'
 import { SettingsSection } from '../SettingsSection.js'
 import { SettingsRow } from '../SettingsRow.js'
@@ -30,7 +30,7 @@ import {
   environmentActionsValue,
   type EnvironmentActionEditorValue,
   type EnvironmentPlatformCommand,
-} from './localEnvironmentEditorModel.js'
+} from './LocalEnvironmentEditorModel.js'
 
 type Props = {
   onError: (message: string) => void

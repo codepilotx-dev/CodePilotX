@@ -20,9 +20,9 @@ import {
   useTopLayer,
   type DismissEvents,
   type PortalProps,
-} from './primitives.js'
-import { useFloatingPosition } from './useFloatingPosition.js'
-import type { PopoverSize } from '../popoverSizing.js'
+} from './Primitives.js'
+import { useFloatingPosition } from './UseFloatingPosition.js'
+import type { PopoverSize } from '../PopoverSizing.js'
 
 export type MenuRootProps = {
   children: ReactNode

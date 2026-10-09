@@ -1,13 +1,13 @@
-import type { Attachment } from '@codepilotx/shared/thread'
+import type { Attachment } from '@pidex/shared/thread'
 import {
   AttachmentFilePill,
   AttachmentHorizontalRow,
   AttachmentImageTile,
 } from './AttachmentRowPrimitives.js'
-import { useThreadAttachmentImageSource } from './useThreadAttachmentImageSource.js'
-import { useBrowserAnnotationManifest } from './useBrowserAnnotationManifest.js'
+import { useThreadAttachmentImageSource } from './UseThreadAttachmentImageSource.js'
+import { useBrowserAnnotationManifest } from './UseBrowserAnnotationManifest.js'
 import { BrowserAnnotationCard } from '../../browser/BrowserAnnotationCards.js'
-import type { BrowserAnnotation } from '@codepilotx/shared/browser-annotation'
+import type { BrowserAnnotation } from '@pidex/shared/browser-annotation'
 
 type ThreadAttachmentRowsProps = {
   attachments: readonly Attachment[]

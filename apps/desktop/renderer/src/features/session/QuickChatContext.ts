@@ -1,13 +1,13 @@
 import type { ReactNode } from 'react'
 import { createContext, useContext } from 'react'
-import type { ModelPreset } from '../../modelPresets.js'
-import type { DesktopReviewSource, DesktopUserMessageInput, DesktopGitStatus, DesktopPermissionDecision, DesktopPermissionMode, DesktopPermissionRequest, DesktopSessionStatus, DesktopWorkspace, DesktopThreadGoal, DesktopBrowserState } from '../../../shared/types.js'
+import type { ModelPreset } from '../../ModelPresets.js'
+import type { DesktopReviewSource, DesktopUserMessageInput, DesktopGitStatus, DesktopPermissionDecision, DesktopPermissionMode, DesktopPermissionRequest, DesktopSessionStatus, DesktopWorkspace, DesktopThreadGoal, DesktopBrowserState } from '../../../shared/Types.js'
 import type { OpenPlanInDockRequest } from './workflow/WorkflowPlanCard.js'
 import type { MarkdownFileOpenOptions, MarkdownFileReference } from '../markdown/index.js'
 import type { DesktopComposerProps } from './composer/DesktopComposer.js'
-import type { NewSessionRecentTask } from './newSessionSuggestions.js'
-import type { Attachment, LocalContextReference } from '@codepilotx/shared/thread'
-import type { ThreadArtifactPreviewInput } from './attachments/attachmentPreviewDescriptor.js'
+import type { NewSessionRecentTask } from './NewSessionSuggestions.js'
+import type { Attachment, LocalContextReference } from '@pidex/shared/thread'
+import type { ThreadArtifactPreviewInput } from './attachments/AttachmentPreviewDescriptor.js'
 
 export type ProviderModelOption = {
   providerID: string
@@ -38,9 +38,9 @@ export type QuickChatContextValue = {
   branches: string[]
   diff: string
   gitStatus: DesktopGitStatus | null
-  gitDetection?: import('../../../shared/types.js').DesktopGitDetectionState
+  gitDetection?: import('../../../shared/Types.js').DesktopGitDetectionState
   reviewSource?: DesktopReviewSource
-  reviewSummary?: import('../review/source/reviewAgentClient.js').ReviewSummarySnapshot | null
+  reviewSummary?: import('../review/source/ReviewAgentClient.js').ReviewSummarySnapshot | null
   recentWorkspaces: DesktopWorkspace[]
   recentTasks: NewSessionRecentTask[]
   titleRegenerating: boolean

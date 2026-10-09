@@ -1,5 +1,5 @@
-import { isGranularApprovalPolicy } from '@codepilotx/shared/thread'
-import type { PermissionDecision, ToolInvocation } from '../domain'
+import { isGranularApprovalPolicy } from '@pidex/shared/thread'
+import type { PermissionDecision, ToolInvocation } from '../Domain'
 import type { ToolCatalogEntry } from '../tool/ToolRegistry'
 import { toolAllowedForFileAccess, toolAllowedInTaskMode } from '../tool/ToolRegistry'
 import { resolveEffectivePermissionConfig } from './EffectivePermissionConfig'

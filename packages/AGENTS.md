@@ -8,7 +8,7 @@
 
 - `model-schema` 定义 Provider、model、integration、connection 和 credential 的基础 schema。
 - Provider、模型目录、请求与 OAuth 统一由 `pi-ai` 提供。禁止恢复独立 Provider plugin/runtime，也禁止恢复 API Key 自动轮换或自动切换。
-- CodePilotX 只维护 Pi 配置门面、加密活动凭据绑定和产品编排，禁止恢复平行 Provider runtime。
+- Pidex 只维护 Pi 配置门面、加密活动凭据绑定和产品编排，禁止恢复平行 Provider runtime。
 - `shared` 定义跨进程复用的应用领域模型；`shared/thread` 不拥有 RPC 编排类型。
 - `agent-protocol` 是 v4 method、event、wire error、capability 和 runtime dispatcher 的唯一协议来源。
 - `session-view` 只进行 canonical projection 和 thread projection 的纯转换。

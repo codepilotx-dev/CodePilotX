@@ -1,7 +1,7 @@
 import type React from 'react'
 import { createContext, useContext, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { AuxiliaryWindowEntry } from './auxiliaryWindowService.js'
+import type { AuxiliaryWindowEntry } from './AuxiliaryWindowService.js'
 import { AuxiliaryTitlebar } from './AuxiliaryTitlebar.js'
 
 export interface AuxiliaryWindowContextValue {

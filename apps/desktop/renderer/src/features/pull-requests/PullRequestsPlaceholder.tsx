@@ -1,7 +1,7 @@
 import type React from 'react'
 import { GitPullRequest } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
+import { APP_ICON_STROKE_WIDTH, APP_ICON_SIZES } from '../../components/ui/IconTokens.js'
 import { PrimaryPageLayout } from '../layout/primary-page/index.js'
 
 /*

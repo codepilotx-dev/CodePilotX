@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import React from 'react'
 import { CheckCircle2, MessageSquarePlus, Trash2 } from 'lucide-react'
 import { Button } from '../../../components/ui/Button.js'
@@ -10,20 +10,20 @@ import type {
   DesktopReviewDiffLine,
   DesktopReviewScope,
   DesktopReviewSide,
-} from '../../../../shared/types.js'
+} from '../../../../shared/Types.js'
 import { syntaxTokenStyle } from '../../syntax/CodeBlock.js'
-import { normalizeSyntaxLanguage, resolveLanguageFromPath } from '../../syntax/language.js'
-import { CODEX_HIGHLIGHT_THEMES, resolveThemeId } from '../../syntax/theme.js'
-import type { SyntaxToken } from '../../syntax/types.js'
-import { useHighlightedCode } from '../../syntax/useHighlightedCode.js'
-import { useDesktopTheme } from '../../theme/themeContext.js'
-import { cx } from '../../../utils/cx.js'
+import { normalizeSyntaxLanguage, resolveLanguageFromPath } from '../../syntax/Language.js'
+import { HIGHLIGHT_THEMES, resolveThemeId } from '../../syntax/Theme.js'
+import type { SyntaxToken } from '../../syntax/Types.js'
+import { useHighlightedCode } from '../../syntax/UseHighlightedCode.js'
+import { useDesktopTheme } from '../../theme/ThemeContext.js'
+import { cx } from '../../../utils/Cx.js'
 import {
   alignReviewDiffLines,
   buildReviewIntralineByLineId,
   type ReviewIntralineByLineId,
   type ReviewIntralineRange,
-} from './reviewIntralineDiff.js'
+} from './ReviewIntralineDiff.js'
 
 export type CommentAnchor = {
   filePath: string
@@ -51,7 +51,7 @@ export type ReviewCell = {
   tone: 'removed' | 'added' | 'context' | 'meta' | 'empty'
 }
 
-export type CodexDiffPaneRow =
+export type DiffPaneRow =
   | {
       id: string
       kind: 'hunk'
@@ -357,7 +357,7 @@ export function ReviewDiffCodePane({
   pane: 'unified' | 'deletions' | 'additions'
   mutationsDisabled?: boolean
   readOnly?: boolean
-  rows: CodexDiffPaneRow[]
+  rows: DiffPaneRow[]
   syntaxByLineId: ReviewSyntaxByLineId
 }): React.ReactNode {
   const rowSpan = Math.max(rows.length, 1)
@@ -486,7 +486,7 @@ export function ReviewDiffLineNumber({
     <div
       className="review-codex-diff__number tw:group/line-number"
       data-column-number={lineNumber ?? ''}
-      data-line-type={codexDiffLineType(cellTone)}
+      data-line-type={diffLineType(cellTone)}
     >
       {readOnly ? null : (
         <LineCommentButton anchor={anchor} disabled={!anchor} onCreateDraft={onCreateDraft} />
@@ -523,7 +523,7 @@ export function ReviewDiffLineContent({
     <div
       className="review-codex-diff__line"
       data-line=""
-      data-line-type={codexDiffLineType(cellTone)}
+      data-line-type={diffLineType(cellTone)}
     >
       {children}
       {readOnly ? null : (
@@ -541,8 +541,8 @@ export function ReviewDiffLineContent({
   )
 }
 
-export function buildUnifiedDiffRows(file: DesktopReviewDiffFile): CodexDiffPaneRow[] {
-  const rows: CodexDiffPaneRow[] = []
+export function buildUnifiedDiffRows(file: DesktopReviewDiffFile): DiffPaneRow[] {
+  const rows: DiffPaneRow[] = []
   let previousHunk: DesktopReviewDiffHunk | null = null
   for (const hunk of file.hunks) {
     rows.push({
@@ -577,7 +577,7 @@ export function useReviewDiffSyntax(
   const { activeTheme, codeThemeId } = useDesktopTheme()
   const requestedThemeId = syntaxThemeId ?? codeThemeId
   const requestedThemeVariant =
-    CODEX_HIGHLIGHT_THEMES.find((candidate) => candidate.slug === requestedThemeId)?.variant ??
+    HIGHLIGHT_THEMES.find((candidate) => candidate.slug === requestedThemeId)?.variant ??
     activeTheme.variant
   const theme = resolveThemeId(requestedThemeId, requestedThemeVariant)
   const language = normalizeSyntaxLanguage(resolveLanguageFromPath(file.path))
@@ -696,11 +696,11 @@ export function normalizeReviewIntralineRanges(
 }
 
 export function buildSplitDiffRows(file: DesktopReviewDiffFile): {
-  leftRows: CodexDiffPaneRow[]
-  rightRows: CodexDiffPaneRow[]
+  leftRows: DiffPaneRow[]
+  rightRows: DiffPaneRow[]
 } {
-  const leftRows: CodexDiffPaneRow[] = []
-  const rightRows: CodexDiffPaneRow[] = []
+  const leftRows: DiffPaneRow[] = []
+  const rightRows: DiffPaneRow[] = []
   let previousHunk: DesktopReviewDiffHunk | null = null
   for (const hunk of file.hunks) {
     const hunkId = `hunk:${hunk.id}`
@@ -727,7 +727,7 @@ export function buildSplitDiffRows(file: DesktopReviewDiffFile): {
   return { leftRows, rightRows }
 }
 
-export function codexDiffLineType(cell: ReviewCell['tone']): string {
+export function diffLineType(cell: ReviewCell['tone']): string {
   if (cell === 'added') return 'change-addition'
   if (cell === 'removed') return 'change-deletion'
   if (cell === 'empty') return 'buffer'

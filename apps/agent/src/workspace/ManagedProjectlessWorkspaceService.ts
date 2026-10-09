@@ -1,8 +1,11 @@
 import { lstat, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 
 const MARKER_NAME = '.codepilotx-projectless.json'
+// 托管无项目工作区目录沿用产品改名前的名称，改名后仍指向同一目录，
+// 否则既有工作区记录会因目录校验失败而无法访问。
+const MANAGED_ROOT_DIRECTORY_NAME = 'CodePilotX'
 const MAX_SLUG_LENGTH = 80
 const MAX_NUMBERED_ATTEMPTS = 100
 const MAX_RANDOM_ATTEMPTS = 5
@@ -120,7 +123,7 @@ export class ManagedProjectlessWorkspaceService {
 
     try {
       const documentsRoot = await this.canonicalDocumentsRoot()
-      const managedRoot = await this.ensureOwnedDirectory(documentsRoot, 'CodePilotX')
+      const managedRoot = await this.ensureOwnedDirectory(documentsRoot, MANAGED_ROOT_DIRECTORY_NAME)
       const dateRoot = await this.ensureOwnedDirectory(managedRoot, dateSegment)
       sessionRoot = await this.reserveSessionRoot(dateRoot, slug)
       const marker: ManagedProjectlessWorkspaceMarker = {
@@ -206,7 +209,7 @@ export class ManagedProjectlessWorkspaceService {
   async validatePersisted(record: PersistedProjectlessWorkspace) {
     const documentsRoot = await this.canonicalDocumentsRoot()
     const managedRoot = await this.validateDirectory(
-      resolve(documentsRoot, 'CodePilotX'),
+      resolve(documentsRoot, MANAGED_ROOT_DIRECTORY_NAME),
       documentsRoot,
     )
     const sessionRoot = await this.validateSessionRoot(record.sessionRoot, managedRoot)
@@ -241,7 +244,7 @@ export class ManagedProjectlessWorkspaceService {
   async ensureActivePersisted(record: PersistedProjectlessWorkspace) {
     const documentsRoot = await this.canonicalDocumentsRoot()
     const managedRoot = await this.validateDirectory(
-      resolve(documentsRoot, 'CodePilotX'),
+      resolve(documentsRoot, MANAGED_ROOT_DIRECTORY_NAME),
       documentsRoot,
     )
     const sessionRoot = await this.validateSessionRoot(record.sessionRoot, managedRoot)
@@ -382,7 +385,7 @@ export class ManagedProjectlessWorkspaceService {
     const documentsRoot = await this.canonicalDocumentsRoot()
     const managedRoot = knownManagedRoot
       ? await this.validateDirectory(knownManagedRoot, documentsRoot)
-      : await this.validateDirectory(resolve(documentsRoot, 'CodePilotX'), documentsRoot)
+      : await this.validateDirectory(resolve(documentsRoot, MANAGED_ROOT_DIRECTORY_NAME), documentsRoot)
     const canonical = await this.validateSessionRoot(sessionRoot, managedRoot)
     await rm(canonical, { recursive: true, force: false })
   }

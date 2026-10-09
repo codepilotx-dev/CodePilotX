@@ -1,5 +1,5 @@
 import { Effect } from 'effect'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { AgentDatabase, StoredCredentialHealth } from '../storage/database/AgentDatabase'
 import type { AuthJsonCredentialRepository } from './AuthJsonCredentialRepository'
 import type { EncryptedCredentialRepository } from './EncryptedCredentialRepository'

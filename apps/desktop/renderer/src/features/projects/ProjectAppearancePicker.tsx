@@ -1,4 +1,4 @@
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/IconTokens.js'
 import * as RadioGroup from '@radix-ui/react-radio-group'
 import { Check } from 'lucide-react'
 import { useState } from 'react'
@@ -7,16 +7,16 @@ import type {
   ProjectAppearance,
   ProjectAppearanceColor,
   ProjectAppearanceIcon,
-} from '../../../shared/types.js'
+} from '../../../shared/Types.js'
 import { Button } from '../../components/ui/Button.js'
 import { AnchoredPopover } from '../../components/ui/AnchoredPopover.js'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 import {
   PROJECT_APPEARANCE_COLORS,
   PROJECT_APPEARANCE_COLOR_CLASS,
   PROJECT_APPEARANCE_ICONS,
   ProjectAppearanceGlyph,
-} from './projectAppearance.js'
+} from './ProjectAppearance.js'
 
 type Props = {
   appearance: ProjectAppearance

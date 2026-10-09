@@ -3,8 +3,8 @@ import { X } from 'lucide-react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Button } from '../../components/ui/Button.js'
 
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
-import { useDialogFocusRestore } from '../../components/ui/useDialogFocusRestore.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
+import { useDialogFocusRestore } from '../../components/ui/UseDialogFocusRestore.js'
 
 type SessionGroupEditorDialogProps = {
   open: boolean

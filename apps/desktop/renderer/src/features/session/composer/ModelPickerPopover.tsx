@@ -2,19 +2,19 @@ import {
   APP_ICON_SIZES,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZE,
-} from '../../../components/ui/iconTokens.js'
+} from '../../../components/ui/IconTokens.js'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Popover as Popover } from '../../../components/ui/floating/Popover.js'
 import { ChevronDown, ChevronLeft, Plus, Search, X } from 'lucide-react'
-import type { DesktopModelProviderSummary, ModelProviderID } from '../../../../shared/types.js'
-import type { ModelPreset } from '../../../modelPresets.js'
+import type { DesktopModelProviderSummary, ModelProviderID } from '../../../../shared/Types.js'
+import type { ModelPreset } from '../../../ModelPresets.js'
 import {
   resolveThinkingLabel,
   resolveThinkingOptions,
   type ThinkingOption,
 } from './ThinkingLevelPopover.js'
-import { cx } from '../../../utils/cx.js'
-import { ProviderLogo } from './providerLogos.js'
+import { cx } from '../../../utils/Cx.js'
+import { ProviderLogo } from './ProviderLogos.js'
 import { ReasoningMenu } from './ReasoningMenu.js'
 
 /*

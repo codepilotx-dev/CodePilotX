@@ -5,17 +5,17 @@ import { X } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
-import type { PluginCatalogItem } from './pluginCatalog.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
+import type { PluginCatalogItem } from './PluginCatalog.js'
 import { PluginIcon } from './PluginIcon.js'
-import { useLastNonNull } from '../../hooks/usePresenceRetention.js'
+import { useLastNonNull } from '../../hooks/UsePresenceRetention.js'
 import { PluginDetailsMetadata, PluginDetailsPrimaryAction } from './PluginDetailsContent.js'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 import {
   DETAILS_ERROR_CLASS,
   DETAILS_ICON_CLASS,
   FORCED_COLORS_SURFACE_CLASS,
-} from './catalogClassNames.js'
+} from './CatalogClassNames.js'
 
 type Props = {
   item: PluginCatalogItem | null

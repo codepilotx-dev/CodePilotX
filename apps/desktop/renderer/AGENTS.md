@@ -8,7 +8,7 @@
 
 - `shared/` 保存跨 Renderer/preload 的明确契约，`src/` 保存 UI 实现，`test/` 保存 Renderer 测试。
 - 系统能力只能通过 typed preload bridge 或 Agent client 使用。禁止直接访问 Node、Electron、SQLite、凭据或文件系统。
-- RPC wire 契约来自 `@codepilotx/agent-protocol`，thread 领域模型来自 `@codepilotx/shared/thread`。
+- RPC wire 契约来自 `@pidex/agent-protocol`，thread 领域模型来自 `@pidex/shared/thread`。
 - Desktop client 稳定入口为 `src/services/desktop-client/index.ts`。入口只负责环境选择、组合和导出。
 - 必须复用现有 `agentRpcClient`、`agentThreadAdapter`、desktop client 和 session-view projection，禁止创建第二套 transport 或状态协议。
 - Renderer 优先提供多项目、多聊天、Review、Artifact、Visualization、Worktree、Scheduled task、通知和系统能力的桌面可视化工作台。
@@ -20,7 +20,7 @@
 
 ## 数据代际
 
-- Renderer 只能清理明确列出的 CodePilotX localStorage/sessionStorage 键和前缀。
+- Renderer 只能清理明确列出的 Pidex localStorage/sessionStorage 键和前缀。
 - 禁止调用 `localStorage.clear()` 或删除其他 origin 所有者的数据。
 - 数据 epoch 已淘汰旧 UI state。禁止重新加入 v3、legacy plan、旧 Review expansion 或旧单问题兼容分支。
 

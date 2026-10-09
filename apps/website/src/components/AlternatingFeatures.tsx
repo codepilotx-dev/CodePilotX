@@ -1,5 +1,5 @@
 import React from 'react'
-import { ALTERNATING_FEATURES } from '../constants/content'
+import { ALTERNATING_FEATURES } from '../constants/Content'
 import { ProductPlaceholder } from './ProductPlaceholder'
 import { CheckCircle2 } from 'lucide-react'
 
@@ -56,7 +56,7 @@ export const AlternatingFeatures: React.FC = () => {
                   aspectRatio={feature.aspectRatio}
                   badge={`FEATURE 0${idx + 1}`}
                   caption={`Screenshot placeholder for ${feature.title}`}
-                  windowTitle={`CodePilotX — ${feature.badge}`}
+                  windowTitle={`Pidex — ${feature.badge}`}
                 />
               </div>
             </div>

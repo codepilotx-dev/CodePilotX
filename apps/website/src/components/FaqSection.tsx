@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { FAQS } from '../constants/content'
+import { FAQS } from '../constants/Content'
 import { ChevronDown } from 'lucide-react'
 
 export const FaqSection: React.FC = () => {
@@ -24,7 +24,7 @@ export const FaqSection: React.FC = () => {
               Clear answers, zero marketing fluff.
             </h2>
             <p className="mt-4 text-base text-[#55625D] leading-relaxed">
-              CodePilotX is open source and currently in Beta. Here are the core technical realities
+              Pidex is open source and currently in Beta. Here are the core technical realities
               of how it operates today.
             </p>
 

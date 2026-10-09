@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, relative, resolve } from 'node:path'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import { WorkspaceIsolationService } from '../subagent/WorkspaceIsolationService'
 import { WorktreeIncludeService } from './WorktreeIncludeService'
 
@@ -43,7 +43,7 @@ export class WorktreeRestoreSnapshotStore {
     await mkdir(root, { mode: 0o700 })
     const filesRoot = resolve(root, 'files')
     await mkdir(filesRoot, { mode: 0o700 })
-    const temporary = await mkdtemp(join(tmpdir(), 'codepilotx-worktree-snapshot-'))
+    const temporary = await mkdtemp(join(tmpdir(), 'pidex-worktree-snapshot-'))
     try {
       const isolation = await WorkspaceIsolationService.open(workspacePath, temporary)
       const layers = await isolation.captureWorkingTreeLayers()

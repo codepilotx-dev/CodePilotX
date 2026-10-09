@@ -1,4 +1,4 @@
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { ThreadService } from '../session/ThreadService'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { HandoffLifecyclePort } from './HandoffService'

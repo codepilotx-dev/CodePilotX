@@ -5,7 +5,7 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../../components/ui/iconTokens.js'
+} from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 import { AppContextMenu } from '../../../components/ui/AppContextMenu.js'
 import type {
@@ -14,14 +14,14 @@ import type {
   WorkbenchTabDescriptor,
   WorkbenchTabId,
   WorkbenchTabsState,
-} from '../dock/rightDockState.js'
+} from '../dock/RightDockState.js'
 import {
   getWorkbenchTabDefinition,
   getWorkbenchTabDisplayTitle,
-} from '../tabs/workbenchTabRegistry.js'
-import { canViewFloat, getAvailableMoveTargets } from '../dock/compositeViews.js'
+} from '../tabs/WorkbenchTabRegistry.js'
+import { canViewFloat, getAvailableMoveTargets } from '../dock/CompositeViews.js'
 import { WorkspaceFileTree } from '../WorkspaceFileTree.js'
-import type { DesktopFileEntry, DesktopWorkspace } from '../../../../shared/types.js'
+import type { DesktopFileEntry, DesktopWorkspace } from '../../../../shared/Types.js'
 
 export interface SidebarDockedPanesProps {
   state: WorkbenchPanelSnapshot

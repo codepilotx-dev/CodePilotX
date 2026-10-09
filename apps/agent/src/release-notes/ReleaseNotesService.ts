@@ -1,6 +1,6 @@
-import type { ReleaseNote, ReleaseNotesListResult } from '@codepilotx/agent-protocol'
-import { AgentError } from '../domain'
-import { bundledReleaseNotes, DEFAULT_BUNDLED_CHANGELOG } from './bundledReleaseNotes'
+import type { ReleaseNote, ReleaseNotesListResult } from '@pidex/agent-protocol'
+import { AgentError } from '../Domain'
+import { bundledReleaseNotes, DEFAULT_BUNDLED_CHANGELOG } from './BundledReleaseNotes'
 
 const REPOSITORY = 'codepilotx-dev/CodePilotX' as const
 const RELEASES_API_URL = `https://api.github.com/repos/${REPOSITORY}/releases`
@@ -186,7 +186,7 @@ export class ReleaseNotesService {
           Accept: 'application/vnd.github+json',
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
           'X-GitHub-Api-Version': '2022-11-28',
-          'User-Agent': 'CodePilotX',
+          'User-Agent': 'Pidex',
         },
         redirect: 'manual',
         signal: AbortSignal.timeout(this.timeoutMs),

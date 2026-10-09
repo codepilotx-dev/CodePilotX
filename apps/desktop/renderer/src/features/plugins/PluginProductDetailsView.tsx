@@ -1,4 +1,4 @@
-import type { PluginDetails } from '@codepilotx/agent-protocol'
+import type { PluginDetails } from '@pidex/agent-protocol'
 import type React from 'react'
 import { ArrowRight, ExternalLink, MoreHorizontal, Trash2 } from 'lucide-react'
 import { useState } from 'react'
@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/Button.js'
 
 import { PopoverItem } from '../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../components/ui/PopoverMenu.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import promptHeroPurple from '../../assets/plugin-backgrounds/prompt-hero-purple.png'
 import { PluginDetailsPrimaryAction } from './PluginDetailsContent.js'
@@ -15,8 +15,8 @@ import {
   PLUGIN_CATEGORY_LABELS,
   pluginPrimaryAction,
   type PluginCatalogItem,
-} from './pluginCatalog.js'
-import { cx } from '../../utils/cx.js'
+} from './PluginCatalog.js'
+import { cx } from '../../utils/Cx.js'
 import {
   DETAILS_ACTION_GROUP_CLASS,
   DETAILS_ERROR_CLASS,
@@ -30,7 +30,7 @@ import {
   DETAILS_SECTION_HEADING_CLASS,
   DETAILS_SECTION_TITLE_CLASS,
   FORCED_COLORS_SURFACE_CLASS,
-} from './catalogClassNames.js'
+} from './CatalogClassNames.js'
 
 const NODE_DOWNLOAD_URL = 'https://nodejs.org/en/download'
 

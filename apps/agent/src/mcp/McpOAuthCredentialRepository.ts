@@ -1,4 +1,4 @@
-import type { McpScope } from '@codepilotx/agent-protocol'
+import type { McpScope } from '@pidex/agent-protocol'
 import type {
   OAuthDiscoveryState,
   OAuthClientInformationMixed,

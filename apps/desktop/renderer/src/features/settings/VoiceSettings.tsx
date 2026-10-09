@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { desktopClient } from '../../services/desktop-client/index.js'
 import { Button } from '../../components/ui/Button.js'
-import { useSpeechStatus } from '../speech/useSpeechStatus.js'
+import { useSpeechStatus } from '../speech/UseSpeechStatus.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
-import { useDesktopSettings } from './useDesktopSettings.js'
+import { useDesktopSettings } from './UseDesktopSettings.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsRow } from './SettingsRow.js'
@@ -122,7 +122,7 @@ export function VoiceSettings({ onNotice }: { onNotice?: (message: string) => vo
           />
           <SettingsRow
             title="麦克风隐私设置"
-            description="打开 Windows 麦克风权限页面，允许 CodePilotX 使用输入设备。"
+            description="打开 Windows 麦克风权限页面，允许 Pidex 使用输入设备。"
             control={
               <Button
                 onClick={() => {

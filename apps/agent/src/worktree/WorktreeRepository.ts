@@ -4,7 +4,7 @@ import type {
   TaskExecutionBinding,
   WorktreeOperation,
   WorktreeOperationKind,
-} from './types'
+} from './Types'
 
 type WorktreeRow = {
   id: string

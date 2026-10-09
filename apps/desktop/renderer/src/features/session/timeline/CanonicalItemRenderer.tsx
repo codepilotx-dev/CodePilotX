@@ -28,18 +28,18 @@ import type {
   Item,
   LocalContextReference,
   ToolResultBlock,
-} from '@codepilotx/shared/thread'
-import { decodeResultCardEnvelope, type ResultCard } from '@codepilotx/shared/thread-result-card'
-import type { RpcParams, RpcResult } from '@codepilotx/agent-protocol'
-import type { DesktopDiffMarkerStyle } from '../../../../shared/types.js'
-import { desktopUserMessageInputToPreviewText } from '../../../../shared/desktopUserMessage.js'
+} from '@pidex/shared/thread'
+import { decodeResultCardEnvelope, type ResultCard } from '@pidex/shared/thread-result-card'
+import type { RpcParams, RpcResult } from '@pidex/agent-protocol'
+import type { DesktopDiffMarkerStyle } from '../../../../shared/Types.js'
+import { desktopUserMessageInputToPreviewText } from '../../../../shared/DesktopUserMessage.js'
 import type { ComposerEditorHandle, ComposerEditorProps } from '../composer/ComposerEditor.js'
 
 import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../../components/ui/iconTokens.js'
+} from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 
 import { Tooltip } from '../../../components/ui/Tooltip.js'
@@ -47,19 +47,19 @@ import { DisclosureContent } from '../../../components/ui/DisclosureContent.js'
 import {
   type KeyedDisclosureStore,
   useDisclosureExpanded,
-} from '../../../components/ui/keyedDisclosureStore.js'
+} from '../../../components/ui/KeyedDisclosureStore.js'
 import { CodeBlock } from '../../syntax/CodeBlock.js'
 import { MarkdownMessage } from '../../markdown/index.js'
 import { ConversationMarkdownErrorBoundary } from '../conversation/ConversationTurnErrorBoundary.js'
 import { CollapsibleUserMarkdown } from '../conversation/CollapsibleUserMarkdown.js'
-import { subagentStatusLabel } from '../subagents/subagentStatusLabel.js'
-import { useScrollEdgeState } from '../../../hooks/useScrollEdgeState.js'
+import { subagentStatusLabel } from '../subagents/SubagentStatusLabel.js'
+import { useScrollEdgeState } from '../../../hooks/UseScrollEdgeState.js'
 import { useConversationItemContext } from './ConversationItemContext.js'
-import { useLiveItemTail } from '../state/useLiveItemTail.js'
-import { countStreamingItemRender } from '../state/streamingPerfCounters.js'
+import { useLiveItemTail } from '../state/UseLiveItemTail.js'
+import { countStreamingItemRender } from '../state/StreamingPerfCounters.js'
 import { WorkflowPlanCard, type OpenPlanInDockRequest } from '../workflow/WorkflowPlanCard.js'
 import { AttachmentFilePill, AttachmentImageTile } from '../attachments/AttachmentRowPrimitives.js'
-import { useToolArtifactImageSource } from './useToolArtifactImageSource.js'
+import { useToolArtifactImageSource } from './UseToolArtifactImageSource.js'
 import {
   buildToolSemanticSummary,
   ToolActivityHeader,
@@ -74,9 +74,9 @@ import { QuestionItemView } from './QuestionItemView.js'
 import { CopyButton } from './CopyButton.js'
 import { isShellTool, ToolCommandCard, toolDetailKind } from './ToolCommandCard.js'
 export { isShellTool } from './ToolCommandCard.js'
-import { cx } from '../../../utils/cx.js'
+import { cx } from '../../../utils/Cx.js'
 import { ResultCardView } from './ResultCardView.js'
-import { safeCitationUrl } from './citationUrl.js'
+import { safeCitationUrl } from './CitationUrl.js'
 
 export {
   buildToolSemanticSummary,
@@ -1182,7 +1182,7 @@ function ToolResultBlockView({
       )
     }
     case 'json': {
-      // Only an explicit CodePilotX envelope becomes a card; every other JSON
+      // Only an explicit Pidex envelope becomes a card; every other JSON
       // value (including forged or future-shaped envelopes) keeps the raw block.
       const envelope = decodeResultCardEnvelope(block.value)
       if (envelope) return <ResultCardView card={envelope.card} />

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { SettingsRow } from '../settings/SettingsRow.js'
 import { SettingsSection } from '../settings/SettingsSection.js'
-import { isSettingsSaveShortcut, useDesktopSettings } from '../settings/useDesktopSettings.js'
+import { isSettingsSaveShortcut, useDesktopSettings } from '../settings/UseDesktopSettings.js'
 import { Input } from '../../components/ui/Input.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog.js'

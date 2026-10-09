@@ -1,6 +1,6 @@
 import React from 'react'
-import { useDesktopSettings } from './useDesktopSettings.js'
-import type { DesktopPersonality } from '../../../shared/types.js'
+import { useDesktopSettings } from './UseDesktopSettings.js'
+import type { DesktopPersonality } from '../../../shared/Types.js'
 import { SettingsDropdown } from './SettingsDropdown.js'
 import { SettingsContentArea } from './SettingsContentArea.js'
 import { SettingsRow } from './SettingsRow.js'
@@ -47,7 +47,7 @@ export function PersonalizationSettings({ onError, onNotice }: Props = {}): Reac
         <SettingsSection>
           <SettingsRow
             title="个性"
-            description="选择 CodePilotX 回复的默认语气"
+            description="选择 Pidex 回复的默认语气"
             autoSave
             control={
               <SettingsDropdown
@@ -66,7 +66,7 @@ export function PersonalizationSettings({ onError, onNotice }: Props = {}): Reac
 
         <SettingsSection
           title="自定义指令"
-          description={<>为此主机上的所有任务向 CodePilotX 提供额外说明和上下文。</>}
+          description={<>为此主机上的所有任务向 Pidex 提供额外说明和上下文。</>}
         >
           <div className="personalization-instructions-editor tw:grid tw:gap-3">
             <textarea

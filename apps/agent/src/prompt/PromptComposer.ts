@@ -7,7 +7,7 @@ import type {
   PromptContextItem,
   PromptSection,
   PromptSectionDiagnostic,
-} from './types'
+} from './Types'
 
 const hash = (value: string) => createHash('sha256').update(value, 'utf8').digest('hex')
 const bytes = (value: string) => Buffer.byteLength(value, 'utf8')

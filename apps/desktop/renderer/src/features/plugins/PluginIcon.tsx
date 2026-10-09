@@ -9,7 +9,7 @@ import {
   Package,
   Sparkles,
 } from 'lucide-react'
-import type { PluginIconName } from './pluginCatalog.js'
+import type { PluginIconName } from './PluginCatalog.js'
 import browserLogo from '../../assets/plugin-icons/browser.png'
 import chromeLogo from '../../assets/plugin-icons/chrome.png'
 import computerUseLogo from '../../assets/plugin-icons/computer-use.png'
@@ -19,8 +19,8 @@ import minimaxLogo from '../../assets/plugin-icons/minimax.png'
 import presentationsLogo from '../../assets/plugin-icons/presentations.png'
 import spreadsheetsLogo from '../../assets/plugin-icons/spreadsheets.png'
 import taskPlanningLogo from '../../assets/plugin-icons/task-planning.png'
-import { DesktopThemeContext } from '../theme/themeContext.js'
-import { cx } from '../../utils/cx.js'
+import { DesktopThemeContext } from '../theme/ThemeContext.js'
+import { cx } from '../../utils/Cx.js'
 
 type Props = {
   name: PluginIconName

@@ -48,7 +48,7 @@ import {
   APP_ICON_SIZE,
   APP_ICON_STROKE_WIDTH,
   APP_ICON_SIZES,
-} from '../../../components/ui/iconTokens.js'
+} from '../../../components/ui/IconTokens.js'
 import type {
   DesktopPermissionMode,
   DesktopQueuedFollowUp,
@@ -64,15 +64,15 @@ import type {
   LocalRouterMode,
   ModelProviderID,
   SidebarProductMode,
-} from '../../../../shared/types.js'
-import type { ModelPreset } from '../../../modelPresets.js'
+} from '../../../../shared/Types.js'
+import type { ModelPreset } from '../../../ModelPresets.js'
 import { Button } from '../../../components/ui/Button.js'
 import { MetaChip } from '../../../components/ui/MetaChip.js'
 import { SessionFollowUpDock } from '../SessionFollowUpDock.js'
 import { PopoverItem } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
 import { SearchablePopoverContent } from '../../../components/ui/SearchablePopoverContent.js'
-import { buildPopoverSizingStyle } from '../../../components/ui/popoverSizing.js'
+import { buildPopoverSizingStyle } from '../../../components/ui/PopoverSizing.js'
 import { ComposerModeSwitcher } from './ComposerModeSwitcher.js'
 import { ProjectSwitcherPopover } from './ProjectSwitcherPopover.js'
 import { ChatInputDropdown } from './ChatInputDropdown.js'
@@ -83,7 +83,7 @@ import { resolveThinkingLabel, resolveThinkingOptions } from './ThinkingLevelPop
 import { ComposerStatusOverlay } from './ComposerStatusOverlay.js'
 import { ContextUsagePanel } from './ContextUsagePanel.js'
 import { ComputerControlChip } from './ComputerControlChip.js'
-import { usePluginCatalog } from '../../plugins/usePluginCatalog.js'
+import { usePluginCatalog } from '../../plugins/UsePluginCatalog.js'
 import type { ComposerEditorHandle, ComposerEditorProps } from './ComposerEditor.js'
 import {
   DEFAULT_COMPOSER_CAPABILITIES,
@@ -102,11 +102,11 @@ import {
   type ComposerSurface,
   type ComposerUtilityBarVariant,
   type WorkingPlugin,
-} from './composerTypes.js'
+} from './ComposerTypes.js'
 import {
   createComposerDocumentWithSkill,
   skillInvocationFromComposerToken,
-} from './composerSkillToken.js'
+} from './ComposerSkillToken.js'
 import {
   mergeSlashCommands,
   parseSlashInvocation,
@@ -114,39 +114,39 @@ import {
   type ComposerSkillCommand,
   type ComposerSlashCommand,
   type ComposerSlashCommandId,
-} from './composerSlashCommands.js'
-import { useComposerSlashCommands } from './useComposerSlashCommands.js'
-import { isComposerInputEmpty } from './composerTypes.js'
+} from './ComposerSlashCommands.js'
+import { useComposerSlashCommands } from './UseComposerSlashCommands.js'
+import { isComposerInputEmpty } from './ComposerTypes.js'
 import {
   ApprovalRulesDialog,
   ApprovalRetryDialog,
   AutoReviewNudge,
   useApprovalReviewState,
 } from '../approvals/ApprovalManagement.js'
-import { BuiltinSkillIcon, skillScopeLabel } from '../../plugins/builtinSkillPresentation.js'
-import { buildThreadDeepLink } from '@codepilotx/shared/thread-reference'
+import { BuiltinSkillIcon, skillScopeLabel } from '../../plugins/BuiltinSkillPresentation.js'
+import { buildThreadDeepLink } from '@pidex/shared/thread-reference'
 import { desktopClient } from '../../../services/desktop-client/index.js'
 import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog.js'
-import { useApprovalCapability } from '../approvals/useQuestionSkipCapability.js'
+import { useApprovalCapability } from '../approvals/UseQuestionSkipCapability.js'
 import {
   ComposerCommandMenu,
   composerMenuItemId,
   type ComposerMenuItem,
 } from './ComposerCommandMenu.js'
-import { useComposerWorkspaceContext } from './useComposerWorkspaceContext.js'
-import { useComposerSuggestions } from './useComposerSuggestions.js'
-import { useComposerSuggestionMenu } from './useComposerSuggestionMenu.js'
-import { nextEnabledMenuIndex } from './composerSuggestionMenu.js'
-export { getActiveComposerMention } from './composerSuggestionState.js'
+import { useComposerWorkspaceContext } from './UseComposerWorkspaceContext.js'
+import { useComposerSuggestions } from './UseComposerSuggestions.js'
+import { useComposerSuggestionMenu } from './UseComposerSuggestionMenu.js'
+import { nextEnabledMenuIndex } from './ComposerSuggestionMenu.js'
+export { getActiveComposerMention } from './ComposerSuggestionState.js'
 import { SessionGroupEditorDialog } from '../../session-groups/SessionGroupEditorDialog.js'
 import { SessionGroupSwitcherPopover } from '../../session-groups/SessionGroupSwitcherPopover.js'
 import {
   readPreferredSessionGroupId,
   writePreferredSessionGroupId,
-} from '../../session-groups/sessionGroupPreference.js'
-import type { DesktopSessionGroup } from '../../../services/desktop-client/types.js'
-import { formatCompactNumber } from '../../../utils/usageFormatters.js'
-import { cx } from '../../../utils/cx.js'
+} from '../../session-groups/SessionGroupPreference.js'
+import type { DesktopSessionGroup } from '../../../services/desktop-client/Types.js'
+import { formatCompactNumber } from '../../../utils/UsageFormatters.js'
+import { cx } from '../../../utils/Cx.js'
 
 type Option<T extends string> = {
   value: T

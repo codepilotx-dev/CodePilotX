@@ -16,7 +16,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion.js'
+import { usePrefersReducedMotion } from '../../../hooks/UsePrefersReducedMotion.js'
 import {
   exitTween,
   instantTween,
@@ -24,10 +24,10 @@ import {
   motionTransition,
   workspacePanelExitSpring,
   workspacePanelSpring,
-} from '../../motion/motionTransitions.js'
-import type { WorkbenchPanelTarget } from '../dock/rightDockState.js'
-import type { LiveResizeValue } from '../useLiveResizeValue.js'
-import type { ResizePhase } from '../useSidebarResizeCollapseConfirm.js'
+} from '../../motion/MotionTransitions.js'
+import type { WorkbenchPanelTarget } from '../dock/RightDockState.js'
+import type { LiveResizeValue } from '../UseLiveResizeValue.js'
+import type { ResizePhase } from '../UseSidebarResizeCollapseConfirm.js'
 
 type Props = {
   children: React.ReactNode

@@ -7,7 +7,7 @@
  *   decorations of the resizer and the collapse target);
  * - the sidebar density contract (`--sidebar-*`), i.e. runtime geometry that
  *   TSX utilities consume through `var()` and that
- *   `test/sidebar-origin-layout.browser.ts` reads back with getComputedStyle;
+ *   `test/SidebarOriginLayout.browser.ts` reads back with getComputedStyle;
  * - subtree overrides that must reach every descendant regardless of the
  *   component class each child carries: the icon-button size override and the
  *   "grabbing" cursor while a reorder item is being dragged;
@@ -17,7 +17,7 @@
  *   `.sidebar-layout` (settings/SettingsSidebarContent.tsx),
  *   `.settings-nav-*` (settings/SettingsNav.tsx),
  *   `.sidebar-session-list-extra` (anchor of the animation contract in
- *   scripts/check-style-contracts.ts).
+ *   scripts/CheckStyleContracts.ts).
  */
 @layer primitives {
   .sidebar-rail-destinations {
@@ -282,7 +282,7 @@
   }
 
   /*
-   * Animation contract anchor (scripts/check-style-contracts.ts): the extra
+   * Animation contract anchor (scripts/CheckStyleContracts.ts): the extra
    * session list must stay restricted to `overflow: hidden` and never carry a
    * persistent `will-change`.
    */

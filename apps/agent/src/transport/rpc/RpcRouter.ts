@@ -4,7 +4,7 @@ import {
   ThreadSettingsPatchSchema,
   ThreadSettingsSchema,
   type PermissionConfig,
-} from '@codepilotx/shared/thread'
+} from '@pidex/shared/thread'
 import {
   QueueAddParamsSchema,
   QueueInputParamsSchema,
@@ -14,12 +14,12 @@ import {
   TurnInterruptParamsSchema,
   TurnStartParamsSchema,
   TurnSteerParamsSchema,
-} from '@codepilotx/agent-protocol'
+} from '@pidex/agent-protocol'
 import { Effect, Schema } from 'effect'
-import { Model, Provider } from '@codepilotx/model-schema'
+import { Model, Provider } from '@pidex/model-schema'
 import { createHash } from 'node:crypto'
 import type { AgentModelCatalog } from '../../provider/AgentModelCatalog'
-import { AgentError, type SubmitMessage, type TaskMode } from '../../domain'
+import { AgentError, type SubmitMessage, type TaskMode } from '../../Domain'
 import type { ApprovalService } from '../../permission/ApprovalService'
 import type { QuestionService } from '../../session/QuestionService'
 import { PlanApprovalService } from '../../session/plan/PlanApprovalService'
@@ -81,15 +81,15 @@ import { InteractionService } from '../../interaction/InteractionService'
 import { ThreadReadViewRepository } from '../../session/ThreadReadViewRepository'
 import { EventSubscriptionRegistry } from '../EventSubscriptionRegistry'
 import { secretScrubber } from '../../security/SecretScrubber'
-import { createRpcHandlerRegistry } from './registry'
-import type { RpcRouterContext } from './request-context'
-import { decodeRpcParams as decodeParams, rpcRecord as record } from './decoders'
+import { createRpcHandlerRegistry } from './Registry'
+import type { RpcRouterContext } from './RequestContext'
+import { decodeRpcParams as decodeParams, rpcRecord as record } from './Decoders'
 import {
   capabilityRequiredResponse,
   unauthorizedNotificationResponse,
   unauthorizedRequestResponse,
   workspaceFileApplicationErrorCode,
-} from './errors'
+} from './Errors'
 
 export {
   Effect,
@@ -124,8 +124,8 @@ import {
   type RpcMethod,
   type ReviewAiTarget,
   type ReviewSource,
-} from '@codepilotx/agent-protocol'
-import { AllRpcMethods as RpcMethods } from '@codepilotx/agent-protocol/host'
+} from '@pidex/agent-protocol'
+import { AllRpcMethods as RpcMethods } from '@pidex/agent-protocol/host'
 
 import type { BrowserService } from '../../browser/BrowserService'
 
@@ -191,7 +191,7 @@ export type RpcRouterDependencies = {
   memoryManager?: MemoryManager | undefined
 }
 
-export type { RpcRouterContext } from './request-context'
+export type { RpcRouterContext } from './RequestContext'
 
 type ModelCatalogPage = {
   providers: Array<{ provider: Provider.Info; models: Model.Info[] }>

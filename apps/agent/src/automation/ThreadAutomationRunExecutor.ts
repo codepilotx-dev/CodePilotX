@@ -1,6 +1,6 @@
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { ThreadService } from '../session/ThreadService'
-import type { AutomationRepository } from '../storage/repositories/automation-repository'
+import type { AutomationRepository } from '../storage/repositories/AutomationRepository'
 import type { ManagedWorktreeService } from '../worktree/ManagedWorktreeService'
 import type { ThreadExecutionPreparationService } from '../worktree/ThreadExecutionPreparationService'
 import type {

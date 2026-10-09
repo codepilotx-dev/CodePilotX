@@ -1,21 +1,21 @@
 import type React from 'react'
 import { Dropdown as DropdownMenu } from '../../../components/ui/floating/Dropdown.js'
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import type { DesktopReviewSource } from '../../../../shared/types.js'
+import type { DesktopReviewSource } from '../../../../shared/Types.js'
 import {
   PopoverItem,
   PopoverRadioGroup,
   PopoverRadioItem,
 } from '../../../components/ui/PopoverItem.js'
 import { PopoverMenu } from '../../../components/ui/PopoverMenu.js'
-import { buildPopoverSizingStyle } from '../../../components/ui/popoverSizing.js'
-import { APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { buildPopoverSizingStyle } from '../../../components/ui/PopoverSizing.js'
+import { APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import {
   pickDefaultReviewBaseBranch,
   reviewSourceLabel,
   type ReviewBranch,
   type ReviewCommit,
-} from './reviewAgentClient.js'
+} from './ReviewAgentClient.js'
 
 type ReviewSourceMenuProps = {
   supportsUncommitted?: boolean

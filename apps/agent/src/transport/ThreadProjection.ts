@@ -1,4 +1,4 @@
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type {
   ApprovalRequest,
   AgentExecution as WireAgentExecution,
@@ -16,7 +16,7 @@ import type {
   PlanApproval,
   ThreadTurnBundle,
   Turn,
-} from '@codepilotx/shared/thread'
+} from '@pidex/shared/thread'
 import { realpathSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
@@ -26,12 +26,12 @@ import {
   InteractionQuestionSchema,
   InteractionQuestionAnswerSchema,
   WorktreeStatusSchema,
-} from '@codepilotx/shared/thread'
+} from '@pidex/shared/thread'
 import { Schema } from 'effect'
-import type { AgentExecution, EventEnvelope, Item as StoredItem } from '../domain'
+import type { AgentExecution, EventEnvelope, Item as StoredItem } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
-import { probeThreadsStorageCapabilities } from '../storage/database/storage-capabilities'
-import { THREAD_ORIGIN_PROJECTION_SQL } from '../storage/repositories/thread-repository'
+import { probeThreadsStorageCapabilities } from '../storage/database/StorageCapabilities'
+import { THREAD_ORIGIN_PROJECTION_SQL } from '../storage/repositories/ThreadRepository'
 import { SubagentRepository } from '../subagent/SubagentRepository'
 import { classifyToolActivity, storedToolActivity } from '../tool/ToolActivityClassifier'
 

@@ -1,9 +1,9 @@
 import React from 'react'
 import { Check, CircleAlert, CircleStop, LoaderCircle, WrapText } from 'lucide-react'
-import type { Item } from '@codepilotx/shared/thread'
-import { APP_ICON_SIZES, APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
-import { useScrollEdgeState } from '../../../hooks/useScrollEdgeState.js'
-import { useCodeWrapPreference } from '../../syntax/wrapPreference.js'
+import type { Item } from '@pidex/shared/thread'
+import { APP_ICON_SIZES, APP_ICON_SIZE } from '../../../components/ui/IconTokens.js'
+import { useScrollEdgeState } from '../../../hooks/UseScrollEdgeState.js'
+import { useCodeWrapPreference } from '../../syntax/WrapPreference.js'
 import { CopyButton } from './CopyButton.js'
 
 type ToolItem = Extract<Item, { type: 'tool' }>

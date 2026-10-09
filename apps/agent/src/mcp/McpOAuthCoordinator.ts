@@ -2,7 +2,7 @@ import type {
   McpRuntimeServerAuth,
   McpSanitizedError,
   McpServerDeclaration,
-} from '@codepilotx/agent-protocol'
+} from '@pidex/agent-protocol'
 import {
   adaptOAuthProvider,
   authorizeMcp,
@@ -115,7 +115,7 @@ class StoredOAuthProvider implements OAuthClientProvider {
       token_endpoint_auth_method: 'none',
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
-      client_name: 'CodePilotX',
+      client_name: 'Pidex',
       software_id: 'codepilotx',
       software_version: '0.2.0',
       ...(this.scopes.length ? { scope: this.scopes.join(' ') } : {}),
@@ -407,7 +407,7 @@ export class McpOAuthCoordinator {
     const createdAt = this.now()
     const timeoutMs = server.startupTimeoutMs ?? 10_000
     const client = new McpClient({
-      name: 'codepilotx-agent',
+      name: 'pidex-agent',
       version: '0.2.0',
       capabilities: {},
       requestTimeoutMs: timeoutMs,

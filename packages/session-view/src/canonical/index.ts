@@ -11,8 +11,8 @@ import type {
   Thread,
   ThreadSnapshot,
   Turn,
-} from '@codepilotx/shared/thread'
-import type { EventEnvelope, RpcResult } from '@codepilotx/agent-protocol'
+} from '@pidex/shared/thread'
+import type { EventEnvelope, RpcResult } from '@pidex/agent-protocol'
 
 export type ThreadEventEnvelopeLike = EventEnvelope
 

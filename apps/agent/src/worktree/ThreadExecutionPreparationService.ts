@@ -1,4 +1,4 @@
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 import type { AgentDatabase } from '../storage/database/AgentDatabase'
 import type { EnvironmentDeltaStore } from '../local-environment/EnvironmentDeltaStore'
 import type { TaskExecutionBindingService } from './TaskExecutionBindingService'

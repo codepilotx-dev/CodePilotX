@@ -4,9 +4,9 @@ import {
   ArtifactRepository,
   type NewArtifactRecord,
   type StoredArtifact,
-} from './repositories/artifact-repository'
+} from './repositories/ArtifactRepository'
 import { ContentBlobStore } from './ContentBlobStore'
-import { AgentError } from '../domain'
+import { AgentError } from '../Domain'
 
 export type ArtifactBlobInput = {
   artifactId: string

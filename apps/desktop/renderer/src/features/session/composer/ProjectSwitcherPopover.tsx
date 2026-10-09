@@ -1,13 +1,13 @@
 import type React from 'react'
 import { useMemo, useState } from 'react'
 import { Check, Folder, FolderPlus, FolderX, GitFork } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../../components/ui/IconTokens.js'
 import {
   SearchablePopoverAction,
   SearchablePopoverContent,
 } from '../../../components/ui/SearchablePopoverContent.js'
-import type { PopoverSizingProps } from '../../../components/ui/popoverSizing.js'
-import type { DesktopWorkspace } from '../../../../shared/types.js'
+import type { PopoverSizingProps } from '../../../components/ui/PopoverSizing.js'
+import type { DesktopWorkspace } from '../../../../shared/Types.js'
 
 type Props = {
   recentWorkspaces: DesktopWorkspace[]

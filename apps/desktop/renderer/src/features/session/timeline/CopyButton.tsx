@@ -1,7 +1,7 @@
 import React from 'react'
 import { Check, Copy } from 'lucide-react'
 
-import { APP_ICON_SIZE } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
 import { Tooltip } from '../../../components/ui/Tooltip.js'
 import { desktopClipboard } from '../../../services/desktop-client/index.js'

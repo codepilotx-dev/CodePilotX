@@ -1,5 +1,5 @@
 import React from 'react'
-import { CAPABILITIES } from '../constants/content'
+import { CAPABILITIES } from '../constants/Content'
 import { Boxes, Blocks, Globe, Clock, Users2 } from 'lucide-react'
 
 const CAPABILITY_ICONS = [Boxes, Blocks, Globe, Clock, Users2]
@@ -17,7 +17,7 @@ export const CapabilitiesGrid: React.FC = () => {
             Engineered for expansion.
           </h2>
           <p className="mt-4 text-base sm:text-lg text-[#55625D]">
-            Beyond core file manipulation, CodePilotX integrates protocols, browsers, timers, and
+            Beyond core file manipulation, Pidex integrates protocols, browsers, timers, and
             multi-agent coordination.
           </p>
         </div>

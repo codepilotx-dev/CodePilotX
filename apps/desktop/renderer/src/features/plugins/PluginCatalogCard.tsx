@@ -3,18 +3,18 @@ import { useRef } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { Button } from '../../components/ui/Button.js'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch.js'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/iconTokens.js'
-import type { PluginCatalogItem } from './pluginCatalog.js'
-import { pluginPrimaryAction, pluginStatusLabel } from './pluginCatalog.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../components/ui/IconTokens.js'
+import type { PluginCatalogItem } from './PluginCatalog.js'
+import { pluginPrimaryAction, pluginStatusLabel } from './PluginCatalog.js'
 import { PluginIcon } from './PluginIcon.js'
-import { cx } from '../../utils/cx.js'
+import { cx } from '../../utils/Cx.js'
 import {
   FORCED_COLORS_FOCUS_CLASS,
   FORCED_COLORS_SURFACE_CLASS,
   PLAIN_BUTTON_CLASS,
   STACKED_COPY_CLASS,
   TRUNCATED_LINE_CLASS,
-} from './catalogClassNames.js'
+} from './CatalogClassNames.js'
 
 type Props = {
   item: PluginCatalogItem

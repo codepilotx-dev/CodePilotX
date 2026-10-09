@@ -2,7 +2,7 @@ import React from 'react'
 import { Button } from '../../components/ui/Button.js'
 import { Checkbox } from '../../components/ui/Checkbox.js'
 import { RadioGroup, RadioItem } from '../../components/ui/RadioGroup.js'
-import type { DesktopPermissionDecision, DesktopPermissionRequest } from '../../../shared/types.js'
+import type { DesktopPermissionDecision, DesktopPermissionRequest } from '../../../shared/Types.js'
 import {
   CUSTOM_OPTION_ID,
   buildAskUserQuestionUpdatedInput,
@@ -12,7 +12,7 @@ import {
   selectQuestionOption,
   type AskUserQuestion,
   type QuestionState,
-} from '../session/approvals/askUserQuestionModel.js'
+} from '../session/approvals/AskUserQuestionModel.js'
 
 export type PetQuickReplyProps = {
   request: DesktopPermissionRequest

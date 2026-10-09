@@ -1,5 +1,5 @@
 import type React from 'react'
-import type { WorkspaceLayout } from '../dock/rightDockState.js'
+import type { WorkspaceLayout } from '../dock/RightDockState.js'
 import { ToastStack } from '../../../components/toast/ToastStack.js'
 
 export interface WorkbenchShellViewProps {

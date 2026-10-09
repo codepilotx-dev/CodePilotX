@@ -2,19 +2,19 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollArea } from '../../components/ui/ScrollArea.js'
 import { ArrowLeft } from 'lucide-react'
 import { SearchInput } from '../../components/ui/SearchInput.js'
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
 import { SidebarRow } from '../layout/sidebar/SidebarRow.js'
 import {
   SETTINGS_GROUPS,
   SETTINGS_SEARCH_DOCUMENTS,
   type SettingsSearchDocument,
-} from './settingsRegistry.js'
+} from './SettingsRegistry.js'
 import {
   resolveSettingsSectionVisibility,
   useSettingsCapabilityState,
-} from './useSettingsSectionVisibility.js'
+} from './UseSettingsSectionVisibility.js'
 import { useLocale } from '../i18n/LocaleProvider.js'
-import { moveFocusOnArrowKey } from '../../utils/arrowListFocus.js'
+import { moveFocusOnArrowKey } from '../../utils/ArrowListFocus.js'
 
 type Props = {
   activeTab: string

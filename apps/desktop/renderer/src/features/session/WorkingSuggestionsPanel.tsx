@@ -1,7 +1,7 @@
-import { APP_ICON_SIZE } from '../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE } from '../../components/ui/IconTokens.js'
 import type React from 'react'
 import { ArrowLeft, FilePlus2, LayoutTemplate, ListChecks, RefreshCw, Search } from 'lucide-react'
-import type { WorkingSuggestionState } from './workingSuggestions.js'
+import type { WorkingSuggestionState } from './WorkingSuggestions.js'
 import {
   SUGGESTION_HEADING_ACTION_CLASS,
   SUGGESTION_HEADING_CLASS,
@@ -15,7 +15,7 @@ import {
   type WorkingSuggestionCategoryId,
   type WorkingContextualSuggestion,
   type WorkingSuggestionTask,
-} from './workingSuggestions.js'
+} from './WorkingSuggestions.js'
 
 const CATEGORY_ICONS: Record<
   WorkingSuggestionCategoryId,

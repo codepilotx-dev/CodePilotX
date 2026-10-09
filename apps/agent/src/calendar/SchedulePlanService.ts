@@ -1,24 +1,24 @@
-import type { CalendarSourceRef } from '@codepilotx/shared/calendar'
+import type { CalendarSourceRef } from '@pidex/shared/calendar'
 import type {
   SchedulePlanExecutionDefaults,
   SchedulePlanHorizon,
   SchedulePlanItemDraft,
   SchedulePlanProposal,
-} from '@codepilotx/shared/schedule-plan'
-import type { Automation } from '@codepilotx/shared/automation'
-import type { ScheduledTask } from '@codepilotx/shared/scheduled-task'
+} from '@pidex/shared/schedule-plan'
+import type { Automation } from '@pidex/shared/automation'
+import type { ScheduledTask } from '@pidex/shared/scheduled-task'
 import {
   normalizeScheduledPermission,
   validateAutomationDefinition,
 } from '../automation/AutomationService'
-import { canonicalizeAutomationSchedule, nextAutomationOccurrence } from '../automation/schedule'
-import { AgentError } from '../domain'
-import type { AutomationRepository } from '../storage/repositories/automation-repository'
+import { canonicalizeAutomationSchedule, nextAutomationOccurrence } from '../automation/Schedule'
+import { AgentError } from '../Domain'
+import type { AutomationRepository } from '../storage/repositories/AutomationRepository'
 import type {
   ScheduleCalendarDatabase,
   SchedulePlanProposalRepository,
   ScheduledTaskRepository,
-} from '../storage/repositories/scheduled-task-repository'
+} from '../storage/repositories/ScheduledTaskRepository'
 import { prepareScheduledTaskDefinition } from './ScheduledTaskService'
 
 export type SchedulePlanProposalInput = {

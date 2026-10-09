@@ -4,7 +4,7 @@ import {
   type ToolActivityDescriptor,
   type ToolActivityFileChange,
   type ToolActivityTarget,
-} from '@codepilotx/shared/thread'
+} from '@pidex/shared/thread'
 import { Schema } from 'effect'
 
 import type { WorkspaceService } from '../workspace/WorkspaceService'

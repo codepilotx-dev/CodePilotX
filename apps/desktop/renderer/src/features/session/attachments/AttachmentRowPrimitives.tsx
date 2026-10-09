@@ -1,12 +1,12 @@
 import { FileText, Image, ImageOff, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '../../../components/ui/Button.js'
-import { cx } from '../../../utils/cx.js'
+import { cx } from '../../../utils/Cx.js'
 import {
   APP_ICON_SIZE,
   APP_ICON_SIZES,
   APP_ICON_STROKE_WIDTH,
-} from '../../../components/ui/iconTokens.js'
+} from '../../../components/ui/IconTokens.js'
 
 /*
  * Shared attachment rows. The image tile keeps its geometry in

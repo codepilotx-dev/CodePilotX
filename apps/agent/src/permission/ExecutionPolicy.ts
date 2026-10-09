@@ -1,4 +1,4 @@
-import type { PermissionConfig, SandboxMode } from '@codepilotx/shared/thread'
+import type { PermissionConfig, SandboxMode } from '@pidex/shared/thread'
 
 export type FileAccessProfile = 'read-only' | 'workspace-write' | 'full-access'
 

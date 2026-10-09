@@ -1,13 +1,13 @@
 import type React from 'react'
-import type { DesktopContextUsage } from '../../../../shared/types.js'
-import { formatCompactNumber } from '../../../utils/usageFormatters.js'
+import type { DesktopContextUsage } from '../../../../shared/Types.js'
+import { formatCompactNumber } from '../../../utils/UsageFormatters.js'
 import {
   CONTEXT_USAGE_BREAKDOWN_LABELS,
   buildContextUsageBreakdownSegments,
   contextUsageSegmentColor,
   formatCacheHitRate,
   formatPercentValue,
-} from './contextUsageBreakdown.js'
+} from './ContextUsageBreakdown.js'
 
 type Props = {
   contextUsage: DesktopContextUsage | null

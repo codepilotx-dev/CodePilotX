@@ -1,4 +1,4 @@
-import { AgentError } from '../../domain'
+import { AgentError } from '../../Domain'
 import type { ManagedWorktreeService } from '../../worktree/ManagedWorktreeService'
 import type { WorktreeRepository } from '../../worktree/WorktreeRepository'
 import { ConversationHistoryForkRepository } from './ConversationHistoryForkRepository'

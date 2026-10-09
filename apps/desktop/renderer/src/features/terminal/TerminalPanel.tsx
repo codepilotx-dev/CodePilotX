@@ -4,24 +4,24 @@ import { Terminal } from '@xterm/xterm'
 import type {
   DesktopTerminalEvent,
   DesktopTerminalSnapshot,
-} from '@codepilotx/shared/desktop-terminal-ipc'
+} from '@pidex/shared/desktop-terminal-ipc'
 import React, { use, useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button.js'
-import { getEffectiveReducedMotion } from '../../hooks/usePrefersReducedMotion.js'
+import { getEffectiveReducedMotion } from '../../hooks/UsePrefersReducedMotion.js'
 import { loadDesktopTerminalClient } from '../../services/desktop-client/index.js'
-import { getResizeActivityCoordinator } from '../layout/shell/resizeActivityCoordinator.js'
-import { useDesktopSettings } from '../settings/useDesktopSettings.js'
+import { getResizeActivityCoordinator } from '../layout/shell/ResizeActivityCoordinator.js'
+import { useDesktopSettings } from '../settings/UseDesktopSettings.js'
 import {
   consumeTerminalEvent,
   consumeTerminalSnapshot,
   createTerminalOutputState,
   type TerminalOutputState,
   type TerminalOutputUpdate,
-} from './terminalOutputState.js'
+} from './TerminalOutputState.js'
 import '../../styles/lazy/terminal.css'
-import { OPEN_TERMINAL_EVENT, type OpenTerminalEventDetail } from './openTerminalEvent.js'
-import { readTerminalFont, readTerminalTheme } from './terminalTheme.js'
-import { errorMessageOf as errorMessage } from '@codepilotx/shared/errors'
+import { OPEN_TERMINAL_EVENT, type OpenTerminalEventDetail } from './OpenTerminalEvent.js'
+import { readTerminalFont, readTerminalTheme } from './TerminalTheme.js'
+import { errorMessageOf as errorMessage } from '@pidex/shared/errors'
 
 export type TerminalPanelProps = {
   threadId: string

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
 const root = resolve('.')
-const dir = await mkdtemp(join(tmpdir(), 'codepilotx-menu-smoke-'))
+const dir = await mkdtemp(join(tmpdir(), 'pidex-menu-smoke-'))
 const bun = 'C:/nvm4w/nodejs/node_modules/bun/bin/bun.exe'
 let app
 try {

@@ -1,8 +1,8 @@
 import type React from 'react'
 import { PanelBottom, PanelRight } from 'lucide-react'
-import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/iconTokens.js'
+import { APP_ICON_SIZE, APP_ICON_STROKE_WIDTH } from '../../../components/ui/IconTokens.js'
 import { Button } from '../../../components/ui/Button.js'
-import type { WorkspaceLayout } from './rightDockState.js'
+import type { WorkspaceLayout } from './RightDockState.js'
 
 export type WorkspaceShellControlsProps = {
   workspaceLayout: WorkspaceLayout

@@ -1,12 +1,12 @@
 import type React from 'react'
 import { useMemo } from 'react'
 import { FolderOpen, MessageSquare, Pin, PinOff, Settings } from 'lucide-react'
-import type { DesktopWorkspace, ProjectAppearance } from '../../../shared/types.js'
+import type { DesktopWorkspace, ProjectAppearance } from '../../../shared/Types.js'
 import { Button } from '../../components/ui/Button.js'
 
-import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/iconTokens.js'
-import { cx } from '../../utils/cx.js'
-import { ProjectAppearanceGlyph } from './projectAppearance.js'
+import { APP_ICON_SIZE, APP_ICON_SIZES } from '../../components/ui/IconTokens.js'
+import { cx } from '../../utils/Cx.js'
+import { ProjectAppearanceGlyph } from './ProjectAppearance.js'
 import {
   SidebarHoverCardFrame,
   SidebarHoverCardHeader,
