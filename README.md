@@ -4,8 +4,8 @@
 
 _Open-source, Windows-first desktop workspace for AI-assisted coding._
 
-[![GitHub Release](https://img.shields.io/github/v/release/codepilotx-dev/CodePilotX?include_prereleases&label=release)](https://github.com/codepilotx-dev/CodePilotX/releases)
-[![License](https://img.shields.io/github/license/codepilotx-dev/CodePilotX)](LICENSE)
+[![GitHub Release](https://img.shields.io/github/v/release/codepilotx-dev/Pidex?include_prereleases&label=release)](https://github.com/codepilotx-dev/Pidex/releases)
+[![License](https://img.shields.io/github/license/codepilotx-dev/Pidex)](LICENSE)
 
 > [!IMPORTANT]
 > Pidex 当前处于 Beta 阶段，仅发布源码；运行环境为 Windows x64，使用者需自行构建。
@@ -39,7 +39,7 @@ _Open-source, Windows-first desktop workspace for AI-assisted coding._
 
 ## 下载与安装
 
-前往 [GitHub Releases](https://github.com/codepilotx-dev/CodePilotX/releases)，下载最新版本的 `Source code (zip)` 或 `Source code (tar.gz)`。仓库不提供预构建安装程序；Windows x64 使用者需在源码目录自行打包：
+前往 [GitHub Releases](https://github.com/codepilotx-dev/Pidex/releases)，下载最新版本的 `Source code (zip)` 或 `Source code (tar.gz)`。仓库不提供预构建安装程序；Windows x64 使用者需在源码目录自行打包：
 
 ```powershell
 bun install --frozen-lockfile
@@ -56,8 +56,8 @@ pwsh -NoProfile -File scripts/smoke-installed-win-x64.ps1
 环境要求：Windows、Git、Bun 1.3.14。
 
 ```powershell
-git clone https://github.com/codepilotx-dev/CodePilotX.git
-Set-Location CodePilotX
+git clone https://github.com/codepilotx-dev/Pidex.git
+Set-Location Pidex
 bun install --frozen-lockfile
 # 终端 A：启动并持有开发 Agent
 bun run dev:agent

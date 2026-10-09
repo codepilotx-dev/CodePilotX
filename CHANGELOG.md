@@ -40,10 +40,16 @@
 
 ### Changed
 
+- [repo/website] 本地 Codex 环境显示名、格式配置注释和官网分享卡片同步使用 Pidex，保留既有数据路径及兼容配置键。
+
+- [repo] GitHub 仓库更名为 codepilotx-dev/Pidex，同步官网、文档、安全报告、版本记录、安装包更新地址与 CI 发布身份校验。
+
+- [desktop/website] 品牌标识统一替换为 Pidex 墨绿主标，启动页与 QuickChat 保留主题适配及扫光效果，Windows 应用图标和桌面、官网 favicon 从同一 SVG 导出。
+
 - [repo] 产品统一更名为 Pidex Desktop：根包与 workspace 包改为 `@pidex/*`，自有 TS/TSX/CTS/MTS 模块文件统一为 PascalCase，preload 桥接对象改为 `window.DesktopBridge`，自有类型、主题模块与环境标识移除 CodePilotX/Codex 品牌前缀；安装产物改为 `Pidex Desktop.exe`、`Pidex-Desktop-${version}-${arch}.exe` 与 `pidex-agent.exe`，窗口标题、启动页、菜单、设置、通知与网站文案同步更新。
 - [desktop/agent] 深链新增 `pidex://threads/<id>`，解析与 Windows 协议注册同时支持已有 `codepilotx://` 链接，复用原解析与安全校验。
 - [desktop] Electron 默认 `userData` 固定到改名前的 `%APPDATA%\@codepilotx\desktop-electron`，避免产品名变化导致设置、会话索引与浏览器分区状态失联；显式指定目录的优先级不变。
-- [repo] 保留 SQLite application ID 与 schema、存储格式标识、已有设置键、IPC channel、环境变量、`.codepilotx` 数据/配置目录、安装身份 `com.codepilotx.desktop` 与 GitHub 发布地址；真实 Codex Provider、模型标识、外部命令与第三方署名保持准确。
+- [repo] 保留 SQLite application ID 与 schema、存储格式标识、已有设置键、IPC channel、环境变量、`.codepilotx` 数据/配置目录、安装身份 `com.codepilotx.desktop`；真实 Codex Provider、模型标识、外部命令与第三方署名保持准确。
 
 - [desktop/agent] 代码审查的自动刷新改为工作区变化停止 60 秒后执行：Git 变化只重置尾部防抖计时器，首次打开、切换来源、手动刷新以及暂存/撤销后的刷新仍立即执行；自动刷新遇到 `REVIEW_REPOSITORY_BUSY` 时保留当前列表与 diff、结束 loading 并在 60 秒后重试且不弹出共享错误，手动刷新继续反馈错误；Agent 侧不再抑制同一项目的后续变化通知。
 

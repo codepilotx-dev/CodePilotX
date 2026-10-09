@@ -93,7 +93,7 @@ Git 标签格式：`v<根 package.json 的 version>`。
    ```
 
 8. 推送 `v*` 标签后，GitHub-hosted runner 校验标签目标属于 `main`、验证标签与根版本一致，并从对应的 CHANGELOG 归档区段生成 Release 正文。
-9. CI 在 `codepilotx-dev/CodePilotX` 创建不含附件的 GitHub Release；GitHub 自动提供 `Source code (zip)` 与 `Source code (tar.gz)`，使用者在 Windows x64 上自行运行 `bun run package:win`。
+9. CI 在 `codepilotx-dev/Pidex` 创建不含附件的 GitHub Release；GitHub 自动提供 `Source code (zip)` 与 `Source code (tar.gz)`，使用者在 Windows x64 上自行运行 `bun run package:win`。
 10. Beta/Alpha/RC 的人工确认发生在创建和推送签名标签的时刻；稳定版还额外经过 `release` Environment 的审批。
 
 预发布标签（`alpha.N`、`beta.N`、`rc.N`）会创建 prerelease；无后缀版本会创建正式 Release。已发布 Release 不可覆盖；相同标签已发布时工作流失败关闭。发布工作流会验证 Release API 的附件数为 0，避免重新引入安装包、更新元数据或其他二进制附件。
@@ -102,7 +102,7 @@ Git 标签格式：`v<根 package.json 的 version>`。
 
 ## 迁移到组织仓库
 
-首次公开发布前，将当前仓库通过 GitHub Transfer 转移到 `codepilotx-dev/CodePilotX`，并逐项确认：
+首次公开发布前，将当前仓库通过 GitHub Transfer 转移到 `codepilotx-dev/Pidex`，并逐项确认：
 
 - 本地 `origin` 已更新为组织仓库地址，拉取和推送均正常。
 - Actions 的 Workflow permissions 允许工作流使用 `contents: write` 创建 Release。
@@ -112,7 +112,7 @@ Git 标签格式：`v<根 package.json 的 version>`。
 - 仓库可见性符合发布阶段：调试期可保持私有，正式发布前再公开。
 - 使用测试仓库或契约测试验证 source-only 工作流配置；以上项目全部确认前，不推送首个公开版本标签。
 
-发布工作流带有仓库身份保护，仅允许在 `codepilotx-dev/CodePilotX` 创建 Release，避免转移前误发到个人仓库。
+发布工作流带有仓库身份保护，仅允许在 `codepilotx-dev/Pidex` 创建 Release，避免转移前误发到个人仓库。
 
 ## 常用命令
 

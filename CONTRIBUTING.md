@@ -16,8 +16,8 @@
 需要 Windows、Git 和 Bun 1.3.14。
 
 ```powershell
-git clone https://github.com/codepilotx-dev/CodePilotX.git
-Set-Location CodePilotX
+git clone https://github.com/codepilotx-dev/Pidex.git
+Set-Location Pidex
 bun install --frozen-lockfile
 bun run dev
 ```

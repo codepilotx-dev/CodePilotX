@@ -14,7 +14,7 @@ Pidex 会处理本地源码、命令执行、模型凭据和桌面应用更新�
 
 ## 私密报告漏洞
 
-请使用 GitHub 的 [Private Vulnerability Reporting](https://github.com/codepilotx-dev/CodePilotX/security/advisories/new) 提交报告。若该入口暂时不可用，请通过维护者 GitHub 资料页的私密联系方式告知入口故障；不要改为公开披露漏洞细节。
+请使用 GitHub 的 [Private Vulnerability Reporting](https://github.com/codepilotx-dev/Pidex/security/advisories/new) 提交报告。若该入口暂时不可用，请通过维护者 GitHub 资料页的私密联系方式告知入口故障；不要改为公开披露漏洞细节。
 
 报告应尽量包括：
 
